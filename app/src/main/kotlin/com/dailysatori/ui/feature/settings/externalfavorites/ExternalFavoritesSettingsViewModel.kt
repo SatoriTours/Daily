@@ -8,6 +8,7 @@ import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.worker.ExternalFavoriteSyncWorker
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.asynctask.AsyncTaskStatus
@@ -31,6 +32,7 @@ import kotlinx.datetime.toLocalDateTime
 
 data class ExternalFavoritesSettingsState(
     val sources: List<ExternalFavoriteSourceUi> = emptyList(),
+    val syncedItemCount: Long = 0,
     val message: String? = null,
     val syncingSourceId: Long? = null,
     val syncWorkBySourceId: Map<Long, ExternalFavoriteSyncWorkUi> = emptyMap(),
@@ -40,6 +42,7 @@ data class ExternalFavoritesSettingsState(
 data class ExternalFavoriteSourceUi(
     val source: External_favorite_source,
     val health: ExternalSourceHealth,
+    val syncedItemCount: Long = 0,
 ) {
     val id: Long get() = source.id
     val enabled: Boolean get() = source.enabled == 1L
@@ -75,6 +78,7 @@ data class ExternalFavoriteSyncWorkUi(
 
 class ExternalFavoritesSettingsViewModel(
     private val sourceRepo: ExternalFavoriteSourceRepository,
+    private val itemRepo: ExternalFavoriteItemRepository,
     private val scheduler: ExternalFavoriteSyncScheduler,
     private val asyncTaskRepo: AsyncTaskRepository,
     private val xOAuthCoordinator: XOAuthCoordinator,
@@ -91,7 +95,8 @@ class ExternalFavoritesSettingsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update {
                 it.copy(
-                    sources = sourceRepo.getAll().map(::toUiSource),
+                    sources = loadUiSources(),
+                    syncedItemCount = itemRepo.count(),
                     xOAuthClientId = settingRepo.get(SettingKeys.xOAuthClientId).orEmpty(),
                 )
             }
@@ -126,6 +131,10 @@ class ExternalFavoritesSettingsViewModel(
 
     fun syncNow(sourceId: Long) {
         enqueueManualSync(sourceId, FavoriteSyncMode.sync)
+    }
+
+    fun fullSyncNow(sourceId: Long) {
+        enqueueManualSync(sourceId, FavoriteSyncMode.full_rescan)
     }
 
     fun cancelSync(sourceId: Long) {
@@ -163,7 +172,8 @@ class ExternalFavoritesSettingsViewModel(
             }
             _state.update {
                 it.copy(
-                    sources = sourceRepo.getAll().map(::toUiSource),
+                    sources = loadUiSources(),
+                    syncedItemCount = itemRepo.count(),
                     message = if (enabled) "外部收藏同步已启用" else "外部收藏同步已停用",
                 )
             }
@@ -176,7 +186,8 @@ class ExternalFavoritesSettingsViewModel(
             scheduler.cancelPeriodic(sourceId)
             _state.update {
                 it.copy(
-                    sources = sourceRepo.getAll().map(::toUiSource),
+                    sources = loadUiSources(),
+                    syncedItemCount = itemRepo.count(),
                     message = "外部收藏来源已删除",
                     syncingSourceId = if (it.syncingSourceId == sourceId) null else it.syncingSourceId,
                 )
@@ -189,7 +200,7 @@ class ExternalFavoritesSettingsViewModel(
             sourceRepo.markAuthCheckRequiredAfterRestore()
             _state.update {
                 it.copy(
-                    sources = sourceRepo.getAll().map(::toUiSource),
+                    sources = loadUiSources(),
                     message = "已标记需要重新验证授权",
                 )
             }
@@ -202,9 +213,12 @@ class ExternalFavoritesSettingsViewModel(
 
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
         if (_state.value.syncingSourceId != null) return
-        _state.update { it.copy(syncingSourceId = sourceId, message = null) }
         _state.update { state ->
-            state.copy(syncWorkBySourceId = state.syncWorkBySourceId + (sourceId to externalFavoriteQueuedSyncWork()))
+            state.copy(
+                syncingSourceId = sourceId,
+                message = null,
+                syncWorkBySourceId = state.syncWorkBySourceId + (sourceId to externalFavoriteQueuedSyncWork(mode)),
+            )
         }
         observeSyncWork(sourceId, mode)
         viewModelScope.launch(Dispatchers.IO) {
@@ -218,10 +232,11 @@ class ExternalFavoritesSettingsViewModel(
                         syncWorkBySourceId = if (taskId == null) {
                             it.syncWorkBySourceId
                         } else {
-                            val current = it.syncWorkBySourceId[sourceId] ?: externalFavoriteQueuedSyncWork()
+                            val current = it.syncWorkBySourceId[sourceId] ?: externalFavoriteQueuedSyncWork(mode)
                             it.syncWorkBySourceId + (sourceId to current.copy(taskId = taskId))
                         },
-                        sources = sourceRepo.getAll().map(::toUiSource),
+                        sources = loadUiSources(),
+                        syncedItemCount = itemRepo.count(),
                     )
                 }
             } catch (_: Exception) {
@@ -263,15 +278,18 @@ class ExternalFavoritesSettingsViewModel(
         _state.update { state -> externalFavoriteApplySyncWorkState(state, sourceId, workUi) }
     }
 
-    private fun toUiSource(source: External_favorite_source): ExternalFavoriteSourceUi =
-        ExternalFavoriteSourceUi(
-            source = source,
-            health = sourceHealth(
-                status = source.status,
-                lastSuccessAt = source.last_success_at,
-                lastErrorCode = source.last_error_code,
-            ),
-        )
+    private fun loadUiSources(): List<ExternalFavoriteSourceUi> =
+        sourceRepo.getAll().map { source ->
+            ExternalFavoriteSourceUi(
+                source = source,
+                health = sourceHealth(
+                    status = source.status,
+                    lastSuccessAt = source.last_success_at,
+                    lastErrorCode = source.last_error_code,
+                ),
+                syncedItemCount = itemRepo.countBySource(source.id),
+            )
+        }
 }
 
 private val finishedWorkStates = setOf(
@@ -295,6 +313,7 @@ internal fun externalFavoriteApplySyncWorkState(
             else -> false
         }
     val nextMap = when {
+        workUi == null && currentWork?.active == true -> state.syncWorkBySourceId
         workUi == null -> state.syncWorkBySourceId - sourceId
         staleFinishedTask -> state.syncWorkBySourceId
         workUi.state in finishedWorkStates -> state.syncWorkBySourceId - sourceId
@@ -315,7 +334,7 @@ private fun WorkInfo.toExternalFavoriteSyncWorkUi(): ExternalFavoriteSyncWorkUi 
     ExternalFavoriteSyncWorkUi(
         state = state,
         pagesSeen = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_PAGES_SEEN, 0),
-        maxPages = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_MAX_PAGES, 3).coerceAtLeast(1),
+        maxPages = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_MAX_PAGES, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES).coerceAtLeast(1),
         itemsSeen = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_ITEMS_SEEN, 0),
         phase = progress.getString(ExternalFavoriteSyncWorker.PROGRESS_PHASE).orEmpty(),
         historyComplete = progress.getBoolean(ExternalFavoriteSyncWorker.PROGRESS_HISTORY_COMPLETE, false),
@@ -337,12 +356,12 @@ fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyn
     )
 }
 
-private fun externalFavoriteQueuedSyncWork(): ExternalFavoriteSyncWorkUi =
+private fun externalFavoriteQueuedSyncWork(mode: FavoriteSyncMode = FavoriteSyncMode.sync): ExternalFavoriteSyncWorkUi =
     ExternalFavoriteSyncWorkUi(
         createdAt = Clock.System.now().toEpochMilliseconds(),
         state = WorkInfo.State.ENQUEUED,
         pagesSeen = 0,
-        maxPages = 3,
+        maxPages = externalFavoriteDefaultMaxPages(mode),
         itemsSeen = 0,
         phase = "",
     )
@@ -491,7 +510,7 @@ fun externalFavoriteSyncProgressFraction(work: ExternalFavoriteSyncWorkUi): Floa
     "repair" -> 0.88f
     "organize" -> 0.94f
     "complete" -> 0.72f
-    else -> (work.pagesSeen.toFloat() / work.maxPages.coerceAtLeast(1)).coerceIn(0f, 0.72f)
+    else -> (work.pagesSeen.toFloat() / work.maxPages.coerceAtLeast(1)).coerceIn(0.04f, 0.72f)
 }
 
 fun externalFavoriteProgressMetrics(
@@ -505,9 +524,20 @@ fun externalFavoriteProgressMetrics(
 
 fun externalFavoriteRunningDetailLines(work: ExternalFavoriteSyncWorkUi): List<ExternalFavoriteDetailLine> = listOf(
     ExternalFavoriteDetailLine("当前阶段", externalFavoriteRunningPhaseLabel(work.phase)),
-    ExternalFavoriteDetailLine("同步策略", "每次最多 ${work.maxPages.coerceAtLeast(1)} 页 / 300 条"),
+    ExternalFavoriteDetailLine("同步策略", "每页 ${externalFavoritePageSizeForMaxPages(work.maxPages)} 条 · 本次最多 ${work.maxPages.coerceAtLeast(1) * externalFavoritePageSizeForMaxPages(work.maxPages)} 条"),
     ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
 )
+
+private fun externalFavoriteDefaultMaxPages(mode: FavoriteSyncMode): Int =
+    if (mode == FavoriteSyncMode.full_rescan) FULL_X_BOOKMARK_SYNC_MAX_PAGES else DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES
+
+private fun externalFavoritePageSizeForMaxPages(maxPages: Int): Int =
+    if (maxPages.coerceAtLeast(1) <= FULL_X_BOOKMARK_SYNC_MAX_PAGES) FULL_X_BOOKMARK_SYNC_PAGE_SIZE else DEFAULT_X_BOOKMARK_SYNC_PAGE_SIZE
+
+private const val DEFAULT_X_BOOKMARK_SYNC_PAGE_SIZE = 20
+private const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250
+private const val FULL_X_BOOKMARK_SYNC_PAGE_SIZE = 100
+private const val FULL_X_BOOKMARK_SYNC_MAX_PAGES = 50
 
 private fun externalFavoriteRunningPhaseLabel(phase: String): String = when (phase) {
     "backfill" -> "补全历史收藏"
@@ -521,7 +551,7 @@ private fun externalFavoriteRunningPhaseLabel(phase: String): String = when (pha
 fun externalFavoriteIdleDetailLines(item: ExternalFavoriteSourceUi): List<ExternalFavoriteDetailLine> = listOf(
     ExternalFavoriteDetailLine("上次结果", externalFavoriteLastResultText(item.source.last_items_seen_count, item.source.last_pages_seen_count)),
     ExternalFavoriteDetailLine("历史状态", externalFavoriteHistoryStatusText(item.source.config_json)),
-    ExternalFavoriteDetailLine("本地收藏", "不会自动标记"),
+    ExternalFavoriteDetailLine("一共同步", "${item.syncedItemCount.coerceAtLeast(0)} 条"),
 )
 
 fun externalFavoriteSourceSubtitle(
@@ -550,22 +580,21 @@ fun externalFavoriteLastResultText(itemsSeen: Long, pagesSeen: Long): String =
 fun externalFavoriteHistoryStatusText(configJson: String): String =
     if (configJson.contains(""""history_complete":true""")) "已完成" else "仍在逐步补全"
 
-fun externalFavoriteSummaryMetrics(sources: List<ExternalFavoriteSourceUi>): List<ExternalFavoriteSummaryMetric> {
-    if (sources.isEmpty()) {
+fun externalFavoriteSummaryMetrics(state: ExternalFavoritesSettingsState): List<ExternalFavoriteSummaryMetric> {
+    if (state.sources.isEmpty()) {
         return listOf(
             ExternalFavoriteSummaryMetric("0", "已连接来源"),
+            ExternalFavoriteSummaryMetric(state.syncedItemCount.coerceAtLeast(0).toString(), "外部同步总数"),
             ExternalFavoriteSummaryMetric("X", "当前支持平台"),
-            ExternalFavoriteSummaryMetric("12h", "默认同步间隔"),
         )
     }
-    val latestItemsSeen = sources.maxOfOrNull { it.source.last_items_seen_count } ?: 0L
-    val syncIntervalMinutes = sources
+    val syncIntervalMinutes = state.sources
         .map { it.source.sync_interval_minutes }
         .filter { it > 0L }
         .minOrNull() ?: 360L
     return listOf(
-        ExternalFavoriteSummaryMetric(sources.size.toString(), "已连接来源"),
-        ExternalFavoriteSummaryMetric(latestItemsSeen.toString(), "上次看到收藏"),
+        ExternalFavoriteSummaryMetric(state.sources.size.toString(), "已连接来源"),
+        ExternalFavoriteSummaryMetric(state.syncedItemCount.coerceAtLeast(0).toString(), "外部同步总数"),
         ExternalFavoriteSummaryMetric(externalFavoriteIntervalText(syncIntervalMinutes), "定期同步间隔"),
     )
 }
@@ -576,6 +605,8 @@ fun externalFavoriteProviderBadge(provider: String): String = when (provider.low
 }
 
 fun externalFavoriteDeleteMenuLabel(): String = "删除"
+
+fun externalFavoriteFullSyncMenuLabel(): String = "全量同步"
 
 fun externalFavoriteToggleSyncMenuLabel(enabled: Boolean): String =
     if (enabled) "停用同步" else "启用同步"

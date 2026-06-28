@@ -954,6 +954,12 @@ WHERE remote_article_sync_item.remote_source_id = ?
   AND remote_article_sync_item.source_date = ?
 ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_sync_item.last_seen_at DESC;
 
+countRemoteArticleSyncItems:
+SELECT COUNT(*) FROM remote_article_sync_item;
+
+countRemoteArticleSyncItemsBySource:
+SELECT COUNT(*) FROM remote_article_sync_item WHERE remote_source_id = ?;
+
 upsertRemoteArticleSyncItem:
 INSERT INTO remote_article_sync_item (
     remote_source_id, remote_article_id, article_id, url, source_date, first_seen_at, last_seen_at
@@ -1010,6 +1016,20 @@ SELECT * FROM external_favorite_item WHERE source_id = ? AND external_id = ?;
 
 selectExternalFavoriteItemsBySource:
 SELECT * FROM external_favorite_item WHERE source_id = ? ORDER BY first_seen_at DESC;
+
+selectLatestNumericExternalFavoriteExternalIdBySource:
+SELECT external_id FROM external_favorite_item
+WHERE source_id = ?
+  AND external_id GLOB '[0-9]*'
+  AND external_id NOT GLOB '*[^0-9]*'
+ORDER BY CAST(external_id AS INTEGER) DESC
+LIMIT 1;
+
+countExternalFavoriteItems:
+SELECT COUNT(*) FROM external_favorite_item;
+
+countExternalFavoriteItemsBySource:
+SELECT COUNT(*) FROM external_favorite_item WHERE source_id = ?;
 
 selectExternalFavoriteItemsPendingImport:
 SELECT * FROM external_favorite_item

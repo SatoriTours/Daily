@@ -17,5 +17,6 @@ interface FavoriteConnector {
         httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
         taskId: Long? = null,
         shouldFetchDetail: FavoriteFetchDetailPolicy = { true },
+        sinceExternalId: String? = null,
     ): FavoriteFetchPage
 }

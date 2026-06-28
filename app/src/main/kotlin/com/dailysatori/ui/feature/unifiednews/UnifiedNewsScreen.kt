@@ -89,6 +89,7 @@ fun UnifiedNewsScreen(
 private fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
     val remoteArticle = state.selectedRemoteArticle
     if (remoteArticle != null) {
+        BackHandler(onBack = viewModel::closeSourceDetail)
         RemoteArticleDetailScreen(
             article = remoteArticle,
             onBack = viewModel::closeSourceDetail,
@@ -101,6 +102,7 @@ private fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNe
 
     val remoteDigest = state.selectedRemoteDigest
     if (remoteDigest != null) {
+        BackHandler(onBack = viewModel::closeSourceDetail)
         RemoteDigestDetailScreen(
             digest = remoteDigest,
             onBack = viewModel::closeSourceDetail,

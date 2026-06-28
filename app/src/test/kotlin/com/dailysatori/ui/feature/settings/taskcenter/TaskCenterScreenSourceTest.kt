@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings.taskcenter
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -111,5 +112,44 @@ class TaskCenterScreenSourceTest {
         assertTrue(screen.contains("taskCenterHttpLogEntries"))
         assertTrue(screen.contains("HTTP 请求"))
         assertTrue(screen.contains("HTTP 响应"))
+        assertTrue(screen.contains("\"耗时\" to entry.durationText"))
+    }
+
+    @Test
+    fun httpBodyViewerWrapsLongLinesInsteadOfHorizontalScrolling() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/settings/taskcenter/TaskCenterScreen.kt").readText()
+        val viewer = screen.substringAfter("private fun TaskCenterHttpBodyViewer")
+            .substringBefore("private fun bodyDisplayLines")
+
+        assertFalse(viewer.contains("horizontalScroll(rememberScrollState())"))
+        assertTrue(viewer.contains("modifier = Modifier.fillMaxWidth()"))
+    }
+
+    @Test
+    fun httpBodyViewerKeepsTaskLifecycleLogsOutOfBodyAndFormatsJson() {
+        val entries = taskCenterHttpLogEntries(
+            """
+            2026-06-28 10:00:00 HTTP request [x-bookmarks] GET https://api.x.com/2/users/me/bookmarks params=max_results=100
+            2026-06-28 10:00:01 HTTP response [x-bookmarks] status=200 headers=content-type=application/json body={"data":[{"id":"1","text":"hello"}],"meta":{"next_token":"n"}}
+            2026-06-28 10:00:02 TASK succeeded
+            """.trimIndent(),
+        )
+
+        assertEquals(1, entries.size)
+        assertEquals("""{"data":[{"id":"1","text":"hello"}],"meta":{"next_token":"n"}}""", entries.single().responseBody)
+        assertFalse(entries.single().responseBody.contains("TASK succeeded"))
+        assertTrue(entries.single().formattedResponseBody().contains("\n  \"data\": ["))
+    }
+
+    @Test
+    fun httpLogEntryShowsRequestToResponseDuration() {
+        val entries = taskCenterHttpLogEntries(
+            """
+            2026-06-28T10:00:00.000Z HTTP request [x-bookmarks] GET https://api.x.com/2/users/me/bookmarks params=max_results=100
+            2026-06-28T10:00:01.250Z HTTP response [x-bookmarks] status=200 headers=content-type=application/json body={"data":[]}
+            """.trimIndent(),
+        )
+
+        assertEquals("1.2s", entries.single().durationText)
     }
 }

@@ -188,6 +188,8 @@ val viewModelModule: Module = module {
             summaryRepo = get(),
             summaryService = get(),
             settingRepo = get<SettingRepository>(),
+            asyncTaskRepo = get(),
+            asyncTaskScheduler = get(),
             remoteNewsService = get(),
             remoteNewsSourceRepo = get(),
             externalFavoriteSourceRepo = get(),
@@ -212,12 +214,16 @@ val viewModelModule: Module = module {
     viewModel {
         RemoteNewsSettingsViewModel(
             sourceRepo = get(),
+            syncRepo = get(),
+            asyncTaskRepo = get(),
+            asyncTaskScheduler = get(),
             remoteNewsService = get(),
         )
     }
     viewModel {
         ExternalFavoritesSettingsViewModel(
             sourceRepo = get(),
+            itemRepo = get(),
             scheduler = get(),
             asyncTaskRepo = get(),
             xOAuthCoordinator = get(),

@@ -27,4 +27,15 @@ class RemoteArticleSyncTaskSourceTest {
         assertTrue(source.contains("asyncTaskScheduler.enqueue(syncTaskId)"))
         assertTrue(source.contains("asyncTaskScheduler.enqueue(summaryTaskId)"))
     }
+
+    @Test
+    fun remoteArticleSyncTaskPayloadSupportsSingleSourceSync() {
+        val handler = File("src/main/kotlin/com/dailysatori/core/task/RemoteArticleSyncTaskHandler.kt").readText()
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+
+        assertTrue(handler.contains("val sourceId: Long? = null"))
+        assertTrue(handler.contains("payload.sourceId?.let"))
+        assertTrue(viewModel.contains("remoteArticleSyncTaskPayloadJson(mode = \"manual_source\", sourceId = sourceId)"))
+        assertTrue(viewModel.contains("uniqueKey = \"remote_article_sync:source:${'$'}sourceId\""))
+    }
 }

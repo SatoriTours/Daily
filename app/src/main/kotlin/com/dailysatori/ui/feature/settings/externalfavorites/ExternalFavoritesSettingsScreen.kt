@@ -291,7 +291,7 @@ private fun ExternalFavoriteManagementSummary(state: ExternalFavoritesSettingsSt
                     )
                 }
             }
-            ExternalFavoriteSummaryMetrics(externalFavoriteSummaryMetrics(state.sources))
+            ExternalFavoriteSummaryMetrics(externalFavoriteSummaryMetrics(state))
             if (externalFavoriteShouldShowAuthCheckNotice(state.sources)) {
                 ExternalFavoriteInlineNotice(
                     text = externalFavoriteAuthCheckNoticeText(),
@@ -376,6 +376,7 @@ private fun ExternalFavoriteSourceList(
                 item = source,
                 syncWork = state.syncWorkBySourceId[source.id],
                 onSyncNow = { viewModel.syncNow(source.id) },
+                onFullSync = { viewModel.fullSyncNow(source.id) },
                 onCancelSync = { viewModel.cancelSync(source.id) },
                 onToggleEnabled = { viewModel.toggleEnabled(source.id, it) },
                 onReconnect = openAddPage,
@@ -433,6 +434,7 @@ private fun ExternalFavoriteSourceCard(
     item: ExternalFavoriteSourceUi,
     syncWork: ExternalFavoriteSyncWorkUi?,
     onSyncNow: () -> Unit,
+    onFullSync: () -> Unit,
     onCancelSync: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onReconnect: () -> Unit,
@@ -532,6 +534,17 @@ private fun ExternalFavoriteSourceCard(
                         Icon(Icons.Default.MoreVert, contentDescription = "更多")
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text(externalFavoriteFullSyncMenuLabel()) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                            },
+                            enabled = externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing,
+                            onClick = {
+                                menuExpanded = false
+                                onFullSync()
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text(externalFavoriteToggleSyncMenuLabel(item.enabled)) },
                             leadingIcon = {

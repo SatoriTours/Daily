@@ -427,6 +427,7 @@ private fun TaskCenterHttpLogCard(index: Int, entry: TaskCenterHttpLogEntry) {
                     title = "HTTP 响应",
                     rows = listOf(
                         "Status" to entry.responseStatus,
+                        "耗时" to entry.durationText,
                         "Headers" to entry.responseHeaders,
                     ).filter { it.second.isNotBlank() },
                 )
@@ -535,7 +536,8 @@ private fun TaskCenterHttpBodyViewer(title: String, body: String, onClose: () ->
                                 line,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                softWrap = true,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                     }
@@ -573,7 +575,7 @@ private fun TaskCenterDetailSection(title: String, body: String) {
     }
 }
 
-private data class TaskCenterHttpLogEntry(
+internal data class TaskCenterHttpLogEntry(
     val label: String,
     val request: String,
     val response: String,
@@ -616,6 +618,9 @@ private data class TaskCenterHttpLogEntry(
     val responseBody: String
         get() = response.substringAfter(" body=", missingDelimiterValue = "").trim()
 
+    val durationText: String
+        get() = taskCenterStepDurationText(request, response)
+
     fun formattedResponse(): String {
         val body = responseBody
         if (body.isBlank()) return response
@@ -626,7 +631,7 @@ private data class TaskCenterHttpLogEntry(
     fun formattedResponseBody(): String = taskCenterFormatJson(responseBody)
 }
 
-private fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> {
+internal fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> {
     val entries = mutableListOf<TaskCenterHttpLogEntry>()
     var request = ""
     var response = ""
@@ -653,11 +658,39 @@ private fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEnt
                 if (label.isBlank()) label = line.substringAfter("HTTP response [").substringBefore("]")
             }
             request.isNotBlank() && response.isBlank() -> request += "\n$line"
-            response.isNotBlank() -> response += "\n$line"
+            response.isNotBlank() && !taskCenterIsLifecycleLogLine(line) -> response += "\n$line"
         }
     }
     flush()
     return entries
+}
+
+private fun taskCenterIsLifecycleLogLine(line: String): Boolean =
+    Regex("""^\S+(?:\s+\S+)?\s+TASK\s+""").containsMatchIn(line)
+
+internal fun taskCenterStepDurationText(startLine: String, endLine: String): String {
+    val startedAt = taskCenterLogLineInstant(startLine) ?: return "未完成"
+    val endedAt = taskCenterLogLineInstant(endLine) ?: return "未完成"
+    val millis = endedAt.toEpochMilliseconds() - startedAt.toEpochMilliseconds()
+    if (millis < 0L) return "未完成"
+    return taskCenterDurationTextFromMillis(millis)
+}
+
+private fun taskCenterLogLineInstant(line: String): Instant? =
+    line.substringBefore(" ", missingDelimiterValue = "").trim().takeIf { it.isNotBlank() }?.let { token ->
+        runCatching { Instant.parse(token) }.getOrNull()
+    }
+
+private fun taskCenterDurationTextFromMillis(millis: Long): String {
+    if (millis < 1_000L) return "${millis}ms"
+    if (millis < 60_000L) return "${(millis / 100L) / 10.0}s"
+    val seconds = millis / 1_000L
+    val minutes = seconds / 60L
+    val remainingSeconds = seconds % 60L
+    if (minutes < 60L) return "${minutes}m ${remainingSeconds}s"
+    val hours = minutes / 60L
+    val remainingMinutes = minutes % 60L
+    return "${hours}h ${remainingMinutes}m"
 }
 
 private fun taskCenterFormatJson(body: String): String =

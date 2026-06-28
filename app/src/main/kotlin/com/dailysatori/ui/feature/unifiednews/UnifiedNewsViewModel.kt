@@ -2,7 +2,10 @@ package com.dailysatori.ui.feature.unifiednews
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
+import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.config.SettingKeys
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
@@ -15,6 +18,7 @@ import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
@@ -93,6 +97,8 @@ class UnifiedNewsViewModel(
     private val summaryRepo: UnifiedNewsSummaryRepository,
     private val summaryService: UnifiedNewsSummaryService,
     private val settingRepo: SettingRepository,
+    private val asyncTaskRepo: AsyncTaskRepository,
+    private val asyncTaskScheduler: AsyncTaskScheduler,
     private val remoteNewsService: RemoteNewsService,
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
     private val externalFavoriteSourceRepo: ExternalFavoriteSourceRepository,
@@ -242,6 +248,23 @@ class UnifiedNewsViewModel(
     fun refreshSelectedRemoteSource() {
         val selection = _state.value.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource ?: return
         fetchSourceArticles(selection.id, force = true)
+    }
+
+    fun syncRemoteSource(sourceId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val taskId = asyncTaskRepo.enqueue(
+                    type = AsyncTaskType.remote_article_sync.name,
+                    payloadJson = remoteArticleSyncTaskPayloadJson(mode = "manual_source", sourceId = sourceId),
+                    uniqueKey = "remote_article_sync:source:$sourceId",
+                )
+                asyncTaskScheduler.enqueue(taskId)
+                _state.update { it.copy(manualRefreshMessage = "已开始同步该远程新闻源", error = null) }
+                fetchSourceArticles(sourceId, force = true)
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "远程新闻源同步任务创建失败") }
+            }
+        }
     }
 
     fun openSourceArticle(article: RemoteArticle) {

@@ -42,7 +42,7 @@ class ExternalFavoriteSyncTaskHandler(
         }
 
         return try {
-            reporter.report(0, 3, "准备同步外部收藏", checkpointJson = """{"phase":"queued"}""")
+            reporter.report(0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, "准备同步外部收藏", checkpointJson = """{"phase":"queued"}""")
             syncService.syncSource(payload.sourceId, mode, taskId = taskId) { progress ->
                 reporter.report(
                     current = progress.pagesSeen.toLong(),
@@ -70,6 +70,7 @@ class ExternalFavoriteSyncTaskHandler(
 
     companion object {
         const val TYPE = "external_favorite_sync"
+        const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250L
     }
 }
 

@@ -47,14 +47,14 @@ class FavoriteSyncServiceTest {
 
             service.syncSource(sourceId, FavoriteSyncMode.recent)
 
-            assertEquals(listOf(null, "cursor-2"), connector.cursors)
-            assertEquals(listOf("post-1", "post-2"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            assertEquals(listOf<String?>(null), connector.cursors)
+            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id }.sorted())
             assertEquals(1, imported)
             assertEquals(1, organized)
             sources.getById(sourceId)!!.let { source ->
                 assertEquals("idle", source.status)
-                assertEquals(2, source.last_pages_seen_count)
-                assertEquals(2, source.last_items_seen_count)
+                assertEquals(1, source.last_pages_seen_count)
+                assertEquals(1, source.last_items_seen_count)
                 assertEquals("recent", source.last_sync_mode)
                 assertEquals("", source.last_error_code)
                 assertEquals("", source.last_error_message)
@@ -81,6 +81,7 @@ class FavoriteSyncServiceTest {
                     httpLogger: FavoriteSyncHttpLogger,
                     taskId: Long?,
                     shouldFetchDetail: FavoriteFetchDetailPolicy,
+                    sinceExternalId: String?,
                 ): FavoriteFetchPage {
                     shouldFetchExistingDetail = shouldFetchDetail(incomingListDraft)
                     return FavoriteFetchPage(listOf(incomingListDraft), null)
@@ -90,14 +91,68 @@ class FavoriteSyncServiceTest {
                 sourceRepo = sources,
                 itemRepo = items,
                 registry = FavoriteConnectorRegistry(listOf(connector)),
-                importPending = { 0 },
-                organizePending = { 0 },
+                importPending = { _: Long -> 0 },
+                organizePending = { _: Long -> 0 },
             )
 
             service.syncSource(sourceId, FavoriteSyncMode.sync)
 
             assertEquals(false, shouldFetchExistingDetail)
             assertEquals("Detailed saved body", items.getBySource(sourceId).single().text)
+        }
+    }
+
+    @Test
+    fun syncStopsFetchingWhenLatestLocalExternalIdIsSeen() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("100"))
+            items.upsertDraft(sourceId, xDraft("101"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("103"), xDraft("102")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("101"), xDraft("100")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("99")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { _: Long -> 0 },
+                organizePending = { _: Long -> 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf<String?>(null, "cursor-2"), connector.cursors)
+            assertEquals(listOf(20, 20), connector.pageSizes)
+            assertEquals(listOf("102", "103"), items.getBySource(sourceId).map { it.external_id }.filter { it > "101" }.sorted())
+        }
+    }
+
+    @Test
+    fun fullRescanDoesNotPassSinceIdAndUsesLargerPages() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("101"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 300),
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("102")), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { _: Long -> 0 },
+                organizePending = { _: Long -> 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.full_rescan)
+
+            assertEquals(listOf<String?>(null), connector.sinceExternalIds)
+            assertEquals(listOf(100), connector.pageSizes)
         }
     }
 
@@ -149,12 +204,12 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync)
+            service.syncSource(sourceId, FavoriteSyncMode.history)
 
             assertEquals(listOf(null, "cursor-2"), connector.cursors)
             assertEquals(listOf("post-1", "post-2"), items.getBySource(sourceId).map { it.external_id }.sorted())
             sources.getById(sourceId)!!.let { source ->
-                assertEquals("sync", source.last_sync_mode)
+                assertEquals("history", source.last_sync_mode)
                 assertTrue(source.config_json.contains(""""history_cursor":"cursor-3""""))
                 assertTrue(source.config_json.contains(""""history_complete":false"""))
             }
@@ -184,13 +239,50 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync)
+            service.syncSource(sourceId, FavoriteSyncMode.history)
 
             assertEquals(listOf(null, "cursor-3"), connector.cursors)
             assertEquals(listOf("post-1", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
             sources.getById(sourceId)!!.let { source ->
                 assertTrue(source.config_json.contains(""""history_complete":true"""))
                 assertFalse(source.config_json.contains("history_cursor"))
+            }
+        }
+    }
+
+    @Test
+    fun unifiedSyncContinuesSavedBackfillCursorEvenWhenLatestPageChanged() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"history_cursor":"cursor-10","history_complete":false}""",
+            )
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 100),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("new-post")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("old-post-10")), "cursor-11"),
+                    FavoriteFetchPage(listOf(xDraft("old-post-11")), "cursor-12"),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.full_rescan)
+
+            assertEquals(listOf(null, "cursor-10", "cursor-11"), connector.cursors)
+            assertEquals(
+                listOf("new-post", "old-post-10", "old-post-11"),
+                items.getBySource(sourceId).map { it.external_id }.sorted(),
+            )
+            sources.getById(sourceId)!!.let { source ->
+                assertTrue(source.config_json.contains(""""history_cursor":"cursor-12""""))
+                assertTrue(source.config_json.contains(""""history_complete":false"""))
             }
         }
     }
@@ -216,7 +308,7 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync)
+            service.syncSource(sourceId, FavoriteSyncMode.history)
 
             assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
             assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
@@ -250,7 +342,7 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync)
+            service.syncSource(sourceId, FavoriteSyncMode.history)
 
             assertEquals(listOf(null, "cursor-2"), connector.cursors)
             assertEquals(96, items.getBySource(sourceId).size)
@@ -287,7 +379,7 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync)
+            service.syncSource(sourceId, FavoriteSyncMode.history)
 
             assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
             assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
@@ -322,7 +414,7 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync) { progress += it }
+            service.syncSource(sourceId, FavoriteSyncMode.history) { progress += it }
 
             val latestProgress = progress.first { it.phase == "latest" }
             assertFalse(latestProgress.historyComplete)
@@ -350,7 +442,7 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.sync) { progress += it }
+            service.syncSource(sourceId, FavoriteSyncMode.history) { progress += it }
 
             val finalProgress = progress.last()
             assertEquals("complete", finalProgress.phase)
@@ -387,6 +479,41 @@ class FavoriteSyncServiceTest {
 
             assertEquals(listOf<String?>(null), connector.cursors)
             assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id }.sorted())
+        }
+    }
+
+    @Test
+    fun completeHistoryIncrementalSyncStopsAfterFirstUnchangedOlderPage() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"history_complete":true,"history_complete_anchor_cursor":"cursor-2"}""",
+            )
+            items.upsertDraft(sourceId, xDraft("old-post"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 5, maxItemsPerRun = 100),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("new-post")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("old-post")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("too-old-post")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf(null, "cursor-2"), connector.cursors)
+            assertEquals(listOf("new-post", "old-post"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            sources.getById(sourceId)!!.let { source ->
+                assertTrue(source.config_json.contains(""""history_complete":true"""))
+                assertTrue(source.config_json.contains(""""history_complete_anchor_cursor":"cursor-2""""))
+            }
         }
     }
 
@@ -645,7 +772,7 @@ class FavoriteSyncServiceTest {
             )
 
             assertFailsWith<XFavoriteRateLimitException> {
-                service.syncSource(sourceId, FavoriteSyncMode.sync)
+                service.syncSource(sourceId, FavoriteSyncMode.full_rescan)
             }
 
             sources.getById(sourceId)!!.let { source ->
@@ -747,6 +874,43 @@ class FavoriteSyncServiceTest {
             assertEquals(listOf(1), connector.pageSizes)
             assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id })
             assertEquals(1, sources.getById(sourceId)!!.last_items_seen_count)
+        }
+    }
+
+    @Test
+    fun syncUsesConfiguredMaxItemsPerRunWhenProvided() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"max_items_per_sync":2}""",
+            )
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 10, maxItemsPerRun = 100),
+                pages = listOf(
+                    FavoriteFetchPage(
+                        listOf(xDraft("post-1"), xDraft("post-2"), xDraft("post-3")),
+                        "cursor-2",
+                    ),
+                    FavoriteFetchPage(listOf(xDraft("post-4")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf(2), connector.pageSizes)
+            assertEquals(listOf("post-1", "post-2"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals(2, source.last_items_seen_count)
+                assertFalse(source.config_json.contains("history_cursor"))
+                assertTrue(source.config_json.contains(""""max_items_per_sync":2"""))
+            }
         }
     }
 
@@ -864,6 +1028,41 @@ class FavoriteSyncServiceTest {
             assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
             assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
             assertEquals(3, sources.getById(sourceId)!!.last_pages_seen_count)
+        }
+    }
+
+    @Test
+    fun fullRescanIgnoresSavedCompleteStateAndStartsHistoryAgain() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"history_complete":true,"history_complete_anchor_cursor":"cursor-2"}""",
+            )
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 10),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("post-3")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.full_rescan)
+
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            sources.getById(sourceId)!!.let { source ->
+                assertTrue(source.config_json.contains(""""history_complete":true"""))
+                assertTrue(source.config_json.contains(""""history_complete_anchor_cursor":"cursor-2""""))
+            }
         }
     }
 
@@ -1232,6 +1431,7 @@ class FavoriteSyncServiceTest {
         override val provider: String = ExternalFavoriteProvider.X.id
         val cursors = mutableListOf<String?>()
         val pageSizes = mutableListOf<Int>()
+        val sinceExternalIds = mutableListOf<String?>()
         val fetchAuthJsons = mutableListOf<String>()
         var fetchCalls = 0
 
@@ -1242,10 +1442,12 @@ class FavoriteSyncServiceTest {
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
             shouldFetchDetail: FavoriteFetchDetailPolicy,
+            sinceExternalId: String?,
         ): FavoriteFetchPage {
             fetchCalls += 1
             cursors += cursor
             pageSizes += pageSize
+            sinceExternalIds += sinceExternalId
             fetchAuthJsons += source.auth_json
             if (failWithRateLimitOnFetch == fetchCalls) {
                 throw XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = rateLimitResetAt)
@@ -1280,6 +1482,7 @@ class FavoriteSyncServiceTest {
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
             shouldFetchDetail: FavoriteFetchDetailPolicy,
+            sinceExternalId: String?,
         ): FavoriteFetchPage {
             throw XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = resetAt)
         }
@@ -1296,6 +1499,7 @@ class FavoriteSyncServiceTest {
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
             shouldFetchDetail: FavoriteFetchDetailPolicy,
+            sinceExternalId: String?,
         ): FavoriteFetchPage {
             throw CancellationException("sync cancelled")
         }
@@ -1315,6 +1519,7 @@ class FavoriteSyncServiceTest {
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
             shouldFetchDetail: FavoriteFetchDetailPolicy,
+            sinceExternalId: String?,
         ): FavoriteFetchPage {
             activeFetches += 1
             if (activeFetches > 1) overlapped = true

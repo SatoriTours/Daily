@@ -87,8 +87,16 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
     fun getBySource(sourceId: Long): List<External_favorite_item> =
         q.selectExternalFavoriteItemsBySource(sourceId).executeAsList()
 
+    fun latestNumericExternalIdBySource(sourceId: Long): String? =
+        q.selectLatestNumericExternalFavoriteExternalIdBySource(sourceId).executeAsOneOrNull()
+
     fun getBySourceExternalId(sourceId: Long, externalId: String): External_favorite_item? =
         q.selectExternalFavoriteItemBySourceExternalId(sourceId, externalId).executeAsOneOrNull()
+
+    fun count(): Long = q.countExternalFavoriteItems().executeAsOne()
+
+    fun countBySource(sourceId: Long): Long =
+        q.countExternalFavoriteItemsBySource(sourceId).executeAsOne()
 
     fun markSeen(itemId: Long, favoritedAt: Long?) {
         val now = Clock.System.now().toEpochMilliseconds()

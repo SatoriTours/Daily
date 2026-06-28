@@ -38,8 +38,8 @@ class XBookmarksConnector(
     override val capabilities: FavoriteConnectorCapabilities = FavoriteConnectorCapabilities(
         maxPageSize = X_BOOKMARKS_MAX_PAGE_SIZE,
         defaultBackoffMinutes = 15,
-        maxPagesPerRun = 3,
-        maxItemsPerRun = 300,
+        maxPagesPerRun = X_BOOKMARKS_DEFAULT_MAX_ITEMS_PER_RUN / X_BOOKMARKS_MAX_PAGE_SIZE,
+        maxItemsPerRun = X_BOOKMARKS_DEFAULT_MAX_ITEMS_PER_RUN,
         supportsFolders = false,
         supportsFavoritedAt = false,
         supportsWriteBack = false,
@@ -91,6 +91,7 @@ class XBookmarksConnector(
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
         shouldFetchDetail: FavoriteFetchDetailPolicy,
+        sinceExternalId: String?,
     ): FavoriteFetchPage {
         val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch remote bookmarks")
         val token = extractXAccessToken(source.auth_json)
@@ -122,7 +123,7 @@ class XBookmarksConnector(
         logXApiResponseBody(
             label = "bookmarks",
             statusCode = response.status.value,
-            metadata = "account=${source.account_id}, cursor=${cursor.orEmpty()}, pageSize=${pageSize.coerceIn(1, capabilities.maxPageSize)}",
+            metadata = "account=${source.account_id}, cursor=${cursor.orEmpty()}, pageSize=${pageSize.coerceIn(1, capabilities.maxPageSize)}, sinceExternalId=${sinceExternalId.orEmpty()}",
             body = body,
         )
         val page = parseXBookmarksHttpResponse(
@@ -308,6 +309,7 @@ class XFavoriteRateLimitException(
 private const val X_RATE_LIMIT_RESET_HEADER = "x-rate-limit-reset"
 private const val X_REFRESH_BUFFER_MS = 60_000L
 private const val X_BOOKMARKS_MAX_PAGE_SIZE = 100
+private const val X_BOOKMARKS_DEFAULT_MAX_ITEMS_PER_RUN = 5_000
 private const val X_BOOKMARKS_TWEET_FIELDS =
     "created_at,author_id,attachments,entities,note_tweet,referenced_tweets,conversation_id,lang,public_metrics"
 private const val X_BOOKMARKS_USER_FIELDS = "username,name,profile_image_url,verified"

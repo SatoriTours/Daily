@@ -16,6 +16,7 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class RemoteArticleSyncTaskPayload(
     val mode: String,
+    val sourceId: Long? = null,
 )
 
 class RemoteArticleSyncTaskHandler(
@@ -36,7 +37,9 @@ class RemoteArticleSyncTaskHandler(
             .getOrElse {
                 return AsyncTaskExecutionResult.PermanentFailure("invalid_payload", "远程文章同步任务参数无效")
             }
-        val sources = sourceRepo.getEnabled()
+        val sources = payload.sourceId?.let { sourceId ->
+            sourceRepo.getById(sourceId)?.takeIf { it.enabled == 1L }?.let(::listOf).orEmpty()
+        } ?: sourceRepo.getEnabled()
         if (sources.isEmpty()) return AsyncTaskExecutionResult.Success()
 
         val sourceDate = dailyUnifiedNewsWindowFor().summaryDate
@@ -80,5 +83,5 @@ class RemoteArticleSyncTaskHandler(
     }
 }
 
-fun remoteArticleSyncTaskPayloadJson(mode: String): String =
-    Json.encodeToString(RemoteArticleSyncTaskPayload(mode = mode))
+fun remoteArticleSyncTaskPayloadJson(mode: String, sourceId: Long? = null): String =
+    Json.encodeToString(RemoteArticleSyncTaskPayload(mode = mode, sourceId = sourceId))

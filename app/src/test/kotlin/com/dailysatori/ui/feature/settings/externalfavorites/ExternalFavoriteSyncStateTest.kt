@@ -134,4 +134,29 @@ class ExternalFavoriteSyncStateTest {
         assertEquals(42, next.syncingSourceId)
         assertSame(queuedPlaceholder, next.syncWorkBySourceId[42])
     }
+
+    @Test
+    fun emptyObservedTaskDoesNotClearQueuedPlaceholder() {
+        val queuedPlaceholder = ExternalFavoriteSyncWorkUi(
+            taskId = null,
+            createdAt = 1_000,
+            state = WorkInfo.State.ENQUEUED,
+            pagesSeen = 0,
+            maxPages = 3,
+            itemsSeen = 0,
+            phase = "",
+        )
+
+        val next = externalFavoriteApplySyncWorkState(
+            state = ExternalFavoritesSettingsState(
+                syncingSourceId = 42,
+                syncWorkBySourceId = mapOf(42L to queuedPlaceholder),
+            ),
+            sourceId = 42,
+            workUi = null,
+        )
+
+        assertEquals(42, next.syncingSourceId)
+        assertSame(queuedPlaceholder, next.syncWorkBySourceId[42])
+    }
 }

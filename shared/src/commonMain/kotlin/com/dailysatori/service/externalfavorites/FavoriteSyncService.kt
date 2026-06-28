@@ -66,7 +66,7 @@ class FavoriteSyncService(
 
         val connector = registry.get(source.provider)
             ?: error("No external favorite connector registered for provider ${source.provider}")
-        val policy = syncPolicy(mode, connector.capabilities)
+        val policy = syncPolicy(mode, connector.capabilities, source.config_json)
         var result = SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0, historyComplete = false)
 
         sourceRepo.markSyncStarted(sourceId, mode.name)
@@ -194,6 +194,13 @@ class FavoriteSyncService(
         val capabilities = connector.capabilities
         val initialSource = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
         var progress = readSyncProgress(initialSource.config_json)
+        if (policy.resetHistory && progress.historyComplete) {
+            progress = ExternalFavoriteSyncProgress(
+                historyCursor = null,
+                historyComplete = false,
+                historyCompleteAnchorCursor = null,
+            )
+        }
         var pagesSeen = 0
         var itemsSeen = 0
         var changedItems = 0
@@ -201,6 +208,11 @@ class FavoriteSyncService(
         var historyComplete = progress.historyComplete
         var historyCompleteAnchorCursor = progress.historyCompleteAnchorCursor
         var latestPageAnchorCursor: String? = null
+        val sinceExternalId = if (policy.useSinceExternalId) {
+            itemRepo.latestNumericExternalIdBySource(sourceId)
+        } else {
+            null
+        }
 
         fun hasBudget(): Boolean = pagesSeen < policy.maxPages && itemsSeen < policy.maxItems
 
@@ -239,15 +251,18 @@ class FavoriteSyncService(
             val page = connector.fetchPage(
                 source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found"),
                 cursor = cursor,
-                pageSize = capabilities.maxPageSize.coerceAtMost(remaining).coerceAtLeast(1),
+                pageSize = policy.pageSize.coerceAtMost(capabilities.maxPageSize).coerceAtMost(remaining).coerceAtLeast(1),
                 httpLogger = httpLogger,
                 taskId = taskId,
                 shouldFetchDetail = { draft -> shouldFetchRemoteDetail(sourceId, draft) },
+                sinceExternalId = sinceExternalId,
             )
             pagesSeen += 1
 
             var changedOnPage = 0
-            page.items.take(remaining).forEach { draft ->
+            val pageItems = page.items.take(remaining)
+            val reachedSinceAnchor = sinceExternalId != null && pageItems.any { it.externalId == sinceExternalId }
+            pageItems.forEach { draft ->
                 val existing = itemRepo.getBySourceExternalId(sourceId, draft.externalId)
                 if (existing != null && !existing.shouldFetchRemoteDetail()) {
                     itemRepo.markSeen(existing.id, draft.favoritedAt)
@@ -261,7 +276,7 @@ class FavoriteSyncService(
                     changedOnPage += 1
                 }
             }
-            return FavoriteFetchPageResult(page = page, changedItems = changedOnPage)
+            return FavoriteFetchPageResult(page = page, changedItems = changedOnPage, reachedSinceAnchor = reachedSinceAnchor)
         }
 
         if (hasBudget()) {
@@ -269,81 +284,91 @@ class FavoriteSyncService(
             val latestAnchorCursor = latest.page.nextCursor
             latestPageAnchorCursor = latestAnchorCursor
             reportProgress("latest")
-            when {
+
+            fun markHistoryComplete() {
+                historyCursor = null
+                historyComplete = true
+                historyCompleteAnchorCursor = latestAnchorCursor
+            }
+
+            fun markHistoryIncomplete(cursor: String?) {
+                historyCursor = cursor
+                historyComplete = false
+                historyCompleteAnchorCursor = null
+            }
+
+            suspend fun backfillHistoryFrom(startCursor: String?) {
+                var cursor = startCursor
+                while (cursor != null && hasBudget()) {
+                    val pageResult = fetchOne(cursor)
+                    cursor = pageResult.page.nextCursor
+                    reportProgress("backfill")
+                    if (pageResult.page.exhausted) {
+                        markHistoryComplete()
+                        persistProgress()
+                        reportProgress("complete")
+                        return
+                    }
+                    markHistoryIncomplete(cursor)
+                    persistProgress()
+                }
+                if (cursor == null) {
+                    markHistoryComplete()
+                    persistProgress()
+                    reportProgress("complete")
+                } else {
+                    markHistoryIncomplete(cursor)
+                    persistProgress()
+                }
+            }
+
+            suspend fun fetchIncrementalUntilKnownItems(startCursor: String?) {
+                var cursor = startCursor
+                while (cursor != null && hasBudget()) {
+                    val pageResult = fetchOne(cursor)
+                    cursor = pageResult.page.nextCursor
+                    reportProgress("latest")
+                    if (pageResult.page.exhausted || pageResult.reachedSinceAnchor || pageResult.changedItems == 0) {
+                        markHistoryComplete()
+                        persistProgress()
+                        reportProgress("complete")
+                        return
+                    }
+                }
+                markHistoryComplete()
+                persistProgress()
+            }
+
+            if (!policy.scanHistory) {
+                when {
+                    latest.page.exhausted || latest.reachedSinceAnchor || latest.changedItems == 0 -> {
+                        markHistoryComplete()
+                        persistProgress()
+                        reportProgress("complete")
+                    }
+                    latest.changedItems > 0 -> {
+                        fetchIncrementalUntilKnownItems(latest.page.nextCursor)
+                    }
+                    else -> {
+                        persistProgress()
+                    }
+                }
+            } else when {
                 latest.page.exhausted -> {
-                    historyCursor = null
-                    historyComplete = true
-                    historyCompleteAnchorCursor = latestAnchorCursor
-                    latestPageAnchorCursor = latestAnchorCursor
+                    markHistoryComplete()
                     persistProgress()
                     reportProgress("complete")
                 }
-                latest.changedItems == 0 -> {
-                    val verifiedCompleteForLatestPage = verifiedHistoryComplete()
-                    if (!verifiedCompleteForLatestPage && hasBudget()) {
-                        var cursor = historyCursor ?: latest.page.nextCursor
-                        while (cursor != null && hasBudget()) {
-                            val pageResult = fetchOne(cursor)
-                            cursor = pageResult.page.nextCursor
-                            reportProgress("backfill")
-                            if (pageResult.page.exhausted) {
-                                historyCursor = null
-                                historyComplete = true
-                                historyCompleteAnchorCursor = latestAnchorCursor
-                                persistProgress()
-                                reportProgress("complete")
-                                break
-                            }
-                            historyCursor = cursor
-                            historyComplete = false
-                            historyCompleteAnchorCursor = null
-                            persistProgress()
-                        }
-                        if (cursor == null && !historyComplete) {
-                            historyCursor = null
-                            historyComplete = true
-                            historyCompleteAnchorCursor = latestAnchorCursor
-                            persistProgress()
-                            reportProgress("complete")
-                        }
-                    } else if (!verifiedCompleteForLatestPage) {
-                        historyCursor = latest.page.nextCursor
-                        historyComplete = latest.page.nextCursor == null
-                        historyCompleteAnchorCursor = if (historyComplete) latestAnchorCursor else null
-                        persistProgress()
-                        reportProgress(if (historyComplete) "complete" else "backfill")
-                    }
-                }
                 else -> {
-                    var cursor = latest.page.nextCursor
-                    historyCursor = cursor
-                    historyComplete = false
-                    historyCompleteAnchorCursor = null
-                    persistProgress()
-                    while (cursor != null && hasBudget()) {
-                        val pageResult = fetchOne(cursor)
-                        cursor = pageResult.page.nextCursor
-                        reportProgress("latest")
-                        if (pageResult.page.exhausted) {
-                            historyCursor = null
-                            historyComplete = true
-                            historyCompleteAnchorCursor = latestAnchorCursor
-                            persistProgress()
-                            reportProgress("complete")
-                            break
-                        }
-                        historyCursor = cursor
-                        historyComplete = false
-                        historyCompleteAnchorCursor = null
+                    val cursor = historyCursor ?: latest.page.nextCursor
+                    if (cursor == null) {
+                        markHistoryComplete()
                         persistProgress()
-                        if (policy.earlyStopOnUnchanged && pageResult.changedItems == 0) {
-                            break
-                        }
-                    }
-                    if (cursor != null && !historyComplete) {
-                        historyCursor = cursor
-                        historyCompleteAnchorCursor = null
+                        reportProgress("complete")
+                    } else {
+                        markHistoryIncomplete(cursor)
                         persistProgress()
+                        backfillHistoryFrom(cursor)
                     }
                 }
             }
@@ -396,43 +421,60 @@ class FavoriteSyncService(
     private fun syncPolicy(
         mode: FavoriteSyncMode,
         capabilities: FavoriteConnectorCapabilities,
+        configJson: String,
     ): SyncPolicy {
+        val cappedItems = configuredMaxItemsPerSync(configJson)
+            ?.coerceIn(1, capabilities.maxItemsPerRun.coerceAtLeast(1))
+            ?: capabilities.maxItemsPerRun.coerceAtLeast(1)
         val cappedPages = capabilities.maxPagesPerRun.coerceAtLeast(1)
-        val cappedItems = capabilities.maxItemsPerRun.coerceAtLeast(1)
+        fun itemBudgetPagesFor(pageSize: Int): Int =
+            ((cappedItems + pageSize - 1) / pageSize).coerceAtLeast(1)
         return when (mode) {
             FavoriteSyncMode.sync,
             FavoriteSyncMode.recent -> SyncPolicy(
                 shouldFetch = true,
-                maxPages = cappedPages,
+                pageSize = 20,
+                maxPages = itemBudgetPagesFor(20),
                 maxItems = cappedItems,
-                earlyStopOnUnchanged = true,
+                scanHistory = false,
+                resetHistory = false,
+                useSinceExternalId = true,
                 importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
                 aiBudget = ::changedItemAiBudget,
                 includeFailedAi = false,
             )
             FavoriteSyncMode.history -> SyncPolicy(
                 shouldFetch = true,
+                pageSize = capabilities.maxPageSize.coerceAtLeast(1),
                 maxPages = cappedPages,
                 maxItems = cappedItems,
-                earlyStopOnUnchanged = true,
+                scanHistory = true,
+                resetHistory = false,
+                useSinceExternalId = false,
                 importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
                 aiBudget = ::changedItemAiBudget,
                 includeFailedAi = false,
             )
             FavoriteSyncMode.full_rescan -> SyncPolicy(
                 shouldFetch = true,
+                pageSize = capabilities.maxPageSize.coerceAtLeast(1),
                 maxPages = cappedPages,
                 maxItems = cappedItems,
-                earlyStopOnUnchanged = true,
+                scanHistory = true,
+                resetHistory = true,
+                useSinceExternalId = false,
                 importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
                 aiBudget = ::changedItemAiBudget,
                 includeFailedAi = false,
             )
             FavoriteSyncMode.retry_failed -> SyncPolicy(
                 shouldFetch = false,
+                pageSize = 0,
                 maxPages = 0,
                 maxItems = 0,
-                earlyStopOnUnchanged = false,
+                scanHistory = false,
+                resetHistory = false,
+                useSinceExternalId = false,
                 importLimit = { IMPORT_RETRY_LIMIT },
                 aiBudget = { DEFAULT_AI_ORGANIZE_LIMIT },
                 includeFailedAi = true,
@@ -445,9 +487,12 @@ class FavoriteSyncService(
 
     private data class SyncPolicy(
         val shouldFetch: Boolean,
+        val pageSize: Int,
         val maxPages: Int,
         val maxItems: Int,
-        val earlyStopOnUnchanged: Boolean,
+        val scanHistory: Boolean,
+        val resetHistory: Boolean,
+        val useSinceExternalId: Boolean,
         val importLimit: (changedItems: Int) -> Long,
         val aiBudget: (localWorkItems: Long) -> Long,
         val includeFailedAi: Boolean,
@@ -463,6 +508,7 @@ class FavoriteSyncService(
     private data class FavoriteFetchPageResult(
         val page: FavoriteFetchPage,
         val changedItems: Int,
+        val reachedSinceAnchor: Boolean,
     )
 
     private companion object {
@@ -474,6 +520,7 @@ class FavoriteSyncService(
 private const val CONFIG_HISTORY_CURSOR = "history_cursor"
 private const val CONFIG_HISTORY_COMPLETE = "history_complete"
 private const val CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR = "history_complete_anchor_cursor"
+private const val CONFIG_MAX_ITEMS_PER_SYNC = "max_items_per_sync"
 
 private data class ExternalFavoriteSyncProgress(
     val historyCursor: String?,
@@ -522,3 +569,13 @@ private fun renderSyncProgressConfig(
             ?.let { put(CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR, it) }
     }.toString()
 }
+
+private fun configuredMaxItemsPerSync(configJson: String): Int? =
+    runCatching {
+        Json.parseToJsonElement(configJson)
+            .jsonObject[CONFIG_MAX_ITEMS_PER_SYNC]
+            ?.jsonPrimitive
+            ?.contentOrNull
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
+    }.getOrNull()

@@ -342,6 +342,23 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedRemoteArticleDetailHandlesSystemBackBeforeLeavingParentRoute() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val detailBody = screen.substringAfter("private fun UnifiedNewsDetailRoute").substringBefore("private fun UnifiedNewsMainPageRoute")
+
+        assertTrue(detailBody.contains("BackHandler(onBack = viewModel::closeSourceDetail)"))
+    }
+
+    @Test
+    fun unifiedRemoteSourceContentOffersPerSourceSyncAction() {
+        val screen = unifiedNewsRemoteSourceContentSource()
+        val contentBody = screen.substringAfter("internal fun UnifiedNewsSourceArticleContent").substringBefore("private fun UnifiedNewsSourceArticleList")
+
+        assertTrue(contentBody.contains("viewModel.syncRemoteSource(selection.id)"))
+        assertTrue(screen.contains("actionLabel = \"同步\""))
+    }
+
+    @Test
     fun unifiedSummaryRegenerationAlwaysStopsGeneratingState() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val regenerateBody = viewModel.substringAfter("fun regenerateCurrentWindow()").substringBefore("private fun manualRefreshMessage")
@@ -781,7 +798,9 @@ class UnifiedNewsBehaviorTest {
         assertTrue(screen.contains("onClick = viewModel::openAdd"))
         assertTrue(screen.contains("RemoteNewsSourceListPage"))
         assertTrue(screen.contains("RemoteNewsSourceEditorPage"))
-        assertTrue(screen.contains("RemoteNewsSourceStatusDot"))
+        assertTrue(screen.contains("RemoteNewsStatusPill"))
+        assertTrue(screen.contains("RemoteNewsSyncProgressBox"))
+        assertTrue(screen.contains("onSync = { viewModel.syncSource(source.id) }"))
         assertTrue(screen.contains("RemoteNewsSourceHelperCard"))
         assertTrue(screen.contains("RemoteNewsMessageCard"))
         assertTrue(screen.contains("PasswordVisualTransformation"))

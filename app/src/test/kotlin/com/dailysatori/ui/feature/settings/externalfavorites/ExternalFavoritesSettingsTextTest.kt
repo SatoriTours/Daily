@@ -135,16 +135,19 @@ class ExternalFavoritesSettingsTextTest {
     @Test
     fun summaryMetricsMatchManagementMockup() {
         val metrics = externalFavoriteSummaryMetrics(
-            listOf(
-                sourceUi(ExternalSourceHealth.healthy, itemsSeen = 128, pagesSeen = 3, syncIntervalMinutes = 360),
-                sourceUi(ExternalSourceHealth.needs_auth, itemsSeen = 0, pagesSeen = 0, syncIntervalMinutes = 720),
+            ExternalFavoritesSettingsState(
+                sources = listOf(
+                    sourceUi(ExternalSourceHealth.healthy, itemsSeen = 128, pagesSeen = 3, syncIntervalMinutes = 360),
+                    sourceUi(ExternalSourceHealth.needs_auth, itemsSeen = 0, pagesSeen = 0, syncIntervalMinutes = 720),
+                ),
+                syncedItemCount = 347,
             ),
         )
 
         assertEquals(
             listOf(
                 ExternalFavoriteSummaryMetric("2", "已连接来源"),
-                ExternalFavoriteSummaryMetric("128", "上次看到收藏"),
+                ExternalFavoriteSummaryMetric("347", "外部同步总数"),
                 ExternalFavoriteSummaryMetric("6h", "定期同步间隔"),
             ),
             metrics,
@@ -156,10 +159,10 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(
             listOf(
                 ExternalFavoriteSummaryMetric("0", "已连接来源"),
+                ExternalFavoriteSummaryMetric("0", "外部同步总数"),
                 ExternalFavoriteSummaryMetric("X", "当前支持平台"),
-                ExternalFavoriteSummaryMetric("12h", "默认同步间隔"),
             ),
-            externalFavoriteSummaryMetrics(emptyList()),
+            externalFavoriteSummaryMetrics(ExternalFavoritesSettingsState()),
         )
     }
 
@@ -167,6 +170,7 @@ class ExternalFavoritesSettingsTextTest {
     fun sourceCardUsesProviderBadgeAndOverflowDeleteCopy() {
         assertEquals("X", externalFavoriteProviderBadge("x"))
         assertEquals("删除", externalFavoriteDeleteMenuLabel())
+        assertEquals("全量同步", externalFavoriteFullSyncMenuLabel())
         assertEquals("只读", externalFavoriteReadOnlyStepLabel())
         assertTrue(externalFavoriteAddPageOrganizeNoteText().contains("本地文章库"))
         assertFalse(externalFavoriteAddPageOrganizeNoteText().contains("本地收藏"))
@@ -193,15 +197,15 @@ class ExternalFavoritesSettingsTextTest {
         val running = ExternalFavoriteSyncWorkUi(
             state = WorkInfo.State.RUNNING,
             pagesSeen = 2,
-            maxPages = 3,
+            maxPages = 250,
             itemsSeen = 168,
             phase = "backfill",
         )
 
         assertEquals("同步中", externalFavoriteEffectiveHealthLabel(ExternalSourceHealth.healthy, running))
         assertEquals("正在补全较早收藏", externalFavoriteSyncProgressTitle(running))
-        assertEquals("第 2 / 3 页", externalFavoriteSyncProgressPageText(running))
-        assertEquals(0.6666667f, externalFavoriteSyncProgressFraction(running))
+        assertEquals("第 2 / 250 页", externalFavoriteSyncProgressPageText(running))
+        assertEquals(0.04f, externalFavoriteSyncProgressFraction(running))
         assertEquals(
             listOf(
                 ExternalFavoriteProgressMetric("2 页", "本次已读取"),
@@ -215,7 +219,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(
             listOf(
                 ExternalFavoriteDetailLine("当前阶段", "补全历史收藏"),
-                ExternalFavoriteDetailLine("同步策略", "每次最多 3 页 / 300 条"),
+                ExternalFavoriteDetailLine("同步策略", "每页 20 条 · 本次最多 5000 条"),
                 ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
             ),
             externalFavoriteRunningDetailLines(running),
@@ -227,14 +231,14 @@ class ExternalFavoritesSettingsTextTest {
         val queued = ExternalFavoriteSyncWorkUi(
             state = WorkInfo.State.ENQUEUED,
             pagesSeen = 0,
-            maxPages = 3,
+            maxPages = 250,
             itemsSeen = 0,
             phase = "",
         )
 
         assertEquals("等待同步", externalFavoriteSyncProgressTitle(queued))
-        assertEquals("第 0 / 3 页", externalFavoriteSyncProgressPageText(queued))
-        assertEquals(0f, externalFavoriteSyncProgressFraction(queued))
+        assertEquals("第 0 / 250 页", externalFavoriteSyncProgressPageText(queued))
+        assertEquals(0.04f, externalFavoriteSyncProgressFraction(queued))
     }
 
     @Test
@@ -242,7 +246,7 @@ class ExternalFavoritesSettingsTextTest {
         val importing = ExternalFavoriteSyncWorkUi(
             state = WorkInfo.State.RUNNING,
             pagesSeen = 3,
-            maxPages = 3,
+            maxPages = 250,
             itemsSeen = 90,
             phase = "import",
         )
@@ -257,7 +261,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(
             listOf(
                 ExternalFavoriteDetailLine("当前阶段", "导入本地文章"),
-                ExternalFavoriteDetailLine("同步策略", "每次最多 3 页 / 300 条"),
+                ExternalFavoriteDetailLine("同步策略", "每页 20 条 · 本次最多 5000 条"),
                 ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
             ),
             externalFavoriteRunningDetailLines(importing),
@@ -291,7 +295,7 @@ class ExternalFavoritesSettingsTextTest {
         val queued = asyncTask(
             status = AsyncTaskStatus.queued.name,
             progressCurrent = 0,
-            progressTotal = 3,
+            progressTotal = 250,
             progressMessage = "",
             checkpointJson = "",
         )
@@ -301,7 +305,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(WorkInfo.State.ENQUEUED, work?.state)
         assertEquals(true, work?.active)
         assertEquals("等待同步", externalFavoriteSyncProgressTitle(work!!))
-        assertEquals("第 0 / 3 页", externalFavoriteSyncProgressPageText(work))
+        assertEquals("第 0 / 250 页", externalFavoriteSyncProgressPageText(work))
     }
 
     @Test
@@ -320,13 +324,14 @@ class ExternalFavoritesSettingsTextTest {
             itemsSeen = 241,
             pagesSeen = 3,
             configJson = """{"history_complete":false}""",
+            syncedItemCount = 211,
         )
 
         assertEquals(
             listOf(
                 ExternalFavoriteDetailLine("上次结果", "读取 3 页 · 看到 241 条"),
                 ExternalFavoriteDetailLine("历史状态", "仍在逐步补全"),
-                ExternalFavoriteDetailLine("本地收藏", "不会自动标记"),
+                ExternalFavoriteDetailLine("一共同步", "211 条"),
             ),
             externalFavoriteIdleDetailLines(source),
         )
@@ -422,6 +427,7 @@ class ExternalFavoritesSettingsTextTest {
         pagesSeen: Long = 0,
         syncIntervalMinutes: Long = 720,
         configJson: String = "",
+        syncedItemCount: Long = 0,
     ): ExternalFavoriteSourceUi =
         ExternalFavoriteSourceUi(
             source = com.dailysatori.shared.db.External_favorite_source(
@@ -450,8 +456,9 @@ class ExternalFavoritesSettingsTextTest {
                 created_at = 0,
                 updated_at = 0,
         ),
-        health = health,
-    )
+            health = health,
+            syncedItemCount = syncedItemCount,
+        )
 
     private fun asyncTask(
         status: String,

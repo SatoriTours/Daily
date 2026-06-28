@@ -94,6 +94,25 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun fetchPageDoesNotSendUnsupportedSinceIdParameter() = runBlocking {
+        var sinceId: String? = null
+        val client = HttpClient(MockEngine { request ->
+            sinceId = request.url.parameters["since_id"]
+            respondJson("""{"data":[],"meta":{"result_count":0}}""")
+        })
+        val connector = XBookmarksConnector(client = client)
+
+        connector.fetchPage(
+            source = xTestSource(),
+            cursor = null,
+            pageSize = 100,
+            sinceExternalId = "200",
+        )
+
+        assertEquals(null, sinceId)
+    }
+
+    @Test
     fun parsesLongPostAndLinkCardFieldsForArticleImport() {
         val json = """
             {
@@ -744,8 +763,8 @@ class XBookmarksConnectorTest {
         assertEquals("cursor-2", page.nextCursor)
         assertEquals(100, connector.capabilities.maxPageSize)
         assertEquals(15, connector.capabilities.defaultBackoffMinutes)
-        assertEquals(3, connector.capabilities.maxPagesPerRun)
-        assertEquals(300, connector.capabilities.maxItemsPerRun)
+        assertEquals(50, connector.capabilities.maxPagesPerRun)
+        assertEquals(5_000, connector.capabilities.maxItemsPerRun)
         assertEquals(false, connector.capabilities.supportsFolders)
         assertEquals(false, connector.capabilities.supportsFavoritedAt)
         assertEquals(false, connector.capabilities.supportsWriteBack)

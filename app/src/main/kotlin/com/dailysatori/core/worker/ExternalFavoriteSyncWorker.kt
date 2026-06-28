@@ -122,7 +122,7 @@ class ExternalFavoriteSyncWorker(
         if (sourceId <= 0L) return Result.failure()
 
         return try {
-            setProgress(externalFavoriteSyncProgressData("queued", 0, 3, 0, false))
+            setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
             GlobalContext.get().get<FavoriteSyncService>().syncSource(sourceId, mode) { progress ->
                 setProgress(externalFavoriteSyncProgressData(progress))
             }
@@ -212,6 +212,8 @@ internal fun externalFavoriteSyncMode(value: String?): FavoriteSyncMode? =
 
 internal fun externalFavoriteShouldSchedulePeriodic(enabled: Long, intervalMinutes: Long): Boolean =
     enabled == 1L && intervalMinutes > 0L
+
+internal const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250
 
 internal fun externalFavoriteSyncFailureResult(error: Exception): ListenableWorker.Result = when (error) {
     is XFavoriteAuthException -> ListenableWorker.Result.failure()
