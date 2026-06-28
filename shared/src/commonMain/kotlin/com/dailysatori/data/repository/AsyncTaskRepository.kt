@@ -28,6 +28,14 @@ data class AsyncTaskBatchEnqueueResult(
     val taskIds: List<Long>,
 )
 
+data class AsyncTaskCenterPage(
+    val tasks: List<AsyncTaskListItem>,
+    val loadedCount: Int,
+    val requestedLimit: Int,
+) {
+    val hasMore: Boolean get() = loadedCount >= requestedLimit
+}
+
 class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
@@ -115,11 +123,19 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         return q.selectLastInsertedAsyncTaskBatchId().executeAsOne()
     }
 
-    fun observeTaskCenter(filter: AsyncTaskFilter): Flow<List<AsyncTaskListItem>> =
-        q.selectAsyncTasksForTaskCenter(::AsyncTaskListItem)
+    fun observeTaskCenter(filter: AsyncTaskFilter, limit: Int = DEFAULT_TASK_CENTER_LIMIT): Flow<AsyncTaskCenterPage> {
+        val requestedLimit = limit.coerceAtLeast(1)
+        return q.selectAsyncTasksForTaskCenterPage(requestedLimit.toLong(), ::AsyncTaskListItem)
             .asFlow()
             .mapToList(Dispatchers.IO)
-            .map { filterAsyncTasks(it, filter) }
+            .map { tasks ->
+                AsyncTaskCenterPage(
+                    tasks = filterAsyncTasks(tasks, filter),
+                    loadedCount = tasks.size,
+                    requestedLimit = requestedLimit,
+                )
+            }
+    }
 
     fun observeLatestByUniqueKey(uniqueKey: String): Flow<Async_task?> =
         q.selectAsyncTaskByUniqueKey(uniqueKey)
@@ -226,5 +242,6 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             AsyncTaskStatus.running.name,
             AsyncTaskStatus.retrying.name,
         )
+        const val DEFAULT_TASK_CENTER_LIMIT = 50
     }
 }

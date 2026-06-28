@@ -81,6 +81,27 @@ class TaskCenterScreenSourceTest {
     }
 
     @Test
+    fun taskCenterLoadsTasksIncrementally() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/settings/taskcenter/TaskCenterScreen.kt").readText()
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/settings/taskcenter/TaskCenterViewModel.kt").readText()
+        val repository = File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/AsyncTaskRepository.kt").readText()
+        val schema = File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+
+        assertTrue(schema.contains("selectAsyncTasksForTaskCenterPage:"))
+        assertTrue(schema.contains("ORDER BY updated_at DESC"))
+        assertTrue(schema.contains("LIMIT ?"))
+        assertTrue(repository.contains("data class AsyncTaskCenterPage"))
+        assertTrue(repository.contains("requestedLimit"))
+        assertTrue(repository.contains("loadedCount"))
+        assertTrue(viewModel.contains("DEFAULT_TASK_CENTER_PAGE_SIZE"))
+        assertTrue(viewModel.contains("fun loadMore()"))
+        assertTrue(screen.contains("LaunchedEffect(loadedCount, requestedLimit)"))
+        assertTrue(screen.contains("viewModel.loadMore()"))
+        assertTrue(screen.contains("正在加载更多"))
+        assertFalse(screen.contains("Text(\"加载更多\")"))
+    }
+
+    @Test
     fun taskDetailUsesTopBackAndSupportsFormattedJsonAndSplitHttpLogs() {
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/settings/taskcenter/TaskCenterScreen.kt").readText()
 

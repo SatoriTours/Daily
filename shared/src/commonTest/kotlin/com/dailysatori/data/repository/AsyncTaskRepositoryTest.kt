@@ -1,9 +1,12 @@
 package com.dailysatori.data.repository
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.shared.db.DailySatoriDatabase
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -158,6 +161,27 @@ class AsyncTaskRepositoryTest {
             assertEquals(finished.progress_total, task.progress_total)
             assertEquals(finished.progress_message, task.progress_message)
             assertEquals(finished.checkpoint_json, task.checkpoint_json)
+        }
+    }
+
+    @Test
+    fun taskCenterQueryLoadsOnlyRequestedRows() {
+        withRepository { repository ->
+            repeat(75) { index ->
+                repository.enqueue(
+                    type = AsyncTaskType.external_favorite_sync.name,
+                    payloadJson = """{"index":$index}""",
+                )
+            }
+
+            val page = runBlocking {
+                repository.observeTaskCenter(AsyncTaskFilter(showTerminal = true), limit = 50).first()
+            }
+
+            assertEquals(50, page.tasks.size)
+            assertEquals(50, page.loadedCount)
+            assertEquals(50, page.requestedLimit)
+            assertEquals(true, page.hasMore)
         }
     }
 

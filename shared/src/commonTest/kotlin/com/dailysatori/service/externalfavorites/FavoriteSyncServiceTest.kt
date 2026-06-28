@@ -1254,6 +1254,165 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun organizerSkipsSupplementFetchWhenExistingTextIsLongEnough() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val longText = "这是一段已经足够完整的收藏正文，长度超过二十个字。"
+            val (item, _) = items.upsertDraft(
+                sourceId,
+                xDraft(
+                    "post-long",
+                    text = longText,
+                    normalizedJson = """{"id":"post-long","primary_url":"https://example.com/full"}""",
+                ),
+            )
+            val articleId = articles.insert(
+                title = "Imported favorite",
+                aiContent = longText,
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\n$longText\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-long",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            var supplementCalls = 0
+
+            ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                supplementResolver = object : ExternalFavoriteSupplementResolver {
+                    override suspend fun resolve(
+                        item: com.dailysatori.shared.db.External_favorite_item,
+                        input: ExternalFavoriteAiInput,
+                        httpLogger: FavoriteSyncHttpLogger,
+                        taskId: Long?,
+                    ): ExternalFavoriteSupplement? {
+                        supplementCalls += 1
+                        return ExternalFavoriteSupplement(
+                            url = "https://example.com/full",
+                            title = "补充标题",
+                            text = "不应该被抓取的补充正文",
+                            sourceType = "web",
+                        )
+                    }
+                },
+                generateAnalysis = { input ->
+                    assertEquals(longText, input.text)
+                    assertEquals(null, input.supplementText)
+                    ExternalFavoriteAiAnalysis("AI 标题", "AI 摘要", "AI 正文整理")
+                },
+            ).organizePending(limit = 10)
+
+            assertEquals(0, supplementCalls)
+        }
+    }
+
+    @Test
+    fun organizerAddsSupplementContentWhenExistingTextIsTooShort() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(
+                sourceId,
+                xDraft(
+                    "post-short",
+                    text = "看这个",
+                    normalizedJson = """{"id":"post-short","primary_url":"https://example.com/full","url_title":"卡片标题"}""",
+                ),
+            )
+            val articleId = articles.insert(
+                title = "Imported favorite",
+                aiContent = "看这个",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\n看这个\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-short",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            var supplementCalls = 0
+
+            ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                supplementResolver = object : ExternalFavoriteSupplementResolver {
+                    override suspend fun resolve(
+                        item: com.dailysatori.shared.db.External_favorite_item,
+                        input: ExternalFavoriteAiInput,
+                        httpLogger: FavoriteSyncHttpLogger,
+                        taskId: Long?,
+                    ): ExternalFavoriteSupplement? {
+                        supplementCalls += 1
+                        return ExternalFavoriteSupplement(
+                            url = "https://example.com/full",
+                            title = "补充标题",
+                            text = "这是从远程页面抓取到的补充正文，应该提供给 AI 一起整理。",
+                            sourceType = "web",
+                        )
+                    }
+                },
+                generateAnalysis = { input ->
+                    assertEquals("看这个\n\n卡片标题", input.text)
+                    assertEquals("https://example.com/full", input.supplementUrl)
+                    assertEquals("补充标题", input.supplementTitle)
+                    assertEquals("这是从远程页面抓取到的补充正文，应该提供给 AI 一起整理。", input.supplementText)
+                    assertEquals("web", input.supplementSourceType)
+                    ExternalFavoriteAiAnalysis("AI 标题", "AI 摘要", "AI 正文整理")
+                },
+            ).organizePending(limit = 10)
+
+            assertEquals(1, supplementCalls)
+        }
+    }
+
+    @Test
+    fun supplementResolverRoutesWebAndXArticleUrlsToMatchingFetcher() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val (webItem, _) = items.upsertDraft(
+                sourceId,
+                xDraft(
+                    "post-web",
+                    text = "短",
+                    normalizedJson = """{"id":"post-web","primary_url":"https://example.com/article"}""",
+                ),
+            )
+            val (xArticleItem, _) = items.upsertDraft(
+                sourceId,
+                xDraft(
+                    "post-article",
+                    text = "短",
+                    normalizedJson = """{"id":"post-article","primary_url":"https://x.com/i/article/1234567890"}""",
+                ),
+            )
+            val calls = mutableListOf<String>()
+            val resolver = DefaultExternalFavoriteSupplementResolver(
+                fetchWebSupplement = { url, _, _ ->
+                    calls += "web:$url"
+                    ExternalFavoriteSupplement(url, "Web", "网页正文", "web")
+                },
+                fetchXStatusSupplement = { url, _, _ ->
+                    calls += "status:$url"
+                    ExternalFavoriteSupplement(url, "Status", "推文正文", "x_status")
+                },
+                fetchXArticleSupplement = { url, _, _ ->
+                    calls += "article:$url"
+                    ExternalFavoriteSupplement(url, "Article", "X 文章正文", "x_article")
+                },
+            )
+
+            val web = resolver.resolve(webItem, webItem.toTestAiInput(), NoopFavoriteSyncHttpLogger, null)
+            val article = resolver.resolve(xArticleItem, xArticleItem.toTestAiInput(), NoopFavoriteSyncHttpLogger, null)
+
+            assertEquals("web", web?.sourceType)
+            assertEquals("x_article", article?.sourceType)
+            assertEquals(
+                listOf(
+                    "web:https://example.com/article",
+                    "article:https://x.com/i/article/1234567890",
+                ),
+                calls,
+            )
+        }
+    }
+
+    @Test
     fun organizerWritesAiRequestAndResponseDiagnosticsWhenTaskLoggerIsProvided() = runBlocking {
         withRepositories { _, sources, items, articles ->
             val sourceId = saveXSource(sources)
@@ -1387,9 +1546,20 @@ class FavoriteSyncServiceTest {
     )
 
     private companion object {
+        fun com.dailysatori.shared.db.External_favorite_item.toTestAiInput(): ExternalFavoriteAiInput =
+            ExternalFavoriteAiInput(
+                provider = provider,
+                title = title,
+                text = text,
+                authorName = author_name,
+                sourceCreatedAt = source_created_at,
+                canonicalUrl = canonical_url.orEmpty(),
+            )
+
         fun xDraft(
             externalId: String,
             text: String = "Body $externalId",
+            normalizedJson: String = """{"id":"$externalId"}""",
         ): ExternalFavoriteItemDraft = ExternalFavoriteItemDraft(
             provider = ExternalFavoriteProvider.X.id,
             externalId = externalId,
@@ -1399,7 +1569,7 @@ class FavoriteSyncServiceTest {
             authorName = "Author",
             sourceCreatedAt = 1_700_000_000_000,
             favoritedAt = 1_700_000_100_000,
-            normalizedJson = """{"id":"$externalId"}""",
+            normalizedJson = normalizedJson,
             contentHash = "content-$externalId-$text",
             aiInputHash = "ai-$externalId-$text",
         )

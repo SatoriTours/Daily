@@ -103,6 +103,20 @@ class RemoteNewsSettingsTextTest {
     }
 
     @Test
+    fun duplicateSyncShowsAlreadyRunningMessage() {
+        val running = RemoteNewsSyncWorkUi(
+            state = WorkInfo.State.RUNNING,
+            current = 0,
+            total = 1,
+            message = "同步中",
+        )
+
+        assertTrue(remoteNewsHasActiveSync(RemoteNewsSettingsState(syncingSourceId = 7)))
+        assertTrue(remoteNewsHasActiveSync(RemoteNewsSettingsState(syncWorkBySourceId = mapOf(7L to running))))
+        assertEquals("远程新闻同步任务正在执行，请稍后再试", remoteNewsDuplicateSyncMessage())
+    }
+
+    @Test
     fun emptyObservedTaskDoesNotClearQueuedPlaceholder() {
         val queuedPlaceholder = RemoteNewsSyncWorkUi(
             taskId = null,

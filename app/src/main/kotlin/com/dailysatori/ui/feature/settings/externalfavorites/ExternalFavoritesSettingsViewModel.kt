@@ -212,7 +212,10 @@ class ExternalFavoritesSettingsViewModel(
     }
 
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
-        if (_state.value.syncingSourceId != null) return
+        if (externalFavoriteHasActiveSync(_state.value)) {
+            _state.update { it.copy(message = externalFavoriteDuplicateSyncMessage()) }
+            return
+        }
         _state.update { state ->
             state.copy(
                 syncingSourceId = sourceId,
@@ -297,6 +300,12 @@ private val finishedWorkStates = setOf(
     WorkInfo.State.FAILED,
     WorkInfo.State.CANCELLED,
 )
+
+internal fun externalFavoriteHasActiveSync(state: ExternalFavoritesSettingsState): Boolean =
+    state.syncingSourceId != null || state.syncWorkBySourceId.values.any { it.active }
+
+internal fun externalFavoriteDuplicateSyncMessage(): String =
+    "外部收藏同步任务正在执行，请稍后再试"
 
 internal fun externalFavoriteApplySyncWorkState(
     state: ExternalFavoritesSettingsState,

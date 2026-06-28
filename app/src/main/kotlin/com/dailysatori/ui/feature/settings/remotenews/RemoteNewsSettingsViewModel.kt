@@ -164,7 +164,10 @@ class RemoteNewsSettingsViewModel(
     }
 
     fun syncSource(id: Long) {
-        if (_state.value.syncingSourceId != null) return
+        if (remoteNewsHasActiveSync(_state.value)) {
+            _state.update { it.copy(message = remoteNewsDuplicateSyncMessage()) }
+            return
+        }
         _state.update {
             it.copy(
                 syncingSourceId = id,
@@ -290,6 +293,12 @@ private val remoteNewsFinishedWorkStates = setOf(
 
 internal fun remoteNewsSyncUniqueKey(sourceId: Long): String =
     "remote_article_sync:source:$sourceId"
+
+internal fun remoteNewsHasActiveSync(state: RemoteNewsSettingsState): Boolean =
+    state.syncingSourceId != null || state.syncWorkBySourceId.values.any { it.active }
+
+internal fun remoteNewsDuplicateSyncMessage(): String =
+    "远程新闻同步任务正在执行，请稍后再试"
 
 internal fun remoteNewsApplySyncWorkState(
     state: RemoteNewsSettingsState,

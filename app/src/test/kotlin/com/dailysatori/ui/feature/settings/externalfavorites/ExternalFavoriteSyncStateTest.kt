@@ -159,4 +159,20 @@ class ExternalFavoriteSyncStateTest {
         assertEquals(42, next.syncingSourceId)
         assertSame(queuedPlaceholder, next.syncWorkBySourceId[42])
     }
+
+    @Test
+    fun duplicateSyncShowsAlreadyRunningMessage() {
+        val running = ExternalFavoriteSyncWorkUi(
+            taskId = 8,
+            state = WorkInfo.State.RUNNING,
+            pagesSeen = 1,
+            maxPages = 3,
+            itemsSeen = 20,
+            phase = "latest",
+        )
+
+        assertTrue(externalFavoriteHasActiveSync(ExternalFavoritesSettingsState(syncingSourceId = 42)))
+        assertTrue(externalFavoriteHasActiveSync(ExternalFavoritesSettingsState(syncWorkBySourceId = mapOf(42L to running))))
+        assertEquals("外部收藏同步任务正在执行，请稍后再试", externalFavoriteDuplicateSyncMessage())
+    }
 }

@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -113,8 +114,42 @@ fun TaskCenterScreen(onBack: () -> Unit) {
                             onCancel = { viewModel.cancel(task.id) },
                         )
                     }
+                    if (state.hasMore) {
+                        item(key = "task-center-load-more") {
+                            TaskCenterLoadMoreRow(
+                                loadedCount = state.loadedCount,
+                                requestedLimit = state.requestedLimit,
+                                loadMore = { viewModel.loadMore() },
+                            )
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TaskCenterLoadMoreRow(loadedCount: Int, requestedLimit: Int, loadMore: () -> Unit) {
+    LaunchedEffect(loadedCount, requestedLimit) {
+        loadMore()
+    }
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "已加载 $loadedCount / $requestedLimit 条",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text("正在加载更多", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

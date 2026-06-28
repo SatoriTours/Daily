@@ -57,6 +57,8 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteAiOrganizer
 import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
 import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
+import com.dailysatori.service.externalfavorites.DefaultExternalFavoriteSupplementResolver
+import com.dailysatori.service.externalfavorites.ExternalFavoriteSupplementResolver
 import com.dailysatori.service.externalfavorites.NoopFavoriteSyncHttpLogger
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
@@ -117,7 +119,14 @@ val sharedModule: Module = module {
     single { XBookmarksConnector(get()) }
     single { FavoriteConnectorRegistry(listOf(get<XBookmarksConnector>())) }
     single { ExternalFavoriteImporter(get(), get()) }
-    single { ExternalFavoriteAiOrganizer(get(), get(), get(), get()) }
+    single<ExternalFavoriteSupplementResolver> {
+        DefaultExternalFavoriteSupplementResolver(
+            sourceRepo = get(),
+            xBookmarksConnector = get(),
+            webpageParserService = get(),
+        )
+    }
+    single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }

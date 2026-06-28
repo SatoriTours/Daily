@@ -7,6 +7,7 @@ import com.dailysatori.service.ai.AiService
 import com.dailysatori.shared.db.External_favorite_item
 import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -19,6 +20,10 @@ data class ExternalFavoriteAiInput(
     val authorName: String,
     val sourceCreatedAt: Long?,
     val canonicalUrl: String,
+    val supplementUrl: String? = null,
+    val supplementTitle: String? = null,
+    val supplementText: String? = null,
+    val supplementSourceType: String? = null,
 )
 
 data class ExternalFavoriteAiAnalysis(
@@ -32,6 +37,7 @@ class ExternalFavoriteAiOrganizer(
     private val articleRepo: ArticleRepository,
     private val aiConfigService: AiConfigService? = null,
     private val aiService: AiService? = null,
+    private val supplementResolver: ExternalFavoriteSupplementResolver? = null,
     private val generateAnalysis: (suspend (ExternalFavoriteAiInput) -> ExternalFavoriteAiAnalysis)? = null,
 ) {
     suspend fun organizePending(limit: Long = 10, includeFailed: Boolean = false): Int {
@@ -68,6 +74,7 @@ class ExternalFavoriteAiOrganizer(
             }
 
             val input = item.toAiInput()
+                .withSupplementIfNeeded(item, httpLogger, taskId)
             logAiRequest(httpLogger, taskId, item, input)
             val analysis = runCatching { generateAnalysis?.invoke(input) ?: generateWithAi(input) }
                 .getOrElse { error ->
@@ -169,15 +176,65 @@ class ExternalFavoriteAiOrganizer(
     private fun jsonString(value: String): String =
         JsonPrimitive(value).toString()
 
-    private fun External_favorite_item.toAiInput(): ExternalFavoriteAiInput =
-        ExternalFavoriteAiInput(
+    private suspend fun ExternalFavoriteAiInput.withSupplementIfNeeded(
+        item: External_favorite_item,
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+    ): ExternalFavoriteAiInput {
+        val resolver = supplementResolver ?: return this
+        if (hasEnoughExistingFavoriteText(text)) return this
+        val supplement = runCatching { resolver.resolve(item, this, httpLogger, taskId) }.getOrNull()
+            ?: return this
+        val supplementText = supplement.text.trim()
+        if (supplementText.isBlank()) return this
+        return copy(
+            supplementUrl = supplement.url.trim().takeIf { it.isNotBlank() },
+            supplementTitle = supplement.title?.trim()?.takeIf { it.isNotBlank() },
+            supplementText = supplementText,
+            supplementSourceType = supplement.sourceType.trim().takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun External_favorite_item.toAiInput(): ExternalFavoriteAiInput {
+        val metadata = normalizedJsonObject()
+        val textParts = listOf(
+            text.trim(),
+            metadata?.stringValue("url_title")?.trim(),
+            metadata?.stringValue("url_description")?.trim(),
+        )
+            .mapNotNull { it?.takeIf(String::isNotBlank) }
+            .distinct()
+        return ExternalFavoriteAiInput(
             provider = provider,
             title = title.trim(),
-            text = text.trim(),
+            text = textParts.joinToString("\n\n"),
             authorName = author_name.trim(),
             sourceCreatedAt = source_created_at,
             canonicalUrl = canonical_url?.trim().orEmpty(),
         )
+    }
+
+    private fun External_favorite_item.normalizedJsonObject(): JsonObject? =
+        runCatching { json.parseToJsonElement(normalized_json).jsonObject }.getOrNull()
+
+    private fun JsonObject.stringValue(key: String): String? =
+        this[key]?.jsonPrimitive?.contentOrNull
+
+    private fun hasEnoughExistingFavoriteText(value: String): Boolean =
+        effectiveFavoriteText(value).length >= MIN_EXISTING_TEXT_CHARS
+
+    private fun effectiveFavoriteText(value: String): String =
+        value.lines()
+            .map { line ->
+                line.trim()
+                    .removePrefix("链接：")
+                    .removePrefix("链接:")
+                    .removePrefix("Link:")
+                    .removePrefix("link:")
+                    .trim()
+            }
+            .filterNot { line -> line.matches(Regex("""^(?:https?://|t\.co/)\S+$""", RegexOption.IGNORE_CASE)) }
+            .joinToString("")
 
     private fun ExternalFavoriteAiInput.toPromptContent(): String =
         """
@@ -194,7 +251,22 @@ class ExternalFavoriteAiOrganizer(
 
         原文：
         ${text.ifBlank { "（无正文）" }}
+
+        ${supplementPromptSection()}
         """.trimIndent()
+
+    private fun ExternalFavoriteAiInput.supplementPromptSection(): String =
+        supplementText?.trim()?.takeIf { it.isNotBlank() }?.let { body ->
+            """
+            补充来源：
+            - 类型：${supplementSourceType.orEmpty().ifBlank { "web" }}
+            - 标题：${supplementTitle.orEmpty().ifBlank { "未知" }}
+            - 链接：${supplementUrl.orEmpty().ifBlank { "未知" }}
+
+            补充正文：
+            $body
+            """.trimIndent()
+        }.orEmpty()
 
     private fun ExternalFavoriteAiInput.toArticleMarkdown(aiTitle: String, aiMarkdown: String): String {
         val author = authorName.ifBlank { "未知" }
@@ -212,11 +284,26 @@ class ExternalFavoriteAiOrganizer(
 
             $body
 
+            ${supplementMarkdownSection()}
+
             ## AI 整理
 
             $organized
         """.trimIndent()
     }
+
+    private fun ExternalFavoriteAiInput.supplementMarkdownSection(): String =
+        supplementText?.trim()?.takeIf { it.isNotBlank() }?.let { body ->
+            """
+            ## 补充来源
+
+            - 类型：${supplementSourceType.orEmpty().ifBlank { "web" }}
+            - 标题：${supplementTitle.orEmpty().ifBlank { "未知" }}
+            - 链接：${supplementUrl.orEmpty().ifBlank { "未知" }}
+
+            $body
+            """.trimIndent()
+        }.orEmpty()
 
     private fun parseAiAnalysis(response: String): ExternalFavoriteAiAnalysis {
         val trimmed = response.trim()
@@ -241,10 +328,12 @@ class ExternalFavoriteAiOrganizer(
         }
 
         const val EXTERNAL_FAVORITE_SYSTEM_PROMPT =
-            "你是内容整理助手。请直接基于用户收藏的 X/Twitter 原文整理内容，不要抓取网页。" +
+            "你是内容整理助手。请直接基于用户收藏的 X/Twitter 原文和可用补充来源整理内容。" +
                 "直接输出内容本身，不要用第三方视角，不要把内容写成对文章或帖子的介绍。" +
                 "禁止使用“本文介绍了”“本文整理了”“这篇文章讨论了”等套话，不要写“谁分享了关于……”这类来源说明。" +
                 "title 使用信息型标题，summary 直接概括关键结论，markdown 写成可直接阅读的结构化正文。" +
                 "只输出 JSON，字段为 title、summary、markdown。"
+
+        const val MIN_EXISTING_TEXT_CHARS = 20
     }
 }

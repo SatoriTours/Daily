@@ -209,13 +209,13 @@ class XBookmarksConnector(
         val articleEnrichedItems = referencedEnrichedItems.map { item ->
             if (!shouldFetchDetail(item)) return@map item
             val articleId = xArticleIdFromUrl(item.canonicalUrl.orEmpty()) ?: return@map item
-            val articleDraft = runCatching { fetchArticlePostById(source, articleId, httpLogger, taskId) }.getOrNull()
+            val articleDraft = runCatching { fetchArticleById(source, articleId, httpLogger, taskId) }.getOrNull()
             xBookmarkItemWithFetchedReferencedPost(item, articleDraft) ?: item
         }
         return page.copy(items = articleEnrichedItems)
     }
 
-    private suspend fun fetchArticlePostById(
+    suspend fun fetchArticleById(
         source: External_favorite_source,
         articleId: String,
         httpLogger: FavoriteSyncHttpLogger,

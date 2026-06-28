@@ -523,6 +523,13 @@ SELECT id, type, status, progress_current, progress_total, progress_message, che
 FROM async_task
 ORDER BY updated_at DESC;
 
+selectAsyncTasksForTaskCenterPage:
+SELECT id, type, status, progress_current, progress_total, progress_message, checkpoint_json,
+       created_at, started_at, finished_at, updated_at, last_error_message
+FROM async_task
+ORDER BY updated_at DESC
+LIMIT ?;
+
 selectRunnableAsyncTasks:
 SELECT * FROM async_task
 WHERE status IN ('queued', 'retrying')
