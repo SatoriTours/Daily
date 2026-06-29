@@ -1685,6 +1685,17 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun articleListPullRefreshUsesOneShotSnapshotWithoutReplacingLiveCollection() {
+        val articleVm = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticlesViewModel.kt").readText()
+        val refreshBody = articleVm.requiredSubstringAfter("fun refreshArticles()").requiredSubstringBefore("fun search(query: String)")
+
+        assertFalse(refreshBody.contains("loadJob?.cancel()"))
+        assertFalse(refreshBody.contains("flow.collect"))
+        assertTrue(refreshBody.contains("articlesSnapshotFor(_state.value)"))
+        assertTrue(refreshBody.contains("isRefreshing = false"))
+    }
+
+    @Test
     fun unifiedNewsSourceSwitcherKeepsRefreshButtonFixedOutsideScrollableTabs() {
         val screen = unifiedNewsSourceSwitcherSource()
         val switcher = screen.requiredSubstringAfter("internal fun UnifiedNewsSourceSwitcher").requiredSubstringBefore("internal fun UnifiedNewsSourceTabs")

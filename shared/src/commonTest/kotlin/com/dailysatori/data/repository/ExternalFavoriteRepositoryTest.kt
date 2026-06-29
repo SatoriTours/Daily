@@ -274,6 +274,26 @@ class ExternalFavoriteRepositoryTest {
         assertEquals(setOf(firstArticleId, secondArticleId), articleRepository.getExternalFavoritesSync().map { it.id }.toSet())
     }
 
+    @Test
+    fun articleRepositoryDeduplicatesExternalFavoriteArticlesLinkedToSameArticle() = withRepositories { db, sources, items ->
+        val articleRepository = ArticleRepository(db)
+        val sourceId = saveXSource(sources)
+        val (firstItem, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-1", title = "First"))
+        val (secondItem, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-2", title = "Second"))
+        val articleId = articleRepository.insert(
+            title = "Shared article",
+            aiContent = "Shared body",
+            url = "https://example.com/shared-imported-source",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(firstItem.id, articleId, duplicateLinked = false)
+        items.markImported(secondItem.id, articleId, duplicateLinked = true)
+
+        assertEquals(listOf(articleId), articleRepository.getExternalFavoritesBySourceSync(sourceId).map { it.id })
+        assertEquals(listOf(articleId), articleRepository.getExternalFavoritesSync().map { it.id })
+    }
+
     private fun withRepositories(
         block: (
             db: DailySatoriDatabase,

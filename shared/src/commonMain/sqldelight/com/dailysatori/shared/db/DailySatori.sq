@@ -434,14 +434,31 @@ ORDER BY created_at DESC;
 
 selectExternalFavoriteArticles:
 SELECT article.* FROM article
-INNER JOIN external_favorite_item ON external_favorite_item.article_id = article.id
-ORDER BY COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at) DESC;
+WHERE article.id IN (
+    SELECT external_favorite_item.article_id
+    FROM external_favorite_item
+    WHERE external_favorite_item.article_id IS NOT NULL
+)
+ORDER BY (
+    SELECT MAX(COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at))
+    FROM external_favorite_item
+    WHERE external_favorite_item.article_id = article.id
+) DESC;
 
 selectExternalFavoriteArticlesBySource:
 SELECT article.* FROM article
-INNER JOIN external_favorite_item ON external_favorite_item.article_id = article.id
-WHERE external_favorite_item.source_id = ?
-ORDER BY COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at) DESC;
+WHERE article.id IN (
+    SELECT external_favorite_item.article_id
+    FROM external_favorite_item
+    WHERE external_favorite_item.source_id = :sourceId
+      AND external_favorite_item.article_id IS NOT NULL
+)
+ORDER BY (
+    SELECT MAX(COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at))
+    FROM external_favorite_item
+    WHERE external_favorite_item.source_id = :sourceId
+      AND external_favorite_item.article_id = article.id
+) DESC;
 
 selectArticleDailyCounts:
 SELECT (created_at / 86400000) AS article_day, COUNT(*) AS article_count

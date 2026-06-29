@@ -151,6 +151,8 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getLocalSync(): List<Article> = q.selectLocalArticles().executeAsList()
 
+    fun getByTagSync(tagId: Long): List<Article> = q.selectArticlesByTag(tagId).executeAsList()
+
     fun searchSync(query: String): List<Article> = q.searchArticles(query, query, query).executeAsList()
 
     fun searchFavoriteFirstSync(query: String): List<Article> =

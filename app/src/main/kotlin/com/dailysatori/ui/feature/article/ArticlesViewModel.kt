@@ -12,6 +12,7 @@ import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -64,16 +65,8 @@ class ArticlesViewModel(
         loadJob?.cancel()
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
-            val currentState = _state.value
-            val flow = when {
-                currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
-                currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId!!)
-                currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
-                currentState.showFavoritesOnly -> articleRepo.getFavorites()
-                else -> articleRepo.getAll()
-            }
             android.util.Log.d("ArticlesVM", "Loading articles with flow")
-            flow.collect { articles ->
+            articlesFlowFor(_state.value).collect { articles ->
                 android.util.Log.d("ArticlesVM", "Got ${articles.size} articles")
                 _state.update { it.copy(articles = articles, isLoading = false) }
             }
@@ -81,21 +74,32 @@ class ArticlesViewModel(
     }
 
     fun refreshArticles() {
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isRefreshing = true) }
-            val currentState = _state.value
-            val flow = when {
-                currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
-                currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId!!)
-                currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
-                currentState.showFavoritesOnly -> articleRepo.getFavorites()
-                else -> articleRepo.getAll()
-            }
-            flow.collect { articles ->
+            try {
+                val articles = articlesSnapshotFor(_state.value)
                 _state.update { it.copy(articles = articles, isRefreshing = false, isLoading = false) }
+            } catch (e: Exception) {
+                android.util.Log.w("ArticlesVM", "Failed to refresh articles", e)
+                _state.update { it.copy(isRefreshing = false, isLoading = false) }
             }
         }
+    }
+
+    private fun articlesFlowFor(currentState: ArticlesState): Flow<List<Article>> = when {
+        currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
+        currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId)
+        currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
+        currentState.showFavoritesOnly -> articleRepo.getFavorites()
+        else -> articleRepo.getAll()
+    }
+
+    private fun articlesSnapshotFor(currentState: ArticlesState): List<Article> = when {
+        currentState.searchQuery.isNotBlank() -> articleRepo.searchSync(currentState.searchQuery)
+        currentState.selectedTagId != null -> articleRepo.getByTagSync(currentState.selectedTagId)
+        currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySourceSync(currentState.externalFavoriteSourceId)
+        currentState.showFavoritesOnly -> articleRepo.getFavoritesSync()
+        else -> articleRepo.getLocalSync()
     }
 
     fun search(query: String) {
