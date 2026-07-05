@@ -1,5 +1,7 @@
 package com.dailysatori.ui.component.appbar
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,10 +14,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import com.dailysatori.ui.theme.Height
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AppTopBar(
     title: String,
@@ -23,6 +26,7 @@ fun AppTopBar(
     showBack: Boolean = onBack != null,
     myNavigationLabel: String? = null,
     onMyNavigationClick: (() -> Unit)? = null,
+    onTitleDoubleClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     expandedHeight: Dp = Height.appBar,
 ) {
@@ -30,8 +34,14 @@ fun AppTopBar(
         expandedHeight = expandedHeight,
         windowInsets = TopAppBarDefaults.windowInsets,
         title = {
+            val titleModifier = if (onTitleDoubleClick != null) {
+                Modifier.combinedClickable(onClick = {}, onDoubleClick = onTitleDoubleClick)
+            } else {
+                Modifier
+            }
             Text(
                 text = title,
+                modifier = titleModifier,
                 style = MaterialTheme.typography.titleMedium,
             )
         },

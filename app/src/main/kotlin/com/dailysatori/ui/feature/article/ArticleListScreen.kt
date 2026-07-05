@@ -71,6 +71,8 @@ fun ArticleListScreen(
     showTopBar: Boolean = true,
     refreshRequestKey: Int = 0,
     externalFavoriteSourceId: Long? = null,
+    embeddedSearchQuery: String? = null,
+    scrollToTopRequestKey: Int = 0,
 ) {
     val viewModel: ArticlesViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -88,6 +90,8 @@ fun ArticleListScreen(
         lifecycleOwner = lifecycleOwner,
         effectiveShowFavoritesOnly = effectiveShowFavoritesOnly,
         externalFavoriteSourceId = externalFavoriteSourceId,
+        embeddedSearchQuery = embeddedSearchQuery,
+        scrollToTopRequestKey = scrollToTopRequestKey,
         refreshRequestKey = refreshRequestKey,
         viewModel = viewModel,
     )
@@ -137,14 +141,25 @@ private fun ArticleListEffects(
     lifecycleOwner: LifecycleOwner,
     effectiveShowFavoritesOnly: Boolean,
     externalFavoriteSourceId: Long?,
+    embeddedSearchQuery: String?,
+    scrollToTopRequestKey: Int,
     refreshRequestKey: Int,
     viewModel: ArticlesViewModel,
 ) {
     fun firstVisibleArticleId(): Long? = state.articles.getOrNull(listState.firstVisibleItemIndex)?.id
     fun isAtTop(): Boolean = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
     LaunchedEffect(effectiveShowFavoritesOnly) { viewModel.setFavoritesOnly(effectiveShowFavoritesOnly) }
-    LaunchedEffect(externalFavoriteSourceId) { viewModel.setExternalFavoriteSource(externalFavoriteSourceId) }
+    LaunchedEffect(externalFavoriteSourceId, embeddedSearchQuery) {
+        viewModel.setExternalFavoriteSource(externalFavoriteSourceId)
+        if (embeddedSearchQuery != null) viewModel.search(embeddedSearchQuery)
+    }
     LaunchedEffect(refreshRequestKey) { if (refreshRequestKey > 0) viewModel.refreshArticles() }
+    LaunchedEffect(scrollToTopRequestKey, state.articles.isNotEmpty()) {
+        if (scrollToTopRequestKey > 0 && state.articles.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+            viewModel.clearNewArticlesIndicator()
+        }
+    }
     LaunchedEffect(state.scrollToTopRequest, state.articles.isNotEmpty()) {
         if (shouldScrollToTopAfterArticleAdded(state.scrollToTopRequest) && state.articles.isNotEmpty()) {
             listState.animateScrollToItem(0)

@@ -35,28 +35,37 @@ internal fun UnifiedNewsSourceArticleContent(
     selection: UnifiedNewsSourceSelection.RemoteSource,
     viewModel: UnifiedNewsViewModel,
 ) {
-    val articles = state.sourceArticlesBySourceId[selection.id].orEmpty()
+    val sourceArticles = state.sourceArticlesBySourceId[selection.id].orEmpty()
+    val articles = filteredUnifiedNewsRemoteArticles(sourceArticles, state.searchQuery)
     val isLoading = state.sourceArticlesLoadingSourceId == selection.id
     val isLoadingMore = state.sourceArticlesLoadingMoreSourceId == selection.id
     when {
-        isLoading && articles.isEmpty() -> LoadingIndicator()
-        state.sourceArticlesError != null && articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
+        isLoading && sourceArticles.isEmpty() -> LoadingIndicator()
+        state.sourceArticlesError != null && sourceArticles.isEmpty() -> UnifiedNewsSourceArticleMessage(
             title = state.sourceArticlesError,
             actionLabel = "同步",
             onAction = { viewModel.syncRemoteSource(selection.id) },
             isError = true,
         )
-        articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
+        sourceArticles.isEmpty() -> UnifiedNewsSourceArticleMessage(
             title = "这个来源暂时没有已同步文章",
             subtitle = "今天没有新文章时，稍后下拉刷新即可",
             actionLabel = "同步",
             onAction = { viewModel.syncRemoteSource(selection.id) },
+        )
+        articles.isEmpty() && state.searchQuery.isNotBlank() -> UnifiedNewsSourceArticleMessage(
+            title = "这个来源没有匹配新闻",
+            subtitle = "换个关键词或清除搜索后查看全部",
+            actionLabel = "清除",
+            onAction = { viewModel.search("") },
         )
         else -> UnifiedNewsSourceArticleList(
             articles = articles,
             isLoading = isLoading,
             isLoadingMore = isLoadingMore,
             sourceArticlesError = state.sourceArticlesError,
+            canLoadMore = state.searchQuery.isBlank(),
+            scrollToTopRequestKey = state.scrollToTopRequestKey,
             viewModel = viewModel,
         )
     }
@@ -69,10 +78,17 @@ private fun UnifiedNewsSourceArticleList(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     sourceArticlesError: String?,
+    canLoadMore: Boolean,
+    scrollToTopRequestKey: Int,
     viewModel: UnifiedNewsViewModel,
 ) {
     val listState = rememberLazyListState()
-    LoadMoreWhenAtEnd(listState, articles.size, viewModel::loadMoreSelectedRemoteSource)
+    if (canLoadMore) LoadMoreWhenAtEnd(listState, articles.size, viewModel::loadMoreSelectedRemoteSource)
+    LaunchedEffect(scrollToTopRequestKey) {
+        if (scrollToTopRequestKey > 0 && articles.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
     PullToRefreshBox(
         modifier = Modifier.fillMaxSize(),
         isRefreshing = isLoading,
@@ -98,6 +114,24 @@ private fun UnifiedNewsSourceArticleList(
         }
     }
 }
+
+internal fun filteredUnifiedNewsRemoteArticles(articles: List<RemoteArticle>, query: String): List<RemoteArticle> {
+    val keyword = query.trim().lowercase()
+    if (keyword.isBlank()) return articles
+    return articles.filter { article -> article.matchesUnifiedNewsRemoteArticleSearch(keyword) }
+}
+
+private fun RemoteArticle.matchesUnifiedNewsRemoteArticleSearch(keyword: String): Boolean =
+    listOfNotNull(
+        title,
+        summary,
+        content,
+        url,
+        feedName,
+        domain,
+        status,
+    ).any { it.contains(keyword, ignoreCase = true) } ||
+        viewpoints.any { it.contains(keyword, ignoreCase = true) }
 
 @Composable
 private fun LoadMoreWhenAtEnd(listState: LazyListState, itemCount: Int, onLoadMore: () -> Unit) {

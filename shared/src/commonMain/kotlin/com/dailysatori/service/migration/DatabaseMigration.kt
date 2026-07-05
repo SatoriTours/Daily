@@ -76,6 +76,12 @@ class DatabaseMigration(
         if (currentVersion < 17) {
             migrateV16ToV17()
         }
+        if (currentVersion < 18) {
+            migrateV17ToV18()
+        }
+        if (currentVersion < 19) {
+            migrateV18ToV19()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -683,6 +689,193 @@ class DatabaseMigration(
             log.i { "Created async task active unique key index" }
         } catch (e: Exception) {
             log.w(e) { "Could not create async task active unique key index" }
+        }
+    }
+
+    private fun migrateV17ToV18() {
+        log.i { "Migration V17 -> V18: Query performance indexes" }
+        listOf(
+            "CREATE INDEX IF NOT EXISTS idx_article_source_created ON article(source_type, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_article_status_updated ON article(status, updated_at ASC)",
+            "CREATE INDEX IF NOT EXISTS idx_article_favorite_created ON article(is_favorite, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_article_no_url_remote_content ON article(title) WHERE url IS NULL",
+            "CREATE INDEX IF NOT EXISTS idx_article_tag_tag_article ON article_tag(tag_id, article_id)",
+            "CREATE INDEX IF NOT EXISTS idx_image_article ON image(article_id)",
+            "CREATE INDEX IF NOT EXISTS idx_book_created ON book(created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_book_viewpoint_book_created ON book_viewpoint(book_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_book_ref_session_viewpoint_updated ON book_viewpoint_ai_session(viewpoint_id, updated_at DESC, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_book_ref_session_viewpoint_last_opened ON book_viewpoint_ai_session(viewpoint_id, last_opened_at DESC, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_book_ref_message_session_created ON book_viewpoint_ai_message(session_id, created_at ASC, id ASC)",
+            "CREATE INDEX IF NOT EXISTS idx_diary_created ON diary(created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_remote_article_sync_source_date ON remote_article_sync_item(remote_source_id, source_date, last_seen_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_remote_article_sync_source_url ON remote_article_sync_item(remote_source_id, url)",
+            "CREATE INDEX IF NOT EXISTS idx_remote_article_sync_article ON remote_article_sync_item(article_id)",
+            "CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_first_seen ON external_favorite_item(source_id, first_seen_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_external_favorite_item_article ON external_favorite_item(article_id)",
+            "CREATE INDEX IF NOT EXISTS idx_external_favorite_item_import_first_seen ON external_favorite_item(import_status, first_seen_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_external_favorite_item_ai_first_seen ON external_favorite_item(ai_status, first_seen_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_ai_first_seen ON external_favorite_item(source_id, ai_status, first_seen_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_import_first_seen ON external_favorite_item(source_id, import_status, first_seen_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_weekly_summary_week_range ON weekly_summary(week_start_date, week_end_date)",
+            "CREATE INDEX IF NOT EXISTS idx_unified_news_summary_window_end ON unified_news_summary(window_end_ms DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_unified_news_source_summary ON unified_news_source(summary_id, id ASC)",
+            "CREATE INDEX IF NOT EXISTS idx_async_task_status_run_after_priority ON async_task(status, run_after_ms, priority DESC, created_at ASC)",
+            "CREATE INDEX IF NOT EXISTS idx_async_task_updated ON async_task(updated_at DESC, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_async_task_unique_created ON async_task(unique_key, created_at DESC, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_async_task_batch ON async_task(batch_id)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_entry_type_created ON memory_entry(type, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_entry_source ON memory_entry(source_type, source_id)",
+            "CREATE INDEX IF NOT EXISTS idx_chat_conversation_session_created ON chat_conversation(session_id, created_at DESC)",
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                log.w(e) { "Could not create performance index: $sql" }
+            }
+        }
+    }
+
+    private fun migrateV18ToV19() {
+        log.i { "Migration V18 -> V19: Full-text search indexes" }
+        listOf(
+            """
+                CREATE VIRTUAL TABLE IF NOT EXISTS article_fts USING fts5(
+                    title,
+                    ai_title,
+                    ai_content
+                )
+            """.trimIndent(),
+            "DELETE FROM article_fts",
+            "INSERT INTO article_fts(rowid, title, ai_title, ai_content) SELECT id, title, ai_title, ai_content FROM article",
+            """
+                CREATE TRIGGER IF NOT EXISTS article_fts_insert AFTER INSERT ON article BEGIN
+                    INSERT INTO article_fts(rowid, title, ai_title, ai_content)
+                    VALUES (new.id, new.title, new.ai_title, new.ai_content);
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS article_fts_delete AFTER DELETE ON article BEGIN
+                    DELETE FROM article_fts WHERE rowid = old.id;
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS article_fts_update AFTER UPDATE OF title, ai_title, ai_content ON article BEGIN
+                    DELETE FROM article_fts WHERE rowid = old.id;
+                    INSERT INTO article_fts(rowid, title, ai_title, ai_content)
+                    VALUES (new.id, new.title, new.ai_title, new.ai_content);
+                END
+            """.trimIndent(),
+            """
+                CREATE VIRTUAL TABLE IF NOT EXISTS book_fts USING fts5(
+                    title,
+                    author
+                )
+            """.trimIndent(),
+            "DELETE FROM book_fts",
+            "INSERT INTO book_fts(rowid, title, author) SELECT id, title, author FROM book",
+            """
+                CREATE TRIGGER IF NOT EXISTS book_fts_insert AFTER INSERT ON book BEGIN
+                    INSERT INTO book_fts(rowid, title, author)
+                    VALUES (new.id, new.title, new.author);
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS book_fts_delete AFTER DELETE ON book BEGIN
+                    DELETE FROM book_fts WHERE rowid = old.id;
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS book_fts_update AFTER UPDATE OF title, author ON book BEGIN
+                    DELETE FROM book_fts WHERE rowid = old.id;
+                    INSERT INTO book_fts(rowid, title, author)
+                    VALUES (new.id, new.title, new.author);
+                END
+            """.trimIndent(),
+            """
+                CREATE VIRTUAL TABLE IF NOT EXISTS book_viewpoint_fts USING fts5(
+                    title,
+                    content,
+                    example
+                )
+            """.trimIndent(),
+            "DELETE FROM book_viewpoint_fts",
+            "INSERT INTO book_viewpoint_fts(rowid, title, content, example) SELECT id, title, content, example FROM book_viewpoint",
+            """
+                CREATE TRIGGER IF NOT EXISTS book_viewpoint_fts_insert AFTER INSERT ON book_viewpoint BEGIN
+                    INSERT INTO book_viewpoint_fts(rowid, title, content, example)
+                    VALUES (new.id, new.title, new.content, new.example);
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS book_viewpoint_fts_delete AFTER DELETE ON book_viewpoint BEGIN
+                    DELETE FROM book_viewpoint_fts WHERE rowid = old.id;
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS book_viewpoint_fts_update AFTER UPDATE OF title, content, example ON book_viewpoint BEGIN
+                    DELETE FROM book_viewpoint_fts WHERE rowid = old.id;
+                    INSERT INTO book_viewpoint_fts(rowid, title, content, example)
+                    VALUES (new.id, new.title, new.content, new.example);
+                END
+            """.trimIndent(),
+            """
+                CREATE VIRTUAL TABLE IF NOT EXISTS diary_fts USING fts5(
+                    content,
+                    tags
+                )
+            """.trimIndent(),
+            "DELETE FROM diary_fts",
+            "INSERT INTO diary_fts(rowid, content, tags) SELECT id, content, tags FROM diary",
+            """
+                CREATE TRIGGER IF NOT EXISTS diary_fts_insert AFTER INSERT ON diary BEGIN
+                    INSERT INTO diary_fts(rowid, content, tags)
+                    VALUES (new.id, new.content, new.tags);
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS diary_fts_delete AFTER DELETE ON diary BEGIN
+                    DELETE FROM diary_fts WHERE rowid = old.id;
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS diary_fts_update AFTER UPDATE OF content, tags ON diary BEGIN
+                    DELETE FROM diary_fts WHERE rowid = old.id;
+                    INSERT INTO diary_fts(rowid, content, tags)
+                    VALUES (new.id, new.content, new.tags);
+                END
+            """.trimIndent(),
+            """
+                CREATE VIRTUAL TABLE IF NOT EXISTS memory_entry_fts USING fts5(
+                    title,
+                    content
+                )
+            """.trimIndent(),
+            "DELETE FROM memory_entry_fts",
+            "INSERT INTO memory_entry_fts(rowid, title, content) SELECT id, title, content FROM memory_entry",
+            """
+                CREATE TRIGGER IF NOT EXISTS memory_entry_fts_insert AFTER INSERT ON memory_entry BEGIN
+                    INSERT INTO memory_entry_fts(rowid, title, content)
+                    VALUES (new.id, new.title, new.content);
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS memory_entry_fts_delete AFTER DELETE ON memory_entry BEGIN
+                    DELETE FROM memory_entry_fts WHERE rowid = old.id;
+                END
+            """.trimIndent(),
+            """
+                CREATE TRIGGER IF NOT EXISTS memory_entry_fts_update AFTER UPDATE OF title, content ON memory_entry BEGIN
+                    DELETE FROM memory_entry_fts WHERE rowid = old.id;
+                    INSERT INTO memory_entry_fts(rowid, title, content)
+                    VALUES (new.id, new.title, new.content);
+                END
+            """.trimIndent(),
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                log.w(e) { "Could not create full-text search structure: $sql" }
+            }
         }
     }
 

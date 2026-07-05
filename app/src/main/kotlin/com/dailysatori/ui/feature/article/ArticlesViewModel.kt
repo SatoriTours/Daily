@@ -87,6 +87,8 @@ class ArticlesViewModel(
     }
 
     private fun articlesFlowFor(currentState: ArticlesState): Flow<List<Article>> = when {
+        currentState.externalFavoriteSourceId != null && currentState.searchQuery.isNotBlank() ->
+            articleRepo.searchExternalFavoritesBySource(currentState.externalFavoriteSourceId, currentState.searchQuery)
         currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
         currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId)
         currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
@@ -95,6 +97,8 @@ class ArticlesViewModel(
     }
 
     private fun articlesSnapshotFor(currentState: ArticlesState): List<Article> = when {
+        currentState.externalFavoriteSourceId != null && currentState.searchQuery.isNotBlank() ->
+            articleRepo.searchExternalFavoritesBySourceSync(currentState.externalFavoriteSourceId, currentState.searchQuery)
         currentState.searchQuery.isNotBlank() -> articleRepo.searchSync(currentState.searchQuery)
         currentState.selectedTagId != null -> articleRepo.getByTagSync(currentState.selectedTagId)
         currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySourceSync(currentState.externalFavoriteSourceId)

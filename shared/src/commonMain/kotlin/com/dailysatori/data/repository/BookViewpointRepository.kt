@@ -79,24 +79,39 @@ class BookViewpointRepository(private val db: DailySatoriDatabase) {
     fun getByBookSync(bookId: Long): List<Book_viewpoint> = q.selectViewpointsByBook(bookId).executeAsList()
 
     fun searchByContentSync(keyword: String): List<Book_viewpoint> {
-        val kw = keyword.lowercase()
-        return q.selectAllViewpoints().executeAsList().filter { vp ->
-            vp.content.lowercase().contains(kw) || vp.title.lowercase().contains(kw)
+        return if (keyword.isBlank()) {
+            q.searchViewpointsByContent(keyword, keyword).executeAsList()
+        } else {
+            q.searchViewpointsByContentFts(keyword.toFtsPhraseQuery(), keyword).executeAsList()
         }
     }
 
     fun searchBookContent(keyword: String): List<BookContentSearchResult> =
-        q.searchBookContent(keyword, keyword, keyword, keyword, keyword).executeAsList().map { row ->
-            BookContentSearchResult(
-                viewpointId = row.viewpoint_id,
-                bookId = row.book_id,
-                bookTitle = row.book_title,
-                author = row.author,
-                title = row.viewpoint_title,
-                content = row.content,
-                example = row.example,
-            )
+        if (keyword.isBlank()) {
+            q.searchBookContent(keyword, keyword, keyword, keyword, keyword).executeAsList().map { row ->
+                BookContentSearchResult(
+                    viewpointId = row.viewpoint_id,
+                    bookId = row.book_id,
+                    bookTitle = row.book_title,
+                    author = row.author,
+                    title = row.viewpoint_title,
+                    content = row.content,
+                    example = row.example,
+                )
+            }
+        } else {
+            q.searchBookContentFts(keyword.toFtsPhraseQuery(), keyword).executeAsList().map { row ->
+                BookContentSearchResult(
+                    viewpointId = row.viewpoint_id,
+                    bookId = row.book_id,
+                    bookTitle = row.book_title,
+                    author = row.author,
+                    title = row.viewpoint_title,
+                    content = row.content,
+                    example = row.example,
+                )
+            }
         }
 
-    fun count(): Long = q.selectAllViewpoints().executeAsList().size.toLong()
+    fun count(): Long = q.bookViewpointCount().executeAsOne()
 }

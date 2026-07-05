@@ -186,6 +186,53 @@ class AsyncTaskRepositoryTest {
     }
 
     @Test
+    fun taskCenterFilterSearchesBeyondNewestUnfilteredPage() {
+        withRepository { repository ->
+            val targetId = repository.enqueue(
+                type = AsyncTaskType.book_viewpoint_generate.name,
+                payloadJson = """{"target":true}""",
+            )
+            repeat(75) { index ->
+                repository.enqueue(
+                    type = AsyncTaskType.external_favorite_sync.name,
+                    payloadJson = """{"index":$index}""",
+                )
+            }
+
+            val page = runBlocking {
+                repository.observeTaskCenter(
+                    AsyncTaskFilter(types = setOf(AsyncTaskType.book_viewpoint_generate.name), showTerminal = true),
+                    limit = 10,
+                ).first()
+            }
+
+            assertEquals(listOf(targetId), page.tasks.map { it.id })
+            assertEquals(1, page.loadedCount)
+            assertEquals(false, page.hasMore)
+        }
+    }
+
+    @Test
+    fun taskCenterShowsExplicitTerminalStatusFilterWhenTerminalRowsAreHiddenByDefault() {
+        withRepository { repository ->
+            val taskId = repository.enqueue(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = "{}",
+            )
+            repository.finishSuccess(taskId, "{}")
+
+            val page = runBlocking {
+                repository.observeTaskCenter(
+                    AsyncTaskFilter(statuses = setOf(AsyncTaskStatus.succeeded.name), showTerminal = false),
+                    limit = 10,
+                ).first()
+            }
+
+            assertEquals(listOf(taskId), page.tasks.map { it.id })
+        }
+    }
+
+    @Test
     fun pruneOldTasksKeepsOnlyMostRecentlyUpdatedRowsAndReturnsDeletedIds() {
         withRepository { repository ->
             val ids = (0 until 25).map { index ->

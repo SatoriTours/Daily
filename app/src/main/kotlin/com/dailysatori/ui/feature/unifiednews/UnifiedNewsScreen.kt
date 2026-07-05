@@ -12,26 +12,37 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,9 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -54,6 +67,8 @@ import com.dailysatori.ui.feature.remotenews.RemoteDigestDetailScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.Height
+import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -136,6 +151,9 @@ private fun UnifiedNewsMainPageRoute(
     BackHandler(enabled = state.page != UnifiedNewsPage.SUMMARY) {
         viewModel.switchPage(UnifiedNewsPage.SUMMARY)
     }
+    BackHandler(enabled = state.page == UnifiedNewsPage.SUMMARY && state.isSearchVisible) {
+        viewModel.closeSearch()
+    }
 
     when (state.page) {
         UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick)
@@ -160,13 +178,16 @@ private fun UnifiedNewsSummaryPage(
     onArticleClick: (Long) -> Unit,
     onMyClick: () -> Unit,
 ) {
-    AppScaffold(
-        title = "新闻汇总",
-        showBack = false,
-        myNavigationLabel = "我的",
-        onMyNavigationClick = onMyClick,
-        actions = { UnifiedNewsMenu(viewModel) },
-    ) { modifier ->
+    Scaffold(
+        topBar = {
+            UnifiedNewsTopBar(
+                state = state,
+                viewModel = viewModel,
+                onMyClick = onMyClick,
+            )
+        },
+    ) { innerPadding ->
+        val modifier = Modifier.padding(innerPadding)
         Column(modifier = modifier.fillMaxSize()) {
             UnifiedNewsSourceSwitcher(state = state, viewModel = viewModel)
             if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
@@ -183,16 +204,124 @@ private fun UnifiedNewsSummaryPage(
                         showTopBar = false,
                         refreshRequestKey = state.localArticleRefreshRequestKey,
                         externalFavoriteSourceId = selection.id,
+                        embeddedSearchQuery = state.searchQuery,
+                        scrollToTopRequestKey = state.scrollToTopRequestKey,
                     )
                     UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
                         onArticleClick = onArticleClick,
                         showTopBar = false,
                         refreshRequestKey = state.localArticleRefreshRequestKey,
+                        embeddedSearchQuery = state.searchQuery,
+                        scrollToTopRequestKey = state.scrollToTopRequestKey,
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun UnifiedNewsTopBar(
+    state: UnifiedNewsState,
+    viewModel: UnifiedNewsViewModel,
+    onMyClick: () -> Unit,
+) {
+    if (state.isSearchVisible) {
+        UnifiedNewsSearchTopBar(
+            query = state.searchQuery,
+            onQueryChange = viewModel::search,
+            onClose = viewModel::closeSearch,
+        )
+    } else {
+        AppTopBar(
+            title = "新闻汇总",
+            showBack = false,
+            myNavigationLabel = "我的",
+            onMyNavigationClick = onMyClick,
+            onTitleDoubleClick = viewModel::requestScrollToTop,
+            actions = {
+                IconButton(onClick = viewModel::toggleSearch) {
+                    Icon(Icons.Default.Search, contentDescription = "搜索")
+                }
+                UnifiedNewsMenu(viewModel)
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnifiedNewsSearchTopBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    TopAppBar(
+        expandedHeight = Height.appBar,
+        windowInsets = TopAppBarDefaults.windowInsets,
+        title = {
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { }),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { innerTextField ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(Height.searchBar),
+                        shape = RoundedCornerShape(Radius.circular),
+                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(start = Spacing.m, end = Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "搜索",
+                                modifier = Modifier.size(IconSize.m),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (query.isEmpty()) {
+                                    Text(
+                                        text = "搜索",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                innerTextField()
+                            }
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(40.dp)) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "清除",
+                                        modifier = Modifier.size(IconSize.s),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+            )
+        },
+        actions = {
+            TextButton(onClick = onClose) {
+                Text("取消")
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            scrolledContainerColor = MaterialTheme.colorScheme.background,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
 }
 
 @Composable

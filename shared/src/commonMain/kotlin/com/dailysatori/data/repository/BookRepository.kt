@@ -17,7 +17,11 @@ class BookRepository(private val db: DailySatoriDatabase) {
     fun getById(id: Long) = q.selectBookById(id).executeAsOneOrNull()
 
     fun search(query: String): Flow<List<Book>> =
-        q.searchBooks(query, query).asFlow().mapToList(Dispatchers.IO)
+        if (query.isBlank()) {
+            q.searchBooks(query, query).asFlow().mapToList(Dispatchers.IO)
+        } else {
+            q.searchBooksFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
+        }
 
     fun insert(
         title: String,
@@ -58,9 +62,14 @@ class BookRepository(private val db: DailySatoriDatabase) {
 
     fun delete(id: Long) = q.deleteBook(id)
 
-    fun count(): Long = q.selectAllBooks().executeAsList().size.toLong()
+    fun count(): Long = q.bookCount().executeAsOne()
 
     fun getAllSync(): List<Book> = q.selectAllBooks().executeAsList()
 
-    fun searchSync(query: String): List<Book> = q.searchBooks(query, query).executeAsList()
+    fun searchSync(query: String): List<Book> =
+        if (query.isBlank()) {
+            q.searchBooks(query, query).executeAsList()
+        } else {
+            q.searchBooksFts(query.toFtsPhraseQuery(), query).executeAsList()
+        }
 }

@@ -29,7 +29,11 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         q.selectArticlesByTag(tagId).asFlow().mapToList(Dispatchers.IO)
 
     fun search(query: String): Flow<List<Article>> =
-        q.searchArticles(query, query, query).asFlow().mapToList(Dispatchers.IO)
+        if (query.isBlank()) {
+            q.searchArticles(query, query, query).asFlow().mapToList(Dispatchers.IO)
+        } else {
+            q.searchArticlesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
+        }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Article>> =
         q.selectArticlesByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
@@ -42,6 +46,13 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getExternalFavoritesBySource(sourceId: Long): Flow<List<Article>> =
         q.selectExternalFavoriteArticlesBySource(sourceId).asFlow().mapToList(Dispatchers.IO)
+
+    fun searchExternalFavoritesBySource(sourceId: Long, query: String): Flow<List<Article>> =
+        if (query.isBlank()) {
+            q.selectExternalFavoriteArticlesBySource(sourceId).asFlow().mapToList(Dispatchers.IO)
+        } else {
+            q.searchExternalFavoriteArticlesBySourceFts(sourceId, query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
+        }
 
     fun getDailyCounts(): Flow<Map<Long, Long>> =
         q.selectArticleDailyCounts().asFlow().mapToList(Dispatchers.IO)
@@ -153,10 +164,19 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getByTagSync(tagId: Long): List<Article> = q.selectArticlesByTag(tagId).executeAsList()
 
-    fun searchSync(query: String): List<Article> = q.searchArticles(query, query, query).executeAsList()
+    fun searchSync(query: String): List<Article> =
+        if (query.isBlank()) {
+            q.searchArticles(query, query, query).executeAsList()
+        } else {
+            q.searchArticlesFts(query.toFtsPhraseQuery(), query).executeAsList()
+        }
 
     fun searchFavoriteFirstSync(query: String): List<Article> =
-        q.searchArticlesFavoriteFirst(query, query, query).executeAsList()
+        if (query.isBlank()) {
+            q.searchArticlesFavoriteFirst(query, query, query).executeAsList()
+        } else {
+            q.searchArticlesFavoriteFirstFts(query.toFtsPhraseQuery(), query).executeAsList()
+        }
 
     fun getFavoritesSync(): List<Article> = q.selectFavoriteArticles().executeAsList()
 
@@ -164,6 +184,13 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getExternalFavoritesBySourceSync(sourceId: Long): List<Article> =
         q.selectExternalFavoriteArticlesBySource(sourceId).executeAsList()
+
+    fun searchExternalFavoritesBySourceSync(sourceId: Long, query: String): List<Article> =
+        if (query.isBlank()) {
+            q.selectExternalFavoriteArticlesBySource(sourceId).executeAsList()
+        } else {
+            q.searchExternalFavoriteArticlesBySourceFts(sourceId, query.toFtsPhraseQuery(), query).executeAsList()
+        }
 
     fun getFavoritesByDateRangeSync(startMs: Long, endMs: Long): List<Article> =
         q.selectFavoriteArticlesByDateRange(startMs, endMs).executeAsList()
@@ -175,12 +202,11 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         val fields = remoteArticle.toLocalFavoriteArticleFields()
         val url = fields.url
         if (!url.isNullOrBlank()) return q.selectArticleByUrlNullable(url).executeAsOneOrNull()
-        return q.selectArticles().executeAsList().firstOrNull { article ->
-            article.url.isNullOrBlank() &&
-                article.title == fields.title &&
-                article.ai_content == fields.aiContent &&
-                article.ai_markdown_content == fields.aiMarkdownContent
-        }
+        return q.selectArticleByNoUrlRemoteContent(
+            title = fields.title,
+            ai_content = fields.aiContent,
+            ai_markdown_content = fields.aiMarkdownContent,
+        ).executeAsOneOrNull()
     }
 
     fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article? {

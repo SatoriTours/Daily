@@ -122,7 +122,7 @@ class RemoteNewsUiBehaviorTest {
         ).readText()
 
         assertTrue(repository.contains("fun findLocalArticleForRemote(remoteArticle: RemoteArticle): Article?"))
-        assertTrue(repository.contains("article.url.isNullOrBlank()"))
+        assertTrue(repository.contains("selectArticleByNoUrlRemoteContent"))
         assertTrue(remoteNews.contains("articleRepo.findLocalArticleForRemote(article)"))
         assertTrue(unifiedNews.contains("articleRepo.findLocalArticleForRemote(article)"))
     }

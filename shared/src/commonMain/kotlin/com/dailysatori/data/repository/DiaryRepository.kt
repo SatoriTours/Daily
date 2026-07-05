@@ -20,7 +20,11 @@ class DiaryRepository(private val db: DailySatoriDatabase) {
     fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()
 
     fun search(query: String): Flow<List<Diary>> =
-        q.searchDiaries(query, query).asFlow().mapToList(Dispatchers.IO)
+        if (query.isBlank()) {
+            q.searchDiaries(query, query).asFlow().mapToList(Dispatchers.IO)
+        } else {
+            q.searchDiariesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
+        }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Diary>> =
         q.selectDiariesByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
@@ -52,7 +56,12 @@ class DiaryRepository(private val db: DailySatoriDatabase) {
 
     fun getAllSync(): List<Diary> = q.selectAllDiaries().executeAsList()
 
-    fun searchSync(query: String): List<Diary> = q.searchDiaries(query, query).executeAsList()
+    fun searchSync(query: String): List<Diary> =
+        if (query.isBlank()) {
+            q.searchDiaries(query, query).executeAsList()
+        } else {
+            q.searchDiariesFts(query.toFtsPhraseQuery(), query).executeAsList()
+        }
 
     fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
         q.selectDiariesByDateRange(startMs, endMs).executeAsList()

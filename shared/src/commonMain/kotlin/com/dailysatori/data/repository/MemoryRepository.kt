@@ -18,7 +18,11 @@ class MemoryRepository(private val db: DailySatoriDatabase) {
         q.selectMemoryBySource(sourceType, sourceId).executeAsOneOrNull()
 
     fun search(query: String, limit: Long = 10): List<Memory_entry> =
-        q.searchMemory(query, query, limit).executeAsList()
+        if (query.isBlank()) {
+            q.searchMemory(query, query, limit).executeAsList()
+        } else {
+            q.searchMemoryFts(query.toFtsPhraseQuery(), query, limit).executeAsList()
+        }
 
     fun getAllSync(): List<Memory_entry> =
         q.selectAllMemory().executeAsList()

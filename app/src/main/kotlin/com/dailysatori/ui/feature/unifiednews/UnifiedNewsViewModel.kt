@@ -68,6 +68,9 @@ sealed class UnifiedNewsNavigationTarget {
 data class UnifiedNewsState(
     val page: UnifiedNewsPage = UnifiedNewsPage.SUMMARY,
     val sourceSelection: UnifiedNewsSourceSelection = UnifiedNewsSourceSelection.Summary,
+    val isSearchVisible: Boolean = false,
+    val searchQuery: String = "",
+    val scrollToTopRequestKey: Int = 0,
     val remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList(),
     val externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
     val sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap(),
@@ -197,13 +200,15 @@ class UnifiedNewsViewModel(
             it.copy(
                 page = page,
                 sourceSelection = if (page == UnifiedNewsPage.SUMMARY) UnifiedNewsSourceSelection.Summary else it.sourceSelection,
+                isSearchVisible = if (page == UnifiedNewsPage.SUMMARY) it.isSearchVisible else false,
+                searchQuery = if (page == UnifiedNewsPage.SUMMARY) it.searchQuery else "",
             )
         }
     }
 
     fun selectSummarySource() {
         invalidateSourceArticleRequest()
-        _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Summary) }
+        _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Summary, searchQuery = "") }
     }
 
     fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption) {
@@ -213,6 +218,7 @@ class UnifiedNewsViewModel(
             it.copy(
                 sourceSelection = UnifiedNewsSourceSelection.RemoteSource(source.id, source.name),
                 sourceArticlesError = null,
+                searchQuery = "",
             )
         }
         if (!sourceArticlesCached) {
@@ -223,15 +229,33 @@ class UnifiedNewsViewModel(
     fun selectExternalFavoriteSource(source: UnifiedNewsExternalFavoriteSourceOption) {
         invalidateSourceArticleRequest()
         _state.update {
-            it.copy(sourceSelection = UnifiedNewsSourceSelection.ExternalFavoriteSource(source.id, source.name))
+            it.copy(sourceSelection = UnifiedNewsSourceSelection.ExternalFavoriteSource(source.id, source.name), searchQuery = "")
         }
     }
 
     fun selectLocalArticlesSource() {
         invalidateSourceArticleRequest()
         _state.update {
-            it.copy(sourceSelection = UnifiedNewsSourceSelection.LocalArticles)
+            it.copy(sourceSelection = UnifiedNewsSourceSelection.LocalArticles, searchQuery = "")
         }
+    }
+
+    fun toggleSearch() {
+        _state.update {
+            if (it.isSearchVisible) it.copy(isSearchVisible = false, searchQuery = "") else it.copy(isSearchVisible = true)
+        }
+    }
+
+    fun closeSearch() {
+        _state.update { it.copy(isSearchVisible = false, searchQuery = "") }
+    }
+
+    fun search(query: String) {
+        _state.update { it.copy(searchQuery = query) }
+    }
+
+    fun requestScrollToTop() {
+        _state.update { it.copy(scrollToTopRequestKey = it.scrollToTopRequestKey + 1) }
     }
 
     fun refreshSelectedSource() {

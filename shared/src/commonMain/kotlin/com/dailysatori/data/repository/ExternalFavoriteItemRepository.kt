@@ -6,13 +6,6 @@ import com.dailysatori.service.externalfavorites.ExternalItemImportStatus
 import com.dailysatori.service.externalfavorites.ExternalItemSyncStatus
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_item
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsImportedWithArticleMissingCover
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsImportedWithPlaceholderArticle
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsImportedXLongArticlePending
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsPendingAi
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsPendingAiBySource
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsRetryableAi
-import com.dailysatori.shared.db.SelectExternalFavoriteItemsRetryableAiBySource
 import kotlinx.datetime.Clock
 
 class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
@@ -116,39 +109,25 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
         q.selectExternalFavoriteItemsPendingImportBySource(sourceId, limit).executeAsList()
 
     fun pendingAi(limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsPendingAi(limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsPendingAi(limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun pendingAiBySource(sourceId: Long, limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsPendingAiBySource(sourceId, limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsPendingAiBySource(sourceId, limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun retryableAi(limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsRetryableAi(limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsRetryableAi(limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun retryableAiBySource(sourceId: Long, limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsRetryableAiBySource(sourceId, limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsRetryableAiBySource(sourceId, limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun importedWithMissingArticleCover(limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsImportedWithArticleMissingCover(limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsImportedWithArticleMissingCover(limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun importedWithPlaceholderArticle(limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsImportedWithPlaceholderArticle(limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsImportedWithPlaceholderArticle(limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun importedXLongArticlePending(limit: Long): List<External_favorite_item> =
-        q.selectExternalFavoriteItemsImportedXLongArticlePending(limit).executeAsList().map { item ->
-            item.toExternalFavoriteItem()
-        }
+        q.selectExternalFavoriteItemsImportedXLongArticlePending(limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun markImported(
         itemId: Long,
@@ -201,199 +180,56 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             normalized_json != draft.normalizedJson ||
             debug_json != draft.debugJson
 
-    private fun SelectExternalFavoriteItemsPendingAi.toExternalFavoriteItem(): External_favorite_item =
+    private fun externalFavoriteItemWithArticle(
+        id: Long,
+        sourceId: Long,
+        provider: String,
+        externalId: String,
+        canonicalUrl: String?,
+        title: String,
+        text: String,
+        authorName: String,
+        sourceCreatedAt: Long?,
+        favoritedAt: Long?,
+        normalizedJson: String,
+        debugJson: String,
+        contentHash: String,
+        aiInputHash: String,
+        articleId: Long,
+        syncStatus: String,
+        importStatus: String,
+        aiStatus: String,
+        lastErrorCode: String,
+        lastErrorMessage: String,
+        firstSeenAt: Long,
+        lastSeenAt: Long,
+        createdAt: Long,
+        updatedAt: Long,
+    ): External_favorite_item =
         External_favorite_item(
             id = id,
-            source_id = source_id,
+            source_id = sourceId,
             provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
+            external_id = externalId,
+            canonical_url = canonicalUrl,
             title = title,
             text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
-        )
-
-    private fun SelectExternalFavoriteItemsPendingAiBySource.toExternalFavoriteItem(): External_favorite_item =
-        External_favorite_item(
-            id = id,
-            source_id = source_id,
-            provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
-            title = title,
-            text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
-        )
-
-    private fun SelectExternalFavoriteItemsRetryableAi.toExternalFavoriteItem(): External_favorite_item =
-        External_favorite_item(
-            id = id,
-            source_id = source_id,
-            provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
-            title = title,
-            text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
-        )
-
-    private fun SelectExternalFavoriteItemsRetryableAiBySource.toExternalFavoriteItem(): External_favorite_item =
-        External_favorite_item(
-            id = id,
-            source_id = source_id,
-            provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
-            title = title,
-            text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
-        )
-
-    private fun SelectExternalFavoriteItemsImportedWithArticleMissingCover.toExternalFavoriteItem(): External_favorite_item =
-        External_favorite_item(
-            id = id,
-            source_id = source_id,
-            provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
-            title = title,
-            text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
-        )
-
-    private fun SelectExternalFavoriteItemsImportedWithPlaceholderArticle.toExternalFavoriteItem(): External_favorite_item =
-        External_favorite_item(
-            id = id,
-            source_id = source_id,
-            provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
-            title = title,
-            text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
-        )
-
-    private fun SelectExternalFavoriteItemsImportedXLongArticlePending.toExternalFavoriteItem(): External_favorite_item =
-        External_favorite_item(
-            id = id,
-            source_id = source_id,
-            provider = provider,
-            external_id = external_id,
-            canonical_url = canonical_url,
-            title = title,
-            text = text,
-            author_name = author_name,
-            source_created_at = source_created_at,
-            favorited_at = favorited_at,
-            normalized_json = normalized_json,
-            debug_json = debug_json,
-            content_hash = content_hash,
-            ai_input_hash = ai_input_hash,
-            article_id = article_id,
-            sync_status = sync_status,
-            import_status = import_status,
-            ai_status = ai_status,
-            last_error_code = last_error_code,
-            last_error_message = last_error_message,
-            first_seen_at = first_seen_at,
-            last_seen_at = last_seen_at,
-            created_at = created_at,
-            updated_at = updated_at,
+            author_name = authorName,
+            source_created_at = sourceCreatedAt,
+            favorited_at = favoritedAt,
+            normalized_json = normalizedJson,
+            debug_json = debugJson,
+            content_hash = contentHash,
+            ai_input_hash = aiInputHash,
+            article_id = articleId,
+            sync_status = syncStatus,
+            import_status = importStatus,
+            ai_status = aiStatus,
+            last_error_code = lastErrorCode,
+            last_error_message = lastErrorMessage,
+            first_seen_at = firstSeenAt,
+            last_seen_at = lastSeenAt,
+            created_at = createdAt,
+            updated_at = updatedAt,
         )
 }

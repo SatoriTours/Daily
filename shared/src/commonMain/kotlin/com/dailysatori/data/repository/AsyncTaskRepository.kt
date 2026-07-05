@@ -6,7 +6,6 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.AsyncTaskListItem
 import com.dailysatori.service.asynctask.AsyncTaskStatus
-import com.dailysatori.service.asynctask.filterAsyncTasks
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -125,12 +124,22 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
 
     fun observeTaskCenter(filter: AsyncTaskFilter, limit: Int = DEFAULT_TASK_CENTER_LIMIT): Flow<AsyncTaskCenterPage> {
         val requestedLimit = limit.coerceAtLeast(1)
-        return q.selectAsyncTasksForTaskCenterPage(requestedLimit.toLong(), ::AsyncTaskListItem)
+        val types = filter.types.ifEmpty { setOf("") }
+        val statuses = filter.statuses.ifEmpty { setOf("") }
+        return q.selectAsyncTasksForTaskCenterFilteredPage(
+            includeAllTypes = if (filter.types.isEmpty()) 1 else 0,
+            types = types,
+            includeAllStatuses = if (filter.statuses.isEmpty()) 1 else 0,
+            statuses = statuses,
+            showTerminal = if (filter.showTerminal) 1 else 0,
+            limit = requestedLimit.toLong(),
+            mapper = ::AsyncTaskListItem,
+        )
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { tasks ->
                 AsyncTaskCenterPage(
-                    tasks = filterAsyncTasks(tasks, filter),
+                    tasks = tasks,
                     loadedCount = tasks.size,
                     requestedLimit = requestedLimit,
                 )

@@ -32,6 +32,43 @@ CREATE TABLE article_tag (
     PRIMARY KEY (article_id, tag_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_article_source_created
+ON article(source_type, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_article_status_updated
+ON article(status, updated_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_article_favorite_created
+ON article(is_favorite, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_article_no_url_remote_content
+ON article(title)
+WHERE url IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_article_tag_tag_article
+ON article_tag(tag_id, article_id);
+
+CREATE VIRTUAL TABLE article_fts USING fts5(
+    title,
+    ai_title,
+    ai_content
+);
+
+CREATE TRIGGER article_fts_insert AFTER INSERT ON article BEGIN
+    INSERT INTO article_fts(rowid, title, ai_title, ai_content)
+    VALUES (new.id, new.title, new.ai_title, new.ai_content);
+END;
+
+CREATE TRIGGER article_fts_delete AFTER DELETE ON article BEGIN
+    DELETE FROM article_fts WHERE rowid = old.id;
+END;
+
+CREATE TRIGGER article_fts_update AFTER UPDATE OF title, ai_title, ai_content ON article BEGIN
+    DELETE FROM article_fts WHERE rowid = old.id;
+    INSERT INTO article_fts(rowid, title, ai_title, ai_content)
+    VALUES (new.id, new.title, new.ai_title, new.ai_content);
+END;
+
 CREATE TABLE image (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT,
@@ -40,6 +77,9 @@ CREATE TABLE image (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_image_article
+ON image(article_id);
 
 -- Books
 CREATE TABLE book (
@@ -68,6 +108,53 @@ CREATE TABLE book_viewpoint (
     updated_at INTEGER NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_book_created
+ON book(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_book_viewpoint_book_created
+ON book_viewpoint(book_id, created_at DESC);
+
+CREATE VIRTUAL TABLE book_fts USING fts5(
+    title,
+    author
+);
+
+CREATE TRIGGER book_fts_insert AFTER INSERT ON book BEGIN
+    INSERT INTO book_fts(rowid, title, author)
+    VALUES (new.id, new.title, new.author);
+END;
+
+CREATE TRIGGER book_fts_delete AFTER DELETE ON book BEGIN
+    DELETE FROM book_fts WHERE rowid = old.id;
+END;
+
+CREATE TRIGGER book_fts_update AFTER UPDATE OF title, author ON book BEGIN
+    DELETE FROM book_fts WHERE rowid = old.id;
+    INSERT INTO book_fts(rowid, title, author)
+    VALUES (new.id, new.title, new.author);
+END;
+
+CREATE VIRTUAL TABLE book_viewpoint_fts USING fts5(
+    title,
+    content,
+    example
+);
+
+CREATE TRIGGER book_viewpoint_fts_insert AFTER INSERT ON book_viewpoint BEGIN
+    INSERT INTO book_viewpoint_fts(rowid, title, content, example)
+    VALUES (new.id, new.title, new.content, new.example);
+END;
+
+CREATE TRIGGER book_viewpoint_fts_delete AFTER DELETE ON book_viewpoint BEGIN
+    DELETE FROM book_viewpoint_fts WHERE rowid = old.id;
+END;
+
+CREATE TRIGGER book_viewpoint_fts_update AFTER UPDATE OF title, content, example ON book_viewpoint BEGIN
+    DELETE FROM book_viewpoint_fts WHERE rowid = old.id;
+    INSERT INTO book_viewpoint_fts(rowid, title, content, example)
+    VALUES (new.id, new.title, new.content, new.example);
+END;
+
 CREATE TABLE book_viewpoint_ai_session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     viewpoint_id INTEGER NOT NULL REFERENCES book_viewpoint(id) ON DELETE CASCADE,
@@ -81,6 +168,12 @@ CREATE TABLE book_viewpoint_ai_session (
     summarized_at INTEGER
 );
 
+CREATE INDEX IF NOT EXISTS idx_book_ref_session_viewpoint_updated
+ON book_viewpoint_ai_session(viewpoint_id, updated_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_book_ref_session_viewpoint_last_opened
+ON book_viewpoint_ai_session(viewpoint_id, last_opened_at DESC, id DESC);
+
 CREATE TABLE book_viewpoint_ai_message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id INTEGER NOT NULL REFERENCES book_viewpoint_ai_session(id) ON DELETE CASCADE,
@@ -90,6 +183,9 @@ CREATE TABLE book_viewpoint_ai_message (
     error_message TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_book_ref_message_session_created
+ON book_viewpoint_ai_message(session_id, created_at ASC, id ASC);
 
 -- Diary
 CREATE TABLE diary (
@@ -101,6 +197,29 @@ CREATE TABLE diary (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_diary_created
+ON diary(created_at DESC);
+
+CREATE VIRTUAL TABLE diary_fts USING fts5(
+    content,
+    tags
+);
+
+CREATE TRIGGER diary_fts_insert AFTER INSERT ON diary BEGIN
+    INSERT INTO diary_fts(rowid, content, tags)
+    VALUES (new.id, new.content, new.tags);
+END;
+
+CREATE TRIGGER diary_fts_delete AFTER DELETE ON diary BEGIN
+    DELETE FROM diary_fts WHERE rowid = old.id;
+END;
+
+CREATE TRIGGER diary_fts_update AFTER UPDATE OF content, tags ON diary BEGIN
+    DELETE FROM diary_fts WHERE rowid = old.id;
+    INSERT INTO diary_fts(rowid, content, tags)
+    VALUES (new.id, new.content, new.tags);
+END;
 
 CREATE TABLE diary_month_summary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -180,6 +299,15 @@ CREATE TABLE remote_article_sync_item (
     UNIQUE(remote_source_id, remote_article_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_remote_article_sync_source_date
+ON remote_article_sync_item(remote_source_id, source_date, last_seen_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_remote_article_sync_source_url
+ON remote_article_sync_item(remote_source_id, url);
+
+CREATE INDEX IF NOT EXISTS idx_remote_article_sync_article
+ON remote_article_sync_item(article_id);
+
 CREATE TABLE external_favorite_source (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
@@ -236,6 +364,24 @@ CREATE TABLE external_favorite_item (
     UNIQUE(source_id, external_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_first_seen
+ON external_favorite_item(source_id, first_seen_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_article
+ON external_favorite_item(article_id);
+
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_import_first_seen
+ON external_favorite_item(import_status, first_seen_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_ai_first_seen
+ON external_favorite_item(ai_status, first_seen_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_ai_first_seen
+ON external_favorite_item(source_id, ai_status, first_seen_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_import_first_seen
+ON external_favorite_item(source_id, import_status, first_seen_at DESC);
+
 -- Settings
 CREATE TABLE setting (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -262,6 +408,9 @@ CREATE TABLE weekly_summary (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_weekly_summary_week_range
+ON weekly_summary(week_start_date, week_end_date);
 
 CREATE TABLE unified_news_summary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -293,6 +442,12 @@ CREATE TABLE unified_news_source (
     source_time INTEGER,
     UNIQUE(summary_id, ref_key)
 );
+
+CREATE INDEX IF NOT EXISTS idx_unified_news_summary_window_end
+ON unified_news_summary(window_end_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_unified_news_source_summary
+ON unified_news_source(summary_id, id ASC);
 
 CREATE TABLE async_task_batch (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -334,6 +489,18 @@ ON async_task(unique_key)
 WHERE unique_key IS NOT NULL
   AND status IN ('queued', 'running', 'retrying');
 
+CREATE INDEX IF NOT EXISTS idx_async_task_status_run_after_priority
+ON async_task(status, run_after_ms, priority DESC, created_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_async_task_updated
+ON async_task(updated_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_async_task_unique_created
+ON async_task(unique_key, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_async_task_batch
+ON async_task(batch_id);
+
 -- Session
 CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -366,6 +533,15 @@ SELECT * FROM article WHERE url = ?;
 
 selectArticleByUrlNullable:
 SELECT * FROM article WHERE url = ?;
+
+selectArticleByNoUrlRemoteContent:
+SELECT * FROM article
+WHERE url IS NULL
+  AND title IS ?
+  AND ai_content IS ?
+  AND ai_markdown_content IS ?
+ORDER BY created_at DESC
+LIMIT 1;
 
 selectArticlesByStatus:
 SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
@@ -408,6 +584,19 @@ WHERE source_type != 'remote_news'
   )
 ORDER BY created_at DESC;
 
+searchArticlesFts:
+SELECT * FROM article
+WHERE source_type != 'remote_news'
+  AND (
+      id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery)
+      OR title LIKE '%' || :legacyQuery || '%'
+      OR ai_title LIKE '%' || :legacyQuery || '%'
+      OR ai_content LIKE '%' || :legacyQuery || '%'
+  )
+ORDER BY
+    CASE WHEN id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    created_at DESC;
+
 searchArticlesFavoriteFirst:
 SELECT * FROM article
 WHERE source_type != 'remote_news'
@@ -417,6 +606,20 @@ WHERE source_type != 'remote_news'
       OR ai_content LIKE '%' || ? || '%'
   )
 ORDER BY is_favorite DESC, created_at DESC;
+
+searchArticlesFavoriteFirstFts:
+SELECT * FROM article
+WHERE source_type != 'remote_news'
+  AND (
+      id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery)
+      OR title LIKE '%' || :legacyQuery || '%'
+      OR ai_title LIKE '%' || :legacyQuery || '%'
+      OR ai_content LIKE '%' || :legacyQuery || '%'
+  )
+ORDER BY
+    is_favorite DESC,
+    CASE WHEN id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    created_at DESC;
 
 selectArticlesByDateRange:
 SELECT * FROM article
@@ -434,31 +637,43 @@ ORDER BY created_at DESC;
 
 selectExternalFavoriteArticles:
 SELECT article.* FROM article
-WHERE article.id IN (
-    SELECT external_favorite_item.article_id
+INNER JOIN (
+    SELECT article_id, MAX(COALESCE(favorited_at, first_seen_at)) AS sort_time
     FROM external_favorite_item
-    WHERE external_favorite_item.article_id IS NOT NULL
-)
-ORDER BY (
-    SELECT MAX(COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at))
-    FROM external_favorite_item
-    WHERE external_favorite_item.article_id = article.id
-) DESC;
+    WHERE article_id IS NOT NULL
+    GROUP BY article_id
+) favorite_order ON favorite_order.article_id = article.id
+ORDER BY favorite_order.sort_time DESC;
 
 selectExternalFavoriteArticlesBySource:
 SELECT article.* FROM article
-WHERE article.id IN (
-    SELECT external_favorite_item.article_id
+INNER JOIN (
+    SELECT article_id, MAX(COALESCE(favorited_at, first_seen_at)) AS sort_time
     FROM external_favorite_item
-    WHERE external_favorite_item.source_id = :sourceId
-      AND external_favorite_item.article_id IS NOT NULL
+    WHERE source_id = :sourceId
+      AND article_id IS NOT NULL
+    GROUP BY article_id
+) favorite_order ON favorite_order.article_id = article.id
+ORDER BY favorite_order.sort_time DESC;
+
+searchExternalFavoriteArticlesBySourceFts:
+SELECT article.* FROM article
+INNER JOIN (
+    SELECT article_id, MAX(COALESCE(favorited_at, first_seen_at)) AS sort_time
+    FROM external_favorite_item
+    WHERE source_id = :sourceId
+      AND article_id IS NOT NULL
+    GROUP BY article_id
+) favorite_order ON favorite_order.article_id = article.id
+WHERE (
+    article.id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery)
+    OR article.title LIKE '%' || :legacyQuery || '%'
+    OR article.ai_title LIKE '%' || :legacyQuery || '%'
+    OR article.ai_content LIKE '%' || :legacyQuery || '%'
 )
-ORDER BY (
-    SELECT MAX(COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at))
-    FROM external_favorite_item
-    WHERE external_favorite_item.source_id = :sourceId
-      AND external_favorite_item.article_id = article.id
-) DESC;
+ORDER BY
+    CASE WHEN article.id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    favorite_order.sort_time DESC;
 
 selectArticleDailyCounts:
 SELECT (created_at / 86400000) AS article_day, COUNT(*) AS article_count
@@ -546,6 +761,16 @@ SELECT id, type, status, progress_current, progress_total, progress_message, che
 FROM async_task
 ORDER BY updated_at DESC
 LIMIT ?;
+
+selectAsyncTasksForTaskCenterFilteredPage:
+SELECT id, type, status, progress_current, progress_total, progress_message, checkpoint_json,
+       created_at, started_at, finished_at, updated_at, last_error_message
+FROM async_task
+WHERE (:includeAllTypes = 1 OR type IN :types)
+  AND (:includeAllStatuses = 1 OR status IN :statuses)
+  AND (:showTerminal = 1 OR :includeAllStatuses = 0 OR status IN ('queued', 'running', 'retrying'))
+ORDER BY updated_at DESC
+LIMIT :limit;
 
 selectAsyncTaskIdsBeyondRetention:
 SELECT id FROM async_task
@@ -636,6 +861,9 @@ WHERE status = 'running' AND lease_until_ms IS NOT NULL AND lease_until_ms < ?;
 selectAllTags:
 SELECT * FROM tag ORDER BY name;
 
+tagCount:
+SELECT COUNT(*) FROM tag;
+
 selectTagById:
 SELECT * FROM tag WHERE id = ?;
 
@@ -673,6 +901,9 @@ DELETE FROM image WHERE article_id = ?;
 selectAllBooks:
 SELECT * FROM book ORDER BY created_at DESC;
 
+bookCount:
+SELECT COUNT(*) FROM book;
+
 selectBookById:
 SELECT * FROM book WHERE id = ?;
 
@@ -681,6 +912,15 @@ SELECT * FROM book
 WHERE title LIKE '%' || ? || '%'
    OR author LIKE '%' || ? || '%'
 ORDER BY created_at DESC;
+
+searchBooksFts:
+SELECT * FROM book
+WHERE id IN (SELECT rowid FROM book_fts WHERE book_fts MATCH :ftsQuery)
+   OR title LIKE '%' || :legacyQuery || '%'
+   OR author LIKE '%' || :legacyQuery || '%'
+ORDER BY
+    CASE WHEN id IN (SELECT rowid FROM book_fts WHERE book_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    created_at DESC;
 
 insertBook:
 INSERT INTO book (title, author, category, cover_image, introduction, has_update, created_at, updated_at)
@@ -723,6 +963,50 @@ WHERE book.title LIKE '%' || ? || '%'
    OR book_viewpoint.content LIKE '%' || ? || '%'
    OR book_viewpoint.example LIKE '%' || ? || '%'
 ORDER BY book_viewpoint.created_at DESC;
+
+searchBookContentFts:
+SELECT
+    book_viewpoint.id AS viewpoint_id,
+    book_viewpoint.book_id AS book_id,
+    book.title AS book_title,
+    book.author AS author,
+    book_viewpoint.title AS viewpoint_title,
+    book_viewpoint.content AS content,
+    book_viewpoint.example AS example
+FROM book_viewpoint
+JOIN book ON book.id = book_viewpoint.book_id
+WHERE book.id IN (SELECT rowid FROM book_fts WHERE book_fts MATCH :ftsQuery)
+   OR book_viewpoint.id IN (SELECT rowid FROM book_viewpoint_fts WHERE book_viewpoint_fts MATCH :ftsQuery)
+   OR book.title LIKE '%' || :legacyQuery || '%'
+   OR book.author LIKE '%' || :legacyQuery || '%'
+   OR book_viewpoint.title LIKE '%' || :legacyQuery || '%'
+   OR book_viewpoint.content LIKE '%' || :legacyQuery || '%'
+   OR book_viewpoint.example LIKE '%' || :legacyQuery || '%'
+ORDER BY
+    CASE
+        WHEN book.id IN (SELECT rowid FROM book_fts WHERE book_fts MATCH :ftsQuery)
+          OR book_viewpoint.id IN (SELECT rowid FROM book_viewpoint_fts WHERE book_viewpoint_fts MATCH :ftsQuery)
+        THEN 0 ELSE 1
+    END,
+    book_viewpoint.created_at DESC;
+
+searchViewpointsByContent:
+SELECT * FROM book_viewpoint
+WHERE lower(title) LIKE '%' || lower(?) || '%'
+   OR lower(content) LIKE '%' || lower(?) || '%'
+ORDER BY created_at DESC;
+
+searchViewpointsByContentFts:
+SELECT * FROM book_viewpoint
+WHERE id IN (SELECT rowid FROM book_viewpoint_fts WHERE book_viewpoint_fts MATCH :ftsQuery)
+   OR lower(title) LIKE '%' || lower(:legacyQuery) || '%'
+   OR lower(content) LIKE '%' || lower(:legacyQuery) || '%'
+ORDER BY
+    CASE WHEN id IN (SELECT rowid FROM book_viewpoint_fts WHERE book_viewpoint_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    created_at DESC;
+
+bookViewpointCount:
+SELECT COUNT(*) FROM book_viewpoint;
 
 insertViewpoint:
 INSERT INTO book_viewpoint (book_id, title, content, example, status, error_message, outline_json, source_notes, created_at, updated_at)
@@ -834,6 +1118,15 @@ SELECT * FROM diary
 WHERE content LIKE '%' || ? || '%'
    OR tags LIKE '%' || ? || '%'
 ORDER BY created_at DESC;
+
+searchDiariesFts:
+SELECT * FROM diary
+WHERE id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
+   OR content LIKE '%' || :legacyQuery || '%'
+   OR tags LIKE '%' || :legacyQuery || '%'
+ORDER BY
+    CASE WHEN id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    created_at DESC;
 
 selectDiariesByDateRange:
 SELECT * FROM diary
@@ -1330,6 +1623,32 @@ CREATE TABLE memory_entry (
     updated_at INTEGER NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_memory_entry_type_created
+ON memory_entry(type, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_memory_entry_source
+ON memory_entry(source_type, source_id);
+
+CREATE VIRTUAL TABLE memory_entry_fts USING fts5(
+    title,
+    content
+);
+
+CREATE TRIGGER memory_entry_fts_insert AFTER INSERT ON memory_entry BEGIN
+    INSERT INTO memory_entry_fts(rowid, title, content)
+    VALUES (new.id, new.title, new.content);
+END;
+
+CREATE TRIGGER memory_entry_fts_delete AFTER DELETE ON memory_entry BEGIN
+    DELETE FROM memory_entry_fts WHERE rowid = old.id;
+END;
+
+CREATE TRIGGER memory_entry_fts_update AFTER UPDATE OF title, content ON memory_entry BEGIN
+    DELETE FROM memory_entry_fts WHERE rowid = old.id;
+    INSERT INTO memory_entry_fts(rowid, title, content)
+    VALUES (new.id, new.title, new.content);
+END;
+
 -- Chat Conversation
 CREATE TABLE chat_conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1341,6 +1660,9 @@ CREATE TABLE chat_conversation (
     created_at INTEGER NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_chat_conversation_session_created
+ON chat_conversation(session_id, created_at DESC);
+
 -- Memory queries
 selectMemoryByType:
 SELECT * FROM memory_entry WHERE type = ? ORDER BY created_at DESC;
@@ -1350,6 +1672,16 @@ SELECT * FROM memory_entry WHERE source_type = ? AND source_id = ?;
 
 searchMemory:
 SELECT * FROM memory_entry WHERE title LIKE '%' || ? || '%' OR content LIKE '%' || ? || '%' ORDER BY created_at DESC LIMIT ?;
+
+searchMemoryFts:
+SELECT * FROM memory_entry
+WHERE id IN (SELECT rowid FROM memory_entry_fts WHERE memory_entry_fts MATCH :ftsQuery)
+   OR title LIKE '%' || :legacyQuery || '%'
+   OR content LIKE '%' || :legacyQuery || '%'
+ORDER BY
+    CASE WHEN id IN (SELECT rowid FROM memory_entry_fts WHERE memory_entry_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    created_at DESC
+LIMIT :limit;
 
 selectAllMemory:
 SELECT * FROM memory_entry ORDER BY created_at DESC;
