@@ -320,7 +320,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedRemoteSourceRefreshFailureUsesScopedSourceError() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(sourceId: Long, force: Boolean)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
+        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(sourceId: Long, force: Boolean, append: Boolean = false)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
 
         assertTrue(fetchBody.contains("ifLatestSourceArticleRequest(token) { state ->"))
         assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(result.message)"))
@@ -337,7 +337,7 @@ class UnifiedNewsBehaviorTest {
         val listBody = screen.substringAfter("private fun UnifiedNewsSourceArticleList").substringBefore("private fun UnifiedNewsSourceArticleMessage")
 
         assertTrue(contentBody.contains("state.sourceArticlesError != null && articles.isEmpty()"))
-        assertTrue(listBody.contains("刷新失败，正在显示上次结果"))
+        assertTrue(listBody.contains("刷新失败，正在显示已同步文章"))
         assertTrue(listBody.contains("sourceArticlesError"))
     }
 
@@ -2391,7 +2391,7 @@ class UnifiedNewsBehaviorTest {
         val successBody = fetchBody.substringAfter("is RemoteNewsResult.Success -> {").substringBefore("is RemoteNewsResult.Failure")
 
         assertTrue(fetchBody.contains("remoteArticleSyncService.syncSourceArticles("))
-        assertTrue(fetchBody.contains("remoteArticleSyncRepo.getArticlesBySourceDate(sourceId, cacheKey.summaryDate)"))
+        assertTrue(fetchBody.contains("remoteArticleSyncRepo.getArticlesBySource("))
         assertTrue(successBody.indexOf("remoteArticleSyncService.syncSourceArticles(") < successBody.indexOf("state.withUnifiedNewsSourceArticlesLoaded"))
     }
 

@@ -34,13 +34,22 @@ internal fun cachedUnifiedNewsSourceArticles(
     summaryDate: String,
 ): List<RemoteArticle> = state.sourceArticlesByCacheKey[sourceArticleCacheKey(sourceId, summaryDate)].orEmpty()
 
-internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesLoading(sourceId: Long): UnifiedNewsState = copy(
-    sourceArticlesLoadingSourceId = sourceId,
-    sourceArticlesError = null,
-)
+internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesLoading(sourceId: Long, append: Boolean = false): UnifiedNewsState =
+    if (append) {
+        copy(
+            sourceArticlesLoadingMoreSourceId = sourceId,
+            sourceArticlesError = null,
+        )
+    } else {
+        copy(
+            sourceArticlesLoadingSourceId = sourceId,
+            sourceArticlesError = null,
+        )
+    }
 
 internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesFailure(message: String): UnifiedNewsState = copy(
     sourceArticlesLoadingSourceId = null,
+    sourceArticlesLoadingMoreSourceId = null,
     sourceArticlesError = message,
 )
 
@@ -54,7 +63,29 @@ internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesLoaded(
     sourceArticlesError = null,
 )
 
+internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesLoaded(
+    sourceId: Long,
+    articles: List<RemoteArticle>,
+    append: Boolean,
+    hasMore: Boolean,
+): UnifiedNewsState {
+    val existing = if (append) sourceArticlesBySourceId[sourceId].orEmpty() else emptyList()
+    val nextArticles = existing + articles
+    return copy(
+        sourceArticlesBySourceId = sourceArticlesBySourceId + (sourceId to nextArticles),
+        sourceArticlesHasMoreSourceIds = if (hasMore) {
+            sourceArticlesHasMoreSourceIds + sourceId
+        } else {
+            sourceArticlesHasMoreSourceIds - sourceId
+        },
+        sourceArticlesLoadingSourceId = null,
+        sourceArticlesLoadingMoreSourceId = null,
+        sourceArticlesError = null,
+    )
+}
+
 internal fun UnifiedNewsState.withUnifiedNewsSourceArticleRequestInvalidated(): UnifiedNewsState = copy(
     sourceArticlesLoadingSourceId = null,
+    sourceArticlesLoadingMoreSourceId = null,
     sourceArticlesError = null,
 )

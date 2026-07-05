@@ -185,6 +185,28 @@ class AsyncTaskRepositoryTest {
         }
     }
 
+    @Test
+    fun pruneOldTasksKeepsOnlyMostRecentlyUpdatedRowsAndReturnsDeletedIds() {
+        withRepository { repository ->
+            val ids = (0 until 25).map { index ->
+                repository.enqueue(
+                    type = AsyncTaskType.external_favorite_sync.name,
+                    payloadJson = """{"index":$index}""",
+                )
+            }
+
+            val deletedIds = repository.pruneOldTasks(keepLatest = 20)
+
+            assertEquals(ids.take(5), deletedIds.sorted())
+            assertEquals(null, repository.getById(ids.first()))
+            assertTrue(repository.getById(ids.last()) != null)
+            val page = runBlocking {
+                repository.observeTaskCenter(AsyncTaskFilter(showTerminal = true), limit = 30).first()
+            }
+            assertEquals(20, page.tasks.size)
+        }
+    }
+
     private fun withRepository(block: (AsyncTaskRepository) -> Unit) {
         withDatabase { db -> block(AsyncTaskRepository(db)) }
     }

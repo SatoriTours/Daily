@@ -59,12 +59,14 @@ class UnifiedNewsSourceArticleStateTest {
         val cachedArticle = RemoteArticle(id = 1L, title = "已缓存")
         val state = UnifiedNewsState(
             sourceArticlesByCacheKey = mapOf(sourceArticleCacheKey(7L, "2026-05-31") to listOf(cachedArticle)),
+            sourceArticlesBySourceId = mapOf(7L to listOf(cachedArticle)),
         )
 
         assertTrue(hasUnifiedNewsSourceArticlesCache(state, sourceId = 7L, summaryDate = "2026-05-31"))
         assertFalse(hasUnifiedNewsSourceArticlesCache(state, sourceId = 7L, summaryDate = "2026-06-01"))
         assertEquals(listOf(cachedArticle), cachedUnifiedNewsSourceArticles(state, sourceId = 7L, summaryDate = "2026-05-31"))
         assertEquals(emptyList(), cachedUnifiedNewsSourceArticles(state, sourceId = 8L, summaryDate = "2026-05-31"))
+        assertEquals(listOf(cachedArticle), state.sourceArticlesBySourceId[7L])
     }
 
     @Test
@@ -72,17 +74,46 @@ class UnifiedNewsSourceArticleStateTest {
         val cachedArticle = RemoteArticle(id = 1L, title = "已缓存")
         val state = UnifiedNewsState(
             sourceArticlesByCacheKey = mapOf(sourceArticleCacheKey(7L, "2026-05-31") to listOf(cachedArticle)),
+            sourceArticlesBySourceId = mapOf(7L to listOf(cachedArticle)),
             sourceArticlesError = "旧错误",
         )
 
         val loading = state.withUnifiedNewsSourceArticlesLoading(sourceId = 7L)
         assertEquals(7L, loading.sourceArticlesLoadingSourceId)
+        assertNull(loading.sourceArticlesLoadingMoreSourceId)
         assertNull(loading.sourceArticlesError)
         assertEquals(state.sourceArticlesByCacheKey, loading.sourceArticlesByCacheKey)
+        assertEquals(state.sourceArticlesBySourceId, loading.sourceArticlesBySourceId)
 
         val failed = loading.withUnifiedNewsSourceArticlesFailure("新错误")
         assertNull(failed.sourceArticlesLoadingSourceId)
+        assertNull(failed.sourceArticlesLoadingMoreSourceId)
         assertEquals("新错误", failed.sourceArticlesError)
         assertEquals(state.sourceArticlesByCacheKey, failed.sourceArticlesByCacheKey)
+        assertEquals(state.sourceArticlesBySourceId, failed.sourceArticlesBySourceId)
+    }
+
+    @Test
+    fun sourceArticleAppendStateTracksPagination() {
+        val first = RemoteArticle(id = 1L, title = "第一篇")
+        val second = RemoteArticle(id = 2L, title = "第二篇")
+        val state = UnifiedNewsState(
+            sourceArticlesBySourceId = mapOf(7L to listOf(first)),
+            sourceArticlesHasMoreSourceIds = setOf(7L),
+        )
+
+        val loadingMore = state.withUnifiedNewsSourceArticlesLoading(sourceId = 7L, append = true)
+        assertEquals(7L, loadingMore.sourceArticlesLoadingMoreSourceId)
+        assertNull(loadingMore.sourceArticlesLoadingSourceId)
+
+        val loaded = loadingMore.withUnifiedNewsSourceArticlesLoaded(
+            sourceId = 7L,
+            articles = listOf(second),
+            append = true,
+            hasMore = false,
+        )
+
+        assertEquals(listOf(first, second), loaded.sourceArticlesBySourceId[7L])
+        assertFalse(7L in loaded.sourceArticlesHasMoreSourceIds)
     }
 }

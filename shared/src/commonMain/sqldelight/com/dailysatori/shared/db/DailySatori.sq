@@ -547,6 +547,24 @@ FROM async_task
 ORDER BY updated_at DESC
 LIMIT ?;
 
+selectAsyncTaskIdsBeyondRetention:
+SELECT id FROM async_task
+WHERE id NOT IN (
+    SELECT id FROM async_task
+    ORDER BY updated_at DESC, id DESC
+    LIMIT ?
+)
+ORDER BY updated_at DESC, id DESC;
+
+deleteAsyncTaskById:
+DELETE FROM async_task WHERE id = ?;
+
+deleteOrphanAsyncTaskBatches:
+DELETE FROM async_task_batch
+WHERE id NOT IN (
+    SELECT DISTINCT batch_id FROM async_task WHERE batch_id IS NOT NULL
+);
+
 selectRunnableAsyncTasks:
 SELECT * FROM async_task
 WHERE status IN ('queued', 'retrying')
@@ -977,6 +995,13 @@ INNER JOIN remote_article_sync_item ON remote_article_sync_item.article_id = art
 WHERE remote_article_sync_item.remote_source_id = ?
   AND remote_article_sync_item.source_date = ?
 ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_sync_item.last_seen_at DESC;
+
+selectRemoteArticleSyncItemsBySource:
+SELECT article.* FROM article
+INNER JOIN remote_article_sync_item ON remote_article_sync_item.article_id = article.id
+WHERE remote_article_sync_item.remote_source_id = ?
+ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_sync_item.last_seen_at DESC
+LIMIT ? OFFSET ?;
 
 countRemoteArticleSyncItems:
 SELECT COUNT(*) FROM remote_article_sync_item;

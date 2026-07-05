@@ -111,7 +111,10 @@ class BookReflectionStateTest {
     fun bookReflectionQueriesUseStableOrdering() {
         val schema = java.io.File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
 
-        assertEquals(2, "ORDER BY updated_at DESC, id DESC".toRegex().findAll(schema).count())
+        assertTrue(schema.contains("selectBookReflectionSessionsByViewpoint:\nSELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY updated_at DESC, id DESC;"))
+        assertTrue(schema.contains("selectLatestUnsummarizedBookReflectionSession:\nSELECT * FROM book_viewpoint_ai_session"))
+        assertTrue(schema.contains("WHERE viewpoint_id = ? AND summary_status != 'ready'"))
+        assertTrue(schema.contains("ORDER BY updated_at DESC, id DESC LIMIT 1"))
         assertTrue(schema.contains("ORDER BY last_opened_at DESC, id DESC LIMIT 1"))
         assertTrue(schema.contains("ORDER BY created_at ASC, id ASC"))
     }

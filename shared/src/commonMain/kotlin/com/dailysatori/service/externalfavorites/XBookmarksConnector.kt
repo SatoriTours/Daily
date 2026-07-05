@@ -193,6 +193,7 @@ class XBookmarksConnector(
         }
         val fetchedPosts = page.items
             .filter(shouldFetchDetail)
+            .filter(::xShouldLookupReferencedPostDuringBookmarkFetch)
             .map { item -> referencedIdsByExternalId[item.externalId].orEmpty() }
             .flatten()
             .distinct()
@@ -206,13 +207,7 @@ class XBookmarksConnector(
                 .firstNotNullOfOrNull { postId -> xBookmarkItemWithFetchedReferencedPost(item, fetchedPosts[postId]) }
                 ?: item
         }
-        val articleEnrichedItems = referencedEnrichedItems.map { item ->
-            if (!shouldFetchDetail(item)) return@map item
-            val articleId = xArticleIdFromUrl(item.canonicalUrl.orEmpty()) ?: return@map item
-            val articleDraft = runCatching { fetchArticleById(source, articleId, httpLogger, taskId) }.getOrNull()
-            xBookmarkItemWithFetchedReferencedPost(item, articleDraft) ?: item
-        }
-        return page.copy(items = articleEnrichedItems)
+        return page.copy(items = referencedEnrichedItems)
     }
 
     suspend fun fetchArticleById(
@@ -316,6 +311,7 @@ private const val X_BOOKMARKS_USER_FIELDS = "username,name,profile_image_url,ver
 private const val X_BOOKMARKS_EXPANSIONS = "author_id,attachments.media_keys,referenced_tweets.id,referenced_tweets.id.author_id"
 private const val X_BOOKMARKS_MEDIA_FIELDS = "media_key,type,url,preview_image_url,alt_text,width,height"
 private const val X_API_LOG_CHUNK_SIZE = 3_000
+private const val MIN_BOOKMARK_TEXT_FOR_DETAIL_LOOKUP = 20
 
 private fun xBookmarksRequestParameters(pageSize: Int, cursor: String?): Map<String, String> = buildMap {
     put("max_results", pageSize.toString())
@@ -397,6 +393,23 @@ internal fun xReferencedPostIdsFromDraft(item: ExternalFavoriteItemDraft): List<
         .mapNotNull { it.jsonObjectOrNull()?.string("id")?.takeIf(String::isNotBlank) }
         .distinct()
 }.getOrDefault(emptyList())
+
+private fun xShouldLookupReferencedPostDuringBookmarkFetch(item: ExternalFavoriteItemDraft): Boolean =
+    xEffectiveFavoriteTextLength(item.text) < MIN_BOOKMARK_TEXT_FOR_DETAIL_LOOKUP
+
+private fun xEffectiveFavoriteTextLength(value: String): Int =
+    value.lines()
+        .map { line ->
+            line.trim()
+                .removePrefix("链接：")
+                .removePrefix("链接:")
+                .removePrefix("Link:")
+                .removePrefix("link:")
+                .trim()
+        }
+        .filterNot { line -> line.matches(Regex("""^(?:https?://|t\.co/)\S+$""", RegexOption.IGNORE_CASE)) }
+        .joinToString("")
+        .length
 
 internal fun xArticleIdFromUrl(url: String): String? =
     Regex("""^https?://(?:mobile\.)?(?:twitter\.com|x\.com)/i/article/(\d+)(?:[/?#].*)?$""", RegexOption.IGNORE_CASE)

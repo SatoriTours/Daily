@@ -4,6 +4,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TaskCenterScreenSourceTest {
@@ -112,7 +113,7 @@ class TaskCenterScreenSourceTest {
         assertTrue(screen.contains("格式化"))
         assertTrue(screen.contains("Json.parseToJsonElement"))
         assertTrue(screen.contains("prettyPrintIndent = \"  \""))
-        assertTrue(screen.contains("TaskCenterHttpLogSection"))
+        assertTrue(screen.contains("TaskCenterHttpLogLoadMoreRow"))
         assertTrue(screen.contains("TaskCenterHttpLogCard"))
         assertTrue(screen.contains("SelectionContainer"))
         assertTrue(screen.contains("FontFamily.Monospace"))
@@ -172,5 +173,97 @@ class TaskCenterScreenSourceTest {
         )
 
         assertEquals("1.2s", entries.single().durationText)
+    }
+
+    @Test
+    fun httpLogEntriesAreSortedByRequestTimeAndConcurrentRequestsDoNotBleedIntoBody() {
+        val entries = taskCenterHttpLogEntries(
+            """
+            2026-06-28T10:00:03.000Z HTTP request [external_favorite_ai] POST https://api.openai.com/v1/chat/completions params=externalId=2
+            2026-06-28T10:00:00.000Z HTTP request [bookmarks] GET https://api.x.com/2/users/me/bookmarks params=max_results=100
+            2026-06-28T10:00:01.000Z HTTP response [bookmarks] status=200 body={"data":[]}
+            2026-06-28T10:00:02.000Z HTTP request [external_favorite_ai] POST https://api.openai.com/v1/chat/completions params=externalId=1
+            2026-06-28T10:00:05.000Z HTTP response [external_favorite_ai] status=200 headers=externalId=1 body={"ok":1}
+            2026-06-28T10:00:04.000Z HTTP response [external_favorite_ai] status=200 headers=externalId=2 body={"ok":2}
+            """.trimIndent(),
+        )
+
+        assertEquals("bookmarks", entries.first().label)
+        assertEquals("1", entries[1].requestParams.substringAfter("externalId="))
+        assertEquals("2", entries[2].requestParams.substringAfter("externalId="))
+        assertFalse(entries[1].responseBody.contains("externalId=2"))
+    }
+
+    @Test
+    fun httpLogEntriesStripNullBytesAndPageFromOldestRequest() {
+        val page = taskCenterHttpLogPage(
+            buildString {
+                append('\u0000')
+                repeat(80) { index ->
+                    append("2026-06-28T10:00:${index.toString().padStart(2, '0')}.000Z HTTP request [post_lookup] GET https://api.x.com/2/tweets/$index\n")
+                    append("2026-06-28T10:00:${index.toString().padStart(2, '0')}.250Z HTTP response [post_lookup] status=200 body={\"id\":\"$index\"}\n")
+                }
+            },
+            pageIndex = 0,
+        )
+
+        assertNull(page.totalEntries)
+        assertEquals(0, page.pageIndex)
+        assertEquals(50, page.entries.size)
+        assertFalse(page.entries.first().request.contains('\u0000'))
+        assertEquals("0", page.entries.first().requestUrl.substringAfterLast('/'))
+        assertEquals("49", page.entries.last().requestUrl.substringAfterLast('/'))
+        assertTrue(page.hasNext)
+        assertFalse(page.hasPrevious)
+    }
+
+    @Test
+    fun httpLogEntriesCanPageToLaterRequests() {
+        val page = taskCenterHttpLogPage(
+            buildString {
+                repeat(80) { index ->
+                    append("2026-06-28T10:00:${index.toString().padStart(2, '0')}.000Z HTTP request [post_lookup] GET https://api.x.com/2/tweets/$index\n")
+                    append("2026-06-28T10:00:${index.toString().padStart(2, '0')}.250Z HTTP response [post_lookup] status=200 body={\"id\":\"$index\"}\n")
+                }
+            },
+            pageIndex = 1,
+        )
+
+        assertNull(page.totalEntries)
+        assertEquals(30, page.entries.size)
+        assertEquals("50", page.entries.first().requestUrl.substringAfterLast('/'))
+        assertEquals("79", page.entries.last().requestUrl.substringAfterLast('/'))
+        assertFalse(page.hasNext)
+        assertTrue(page.hasPrevious)
+    }
+
+    @Test
+    fun httpLogPageDoesNotBuildAllEntriesBeforePaging() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/taskcenter/TaskCenterScreen.kt").readText()
+        val pageFunction = source.substringAfter("internal fun taskCenterHttpLogPage(")
+            .substringBefore("private fun taskCenterIsLifecycleLogLine")
+
+        assertFalse(pageFunction.contains("taskCenterHttpLogEntries(taskLog)"))
+        assertFalse(pageFunction.contains(".drop(startIndex).take"))
+        assertFalse(pageFunction.contains("maxPageIndex"))
+    }
+
+    @Test
+    fun taskDetailLoadsHttpLogsIncrementallyOnScroll() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/taskcenter/TaskCenterScreen.kt").readText()
+        val detail = source.substringAfter("private fun TaskCenterTaskDetail(")
+            .substringBefore("@Composable\nprivate fun TaskCenterJsonSection")
+
+        assertTrue(detail.contains("LazyColumn("))
+        assertFalse(detail.contains(".verticalScroll(rememberScrollState())"))
+        assertTrue(detail.contains("LaunchedEffect(taskLog, pageIndex)"))
+        assertTrue(detail.contains("withContext(Dispatchers.Default)"))
+        assertTrue(detail.contains("itemsIndexed(logEntries"))
+        assertTrue(detail.contains("TaskCenterHttpLogLoadMoreRow"))
+        assertTrue(source.contains("LaunchedEffect(\"task-center-http-log-load-more\""))
+        assertTrue(source.contains("加载更多日志"))
+        assertFalse(source.contains("上一页"))
+        assertFalse(source.contains("下一页"))
+        assertFalse(detail.contains("remember(taskLog, pageIndex) { taskCenterHttpLogPage"))
     }
 }

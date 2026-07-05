@@ -39,7 +39,7 @@ class AsyncTaskLogStoreTest {
     }
 
     @Test
-    fun httpLoggerDoesNotTruncateResponseBodyBeforeTaskLogCap() {
+    fun httpLoggerTruncatesLargeResponseBodyBeforeTaskLogCap() {
         val root = createTempDir(prefix = "daily-task-logs")
         val store = AsyncTaskLogStore(root, maxBytesPerTask = 120_000)
         val logger = AsyncTaskHttpLogWriter(store)
@@ -54,13 +54,13 @@ class AsyncTaskLogStoreTest {
         )
 
         val log = store.read(9)
-        assertTrue(log.contains(body))
-        assertFalse(log.contains("truncated"))
-        assertFalse(log.contains("TRUNCATED"))
+        assertFalse(log.contains(body))
+        assertTrue(log.contains("...[truncated "))
+        assertTrue(log.length < 8_000)
     }
 
     @Test
-    fun defaultTaskLogCapKeepsLargeHttpBodiesForDiagnostics() {
+    fun defaultTaskLogCapKeepsLargeHttpBodySummaryForDiagnostics() {
         val root = createTempDir(prefix = "daily-task-logs")
         val store = AsyncTaskLogStore(root)
         val logger = AsyncTaskHttpLogWriter(store)
@@ -75,9 +75,41 @@ class AsyncTaskLogStoreTest {
         )
 
         val log = store.read(10)
-        assertTrue(log.contains(""""tail":"complete""""))
-        assertTrue(log.contains(body))
-        assertFalse(log.contains("TRUNCATED"))
+        assertFalse(log.contains(""""tail":"complete""""))
+        assertFalse(log.contains(body))
+        assertTrue(log.contains("...[truncated "))
+        assertTrue(log.length < 8_000)
+    }
+
+    @Test
+    fun concurrentAppendsDoNotCorruptTaskLog() = runBlocking {
+        val root = createTempDir(prefix = "daily-task-logs")
+        val store = AsyncTaskLogStore(root, maxBytesPerTask = 120_000)
+
+        (0 until 20).map { index ->
+            async {
+                repeat(10) { step ->
+                    store.append(12, "entry-$index-$step")
+                }
+            }
+        }.forEach { it.await() }
+
+        val log = store.read(12)
+        assertFalse(log.contains('\u0000'))
+        assertEquals(200, log.lineSequence().filter { it.contains("entry-") }.count())
+    }
+
+    @Test
+    fun deleteRemovesTaskLogFilesById() {
+        val root = createTempDir(prefix = "daily-task-logs")
+        val store = AsyncTaskLogStore(root)
+        store.append(1, "keep")
+        store.append(2, "delete")
+
+        store.delete(listOf(2, 3))
+
+        assertTrue(File(root, "task-1.log").exists())
+        assertFalse(File(root, "task-2.log").exists())
     }
 
     @Test
@@ -94,5 +126,13 @@ class AsyncTaskLogStoreTest {
         store.append(11, "TASK started type=fake")
 
         assertTrue(observed.await().contains("TASK started type=fake"))
+    }
+
+    @Test
+    fun observeReadsTaskLogOffMainThread() {
+        val source = File("src/main/kotlin/com/dailysatori/core/task/AsyncTaskLogStore.kt").readText()
+
+        assertTrue(source.contains("Dispatchers.IO"))
+        assertTrue(source.contains(".flowOn(Dispatchers.IO)"))
     }
 }

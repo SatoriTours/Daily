@@ -16,6 +16,9 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
     fun getArticlesBySourceDate(remoteSourceId: Long, sourceDate: String): List<Article> =
         q.selectRemoteArticleSyncItemsBySourceDate(remoteSourceId, sourceDate).executeAsList()
 
+    fun getArticlesBySource(remoteSourceId: Long, limit: Long, offset: Long): List<Article> =
+        q.selectRemoteArticleSyncItemsBySource(remoteSourceId, limit, offset).executeAsList()
+
     fun count(): Long = q.countRemoteArticleSyncItems().executeAsOne()
 
     fun countBySource(remoteSourceId: Long): Long =

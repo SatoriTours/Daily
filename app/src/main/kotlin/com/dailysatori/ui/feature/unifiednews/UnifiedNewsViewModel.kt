@@ -71,7 +71,10 @@ data class UnifiedNewsState(
     val remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList(),
     val externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
     val sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap(),
+    val sourceArticlesBySourceId: Map<Long, List<RemoteArticle>> = emptyMap(),
+    val sourceArticlesHasMoreSourceIds: Set<Long> = emptySet(),
     val sourceArticlesLoadingSourceId: Long? = null,
+    val sourceArticlesLoadingMoreSourceId: Long? = null,
     val sourceArticlesError: String? = null,
     val summaries: List<Unified_news_summary> = emptyList(),
     val selectedSummary: Unified_news_summary? = null,
@@ -204,8 +207,7 @@ class UnifiedNewsViewModel(
     }
 
     fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption) {
-        val summaryDate = dailyUnifiedNewsWindowFor().summaryDate
-        val sourceArticlesCached = hasUnifiedNewsSourceArticlesCache(_state.value, source.id, summaryDate)
+        val sourceArticlesCached = _state.value.sourceArticlesBySourceId.containsKey(source.id)
         invalidateSourceArticleRequest()
         _state.update {
             it.copy(
@@ -250,6 +252,11 @@ class UnifiedNewsViewModel(
         fetchSourceArticles(selection.id, force = true)
     }
 
+    fun loadMoreSelectedRemoteSource() {
+        val selection = _state.value.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource ?: return
+        fetchSourceArticles(selection.id, force = false, append = true)
+    }
+
     fun syncRemoteSource(sourceId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -259,7 +266,7 @@ class UnifiedNewsViewModel(
                     uniqueKey = "remote_article_sync:source:$sourceId",
                 )
                 asyncTaskScheduler.enqueue(taskId)
-                _state.update { it.copy(manualRefreshMessage = "已开始同步该远程新闻源", error = null) }
+                _state.update { it.copy(manualRefreshMessage = null, error = null) }
                 fetchSourceArticles(sourceId, force = true)
             } catch (_: Exception) {
                 _state.update { it.copy(error = "远程新闻源同步任务创建失败") }
@@ -495,12 +502,12 @@ class UnifiedNewsViewModel(
         content = null,
     )
 
-    private fun fetchSourceArticles(sourceId: Long, force: Boolean) {
-        val cacheKey = sourceArticleCacheKey(sourceId, dailyUnifiedNewsWindowFor().summaryDate)
+    private fun fetchSourceArticles(sourceId: Long, force: Boolean, append: Boolean = false) {
         val current = _state.value
-        if (current.sourceArticlesLoadingSourceId == sourceId) return
-        if (!force && hasUnifiedNewsSourceArticlesCache(current, sourceId, cacheKey.summaryDate)) return
-        val token = beginSourceArticleRequest(sourceId)
+        if (current.sourceArticlesLoadingSourceId == sourceId || current.sourceArticlesLoadingMoreSourceId == sourceId) return
+        if (append && sourceId !in current.sourceArticlesHasMoreSourceIds) return
+        if (!force && !append && current.sourceArticlesBySourceId.containsKey(sourceId)) return
+        val token = beginSourceArticleRequest(sourceId, append)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val source = remoteNewsSourceRepo.getById(sourceId)
@@ -510,30 +517,47 @@ class UnifiedNewsViewModel(
                     }
                     return@launch
                 }
+                val pageOffset = if (append) current.sourceArticlesBySourceId[sourceId].orEmpty().size.toLong() else 0L
                 if (!force) {
-                    val localArticles = remoteArticleSyncRepo.getArticlesBySourceDate(sourceId, cacheKey.summaryDate)
-                    if (localArticles.isNotEmpty()) {
+                    val localArticles = remoteArticleSyncRepo.getArticlesBySource(
+                        remoteSourceId = sourceId,
+                        limit = SOURCE_ARTICLE_PAGE_SIZE,
+                        offset = pageOffset,
+                    )
+                    if (localArticles.isNotEmpty() || append) {
                         ifLatestSourceArticleRequest(token) { state ->
-                            state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, localArticles.map { it.toRemoteArticleForDisplay() })
+                            state.withUnifiedNewsSourceArticlesLoaded(
+                                sourceId = sourceId,
+                                articles = localArticles.map { it.toRemoteArticleForDisplay() },
+                                append = append,
+                                hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
+                            )
                         }
                         return@launch
                     }
                 }
+                val sourceDate = dailyUnifiedNewsWindowFor().summaryDate
                 when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
                     is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
                         is RemoteNewsResult.Success -> {
                             remoteArticleSyncService.syncSourceArticles(
                                 remoteSourceId = sourceId,
-                                sourceDate = cacheKey.summaryDate,
+                                sourceDate = sourceDate,
                                 articles = result.value.articles,
                                 now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
                             )
-                            val localArticles = remoteArticleSyncRepo.getArticlesBySourceDate(sourceId, cacheKey.summaryDate)
-                            val displayArticles = localArticles.takeIf { it.isNotEmpty() }
-                                ?.map { it.toRemoteArticleForDisplay() }
-                                ?: result.value.articles
+                            val localArticles = remoteArticleSyncRepo.getArticlesBySource(
+                                remoteSourceId = sourceId,
+                                limit = SOURCE_ARTICLE_PAGE_SIZE,
+                                offset = 0,
+                            )
                             ifLatestSourceArticleRequest(token) { state ->
-                                state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, displayArticles)
+                                state.withUnifiedNewsSourceArticlesLoaded(
+                                    sourceId = sourceId,
+                                    articles = localArticles.map { it.toRemoteArticleForDisplay() },
+                                    append = false,
+                                    hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
+                                )
                             }
                         }
                         is RemoteNewsResult.Failure -> ifLatestSourceArticleRequest(token) { state ->
@@ -593,10 +617,10 @@ class UnifiedNewsViewModel(
         }
     }
 
-    private fun beginSourceArticleRequest(sourceId: Long): Long {
+    private fun beginSourceArticleRequest(sourceId: Long, append: Boolean = false): Long {
         synchronized(sourceArticleRequestLock) {
             val token = sourceArticleRequestToken.incrementAndGet()
-            _state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId) }
+            _state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId, append) }
             return token
         }
     }
@@ -616,6 +640,10 @@ class UnifiedNewsViewModel(
             null
         }
     }
+    }
+
+    private companion object {
+        const val SOURCE_ARTICLE_PAGE_SIZE = 30L
     }
 
 }

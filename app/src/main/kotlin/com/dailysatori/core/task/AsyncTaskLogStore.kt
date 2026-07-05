@@ -3,10 +3,12 @@ package com.dailysatori.core.task
 import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
 import com.dailysatori.service.asynctask.AsyncTaskLogger
 import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 
@@ -14,39 +16,52 @@ class AsyncTaskLogStore(
     private val root: File,
     private val maxBytesPerTask: Int = DEFAULT_MAX_BYTES_PER_TASK,
 ) : AsyncTaskLogger {
+    private val writeLock = Any()
+
     init {
         root.mkdirs()
     }
 
     override fun append(taskId: Long, message: String) {
         if (taskId <= 0L || maxBytesPerTask <= 0) return
-        root.mkdirs()
-        val file = taskFile(taskId)
-        val existing = if (file.exists()) file.readText() else ""
-        val line = buildString {
-            append(Clock.System.now())
-            append(" ")
-            append(message.trimEnd())
-            append('\n')
+        synchronized(writeLock) {
+            root.mkdirs()
+            val file = taskFile(taskId)
+            val existing = if (file.exists()) file.readText() else ""
+            val line = buildString {
+                append(Clock.System.now())
+                append(" ")
+                append(message.trimEnd())
+                append('\n')
+            }
+            val capped = (existing + line).takeLastBytes(maxBytesPerTask)
+            file.writeText(capped)
         }
-        val capped = (existing + line).takeLastBytes(maxBytesPerTask)
-        file.writeText(capped)
     }
 
     fun read(taskId: Long): String =
         if (taskId <= 0L) "" else taskFile(taskId).takeIf { it.exists() }?.readText().orEmpty()
 
-    fun observe(taskId: Long, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<String> = flow {
-        var last: String? = null
-        while (currentCoroutineContext().isActive) {
-            val value = read(taskId)
-            if (value != last) {
-                emit(value)
-                last = value
+    fun delete(taskIds: Iterable<Long>) {
+        synchronized(writeLock) {
+            taskIds.forEach { taskId ->
+                if (taskId > 0L) taskFile(taskId).delete()
             }
-            delay(pollIntervalMs)
         }
     }
+
+    fun observe(taskId: Long, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<String> =
+        flow {
+            var last: String? = null
+            while (currentCoroutineContext().isActive) {
+                val value = read(taskId)
+                if (value != last) {
+                    emit(value)
+                    last = value
+                }
+                delay(pollIntervalMs)
+            }
+        }.flowOn(Dispatchers.IO)
 
     private fun taskFile(taskId: Long): File = File(root, "task-$taskId.log")
 
@@ -84,7 +99,7 @@ class AsyncTaskHttpLogWriter(
                 append(url)
                 if (parameters.isNotEmpty()) {
                     append(" params=")
-                    append(parameters.entries.joinToString("&") { "${it.key}=${it.value}" })
+                    append(parameters.entries.joinToString("&") { "${it.key}=${it.value.toTaskLogSnippet()}" })
                 }
             },
         )
@@ -110,8 +125,16 @@ class AsyncTaskHttpLogWriter(
                     append(headers.entries.joinToString(",") { "${it.key}=${it.value}" })
                 }
                 append(" body=")
-                append(body)
+                append(body.toTaskLogSnippet())
             },
         )
     }
 }
+
+private fun String.toTaskLogSnippet(maxChars: Int = MAX_TASK_LOG_VALUE_CHARS): String {
+    val cleaned = filterNot { it == '\u0000' }
+    if (cleaned.length <= maxChars) return cleaned
+    return cleaned.take(maxChars) + "\n...[truncated ${cleaned.length - maxChars} chars]"
+}
+
+private const val MAX_TASK_LOG_VALUE_CHARS = 4_000

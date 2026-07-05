@@ -4,7 +4,16 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.openAiChatCompletionEndpoint
+import com.dailysatori.service.ai.usesOpenAiCompatibleChatApi
+import com.dailysatori.shared.db.Article
+import com.dailysatori.shared.db.Ai_config
 import com.dailysatori.shared.db.External_favorite_item
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -39,6 +48,7 @@ class ExternalFavoriteAiOrganizer(
     private val aiService: AiService? = null,
     private val supplementResolver: ExternalFavoriteSupplementResolver? = null,
     private val generateAnalysis: (suspend (ExternalFavoriteAiInput) -> ExternalFavoriteAiAnalysis)? = null,
+    private val maxConcurrentAnalysis: Int = DEFAULT_MAX_CONCURRENT_ANALYSIS,
 ) {
     suspend fun organizePending(limit: Long = 10, includeFailed: Boolean = false): Int {
         return organizeItems(if (includeFailed) itemRepo.retryableAi(limit) else itemRepo.pendingAi(limit))
@@ -65,30 +75,34 @@ class ExternalFavoriteAiOrganizer(
         taskId: Long? = null,
     ): Int {
         var processed = 0
-        items.forEach { item ->
+        val work = items.mapNotNull { item ->
             val article = item.article_id?.let(articleRepo::getById)
             if (article == null) {
                 itemRepo.markAiState(item.id, ExternalItemAiStatus.failed.name, "missing_article", "Linked article was not found.")
                 processed += 1
+                null
+            } else {
+                ExternalFavoriteAiWork(item, article)
+            }
+        }
+
+        val results = analyzeWorkItems(work, httpLogger, taskId)
+        results.forEach { result ->
+            val item = result.item
+            val article = result.article
+            val input = result.input
+            val analysis = result.analysis
+            val error = result.error
+            if (error != null || input == null || analysis == null) {
+                itemRepo.markAiState(
+                    item.id,
+                    ExternalItemAiStatus.failed.name,
+                    "ai_failed",
+                    error?.message.orEmpty().ifBlank { "External favorite AI organization failed." },
+                )
+                processed += 1
                 return@forEach
             }
-
-            val input = item.toAiInput()
-                .withSupplementIfNeeded(item, httpLogger, taskId)
-            logAiRequest(httpLogger, taskId, item, input)
-            val analysis = runCatching { generateAnalysis?.invoke(input) ?: generateWithAi(input) }
-                .getOrElse { error ->
-                    logAiFailure(httpLogger, taskId, item, error)
-                    itemRepo.markAiState(
-                        item.id,
-                        ExternalItemAiStatus.failed.name,
-                        "ai_failed",
-                        error.message.orEmpty().ifBlank { "External favorite AI organization failed." },
-                    )
-                    processed += 1
-                    return@forEach
-                }
-            logAiResponse(httpLogger, taskId, item, analysis)
 
             val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "X 收藏" } }
             val summary = analysis.summary.trim().ifBlank { input.text }
@@ -102,6 +116,45 @@ class ExternalFavoriteAiOrganizer(
             processed += 1
         }
         return processed
+    }
+
+    private suspend fun analyzeWorkItems(
+        work: List<ExternalFavoriteAiWork>,
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+    ): List<ExternalFavoriteAiResult> = coroutineScope {
+        val concurrency = maxConcurrentAnalysis.coerceAtLeast(1)
+        val semaphore = Semaphore(concurrency)
+        work.map { entry ->
+            async {
+                semaphore.withPermit {
+                    val item = entry.item
+                    val input = item.toAiInput()
+                        .withSupplementIfNeeded(item, httpLogger, taskId)
+                    val logConfig = aiRequestLogConfig()
+                    logAiRequest(httpLogger, taskId, item, input, logConfig)
+                    val analysis = runCatching { generateAnalysis?.invoke(input) ?: generateWithAi(input) }
+                        .getOrElse { error ->
+                            logAiFailure(httpLogger, taskId, item, error)
+                            return@withPermit ExternalFavoriteAiResult(
+                                item = item,
+                                article = entry.article,
+                                input = input,
+                                analysis = null,
+                                error = error,
+                            )
+                        }
+                    logAiResponse(httpLogger, taskId, item, analysis)
+                    ExternalFavoriteAiResult(
+                        item = item,
+                        article = entry.article,
+                        input = input,
+                        analysis = analysis,
+                        error = null,
+                    )
+                }
+            }
+        }.awaitAll()
     }
 
     private suspend fun generateWithAi(input: ExternalFavoriteAiInput): ExternalFavoriteAiAnalysis {
@@ -128,18 +181,31 @@ class ExternalFavoriteAiOrganizer(
         taskId: Long?,
         item: External_favorite_item,
         input: ExternalFavoriteAiInput,
+        logConfig: ExternalFavoriteAiLogConfig,
     ) {
         httpLogger.logRequest(
             taskId = taskId,
             label = "external_favorite_ai",
             method = "POST",
-            url = "ai://external-favorite/organize",
-            parameters = mapOf(
-                "externalId" to item.external_id,
-                "articleId" to item.article_id?.toString().orEmpty(),
-                "title" to input.title,
-                "body" to input.toPromptContent(),
-            ),
+            url = logConfig.url,
+            parameters = buildMap {
+                put("provider", logConfig.provider)
+                put("model", logConfig.modelName)
+                put("externalId", item.external_id)
+                put("articleId", item.article_id?.toString().orEmpty())
+                put("title", input.title)
+                put("body", input.toPromptContent())
+            },
+        )
+    }
+
+    private fun aiRequestLogConfig(): ExternalFavoriteAiLogConfig {
+        val config = aiConfigService?.getDefaultConfig()
+            ?: return ExternalFavoriteAiLogConfig(url = FALLBACK_AI_LOG_URL, provider = "", modelName = "")
+        return ExternalFavoriteAiLogConfig(
+            url = externalFavoriteAiRequestLogUrl(config),
+            provider = config.provider.trim(),
+            modelName = config.model_name.trim(),
         )
     }
 
@@ -335,5 +401,36 @@ class ExternalFavoriteAiOrganizer(
                 "只输出 JSON，字段为 title、summary、markdown。"
 
         const val MIN_EXISTING_TEXT_CHARS = 20
+        const val DEFAULT_MAX_CONCURRENT_ANALYSIS = 10
+        const val FALLBACK_AI_LOG_URL = "ai://external-favorite/organize"
     }
 }
+
+internal fun externalFavoriteAiRequestLogUrl(config: Ai_config): String {
+    val apiAddress = config.api_address.trim().trimEnd('/')
+    if (apiAddress.isBlank()) return "ai://external-favorite/organize"
+    return if (usesOpenAiCompatibleChatApi(config.provider)) {
+        openAiChatCompletionEndpoint(apiAddress)
+    } else {
+        apiAddress
+    }
+}
+
+private data class ExternalFavoriteAiLogConfig(
+    val url: String,
+    val provider: String,
+    val modelName: String,
+)
+
+private data class ExternalFavoriteAiWork(
+    val item: External_favorite_item,
+    val article: Article,
+)
+
+private data class ExternalFavoriteAiResult(
+    val item: External_favorite_item,
+    val article: Article,
+    val input: ExternalFavoriteAiInput?,
+    val analysis: ExternalFavoriteAiAnalysis?,
+    val error: Throwable?,
+)

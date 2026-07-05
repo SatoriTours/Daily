@@ -52,6 +52,37 @@ class RemoteArticleSyncRepositoryTest {
     }
 
     @Test
+    fun readsSyncedRemoteArticlesBySourceAcrossDatesWithPaging() = withSyncRepositories { db, articleRepo, syncRepo ->
+        val now = 1_800_000_000_000
+        db.dailySatoriQueries.insertRemoteNewsSource("Tech", "https://remote.example", "token", 1, now, now)
+        val sourceId = db.dailySatoriQueries.selectRemoteNewsSources().executeAsList().single().id
+        val olderId = articleRepo.insert(
+            title = "Older remote",
+            aiContent = "Older summary",
+            aiMarkdownContent = "# Older",
+            url = "https://example.com/older",
+            isFavorite = 0,
+            status = "completed",
+            pubDate = now - 86_400_000,
+        )
+        val newerId = articleRepo.insert(
+            title = "Newer remote",
+            aiContent = "Newer summary",
+            aiMarkdownContent = "# Newer",
+            url = "https://example.com/newer",
+            isFavorite = 0,
+            status = "completed",
+            pubDate = now,
+        )
+
+        syncRepo.upsertMapping(sourceId, 41, olderId, "https://example.com/older", "2026-06-21", now)
+        syncRepo.upsertMapping(sourceId, 42, newerId, "https://example.com/newer", "2026-06-22", now + 1_000)
+
+        assertEquals(listOf(newerId), syncRepo.getArticlesBySource(sourceId, limit = 1, offset = 0).map { it.id })
+        assertEquals(listOf(olderId), syncRepo.getArticlesBySource(sourceId, limit = 1, offset = 1).map { it.id })
+    }
+
+    @Test
     fun syncedRemoteArticlesKeepOriginalMarkdownAndStayOutOfLocalArticleList() = withSyncRepositories { db, articleRepo, syncRepo ->
         val now = 1_800_000_000_000
         db.dailySatoriQueries.insertRemoteNewsSource("Tech", "https://remote.example", "token", 1, now, now)

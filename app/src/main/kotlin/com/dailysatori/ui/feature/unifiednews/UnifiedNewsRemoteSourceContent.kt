@@ -2,54 +2,60 @@ package com.dailysatori.ui.feature.unifiednews
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.service.remotenews.RemoteArticle
-import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.news.NewsStateMessage
 import com.dailysatori.ui.component.news.NewsStatusBanner
 import com.dailysatori.ui.component.news.newsCompactListContentPadding
 import com.dailysatori.ui.feature.remotenews.RemoteArticleSummaryCard
-import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun UnifiedNewsSourceArticleContent(
     state: UnifiedNewsState,
     selection: UnifiedNewsSourceSelection.RemoteSource,
     viewModel: UnifiedNewsViewModel,
 ) {
-    val cacheKey = sourceArticleCacheKey(selection.id, dailyUnifiedNewsWindowFor().summaryDate)
-    val articles = state.sourceArticlesByCacheKey[cacheKey].orEmpty()
+    val articles = state.sourceArticlesBySourceId[selection.id].orEmpty()
     val isLoading = state.sourceArticlesLoadingSourceId == selection.id
+    val isLoadingMore = state.sourceArticlesLoadingMoreSourceId == selection.id
     when {
         isLoading && articles.isEmpty() -> LoadingIndicator()
         state.sourceArticlesError != null && articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
             title = state.sourceArticlesError,
             actionLabel = "同步",
             onAction = { viewModel.syncRemoteSource(selection.id) },
+            isError = true,
         )
         articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
-            title = "这个来源今天还没有新闻",
+            title = "这个来源暂时没有已同步文章",
+            subtitle = "今天没有新文章时，稍后下拉刷新即可",
             actionLabel = "同步",
             onAction = { viewModel.syncRemoteSource(selection.id) },
         )
         else -> UnifiedNewsSourceArticleList(
-            selection = selection,
             articles = articles,
             isLoading = isLoading,
+            isLoadingMore = isLoadingMore,
             sourceArticlesError = state.sourceArticlesError,
             viewModel = viewModel,
         )
@@ -57,64 +63,62 @@ internal fun UnifiedNewsSourceArticleContent(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun UnifiedNewsSourceArticleList(
-    selection: UnifiedNewsSourceSelection.RemoteSource,
     articles: List<RemoteArticle>,
     isLoading: Boolean,
+    isLoadingMore: Boolean,
     sourceArticlesError: String?,
     viewModel: UnifiedNewsViewModel,
 ) {
-    LazyColumn(
+    val listState = rememberLazyListState()
+    LoadMoreWhenAtEnd(listState, articles.size, viewModel::loadMoreSelectedRemoteSource)
+    PullToRefreshBox(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = newsCompactListContentPadding(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        isRefreshing = isLoading,
+        onRefresh = viewModel::refreshSelectedRemoteSource,
     ) {
-        item(key = "source-article-sync") {
-            UnifiedNewsSourceArticleSyncBar(
-                sourceName = selection.name,
-                onSync = { viewModel.syncRemoteSource(selection.id) },
-            )
-        }
-        if (sourceArticlesError != null) item(key = "source-article-error") {
-            NewsStatusBanner(message = "刷新失败，正在显示上次结果：$sourceArticlesError")
-        }
-        items(articles, key = { it.id }) { article ->
-            RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(article) }
-        }
-        if (isLoading) item(key = "source-article-loading") {
-            Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {
-                Text("刷新中...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsSourceArticleSyncBar(sourceName: String, onSync: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = newsCompactListContentPadding(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
-            Text(
-                text = sourceName,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedButton(onClick = onSync) {
-                Text("同步")
+            if (sourceArticlesError != null) item(key = "source-article-error") {
+                NewsStatusBanner(message = "刷新失败，正在显示已同步文章：$sourceArticlesError")
+            }
+            items(articles, key = { it.id }) { article ->
+                RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(article) }
+            }
+            if (isLoadingMore) item(key = "source-article-loading-more") {
+                Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {
+                    Text("加载更多历史新闻...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun UnifiedNewsSourceArticleMessage(title: String, actionLabel: String, onAction: () -> Unit) {
-    NewsStateMessage(title = title, actionLabel = actionLabel, onAction = onAction)
+private fun LoadMoreWhenAtEnd(listState: LazyListState, itemCount: Int, onLoadMore: () -> Unit) {
+    val shouldLoadMore by remember(listState, itemCount) {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            itemCount > 0 && lastVisible >= itemCount - 1
+        }
+    }
+    LaunchedEffect(shouldLoadMore, itemCount) {
+        if (shouldLoadMore) onLoadMore()
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourceArticleMessage(
+    title: String,
+    subtitle: String? = null,
+    actionLabel: String,
+    onAction: () -> Unit,
+    isError: Boolean = false,
+) {
+    NewsStateMessage(title = title, subtitle = subtitle, actionLabel = actionLabel, onAction = onAction, isError = isError)
 }

@@ -139,7 +139,13 @@ class FavoriteSyncService(
             localWorkItems += repairImportedArticleCovers(IMPORT_RETRY_LIMIT)
         }
         runLocalWorkStep {
-            val aiBudget = policy.aiBudget(localWorkItems)
+            val aiBudget = if (localWorkItems > 0) {
+                policy.aiBudget(localWorkItems)
+            } else if (policy.includeFailedAi) {
+                policy.aiBudget(localWorkItems)
+            } else {
+                itemRepo.pendingAiBySource(sourceId, PENDING_AI_RESUME_LIMIT).size.toLong()
+            }
             if (aiBudget <= 0) return@runLocalWorkStep
             if (organizer != null) {
                 reportLocalProgress("organize")
@@ -328,7 +334,10 @@ class FavoriteSyncService(
                     val pageResult = fetchOne(cursor)
                     cursor = pageResult.page.nextCursor
                     reportProgress("latest")
-                    if (pageResult.page.exhausted || pageResult.reachedSinceAnchor || pageResult.changedItems == 0) {
+                    if (pageResult.page.exhausted ||
+                        pageResult.reachedSinceAnchor ||
+                        (historyComplete && pageResult.changedItems == 0)
+                    ) {
                         markHistoryComplete()
                         persistProgress()
                         reportProgress("complete")
@@ -341,12 +350,14 @@ class FavoriteSyncService(
 
             if (!policy.scanHistory) {
                 when {
-                    latest.page.exhausted || latest.reachedSinceAnchor || latest.changedItems == 0 -> {
+                    latest.page.exhausted ||
+                        latest.reachedSinceAnchor ||
+                        (verifiedHistoryComplete() && latest.changedItems == 0) -> {
                         markHistoryComplete()
                         persistProgress()
                         reportProgress("complete")
                     }
-                    latest.changedItems > 0 -> {
+                    latest.page.nextCursor != null -> {
                         fetchIncrementalUntilKnownItems(latest.page.nextCursor)
                     }
                     else -> {
@@ -483,7 +494,7 @@ class FavoriteSyncService(
     }
 
     private fun changedItemAiBudget(localWorkItems: Long): Long =
-        localWorkItems.coerceAtMost(DEFAULT_AI_ORGANIZE_LIMIT)
+        localWorkItems
 
     private data class SyncPolicy(
         val shouldFetch: Boolean,
@@ -514,6 +525,7 @@ class FavoriteSyncService(
     private companion object {
         const val IMPORT_RETRY_LIMIT = 50L
         const val DEFAULT_AI_ORGANIZE_LIMIT = 10L
+        const val PENDING_AI_RESUME_LIMIT = 50L
     }
 }
 

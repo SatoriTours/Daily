@@ -228,6 +228,16 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         }
     }
 
+    fun pruneOldTasks(keepLatest: Long = DEFAULT_TASK_RETENTION_COUNT): List<Long> {
+        val keep = keepLatest.coerceAtLeast(1)
+        return q.transactionWithResult {
+            val ids = q.selectAsyncTaskIdsBeyondRetention(keep).executeAsList()
+            ids.forEach(q::deleteAsyncTaskById)
+            q.deleteOrphanAsyncTaskBatches()
+            ids
+        }
+    }
+
     fun markExpiredRunningForRetry(nowMs: Long) {
         q.markExpiredRunningAsyncTasksForRetry(
             status = AsyncTaskStatus.retrying.name,
@@ -237,6 +247,8 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     }
 
     private companion object {
+        const val DEFAULT_TASK_RETENTION_COUNT = 20L
+
         val activeStatuses = setOf(
             AsyncTaskStatus.queued.name,
             AsyncTaskStatus.running.name,

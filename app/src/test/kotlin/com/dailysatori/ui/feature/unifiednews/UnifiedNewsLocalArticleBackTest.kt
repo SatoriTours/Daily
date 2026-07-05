@@ -36,8 +36,10 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("data class UnifiedNewsRemoteSourceOption(val id: Long, val name: String)"))
         assertTrue(source.contains("remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList()"))
         assertFalse(source.contains("remoteSources: List<Remote_news_source> = emptyList()"))
-        assertTrue(source.contains("sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap()"))
+        assertTrue(source.contains("sourceArticlesBySourceId: Map<Long, List<RemoteArticle>> = emptyMap()"))
+        assertTrue(source.contains("sourceArticlesHasMoreSourceIds: Set<Long> = emptySet()"))
         assertTrue(source.contains("sourceArticlesLoadingSourceId: Long? = null"))
+        assertTrue(source.contains("sourceArticlesLoadingMoreSourceId: Long? = null"))
         assertTrue(source.contains("sourceArticlesError: String? = null"))
     }
 
@@ -50,27 +52,31 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("fun selectSummarySource()"))
         assertTrue(source.contains("fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption)"))
         assertTrue(source.contains("fun refreshSelectedRemoteSource()"))
+        assertTrue(source.contains("fun loadMoreSelectedRemoteSource()"))
         assertTrue(source.contains("fun openSourceArticle(article: RemoteArticle)"))
-        assertTrue(source.contains("hasUnifiedNewsSourceArticlesCache(_state.value, source.id, summaryDate)"))
+        assertTrue(source.contains("sourceArticlesBySourceId.containsKey(source.id)"))
+        assertTrue(source.contains("remoteArticleSyncRepo.getArticlesBySource("))
         assertTrue(source.contains("remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)"))
         assertTrue(source.contains("selectedRemoteArticle = article"))
         assertTrue(source.contains("articleRepo.findLocalArticleForRemote(article)"))
         assertTrue(source.contains("import java.util.concurrent.atomic.AtomicLong"))
         assertTrue(source.contains("private val sourceArticleRequestToken = AtomicLong(0L)"))
         assertTrue(source.contains("private val sourceArticleRequestLock = Any()"))
-        assertTrue(source.contains("val token = beginSourceArticleRequest(sourceId)"))
-        assertTrue(source.contains("private fun beginSourceArticleRequest(sourceId: Long): Long"))
+        assertTrue(source.contains("val token = beginSourceArticleRequest(sourceId, append)"))
+        assertTrue(source.contains("private fun beginSourceArticleRequest(sourceId: Long, append: Boolean = false): Long"))
         assertTrue(source.contains("synchronized(sourceArticleRequestLock)"))
         assertTrue(source.contains("sourceArticleRequestToken.incrementAndGet()"))
         assertTrue(source.contains("ifLatestSourceArticleRequest(token)"))
         assertTrue(source.contains("private fun ifLatestSourceArticleRequest(token: Long, transform: (UnifiedNewsState) -> UnifiedNewsState)"))
         assertTrue(source.contains("if (token == sourceArticleRequestToken.get()) _state.update(transform)"))
         assertTrue(source.contains("catch (e: CancellationException)"))
-        assertTrue(source.contains("state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, displayArticles)"))
+        assertTrue(source.contains("state.withUnifiedNewsSourceArticlesLoaded("))
+        assertTrue(source.contains("append = append"))
+        assertTrue(source.contains("hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE"))
         assertTrue(source.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
         assertTrue(source.contains("invalidateSourceArticleRequest()"))
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticleRequestInvalidated() }"))
-        assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId) }"))
+        assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId, append) }"))
         assertTrue(source.contains("if (!sourceArticlesCached)"))
         assertTrue(source.contains("shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
         assertTrue(source.contains("resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
@@ -87,7 +93,9 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("FilterChip("))
         assertTrue(source.contains("Text(\"汇总\")"))
         assertTrue(source.contains("sourceArticlesLoadingSourceId == selection.id"))
-        assertTrue(source.contains("这个来源今天还没有新闻"))
+        assertTrue(source.contains("这个来源暂时没有已同步文章"))
+        assertTrue(source.contains("PullToRefreshBox("))
+        assertTrue(source.contains("LoadMoreWhenAtEnd("))
         assertTrue(source.contains("viewModel.openSourceArticle(article)"))
     }
 
@@ -102,6 +110,8 @@ class UnifiedNewsLocalArticleBackTest {
         assertFalse(articleList.contains("TextButton(onClick = viewModel::refreshSelectedRemoteSource)"))
         assertFalse(articleList.contains("\${selection.name} · 今日文章"))
         assertFalse(articleList.contains("共 \${articles.size} 篇"))
+        assertFalse(articleList.contains("UnifiedNewsSourceArticleSyncBar"))
+        assertFalse(articleList.contains("Text(\"刷新中...\""))
         assertTrue(articleList.contains("RemoteArticleSummaryCard(article)"))
     }
 
@@ -112,8 +122,8 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(sourceArticleCacheKey(7L, "2026-05-26") != sourceArticleCacheKey(7L, "2026-05-27"))
 
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        assertTrue(source.contains("sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap()"))
-        assertTrue(source.contains("hasUnifiedNewsSourceArticlesCache(_state.value, source.id, summaryDate)"))
+        assertTrue(source.contains("sourceArticlesBySourceId: Map<Long, List<RemoteArticle>> = emptyMap()"))
+        assertTrue(source.contains("sourceArticlesBySourceId.containsKey(source.id)"))
     }
 
     @Test
@@ -138,7 +148,7 @@ class UnifiedNewsLocalArticleBackTest {
 
         assertTrue(content.contains("sourceArticlesError = state.sourceArticlesError"))
         assertTrue(list.contains("sourceArticlesError: String?"))
-        assertTrue(list.contains("刷新失败，正在显示上次结果"))
+        assertTrue(list.contains("刷新失败，正在显示已同步文章"))
         assertTrue(list.contains("sourceArticlesError != null"))
     }
 

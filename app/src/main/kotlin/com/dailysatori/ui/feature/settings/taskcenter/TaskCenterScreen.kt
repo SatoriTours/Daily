@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -54,6 +54,8 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.dailysatori.shared.db.Async_task
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -341,33 +343,80 @@ private fun TaskCenterTaskDetail(
     taskLog: String,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(Spacing.m),
+    var pageIndex by remember(taskLog) { mutableStateOf(0) }
+    var logEntries by remember(taskLog) { mutableStateOf(emptyList<TaskCenterHttpLogEntry>()) }
+    var logHasNext by remember(taskLog) { mutableStateOf(false) }
+    var logLoading by remember(taskLog) { mutableStateOf(false) }
+    var logLoadedOnce by remember(taskLog) { mutableStateOf(false) }
+
+    LaunchedEffect(taskLog, pageIndex) {
+        logLoading = true
+        val nextPage = withContext(Dispatchers.Default) {
+            taskCenterHttpLogPage(taskLog, pageIndex)
+        }
+        logEntries = if (pageIndex == 0) nextPage.entries else logEntries + nextPage.entries
+        logHasNext = nextPage.hasNext
+        logLoadedOnce = true
+        logLoading = false
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(asyncTaskTypeDisplayName(task.type), style = MaterialTheme.typography.titleMedium)
-            Text("#${task.id} · ${asyncTaskStatusDisplayName(task.status)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        item(key = "task-header") {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(asyncTaskTypeDisplayName(task.type), style = MaterialTheme.typography.titleMedium)
+                Text("#${task.id} · ${asyncTaskStatusDisplayName(task.status)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        TaskCenterDetailSection(
-            "时间",
-            listOf(
-                "创建：${taskCenterTimestampText(task.created_at)}",
-                "开始：${taskCenterTimestampText(task.started_at)}",
-                "完成：${taskCenterTimestampText(task.finished_at)}",
-                "更新：${taskCenterTimestampText(task.updated_at)}",
-                "耗时：${taskCenterDurationText(task.started_at, task.finished_at ?: task.updated_at)}",
-            ).joinToString("\n"),
-        )
-        TaskCenterDetailSection("进度", "${task.progress_current} / ${task.progress_total}\n${task.progress_message}")
-        TaskCenterJsonSection("Payload", task.payload_json)
-        TaskCenterJsonSection("Checkpoint", task.checkpoint_json)
-        TaskCenterJsonSection("Result", task.result_json)
-        TaskCenterDetailSection("错误", listOf(task.last_error_code, task.last_error_message).filter { it.isNotBlank() }.joinToString("\n"))
-        TaskCenterHttpLogSection(taskLog)
+        item(key = "task-time") {
+            TaskCenterDetailSection(
+                "时间",
+                listOf(
+                    "创建：${taskCenterTimestampText(task.created_at)}",
+                    "开始：${taskCenterTimestampText(task.started_at)}",
+                    "完成：${taskCenterTimestampText(task.finished_at)}",
+                    "更新：${taskCenterTimestampText(task.updated_at)}",
+                    "耗时：${taskCenterDurationText(task.started_at, task.finished_at ?: task.updated_at)}",
+                ).joinToString("\n"),
+            )
+        }
+        item(key = "task-progress") {
+            TaskCenterDetailSection("进度", "${task.progress_current} / ${task.progress_total}\n${task.progress_message}")
+        }
+        item(key = "task-payload") { TaskCenterJsonSection("Payload", task.payload_json) }
+        item(key = "task-checkpoint") { TaskCenterJsonSection("Checkpoint", task.checkpoint_json) }
+        item(key = "task-result") { TaskCenterJsonSection("Result", task.result_json) }
+        item(key = "task-error") {
+            TaskCenterDetailSection("错误", listOf(task.last_error_code, task.last_error_message).filter { it.isNotBlank() }.joinToString("\n"))
+        }
+        item(key = "task-http-log-title") {
+            Text("诊断日志", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (logEntries.isEmpty() && logLoading && taskLog.isNotBlank()) {
+            item(key = "task-http-log-loading") {
+                TaskCenterDetailSection("诊断日志", "日志加载中")
+            }
+        } else if (logEntries.isEmpty() && logLoadedOnce) {
+            item(key = "task-http-log-empty") {
+                TaskCenterDetailSection("诊断日志", taskLog.filterNot { it == '\u0000' }.ifBlank { "暂无日志" })
+            }
+        }
+        itemsIndexed(logEntries, key = { index, _ -> "task-http-log-entry-$index" }) { index, entry ->
+            TaskCenterHttpLogCard(index = index, entry = entry)
+        }
+        if (logHasNext || logLoading) {
+            item(key = "task-http-log-load-more") {
+                TaskCenterHttpLogLoadMoreRow(
+                    loading = logLoading,
+                    onLoadMore = {
+                        if (!logLoading && logHasNext) pageIndex += 1
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -408,17 +457,23 @@ private fun TaskCenterJsonSection(title: String, body: String) {
 }
 
 @Composable
-private fun TaskCenterHttpLogSection(taskLog: String) {
-    val entries = remember(taskLog) { taskCenterHttpLogEntries(taskLog) }
-    if (entries.isEmpty()) {
-        TaskCenterDetailSection("诊断日志", taskLog.ifBlank { "暂无日志" })
-        return
+private fun TaskCenterHttpLogLoadMoreRow(
+    loading: Boolean,
+    onLoadMore: () -> Unit,
+) {
+    LaunchedEffect("task-center-http-log-load-more", loading) {
+        if (!loading) onLoadMore()
     }
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text("诊断日志", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        entries.forEachIndexed { index, entry ->
-            TaskCenterHttpLogCard(index = index, entry = entry)
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.s),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (loading) "日志加载中" else "加载更多日志",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -594,6 +649,7 @@ private fun bodyDisplayLines(body: String): List<String> {
 }
 
 private const val BODY_VIEWER_LINE_CHARS = 4_000
+private const val HTTP_LOG_PAGE_SIZE = 50
 
 @Composable
 private fun TaskCenterDetailSection(title: String, body: String) {
@@ -666,38 +722,185 @@ internal data class TaskCenterHttpLogEntry(
     fun formattedResponseBody(): String = taskCenterFormatJson(responseBody)
 }
 
-internal fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> {
-    val entries = mutableListOf<TaskCenterHttpLogEntry>()
-    var request = ""
-    var response = ""
-    var label = ""
+internal data class TaskCenterHttpLogPage(
+    val entries: List<TaskCenterHttpLogEntry>,
+    val pageIndex: Int,
+    val pageSize: Int,
+    val totalEntries: Int?,
+    val hasNextPage: Boolean,
+) {
+    val startIndex: Int
+        get() = if (entries.isEmpty()) 0 else pageIndex * pageSize
 
-    fun flush() {
-        if (request.isNotBlank() || response.isNotBlank()) {
-            entries += TaskCenterHttpLogEntry(label.ifBlank { "request" }, request, response)
+    val endIndex: Int
+        get() = startIndex + entries.size
+
+    val displayRangeText: String
+        get() = if (totalEntries != null) {
+            "第 ${startIndex + 1}-${endIndex} / 共 $totalEntries 条"
+        } else if (hasNext) {
+            "第 ${startIndex + 1}-${endIndex} 条，后面还有"
+        } else {
+            "第 ${startIndex + 1}-${endIndex} 条"
         }
-        request = ""
-        response = ""
-        label = ""
-    }
 
-    taskLog.lineSequence().forEach { line ->
+    val hasPrevious: Boolean
+        get() = pageIndex > 0
+
+    val hasNext: Boolean
+        get() = hasNextPage
+}
+
+internal fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> {
+    val pending = mutableListOf<MutableTaskCenterHttpLogEntry>()
+    val completed = mutableListOf<MutableTaskCenterHttpLogEntry>()
+    var activeResponse: MutableTaskCenterHttpLogEntry? = null
+
+    taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { line ->
         when {
             line.contains("HTTP request [") -> {
-                flush()
-                request = line
-                label = line.substringAfter("HTTP request [").substringBefore("]")
+                activeResponse = null
+                pending += MutableTaskCenterHttpLogEntry(
+                    label = line.substringAfter("HTTP request [").substringBefore("]"),
+                    request = line,
+                    response = "",
+                )
             }
             line.contains("HTTP response [") -> {
-                response = line
-                if (label.isBlank()) label = line.substringAfter("HTTP response [").substringBefore("]")
+                val responseLabel = line.substringAfter("HTTP response [").substringBefore("]")
+                val responseExternalId = taskCenterHttpExternalId(line)
+                val matchIndex = pending.indexOfFirst { entry ->
+                    entry.label == responseLabel &&
+                        responseExternalId.isNotBlank() &&
+                        taskCenterHttpExternalId(entry.request) == responseExternalId
+                }.takeIf { it >= 0 } ?: pending.indexOfFirst { it.label == responseLabel }
+                val entry = if (matchIndex >= 0) {
+                    pending.removeAt(matchIndex)
+                } else {
+                    MutableTaskCenterHttpLogEntry(responseLabel, "", "")
+                }
+                entry.response = line
+                completed += entry
+                activeResponse = entry
             }
-            request.isNotBlank() && response.isBlank() -> request += "\n$line"
-            response.isNotBlank() && !taskCenterIsLifecycleLogLine(line) -> response += "\n$line"
+            activeResponse != null && !taskCenterIsLifecycleLogLine(line) -> {
+                activeResponse?.response += "\n$line"
+            }
+            pending.isNotEmpty() -> {
+                pending.last().request += "\n$line"
+            }
         }
     }
-    flush()
-    return entries
+    return (completed + pending)
+        .map { TaskCenterHttpLogEntry(it.label.ifBlank { "request" }, it.request, it.response) }
+        .sortedBy { entry ->
+            taskCenterLogLineInstant(entry.request)
+                ?: taskCenterLogLineInstant(entry.response)
+                ?: Instant.DISTANT_FUTURE
+        }
+}
+
+private data class MutableTaskCenterHttpLogEntry(
+    val label: String,
+    var request: String,
+    var response: String,
+)
+
+private data class PendingTaskCenterHttpLogEntry(
+    val label: String,
+    val externalId: String,
+    val pageEntry: MutableTaskCenterHttpLogEntry?,
+)
+
+private fun taskCenterHttpExternalId(line: String): String =
+    line.substringAfter("externalId=", missingDelimiterValue = "")
+        .substringBefore("&")
+        .substringBefore(",")
+        .substringBefore(" ")
+        .substringBefore("\n")
+        .trim()
+
+internal fun taskCenterHttpLogPage(
+    taskLog: String,
+    pageIndex: Int,
+    pageSize: Int = HTTP_LOG_PAGE_SIZE,
+): TaskCenterHttpLogPage {
+    val safePageSize = pageSize.coerceAtLeast(1)
+    val requestedPageIndex = pageIndex.coerceAtLeast(0)
+    return taskCenterHttpLogPageUnchecked(taskLog, requestedPageIndex, safePageSize)
+}
+
+private fun taskCenterHttpLogPageUnchecked(
+    taskLog: String,
+    pageIndex: Int,
+    pageSize: Int,
+): TaskCenterHttpLogPage {
+    val startIndex = pageIndex * pageSize
+    val endExclusive = startIndex + pageSize
+    val pending = mutableListOf<PendingTaskCenterHttpLogEntry>()
+    val pageEntries = mutableListOf<MutableTaskCenterHttpLogEntry>()
+    var activeResponse: MutableTaskCenterHttpLogEntry? = null
+    var activeRequest: MutableTaskCenterHttpLogEntry? = null
+    var totalEntries = 0
+    var hasNextPage = false
+
+    run loop@{
+        taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { line ->
+        when {
+            line.contains("HTTP request [") -> {
+                if (totalEntries >= endExclusive) {
+                    hasNextPage = true
+                    return@loop
+                }
+                activeResponse = null
+                val selected = totalEntries in startIndex until endExclusive
+                val pageEntry = if (selected) {
+                    MutableTaskCenterHttpLogEntry(
+                        label = line.substringAfter("HTTP request [").substringBefore("]"),
+                        request = line,
+                        response = "",
+                    ).also { pageEntries += it }
+                } else {
+                    null
+                }
+                pending += PendingTaskCenterHttpLogEntry(
+                    label = line.substringAfter("HTTP request [").substringBefore("]"),
+                    externalId = taskCenterHttpExternalId(line),
+                    pageEntry = pageEntry,
+                )
+                activeRequest = pageEntry
+                totalEntries += 1
+            }
+            line.contains("HTTP response [") -> {
+                activeRequest = null
+                val responseLabel = line.substringAfter("HTTP response [").substringBefore("]")
+                val responseExternalId = taskCenterHttpExternalId(line)
+                val matchIndex = pending.indexOfFirst { entry ->
+                    entry.label == responseLabel &&
+                        responseExternalId.isNotBlank() &&
+                        entry.externalId == responseExternalId
+                }.takeIf { it >= 0 } ?: pending.indexOfFirst { it.label == responseLabel }
+                val entry = if (matchIndex >= 0) pending.removeAt(matchIndex).pageEntry else null
+                entry?.response = line
+                activeResponse = entry
+            }
+            activeResponse != null && !taskCenterIsLifecycleLogLine(line) -> {
+                activeResponse?.response += "\n$line"
+            }
+            activeRequest != null -> {
+                activeRequest?.request += "\n$line"
+            }
+        }
+        }
+    }
+
+    return TaskCenterHttpLogPage(
+        entries = pageEntries.map { TaskCenterHttpLogEntry(it.label.ifBlank { "request" }, it.request, it.response) },
+        pageIndex = pageIndex,
+        pageSize = pageSize,
+        totalEntries = null,
+        hasNextPage = hasNextPage,
+    )
 }
 
 private fun taskCenterIsLifecycleLogLine(line: String): Boolean =

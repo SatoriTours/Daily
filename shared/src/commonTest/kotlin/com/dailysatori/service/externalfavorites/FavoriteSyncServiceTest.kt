@@ -4,12 +4,15 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import com.dailysatori.shared.db.Ai_config
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_source
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -133,6 +136,35 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun syncContinuesPastUnchangedPageToFindNewlyBookmarkedOlderTweet() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("200"))
+            items.upsertDraft(sourceId, xDraft("199"))
+            items.upsertDraft(sourceId, xDraft("198"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 60),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("199"), xDraft("198")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("150")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { _: Long -> 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf<String?>(null, "cursor-2"), connector.cursors)
+            assertTrue(items.getBySource(sourceId).map { it.external_id }.contains("150"))
+        }
+    }
+
+    @Test
     fun fullRescanDoesNotPassSinceIdAndUsesLargerPages() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -181,6 +213,70 @@ class FavoriteSyncServiceTest {
             service.syncSource(sourceId, FavoriteSyncMode.sync)
 
             assertEquals(0, organizeCalls)
+        }
+    }
+
+    @Test
+    fun syncUsesAllLocalWorkItemsAsAiBudgetInsteadOfCappingAtTen() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 1, maxItemsPerRun = 20),
+                pages = listOf(
+                    FavoriteFetchPage((1..12).map { xDraft("post-$it") }, null),
+                ),
+            )
+            var organizedLimit = 0L
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, limit -> limit.toInt() },
+                organizePendingForSource = { _, limit ->
+                    organizedLimit = limit
+                    0
+                },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertTrue(organizedLimit > 10)
+        }
+    }
+
+    @Test
+    fun syncContinuesPendingAiItemsLeftFromEarlierRunEvenWithoutNewFavorites() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val existingDraft = xDraft("post-pending", text = "Detailed saved body")
+            val (item, _) = items.upsertDraft(sourceId, existingDraft)
+            val articleId = articles.insert(
+                title = "Pending favorite",
+                aiContent = "Detailed saved body",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\nDetailed saved body\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-pending",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            var organizedLimit = 0L
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 1),
+                pages = listOf(FavoriteFetchPage(listOf(existingDraft), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePendingForSource = { _, limit ->
+                    organizedLimit = limit
+                    0
+                },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(1, organizedLimit)
         }
     }
 
@@ -1447,6 +1543,59 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun externalFavoriteAiRequestLogUrlUsesRealConfiguredEndpoint() {
+        assertEquals(
+            "https://api.openai.com/v1/chat/completions",
+            externalFavoriteAiRequestLogUrl(testAiConfig(provider = "openai", apiAddress = "https://api.openai.com/v1")),
+        )
+        assertEquals(
+            "https://api.anthropic.com",
+            externalFavoriteAiRequestLogUrl(testAiConfig(provider = "anthropic", apiAddress = "https://api.anthropic.com")),
+        )
+    }
+
+    @Test
+    fun organizerRunsAiAnalysisConcurrentlyUpToConfiguredLimit() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            repeat(4) { index ->
+                val externalId = "post-concurrent-$index"
+                val (item, _) = items.upsertDraft(sourceId, xDraft(externalId, text = "原文内容 $index"))
+                val articleId = articles.insert(
+                    title = "Imported favorite $index",
+                    aiContent = "summary $index",
+                    aiMarkdownContent = "# X 收藏\n\n## 原文\n\nBody $index\n\n## AI 整理\n\n待整理",
+                    url = "https://x.com/daily/status/$externalId",
+                    isFavorite = 1,
+                    status = "completed",
+                )
+                items.markImported(item.id, articleId, duplicateLinked = false)
+            }
+            val lock = Mutex()
+            var active = 0
+            var maxActive = 0
+
+            val organized = ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                maxConcurrentAnalysis = 2,
+                generateAnalysis = {
+                    lock.withLock {
+                        active += 1
+                        maxActive = maxOf(maxActive, active)
+                    }
+                    delay(50)
+                    lock.withLock { active -= 1 }
+                    ExternalFavoriteAiAnalysis("AI 标题", "AI 摘要", "AI 正文整理")
+                },
+            ).organizePendingForSource(sourceId, limit = 4)
+
+            assertEquals(4, organized)
+            assertEquals(2, maxActive)
+        }
+    }
+
+    @Test
     fun organizerDoesNotRetryFailedAiItemsDuringNormalSyncBudget() = runBlocking {
         withRepositories { _, sources, items, articles ->
             val sourceId = saveXSource(sources)
@@ -1586,6 +1735,17 @@ class FavoriteSyncServiceTest {
             supportsFavoritedAt = false,
             supportsWriteBack = false,
             supportsRefreshToken = true,
+        )
+
+        fun testAiConfig(provider: String, apiAddress: String): Ai_config = Ai_config(
+            id = 1,
+            provider = provider,
+            api_address = apiAddress,
+            api_token = "token",
+            model_name = "model",
+            is_default = 1,
+            created_at = 1,
+            updated_at = 1,
         )
 
         const val IMPORT_RETRY_EXPECTED_LIMIT = 50L

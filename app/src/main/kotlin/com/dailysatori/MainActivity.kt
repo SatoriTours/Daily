@@ -7,7 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
@@ -19,6 +21,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleOAuthIntent(intent)
+        pruneOldAsyncTasks()
         scheduleExternalFavoritePeriodicSyncs()
         enableEdgeToEdge()
         setContent {
@@ -58,6 +61,18 @@ class MainActivity : ComponentActivity() {
                 koin.get<ExternalFavoriteSyncScheduler>().enqueuePeriodic(
                     koin.get<ExternalFavoriteSourceRepository>().getEnabled(),
                 )
+            }
+        }
+    }
+
+    private fun pruneOldAsyncTasks() {
+        lifecycleScope.launch {
+            runCatching {
+                val koin = GlobalContext.get()
+                val deletedTaskIds = koin.get<AsyncTaskRepository>().pruneOldTasks()
+                koin.get<AsyncTaskLogStore>().delete(deletedTaskIds)
+            }.onFailure { error ->
+                Log.w(TAG, "Async task pruning failed", error)
             }
         }
     }
