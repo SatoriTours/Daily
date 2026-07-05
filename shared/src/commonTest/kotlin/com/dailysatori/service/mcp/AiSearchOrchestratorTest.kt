@@ -42,6 +42,16 @@ class AiSearchOrchestratorTest {
     }
 
     @Test
+    fun databaseSearchKeywordsSplitNaturalChineseQueriesForFtsRepositories() {
+        val keywords = aiSearchDatabaseKeywords("帮我找一下我之前有没有写过对工作节奏焦虑的日记")
+
+        assertTrue("工作节奏" in keywords || "工作" in keywords)
+        assertTrue("焦虑" in keywords)
+        assertFalse("帮我" in keywords)
+        assertTrue(keywords.size >= 2)
+    }
+
+    @Test
     fun detectsSimpleTimeIntent() {
         assertEquals(AiSearchTimeIntent.RecentDays(7), detectAiSearchTimeIntent("最近一周我写过什么"))
         assertEquals(AiSearchTimeIntent.Month("2026-05"), detectAiSearchTimeIntent("2026-05 的日记"))

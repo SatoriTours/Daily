@@ -204,6 +204,14 @@ class McpAgentPresentationTest {
     }
 
     @Test
+    fun mcpToolRegistrySearchUsesAiDatabaseKeywordsForFtsCompatibility() {
+        val registry = java.io.File("src/commonMain/kotlin/com/dailysatori/service/mcp/McpToolRegistry.kt").readText()
+
+        assertTrue(registry.contains("val keywords = aiSearchDatabaseKeywords(keyword)"))
+        assertFalse(registry.contains("keyword.split(Regex(\"[\\\\s,，]+\"))"))
+    }
+
+    @Test
     fun mcpToolCatchingRethrowsCancellationAndConvertsOrdinaryExceptions() = runBlocking {
         assertFailsWith<CancellationException> {
             runMcpToolCatching { throw CancellationException("stop") }

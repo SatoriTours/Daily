@@ -375,9 +375,8 @@ class McpToolRegistry(
         sortByTimestamp: Boolean = true,
         searcher: (String) -> List<T>,
     ): List<T> {
-        val keywords = keyword.split(Regex("[\\s,，]+"))
-            .map { it.trim().lowercase() }
-            .filter { it.isNotEmpty() && (containsChinese(it) || it.length >= 2) }
+        val keywords = aiSearchDatabaseKeywords(keyword)
+            .map { it.lowercase() }
         if (keywords.isEmpty()) return emptyList()
         val resultMap = LinkedHashMap<Int, T>()
         for (kw in keywords) {
@@ -390,9 +389,6 @@ class McpToolRegistry(
         if (!sortByTimestamp) return results
         return results.sortedByDescending { getItemTimestamp(it as Any) }
     }
-
-    private fun containsChinese(text: String): Boolean =
-        Regex("[\\u4e00-\\u9fa5]").containsMatchIn(text)
 
     private fun getItemId(item: Any): Int = when (item) {
         is Article -> item.id.toInt()

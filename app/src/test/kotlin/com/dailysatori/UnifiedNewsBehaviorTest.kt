@@ -936,6 +936,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(registry.contains("sortByTimestamp: Boolean = true"))
         assertTrue(registry.contains("searchWithKeywords(keyword, sortByTimestamp = false) { kw -> articleRepo.searchFavoriteFirstSync(kw) }"))
         assertTrue(registry.contains("if (!sortByTimestamp) return results"))
+        assertTrue(registry.contains("val keywords = aiSearchDatabaseKeywords(keyword)"))
         assertTrue(registry.contains("searchWithKeywords(keyword) { kw -> diaryRepo.searchSync(kw) }"))
         assertTrue(registry.contains("searchWithKeywords(keyword) { kw -> bookRepo.searchSync(kw) }"))
         assertTrue(registry.contains("searchWithKeywords(keyword) { kw -> viewpointRepo.searchByContentSync(kw) }"))

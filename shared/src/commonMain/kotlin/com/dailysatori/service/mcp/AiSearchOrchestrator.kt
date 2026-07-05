@@ -83,6 +83,13 @@ fun extractAiSearchKeywords(query: String): List<String> {
         .ifEmpty { listOf(query.trim()).filter { it.isNotBlank() } }
 }
 
+fun aiSearchDatabaseKeywords(query: String): List<String> =
+    extractAiSearchKeywords(query)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(8)
+
 fun detectAiSearchTimeIntent(query: String): AiSearchTimeIntent? = when {
     Regex("\\d{4}-\\d{2}-\\d{2}").containsMatchIn(query) -> {
         AiSearchTimeIntent.Date(Regex("\\d{4}-\\d{2}-\\d{2}").find(query)!!.value)
@@ -187,7 +194,7 @@ class AiSearchOrchestrator(
 ) {
     fun search(query: String): AiSearchResult {
         val plan = analyzeAiSearchQuery(query)
-        val keywords = plan.keywords
+        val keywords = aiSearchDatabaseKeywords(query)
         val evidence = mutableListOf<AiSearchEvidence>()
         runCatching { if (plan.searchMemory) evidence += searchMemoryEvidence(keywords) }
         runCatching { if (plan.searchDiaries) evidence += searchDiaryEvidence(keywords) }
