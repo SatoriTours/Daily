@@ -40,5 +40,6 @@ sealed interface DiaryRecordingState {
         override val attachmentId: Long,
         override val elapsedMs: Long,
         val errorCode: String,
+        val localPath: String? = null,
     ) : DiaryRecordingState
 }

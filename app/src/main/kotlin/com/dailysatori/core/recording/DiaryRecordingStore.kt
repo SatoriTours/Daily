@@ -13,13 +13,31 @@ class DiaryRecordingStore(
     private var session: Session? = null
 
     @Synchronized
-    fun start(diaryId: Long, attachmentId: Long): Boolean {
-        if (diaryId <= 0 || attachmentId <= 0) return false
-        if (mutableState.value !is DiaryRecordingState.Idle && mutableState.value !is DiaryRecordingState.Failed) return false
+    fun requestStart(diaryId: Long, attachmentId: Long): DiaryRecordingStartResult {
+        if (diaryId <= 0 || attachmentId <= 0) return DiaryRecordingStartResult.Invalid
+        val active = session
+        if (mutableState.value !is DiaryRecordingState.Idle && active != null) {
+            return if (active?.diaryId == diaryId && active.attachmentId == attachmentId) {
+                DiaryRecordingStartResult.AlreadyActive
+            } else {
+                DiaryRecordingStartResult.Busy
+            }
+        }
         session = Session(diaryId, attachmentId)
         mutableState.value = DiaryRecordingState.Starting(diaryId, attachmentId)
+        return DiaryRecordingStartResult.Accepted
+    }
+
+    @Synchronized
+    fun releaseFailedSession(): Boolean {
+        if (mutableState.value !is DiaryRecordingState.Failed || session == null) return false
+        session = null
         return true
     }
+
+    @Synchronized
+    fun start(diaryId: Long, attachmentId: Long): Boolean =
+        requestStart(diaryId, attachmentId) == DiaryRecordingStartResult.Accepted
 
     @Synchronized
     fun markRecording(): Boolean {
@@ -51,7 +69,11 @@ class DiaryRecordingStore(
 
     @Synchronized
     fun stop(): Boolean {
-        if (mutableState.value !is DiaryRecordingState.Recording && mutableState.value !is DiaryRecordingState.Paused) return false
+        if (
+            mutableState.value !is DiaryRecordingState.Starting &&
+            mutableState.value !is DiaryRecordingState.Recording &&
+            mutableState.value !is DiaryRecordingState.Paused
+        ) return false
         val active = session ?: return false
         active.captureElapsed(nowMs())
         mutableState.value = active.stoppingState()
@@ -60,23 +82,32 @@ class DiaryRecordingStore(
 
     @Synchronized
     fun complete(): Boolean {
-        if (mutableState.value !is DiaryRecordingState.Stopping) return false
+        val current = mutableState.value
+        if (
+            current !is DiaryRecordingState.Stopping &&
+            !(current is DiaryRecordingState.Failed && current.errorCode == DiaryRecordingErrorCode.PERSIST_FAILED)
+        ) return false
         session = null
         mutableState.value = DiaryRecordingState.Idle
         return true
     }
 
     @Synchronized
-    fun fail(errorCode: String): Boolean {
+    fun fail(errorCode: String, localPath: String? = null): Boolean {
         val current = mutableState.value
-        if (current is DiaryRecordingState.Idle || current is DiaryRecordingState.Failed) return false
+        if (current is DiaryRecordingState.Idle) return false
         val active = session ?: return false
+        if (current is DiaryRecordingState.Failed) {
+            mutableState.value = current.copy(errorCode = errorCode, localPath = localPath ?: current.localPath)
+            return true
+        }
         active.captureElapsed(nowMs())
         mutableState.value = DiaryRecordingState.Failed(
             diaryId = active.diaryId,
             attachmentId = active.attachmentId,
             elapsedMs = active.accumulatedMs,
             errorCode = errorCode,
+            localPath = localPath,
         )
         return true
     }
@@ -105,4 +136,11 @@ class DiaryRecordingStore(
         fun pausedState() = DiaryRecordingState.Paused(diaryId, attachmentId, accumulatedMs)
         fun stoppingState() = DiaryRecordingState.Stopping(diaryId, attachmentId, accumulatedMs)
     }
+}
+
+enum class DiaryRecordingStartResult(val errorCode: String?) {
+    Accepted(null),
+    AlreadyActive(null),
+    Busy(DiaryRecordingErrorCode.RECORDER_BUSY),
+    Invalid(DiaryRecordingErrorCode.INVALID_STATE),
 }

@@ -24,8 +24,12 @@ object DiaryRecordingErrorCode {
     const val PERMISSION_DENIED = "microphone_permission_denied"
     const val RECORDER_BUSY = "recorder_busy"
     const val START_FAILED = "recorder_start_failed"
+    const val START_CANCELLED = "recorder_start_cancelled"
     const val INVALID_STATE = "recorder_invalid_state"
+    const val ATTACHMENT_INVALID = "recording_attachment_invalid"
     const val STORAGE_FAILED = "recording_storage_failed"
     const val FINALIZE_FAILED = "recording_finalize_failed"
     const val PERSIST_FAILED = "recording_persist_failed"
+    const val FOREGROUND_START_NOT_ALLOWED = "foreground_start_not_allowed"
+    const val FOREGROUND_SECURITY_DENIED = "foreground_security_denied"
 }

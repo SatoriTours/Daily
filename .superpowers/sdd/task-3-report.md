@@ -50,3 +50,38 @@ Implemented the recording state machine, Android `MediaRecorder` abstraction, mi
 - `ACTION_OPEN` currently opens `MainActivity` with the persisted `diaryId`. Task 5 must consume that extra to select or focus the diary UI; this task does not connect DiaryScreen.
 - JVM tests cover state, persistence, manifest, and service source contracts. Real microphone capture, notification action delivery, and recoverable partial-file playback still require device/API-level validation.
 - Existing Koin ViewModel DSL and Kotlin expect/actual compiler warnings remain unchanged.
+
+## Review Remediation: Critical / Important / Minor
+
+### RED
+
+- Duplicate start and Starting cancellation tests failed to compile because `DiaryRecordingStartResult`, `requestStart`, and `releaseFailedSession` did not exist; the completion-retry test then failed because `Failed(PERSIST_FAILED)` could not complete.
+- Attachment target tests failed to compile because recording updates did not accept `diaryId`, did not expose start/finish target validation, and required a non-null path for startup failures.
+- Service contract tests failed for missing foreground-start exception mapping, FIFO action dispatch, start cancellation tokens, ordered destroy cleanup, retryable persistence state, existing-file-only partial metadata, paused ticker cancellation, and Android string resources.
+
+### GREEN
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecording*Test' :shared:testDebugUnitTest --tests '*DiaryAttachmentRecordingTest'`
+  - Passed: 29 focused tests, 0 failures, 0 errors.
+- `./gradlew :shared:testDebugUnitTest`
+  - Passed: 434 tests, 0 failures, 0 errors.
+- `./gradlew :app:testDebugUnitTest`
+  - Passed: 712 tests, 0 failures, 0 errors.
+- `./gradlew :app:compileDebugKotlin`
+  - Passed.
+- `git diff --check`
+  - Passed.
+
+### Remediation Summary
+
+- START is classified atomically before foreground or recorder work. Same-session requests are idempotent; different sessions return stable busy and cannot release or reassign the active recorder/output.
+- A FIFO action worker, recorder mutex, and invalidatable start token serialize lifecycle work and prevent a late Starting-to-Recording transition after STOP.
+- Both service foreground entry and the external user-action helper map API 31+ foreground-start denial and `SecurityException` to stable errors. A created service stops itself after foreground entry failure and records the target attachment failure.
+- Destruction closes the action gate, closes/cancels and joins service jobs, then finalizes under `recorderMutex`. Terminal persistence is guarded against duplicate complete/fail writes.
+- Complete/fail persistence errors are logged and retain `Failed(PERSIST_FAILED)`, attachment identity, existing output path, and pending persistence for retry. Active identity is cleared only after a successful database write.
+- Recording completion/failure validates attachment existence, owning diary, and `kind=audio` in one transaction. Startup failures without an actual partial file preserve existing path and media metadata.
+- Recording notification copy and channel description use Chinese Android string resources. Pausing cancels the elapsed ticker and resuming starts it again.
+
+### Remaining Device Risk
+
+- JVM tests cannot exercise OEM `MediaRecorder` timing, actual API 31+ foreground-start denial delivery, Android 14 microphone while-in-use enforcement, process death during a failed database retry, or notification action delivery. These paths still require device tests across API 31 and API 34+.

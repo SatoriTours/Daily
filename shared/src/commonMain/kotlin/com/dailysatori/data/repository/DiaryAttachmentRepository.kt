@@ -27,6 +27,16 @@ object DiaryAttachmentProcessingStatus {
     const val failed = "failed"
 }
 
+enum class DiaryAttachmentRecordingTargetError {
+    NOT_FOUND,
+    DIARY_MISMATCH,
+    NOT_AUDIO,
+}
+
+class DiaryAttachmentRecordingTargetException(
+    val error: DiaryAttachmentRecordingTargetError,
+) : IllegalArgumentException("Invalid recording attachment: ${error.name.lowercase()}")
+
 data class DiaryAttachmentDraft(
     val kind: DiaryAttachmentKind,
     val localPath: String,
@@ -104,8 +114,17 @@ class DiaryAttachmentRepository(
         )
     }
 
-    fun completeRecording(id: Long, localPath: String, sizeBytes: Long, durationMs: Long) {
+    fun beginRecording(diaryId: Long, id: Long) {
+        require(diaryId > 0) { "diaryId must be positive" }
+        require(id > 0) { "attachment id must be positive" }
+        q.transaction {
+            requireRecordingTarget(diaryId, id)
+        }
+    }
+
+    fun completeRecording(diaryId: Long, id: Long, localPath: String, sizeBytes: Long, durationMs: Long) {
         finishRecording(
+            diaryId = diaryId,
             id = id,
             localPath = localPath,
             sizeBytes = sizeBytes,
@@ -115,8 +134,16 @@ class DiaryAttachmentRepository(
         )
     }
 
-    fun failRecording(id: Long, localPath: String, sizeBytes: Long, durationMs: Long, errorCode: String) {
+    fun failRecording(
+        diaryId: Long,
+        id: Long,
+        localPath: String?,
+        sizeBytes: Long,
+        durationMs: Long,
+        errorCode: String,
+    ) {
         finishRecording(
+            diaryId = diaryId,
             id = id,
             localPath = localPath,
             sizeBytes = sizeBytes,
@@ -127,23 +154,49 @@ class DiaryAttachmentRepository(
     }
 
     private fun finishRecording(
+        diaryId: Long,
         id: Long,
-        localPath: String,
+        localPath: String?,
         sizeBytes: Long,
         durationMs: Long,
         transcriptStatus: String,
         errorMessage: String,
     ) {
+        require(diaryId > 0) { "diaryId must be positive" }
         require(id > 0) { "attachment id must be positive" }
-        q.finishDiaryAttachmentRecording(
-            local_path = localPath,
-            size_bytes = sizeBytes.coerceAtLeast(0),
-            duration_ms = durationMs.coerceAtLeast(0),
-            transcript_status = transcriptStatus,
-            error_message = errorMessage,
-            updated_at = Clock.System.now().toEpochMilliseconds(),
-            id = id,
-        )
+        q.transaction {
+            requireRecordingTarget(diaryId, id)
+            val updatedAt = Clock.System.now().toEpochMilliseconds()
+            if (localPath == null) {
+                q.failDiaryAttachmentRecordingWithoutOutput(
+                    transcript_status = transcriptStatus,
+                    error_message = errorMessage,
+                    updated_at = updatedAt,
+                    id = id,
+                )
+            } else {
+                q.finishDiaryAttachmentRecording(
+                    local_path = localPath,
+                    size_bytes = sizeBytes.coerceAtLeast(0),
+                    duration_ms = durationMs.coerceAtLeast(0),
+                    transcript_status = transcriptStatus,
+                    error_message = errorMessage,
+                    updated_at = updatedAt,
+                    id = id,
+                )
+            }
+        }
+    }
+
+    private fun requireRecordingTarget(diaryId: Long, id: Long) {
+        val attachment = q.selectDiaryAttachmentById(id).executeAsOneOrNull()
+            ?: throw DiaryAttachmentRecordingTargetException(DiaryAttachmentRecordingTargetError.NOT_FOUND)
+        if (attachment.diary_id != diaryId) {
+            throw DiaryAttachmentRecordingTargetException(DiaryAttachmentRecordingTargetError.DIARY_MISMATCH)
+        }
+        if (attachment.kind != DiaryAttachmentKind.audio.name) {
+            throw DiaryAttachmentRecordingTargetException(DiaryAttachmentRecordingTargetError.NOT_AUDIO)
+        }
     }
 
     fun delete(id: Long) {

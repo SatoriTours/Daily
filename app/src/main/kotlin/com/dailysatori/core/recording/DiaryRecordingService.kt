@@ -1,21 +1,26 @@
 package com.dailysatori.core.recording
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.dailysatori.data.repository.DiaryAttachmentRepository
+import com.dailysatori.data.repository.DiaryAttachmentRecordingTargetException
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.koin.android.ext.android.inject
@@ -24,13 +29,28 @@ class DiaryRecordingService : Service() {
     private val store: DiaryRecordingStore by inject()
     private val recorder: DiaryRecorder by inject()
     private val attachmentRepository: DiaryAttachmentRepository by inject()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val serviceJob = SupervisorJob()
+    private val scope = CoroutineScope(serviceJob + Dispatchers.IO)
+    private val actionMutex = Mutex()
+    private val actionChannel = Channel<suspend () -> Unit>(Channel.UNLIMITED)
     private val recorderMutex = Mutex()
+    @Volatile private var acceptingActions = true
+    private val actionWorker = scope.launch {
+        for (action in actionChannel) {
+            actionMutex.withLock {
+                if (acceptingActions) action()
+            }
+        }
+    }
     private lateinit var notification: DiaryRecordingNotification
     private var ticker: Job? = null
+    private var activeDiaryId: Long? = null
     private var activeAttachmentId: Long? = null
     private var activeOutputFile: File? = null
-    private var normalStop = false
+    private var pendingPersistence: PendingPersistence? = null
+    private var persistenceCommitted = false
+    private var foregroundStarted = false
+    @Volatile private var startToken = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -38,16 +58,46 @@ class DiaryRecordingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!acceptingActions) return START_NOT_STICKY
         when (intent?.action) {
             ACTION_START -> {
                 val diaryId = intent.getLongExtra(EXTRA_DIARY_ID, 0)
                 val attachmentId = intent.getLongExtra(EXTRA_ATTACHMENT_ID, 0)
-                enterForeground(diaryId)
-                startRecording(diaryId, attachmentId)
+                when (store.requestStart(diaryId, attachmentId)) {
+                    DiaryRecordingStartResult.Accepted -> {
+                        activeDiaryId = diaryId
+                        activeAttachmentId = attachmentId
+                        activeOutputFile = File(filesDir, "DailySatori/diary/audio/$diaryId/$attachmentId.m4a")
+                        persistenceCommitted = false
+                        pendingPersistence = null
+                        val token = ++startToken
+                        val foregroundError = enterForeground(diaryId)
+                        if (foregroundError == null) {
+                            enqueueAction { recorderMutex.withLock { startRecording(token) } }
+                        } else {
+                            store.fail(foregroundError)
+                            enqueueAction {
+                                recorderMutex.withLock {
+                                    handleFailure(foregroundError, stopService = true)
+                                }
+                            }
+                        }
+                    }
+                    DiaryRecordingStartResult.AlreadyActive -> Unit
+                    DiaryRecordingStartResult.Busy ->
+                        Log.w(TAG, "Rejected recording start: ${DiaryRecordingErrorCode.RECORDER_BUSY}")
+                    DiaryRecordingStartResult.Invalid ->
+                        Log.w(TAG, "Rejected recording start: ${DiaryRecordingErrorCode.INVALID_STATE}")
+                }
             }
-            ACTION_PAUSE -> scope.launch { recorderMutex.withLock { pauseRecording() } }
-            ACTION_RESUME -> scope.launch { recorderMutex.withLock { resumeRecording() } }
-            ACTION_STOP -> scope.launch { recorderMutex.withLock { stopRecording() } }
+            ACTION_PAUSE -> enqueueAction { recorderMutex.withLock { pauseRecording() } }
+            ACTION_RESUME -> enqueueAction { recorderMutex.withLock { resumeRecording() } }
+            ACTION_STOP -> {
+                if (store.state.value is DiaryRecordingState.Starting) startToken++
+                if (store.stop()) {
+                    enqueueAction { recorderMutex.withLock { finishStoppingRecording() } }
+                }
+            }
             ACTION_OPEN -> Unit
         }
         return START_NOT_STICKY
@@ -56,14 +106,22 @@ class DiaryRecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        acceptingActions = false
         ticker?.cancel()
-        if (!normalStop) preserveInterruptedRecording()
-        scope.cancel()
+        actionChannel.close()
+        runBlocking(Dispatchers.IO) {
+            serviceJob.cancelAndJoin()
+            recorderMutex.withLock {
+                if (!persistenceCommitted && activeAttachmentId != null) {
+                    preserveInterruptedRecording()
+                }
+            }
+        }
         super.onDestroy()
     }
 
-    private fun enterForeground(diaryId: Long) {
-        val starting = DiaryRecordingState.Starting(diaryId.coerceAtLeast(0), 0)
+    private fun enterForeground(diaryId: Long): String? = try {
+        val starting = store.state.value
         val foregroundNotification = notification.build(starting, diaryId)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -74,30 +132,71 @@ class DiaryRecordingService : Service() {
         } else {
             startForeground(DiaryRecordingNotification.NOTIFICATION_ID, foregroundNotification)
         }
+        foregroundStarted = true
+        null
+    } catch (error: SecurityException) {
+        Log.e(TAG, "Unable to enter microphone foreground service", error)
+        DiaryRecordingErrorCode.FOREGROUND_SECURITY_DENIED
+    } catch (error: RuntimeException) {
+        if (isForegroundStartNotAllowed(error)) {
+            Log.e(TAG, "Foreground service start is not allowed", error)
+            DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED
+        } else {
+            throw error
+        }
     }
 
-    private fun startRecording(diaryId: Long, attachmentId: Long) {
-        scope.launch {
-            recorderMutex.withLock {
-                if (!store.start(diaryId, attachmentId)) {
-                    handleFailure(DiaryRecordingErrorCode.INVALID_STATE, attachmentId.takeIf { it > 0 })
-                    return@withLock
-                }
-                activeAttachmentId = attachmentId
-                val output = File(filesDir, "DailySatori/diary/audio/$diaryId/$attachmentId.m4a")
-                activeOutputFile = output
-                try {
-                    recorder.start(output)
-                    store.markRecording()
-                    notification.notify(store.state.value, diaryId)
-                    startTicker(diaryId)
-                } catch (error: DiaryRecorderException) {
-                    handleFailure(error.errorCode, attachmentId)
-                } catch (_: Exception) {
-                    handleFailure(DiaryRecordingErrorCode.START_FAILED, attachmentId)
-                }
-            }
+    private fun enqueueAction(action: suspend () -> Unit) {
+        if (!acceptingActions) return
+        actionChannel.trySend(action)
+    }
+
+    private fun startRecording(token: Long) {
+        val output = activeOutputFile ?: return handleFailure(DiaryRecordingErrorCode.STORAGE_FAILED)
+        if (token != startToken || store.state.value !is DiaryRecordingState.Starting) {
+            handleFailure(DiaryRecordingErrorCode.START_CANCELLED)
+            return
         }
+        try {
+            attachmentRepository.beginRecording(
+                diaryId = checkNotNull(activeDiaryId),
+                id = checkNotNull(activeAttachmentId),
+            )
+            recorder.start(output)
+            if (token != startToken) {
+                handleFailure(DiaryRecordingErrorCode.START_CANCELLED)
+                return
+            }
+            if (store.markRecording()) {
+                notifyCurrent()
+                startTicker(checkNotNull(activeDiaryId))
+            } else if (store.state.value is DiaryRecordingState.Stopping) {
+                finishStoppingRecording()
+            } else {
+                handleFailure(DiaryRecordingErrorCode.INVALID_STATE)
+            }
+        } catch (error: DiaryAttachmentRecordingTargetException) {
+            handleInvalidAttachment(error)
+        } catch (error: DiaryRecorderException) {
+            handleFailure(error.errorCode)
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to start recorder", error)
+            handleFailure(DiaryRecordingErrorCode.START_FAILED)
+        }
+    }
+
+    private fun handleInvalidAttachment(error: DiaryAttachmentRecordingTargetException) {
+        Log.e(TAG, "Invalid recording attachment target: ${error.error}", error)
+        recorder.releasePreservingOutput()
+        store.fail(DiaryRecordingErrorCode.ATTACHMENT_INVALID)
+        store.releaseFailedSession()
+        pendingPersistence = null
+        persistenceCommitted = true
+        activeAttachmentId = null
+        activeDiaryId = null
+        activeOutputFile = null
+        stopForegroundAfterPersistence()
+        stopSelf()
     }
 
     private fun pauseRecording() {
@@ -105,9 +204,11 @@ class DiaryRecordingService : Service() {
         try {
             recorder.pause()
             store.pause()
+            ticker?.cancel()
+            ticker = null
             notifyCurrent()
         } catch (error: DiaryRecorderException) {
-            handleFailure(error.errorCode, activeAttachmentId)
+            handleFailure(error.errorCode)
         }
     }
 
@@ -117,42 +218,131 @@ class DiaryRecordingService : Service() {
             recorder.resume()
             store.resume()
             notifyCurrent()
+            startTicker(checkNotNull(activeDiaryId))
         } catch (error: DiaryRecorderException) {
-            handleFailure(error.errorCode, activeAttachmentId)
+            handleFailure(error.errorCode)
         }
     }
 
-    private fun stopRecording() {
-        if (!store.stop()) return
+    private fun finishStoppingRecording() {
+        if (store.state.value !is DiaryRecordingState.Stopping) return
         ticker?.cancel()
+        ticker = null
         notifyCurrent()
-        val attachmentId = activeAttachmentId ?: return handleFailure(DiaryRecordingErrorCode.PERSIST_FAILED, null)
+        val diaryId = activeDiaryId ?: return handleFailure(DiaryRecordingErrorCode.PERSIST_FAILED)
+        val attachmentId = activeAttachmentId ?: return handleFailure(DiaryRecordingErrorCode.PERSIST_FAILED)
         try {
             val output = recorder.stop()
-            attachmentRepository.completeRecording(
-                id = attachmentId,
-                localPath = output.file.absolutePath,
-                sizeBytes = output.file.length(),
-                durationMs = output.durationMs,
-            )
-            normalStop = true
-            activeAttachmentId = null
-            activeOutputFile = null
-            store.complete()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            activeOutputFile = output.file
+            pendingPersistence = PendingPersistence(diaryId, attachmentId, output, null)
+            persistPendingRecording()
         } catch (error: DiaryRecorderException) {
-            handleFailure(error.errorCode, attachmentId)
-        } catch (_: Exception) {
-            handleFailure(DiaryRecordingErrorCode.PERSIST_FAILED, attachmentId)
+            handleFailure(error.errorCode)
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to finalize recording", error)
+            markPersistenceFailed()
         }
+    }
+
+    private fun handleFailure(errorCode: String, stopService: Boolean = false) {
+        ticker?.cancel()
+        ticker = null
+        val partial = recorder.releasePreservingOutput()
+        val actualFile = partial?.file?.takeIf(File::exists)
+            ?: activeOutputFile?.takeIf(File::exists)
+        val output = actualFile?.let {
+            DiaryRecordingOutput(it, partial?.takeIf { candidate -> candidate.file == it }?.durationMs ?: 0)
+        }
+        activeOutputFile = actualFile
+        store.fail(errorCode, actualFile?.absolutePath)
+        val diaryId = activeDiaryId
+        val attachmentId = activeAttachmentId
+        if (diaryId == null || attachmentId == null) {
+            markPersistenceFailed()
+            return
+        }
+        pendingPersistence = PendingPersistence(diaryId, attachmentId, output, errorCode)
+        persistPendingRecording()
+        if (stopService) stopSelf()
+    }
+
+    private fun persistPendingRecording() {
+        val pending = pendingPersistence ?: return
+        try {
+            if (pending.errorCode == null) {
+                val output = checkNotNull(pending.output)
+                attachmentRepository.completeRecording(
+                    diaryId = pending.diaryId,
+                    id = pending.attachmentId,
+                    localPath = output.file.absolutePath,
+                    sizeBytes = output.file.length(),
+                    durationMs = output.durationMs,
+                )
+                pendingPersistence = null
+                persistenceCommitted = true
+                activeAttachmentId = null
+                activeDiaryId = null
+                activeOutputFile = null
+                store.complete()
+            } else {
+                attachmentRepository.failRecording(
+                    diaryId = pending.diaryId,
+                    id = pending.attachmentId,
+                    localPath = pending.output?.file?.takeIf(File::exists)?.absolutePath,
+                    sizeBytes = pending.output?.file?.takeIf(File::exists)?.length() ?: 0,
+                    durationMs = pending.output?.durationMs ?: 0,
+                    errorCode = pending.errorCode,
+                )
+                pendingPersistence = null
+                persistenceCommitted = true
+                store.releaseFailedSession()
+                activeAttachmentId = null
+                activeDiaryId = null
+                activeOutputFile = null
+            }
+            stopForegroundAfterPersistence()
+            if (acceptingActions) stopSelf()
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to persist recording terminal state", error)
+            markPersistenceFailed()
+        }
+    }
+
+    private fun markPersistenceFailed() {
+        val path = activeOutputFile?.takeIf(File::exists)?.absolutePath
+        store.fail(DiaryRecordingErrorCode.PERSIST_FAILED, path)
+        notifyCurrent()
+        if (foregroundStarted) {
+            stopForeground(STOP_FOREGROUND_DETACH)
+            foregroundStarted = false
+        }
+    }
+
+    private fun preserveInterruptedRecording() {
+        if (pendingPersistence == null) {
+            val partial = recorder.releasePreservingOutput()
+            val actualFile = partial?.file?.takeIf(File::exists)
+                ?: activeOutputFile?.takeIf(File::exists)
+            activeOutputFile = actualFile
+            store.fail(DiaryRecordingErrorCode.FINALIZE_FAILED, actualFile?.absolutePath)
+            val diaryId = activeDiaryId ?: return
+            val attachmentId = activeAttachmentId ?: return
+            pendingPersistence = PendingPersistence(
+                diaryId,
+                attachmentId,
+                actualFile?.let { DiaryRecordingOutput(it, partial?.durationMs ?: 0) },
+                DiaryRecordingErrorCode.FINALIZE_FAILED,
+            )
+        }
+        persistPendingRecording()
     }
 
     private fun startTicker(diaryId: Long) {
         ticker?.cancel()
         ticker = scope.launch {
-            while (true) {
+            while (store.state.value is DiaryRecordingState.Recording) {
                 delay(1_000)
+                if (store.state.value !is DiaryRecordingState.Recording) break
                 store.refreshElapsed()
                 notification.notify(store.state.value, diaryId)
             }
@@ -161,45 +351,23 @@ class DiaryRecordingService : Service() {
 
     private fun notifyCurrent() {
         val state = store.state.value
-        notification.notify(state, state.diaryId ?: return)
+        val diaryId = state.diaryId ?: return
+        runCatching { notification.notify(state, diaryId) }
+            .onFailure { Log.e(TAG, "Unable to update recording notification", it) }
     }
 
-    private fun handleFailure(errorCode: String, attachmentId: Long?) {
-        ticker?.cancel()
-        val partial = recorder.releasePreservingOutput()
-        if (attachmentId != null) {
-            runCatching {
-                attachmentRepository.failRecording(
-                    id = attachmentId,
-                    localPath = partial?.file?.absolutePath ?: activeOutputFile?.absolutePath.orEmpty(),
-                    sizeBytes = partial?.file?.length() ?: activeOutputFile?.takeIf(File::exists)?.length() ?: 0,
-                    durationMs = partial?.durationMs ?: 0,
-                    errorCode = errorCode,
-                )
-            }
-        }
-        store.fail(errorCode)
-        notifyCurrent()
-        activeAttachmentId = null
-        activeOutputFile = null
-        stopForeground(STOP_FOREGROUND_DETACH)
-        stopSelf()
+    private fun stopForegroundAfterPersistence() {
+        if (!foregroundStarted) return
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        foregroundStarted = false
     }
 
-    private fun preserveInterruptedRecording() {
-        val attachmentId = activeAttachmentId ?: return
-        val partial = recorder.releasePreservingOutput()
-        runCatching {
-            attachmentRepository.failRecording(
-                id = attachmentId,
-                localPath = partial?.file?.absolutePath ?: activeOutputFile?.absolutePath.orEmpty(),
-                sizeBytes = partial?.file?.length() ?: activeOutputFile?.takeIf(File::exists)?.length() ?: 0,
-                durationMs = partial?.durationMs ?: 0,
-                errorCode = DiaryRecordingErrorCode.FINALIZE_FAILED,
-            )
-        }
-        store.fail(DiaryRecordingErrorCode.FINALIZE_FAILED)
-    }
+    private data class PendingPersistence(
+        val diaryId: Long,
+        val attachmentId: Long,
+        val output: DiaryRecordingOutput?,
+        val errorCode: String?,
+    )
 
     companion object {
         const val ACTION_START = "com.dailysatori.recording.START"
@@ -209,8 +377,13 @@ class DiaryRecordingService : Service() {
         const val ACTION_OPEN = "com.dailysatori.recording.OPEN"
         const val EXTRA_DIARY_ID = "diaryId"
         const val EXTRA_ATTACHMENT_ID = "attachmentId"
+        private const val TAG = "DiaryRecordingService"
 
-        fun startFromUserAction(context: Context, diaryId: Long, attachmentId: Long) {
+        fun startFromUserAction(
+            context: Context,
+            diaryId: Long,
+            attachmentId: Long,
+        ): DiaryRecordingLaunchResult {
             require(diaryId > 0) { "diaryId must be positive" }
             require(attachmentId > 0) { "attachmentId must be positive" }
             val intent = Intent(context, DiaryRecordingService::class.java).apply {
@@ -218,7 +391,29 @@ class DiaryRecordingService : Service() {
                 putExtra(EXTRA_DIARY_ID, diaryId)
                 putExtra(EXTRA_ATTACHMENT_ID, attachmentId)
             }
-            ContextCompat.startForegroundService(context, intent)
+            return try {
+                ContextCompat.startForegroundService(context, intent)
+                DiaryRecordingLaunchResult.Started
+            } catch (error: SecurityException) {
+                Log.e(TAG, "Unable to request microphone foreground service", error)
+                DiaryRecordingLaunchResult.Failed(DiaryRecordingErrorCode.FOREGROUND_SECURITY_DENIED)
+            } catch (error: RuntimeException) {
+                if (isForegroundStartNotAllowed(error)) {
+                    Log.e(TAG, "Foreground service request is not allowed", error)
+                    DiaryRecordingLaunchResult.Failed(DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED)
+                } else {
+                    throw error
+                }
+            }
         }
+
+        private fun isForegroundStartNotAllowed(error: RuntimeException): Boolean =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                error is ForegroundServiceStartNotAllowedException
     }
+}
+
+sealed interface DiaryRecordingLaunchResult {
+    data object Started : DiaryRecordingLaunchResult
+    data class Failed(val errorCode: String) : DiaryRecordingLaunchResult
 }

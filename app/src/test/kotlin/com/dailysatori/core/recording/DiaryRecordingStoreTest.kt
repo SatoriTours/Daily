@@ -47,7 +47,6 @@ class DiaryRecordingStoreTest {
         assertFalse(store.start(diaryId = 42, attachmentId = 74))
         assertFalse(store.pause())
         assertFalse(store.resume())
-        assertFalse(store.stop())
         assertEquals(starting, store.state.value)
     }
 
@@ -85,6 +84,72 @@ class DiaryRecordingStoreTest {
         assertEquals(41, failed.diaryId)
         assertEquals(73, failed.attachmentId)
         assertEquals(DiaryRecordingErrorCode.PERMISSION_DENIED, failed.errorCode)
+    }
+
+    @Test
+    fun duplicateStartIsIdempotentForTheSameSessionAndBusyForAnotherSession() {
+        val store = DiaryRecordingStore { 1_000 }
+
+        assertEquals(
+            DiaryRecordingStartResult.Accepted,
+            store.requestStart(diaryId = 41, attachmentId = 73),
+        )
+        val active = store.state.value
+
+        assertEquals(
+            DiaryRecordingStartResult.AlreadyActive,
+            store.requestStart(diaryId = 41, attachmentId = 73),
+        )
+        assertEquals(active, store.state.value)
+
+        val busy = store.requestStart(diaryId = 42, attachmentId = 74)
+        assertEquals(DiaryRecordingStartResult.Busy, busy)
+        assertEquals(DiaryRecordingErrorCode.RECORDER_BUSY, busy.errorCode)
+        assertEquals(active, store.state.value)
+    }
+
+    @Test
+    fun stopCancelsStartingAndPreventsLateRecordingTransition() {
+        val store = DiaryRecordingStore { 1_000 }
+        store.requestStart(diaryId = 41, attachmentId = 73)
+
+        assertTrue(store.stop())
+        assertIs<DiaryRecordingState.Stopping>(store.state.value)
+        assertFalse(store.markRecording())
+        assertIs<DiaryRecordingState.Stopping>(store.state.value)
+    }
+
+    @Test
+    fun failedSessionStaysBusyUntilItsPersistenceIsReleased() {
+        val store = DiaryRecordingStore { 1_000 }
+        store.requestStart(diaryId = 41, attachmentId = 73)
+        store.fail(DiaryRecordingErrorCode.PERSIST_FAILED, "/voice.m4a")
+
+        assertEquals(
+            DiaryRecordingStartResult.AlreadyActive,
+            store.requestStart(diaryId = 41, attachmentId = 73),
+        )
+        assertEquals(
+            DiaryRecordingStartResult.Busy,
+            store.requestStart(diaryId = 42, attachmentId = 74),
+        )
+        assertTrue(store.releaseFailedSession())
+        assertEquals(
+            DiaryRecordingStartResult.Accepted,
+            store.requestStart(diaryId = 42, attachmentId = 74),
+        )
+    }
+
+    @Test
+    fun successfulCompletionRetryClearsPersistenceFailure() {
+        val store = DiaryRecordingStore { 1_000 }
+        store.requestStart(diaryId = 41, attachmentId = 73)
+        store.markRecording()
+        store.stop()
+        store.fail(DiaryRecordingErrorCode.PERSIST_FAILED, "/voice.m4a")
+
+        assertTrue(store.complete())
+        assertEquals(DiaryRecordingState.Idle, store.state.value)
     }
 
     private class TestClock {

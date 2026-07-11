@@ -8,14 +8,21 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.dailysatori.MainActivity
+import com.dailysatori.R
 
 class DiaryRecordingNotification(
     private val context: Context,
 ) {
     init {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.diary_recording_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        )
+        channel.description = context.getString(R.string.diary_recording_channel_description)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Voice diary recording", NotificationManager.IMPORTANCE_LOW),
+            channel,
         )
     }
 
@@ -34,12 +41,12 @@ class DiaryRecordingNotification(
         when (state) {
             is DiaryRecordingState.Recording -> builder.addAction(
                 android.R.drawable.ic_media_pause,
-                "Pause",
+                context.getString(R.string.diary_recording_action_pause),
                 serviceIntent(DiaryRecordingService.ACTION_PAUSE),
             )
             is DiaryRecordingState.Paused -> builder.addAction(
                 android.R.drawable.ic_media_play,
-                "Resume",
+                context.getString(R.string.diary_recording_action_resume),
                 serviceIntent(DiaryRecordingService.ACTION_RESUME),
             )
             else -> Unit
@@ -47,13 +54,13 @@ class DiaryRecordingNotification(
         if (state.isActive()) {
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Stop",
+                context.getString(R.string.diary_recording_action_stop),
                 serviceIntent(DiaryRecordingService.ACTION_STOP),
             )
         }
         builder.addAction(
             android.R.drawable.ic_menu_view,
-            "Open diary",
+            context.getString(R.string.diary_recording_action_open),
             openDiaryIntent(diaryId),
         )
         return builder.build()
@@ -83,12 +90,12 @@ class DiaryRecordingNotification(
     )
 
     private fun titleFor(state: DiaryRecordingState): String = when (state) {
-        is DiaryRecordingState.Starting -> "Starting voice diary"
-        is DiaryRecordingState.Recording -> "Recording voice diary"
-        is DiaryRecordingState.Paused -> "Voice diary paused"
-        is DiaryRecordingState.Stopping -> "Saving voice diary"
-        is DiaryRecordingState.Failed -> "Voice diary recording failed"
-        DiaryRecordingState.Idle -> "Voice diary"
+        is DiaryRecordingState.Starting -> context.getString(R.string.diary_recording_starting)
+        is DiaryRecordingState.Recording -> context.getString(R.string.diary_recording_active)
+        is DiaryRecordingState.Paused -> context.getString(R.string.diary_recording_paused)
+        is DiaryRecordingState.Stopping -> context.getString(R.string.diary_recording_stopping)
+        is DiaryRecordingState.Failed -> context.getString(R.string.diary_recording_failed)
+        DiaryRecordingState.Idle -> context.getString(R.string.diary_recording_idle)
     }
 
     private fun formatElapsed(elapsedMs: Long): String {

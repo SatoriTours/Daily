@@ -1205,6 +1205,11 @@ UPDATE diary_attachment
 SET local_path = ?, size_bytes = ?, duration_ms = ?, transcript_status = ?, error_message = ?, updated_at = ?
 WHERE id = ?;
 
+failDiaryAttachmentRecordingWithoutOutput:
+UPDATE diary_attachment
+SET transcript_status = ?, error_message = ?, updated_at = ?
+WHERE id = ?;
+
 deleteDiaryAttachmentById:
 DELETE FROM diary_attachment WHERE id = ?;
 
