@@ -10,7 +10,14 @@ class DiaryRecordingServiceContractTest {
     fun serviceExposesAllRecordingActionsAndStartsOnlyFromUserEntryPoint() {
         val source = source("DiaryRecordingService.kt")
 
-        listOf("ACTION_START", "ACTION_PAUSE", "ACTION_RESUME", "ACTION_STOP", "ACTION_OPEN").forEach {
+        listOf(
+            "ACTION_START",
+            "ACTION_PAUSE",
+            "ACTION_RESUME",
+            "ACTION_STOP",
+            "ACTION_RETRY_PERSIST",
+            "ACTION_OPEN",
+        ).forEach {
             assertTrue(source.contains("const val $it"), "$it must be stable and public")
         }
         assertTrue(source.contains("fun startFromUserAction("))
@@ -29,12 +36,13 @@ class DiaryRecordingServiceContractTest {
     }
 
     @Test
-    fun notificationProvidesPauseResumeStopAndOpenDiaryActions() {
+    fun notificationProvidesPauseResumeStopRetryAndOpenDiaryActions() {
         val source = source("DiaryRecordingNotification.kt")
 
         assertTrue(source.contains("ACTION_PAUSE"))
         assertTrue(source.contains("ACTION_RESUME"))
         assertTrue(source.contains("ACTION_STOP"))
+        assertTrue(source.contains("ACTION_RETRY_PERSIST"))
         assertTrue(source.contains("ACTION_OPEN"))
     }
 
@@ -78,67 +86,74 @@ class DiaryRecordingServiceContractTest {
         val source = source("DiaryRecordingService.kt")
 
         assertTrue(source.contains("ForegroundServiceStartNotAllowedException"))
-        assertTrue(source.contains("SecurityException"))
-        assertTrue(source.contains("FOREGROUND_START_NOT_ALLOWED"))
-        assertTrue(source.contains("FOREGROUND_SECURITY_DENIED"))
+        assertTrue(source.contains("foregroundLaunchFailureCode("))
         assertTrue(source.contains("DiaryRecordingLaunchResult"))
     }
 
     @Test
-    fun foregroundEntryFailureStopsCreatedServiceEvenWhenPersistenceNeedsRetry() {
+    fun foregroundEntryFailureStopsCreatedServiceBeforeAnyPersistenceRetry() {
         val source = source("DiaryRecordingService.kt")
         val acceptedStart = source.substringAfter("DiaryRecordingStartResult.Accepted ->")
             .substringBefore("DiaryRecordingStartResult.AlreadyActive")
 
-        assertTrue(acceptedStart.contains("handleFailure(foregroundError, stopService = true)"))
-        assertTrue(source.contains("if (stopService) stopSelf()"))
+        assertTrue(acceptedStart.contains("pendingPersistence = PendingPersistence("))
+        assertTrue(acceptedStart.contains("stopSelf()"))
+        assertTrue(
+            acceptedStart.indexOf("pendingPersistence = PendingPersistence(") in
+                0 until acceptedStart.indexOf("stopSelf()"),
+        )
+        assertFalse(acceptedStart.contains("handleFailure(foregroundError"))
     }
 
     @Test
-    fun destroyStopsNewActionsThenWaitsForJobsBeforeRecorderCleanup() {
+    fun destroyUsesABoundedCleanupAndOnlyReleasesAfterTimeout() {
         val source = source("DiaryRecordingService.kt")
         val destroy = source.substringAfter("override fun onDestroy()")
             .substringBefore("private fun enterForeground")
 
-        val closeGate = destroy.indexOf("acceptingActions = false")
-        val awaitJobs = destroy.indexOf("cancelAndJoin")
-        val lockRecorder = destroy.indexOf("recorderMutex.withLock")
-        assertTrue(closeGate in 0 until awaitJobs)
-        assertTrue(awaitJobs in 0 until lockRecorder)
+        assertTrue(destroy.contains("withTimeoutOrNull(DESTROY_TIMEOUT_MS)"))
+        assertTrue(destroy.contains("serviceJob.cancelAndJoin()"))
+        assertTrue(destroy.contains("if (!cleanupCompleted)"))
+        val timedOut = destroy.substringAfter("if (!cleanupCompleted)")
+        assertTrue(timedOut.contains("recorder.releasePreservingOutput()"))
+        assertFalse(timedOut.contains("persistPendingRecording()"))
     }
 
     @Test
-    fun persistenceFailuresKeepRetryIdentityAndAreLogged() {
+    fun persistenceFailuresExecuteBoundedRetryWithoutDetachingForeground() {
         val source = source("DiaryRecordingService.kt")
 
         assertTrue(source.contains("Log.e("))
         assertTrue(source.contains("pendingPersistence"))
         assertTrue(source.contains("DiaryRecordingErrorCode.PERSIST_FAILED"))
-        val completion = source.substringAfter("attachmentRepository.completeRecording(")
-            .substringBefore("private fun startTicker")
-        assertTrue(completion.indexOf("pendingPersistence = null") in 0 until completion.indexOf("activeAttachmentId = null"))
+        assertTrue(source.contains("retryDiaryRecordingPersistence"))
+        assertTrue(source.contains("ACTION_RETRY_PERSIST"))
+        assertFalse(source.contains("STOP_FOREGROUND_DETACH"))
+        val success = source.substringAfter("is DiaryRecordingPersistenceResult.Succeeded ->")
+            .substringBefore("is DiaryRecordingPersistenceResult.Failed ->")
+        assertTrue(success.indexOf("pendingPersistence = null") in 0 until success.indexOf("activeAttachmentId = null"))
     }
 
     @Test
-    fun failureMetadataOnlyUsesFilesThatActuallyExist() {
+    fun failureMetadataOnlyUsesUsableFilesOwnedByTheCurrentSession() {
         val source = source("DiaryRecordingService.kt")
 
-        assertTrue(source.contains("takeIf(File::exists)"))
+        assertTrue(source.contains("session.currentUsableOutput"))
         assertFalse(source.contains("activeOutputFile?.absolutePath.orEmpty()"))
     }
 
     @Test
     fun attachmentTargetIsValidatedBeforeRecorderStart() {
         val source = source("DiaryRecordingService.kt")
-        val start = source.substringAfter("private fun startRecording(")
-            .substringBefore("private fun pauseRecording()")
+        val start = source.substringAfter("private suspend fun startRecording(")
+            .substringBefore("private suspend fun cancelStartingRecording")
 
         assertTrue(start.indexOf("attachmentRepository.beginRecording(") in 0 until start.indexOf("recorder.start(output)"))
         assertTrue(start.contains("DiaryAttachmentRecordingTargetException"))
         assertTrue(start.contains("handleInvalidAttachment(error)"))
         assertTrue(source.contains("DiaryRecordingErrorCode.ATTACHMENT_INVALID"))
         val invalidTarget = source.substringAfter("private fun handleInvalidAttachment(")
-            .substringBefore("private fun pauseRecording()")
+            .substringBefore("private suspend fun pauseRecording()")
         assertFalse(invalidTarget.contains("failRecording("))
         assertTrue(invalidTarget.contains("store.releaseFailedSession()"))
     }
@@ -146,8 +161,8 @@ class DiaryRecordingServiceContractTest {
     @Test
     fun pausedRecordingDoesNotKeepRefreshingTickerNotifications() {
         val source = source("DiaryRecordingService.kt")
-        val pause = source.substringAfter("private fun pauseRecording()")
-            .substringBefore("private fun resumeRecording()")
+        val pause = source.substringAfter("private suspend fun pauseRecording()")
+            .substringBefore("private suspend fun resumeRecording()")
         val ticker = source.substringAfter("private fun startTicker(")
             .substringBefore("private fun notifyCurrent()")
 
@@ -156,24 +171,59 @@ class DiaryRecordingServiceContractTest {
     }
 
     @Test
-    fun startingStopInvalidatesTokenBeforeRecorderCanPublishOrBeginLate() {
+    fun startingStopUsesSessionDecisionInsteadOfReportingStartCancelled() {
         val source = source("DiaryRecordingService.kt")
         val stopAction = source.substringAfter("ACTION_STOP ->")
             .substringBefore("ACTION_OPEN ->")
-        val start = source.substringAfter("private fun startRecording(")
-            .substringBefore("private fun pauseRecording()")
+        val start = source.substringAfter("private suspend fun startRecording(")
+            .substringBefore("private suspend fun pauseRecording()")
 
-        assertTrue(stopAction.contains("startToken++"))
-        assertTrue(start.indexOf("token != startToken") in 0 until start.indexOf("recorder.start(output)"))
-        assertTrue(start.substringAfter("recorder.start(output)").contains("token != startToken"))
-        assertTrue(source.contains("DiaryRecordingErrorCode.START_CANCELLED"))
+        assertTrue(stopAction.contains("session.requestUserStop()"))
+        assertTrue(start.contains("DiaryRecordingStartingStopDecision.CancelWithoutOutput"))
+        assertTrue(start.contains("DiaryRecordingStartingStopDecision.FinalizeRecording"))
+        assertTrue(start.contains("completeUsableStartingOutput()"))
+        assertTrue(
+            start.indexOf("session.startingStopDecision()") in
+                0 until start.indexOf("session.prepareOutput(output)"),
+        )
+        assertTrue(source.contains("DiaryRecordingErrorCode.USER_CANCELLED"))
+        assertFalse(source.contains("DiaryRecordingErrorCode.START_CANCELLED"))
+    }
+
+    @Test
+    fun duplicateStartReentersForegroundBeforeReturning() {
+        val source = source("DiaryRecordingService.kt")
+        val alreadyActive = source.substringAfter("DiaryRecordingStartResult.AlreadyActive ->")
+            .substringBefore("DiaryRecordingStartResult.Busy")
+
+        assertTrue(alreadyActive.contains("enterForeground(diaryId)"))
+    }
+
+    @Test
+    fun servicePreparesSessionOutputBeforeStartingRecorder() {
+        val source = source("DiaryRecordingService.kt")
+        val start = source.substringAfter("private suspend fun startRecording(")
+            .substringBefore("private suspend fun cancelStartingRecording")
+        val recorder = source("AndroidDiaryRecorder.kt")
+
+        assertTrue(start.indexOf("session.prepareOutput(output)") in 0 until start.indexOf("recorder.start(output)"))
+        assertTrue(start.indexOf("session.markRecorderStartAttempted()") in 0 until start.indexOf("recorder.start(output)"))
+        assertTrue(recorder.contains("outputFile.exists() && !outputFile.delete()"))
+    }
+
+    @Test
+    fun serviceLaunchUsesStableCrossApiFailureMapping() {
+        val source = source("DiaryRecordingService.kt")
+
+        assertTrue(source.contains("foregroundLaunchFailureCode("))
+        assertTrue(source.contains("Build.VERSION.SDK_INT"))
     }
 
     @Test
     fun actionsUseOneFifoWorkerInsteadOfCompetingCoroutineLaunches() {
         val source = source("DiaryRecordingService.kt")
         val enqueue = source.substringAfter("private fun enqueueAction(")
-            .substringBefore("private fun startRecording(")
+            .substringBefore("private suspend fun startRecording(")
 
         assertTrue(source.contains("Channel.UNLIMITED"))
         assertTrue(source.contains("for (action in actionChannel)"))

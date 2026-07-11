@@ -85,3 +85,33 @@ Implemented the recording state machine, Android `MediaRecorder` abstraction, mi
 ### Remaining Device Risk
 
 - JVM tests cannot exercise OEM `MediaRecorder` timing, actual API 31+ foreground-start denial delivery, Android 14 microphone while-in-use enforcement, process death during a failed database retry, or notification action delivery. These paths still require device tests across API 31 and API 34+.
+
+## Second Review Remediation: Failure Recovery Completion
+
+### RED
+
+- Recovery/session behavior tests initially failed compilation because the bounded persistence retry, cross-API launch mapping, and session output coordinator did not exist.
+- Service wiring tests then failed for missing retry action, foreground retention, bounded destroy cleanup, session-owned partial filtering, and Starting STOP decisions.
+- A focused regression test reproduced the prepare-before-cancel race, and another reproduced delayed `stopSelf()` after a failed foreground entry.
+
+### GREEN
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecording*Test' :shared:testDebugUnitTest --tests '*DiaryAttachmentRecordingTest'`
+  - Passed: 38 app recording tests and 3 shared attachment recording tests.
+- `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin`
+  - Passed: app 724 tests, shared 434 tests, 0 failures, 0 errors; debug Kotlin compilation succeeded.
+- `git diff --check`
+  - Passed.
+
+### Remediation Summary
+
+- Added a pure Kotlin persistence retry coordinator with one initial write plus bounded 1s/2s/4s retries. Success clears identity and stops the service; exhaustion keeps `Failed(PERSIST_FAILED)` in foreground with explicit `ACTION_RETRY_PERSIST`.
+- Replaced start-token cancellation with a session coordinator that records user STOP, recorder start attempt/completion, and current-session output ownership. STOP before start persists `recording_user_cancelled` without media metadata; completed or usable output is finalized as a successful recording and queued for transcription.
+- Existing same-name output is deleted before recorder start or rejected when deletion fails. Partial persistence and destroy recovery require a current-session regular file with non-zero length.
+- `onDestroy` cleanup is bounded to 1.5 seconds. Timeout only cancels the service job and safely releases the recorder; it does not start another database write.
+- API 26-30 background-start `IllegalStateException`, API 31+ foreground-start denial, and `SecurityException` use stable launch failure codes. Foreground-entry failure records pending metadata and calls `stopSelf()` immediately rather than waiting through retry delays.
+- Repeated foreground starts for the active/pending session refresh `startForeground()` immediately, avoiding the platform foreground-service timeout.
+
+### Remaining Device Risk
+
+- JVM tests do not validate OEM `MediaRecorder` output timing, notification `PendingIntent` delivery, actual API 26-30 background-start exceptions, Android 14+ while-in-use microphone enforcement, or process death after retry exhaustion. Exercise API 26/30/31/34+ devices before release.

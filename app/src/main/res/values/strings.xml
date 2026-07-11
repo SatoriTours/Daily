@@ -11,5 +11,6 @@
     <string name="diary_recording_action_pause">暂停</string>
     <string name="diary_recording_action_resume">继续</string>
     <string name="diary_recording_action_stop">停止</string>
+    <string name="diary_recording_action_retry">重试保存</string>
     <string name="diary_recording_action_open">打开日记</string>
 </resources>

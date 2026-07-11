@@ -20,6 +20,9 @@ class AndroidDiaryRecorder(
         if (!outputFile.parentFile.orEmpty().exists() && !outputFile.parentFile.orEmpty().mkdirs()) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
+        if (outputFile.exists() && !outputFile.delete()) {
+            throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
+        }
         val recorder = createMediaRecorder()
         this.outputFile = outputFile
         mediaRecorder = recorder

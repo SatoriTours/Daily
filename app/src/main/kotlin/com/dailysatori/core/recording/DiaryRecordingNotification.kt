@@ -58,6 +58,13 @@ class DiaryRecordingNotification(
                 serviceIntent(DiaryRecordingService.ACTION_STOP),
             )
         }
+        if (state is DiaryRecordingState.Failed && state.errorCode == DiaryRecordingErrorCode.PERSIST_FAILED) {
+            builder.addAction(
+                android.R.drawable.ic_popup_sync,
+                context.getString(R.string.diary_recording_action_retry),
+                serviceIntent(DiaryRecordingService.ACTION_RETRY_PERSIST),
+            )
+        }
         builder.addAction(
             android.R.drawable.ic_menu_view,
             context.getString(R.string.diary_recording_action_open),
@@ -107,7 +114,8 @@ class DiaryRecordingNotification(
         this is DiaryRecordingState.Starting ||
             this is DiaryRecordingState.Recording ||
             this is DiaryRecordingState.Paused ||
-            this is DiaryRecordingState.Stopping
+            this is DiaryRecordingState.Stopping ||
+            (this is DiaryRecordingState.Failed && errorCode == DiaryRecordingErrorCode.PERSIST_FAILED)
 
     companion object {
         const val NOTIFICATION_ID = 2_003
