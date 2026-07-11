@@ -884,36 +884,8 @@ class DatabaseMigration(
 
     private fun migrateV19ToV20() {
         log.i { "Migration V19 -> V20: Diary attachments" }
-        try {
-            runSql(
-                """
-                CREATE TABLE IF NOT EXISTS diary_attachment (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
-                    kind TEXT NOT NULL,
-                    local_path TEXT NOT NULL,
-                    display_name TEXT NOT NULL DEFAULT '',
-                    mime_type TEXT NOT NULL DEFAULT '',
-                    size_bytes INTEGER NOT NULL DEFAULT 0,
-                    duration_ms INTEGER NOT NULL DEFAULT 0,
-                    transcript TEXT NOT NULL DEFAULT '',
-                    transcript_status TEXT NOT NULL DEFAULT 'none',
-                    knowledge_status TEXT NOT NULL DEFAULT 'none',
-                    error_message TEXT NOT NULL DEFAULT '',
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                )
-                """.trimIndent(),
-            )
-            listOf(
-                "CREATE INDEX IF NOT EXISTS idx_diary_attachment_diary_created ON diary_attachment(diary_id, created_at ASC, id ASC)",
-                "CREATE INDEX IF NOT EXISTS idx_diary_attachment_transcript_status ON diary_attachment(transcript_status, updated_at ASC)",
-                "CREATE INDEX IF NOT EXISTS idx_diary_attachment_knowledge_status ON diary_attachment(knowledge_status, updated_at ASC)",
-            ).forEach(::runSql)
-            log.i { "Created diary_attachment table and indexes" }
-        } catch (e: Exception) {
-            log.w(e) { "Could not create diary attachment schema" }
-        }
+        migrateDiaryAttachmentSchema(::runSql)
+        log.i { "Created diary_attachment table and indexes" }
     }
 
     private fun getCurrentVersion(): Long {
@@ -941,5 +913,35 @@ class DatabaseMigration(
 
     private fun runSql(sql: String) {
         driver.execute(null, sql, 0, null)
+    }
+
+    companion object {
+        internal fun migrateDiaryAttachmentSchema(runSql: (String) -> Unit) {
+            runSql(
+                """
+                    CREATE TABLE IF NOT EXISTS diary_attachment (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
+                        kind TEXT NOT NULL,
+                        local_path TEXT NOT NULL,
+                        display_name TEXT NOT NULL DEFAULT '',
+                        mime_type TEXT NOT NULL DEFAULT '',
+                        size_bytes INTEGER NOT NULL DEFAULT 0,
+                        duration_ms INTEGER NOT NULL DEFAULT 0,
+                        transcript TEXT NOT NULL DEFAULT '',
+                        transcript_status TEXT NOT NULL DEFAULT 'none',
+                        knowledge_status TEXT NOT NULL DEFAULT 'none',
+                        error_message TEXT NOT NULL DEFAULT '',
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                """.trimIndent(),
+            )
+            listOf(
+                "CREATE INDEX IF NOT EXISTS idx_diary_attachment_diary_created ON diary_attachment(diary_id, created_at ASC, id ASC)",
+                "CREATE INDEX IF NOT EXISTS idx_diary_attachment_transcript_status ON diary_attachment(transcript_status, updated_at ASC)",
+                "CREATE INDEX IF NOT EXISTS idx_diary_attachment_knowledge_status ON diary_attachment(knowledge_status, updated_at ASC)",
+            ).forEach(runSql)
+        }
     }
 }

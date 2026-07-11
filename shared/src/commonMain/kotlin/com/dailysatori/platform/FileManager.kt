@@ -2,6 +2,7 @@ package com.dailysatori.platform
 
 expect class FileManager() {
     fun getAppDataDir(): String
+    fun isAppDataPath(path: String): Boolean
     fun getDatabasePath(): String
     fun getImagesDir(): String
     fun getDiaryImagesDir(): String

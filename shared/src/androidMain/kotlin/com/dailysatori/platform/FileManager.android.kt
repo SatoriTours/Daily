@@ -27,6 +27,7 @@ actual class FileManager actual constructor() {
     private fun appDir() = File(appContext.filesDir, "DailySatori")
 
     actual fun getAppDataDir(): String = appDir().absolutePath
+    actual fun isAppDataPath(path: String): Boolean = isPathWithinDirectory(getAppDataDir(), path)
     actual fun getDatabasePath(): String = appContext.getDatabasePath("daily_satori.db").absolutePath
     actual fun getImagesDir(): String = File(appDir(), "images").apply { mkdirs() }.absolutePath
     actual fun getDiaryImagesDir(): String = File(appDir(), "diary_images").apply { mkdirs() }.absolutePath
@@ -276,3 +277,11 @@ actual class FileManager actual constructor() {
         const val DefaultBufferSize = 64 * 1024
     }
 }
+
+internal fun isPathWithinDirectory(root: String, candidate: String): Boolean = runCatching {
+    val rootPath = File(root).canonicalFile.path
+    val candidatePath = File(candidate).canonicalFile.path
+    val separator = File.separator
+    val rootPrefix = if (rootPath.endsWith(separator)) rootPath else "$rootPath$separator"
+    candidatePath.startsWith(rootPrefix)
+}.getOrDefault(false)

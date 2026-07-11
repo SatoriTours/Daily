@@ -2,6 +2,8 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.platform.FileManager
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Diary_attachment
@@ -40,6 +42,7 @@ data class DiaryAttachmentDraft(
 
 class DiaryAttachmentRepository(
     private val db: DailySatoriDatabase,
+    private val driver: SqlDriver,
     private val fileManager: FileManager? = null,
 ) {
     private val q get() = db.dailySatoriQueries
@@ -62,7 +65,8 @@ class DiaryAttachmentRepository(
                 error_message = draft.errorMessage,
                 created_at = now,
                 updated_at = now,
-            ).executeAsOne()
+            )
+            lastInsertRowId()
         }
     }
 
@@ -111,8 +115,14 @@ class DiaryAttachmentRepository(
 
     private fun deleteAppOwnedFile(path: String?) {
         val manager = fileManager ?: return
-        if (path != null && path.startsWith(manager.getAppDataDir())) {
+        if (path != null && manager.isAppDataPath(path)) {
             manager.deleteFile(path)
         }
     }
+
+    private fun lastInsertRowId(): Long =
+        driver.executeQuery(0, "SELECT last_insert_rowid()", { cursor ->
+            check(cursor.next().value) { "last_insert_rowid() returned no row" }
+            QueryResult.Value(checkNotNull(cursor.getLong(0)) { "last_insert_rowid() was null" })
+        }, 0).value
 }

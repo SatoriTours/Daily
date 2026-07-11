@@ -2,13 +2,18 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 
-class DiaryRepository(private val db: DailySatoriDatabase) {
+class DiaryRepository(
+    private val db: DailySatoriDatabase,
+    private val driver: SqlDriver,
+) {
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Diary>> =
@@ -46,8 +51,15 @@ class DiaryRepository(private val db: DailySatoriDatabase) {
         images: String? = null,
     ): Long = q.transactionWithResult {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.insertDiaryReturningId(content, tags, mood, images, now, now).executeAsOne()
+        q.insertDiary(content, tags, mood, images, now, now)
+        lastInsertRowId()
     }
+
+    private fun lastInsertRowId(): Long =
+        driver.executeQuery(0, "SELECT last_insert_rowid()", { cursor ->
+            check(cursor.next().value) { "last_insert_rowid() returned no row" }
+            QueryResult.Value(checkNotNull(cursor.getLong(0)) { "last_insert_rowid() was null" })
+        }, 0).value
 
     fun update(
         id: Long,
