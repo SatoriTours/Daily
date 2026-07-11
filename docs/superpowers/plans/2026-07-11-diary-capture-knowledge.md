@@ -42,7 +42,7 @@ Assert the schema contains `diary_attachment`, `FOREIGN KEY(diary_id) REFERENCES
 
 - [ ] **Step 2: Run the focused tests and confirm failure**
 
-Run: `./gradlew :shared:allTests --tests '*DiaryAttachmentSchemaTest' --tests '*DiaryRepositoryInsertTest'`
+Run: `./gradlew :shared:testDebugUnitTest --tests '*DiaryAttachmentSchemaTest' --tests '*DiaryRepositoryInsertTest'`
 
 Expected: FAIL because the attachment schema and returning insert API do not exist.
 
@@ -74,7 +74,7 @@ Validate `diaryId > 0`, map generated SQLDelight rows directly, update statuses 
 
 - [ ] **Step 6: Run shared tests and commit**
 
-Run: `./gradlew :shared:allTests`
+Run: `./gradlew :shared:testDebugUnitTest`
 
 Expected: PASS.
 
@@ -190,7 +190,7 @@ Assert duplicate enqueue returns the active task, successful transcription store
 
 - [ ] **Step 2: Run tests and confirm failure**
 
-Run: `./gradlew :shared:allTests --tests '*DiaryCaptureTaskTest'`
+Run: `./gradlew :shared:testDebugUnitTest --tests '*DiaryCaptureTaskTest'`
 
 Expected: FAIL because task types/coordinators do not exist.
 
@@ -204,7 +204,7 @@ Combine current diary content with completed attachment transcripts, call `Memor
 
 - [ ] **Step 5: Register worker handlers, run tests, and commit**
 
-Run: `./gradlew :shared:allTests :app:testDebugUnitTest --tests '*AsyncTaskWorkerSourceTest'`
+Run: `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest --tests '*AsyncTaskWorkerSourceTest'`
 
 Expected: PASS.
 
@@ -319,7 +319,7 @@ Assert icon descriptions, 48 dp targets, no fixed-height text containers in atta
 
 - [ ] **Step 2: Run all automated tests**
 
-Run: `./gradlew :shared:allTests :app:testDebugUnitTest :app:compileDebugKotlin`
+Run: `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin`
 
 Expected: BUILD SUCCESSFUL.
 
@@ -335,7 +335,7 @@ Check compact and large font scales in dark mode. Confirm the menu/controller do
 
 - [ ] **Step 5: Run final verification and commit fixes**
 
-Run: `./gradlew :shared:allTests :app:testDebugUnitTest :app:assembleDebug`
+Run: `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug`
 
 Expected: BUILD SUCCESSFUL.
 
