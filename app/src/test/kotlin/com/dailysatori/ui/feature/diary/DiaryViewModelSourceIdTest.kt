@@ -5,14 +5,14 @@ import androidx.lifecycle.ViewModelStore
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryRepository
-import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.diary.DiaryMonthSummaryService
-import com.dailysatori.service.memory.MemoryExtractService
-import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.memory.MemoryExtractor
+import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -20,9 +20,12 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryViewModelSourceIdTest {
@@ -40,71 +43,37 @@ class DiaryViewModelSourceIdTest {
 
     @Test
     fun newDiaryExtractsMemoryUsingItsPersistedId() = runTest {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        val httpClient = HttpClient()
+        val fixture = diaryFixture()
         try {
-            DailySatoriDatabase.Schema.create(driver)
-            val database = DailySatoriDatabase(driver)
-            val diaryRepository = DiaryRepository(database, driver)
-            repeat(41) { diaryRepository.create(content = "existing diary $it") }
-            val extractor = RecordingMemoryExtractService()
-            val monthSummaryRepository = DiaryMonthSummaryRepository(database)
-            val aiConfigService = AiConfigService(AIConfigRepository(database, unsafeAllocate()))
-            val viewModel = DiaryViewModel(
-                diaryRepo = diaryRepository,
-                memoryExtractService = extractor,
-                monthSummaryRepo = monthSummaryRepository,
-                monthSummaryService = DiaryMonthSummaryService(
-                    diaryRepo = diaryRepository,
-                    summaryRepo = monthSummaryRepository,
-                    aiConfigService = aiConfigService,
-                    aiService = AiService(httpClient),
-                ),
-            )
+            repeat(41) { fixture.diaryRepository.create(content = "existing diary $it") }
 
-            assertEquals(42L, viewModel.saveDiary(content = "new diary"))
+            assertEquals(42L, fixture.viewModel.saveDiaryAndGetId(content = "new diary"))
 
-            assertEquals(RecordedExtraction("diary", 42L), extractor.extraction)
-            clearViewModel(viewModel)
+            assertEquals(listOf(RecordedExtraction("diary", 42L)), fixture.extractor.extractions)
         } finally {
-            httpClient.close()
-            driver.close()
+            fixture.close()
         }
     }
 
     @Test
     fun existingDiaryExtractsMemoryUsingItsExistingId() = runTest {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        val httpClient = HttpClient()
+        val fixture = diaryFixture()
         try {
-            DailySatoriDatabase.Schema.create(driver)
-            val database = DailySatoriDatabase(driver)
-            val diaryRepository = DiaryRepository(database, driver)
-            val existingId = diaryRepository.create(content = "existing diary")
-            val extractor = RecordingMemoryExtractService()
-            val viewModel = newViewModel(database, diaryRepository, extractor, httpClient)
+            val existingId = fixture.diaryRepository.create(content = "existing diary")
 
-            assertEquals(existingId, viewModel.saveDiary(content = "updated diary", existingId = existingId))
+            assertEquals(existingId, fixture.viewModel.saveDiaryAndGetId(content = "updated diary", existingId = existingId))
 
-            assertEquals(RecordedExtraction("diary", existingId), extractor.extraction)
-            clearViewModel(viewModel)
+            assertEquals(listOf(RecordedExtraction("diary", existingId)), fixture.extractor.extractions)
         } finally {
-            httpClient.close()
-            driver.close()
+            fixture.close()
         }
     }
 
     @Test
     fun failedDiarySaveDoesNotExtractMemory() = runTest {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        val httpClient = HttpClient()
+        val fixture = diaryFixture()
         try {
-            DailySatoriDatabase.Schema.create(driver)
-            val database = DailySatoriDatabase(driver)
-            val diaryRepository = DiaryRepository(database, driver)
-            val extractor = RecordingMemoryExtractService()
-            val viewModel = newViewModel(database, diaryRepository, extractor, httpClient)
-            driver.execute(
+            fixture.driver.execute(
                 null,
                 """
                     CREATE TRIGGER fail_diary_insert
@@ -117,53 +86,100 @@ class DiaryViewModelSourceIdTest {
                 0,
             )
 
-            assertNull(viewModel.saveDiary(content = "cannot persist"))
+            assertNull(fixture.viewModel.saveDiaryAndGetId(content = "cannot persist"))
 
-            assertNull(extractor.extraction)
-            clearViewModel(viewModel)
+            assertTrue(fixture.extractor.extractions.isEmpty())
         } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun extractionFailureStillReturnsPersistedId() = runTest {
+        val fixture = diaryFixture(extractorFailure = IllegalStateException("extraction failed"))
+        try {
+            assertEquals(1L, fixture.viewModel.saveDiaryAndGetId(content = "persisted diary"))
+            assertEquals(1, fixture.diaryRepository.getAllSync().size)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun cancellationFromExtractionIsRethrown() = runTest {
+        val fixture = diaryFixture(extractorFailure = CancellationException("cancelled"))
+        try {
+            assertFailsWith<CancellationException> {
+                fixture.viewModel.saveDiaryAndGetId(content = "cancelled diary")
+            }
+            assertEquals(1, fixture.diaryRepository.getAllSync().size)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun diaryScreenDelegatesSavingToTheViewModelLifecycle() {
+        val screenSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryScreen.kt").readText()
+        val viewModelSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryViewModel.kt").readText()
+
+        assertTrue(screenSource.contains("viewModel.saveDiary("))
+        assertTrue(!screenSource.contains("rememberCoroutineScope"))
+        assertTrue(!screenSource.contains("saveScope.launch"))
+        assertTrue(viewModelSource.contains("fun saveDiary("))
+        assertTrue(viewModelSource.contains("viewModelScope.launch(Dispatchers.IO)"))
+        assertTrue(viewModelSource.contains("suspend fun saveDiaryAndGetId("))
+    }
+
+    private fun diaryFixture(extractorFailure: Throwable? = null): DiaryFixture {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        DailySatoriDatabase.Schema.create(driver)
+        val database = DailySatoriDatabase(driver)
+        val diaryRepository = DiaryRepository(database, driver)
+        val monthSummaryRepository = DiaryMonthSummaryRepository(database)
+        val httpClient = HttpClient()
+        val extractor = RecordingMemoryExtractor(extractorFailure)
+        val viewModel = DiaryViewModel(
+            diaryRepo = diaryRepository,
+            memoryExtractor = extractor,
+            monthSummaryRepo = monthSummaryRepository,
+            monthSummaryService = DiaryMonthSummaryService(
+                diaryRepo = diaryRepository,
+                summaryRepo = monthSummaryRepository,
+                aiConfigService = AiConfigService(
+                    AIConfigRepository(database, PlainSecretCipher),
+                ),
+                aiService = AiService(httpClient),
+            ),
+        )
+        return DiaryFixture(driver, diaryRepository, viewModel, extractor, httpClient)
+    }
+
+    private data class DiaryFixture(
+        val driver: JdbcSqliteDriver,
+        val diaryRepository: DiaryRepository,
+        val viewModel: DiaryViewModel,
+        val extractor: RecordingMemoryExtractor,
+        val httpClient: HttpClient,
+    ) {
+        fun close() {
+            ViewModelStore().run {
+                put("test", viewModel)
+                clear()
+            }
             httpClient.close()
             driver.close()
         }
     }
 
-    private fun newViewModel(
-        database: DailySatoriDatabase,
-        diaryRepository: DiaryRepository,
-        extractor: RecordingMemoryExtractService,
-        httpClient: HttpClient,
-    ): DiaryViewModel {
-        val monthSummaryRepository = DiaryMonthSummaryRepository(database)
-        val aiConfigService = AiConfigService(AIConfigRepository(database, unsafeAllocate()))
-        return DiaryViewModel(
-            diaryRepo = diaryRepository,
-            memoryExtractService = extractor,
-            monthSummaryRepo = monthSummaryRepository,
-            monthSummaryService = DiaryMonthSummaryService(
-                diaryRepo = diaryRepository,
-                summaryRepo = monthSummaryRepository,
-                aiConfigService = aiConfigService,
-                aiService = AiService(httpClient),
-            ),
-        )
-    }
-
-    private fun clearViewModel(viewModel: DiaryViewModel) {
-        ViewModelStore().run {
-            put("test", viewModel)
-            clear()
-        }
-    }
-
-    private class RecordingMemoryExtractService : MemoryExtractService(
-        aiService = unsafeAllocate(),
-        aiConfigService = unsafeAllocate(),
-        memoryRepo = unsafeAllocate<MemoryRepository>(),
-    ) {
-        var extraction: RecordedExtraction? = null
+    private class RecordingMemoryExtractor(
+        private val failure: Throwable? = null,
+    ) : MemoryExtractor {
+        val extractions = mutableListOf<RecordedExtraction>()
 
         override suspend fun extractAndSave(sourceType: String, sourceId: Long, title: String, content: String) {
-            extraction = RecordedExtraction(sourceType, sourceId)
+            failure?.let { throw it }
+            extractions += RecordedExtraction(sourceType, sourceId)
         }
     }
 
@@ -172,16 +188,11 @@ class DiaryViewModelSourceIdTest {
         val sourceId: Long,
     )
 
-    private companion object {
-        private inline fun <reified T> unsafeAllocate(): T {
-            val unsafeClass = Class.forName("sun.misc.Unsafe")
-            val unsafe = unsafeClass.getDeclaredField("theUnsafe").run {
-                isAccessible = true
-                get(null)
-            }
-            return T::class.java.cast(
-                unsafeClass.getMethod("allocateInstance", Class::class.java).invoke(unsafe, T::class.java),
-            )
-        }
+    private object PlainSecretCipher : SecretValueCipher {
+        override fun encrypt(value: String): String = value
+
+        override fun decrypt(value: String): String = value
+
+        override fun isEncrypted(value: String): Boolean = false
     }
 }

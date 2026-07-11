@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.util.diaryTags
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryRepository
-import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +31,7 @@ data class DiaryState(
 
 class DiaryViewModel(
     private val diaryRepo: DiaryRepository,
-    private val memoryExtractService: MemoryExtractService,
+    private val memoryExtractor: MemoryExtractor,
     private val monthSummaryRepo: DiaryMonthSummaryRepository,
     private val monthSummaryService: DiaryMonthSummaryService,
 ) : ViewModel() {
@@ -105,37 +105,72 @@ class DiaryViewModel(
         }
     }
 
-    suspend fun saveDiary(
+    fun saveDiary(
+        content: String,
+        tags: String? = null,
+        mood: String? = null,
+        images: String? = null,
+        existingId: Long? = null,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            saveDiaryAndGetId(
+                content = content,
+                tags = tags,
+                mood = mood,
+                images = images,
+                existingId = existingId,
+            )
+        }
+    }
+
+    suspend fun saveDiaryAndGetId(
         content: String,
         tags: String? = null,
         mood: String? = null,
         images: String? = null,
         existingId: Long? = null,
     ): Long? = withContext(Dispatchers.IO) {
-            _state.update { it.copy(isSaving = true, error = null) }
-            try {
-                val persistedId = if (existingId != null) {
+        _state.update { it.copy(isSaving = true, error = null) }
+        try {
+            val persistedId = try {
+                if (existingId != null) {
                     diaryRepo.update(existingId, content, tags, mood, images)
                     existingId
                 } else {
                     diaryRepo.create(content, tags, mood, images)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message) }
+                return@withContext null
+            }
+
+            runPostSaveOperation {
                 if (content.isNotBlank()) {
-                    memoryExtractService.extractAndSave(
+                    memoryExtractor.extractAndSave(
                         sourceType = "diary",
                         sourceId = persistedId,
                         title = "日记",
                         content = content,
                     )
                 }
-                refreshAvailableTags()
-                persistedId
-            } catch (e: Exception) {
-                _state.update { it.copy(error = e.message) }
-                null
-            } finally {
-                _state.update { it.copy(isSaving = false) }
             }
+            runPostSaveOperation(::refreshAvailableTags)
+            persistedId
+        } finally {
+            _state.update { it.copy(isSaving = false) }
+        }
+    }
+
+    private suspend fun runPostSaveOperation(operation: suspend () -> Unit) {
+        try {
+            operation()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.update { it.copy(error = e.message) }
+        }
     }
 
     fun deleteDiary(id: Long) {

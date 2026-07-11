@@ -19,6 +19,7 @@ import com.dailysatori.service.book.BookReflectionService
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.setting.SettingService
@@ -80,7 +81,7 @@ val viewModelModule: Module = module {
     viewModel {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),
-            memoryExtractService = get<MemoryExtractService>(),
+            memoryExtractor = get<MemoryExtractor>(),
             monthSummaryRepo = get(),
             monthSummaryService = get(),
         )

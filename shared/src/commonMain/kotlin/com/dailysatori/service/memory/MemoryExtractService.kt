@@ -15,14 +15,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import kotlin.coroutines.coroutineContext
 
-open class MemoryExtractService(
+class MemoryExtractService(
     private val aiService: AiService,
     private val aiConfigService: AiConfigService,
     private val memoryRepo: MemoryRepository,
-) {
+) : MemoryExtractor {
     private val log = Logger.withTag("MemoryExtract")
 
-    open suspend fun extractAndSave(
+    override suspend fun extractAndSave(
         sourceType: String,
         sourceId: Long,
         title: String,

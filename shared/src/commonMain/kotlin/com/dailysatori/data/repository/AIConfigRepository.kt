@@ -3,7 +3,7 @@ package com.dailysatori.data.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.dailysatori.service.ai.canDeleteAiConfig
-import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.Ai_config
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 
 class AIConfigRepository(
     private val db: DailySatoriDatabase,
-    private val secretCipher: SecretCipher,
+    private val secretCipher: SecretValueCipher,
 ) {
     private val q get() = db.dailySatoriQueries
 

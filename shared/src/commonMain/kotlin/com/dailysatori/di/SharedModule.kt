@@ -49,6 +49,7 @@ import com.dailysatori.service.mcp.LocalSqlQueryService
 import com.dailysatori.service.mcp.McpToolRegistry
 import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
@@ -134,6 +135,7 @@ val sharedModule: Module = module {
     single { RemoteArticleSyncService(get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
+    single<MemoryExtractor> { get<MemoryExtractService>() }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }
     single<SkillConnectionTester> { DefaultSkillConnectionTester(get()) }
