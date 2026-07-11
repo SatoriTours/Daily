@@ -90,3 +90,39 @@ Result: passed with `BUILD SUCCESSFUL` (18 actionable tasks).
 - Reduced the configured SQLDelight dialect from SQLite 3.35 to 3.24. Existing pre-Task-1 UPSERT syntax requires 3.24 for interface generation; the new diary capture insert and V20 migration SQL use constructs available on API 26 SQLite.
 - Removed V20's exception swallowing so an attachment schema failure prevents `schema_version` from advancing and can retry on next startup.
 - Replaced attachment deletion's prefix check with Android canonical-path, segment-boundary containment through `FileManager.isAppDataPath`.
+
+## Review Follow-up: Diary Attachment DI Registration
+
+### RED
+
+Command:
+
+```sh
+./gradlew :shared:testDebugUnitTest --tests '*DiaryAttachmentRepositoryDiTest'
+```
+
+Result: failed as expected. The new source contract test failed at `DiaryAttachmentRepositoryDiTest.kt:12` because `SharedModule.kt` did not import or register `DiaryAttachmentRepository`.
+
+### GREEN
+
+Focused command:
+
+```sh
+./gradlew :shared:testDebugUnitTest --tests '*DiaryAttachmentRepositoryDiTest' --tests '*DiaryAttachmentSchemaTest' --tests '*DiaryRepositoryInsertTest'
+```
+
+Result: passed with `BUILD SUCCESSFUL` and all three focused test classes selected.
+
+Shared command:
+
+```sh
+./gradlew :shared:testDebugUnitTest
+```
+
+Result: passed with `BUILD SUCCESSFUL` (18 actionable tasks).
+
+### Fixes
+
+- Restored `gradle/libs.versions.toml` to the pre-Task-1 `sqlite-3-35-dialect` dependency without changing existing UPSERT queries.
+- Added `DiaryAttachmentRepository` to `SharedModule` with `get()` injection for `DailySatoriDatabase`, `SqlDriver`, and `FileManager`.
+- Added `shared/src/commonTest/kotlin/com/dailysatori/di/DiaryAttachmentRepositoryDiTest.kt` as the source contract covering the registration and constructor arity.
