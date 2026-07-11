@@ -1200,6 +1200,11 @@ UPDATE diary_attachment
 SET transcript_status = ?, knowledge_status = ?, error_message = ?, updated_at = ?
 WHERE id = ?;
 
+finishDiaryAttachmentRecording:
+UPDATE diary_attachment
+SET local_path = ?, size_bytes = ?, duration_ms = ?, transcript_status = ?, error_message = ?, updated_at = ?
+WHERE id = ?;
+
 deleteDiaryAttachmentById:
 DELETE FROM diary_attachment WHERE id = ?;
 

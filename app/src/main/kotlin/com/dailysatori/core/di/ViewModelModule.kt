@@ -14,6 +14,9 @@ import com.dailysatori.data.repository.WeeklySummaryRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
+import com.dailysatori.core.recording.AndroidDiaryRecorder
+import com.dailysatori.core.recording.DiaryRecorder
+import com.dailysatori.core.recording.DiaryRecordingStore
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.book.BookReflectionService
 import com.dailysatori.service.import.ImportService
@@ -51,10 +54,13 @@ import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
 val viewModelModule: Module = module {
+    single { DiaryRecordingStore() }
+    factory<DiaryRecorder> { AndroidDiaryRecorder(androidContext()) }
     viewModel {
         AppUrlIntakeViewModel(
             articleRepo = get<ArticleRepository>(),

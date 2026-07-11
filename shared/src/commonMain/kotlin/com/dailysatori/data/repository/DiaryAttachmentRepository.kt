@@ -104,6 +104,48 @@ class DiaryAttachmentRepository(
         )
     }
 
+    fun completeRecording(id: Long, localPath: String, sizeBytes: Long, durationMs: Long) {
+        finishRecording(
+            id = id,
+            localPath = localPath,
+            sizeBytes = sizeBytes,
+            durationMs = durationMs,
+            transcriptStatus = DiaryAttachmentProcessingStatus.queued,
+            errorMessage = "",
+        )
+    }
+
+    fun failRecording(id: Long, localPath: String, sizeBytes: Long, durationMs: Long, errorCode: String) {
+        finishRecording(
+            id = id,
+            localPath = localPath,
+            sizeBytes = sizeBytes,
+            durationMs = durationMs,
+            transcriptStatus = DiaryAttachmentProcessingStatus.failed,
+            errorMessage = errorCode,
+        )
+    }
+
+    private fun finishRecording(
+        id: Long,
+        localPath: String,
+        sizeBytes: Long,
+        durationMs: Long,
+        transcriptStatus: String,
+        errorMessage: String,
+    ) {
+        require(id > 0) { "attachment id must be positive" }
+        q.finishDiaryAttachmentRecording(
+            local_path = localPath,
+            size_bytes = sizeBytes.coerceAtLeast(0),
+            duration_ms = durationMs.coerceAtLeast(0),
+            transcript_status = transcriptStatus,
+            error_message = errorMessage,
+            updated_at = Clock.System.now().toEpochMilliseconds(),
+            id = id,
+        )
+    }
+
     fun delete(id: Long) {
         val localPath = q.transactionWithResult {
             val attachment = q.selectDiaryAttachmentById(id).executeAsOneOrNull()
