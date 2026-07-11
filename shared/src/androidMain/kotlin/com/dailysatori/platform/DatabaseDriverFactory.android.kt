@@ -1,5 +1,6 @@
 package com.dailysatori.platform
 
+import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -9,5 +10,14 @@ actual class DatabaseDriverFactory(private val context: PlatformContext) {
         createDriver("daily_satori.db")
 
     actual fun createDriver(name: String): SqlDriver =
-        AndroidSqliteDriver(DailySatoriDatabase.Schema, context.context, name)
+        AndroidSqliteDriver(
+            schema = DailySatoriDatabase.Schema,
+            context = context.context,
+            name = name,
+            callback = object : AndroidSqliteDriver.Callback(DailySatoriDatabase.Schema) {
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    db.setForeignKeyConstraintsEnabled(true)
+                }
+            },
+        )
 }

@@ -1,8 +1,11 @@
 package com.dailysatori.data.repository
 
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.shared.db.DailySatoriDatabase
 import java.io.File
 import com.dailysatori.service.migration.DatabaseMigration
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -55,6 +58,52 @@ class DiaryAttachmentSchemaTest {
             DatabaseMigration.migrateDiaryAttachmentSchema {
                 throw IllegalStateException("simulated schema failure")
             }
+        }
+    }
+
+    @Test
+    fun androidDriverEnablesForeignKeyConstraintsOnOpen() {
+        val driver = File("src/androidMain/kotlin/com/dailysatori/platform/DatabaseDriverFactory.android.kt").readText()
+
+        assertTrue(driver.contains("AndroidSqliteDriver.Callback(DailySatoriDatabase.Schema)"))
+        assertTrue(driver.contains("override fun onOpen(db: SupportSQLiteDatabase)"))
+        assertTrue(driver.contains("db.setForeignKeyConstraintsEnabled(true)"))
+        assertTrue(driver.contains("import androidx.sqlite.db.SupportSQLiteDatabase"))
+    }
+
+    @Test
+    fun deletingDiaryCascadesItsAttachmentsOnSqlite() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.execute(null, "PRAGMA foreign_keys=ON", 0)
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            val q = db.dailySatoriQueries
+
+            q.insertDiary("diary with attachment", null, null, null, 1, 1)
+            q.insertDiaryAttachment(
+                diary_id = 1,
+                kind = "image",
+                local_path = "/data/user/0/com.dailysatori/files/attachment.jpg",
+                display_name = "attachment.jpg",
+                mime_type = "image/jpeg",
+                size_bytes = 1,
+                duration_ms = 0,
+                transcript = "",
+                transcript_status = "none",
+                knowledge_status = "none",
+                error_message = "",
+                created_at = 2,
+                updated_at = 2,
+            )
+
+            assertEquals(1, q.selectAttachmentsForDiary(1).executeAsList().size)
+
+            q.deleteDiary(1)
+
+            assertEquals(0, q.selectAttachmentsForDiary(1).executeAsList().size)
+        } finally {
+            driver.close()
         }
     }
 }

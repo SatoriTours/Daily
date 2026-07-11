@@ -126,3 +126,30 @@ Result: passed with `BUILD SUCCESSFUL` (18 actionable tasks).
 - Restored `gradle/libs.versions.toml` to the pre-Task-1 `sqlite-3-35-dialect` dependency without changing existing UPSERT queries.
 - Added `DiaryAttachmentRepository` to `SharedModule` with `get()` injection for `DailySatoriDatabase`, `SqlDriver`, and `FileManager`.
 - Added `shared/src/commonTest/kotlin/com/dailysatori/di/DiaryAttachmentRepositoryDiTest.kt` as the source contract covering the registration and constructor arity.
+
+## Review Follow-up: Android Foreign-Key Cascade Enforcement
+
+### RED
+
+Command:
+
+```sh
+./gradlew :shared:testDebugUnitTest --tests '*DiaryAttachmentSchemaTest' --tests '*DiaryRepositoryInsertTest'
+```
+
+Result: failed as expected. The real JVM SQLite cascade test passed after explicitly executing `PRAGMA foreign_keys=ON` before schema creation, while `androidDriverEnablesForeignKeyConstraintsOnOpen` failed because `DatabaseDriverFactory.android.kt` had no foreign-key callback.
+
+### GREEN
+
+Focused command:
+
+```sh
+./gradlew :shared:testDebugUnitTest --tests '*DiaryAttachmentSchemaTest' --tests '*DiaryRepositoryInsertTest'
+```
+
+Result: passed with `BUILD SUCCESSFUL`; all eight selected tests completed successfully. The cascade test creates a diary and attachment on the configured JVM SQLite driver, deletes the diary, and confirms the attachment is gone.
+
+### Fixes
+
+- Configured `AndroidSqliteDriver` with `AndroidSqliteDriver.Callback(DailySatoriDatabase.Schema)` and enabled `db.setForeignKeyConstraintsEnabled(true)` in `onOpen`.
+- Kept initialization order unchanged: `platformModule` creates the driver before `DailySatoriDatabase`, and `DailySatoriApplication` runs `DatabaseMigration` after Koin startup.
