@@ -221,6 +221,32 @@ CREATE TRIGGER diary_fts_update AFTER UPDATE OF content, tags ON diary BEGIN
     VALUES (new.id, new.content, new.tags);
 END;
 
+CREATE TABLE diary_attachment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    local_path TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    mime_type TEXT NOT NULL DEFAULT '',
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    transcript TEXT NOT NULL DEFAULT '',
+    transcript_status TEXT NOT NULL DEFAULT 'none',
+    knowledge_status TEXT NOT NULL DEFAULT 'none',
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_diary_created
+ON diary_attachment(diary_id, created_at ASC, id ASC);
+
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_transcript_status
+ON diary_attachment(transcript_status, updated_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_knowledge_status
+ON diary_attachment(knowledge_status, updated_at ASC);
+
 CREATE TABLE diary_month_summary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     month_key TEXT NOT NULL UNIQUE,
@@ -1137,6 +1163,11 @@ insertDiary:
 INSERT INTO diary (content, tags, mood, images, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?);
 
+insertDiaryReturningId:
+INSERT INTO diary (content, tags, mood, images, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id;
+
 updateDiary:
 UPDATE diary SET content = ?, tags = ?, mood = ?, images = ?, updated_at = ? WHERE id = ?;
 
@@ -1145,6 +1176,37 @@ DELETE FROM diary WHERE id = ?;
 
 diaryCount:
 SELECT COUNT(*) FROM diary;
+
+insertDiaryAttachment:
+INSERT INTO diary_attachment (
+    diary_id, kind, local_path, display_name, mime_type, size_bytes, duration_ms,
+    transcript, transcript_status, knowledge_status, error_message, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id;
+
+selectAttachmentsForDiary:
+SELECT * FROM diary_attachment WHERE diary_id = ? ORDER BY created_at ASC, id ASC;
+
+selectDiaryAttachmentById:
+SELECT * FROM diary_attachment WHERE id = ?;
+
+updateDiaryAttachmentTranscriptStatus:
+UPDATE diary_attachment
+SET transcript = ?, transcript_status = ?, error_message = ?, updated_at = ?
+WHERE id = ?;
+
+updateDiaryAttachmentKnowledgeStatus:
+UPDATE diary_attachment
+SET knowledge_status = ?, error_message = ?, updated_at = ?
+WHERE id = ?;
+
+updateDiaryAttachmentStatuses:
+UPDATE diary_attachment
+SET transcript_status = ?, knowledge_status = ?, error_message = ?, updated_at = ?
+WHERE id = ?;
+
+deleteDiaryAttachmentById:
+DELETE FROM diary_attachment WHERE id = ?;
 
 selectDiaryMonthSummaryByMonth:
 SELECT * FROM diary_month_summary WHERE month_key = ?;

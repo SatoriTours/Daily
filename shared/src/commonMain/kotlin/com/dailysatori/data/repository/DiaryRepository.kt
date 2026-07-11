@@ -39,6 +39,16 @@ class DiaryRepository(private val db: DailySatoriDatabase) {
         q.insertDiary(content, tags, mood, images, now, now)
     }
 
+    suspend fun create(
+        content: String,
+        tags: String? = null,
+        mood: String? = null,
+        images: String? = null,
+    ): Long = q.transactionWithResult {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.insertDiaryReturningId(content, tags, mood, images, now, now).executeAsOne()
+    }
+
     fun update(
         id: Long,
         content: String,
