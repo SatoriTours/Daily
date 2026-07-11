@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class DiaryState(
     val diaries: List<Diary> = emptyList(),
@@ -104,36 +105,37 @@ class DiaryViewModel(
         }
     }
 
-    fun saveDiary(
+    suspend fun saveDiary(
         content: String,
         tags: String? = null,
         mood: String? = null,
         images: String? = null,
         existingId: Long? = null,
-    ) {
-        viewModelScope.launch(Dispatchers.IO) {
+    ): Long? = withContext(Dispatchers.IO) {
             _state.update { it.copy(isSaving = true, error = null) }
             try {
-                if (existingId != null) {
+                val persistedId = if (existingId != null) {
                     diaryRepo.update(existingId, content, tags, mood, images)
+                    existingId
                 } else {
-                    diaryRepo.insert(content, tags, mood, images)
+                    diaryRepo.create(content, tags, mood, images)
                 }
                 if (content.isNotBlank()) {
                     memoryExtractService.extractAndSave(
                         sourceType = "diary",
-                        sourceId = existingId ?: 0L,
+                        sourceId = persistedId,
                         title = "日记",
                         content = content,
                     )
                 }
                 refreshAvailableTags()
+                persistedId
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
+                null
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }
-        }
     }
 
     fun deleteDiary(id: Long) {

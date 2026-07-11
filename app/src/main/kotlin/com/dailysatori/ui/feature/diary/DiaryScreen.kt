@@ -49,6 +49,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,6 +77,7 @@ import com.dailysatori.ui.theme.Spacing
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -87,6 +89,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
+    val saveScope = rememberCoroutineScope()
     val diaryListState = rememberLazyListState()
     val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
 
@@ -218,13 +221,15 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             onDismiss = { showEditor = false; editingDiary = null },
             onSave = { content, tags, mood, images ->
                 val existingId = editingDiary?.id
-                viewModel.saveDiary(
-                    existingId = existingId,
-                    content = content,
-                    tags = tags,
-                    mood = mood,
-                    images = images,
-                )
+                saveScope.launch {
+                    viewModel.saveDiary(
+                        existingId = existingId,
+                        content = content,
+                        tags = tags,
+                        mood = mood,
+                        images = images,
+                    )
+                }
                 showEditor = false
                 editingDiary = null
             },
