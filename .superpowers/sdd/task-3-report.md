@@ -169,3 +169,39 @@ Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `
 
 - JVM scheduling tests prove actor FIFO behavior and main-facing non-blocking Shutdown, but cannot force an OEM `MediaRecorder` implementation to return from a permanently blocked call. The dedicated executor and actor remain retained until that call returns and queued release can run.
 - Device coverage is still required for actual API 26-30 background-start denial, API 31+ foreground-start denial, Android 14+ microphone while-in-use restrictions, notification Retry/Discard delivery, file timestamp behavior on OEM storage, and playable media finalization after interrupted startup.
+
+## Third Review Remediation: Process-Scoped Recording Runtime
+
+### RED
+
+- Added executable `DiaryRecordingRuntimeTest` coverage before implementation for Service host replacement/detach, stale results, Android `startId` terminal stopping, explicit process shutdown, retryable shutdown persistence failure, FIFO StartFailed/Stop release decisions, token-bound canonical output validation, monotonic elapsed time, and unexpected `Throwable` termination.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingRuntimeTest'`
+  - Failed in `compileDebugUnitTestKotlin` as expected because `DiaryRecordingRuntime`, generation-aware host attachments, startId-aware command submission, tokenized `DiaryRecordingOutput`, and the token-aware recorder start contract did not exist.
+  - Representative errors were `Unresolved reference 'DiaryRecordingRuntime'`, `Unresolved reference 'attachHost'`, `Unresolved reference 'DiaryRecordingHostAttachment'`, and the old two-argument `DiaryRecordingOutput` constructor rejecting a session token.
+
+### GREEN
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest' --tests '*DiaryRecordingRuntimeTest' --tests '*DiaryRecordingServiceContractTest' --tests '*DiaryRecordingLaunchTest' --tests '*DiaryRecordingManifestTest'`
+  - Passed: 36 focused Actor/runtime/Service/launch/manifest tests, 0 failures and 0 errors.
+- `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin --rerun-tasks`
+  - Passed from freshly executed tasks: app 722 tests and shared 434 tests, 0 failures and 0 errors; debug Kotlin compilation succeeded.
+- `git diff --check`
+  - Passed.
+
+### Remediation Summary
+
+- Added a Koin singleton `DiaryRecordingRuntime` that owns the only Actor/mailbox, recorder instance, recorder executor, session token/state, persistence adapter, and generation-aware Android host router. `DiaryRecordingService` now only attaches/detaches its host and submits typed commands with its Android `startId`; Service destruction no longer shuts down the runtime or publishes `Idle`.
+- Host replacement is generation-checked and effect-serialized. A stale detach cannot clear the replacement host, stale session results are token-rejected, and attach cannot replay an older state after a newer Actor state callback.
+- Terminal handoff calls the host abstraction's `stopSelfResult(startId)` with the command start ID that caused the terminal operation. A newer Android start ID prevents both Service stop and foreground removal.
+- Explicit process shutdown best-effort releases/finalizes active media, validates and persists completion/failure, then closes the recorder executor. Persistence exhaustion retains `PersistenceFailed`; retry and discard remain executable after recorder shutdown. Service detach alone leaves the runtime and executor open.
+- StartFailed release decisions now read the current session `stopRequested` when the FIFO release result is processed. A queued Stop completes a token-valid usable output, or persists `recording_user_cancelled` without media when no output exists.
+- Recording filenames include a random UUID session token, `DiaryRecordingOutput` carries the same token, and output acceptance requires token equality, canonical path equality, a regular file, and non-zero content. Wall-clock modification time is no longer used; elapsed time uses `SystemClock.elapsedRealtime` through the injected monotonic clock.
+- Unexpected non-cancellation `Throwable` values from output path creation, initial persistence, and recorder startup become stable `recorder_start_failed` terminal persistence instead of leaving `Starting`.
+
+### Commit
+
+- `fix: make diary recording runtime process scoped`
+
+### Remaining Device Risk
+
+- JVM tests cannot reproduce OEM `MediaRecorder` finalize behavior, Android framework Service overlap timing, real `stopSelfResult(startId)` scheduling, notification `PendingIntent` delivery, or API 31+/Android 14+ foreground microphone restrictions. Exercise API 26/30/31/34+ physical or virtual devices, including Service recreation during Starting/Recording and process shutdown with a playable partial file.

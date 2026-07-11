@@ -16,6 +16,9 @@ import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.recording.AndroidDiaryRecorder
 import com.dailysatori.core.recording.DiaryRecorder
+import com.dailysatori.core.recording.DiaryRecordingPersistence
+import com.dailysatori.core.recording.DiaryRecordingRepositoryPersistence
+import com.dailysatori.core.recording.DiaryRecordingRuntime
 import com.dailysatori.core.recording.DiaryRecordingStore
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.book.BookReflectionService
@@ -57,10 +60,41 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import android.os.SystemClock
+import java.io.File
+import java.util.UUID
+import java.util.concurrent.Executors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 
 val viewModelModule: Module = module {
     single { DiaryRecordingStore() }
-    factory<DiaryRecorder> { AndroidDiaryRecorder(androidContext()) }
+    single<DiaryRecorder> { AndroidDiaryRecorder(androidContext()) }
+    single<DiaryRecordingPersistence> { DiaryRecordingRepositoryPersistence(get()) }
+    single {
+        val recorderDispatcher = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "diary-recorder")
+        }.asCoroutineDispatcher()
+        DiaryRecordingRuntime(
+            store = get(),
+            recorder = get(),
+            persistence = get(),
+            outputFile = { diaryId, attachmentId, sessionToken ->
+                File(
+                    androidContext().filesDir,
+                    "DailySatori/diary/audio/$diaryId/$attachmentId-$sessionToken.m4a",
+                )
+            },
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            actorDispatcher = Dispatchers.Default,
+            recorderDispatcher = recorderDispatcher,
+            ioDispatcher = Dispatchers.IO,
+            monotonicNowMs = SystemClock::elapsedRealtime,
+            nextSessionToken = { UUID.randomUUID().toString() },
+        )
+    }
     viewModel {
         AppUrlIntakeViewModel(
             articleRepo = get<ArticleRepository>(),

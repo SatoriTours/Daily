@@ -25,16 +25,19 @@ class DiaryRecordingServiceContractTest {
     }
 
     @Test
-    fun serviceParsesIntentsAndSubmitsTypedActorCommandsOnly() {
+    fun serviceParsesIntentsAndSubmitsTypedRuntimeCommandsOnly() {
         val source = source("DiaryRecordingService.kt")
-        val startCommand = "DiaryRecordingCommand.Start(diaryId, attachmentId)"
 
-        assertTrue(source.contains("actor.submit($startCommand)"))
-        assertTrue(source.contains("actor.submit(DiaryRecordingCommand.Pause)"))
-        assertTrue(source.contains("actor.submit(DiaryRecordingCommand.Resume)"))
-        assertTrue(source.contains("actor.submit(DiaryRecordingCommand.Stop)"))
-        assertTrue(source.contains("actor.submit(DiaryRecordingCommand.RetryPersistence)"))
+        assertTrue(source.contains("runtime.submit("))
+        assertTrue(source.contains("hostAttachment,"))
+        assertTrue(source.contains("startId,"))
+        assertTrue(source.contains("DiaryRecordingCommand.Start(diaryId, attachmentId)"))
+        assertTrue(source.contains("DiaryRecordingCommand.Pause"))
+        assertTrue(source.contains("DiaryRecordingCommand.Resume"))
+        assertTrue(source.contains("DiaryRecordingCommand.Stop"))
+        assertTrue(source.contains("DiaryRecordingCommand.RetryPersistence"))
         listOf(
+            "DiaryRecordingActor(",
             "Channel<",
             "Mutex()",
             "activeDiaryId",
@@ -51,12 +54,14 @@ class DiaryRecordingServiceContractTest {
     }
 
     @Test
-    fun destroySubmitsShutdownWithoutBlockingTheMainThread() {
+    fun destroyDetachesOnlyAndDoesNotShutdownProcessRuntime() {
         val source = source("DiaryRecordingService.kt")
         val destroy = source.substringAfter("override fun onDestroy()")
             .substringBefore("private fun enterForeground")
 
-        assertTrue(destroy.contains("actor.submit(DiaryRecordingCommand.Shutdown)"))
+        assertTrue(destroy.contains("runtime.detachHost(hostAttachment)"))
+        assertFalse(destroy.contains("DiaryRecordingCommand.Shutdown"))
+        assertFalse(destroy.contains("runtime.shutdown()"))
         assertFalse(destroy.contains("runBlocking"))
         assertFalse(source.contains("import kotlinx.coroutines.runBlocking"))
         assertFalse(destroy.contains("withTimeoutOrNull"))
@@ -64,34 +69,43 @@ class DiaryRecordingServiceContractTest {
     }
 
     @Test
-    fun recorderBoundaryUsesAClosableDedicatedSingleThreadExecutor() {
-        val source = source("DiaryRecordingService.kt")
+    fun processSingletonRuntimeOwnsTheClosableRecorderExecutor() {
+        val service = source("DiaryRecordingService.kt")
+        val runtime = source("DiaryRecordingRuntime.kt")
+        val module = File("src/main/kotlin/com/dailysatori/core/di/ViewModelModule.kt").readText()
 
-        assertTrue(source.contains("Executors.newSingleThreadExecutor"))
-        assertTrue(source.contains("asCoroutineDispatcher()"))
-        assertTrue(source.contains("recorderDispatcher = recorderDispatcher"))
+        assertFalse(service.contains("Executors.newSingleThreadExecutor"))
+        assertFalse(service.contains("DiaryRecorder by inject"))
+        assertTrue(runtime.contains("private val actor = DiaryRecordingActor("))
+        assertTrue(module.contains("single {\n        val recorderDispatcher = Executors.newSingleThreadExecutor"))
+        assertTrue(module.contains("DiaryRecordingRuntime("))
+        assertTrue(module.contains("recorderDispatcher = recorderDispatcher"))
     }
 
     @Test
-    fun serviceActorHostOwnsOnlyAndroidForegroundAndNotificationEffects() {
+    fun serviceAndroidHostOwnsOnlyForegroundNotificationAndStartIdEffects() {
         val source = source("DiaryRecordingService.kt")
 
-        assertTrue(source.contains("DiaryRecordingActorHost"))
+        assertTrue(source.contains("DiaryRecordingAndroidHost"))
+        assertTrue(source.contains("runtime.attachHost("))
         assertTrue(source.contains("override fun enterForeground(state: DiaryRecordingState)"))
         assertTrue(source.contains("override fun stateChanged(state: DiaryRecordingState)"))
         assertTrue(source.contains("override fun stopForeground()"))
-        assertTrue(source.contains("override fun stopService()"))
+        assertTrue(source.contains("override fun stopSelfResult(startId: Int)"))
+        assertTrue(source.contains("this@DiaryRecordingService.stopSelfResult(startId)"))
         assertTrue(source.contains("ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE"))
     }
 
     @Test
-    fun persistenceAdapterKeepsRepositoryWritesBehindTheActor() {
-        val source = source("DiaryRecordingService.kt")
+    fun persistenceAdapterLivesBehindTheProcessRuntime() {
+        val service = source("DiaryRecordingService.kt")
+        val persistence = source("DiaryRecordingRepositoryPersistence.kt")
 
-        assertTrue(source.contains("object : DiaryRecordingPersistence"))
-        assertTrue(source.contains("attachmentRepository.beginRecording("))
-        assertTrue(source.contains("attachmentRepository.completeRecording("))
-        assertTrue(source.contains("attachmentRepository.failRecording("))
+        assertFalse(service.contains("DiaryAttachmentRepository"))
+        assertTrue(persistence.contains(": DiaryRecordingPersistence"))
+        assertTrue(persistence.contains("attachmentRepository.beginRecording("))
+        assertTrue(persistence.contains("attachmentRepository.completeRecording("))
+        assertTrue(persistence.contains("attachmentRepository.failRecording("))
     }
 
     @Test

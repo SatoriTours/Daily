@@ -330,7 +330,7 @@ class DiaryRecordingActorTest {
 
         fixture.actor.submit(
             DiaryRecordingResult.RecorderStarted(
-                sessionToken = 1,
+                sessionToken = "1",
             ),
         )
         runCurrent()
@@ -395,14 +395,14 @@ class DiaryRecordingActorTest {
             store = store,
             recorder = recorder,
             persistence = persistence,
-            outputFile = { _, _ -> output },
+            outputFile = { _, _, _ -> output },
             host = host,
             scope = backgroundScope,
             actorDispatcher = StandardTestDispatcher(testScheduler),
             recorderDispatcher = recorderDispatcher,
             ioDispatcher = StandardTestDispatcher(testScheduler),
-            nowMs = { 1_000 },
-            nextSessionToken = { ++nextToken },
+            monotonicNowMs = { 1_000 },
+            nextSessionToken = { (++nextToken).toString() },
             retryDelaysMs = listOf(1_000, 2_000, 4_000),
             tickerIntervalMs = 1_000_000,
         )
@@ -461,10 +461,12 @@ class DiaryRecordingActorTest {
             output.parentFile?.mkdirs()
             output.writeBytes(byteArrayOf(1, 2, 3))
         }
+        private var sessionToken: String? = null
         private var output: File? = null
 
-        override fun start(outputFile: File) {
+        override fun start(sessionToken: String, outputFile: File) {
             record("start")
+            this.sessionToken = sessionToken
             output = outputFile
             onStart(outputFile)
         }
@@ -479,13 +481,17 @@ class DiaryRecordingActorTest {
 
         override fun stop(): DiaryRecordingOutput {
             record("stop")
-            return DiaryRecordingOutput(checkNotNull(output), durationMs = 3_000)
+            return DiaryRecordingOutput(
+                checkNotNull(sessionToken),
+                checkNotNull(output),
+                durationMs = 3_000,
+            )
         }
 
         override fun releasePreservingOutput(): DiaryRecordingOutput? {
             record("release")
             return output?.takeIf { it.isFile && it.length() > 0 }
-                ?.let { DiaryRecordingOutput(it, durationMs = 3_000) }
+                ?.let { DiaryRecordingOutput(checkNotNull(sessionToken), it, durationMs = 3_000) }
         }
 
         private fun record(operation: String) {
@@ -560,12 +566,10 @@ class DiaryRecordingActorTest {
             states += state
         }
 
-        override fun stopForeground() {
+        override fun finishService(startId: Int): Boolean {
             stopForegroundCalls++
-        }
-
-        override fun stopService() {
             stopServiceCalls++
+            return true
         }
     }
 

@@ -3,7 +3,7 @@ package com.dailysatori.core.recording
 import java.io.File
 
 interface DiaryRecorder {
-    fun start(outputFile: File)
+    fun start(sessionToken: String, outputFile: File)
     fun pause()
     fun resume()
     fun stop(): DiaryRecordingOutput
@@ -11,6 +11,7 @@ interface DiaryRecorder {
 }
 
 data class DiaryRecordingOutput(
+    val sessionToken: String,
     val file: File,
     val durationMs: Long,
 )

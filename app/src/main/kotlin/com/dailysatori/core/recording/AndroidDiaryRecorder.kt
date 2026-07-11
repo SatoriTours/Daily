@@ -11,11 +11,12 @@ class AndroidDiaryRecorder(
     private val context: Context,
 ) : DiaryRecorder {
     private var mediaRecorder: MediaRecorder? = null
+    private var sessionToken: String? = null
     private var outputFile: File? = null
     private var started = false
 
     @Synchronized
-    override fun start(outputFile: File) {
+    override fun start(sessionToken: String, outputFile: File) {
         if (mediaRecorder != null) throw DiaryRecorderException(DiaryRecordingErrorCode.RECORDER_BUSY)
         if (!outputFile.parentFile.orEmpty().exists() && !outputFile.parentFile.orEmpty().mkdirs()) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
@@ -24,6 +25,7 @@ class AndroidDiaryRecorder(
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
         val recorder = createMediaRecorder()
+        this.sessionToken = sessionToken
         this.outputFile = outputFile
         mediaRecorder = recorder
         try {
@@ -60,6 +62,7 @@ class AndroidDiaryRecorder(
 
     @Synchronized
     override fun stop(): DiaryRecordingOutput {
+        val token = sessionToken ?: throw DiaryRecorderException(DiaryRecordingErrorCode.INVALID_STATE)
         val file = outputFile ?: throw DiaryRecorderException(DiaryRecordingErrorCode.INVALID_STATE)
         val recorder = mediaRecorder ?: throw DiaryRecorderException(DiaryRecordingErrorCode.INVALID_STATE)
         try {
@@ -69,18 +72,21 @@ class AndroidDiaryRecorder(
         } finally {
             releaseRecorder()
         }
+        sessionToken = null
         outputFile = null
-        return DiaryRecordingOutput(file, probeDuration(file))
+        return DiaryRecordingOutput(token, file, probeDuration(file))
     }
 
     @Synchronized
     override fun releasePreservingOutput(): DiaryRecordingOutput? {
+        val token = sessionToken
         val file = outputFile
         if (started) runCatching { mediaRecorder?.stop() }
         releaseRecorder()
+        sessionToken = null
         outputFile = null
-        return file?.takeIf { it.isFile && it.length() > 0 }?.let {
-            DiaryRecordingOutput(it, probeDuration(it))
+        return file?.takeIf { token != null && it.isFile && it.length() > 0 }?.let {
+            DiaryRecordingOutput(checkNotNull(token), it, probeDuration(it))
         }
     }
 

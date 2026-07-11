@@ -9,76 +9,21 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.dailysatori.data.repository.DiaryAttachmentRepository
-import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
 import org.koin.android.ext.android.inject
 
 class DiaryRecordingService : Service() {
-    private val store: DiaryRecordingStore by inject()
-    private val recorder: DiaryRecorder by inject()
-    private val attachmentRepository: DiaryAttachmentRepository by inject()
-    private val actorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val sessionTokens = AtomicLong()
+    private val runtime: DiaryRecordingRuntime by inject()
 
     private lateinit var notification: DiaryRecordingNotification
-    private lateinit var actor: DiaryRecordingActor
+    private lateinit var hostAttachment: DiaryRecordingHostAttachment
     @Volatile private var androidResourcesOpen = true
     @Volatile private var foregroundStarted = false
 
     override fun onCreate() {
         super.onCreate()
         notification = DiaryRecordingNotification(this)
-        val recorderDispatcher = Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "diary-recorder")
-        }.asCoroutineDispatcher()
-        actor = DiaryRecordingActor(
-            store = store,
-            recorder = recorder,
-            persistence = object : DiaryRecordingPersistence {
-                override suspend fun begin(diaryId: Long, attachmentId: Long) {
-                    attachmentRepository.beginRecording(diaryId = diaryId, id = attachmentId)
-                }
-
-                override suspend fun complete(
-                    diaryId: Long,
-                    attachmentId: Long,
-                    output: DiaryRecordingOutput,
-                ) {
-                    attachmentRepository.completeRecording(
-                        diaryId = diaryId,
-                        id = attachmentId,
-                        localPath = output.file.absolutePath,
-                        sizeBytes = output.file.length(),
-                        durationMs = output.durationMs,
-                    )
-                }
-
-                override suspend fun fail(
-                    diaryId: Long,
-                    attachmentId: Long,
-                    output: DiaryRecordingOutput?,
-                    errorCode: String,
-                ) {
-                    attachmentRepository.failRecording(
-                        diaryId = diaryId,
-                        id = attachmentId,
-                        localPath = output?.file?.absolutePath,
-                        sizeBytes = output?.file?.length() ?: 0,
-                        durationMs = output?.durationMs ?: 0,
-                        errorCode = errorCode,
-                    )
-                }
-            },
-            outputFile = { diaryId, attachmentId ->
-                File(filesDir, "DailySatori/diary/audio/$diaryId/$attachmentId.m4a")
-            },
-            host = object : DiaryRecordingActorHost {
+        hostAttachment = runtime.attachHost(
+            object : DiaryRecordingAndroidHost {
                 override fun enterForeground(state: DiaryRecordingState): String? =
                     this@DiaryRecordingService.enterForeground(state)
 
@@ -93,16 +38,10 @@ class DiaryRecordingService : Service() {
                     this@DiaryRecordingService.stopRecordingForeground()
                 }
 
-                override fun stopService() {
-                    if (androidResourcesOpen) stopSelf()
+                override fun stopSelfResult(startId: Int): Boolean {
+                    return androidResourcesOpen && this@DiaryRecordingService.stopSelfResult(startId)
                 }
             },
-            scope = actorScope,
-            actorDispatcher = Dispatchers.Default,
-            recorderDispatcher = recorderDispatcher,
-            ioDispatcher = Dispatchers.IO,
-            nowMs = System::currentTimeMillis,
-            nextSessionToken = sessionTokens::incrementAndGet,
         )
     }
 
@@ -112,15 +51,24 @@ class DiaryRecordingService : Service() {
                 val diaryId = intent.getLongExtra(EXTRA_DIARY_ID, 0)
                 val attachmentId = intent.getLongExtra(EXTRA_ATTACHMENT_ID, 0)
                 if (diaryId > 0 && attachmentId > 0) {
-                    actor.submit(DiaryRecordingCommand.Start(diaryId, attachmentId))
+                    runtime.submit(
+                        hostAttachment,
+                        startId,
+                        DiaryRecordingCommand.Start(diaryId, attachmentId),
+                    )
                 } else {
                     Log.w(TAG, "Rejected invalid recording start")
+                    stopSelfResult(startId)
                 }
             }
-            ACTION_PAUSE -> actor.submit(DiaryRecordingCommand.Pause)
-            ACTION_RESUME -> actor.submit(DiaryRecordingCommand.Resume)
-            ACTION_STOP -> actor.submit(DiaryRecordingCommand.Stop)
-            ACTION_RETRY_PERSIST -> actor.submit(DiaryRecordingCommand.RetryPersistence)
+            ACTION_PAUSE -> runtime.submit(hostAttachment, startId, DiaryRecordingCommand.Pause)
+            ACTION_RESUME -> runtime.submit(hostAttachment, startId, DiaryRecordingCommand.Resume)
+            ACTION_STOP -> runtime.submit(hostAttachment, startId, DiaryRecordingCommand.Stop)
+            ACTION_RETRY_PERSIST -> runtime.submit(
+                hostAttachment,
+                startId,
+                DiaryRecordingCommand.RetryPersistence,
+            )
             ACTION_OPEN -> Unit
         }
         return START_NOT_STICKY
@@ -129,7 +77,7 @@ class DiaryRecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        actor.submit(DiaryRecordingCommand.Shutdown)
+        runtime.detachHost(hostAttachment)
         androidResourcesOpen = false
         stopRecordingForeground()
         super.onDestroy()
