@@ -48,7 +48,7 @@ class DiaryAttachmentSchemaTest {
     fun attachmentDeletionDelegatesOwnershipChecksToTheFileManager() {
         val repository = File("src/commonMain/kotlin/com/dailysatori/data/repository/DiaryAttachmentRepository.kt").readText()
 
-        assertTrue(repository.contains("manager.isAppDataPath(path)"))
+        assertTrue(repository.contains("fileManager?.deleteAppOwnedFile(path)"))
         assertFalse(repository.contains("path.startsWith(manager.getAppDataDir())"))
     }
 

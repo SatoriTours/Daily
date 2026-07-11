@@ -4,6 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
+import com.dailysatori.platform.FileManager
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 class DiaryRepository(
     private val db: DailySatoriDatabase,
     private val driver: SqlDriver,
+    private val fileManager: FileManager? = null,
 ) {
     private val q get() = db.dailySatoriQueries
 
@@ -72,7 +74,14 @@ class DiaryRepository(
         q.updateDiary(content, tags, mood, images, now, id)
     }
 
-    fun delete(id: Long) = q.deleteDiary(id)
+    fun delete(id: Long) {
+        val attachmentPaths = q.transactionWithResult {
+            val paths = q.selectAttachmentsForDiary(id).executeAsList().map { it.local_path }
+            q.deleteDiary(id)
+            paths
+        }
+        attachmentPaths.forEach { path -> fileManager?.deleteAppOwnedFile(path) }
+    }
 
     fun count(): Long = q.diaryCount().executeAsOne()
 

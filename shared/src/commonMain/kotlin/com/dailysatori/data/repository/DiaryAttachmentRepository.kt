@@ -114,10 +114,7 @@ class DiaryAttachmentRepository(
     }
 
     private fun deleteAppOwnedFile(path: String?) {
-        val manager = fileManager ?: return
-        if (path != null && manager.isAppDataPath(path)) {
-            manager.deleteFile(path)
-        }
+        fileManager?.deleteAppOwnedFile(path)
     }
 
     private fun lastInsertRowId(): Long =

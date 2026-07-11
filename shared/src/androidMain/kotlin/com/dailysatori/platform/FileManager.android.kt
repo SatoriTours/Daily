@@ -44,6 +44,8 @@ actual class FileManager actual constructor() {
 
     actual fun readFile(path: String): ByteArray = File(path).readBytes()
     actual fun deleteFile(path: String): Boolean = File(path).delete()
+    actual fun deleteAppOwnedFile(path: String?): Boolean =
+        deleteAppOwnedFileIfAllowed(path, ::isAppDataPath, ::deleteFile)
     actual fun exists(path: String): Boolean = File(path).exists()
     actual fun listFiles(path: String): List<String> =
         File(path).listFiles()?.map { it.absolutePath } ?: emptyList()
@@ -285,3 +287,11 @@ internal fun isPathWithinDirectory(root: String, candidate: String): Boolean = r
     val rootPrefix = if (rootPath.endsWith(separator)) rootPath else "$rootPath$separator"
     candidatePath.startsWith(rootPrefix)
 }.getOrDefault(false)
+
+internal fun deleteAppOwnedFileIfAllowed(
+    path: String?,
+    isAppDataPath: (String) -> Boolean,
+    deleteFile: (String) -> Boolean,
+): Boolean {
+    return path != null && isAppDataPath(path) && deleteFile(path)
+}

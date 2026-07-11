@@ -89,7 +89,7 @@ val sharedModule: Module = module {
     single { BookViewpointRepository(get()) }
     single { ChatConversationRepository(get()) }
     single { DiaryAttachmentRepository(get(), get(), get()) }
-    single { DiaryRepository(get(), get()) }
+    single { DiaryRepository(get(), get(), get()) }
     single { DiaryMonthSummaryRepository(get()) }
     single { ExternalFavoriteSourceRepository(get(), get()) }
     single { ExternalFavoriteItemRepository(get()) }
