@@ -42,4 +42,11 @@ sealed interface DiaryRecordingState {
         val errorCode: String,
         val localPath: String? = null,
     ) : DiaryRecordingState
+
+    data class PersistenceFailed(
+        override val diaryId: Long,
+        override val attachmentId: Long,
+        override val elapsedMs: Long,
+        val localPath: String? = null,
+    ) : DiaryRecordingState
 }

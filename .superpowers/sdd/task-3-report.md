@@ -115,3 +115,57 @@ Implemented the recording state machine, Android `MediaRecorder` abstraction, mi
 ### Remaining Device Risk
 
 - JVM tests do not validate OEM `MediaRecorder` output timing, notification `PendingIntent` delivery, actual API 26-30 background-start exceptions, Android 14+ while-in-use microphone enforcement, or process death after retry exhaustion. Exercise API 26/30/31/34+ devices before release.
+
+## Actor Refactor: Serialized Recording Sessions
+
+### Status
+
+Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `DiaryRecordingActor`. The actor owns session tokens, diary and attachment identity, state transitions, output validation, recorder commands and tokenized results, terminal persistence, retry cycles, terminal handoff, and shutdown. `DiaryRecordingService` now parses intents, submits typed commands, and implements Android foreground/notification effects only.
+
+### RED
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest'`
+  - Initial compile failed because `DiaryRecordingActor`, typed commands/results, persistence boundary, and actor host did not exist.
+  - After adding the minimum API shell, all 13 executable behavior tests failed. The failing groups covered FIFO terminal handoff followed by queued Start; Starting Stop with and without usable output; 1s/2s/4s automatic retry and exhausted explicit retry; deletion/truncation during retry; stale same-name output removal/rejection; non-blocking Shutdown with a blocked recorder; stale token result rejection; same-session idempotency/different-session Busy; and serialized pause/resume/stop.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest.explicitPersistenceRetryRunsAnotherBoundedCycleAndKeepsForeground'`
+  - Compile failed because the explicit recoverable `DiaryRecordingState.PersistenceFailed` state did not exist.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingServiceContractTest'`
+  - Failed 6 of 9 contracts because the service still owned channels, mutexes, active IDs, recorder calls, blocking destroy cleanup, persistence retry state, and notification Stop behavior.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest.commandQueuedAfterShutdownCannotStartANewSession'`
+  - Failed because a buffered Start could be drained after Shutdown closed the channel.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest.stopInPersistenceFailureDiscardsCurrentOutputAndPersistsCancellation'`
+  - Failed because the initial Discard command persisted cancellation but left the current-session output file orphaned.
+
+### GREEN
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest'`
+  - Passed: 15 actor behavior tests, including queued-after-Shutdown and persistence-failure Discard regressions, 0 failures and 0 errors.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingServiceContractTest' --tests '*DiaryRecordingLaunchTest'`
+  - Passed: 10 service/notification/launch boundary tests, 0 failures and 0 errors.
+- `./gradlew :shared:testDebugUnitTest`
+  - Passed: 434 tests, 0 failures and 0 errors.
+- `./gradlew :app:testDebugUnitTest`
+  - Passed: 712 tests, 0 failures and 0 errors.
+- `./gradlew :app:compileDebugKotlin`
+  - Passed.
+- `git diff --check`
+  - Passed.
+
+### Files
+
+- Added `app/src/main/kotlin/com/dailysatori/core/recording/DiaryRecordingActor.kt`.
+- Added `app/src/main/kotlin/com/dailysatori/core/recording/DiaryRecordingLaunch.kt`.
+- Added `app/src/test/kotlin/com/dailysatori/core/recording/DiaryRecordingActorTest.kt`.
+- Added `app/src/test/kotlin/com/dailysatori/core/recording/DiaryRecordingLaunchTest.kt`.
+- Refactored `DiaryRecordingService.kt`, `DiaryRecordingStore.kt`, `DiaryRecordingState.kt`, `DiaryRecordingNotification.kt`, recording strings, and `DiaryRecordingServiceContractTest.kt`.
+- Removed `DiaryRecordingRecoveryCoordinator.kt`, `DiaryRecordingSessionCoordinator.kt`, and their superseded tests; removed the old store transition test because actor behavior tests now exercise the sole state owner.
+- Updated `.superpowers/sdd/task-3-report.md` with this evidence.
+
+### Commit
+
+- `refactor: serialize diary recording sessions`
+
+### Remaining Device Risk
+
+- JVM scheduling tests prove actor FIFO behavior and main-facing non-blocking Shutdown, but cannot force an OEM `MediaRecorder` implementation to return from a permanently blocked call. The dedicated executor and actor remain retained until that call returns and queued release can run.
+- Device coverage is still required for actual API 26-30 background-start denial, API 31+ foreground-start denial, Android 14+ microphone while-in-use restrictions, notification Retry/Discard delivery, file timestamp behavior on OEM storage, and playable media finalization after interrupted startup.

@@ -51,18 +51,23 @@ class DiaryRecordingNotification(
             )
             else -> Unit
         }
-        if (state.isActive()) {
+        if (state.isControllableRecording()) {
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 context.getString(R.string.diary_recording_action_stop),
                 serviceIntent(DiaryRecordingService.ACTION_STOP),
             )
         }
-        if (state is DiaryRecordingState.Failed && state.errorCode == DiaryRecordingErrorCode.PERSIST_FAILED) {
+        if (state is DiaryRecordingState.PersistenceFailed) {
             builder.addAction(
                 android.R.drawable.ic_popup_sync,
                 context.getString(R.string.diary_recording_action_retry),
                 serviceIntent(DiaryRecordingService.ACTION_RETRY_PERSIST),
+            )
+            builder.addAction(
+                android.R.drawable.ic_menu_delete,
+                context.getString(R.string.diary_recording_action_discard),
+                serviceIntent(DiaryRecordingService.ACTION_STOP),
             )
         }
         builder.addAction(
@@ -102,6 +107,7 @@ class DiaryRecordingNotification(
         is DiaryRecordingState.Paused -> context.getString(R.string.diary_recording_paused)
         is DiaryRecordingState.Stopping -> context.getString(R.string.diary_recording_stopping)
         is DiaryRecordingState.Failed -> context.getString(R.string.diary_recording_failed)
+        is DiaryRecordingState.PersistenceFailed -> context.getString(R.string.diary_recording_failed)
         DiaryRecordingState.Idle -> context.getString(R.string.diary_recording_idle)
     }
 
@@ -115,7 +121,12 @@ class DiaryRecordingNotification(
             this is DiaryRecordingState.Recording ||
             this is DiaryRecordingState.Paused ||
             this is DiaryRecordingState.Stopping ||
-            (this is DiaryRecordingState.Failed && errorCode == DiaryRecordingErrorCode.PERSIST_FAILED)
+            this is DiaryRecordingState.PersistenceFailed
+
+    private fun DiaryRecordingState.isControllableRecording(): Boolean =
+        this is DiaryRecordingState.Starting ||
+            this is DiaryRecordingState.Recording ||
+            this is DiaryRecordingState.Paused
 
     companion object {
         const val NOTIFICATION_ID = 2_003
