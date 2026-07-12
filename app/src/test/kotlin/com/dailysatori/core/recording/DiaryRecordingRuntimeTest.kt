@@ -17,6 +17,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -44,6 +45,134 @@ class DiaryRecordingRuntimeTest {
                 foregroundFailure = SecurityException("notifications denied")
             },
             expectedErrorCode = DiaryRecordingErrorCode.FOREGROUND_SECURITY_DENIED,
+        )
+    }
+
+    @Test
+    fun rejectedStartPersistenceRetriesTwiceThenFinishesWithoutStartingRecorder() = runTest {
+        val fixture = rejectedStartFixture(failuresBeforeSuccess = 2)
+
+        val result = fixture.manager.attachAndSubmit(
+            fixture.host,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        runCurrent()
+        assertEquals(1, fixture.persistence.failures.size)
+        assertTrue(fixture.host.states.last() is DiaryRecordingState.Starting)
+
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(2, fixture.persistence.failures.size)
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, result.await())
+        assertEquals(3, fixture.persistence.failures.size)
+        assertEquals(listOf(2), fixture.host.stopSelfResultCalls)
+        assertEquals(0, fixture.runtimeCreations())
+    }
+
+    @Test
+    fun exhaustedRejectedStartKeepsCleanupOwnedUntilExplicitRetrySucceeds() = runTest {
+        val fixture = rejectedStartFixture(failuresBeforeSuccess = 4)
+
+        val rejected = fixture.manager.attachAndSubmit(
+            fixture.host,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        advanceTimeBy(7_000)
+        runCurrent()
+
+        assertFalse(rejected.isCompleted)
+        assertEquals(4, fixture.persistence.failures.size)
+        assertTrue(fixture.host.states.last() is DiaryRecordingState.PersistenceFailed)
+        assertTrue(fixture.host.stopSelfResultCalls.isEmpty())
+
+        val retry = fixture.manager.submit(DiaryRecordingCommand.RetryPersistence, 3)
+        runCurrent()
+
+        assertEquals(DiaryRecordingCommandResult.Accepted, retry.await())
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, rejected.await())
+        assertEquals(5, fixture.persistence.failures.size)
+        assertEquals(listOf(3), fixture.host.stopSelfResultCalls)
+        assertEquals(0, fixture.runtimeCreations())
+    }
+
+    @Test
+    fun rejectedStartFinishRetriesWithLatestSameHostStartId() = runTest {
+        val fixture = rejectedStartFixture(failuresBeforeSuccess = 0)
+        lateinit var laterStart: Deferred<DiaryRecordingCommandResult>
+        fixture.host.onStopSelfResult = { startId ->
+            if (startId == 2) {
+                fixture.host.latestStartId = 3
+                laterStart = fixture.manager.attachAndSubmit(
+                    fixture.host,
+                    3,
+                    DiaryRecordingCommand.Start(22, 202),
+                )
+                false
+            } else {
+                true
+            }
+        }
+
+        val rejected = fixture.manager.attachAndSubmit(
+            fixture.host,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        runCurrent()
+
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, rejected.await())
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, laterStart.await())
+        assertEquals(listOf(2, 3), fixture.host.stopSelfResultCalls)
+        assertEquals(1, fixture.persistence.failures.size)
+        assertEquals(0, fixture.runtimeCreations())
+    }
+
+    @Test
+    fun stopAbandonsRejectedPersistenceAndReleasesForegroundOwnership() = runTest {
+        val fixture = rejectedStartFixture(failuresBeforeSuccess = Int.MAX_VALUE)
+        val rejected = fixture.manager.attachAndSubmit(
+            fixture.host,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        runCurrent()
+
+        val stop = fixture.manager.submit(DiaryRecordingCommand.Stop, 3)
+        runCurrent()
+
+        assertEquals(DiaryRecordingCommandResult.Accepted, stop.await())
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, rejected.await())
+        assertEquals(listOf(3), fixture.host.stopSelfResultCalls)
+        assertEquals(1, fixture.host.stopForegroundCalls)
+        assertEquals(
+            DiaryRecordingCommandResult.Ignored,
+            fixture.manager.submit(DiaryRecordingCommand.RetryPersistence).await(),
+        )
+    }
+
+    @Test
+    fun detachedRejectedHostDoesNotPermanentlyOwnManager() = runTest {
+        val fixture = rejectedStartFixture(failuresBeforeSuccess = Int.MAX_VALUE)
+        val rejected = fixture.manager.attachAndSubmit(
+            fixture.host,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        runCurrent()
+
+        fixture.manager.detachHost(fixture.host)
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, rejected.await())
+        assertEquals(
+            DiaryRecordingCommandResult.Ignored,
+            fixture.manager.submit(DiaryRecordingCommand.RetryPersistence).await(),
         )
     }
 
@@ -924,9 +1053,9 @@ class DiaryRecordingRuntimeTest {
             2,
             DiaryRecordingCommand.Start(22, 202),
         )
+        runCurrent()
         assertEquals(DiaryRecordingCommandResult.Ignored, manager.submit(DiaryRecordingCommand.Pause).await())
         assertEquals(DiaryRecordingCommandResult.Ignored, manager.submit(DiaryRecordingCommand.Stop).await())
-        runCurrent()
 
         assertEquals(DiaryRecordingCommandResult.ForegroundRejected, failedStart.await())
         assertEquals(1, recorders.size)
@@ -944,6 +1073,27 @@ class DiaryRecordingRuntimeTest {
             Thread.sleep(5)
         }
         assertEquals(1, recorders.size)
+    }
+
+    private fun TestScope.rejectedStartFixture(failuresBeforeSuccess: Int): RejectedStartFixture {
+        val persistence = FakePersistence().apply {
+            remainingFailWrites = failuresBeforeSuccess
+        }
+        val host = FakeAndroidHost().apply {
+            foregroundError = DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED
+        }
+        var runtimeCreations = 0
+        val manager = DiaryRecordingRuntimeManager(
+            rejectionScope = backgroundScope,
+            rejectStart = { start, errorCode ->
+                persistence.fail(start.diaryId, start.attachmentId, null, errorCode)
+            },
+            rejectionRetryDelaysMs = listOf(1_000, 2_000, 4_000),
+        ) {
+            runtimeCreations++
+            error("Rejected cleanup must not create a recording runtime")
+        }
+        return RejectedStartFixture(manager, persistence, host) { runtimeCreations }
     }
 
     private suspend fun TestScope.withRuntime(
@@ -1056,6 +1206,7 @@ class DiaryRecordingRuntimeTest {
         val completions = mutableListOf<PersistenceCompletion>()
         val failures = mutableListOf<PersistenceFailure>()
         var failWrites = false
+        var remainingFailWrites = 0
         var beginThrowable: Throwable? = null
         var onComplete: suspend (PersistenceCompletion) -> Unit = {}
 
@@ -1081,9 +1232,16 @@ class DiaryRecordingRuntimeTest {
             errorCode: String,
         ) {
             failures += PersistenceFailure(diaryId, attachmentId, output, errorCode)
-            if (failWrites) error("database locked")
+            if (failWrites || remainingFailWrites-- > 0) error("database locked")
         }
     }
+
+    private data class RejectedStartFixture(
+        val manager: DiaryRecordingRuntimeManager,
+        val persistence: FakePersistence,
+        val host: FakeAndroidHost,
+        val runtimeCreations: () -> Int,
+    )
 
     private class FakeAndroidHost : DiaryRecordingAndroidHost {
         val states = mutableListOf<DiaryRecordingState>()
