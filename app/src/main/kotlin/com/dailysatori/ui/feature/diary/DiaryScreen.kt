@@ -1,5 +1,10 @@
 package com.dailysatori.ui.feature.diary
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -76,6 +81,7 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
 import com.dailysatori.core.recording.DiaryRecordingState
@@ -92,6 +98,38 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var showCaptureMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val recordingController = remember(context) { DiaryRecordingController(context) }
+    val startVoiceDiary: () -> Unit = {
+        viewModel.setError(null)
+        viewModel.createVoiceDiary { diaryId, attachmentId ->
+            recordingController.start(diaryId, attachmentId)
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val microphoneGranted = grants[Manifest.permission.RECORD_AUDIO] == true ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val notificationGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            grants[Manifest.permission.POST_NOTIFICATIONS] == true ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        if (microphoneGranted && notificationGranted) startVoiceDiary()
+        else viewModel.setError("需要麦克风和通知权限才能开始语音日记")
+    }
+    val requestVoicePermissions: () -> Unit = {
+        val missingPermissions = buildList {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                add(Manifest.permission.RECORD_AUDIO)
+            }
+            if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        if (missingPermissions.isEmpty()) startVoiceDiary()
+        else permissionLauncher.launch(missingPermissions.toTypedArray())
+    }
     val diaryListState = rememberLazyListState()
     val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
 
@@ -124,11 +162,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     menuExpanded = showCaptureMenu,
                     onToggleMenu = { showCaptureMenu = !showCaptureMenu },
                     onDismissMenu = { showCaptureMenu = false },
-                    onVoice = {
-                        viewModel.createVoiceDiary { diaryId, attachmentId ->
-                            recordingController.start(diaryId, attachmentId)
-                        }
-                    },
+                    onVoice = requestVoicePermissions,
                     onText = { editingDiary = null; showEditor = true },
                     onCapture = {},
                     onFile = {},
@@ -149,6 +183,14 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                         showEditor = editingDiary != null
                     }
                 }
+            }
+            state.error?.let { error ->
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+                )
             }
             if (state.isSearchVisible) {
                 SearchBar(

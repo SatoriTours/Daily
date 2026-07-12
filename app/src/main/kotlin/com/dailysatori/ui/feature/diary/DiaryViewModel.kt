@@ -171,6 +171,10 @@ class DiaryViewModel(
         }
     }
 
+    fun setError(message: String?) {
+        _state.update { it.copy(error = message) }
+    }
+
     fun saveDiary(
         content: String,
         tags: String? = null,

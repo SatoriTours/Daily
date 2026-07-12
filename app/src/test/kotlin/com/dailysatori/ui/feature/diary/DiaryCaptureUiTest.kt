@@ -34,5 +34,17 @@ class DiaryCaptureUiTest {
         assertTrue(!screen.contains("写点什么"))
     }
 
+    @Test
+    fun voiceCaptureRequestsRuntimePermissionsBeforeCreatingDiary() {
+        val screen = source("DiaryScreen.kt")
+
+        assertTrue(screen.contains("ActivityResultContracts.RequestMultiplePermissions"))
+        assertTrue(screen.contains("Manifest.permission.RECORD_AUDIO"))
+        assertTrue(screen.contains("Manifest.permission.POST_NOTIFICATIONS"))
+        assertTrue(screen.contains("permissionLauncher.launch(missingPermissions.toTypedArray())"))
+        assertTrue(screen.contains("if (missingPermissions.isEmpty()) startVoiceDiary()"))
+        assertTrue(screen.contains("state.error?.let"))
+    }
+
     private fun source(name: String) = File("src/main/kotlin/com/dailysatori/ui/feature/diary/$name").readText()
 }
