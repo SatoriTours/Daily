@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.core.util.diaryDateCountLabel
@@ -77,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
+import com.dailysatori.core.recording.DiaryRecordingState
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +89,9 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
+    var showCaptureMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val recordingController = remember(context) { DiaryRecordingController(context) }
     val diaryListState = rememberLazyListState()
     val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
 
@@ -115,7 +120,19 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
                 modifier = Modifier.padding(bottom = 88.dp).size(48.dp),
             ) {
-                MiniAddDiaryButton { editingDiary = null; showEditor = true }
+                MiniAddDiaryButton(
+                    menuExpanded = showCaptureMenu,
+                    onToggleMenu = { showCaptureMenu = !showCaptureMenu },
+                    onDismissMenu = { showCaptureMenu = false },
+                    onVoice = {
+                        viewModel.createVoiceDiary { diaryId, attachmentId ->
+                            recordingController.start(diaryId, attachmentId)
+                        }
+                    },
+                    onText = { editingDiary = null; showEditor = true },
+                    onCapture = {},
+                    onFile = {},
+                )
             }
         },
     ) { scaffoldModifier ->
@@ -125,6 +142,14 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 .fillMaxSize()
                 .padding(horizontal = Spacing.m),
         ) {
+            if (state.recordingState !is DiaryRecordingState.Idle) {
+                RecordingStatusStrip(state.recordingState) {
+                    state.recordingState.diaryId?.let { id ->
+                        editingDiary = state.diaries.firstOrNull { it.id == id }
+                        showEditor = editingDiary != null
+                    }
+                }
+            }
             if (state.isSearchVisible) {
                 SearchBar(
                     query = state.searchQuery,
@@ -172,6 +197,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                             }
                             DiaryCard(
                                 diary = diary,
+                                attachments = state.attachmentsByDiary[diary.id].orEmpty(),
                                 onEdit = {
                                     editingDiary = diary
                                     showEditor = true
@@ -183,8 +209,26 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 }
             }
         }
+            if (state.recordingState !is DiaryRecordingState.Idle) {
+                DiaryRecordingControls(
+                    state = state.recordingState,
+                    onPauseResume = {
+                        recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused)
+                    },
+                    onStop = recordingController::stop,
+                    onOpenDiary = {
+                        state.recordingState.diaryId?.let { id ->
+                            editingDiary = state.diaries.firstOrNull { it.id == id }
+                            showEditor = editingDiary != null
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp),
+                )
+            }
         }
     }
+
+    BackHandler(enabled = showCaptureMenu) { showCaptureMenu = false }
 
     if (showTagFilter) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -245,12 +289,20 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
 }
 
 @Composable
-private fun MiniAddDiaryButton(onClick: () -> Unit) {
+private fun MiniAddDiaryButton(
+    menuExpanded: Boolean,
+    onToggleMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    onVoice: () -> Unit,
+    onText: () -> Unit,
+    onCapture: () -> Unit,
+    onFile: () -> Unit,
+) {
     Box(
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClick = onToggleMenu),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
@@ -264,6 +316,14 @@ private fun MiniAddDiaryButton(onClick: () -> Unit) {
                 Icon(Icons.Default.Add, contentDescription = "新建日记", modifier = Modifier.size(21.dp))
             }
         }
+        DiaryCaptureMenu(
+            expanded = menuExpanded,
+            onDismissRequest = onDismissMenu,
+            onVoice = onVoice,
+            onText = onText,
+            onCapture = onCapture,
+            onFile = onFile,
+        )
     }
 }
 

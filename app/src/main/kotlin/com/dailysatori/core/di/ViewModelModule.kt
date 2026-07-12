@@ -137,6 +137,8 @@ val viewModelModule: Module = module {
             memoryExtractor = get<MemoryExtractor>(),
             monthSummaryRepo = get(),
             monthSummaryService = get(),
+            attachmentRepo = get(),
+            recordingStore = get(),
         )
     }
     viewModel {

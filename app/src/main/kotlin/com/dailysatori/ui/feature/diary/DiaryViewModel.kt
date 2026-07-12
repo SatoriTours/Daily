@@ -4,10 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.util.diaryTags
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
+import com.dailysatori.data.repository.DiaryAttachmentDraft
+import com.dailysatori.data.repository.DiaryAttachmentKind
+import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.core.recording.DiaryRecordingState
+import com.dailysatori.core.recording.DiaryRecordingStore
 import com.dailysatori.service.memory.MemoryExtractor
+import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_attachment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +33,8 @@ data class DiaryState(
     val isSearchVisible: Boolean = false,
     val availableTags: List<String> = emptyList(),
     val monthSummaries: Map<String, String> = emptyMap(),
+    val attachmentsByDiary: Map<Long, List<Diary_attachment>> = emptyMap(),
+    val recordingState: DiaryRecordingState = DiaryRecordingState.Idle,
     val error: String? = null,
 )
 
@@ -34,18 +43,50 @@ class DiaryViewModel(
     private val memoryExtractor: MemoryExtractor,
     private val monthSummaryRepo: DiaryMonthSummaryRepository,
     private val monthSummaryService: DiaryMonthSummaryService,
+    private val attachmentRepo: DiaryAttachmentRepository? = null,
+    private val recordingStore: DiaryRecordingStore? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
+    private val attachmentJobs = mutableMapOf<Long, Job>()
 
     init {
         loadDiaries()
         observeMonthSummaries()
+        observeRecording()
         viewModelScope.launch(Dispatchers.IO) {
             refreshAvailableTags()
             monthSummaryService.refreshRecentMonthsIfNeeded()
+        }
+    }
+
+    private fun observeRecording() {
+        val store = recordingStore ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            store.state.collect { recordingState ->
+                _state.update { it.copy(recordingState = recordingState) }
+            }
+        }
+    }
+
+    private fun observeAttachments(diaries: List<Diary>) {
+        val repository = attachmentRepo ?: return
+        val diaryIds = diaries.mapTo(mutableSetOf()) { it.id }
+        attachmentJobs.keys.filterNot(diaryIds::contains).forEach { id ->
+            attachmentJobs.remove(id)?.cancel()
+            _state.update { it.copy(attachmentsByDiary = it.attachmentsByDiary - id) }
+        }
+        diaries.forEach { diary ->
+            if (attachmentJobs.containsKey(diary.id)) return@forEach
+            attachmentJobs[diary.id] = viewModelScope.launch(Dispatchers.IO) {
+                repository.observeForDiary(diary.id).collect { attachments ->
+                    _state.update {
+                        it.copy(attachmentsByDiary = it.attachmentsByDiary + (diary.id to attachments))
+                    }
+                }
+            }
         }
     }
 
@@ -83,6 +124,31 @@ class DiaryViewModel(
                     diaries
                 }
                 _state.update { it.copy(diaries = filtered, isLoading = false) }
+                observeAttachments(filtered)
+            }
+        }
+    }
+
+    fun createVoiceDiary(onCreated: (diaryId: Long, attachmentId: Long) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            var createdDiaryId: Long? = null
+            try {
+                val repository = checkNotNull(attachmentRepo) { "Diary attachments are unavailable" }
+                val diaryId = diaryRepo.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+                createdDiaryId = diaryId
+                val attachmentId = repository.create(
+                    diaryId,
+                    DiaryAttachmentDraft(
+                        kind = DiaryAttachmentKind.audio,
+                        localPath = "",
+                        displayName = "语音日记.m4a",
+                        mimeType = "audio/mp4",
+                    ),
+                )
+                onCreated(diaryId, attachmentId)
+            } catch (error: Exception) {
+                createdDiaryId?.let { diaryId -> runCatching { diaryRepo.delete(diaryId) } }
+                _state.update { it.copy(error = error.message) }
             }
         }
     }

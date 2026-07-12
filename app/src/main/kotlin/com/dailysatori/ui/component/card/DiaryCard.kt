@@ -53,6 +53,8 @@ import com.dailysatori.core.util.diaryImagePaths
 import com.dailysatori.core.util.diaryTags
 import com.dailysatori.core.util.stripDiaryInlineTags
 import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_attachment
+import com.dailysatori.ui.feature.diary.DiaryAttachmentList
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -68,6 +70,7 @@ fun DiaryCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     showDelete: Boolean = true,
+    attachments: List<Diary_attachment> = emptyList(),
 ) {
     val context = LocalContext.current
     val tags = diaryTags(diary.tags)
@@ -89,6 +92,7 @@ fun DiaryCard(
             DiaryCardHeader(diary, showDelete, menuExpanded, { menuExpanded = it }, onEdit, onDelete)
             if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir)
             DiaryBody(contentText = contentText, expanded = expanded, isLongContent = isLongContent)
+            DiaryAttachmentList(attachments = attachments)
             DiaryCardFooter(tags = tags, isLongContent = isLongContent, expanded = expanded) { expanded = !expanded }
         }
     }
