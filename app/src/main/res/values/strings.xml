@@ -3,7 +3,7 @@
     <string name="diary_recording_channel_name">语音日记录音</string>
     <string name="diary_recording_channel_description">显示语音日记的录音状态与控制操作</string>
     <string name="diary_recording_starting">正在启动语音日记</string>
-    <string name="diary_recording_active">正在录制语音日记</string>
+    <string name="diary_recording_active">语音日记录音中</string>
     <string name="diary_recording_paused">语音日记已暂停</string>
     <string name="diary_recording_stopping">正在保存语音日记</string>
     <string name="diary_recording_failed">语音日记录音失败</string>

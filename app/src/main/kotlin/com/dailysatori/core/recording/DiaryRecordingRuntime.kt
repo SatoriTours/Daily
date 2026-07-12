@@ -5,6 +5,9 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class DiaryRecordingHostAttachment internal constructor(
     internal val generation: Long,
@@ -30,8 +33,15 @@ class DiaryRecordingRuntime(
     nextSessionToken: () -> String,
     retryDelaysMs: List<Long> = listOf(1_000, 2_000, 4_000),
     tickerIntervalMs: Long = 1_000,
+    hostShutdownDelayMs: Long = 1_000,
+    onClosed: () -> Unit = {},
 ) {
-    private val hosts = HostRouter(store)
+    private val hosts = HostRouter(
+        store = store,
+        scope = scope,
+        dispatcher = actorDispatcher,
+        shutdownDelayMs = hostShutdownDelayMs,
+    )
     private val actor = DiaryRecordingActor(
         store = store,
         recorder = recorder,
@@ -46,10 +56,12 @@ class DiaryRecordingRuntime(
         nextSessionToken = nextSessionToken,
         retryDelaysMs = retryDelaysMs,
         tickerIntervalMs = tickerIntervalMs,
+        onClosed = onClosed,
     )
 
     init {
         hosts.resultSink = actor::submit
+        hosts.shutdownSink = { actor.submit(DiaryRecordingCommand.Shutdown) }
     }
 
     fun attachHost(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment = hosts.attach(host)
@@ -83,18 +95,27 @@ class DiaryRecordingRuntime(
 
     private class HostRouter(
         private val store: DiaryRecordingStore,
+        private val scope: CoroutineScope,
+        private val dispatcher: CoroutineDispatcher,
+        private val shutdownDelayMs: Long,
     ) : DiaryRecordingActorHost {
         private val lock = Any()
         private val effectLock = Any()
         private val generations = AtomicLong()
         private var current: AttachedHost? = null
+        private var pendingShutdownGeneration: Long? = null
+        private var shutdownJob: Job? = null
         private var foregroundRequest: ForegroundRequest? = null
         lateinit var resultSink: (DiaryRecordingResult) -> Unit
+        lateinit var shutdownSink: () -> Unit
 
         fun attach(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment {
             val attached = AttachedHost(generations.incrementAndGet(), host)
             synchronized(lock) {
                 current = attached
+                pendingShutdownGeneration = null
+                shutdownJob?.cancel()
+                shutdownJob = null
             }
             synchronized(effectLock) {
                 val state = store.state.value
@@ -113,7 +134,23 @@ class DiaryRecordingRuntime(
 
         fun detach(attachment: DiaryRecordingHostAttachment) {
             synchronized(lock) {
-                if (current?.generation == attachment.generation) current = null
+                if (current?.generation != attachment.generation) return
+                current = null
+                pendingShutdownGeneration = attachment.generation
+                shutdownJob?.cancel()
+                shutdownJob = scope.launch(dispatcher) {
+                    delay(shutdownDelayMs)
+                    synchronized(lock) {
+                        if (
+                            current == null &&
+                            pendingShutdownGeneration == attachment.generation
+                        ) {
+                            pendingShutdownGeneration = null
+                            shutdownJob = null
+                            shutdownSink()
+                        }
+                    }
+                }
             }
         }
 

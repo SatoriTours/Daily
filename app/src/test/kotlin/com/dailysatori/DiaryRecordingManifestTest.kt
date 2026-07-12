@@ -21,6 +21,7 @@ class DiaryRecordingManifestTest {
         assertTrue("android.permission.RECORD_AUDIO" in permissions)
         assertTrue("android.permission.FOREGROUND_SERVICE" in permissions)
         assertTrue("android.permission.FOREGROUND_SERVICE_MICROPHONE" in permissions)
+        assertTrue("android.permission.POST_NOTIFICATIONS" in permissions)
     }
 
     @Test

@@ -12,17 +12,17 @@ import androidx.core.content.ContextCompat
 import org.koin.android.ext.android.inject
 
 class DiaryRecordingService : Service() {
-    private val runtime: DiaryRecordingRuntime by inject()
+    private val runtimeManager: DiaryRecordingRuntimeManager by inject()
 
     private lateinit var notification: DiaryRecordingNotification
-    private lateinit var hostAttachment: DiaryRecordingHostAttachment
+    private lateinit var runtimeLease: DiaryRecordingRuntimeLease
     @Volatile private var androidResourcesOpen = true
     @Volatile private var foregroundStarted = false
 
     override fun onCreate() {
         super.onCreate()
         notification = DiaryRecordingNotification(this)
-        hostAttachment = runtime.attachHost(
+        runtimeLease = runtimeManager.attachHost(
             object : DiaryRecordingAndroidHost {
                 override fun enterForeground(state: DiaryRecordingState): String? =
                     this@DiaryRecordingService.enterForeground(state)
@@ -51,8 +51,8 @@ class DiaryRecordingService : Service() {
                 val diaryId = intent.getLongExtra(EXTRA_DIARY_ID, 0)
                 val attachmentId = intent.getLongExtra(EXTRA_ATTACHMENT_ID, 0)
                 if (diaryId > 0 && attachmentId > 0) {
-                    runtime.submit(
-                        hostAttachment,
+                    runtimeManager.submit(
+                        runtimeLease,
                         startId,
                         DiaryRecordingCommand.Start(diaryId, attachmentId),
                     )
@@ -61,11 +61,11 @@ class DiaryRecordingService : Service() {
                     stopSelfResult(startId)
                 }
             }
-            ACTION_PAUSE -> runtime.submit(hostAttachment, startId, DiaryRecordingCommand.Pause)
-            ACTION_RESUME -> runtime.submit(hostAttachment, startId, DiaryRecordingCommand.Resume)
-            ACTION_STOP -> runtime.submit(hostAttachment, startId, DiaryRecordingCommand.Stop)
-            ACTION_RETRY_PERSIST -> runtime.submit(
-                hostAttachment,
+            ACTION_PAUSE -> runtimeManager.submit(runtimeLease, startId, DiaryRecordingCommand.Pause)
+            ACTION_RESUME -> runtimeManager.submit(runtimeLease, startId, DiaryRecordingCommand.Resume)
+            ACTION_STOP -> runtimeManager.submit(runtimeLease, startId, DiaryRecordingCommand.Stop)
+            ACTION_RETRY_PERSIST -> runtimeManager.submit(
+                runtimeLease,
                 startId,
                 DiaryRecordingCommand.RetryPersistence,
             )
@@ -77,7 +77,7 @@ class DiaryRecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        runtime.detachHost(hostAttachment)
+        runtimeManager.detachHost(runtimeLease)
         androidResourcesOpen = false
         stopRecordingForeground()
         super.onDestroy()

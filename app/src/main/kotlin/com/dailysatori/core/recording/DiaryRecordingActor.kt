@@ -141,6 +141,7 @@ internal class DiaryRecordingActor(
     private val nextSessionToken: () -> String,
     private val retryDelaysMs: List<Long> = listOf(1_000, 2_000, 4_000),
     private val tickerIntervalMs: Long = 1_000,
+    private val onClosed: () -> Unit = {},
 ) {
     private val mailbox = Channel<Message>(Channel.UNLIMITED)
     @Volatile private var acceptingCommands = true
@@ -148,6 +149,7 @@ internal class DiaryRecordingActor(
     private var ticker: Job? = null
     private var shutdownRequested = false
     private var recorderBoundaryClosed = false
+    private var terminalBoundaryClosed = false
 
     init {
         scope.launch(actorDispatcher) {
@@ -388,7 +390,7 @@ internal class DiaryRecordingActor(
             closeTerminalBoundary()
         } else if (store.state.value is DiaryRecordingState.PersistenceFailed) {
             closeRecorderBoundary()
-        } else if (session.terminalRecorderOperationLaunched) {
+        } else if (session.terminalRecorderOperation != TerminalRecorderOperation.None) {
             // The in-flight stop/release result owns finalization and terminal close.
         } else {
             launchRelease(
@@ -423,7 +425,7 @@ internal class DiaryRecordingActor(
             }
             is DiaryRecordingResult.RecorderStarted -> {
                 session.recorderStarted = true
-                if (session.terminalRecorderOperationLaunched) {
+                if (session.terminalRecorderOperation != TerminalRecorderOperation.None) {
                     Unit
                 } else if (session.stopRequested) {
                     launchStop(session)
@@ -451,13 +453,18 @@ internal class DiaryRecordingActor(
                     launchRelease(session, result.errorCode, decision = ReleaseDecision.Fail)
                 }
             }
-            is DiaryRecordingResult.RecorderStopped -> completeRecorderOutput(session, result.output)
-            is DiaryRecordingResult.RecorderStopFailed -> launchRelease(
-                session,
-                result.errorCode,
-                decision = ReleaseDecision.Fail,
-            )
+            is DiaryRecordingResult.RecorderStopped -> {
+                session.terminalRecorderOperation = TerminalRecorderOperation.Finished
+                completeRecorderOutput(session, result.output)
+            }
+            is DiaryRecordingResult.RecorderStopFailed -> {
+                if (session.terminalRecorderOperation == TerminalRecorderOperation.StopInFlight) {
+                    session.terminalRecorderOperation = TerminalRecorderOperation.None
+                    launchRelease(session, result.errorCode, decision = ReleaseDecision.Fail)
+                }
+            }
             is DiaryRecordingResult.RecorderReleased -> {
+                session.terminalRecorderOperation = TerminalRecorderOperation.Finished
                 val usableOutput = usableOutput(session, result.output)
                 val completeUsableOutput = when (result.decision) {
                     ReleaseDecision.CompleteUsableOutput -> true
@@ -488,8 +495,8 @@ internal class DiaryRecordingActor(
     }
 
     private fun launchStop(session: Session) {
-        if (session.terminalRecorderOperationLaunched) return
-        session.terminalRecorderOperationLaunched = true
+        if (session.terminalRecorderOperation != TerminalRecorderOperation.None) return
+        session.terminalRecorderOperation = TerminalRecorderOperation.StopInFlight
         launchRecorder(session.token) {
             try {
                 DiaryRecordingResult.RecorderStopped(session.token, recorder.stop())
@@ -509,8 +516,8 @@ internal class DiaryRecordingActor(
         errorCode: String,
         decision: ReleaseDecision,
     ) {
-        if (session.terminalRecorderOperationLaunched) return
-        session.terminalRecorderOperationLaunched = true
+        if (session.terminalRecorderOperation != TerminalRecorderOperation.None) return
+        session.terminalRecorderOperation = TerminalRecorderOperation.ReleaseInFlight
         launchRecorder(session.token) {
             val output = runCatching { recorder.releasePreservingOutput() }.getOrNull()
             DiaryRecordingResult.RecorderReleased(
@@ -640,8 +647,11 @@ internal class DiaryRecordingActor(
     }
 
     private fun closeTerminalBoundary() {
+        if (terminalBoundaryClosed) return
+        terminalBoundaryClosed = true
         closeRecorderBoundary()
         mailbox.close()
+        onClosed()
     }
 
     private fun closeRecorderBoundary() {
@@ -675,6 +685,13 @@ internal class DiaryRecordingActor(
         ) : TerminalPersistence
     }
 
+    private enum class TerminalRecorderOperation {
+        None,
+        StopInFlight,
+        ReleaseInFlight,
+        Finished,
+    }
+
     private inner class Session(
         val token: String,
         val diaryId: Long,
@@ -685,7 +702,7 @@ internal class DiaryRecordingActor(
         var outputPrepared: Boolean = false,
         var recorderStarted: Boolean = false,
         var stopRequested: Boolean = false,
-        var terminalRecorderOperationLaunched: Boolean = false,
+        var terminalRecorderOperation: TerminalRecorderOperation = TerminalRecorderOperation.None,
         var foregroundFailureHandled: Boolean = false,
         var accumulatedMs: Long = 0,
         var runningSinceMs: Long? = null,

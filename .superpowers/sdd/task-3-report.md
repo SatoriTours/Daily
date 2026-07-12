@@ -234,3 +234,40 @@ Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `
 ### Remaining Device Risk
 
 - JVM tests cannot execute framework `Service` replacement, OEM recorder blocking/finalization, or real `stopSelfResult` scheduling. Device coverage remains required on API 26/30/31/34+ for Service recreation during foreground entry and terminal shutdown.
+
+## Final Teardown Fix: Generation-Safe Service Handoff
+
+### Approved Lifecycle Decision
+
+- `DiaryRecordingService.onDestroy()` detaches its host and starts a 1000ms generation-owned delayed shutdown window in the process runtime.
+- A replacement host attached within the window cancels shutdown and continues the same runtime and recording session. A late timer from an older host generation cannot close a replacement host or its session.
+- Without a replacement, the Actor best-effort releases/finalizes usable partial output, persists terminal completion or failure, then closes the recorder executor and mailbox.
+- `RecorderStopFailed` transitions from Stop-in-flight to exactly one Release-in-flight operation. Normal teardown persists failed/partial state and hands off; latched Shutdown persists first and closes the terminal boundary once.
+
+### RED
+
+- Added `stopFailureReleasesOncePersistsPartialAndHandsOffWithoutShutdown` and `stopFailureDuringShutdownReleasesPersistsAndClosesRecorderExecutorOnce` before production changes.
+  - Both failed by timing out before Idle because `terminalRecorderOperationLaunched` remained true after Stop failed and blocked Release.
+- Added delayed shutdown tests for no replacement after 1000ms, replacement attach cancellation with same-session continuity, and a late old-generation timer.
+  - All three failed because host detach never scheduled process-runtime shutdown.
+- Added a same-process restart test after completed teardown.
+  - It failed compilation because the process singleton had no manager/close callback capable of replacing a fully closed runtime.
+- Added manifest/notification/service ownership contracts for background and lock-screen recording.
+  - Notification contract failed because visibility was private and the approved active title was absent; manifest permissions and foreground-service ownership characterization already passed.
+
+### GREEN
+
+- Replaced the terminal recorder boolean with explicit `None`, `StopInFlight`, `ReleaseInFlight`, and `Finished` phases. Stop failure can make only the valid Stop-to-Release transition, preserving exactly-once release and shutdown close behavior.
+- Host detach now schedules a 1000ms shutdown job tied to its generation. Attach cancels and invalidates the pending job under the host lock; expiry rechecks generation and host absence under the same lock before submitting Shutdown.
+- A process-singleton `DiaryRecordingRuntimeManager` retains the runtime during the handoff window, clears it only after terminal close, and creates a fresh actor/mailbox/executor for a later recording in the same app process.
+- The microphone foreground-service notification remains ongoing, `CATEGORY_SERVICE`, and now uses `VISIBILITY_PUBLIC`. It shows only "语音日记录音中" with elapsed/status text and exposes Pause/Resume, Stop, and Open Diary actions. The manifest contract includes Android 13+ `POST_NOTIFICATIONS` alongside microphone FGS permissions.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest' --tests '*DiaryRecordingRuntimeTest' --tests '*DiaryRecordingServiceContractTest' --tests '*DiaryRecordingLaunchTest' --tests '*DiaryRecordingManifestTest' --rerun-tasks`
+  - Passed: 50 focused tests, 0 failures, 0 errors.
+- `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin --rerun-tasks`
+  - Passed: app 736 tests and shared 434 tests, 0 failures, 0 errors; debug Kotlin compilation succeeded.
+- `git diff --check`
+  - Passed.
+
+### Remaining Device Risk
+
+- JVM/source contracts cannot prove OEM microphone capture through real screen-off/doze behavior, notification rendering on vendor lock screens, runtime notification permission UX on Android 13+, or framework Service recreation timing. Exercise API 31 and API 34+ devices with background, lock-screen, pause/resume, stop, and Service recreation flows.

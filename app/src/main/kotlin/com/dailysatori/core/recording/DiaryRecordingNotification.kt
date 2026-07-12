@@ -36,7 +36,7 @@ class DiaryRecordingNotification(
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         when (state) {
             is DiaryRecordingState.Recording -> builder.addAction(
