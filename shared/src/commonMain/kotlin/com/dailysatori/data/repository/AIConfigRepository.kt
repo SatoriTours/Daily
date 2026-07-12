@@ -26,6 +26,8 @@ class AIConfigRepository(
 
     fun getDefault() = q.selectDefaultAiConfig().executeAsOneOrNull()?.let(::decryptConfig)
 
+    fun getAllSync(): List<Ai_config> = q.selectAllAiConfigs().executeAsList().map(::decryptConfig)
+
     fun insert(
         provider: String,
         apiAddress: String,
