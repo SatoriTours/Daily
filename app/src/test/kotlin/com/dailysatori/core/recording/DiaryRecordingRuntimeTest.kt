@@ -27,6 +27,83 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryRecordingRuntimeTest {
     @Test
+    fun hostDuringClosingRuntimeGetsFreshRuntimeAndCanStartBeforeOldCloseCallback() = runTest {
+        val store = DiaryRecordingStore()
+        val recorder = FakeRecorder()
+        val persistence = FakePersistence()
+        val root = createTempDirectory("diary-recording-runtime-closing-test").toFile()
+        val executors = mutableListOf<CountingExecutorService>()
+        val releaseStarted = CountDownLatch(1)
+        val releaseMayFinish = CountDownLatch(1)
+        recorder.onRelease = {
+            releaseStarted.countDown()
+            check(releaseMayFinish.await(2, TimeUnit.SECONDS))
+            recorder.currentOutput
+        }
+        var nextToken = 0
+        val manager = DiaryRecordingRuntimeManager { onClosed ->
+            val executor = CountingExecutorService().also(executors::add)
+            DiaryRecordingRuntime(
+                store = store,
+                recorder = recorder,
+                persistence = persistence,
+                outputFile = { diaryId, attachmentId, token ->
+                    File(root, "$diaryId/$attachmentId-$token.m4a")
+                },
+                scope = backgroundScope,
+                actorDispatcher = StandardTestDispatcher(testScheduler),
+                recorderDispatcher = executor.asCoroutineDispatcher(),
+                ioDispatcher = StandardTestDispatcher(testScheduler),
+                monotonicNowMs = { testScheduler.currentTime },
+                nextSessionToken = { "session-${++nextToken}" },
+                retryDelaysMs = emptyList(),
+                tickerIntervalMs = 1_000_000,
+                onClosed = onClosed,
+            )
+        }
+
+        val first = manager.attachHost(FakeAndroidHost())
+        assertEquals(
+            DiaryRecordingCommandResult.Accepted,
+            manager.submit(first, 1, DiaryRecordingCommand.Start(11, 101)).await(),
+        )
+        var attempts = 0
+        while (store.state.value !is DiaryRecordingState.Recording && attempts++ < 200) {
+            runCurrent()
+            Thread.sleep(5)
+        }
+        assertIs<DiaryRecordingState.Recording>(store.state.value)
+        manager.detachHost(first)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertTrue(releaseStarted.await(2, TimeUnit.SECONDS))
+
+        val replacement = manager.attachHost(FakeAndroidHost())
+        assertEquals(
+            DiaryRecordingCommandResult.Accepted,
+            manager.submit(replacement, 2, DiaryRecordingCommand.Start(22, 202)).await(),
+        )
+        assertEquals(2, executors.size)
+
+        releaseMayFinish.countDown()
+        attempts = 0
+        while (!executors.first().isShutdown && attempts++ < 200) {
+            runCurrent()
+            Thread.sleep(5)
+        }
+        assertTrue(executors.first().isShutdown)
+
+        val afterOldClose = manager.attachHost(FakeAndroidHost())
+        assertTrue(afterOldClose.runtime === replacement.runtime)
+        assertEquals(2, executors.size)
+
+        manager.detachHost(afterOldClose)
+        manager.detachHost(replacement)
+        advanceTimeBy(1_000)
+        runCurrent()
+    }
+
+    @Test
     fun hostAfterCompletedShutdownGetsFreshRuntimeAndCanStartNewSession() = runTest {
         val store = DiaryRecordingStore()
         val recorder = FakeRecorder()

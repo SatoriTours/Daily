@@ -36,6 +36,9 @@ class DiaryRecordingRuntime(
     hostShutdownDelayMs: Long = 1_000,
     onClosed: () -> Unit = {},
 ) {
+    @Volatile
+    private var closing = false
+
     private val hosts = HostRouter(
         store = store,
         scope = scope,
@@ -61,7 +64,7 @@ class DiaryRecordingRuntime(
 
     init {
         hosts.resultSink = actor::submit
-        hosts.shutdownSink = { actor.submit(DiaryRecordingCommand.Shutdown) }
+        hosts.shutdownSink = ::shutdown
     }
 
     fun attachHost(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment = hosts.attach(host)
@@ -87,8 +90,12 @@ class DiaryRecordingRuntime(
         actor.submit(result)
     }
 
-    fun shutdown(): Deferred<DiaryRecordingCommandResult> =
-        actor.submit(DiaryRecordingCommand.Shutdown)
+    internal fun isClosing(): Boolean = closing
+
+    fun shutdown(): Deferred<DiaryRecordingCommandResult> {
+        closing = true
+        return actor.submit(DiaryRecordingCommand.Shutdown)
+    }
 
     private fun completedResult(result: DiaryRecordingCommandResult): Deferred<DiaryRecordingCommandResult> =
         kotlinx.coroutines.CompletableDeferred(result)

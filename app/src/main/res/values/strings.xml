@@ -8,6 +8,13 @@
     <string name="diary_recording_stopping">正在保存语音日记</string>
     <string name="diary_recording_failed">语音日记录音失败</string>
     <string name="diary_recording_idle">语音日记</string>
+    <string name="diary_recording_status_starting">正在启动</string>
+    <string name="diary_recording_status_recording">录音中</string>
+    <string name="diary_recording_status_paused">已暂停</string>
+    <string name="diary_recording_status_stopping">正在保存</string>
+    <string name="diary_recording_status_failed">录音失败</string>
+    <string name="diary_recording_status_persistence_failed">保存失败</string>
+    <string name="diary_recording_status_idle">已结束</string>
     <string name="diary_recording_action_pause">暂停</string>
     <string name="diary_recording_action_resume">继续</string>
     <string name="diary_recording_action_stop">停止</string>

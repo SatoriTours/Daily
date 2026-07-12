@@ -14,7 +14,8 @@ class DiaryRecordingRuntimeManager(
     private var current: DiaryRecordingRuntime? = null
 
     fun attachHost(host: DiaryRecordingAndroidHost): DiaryRecordingRuntimeLease = synchronized(lock) {
-        val runtime = current ?: createManagedRuntime().also { current = it }
+        val runtime = current?.takeUnless { it.isClosing() }
+            ?: createManagedRuntime().also { current = it }
         DiaryRecordingRuntimeLease(runtime, runtime.attachHost(host))
     }
 

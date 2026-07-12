@@ -29,8 +29,8 @@ class DiaryRecordingNotification(
     fun build(state: DiaryRecordingState, diaryId: Long): Notification {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle(titleFor(state))
-            .setContentText(formatElapsed(state.elapsedMs))
+            .setContentTitle(context.getString(R.string.diary_recording_active))
+            .setContentText(formatStatusElapsed(state))
             .setContentIntent(openDiaryIntent(diaryId))
             .setOngoing(state.isActive())
             .setOnlyAlertOnce(true)
@@ -101,14 +101,17 @@ class DiaryRecordingNotification(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    private fun titleFor(state: DiaryRecordingState): String = when (state) {
-        is DiaryRecordingState.Starting -> context.getString(R.string.diary_recording_starting)
-        is DiaryRecordingState.Recording -> context.getString(R.string.diary_recording_active)
-        is DiaryRecordingState.Paused -> context.getString(R.string.diary_recording_paused)
-        is DiaryRecordingState.Stopping -> context.getString(R.string.diary_recording_stopping)
-        is DiaryRecordingState.Failed -> context.getString(R.string.diary_recording_failed)
-        is DiaryRecordingState.PersistenceFailed -> context.getString(R.string.diary_recording_failed)
-        DiaryRecordingState.Idle -> context.getString(R.string.diary_recording_idle)
+    private fun formatStatusElapsed(state: DiaryRecordingState): String =
+        "${statusFor(state)} · ${formatElapsed(state.elapsedMs)}"
+
+    private fun statusFor(state: DiaryRecordingState): String = when (state) {
+        is DiaryRecordingState.Starting -> context.getString(R.string.diary_recording_status_starting)
+        is DiaryRecordingState.Recording -> context.getString(R.string.diary_recording_status_recording)
+        is DiaryRecordingState.Paused -> context.getString(R.string.diary_recording_status_paused)
+        is DiaryRecordingState.Stopping -> context.getString(R.string.diary_recording_status_stopping)
+        is DiaryRecordingState.Failed -> context.getString(R.string.diary_recording_status_failed)
+        is DiaryRecordingState.PersistenceFailed -> context.getString(R.string.diary_recording_status_persistence_failed)
+        DiaryRecordingState.Idle -> context.getString(R.string.diary_recording_status_idle)
     }
 
     private fun formatElapsed(elapsedMs: Long): String {

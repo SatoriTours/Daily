@@ -271,3 +271,29 @@ Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `
 ### Remaining Device Risk
 
 - JVM/source contracts cannot prove OEM microphone capture through real screen-off/doze behavior, notification rendering on vendor lock screens, runtime notification permission UX on Android 13+, or framework Service recreation timing. Exercise API 31 and API 34+ devices with background, lock-screen, pause/resume, stop, and Service recreation flows.
+
+## Final Findings: Closing Runtime Rebuild and Notification Privacy
+
+### RED
+
+- Added `hostDuringClosingRuntimeGetsFreshRuntimeAndCanStartBeforeOldCloseCallback` before implementation. It holds old-runtime release after delayed shutdown submits `Shutdown`, then attaches a replacement host and submits a new Start. The focused test failed because the manager returned the closing runtime.
+- Updated the notification source contract before implementation. It failed because the title varied by state and content text contained only elapsed time rather than status plus duration.
+
+### GREEN
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingRuntimeTest' --tests '*DiaryRecordingServiceContractTest' --tests '*DiaryRecordingLaunchTest' --tests '*DiaryRecordingManifestTest' --rerun-tasks`
+  - Passed: 36 focused runtime/notification/service/launch/manifest tests, 0 failures and 0 errors.
+- `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest --rerun-tasks`
+  - Passed: shared 434 tests and app 737 tests, 0 failures and 0 errors.
+- `./gradlew :app:compileDebugKotlin --rerun-tasks`
+  - Passed.
+
+### Remediation Summary
+
+- Runtime shutdown now synchronously latches `closing` before submitting the Actor command. Manager host acquisition checks that latch while holding its manager lock, installs a fresh runtime when the retained one is closing, and keeps the existing identity check so the old `onClosed` callback cannot clear the fresh current runtime.
+- The regression keeps old teardown blocked until the replacement Start is accepted, then lets the old close callback run and verifies subsequent attachment still reuses the fresh runtime.
+- Recording notifications retain their public, ongoing service behavior and actions. Their title is always `语音日记录音中`; content text now uses resource-backed status plus elapsed time, for example `已暂停 · 01:23`, and does not expose diary content.
+
+### Verification Note
+
+- The first full app run encountered a pre-existing, unrelated `DiaryViewModelSourceIdTest.failedDiarySaveDoesNotExtractMemory` SQLite `stmt pointer is closed` failure caused by its asynchronous month-summary work outliving fixture database cleanup. The test passed alone and the required fresh app/shared full rerun passed without production changes outside recording.
