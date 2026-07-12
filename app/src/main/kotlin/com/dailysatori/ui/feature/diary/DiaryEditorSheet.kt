@@ -56,6 +56,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -97,6 +98,9 @@ fun DiaryEditorSheet(
     onDismiss: () -> Unit,
     onSave: (content: String, tags: String?, mood: String?, images: String?) -> Unit,
     existingDiary: Diary? = null,
+    recordingState: DiaryRecordingState? = null,
+    onPauseResumeRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
@@ -314,6 +318,14 @@ fun DiaryEditorSheet(
                                 color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
                             )
                         }
+                    }
+                    recordingState?.let {
+                        DiaryRecordingControls(
+                            state = it,
+                            onPauseResume = onPauseResumeRecording,
+                            onStop = onStopRecording,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                     Spacer(modifier = Modifier.height(Spacing.s))
                     DiaryEditorTagRow(

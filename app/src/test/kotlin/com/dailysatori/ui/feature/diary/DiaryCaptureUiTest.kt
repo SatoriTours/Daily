@@ -24,13 +24,17 @@ class DiaryCaptureUiTest {
     fun recordingUiProvidesStatusAndCompactControlsWithoutComposer() {
         val controller = source("DiaryRecordingController.kt")
         val screen = source("DiaryScreen.kt")
+        val editor = source("DiaryEditorSheet.kt")
 
         assertTrue(controller.contains("onPauseResume"))
         assertTrue(controller.contains("onStop"))
         assertTrue(controller.contains("onOpenDiary"))
-        assertTrue(controller.contains("width(56.dp)"))
-        assertTrue(screen.contains("RecordingStatusStrip"))
+        assertTrue(controller.contains("width(48.dp)"))
         assertTrue(screen.contains("DiaryRecordingControls"))
+        assertTrue(!screen.contains("Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp)"))
+        assertTrue(editor.contains("recordingState: DiaryRecordingState?"))
+        assertTrue(editor.contains("DiaryRecordingControls("))
+        assertTrue(screen.contains("editingDiary?.id == state.recordingState.diaryId"))
         assertTrue(!screen.contains("写点什么"))
     }
 

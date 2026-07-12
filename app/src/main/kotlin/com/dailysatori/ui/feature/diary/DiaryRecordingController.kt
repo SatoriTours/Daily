@@ -49,24 +49,6 @@ class DiaryRecordingController(private val context: Context) {
     }
 }
 
-@Composable
-fun RecordingStatusStrip(state: DiaryRecordingState, onOpenDiary: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-        shape = MaterialTheme.shapes.small,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(recordingStatusText(state), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-            Text("打开", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-            IconButton(onClick = onOpenDiary) { Icon(Icons.Default.OpenInNew, contentDescription = "打开日记") }
-        }
-    }
-}
-
 private fun recordingStatusText(state: DiaryRecordingState): String = when (state) {
     is DiaryRecordingState.Starting -> "正在准备录音 · 已创建日记"
     is DiaryRecordingState.Recording -> "正在录音 · 已创建日记"
@@ -88,40 +70,39 @@ fun DiaryRecordingControls(
     state: DiaryRecordingState,
     onPauseResume: () -> Unit,
     onStop: () -> Unit,
-    onOpenDiary: () -> Unit,
+    onOpenDiary: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val paused = state is DiaryRecordingState.Paused
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
-        shadowElevation = 5.dp,
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = formatRecordingElapsed(state.elapsedMs),
-                modifier = Modifier.width(56.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelLarge,
-            )
+            Text(recordingStatusText(state), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text(text = formatRecordingElapsed(state.elapsedMs), modifier = Modifier.width(48.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
             if (state is DiaryRecordingState.Recording || paused) {
                 IconButton(onClick = onPauseResume) {
                     Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = if (paused) "继续" else "暂停")
                 }
             }
-            IconButton(onClick = onStop) {
-                Icon(
-                    Icons.Default.Stop,
-                    contentDescription = if (state is DiaryRecordingState.PersistenceFailed) "放弃保存" else "停止录音",
-                    tint = MaterialTheme.colorScheme.error,
-                )
+            if (state.showsRecordingControls()) {
+                IconButton(onClick = onStop) {
+                    Icon(
+                        Icons.Default.Stop,
+                        contentDescription = if (state is DiaryRecordingState.PersistenceFailed) "放弃保存" else "停止录音",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
-            IconButton(onClick = onOpenDiary) { Icon(Icons.Default.OpenInNew, contentDescription = "打开日记") }
+            onOpenDiary?.let { open ->
+                IconButton(onClick = open) { Icon(Icons.Default.OpenInNew, contentDescription = "打开日记") }
+            }
         }
     }
 }

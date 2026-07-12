@@ -190,12 +190,18 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 .padding(horizontal = Spacing.m),
         ) {
             if (state.recordingState !is DiaryRecordingState.Idle) {
-                RecordingStatusStrip(state.recordingState) {
-                    state.recordingState.diaryId?.let { id ->
-                        editingDiary = state.diaries.firstOrNull { it.id == id }
-                        showEditor = editingDiary != null
-                    }
-                }
+                DiaryRecordingControls(
+                    state = state.recordingState,
+                    onPauseResume = { recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused) },
+                    onStop = recordingController::stop,
+                    onOpenDiary = {
+                        state.recordingState.diaryId?.let { id ->
+                            editingDiary = state.diaries.firstOrNull { it.id == id }
+                            showEditor = editingDiary != null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             state.error?.let { error ->
                 Text(
@@ -264,22 +270,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 }
             }
         }
-            if (state.recordingState.showsRecordingControls()) {
-                DiaryRecordingControls(
-                    state = state.recordingState,
-                    onPauseResume = {
-                        recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused)
-                    },
-                    onStop = recordingController::stop,
-                    onOpenDiary = {
-                        state.recordingState.diaryId?.let { id ->
-                            editingDiary = state.diaries.firstOrNull { it.id == id }
-                            showEditor = editingDiary != null
-                        }
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp),
-                )
-            }
         }
     }
 
@@ -314,6 +304,13 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         }
         DiaryEditorSheet(
             existingDiary = editingDiary,
+            recordingState = state.recordingState.takeIf {
+                editingDiary?.id == state.recordingState.diaryId && it !is DiaryRecordingState.Idle
+            },
+            onPauseResumeRecording = {
+                recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused)
+            },
+            onStopRecording = recordingController::stop,
             onDismiss = { showEditor = false; editingDiary = null },
             onSave = { content, tags, mood, images ->
                 val existingId = editingDiary?.id
