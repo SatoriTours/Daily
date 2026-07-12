@@ -112,4 +112,5 @@ object SettingKeys {
     const val weReadApiKey = "weread_api_key"
     const val legacyWeReadApiKey = weReadApiKey
     const val aiModelCatalogCache = "ai_model_catalog_cache"
+    const val speechModel = "speech_model"
 }

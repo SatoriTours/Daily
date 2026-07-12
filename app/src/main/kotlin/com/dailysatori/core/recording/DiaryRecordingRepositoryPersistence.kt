@@ -1,9 +1,13 @@
 package com.dailysatori.core.recording
 
 import com.dailysatori.data.repository.DiaryAttachmentRepository
+import com.dailysatori.core.worker.AsyncTaskScheduler
+import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 
 class DiaryRecordingRepositoryPersistence(
     private val attachmentRepository: DiaryAttachmentRepository,
+    private val transcriptionCoordinator: DiaryTranscriptionCoordinator,
+    private val taskScheduler: AsyncTaskScheduler,
 ) : DiaryRecordingPersistence {
     override suspend fun begin(diaryId: Long, attachmentId: Long) {
         attachmentRepository.beginRecording(diaryId = diaryId, id = attachmentId)
@@ -21,6 +25,8 @@ class DiaryRecordingRepositoryPersistence(
             sizeBytes = output.file.length(),
             durationMs = output.durationMs,
         )
+        val taskId = transcriptionCoordinator.enqueue(attachmentId)
+        taskScheduler.enqueue(taskId)
     }
 
     override suspend fun fail(

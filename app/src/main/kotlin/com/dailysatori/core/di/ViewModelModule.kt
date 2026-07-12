@@ -71,7 +71,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 
 val viewModelModule: Module = module {
     single { DiaryRecordingStore() }
-    single<DiaryRecordingPersistence> { DiaryRecordingRepositoryPersistence(get()) }
+    single<DiaryRecordingPersistence> { DiaryRecordingRepositoryPersistence(get(), get(), get()) }
     single {
         val store = get<DiaryRecordingStore>()
         val persistence = get<DiaryRecordingPersistence>()

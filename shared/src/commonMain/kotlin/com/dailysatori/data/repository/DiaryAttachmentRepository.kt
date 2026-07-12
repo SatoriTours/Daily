@@ -85,6 +85,36 @@ class DiaryAttachmentRepository(
         return q.selectAttachmentsForDiary(diaryId).asFlow().mapToList(Dispatchers.IO)
     }
 
+    fun getById(id: Long): Diary_attachment? = q.selectDiaryAttachmentById(id).executeAsOneOrNull()
+
+    fun getForDiary(diaryId: Long): List<Diary_attachment> =
+        q.selectAttachmentsForDiary(diaryId).executeAsList()
+
+    fun persistTranscriptAndDiary(id: Long, transcript: String, autoBody: String, transcriptHeading: String) {
+        q.transaction {
+            val attachment = requireNotNull(q.selectDiaryAttachmentById(id).executeAsOneOrNull())
+            val diary = requireNotNull(q.selectDiaryById(attachment.diary_id).executeAsOneOrNull())
+            if (
+                attachment.transcript_status == DiaryAttachmentProcessingStatus.completed &&
+                attachment.transcript == transcript
+            ) return@transaction
+            val content = if (diary.content == autoBody) transcript else {
+                listOf(diary.content.trim(), transcriptHeading, transcript.trim())
+                    .filter { it.isNotBlank() }
+                    .joinToString("\n\n")
+            }
+            val now = Clock.System.now().toEpochMilliseconds()
+            q.updateDiary(content, diary.tags, diary.mood, diary.images, now, diary.id)
+            q.updateDiaryAttachmentTranscriptStatus(
+                transcript = transcript,
+                transcript_status = DiaryAttachmentProcessingStatus.completed,
+                error_message = "",
+                updated_at = now,
+                id = id,
+            )
+        }
+    }
+
     fun updateTranscriptStatus(id: Long, transcript: String, status: String, errorMessage: String = "") {
         q.updateDiaryAttachmentTranscriptStatus(
             transcript = transcript,

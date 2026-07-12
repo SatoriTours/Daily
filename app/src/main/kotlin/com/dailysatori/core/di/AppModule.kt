@@ -18,6 +18,8 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.externalfavorites.SharedPreferencesXOAuthSessionStore
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
+import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
+import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
 import kotlinx.datetime.Clock
 import org.koin.android.ext.koin.androidContext
@@ -44,6 +46,8 @@ val appModule: Module = module {
                 get<BookViewpointGenerateTaskHandler>(),
                 get<RemoteArticleSyncTaskHandler>(),
                 get<UnifiedNewsGenerateTaskHandler>(),
+                get<DiaryTranscriptionCoordinator>(),
+                get<DiaryKnowledgeCoordinator>(),
             ),
         )
     }

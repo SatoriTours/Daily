@@ -18,4 +18,17 @@ class AsyncTaskWorkerSourceTest {
         assertTrue(source.contains("AsyncTaskRunOutcome.Skipped"))
         assertTrue(!source.contains("handler.execute("))
     }
+
+    @Test
+    fun diaryTaskHandlersAreRegisteredAndChainedTasksAreScheduled() {
+        val appModule = File("src/main/kotlin/com/dailysatori/core/di/AppModule.kt").readText()
+        val persistence = File("src/main/kotlin/com/dailysatori/core/recording/DiaryRecordingRepositoryPersistence.kt").readText()
+        val worker = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
+
+        assertTrue(appModule.contains("get<DiaryTranscriptionCoordinator>()"))
+        assertTrue(appModule.contains("get<DiaryKnowledgeCoordinator>()"))
+        assertTrue(persistence.contains("transcriptionCoordinator.enqueue(attachmentId)"))
+        assertTrue(persistence.contains("taskScheduler.enqueue(taskId)"))
+        assertTrue(worker.contains("recoverAndEnqueueRunnable()"))
+    }
 }

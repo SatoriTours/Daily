@@ -88,6 +88,7 @@ class MemoryExtractService(
             throw e
         } catch (e: Exception) {
             log.e(e) { "Failed to extract memory for $sourceType:$sourceId" }
+            throw e
         }
     }
 

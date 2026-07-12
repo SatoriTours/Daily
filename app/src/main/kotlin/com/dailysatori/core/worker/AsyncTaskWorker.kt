@@ -51,7 +51,10 @@ class GenericAsyncTaskWorker(
             logger = logStore ?: NoopAsyncTaskLogger,
         )
         return when (runner.run(taskId)) {
-            AsyncTaskRunOutcome.Succeeded,
+            AsyncTaskRunOutcome.Succeeded -> {
+                AsyncTaskScheduler(applicationContext).recoverAndEnqueueRunnable()
+                Result.success()
+            }
             AsyncTaskRunOutcome.Skipped -> Result.success()
             AsyncTaskRunOutcome.Failed -> Result.failure()
             AsyncTaskRunOutcome.RetryScheduled -> Result.retry()

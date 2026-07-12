@@ -50,6 +50,10 @@ import com.dailysatori.service.mcp.McpToolRegistry
 import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.memory.MemoryExtractor
+import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
+import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
+import com.dailysatori.service.diary.OpenAiCompatibleSpeechTranscriptionClient
+import com.dailysatori.service.diary.SpeechTranscriptionClient
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
@@ -138,6 +142,11 @@ val sharedModule: Module = module {
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }
+    single { DiaryKnowledgeCoordinator(get(), get(), get(), get<MemoryExtractor>()) }
+    single<SpeechTranscriptionClient> {
+        OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get(), get())
+    }
+    single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }
     single<SkillConnectionTester> { DefaultSkillConnectionTester(get()) }

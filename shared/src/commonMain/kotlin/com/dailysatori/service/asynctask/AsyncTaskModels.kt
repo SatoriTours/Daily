@@ -20,6 +20,8 @@ enum class AsyncTaskType(val displayName: String) {
     remote_news_fetch("获取远程新闻"),
     external_favorite_sync("外部收藏同步"),
     book_viewpoint_generate("书籍观点生成"),
+    diary_attachment_transcribe("日记附件转写"),
+    diary_knowledge_extract("日记知识提取"),
 }
 
 data class AsyncTaskFilter(
