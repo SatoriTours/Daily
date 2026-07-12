@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import java.io.File
@@ -101,6 +102,8 @@ fun DiaryEditorSheet(
     recordingState: DiaryRecordingState? = null,
     onPauseResumeRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
+    attachments: List<Diary_attachment> = emptyList(),
+    onDeleteAttachment: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
@@ -114,6 +117,7 @@ fun DiaryEditorSheet(
     var showTagEntry by remember { mutableStateOf(false) }
     var showMoodEditor by remember { mutableStateOf(false) }
     var showMoreFormats by remember { mutableStateOf(false) }
+    var attachmentToDelete by remember { mutableStateOf<Diary_attachment?>(null) }
     var tagsText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.tags)) }
     var moodText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.mood)) }
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
@@ -270,6 +274,25 @@ fun DiaryEditorSheet(
         )
     }
 
+    attachmentToDelete?.let { attachment ->
+        AlertDialog(
+            onDismissRequest = { attachmentToDelete = null },
+            title = { Text(if (attachment.kind == "audio") "删除录音" else "删除附件") },
+            text = { Text("删除后无法恢复，确定继续吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteAttachment(attachment.id)
+                        attachmentToDelete = null
+                    },
+                ) { Text("删除", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { attachmentToDelete = null }) { Text("取消") }
+            },
+        )
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -327,6 +350,10 @@ fun DiaryEditorSheet(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
+                    DiaryAttachmentList(
+                        attachments = attachments,
+                        onDelete = { attachmentToDelete = it },
+                    )
                     Spacer(modifier = Modifier.height(Spacing.s))
                     DiaryEditorTagRow(
                         tagsText = tagsText,

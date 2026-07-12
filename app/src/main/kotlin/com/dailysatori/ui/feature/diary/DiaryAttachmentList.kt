@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -35,7 +36,11 @@ import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.theme.Spacing
 
 @Composable
-fun DiaryAttachmentList(attachments: List<Diary_attachment>, modifier: Modifier = Modifier) {
+fun DiaryAttachmentList(
+    attachments: List<Diary_attachment>,
+    modifier: Modifier = Modifier,
+    onDelete: ((Diary_attachment) -> Unit)? = null,
+) {
     val displayableAttachments = attachments.filterNot {
         it.kind == "audio" && it.local_path.isBlank()
     }
@@ -43,7 +48,7 @@ fun DiaryAttachmentList(attachments: List<Diary_attachment>, modifier: Modifier 
     var expanded by remember { mutableStateOf(false) }
     val visible = if (expanded) displayableAttachments else displayableAttachments.take(2)
     Column(modifier = modifier.fillMaxWidth()) {
-        visible.forEach { attachment -> DiaryAttachmentRow(attachment) }
+        visible.forEach { attachment -> DiaryAttachmentRow(attachment, onDelete) }
         if (displayableAttachments.size > 2) {
             TextButton(onClick = { expanded = !expanded }) {
                 Text(if (expanded) "收起附件" else "查看全部 ${displayableAttachments.size} 个附件")
@@ -53,7 +58,7 @@ fun DiaryAttachmentList(attachments: List<Diary_attachment>, modifier: Modifier 
 }
 
 @Composable
-private fun DiaryAttachmentRow(attachment: Diary_attachment) {
+private fun DiaryAttachmentRow(attachment: Diary_attachment, onDelete: ((Diary_attachment) -> Unit)?) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
@@ -84,6 +89,15 @@ private fun DiaryAttachmentRow(attachment: Diary_attachment) {
         }
         if (attachment.kind == "audio" && attachment.local_path.isNotBlank()) {
             DiaryAudioPlaybackButton(attachment.local_path)
+        }
+        onDelete?.let { delete ->
+            IconButton(onClick = { delete(attachment) }) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = if (attachment.kind == "audio") "删除录音" else "删除附件",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
         }
     }
 }

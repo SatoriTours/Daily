@@ -311,6 +311,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused)
             },
             onStopRecording = recordingController::stop,
+            attachments = state.attachmentsByDiary[editingDiary?.id ?: -1L].orEmpty(),
+            onDeleteAttachment = viewModel::deleteAttachment,
             onDismiss = { showEditor = false; editingDiary = null },
             onSave = { content, tags, mood, images ->
                 val existingId = editingDiary?.id

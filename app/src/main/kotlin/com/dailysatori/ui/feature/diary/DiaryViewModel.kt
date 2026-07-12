@@ -269,4 +269,14 @@ class DiaryViewModel(
             }
         }
     }
+
+    fun deleteAttachment(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                attachmentRepo?.delete(id)
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message) }
+            }
+        }
+    }
 }

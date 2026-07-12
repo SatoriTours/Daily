@@ -63,5 +63,21 @@ class DiaryCaptureUiTest {
         assertTrue(viewModel.contains("等待录音停止超时，未删除日记"))
     }
 
+    @Test
+    fun editorShowsRecordedAttachmentsAndCanDeleteThem() {
+        val screen = source("DiaryScreen.kt")
+        val editor = source("DiaryEditorSheet.kt")
+        val attachmentList = source("DiaryAttachmentList.kt")
+        val viewModel = source("DiaryViewModel.kt")
+
+        assertTrue(editor.contains("attachments: List<Diary_attachment>"))
+        assertTrue(editor.contains("DiaryAttachmentList("))
+        assertTrue(editor.contains("删除录音"))
+        assertTrue(attachmentList.contains("onDelete: ((Diary_attachment) -> Unit)?"))
+        assertTrue(screen.contains("attachments = state.attachmentsByDiary"))
+        assertTrue(screen.contains("viewModel::deleteAttachment"))
+        assertTrue(viewModel.contains("attachmentRepo?.delete(id)"))
+    }
+
     private fun source(name: String) = File("src/main/kotlin/com/dailysatori/ui/feature/diary/$name").readText()
 }
