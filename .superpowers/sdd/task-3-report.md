@@ -297,3 +297,38 @@ Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `
 ### Verification Note
 
 - The first full app run encountered a pre-existing, unrelated `DiaryViewModelSourceIdTest.failedDiarySaveDoesNotExtractMemory` SQLite `stmt pointer is closed` failure caused by its asynchronous month-summary work outliving fixture database cleanup. The test passed alone and the required fresh app/shared full rerun passed without production changes outside recording.
+
+## Gate Remediation: Serialized Runtime Replacement
+
+### RED
+
+- Added executable closing-window tests before production changes for placeholder foreground entry, no fresh runtime/recorder before old close, fresh Start after identity-matching `onClosed`, old Idle fencing, atomic open-check/attach/submit, and FIFO pending Pause/Stop replay.
+- Added executable persistence-failure tests for host-gated explicit Retry and full mailbox/executor/onClosed teardown after the final host detaches.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingRuntimeTest' --tests '*DiaryRecordingActorTest' --rerun-tasks`
+  - Failed in `compileDebugUnitTestKotlin` as expected: `attachAndSubmit` was unresolved, Manager `submit(command, startId)` did not exist, host identity detach was not accepted, and `hasAttachedHost` overrode nothing.
+- Updated Service/DI source contracts before migration to reject `DiaryRecordingRuntimeLease`, separate `attachHost`/lease submit, and `single<DiaryRecorder>`, and to require the safe `正在准备录音` foreground copy.
+
+### GREEN
+
+- `DiaryRecordingRuntimeManager` now owns the current runtime/host plus one pending host and a FIFO command queue. A closing-window Start enters placeholder foreground immediately, but no runtime, recorder, mailbox, or executor is created until the old identity-matching `onClosed` callback.
+- Runtime lifecycle locking makes the open check, host attachment, and Actor submit indivisible with shutdown. The HostRouter invokes delayed shutdown outside its host lock to avoid lock-order inversion with the lifecycle lock.
+- Pending commands replay in insertion order onto one fresh host attachment. Old teardown closes the recorder boundary and mailbox before callback-driven factory creation, so old Idle cannot overwrite fresh Recording and recorder ownership never overlaps.
+- Service now uses Manager `attachAndSubmit`/`submit` APIs and identity detach. Koin creates a distinct `AndroidDiaryRecorder` and recorder executor for every runtime factory invocation while retaining the singleton store as the only recording `StateFlow`.
+- Persistence Retry is accepted only before teardown with an attached host. `Shutdown` from `PersistenceFailed` closes the terminal boundary and invokes `onClosed`; detached runtimes cannot remain retry zombies.
+- Lock-screen notification contracts remain public, ongoing, `CATEGORY_SERVICE`, content-free, and action-complete; Starting status now reads `正在准备录音`.
+
+### Verification
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecording*Test' --rerun-tasks`
+  - Passed: 55 focused recording tests, 0 skipped, 0 failures, 0 errors.
+- `./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest --rerun-tasks`
+  - Passed: app 741 tests and shared 434 tests, 0 skipped, 0 failures, 0 errors.
+- `./gradlew :app:compileDebugKotlin :shared:compileDebugKotlinAndroid --rerun-tasks`
+  - Passed.
+- `git diff --check`
+  - Passed.
+
+### Remaining Concerns
+
+- JVM tests prove Manager/Actor ordering and distinct runtime factory ownership, but real Android framework Service recreation and OEM `MediaRecorder` close latency still require device coverage on API 26/30/31/34+.
+- Existing expect/actual Beta, Koin ViewModel DSL deprecation, and unrelated UI deprecation warnings remain unchanged.

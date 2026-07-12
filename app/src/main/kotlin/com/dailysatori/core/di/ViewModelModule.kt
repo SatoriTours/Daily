@@ -15,7 +15,6 @@ import com.dailysatori.platform.FileManager
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.recording.AndroidDiaryRecorder
-import com.dailysatori.core.recording.DiaryRecorder
 import com.dailysatori.core.recording.DiaryRecordingPersistence
 import com.dailysatori.core.recording.DiaryRecordingRepositoryPersistence
 import com.dailysatori.core.recording.DiaryRecordingRuntime
@@ -72,11 +71,9 @@ import kotlinx.coroutines.asCoroutineDispatcher
 
 val viewModelModule: Module = module {
     single { DiaryRecordingStore() }
-    single<DiaryRecorder> { AndroidDiaryRecorder(androidContext()) }
     single<DiaryRecordingPersistence> { DiaryRecordingRepositoryPersistence(get()) }
     single {
         val store = get<DiaryRecordingStore>()
-        val recorder = get<DiaryRecorder>()
         val persistence = get<DiaryRecordingPersistence>()
         val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val audioRoot = File(androidContext().filesDir, "DailySatori/diary/audio")
@@ -86,7 +83,7 @@ val viewModelModule: Module = module {
             }.asCoroutineDispatcher()
             DiaryRecordingRuntime(
                 store = store,
-                recorder = recorder,
+                recorder = AndroidDiaryRecorder(androidContext()),
                 persistence = persistence,
                 outputFile = { diaryId, attachmentId, sessionToken ->
                     File(audioRoot, "$diaryId/$attachmentId-$sessionToken.m4a")

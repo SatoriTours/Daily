@@ -13,6 +13,11 @@ class DiaryRecordingHostAttachment internal constructor(
     internal val generation: Long,
 )
 
+internal data class DiaryRecordingRuntimeSubmission(
+    val attachment: DiaryRecordingHostAttachment,
+    val result: Deferred<DiaryRecordingCommandResult>,
+)
+
 interface DiaryRecordingAndroidHost {
     fun enterForeground(state: DiaryRecordingState): String?
     fun stateChanged(state: DiaryRecordingState)
@@ -36,7 +41,7 @@ class DiaryRecordingRuntime(
     hostShutdownDelayMs: Long = 1_000,
     onClosed: () -> Unit = {},
 ) {
-    @Volatile
+    private val lifecycleLock = Any()
     private var closing = false
 
     private val hosts = HostRouter(
@@ -67,10 +72,16 @@ class DiaryRecordingRuntime(
         hosts.shutdownSink = ::shutdown
     }
 
-    fun attachHost(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment = hosts.attach(host)
+    fun attachHost(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment =
+        synchronized(lifecycleLock) {
+            check(!closing) { "Recording runtime is closing" }
+            hosts.attach(host)
+        }
 
     fun detachHost(attachment: DiaryRecordingHostAttachment) {
-        hosts.detach(attachment)
+        synchronized(lifecycleLock) {
+            hosts.detach(attachment)
+        }
     }
 
     fun isAttached(attachment: DiaryRecordingHostAttachment): Boolean = hosts.isAttached(attachment)
@@ -79,22 +90,44 @@ class DiaryRecordingRuntime(
         attachment: DiaryRecordingHostAttachment,
         startId: Int,
         command: DiaryRecordingCommand,
-    ): Deferred<DiaryRecordingCommandResult> {
-        if (!hosts.isAttached(attachment)) {
-            return completedResult(DiaryRecordingCommandResult.Ignored)
+    ): Deferred<DiaryRecordingCommandResult> =
+        submitIfOpen(attachment, startId, command)
+            ?: completedResult(DiaryRecordingCommandResult.Ignored)
+
+    internal fun attachAndSubmitIfOpen(
+        host: DiaryRecordingAndroidHost,
+        existingAttachment: DiaryRecordingHostAttachment?,
+        startId: Int,
+        command: DiaryRecordingCommand,
+    ): DiaryRecordingRuntimeSubmission? = synchronized(lifecycleLock) {
+        if (closing) return@synchronized null
+        val attachment = existingAttachment
+            ?.takeIf(hosts::isAttached)
+            ?: hosts.attach(host)
+        DiaryRecordingRuntimeSubmission(
+            attachment = attachment,
+            result = actor.submit(command, startId),
+        )
+    }
+
+    internal fun submitIfOpen(
+        attachment: DiaryRecordingHostAttachment,
+        startId: Int,
+        command: DiaryRecordingCommand,
+    ): Deferred<DiaryRecordingCommandResult>? = synchronized(lifecycleLock) {
+        if (closing || !hosts.isAttached(attachment)) {
+            return@synchronized null
         }
-        return actor.submit(command, startId)
+        actor.submit(command, startId)
     }
 
     internal fun submit(result: DiaryRecordingResult) {
         actor.submit(result)
     }
 
-    internal fun isClosing(): Boolean = closing
-
-    fun shutdown(): Deferred<DiaryRecordingCommandResult> {
+    fun shutdown(): Deferred<DiaryRecordingCommandResult> = synchronized(lifecycleLock) {
         closing = true
-        return actor.submit(DiaryRecordingCommand.Shutdown)
+        actor.submit(DiaryRecordingCommand.Shutdown)
     }
 
     private fun completedResult(result: DiaryRecordingCommandResult): Deferred<DiaryRecordingCommandResult> =
@@ -147,16 +180,19 @@ class DiaryRecordingRuntime(
                 shutdownJob?.cancel()
                 shutdownJob = scope.launch(dispatcher) {
                     delay(shutdownDelayMs)
-                    synchronized(lock) {
+                    val shouldShutdown = synchronized(lock) {
                         if (
                             current == null &&
                             pendingShutdownGeneration == attachment.generation
                         ) {
                             pendingShutdownGeneration = null
                             shutdownJob = null
-                            shutdownSink()
+                            true
+                        } else {
+                            false
                         }
                     }
+                    if (shouldShutdown) shutdownSink()
                 }
             }
         }
@@ -194,6 +230,8 @@ class DiaryRecordingRuntime(
                 if (generation == NO_HOST_GENERATION) current == null
                 else current?.generation == generation
             }
+
+        override fun hasAttachedHost(): Boolean = synchronized(lock) { current != null }
 
         override fun stateChanged(state: DiaryRecordingState) {
             synchronized(effectLock) {

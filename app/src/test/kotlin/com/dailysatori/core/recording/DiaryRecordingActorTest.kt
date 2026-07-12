@@ -4,6 +4,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -165,6 +166,57 @@ class DiaryRecordingActorTest {
         assertEquals(8, persistence.completeAttempts)
         assertPersistenceFailed(fixture.store.state.value)
         assertEquals(0, fixture.host.stopForegroundCalls)
+    }
+
+    @Test
+    fun explicitPersistenceRetryRequiresAttachedHostAndOpenRuntime() = runTest {
+        val persistence = FakePersistence(completeFailuresRemaining = Int.MAX_VALUE)
+        val fixture = fixture(persistence = persistence)
+        fixture.startRecording()
+        fixture.actor.submit(DiaryRecordingCommand.Stop).await()
+        advanceTimeBy(7_000)
+        runCurrent()
+        assertPersistenceFailed(fixture.store.state.value)
+        assertEquals(4, persistence.completeAttempts)
+
+        fixture.host.attached = false
+        assertEquals(
+            DiaryRecordingCommandResult.Ignored,
+            fixture.actor.submit(DiaryRecordingCommand.RetryPersistence).await(),
+        )
+        advanceTimeBy(7_000)
+        runCurrent()
+
+        assertEquals(4, persistence.completeAttempts)
+        assertPersistenceFailed(fixture.store.state.value)
+    }
+
+    @Test
+    fun persistenceFailedShutdownClosesMailboxAndInvokesOnClosed() = runTest {
+        val persistence = FakePersistence(completeFailuresRemaining = Int.MAX_VALUE)
+        val closed = AtomicInteger()
+        val fixture = fixture(
+            persistence = persistence,
+            onClosed = { closed.incrementAndGet() },
+        )
+        fixture.startRecording()
+        fixture.actor.submit(DiaryRecordingCommand.Stop).await()
+        advanceTimeBy(7_000)
+        runCurrent()
+        assertPersistenceFailed(fixture.store.state.value)
+
+        assertEquals(
+            DiaryRecordingCommandResult.Accepted,
+            fixture.actor.submit(DiaryRecordingCommand.Shutdown).await(),
+        )
+        runCurrent()
+
+        assertEquals(1, closed.get())
+        assertEquals(
+            DiaryRecordingCommandResult.Ignored,
+            fixture.actor.submit(DiaryRecordingCommand.RetryPersistence).await(),
+        )
+        assertPersistenceFailed(fixture.store.state.value)
     }
 
     @Test
@@ -387,6 +439,7 @@ class DiaryRecordingActorTest {
         persistence: FakePersistence = FakePersistence(),
         output: File = tempOutput(),
         recorderDispatcher: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
+        onClosed: () -> Unit = {},
     ): ActorFixture {
         val store = DiaryRecordingStore()
         val host = FakeHost()
@@ -405,6 +458,7 @@ class DiaryRecordingActorTest {
             nextSessionToken = { (++nextToken).toString() },
             retryDelaysMs = listOf(1_000, 2_000, 4_000),
             tickerIntervalMs = 1_000_000,
+            onClosed = onClosed,
         )
         return ActorFixture(this, actor, store, recorder, persistence, host)
     }
@@ -559,6 +613,7 @@ class DiaryRecordingActorTest {
         val states = mutableListOf<DiaryRecordingState>()
         var stopForegroundCalls = 0
         var stopServiceCalls = 0
+        var attached = true
 
         override fun requestForeground(
             sessionToken: String,
@@ -567,6 +622,8 @@ class DiaryRecordingActorTest {
         ) = Unit
 
         override fun isCurrentHostGeneration(generation: Long): Boolean = true
+
+        override fun hasAttachedHost(): Boolean = attached
 
         override fun stateChanged(state: DiaryRecordingState) {
             states += state

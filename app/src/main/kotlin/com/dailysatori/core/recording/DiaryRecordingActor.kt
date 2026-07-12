@@ -117,6 +117,7 @@ internal interface DiaryRecordingActorHost {
         state: DiaryRecordingState,
     )
     fun isCurrentHostGeneration(generation: Long): Boolean
+    fun hasAttachedHost(): Boolean
     fun stateChanged(state: DiaryRecordingState)
     fun finishService(startId: Int): Boolean
 }
@@ -368,6 +369,9 @@ internal class DiaryRecordingActor(
     }
 
     private suspend fun retryPersistence(): DiaryRecordingCommandResult {
+        if (shutdownRequested || !host.hasAttachedHost()) {
+            return DiaryRecordingCommandResult.Ignored
+        }
         val session = activeSession ?: return DiaryRecordingCommandResult.Ignored
         val failed = store.state.value as? DiaryRecordingState.PersistenceFailed
             ?: return DiaryRecordingCommandResult.Ignored
@@ -389,7 +393,7 @@ internal class DiaryRecordingActor(
         if (session == null) {
             closeTerminalBoundary()
         } else if (store.state.value is DiaryRecordingState.PersistenceFailed) {
-            closeRecorderBoundary()
+            closeTerminalBoundary()
         } else if (session.terminalRecorderOperation != TerminalRecorderOperation.None) {
             // The in-flight stop/release result owns finalization and terminal close.
         } else {
@@ -761,12 +765,7 @@ internal class DiaryRecordingActor(
     private class InvalidRecordingOutputException : Exception()
 
     private fun accepts(command: DiaryRecordingCommand): Boolean =
-        acceptingCommands ||
-            command is DiaryRecordingCommand.Shutdown ||
-            (shutdownRequested && (
-                command is DiaryRecordingCommand.RetryPersistence ||
-                    command is DiaryRecordingCommand.Stop
-                ))
+        acceptingCommands || command is DiaryRecordingCommand.Shutdown
 
     private suspend fun terminateUnexpectedStart(
         command: DiaryRecordingCommand.Start,

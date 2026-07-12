@@ -28,8 +28,9 @@ class DiaryRecordingServiceContractTest {
     fun serviceParsesIntentsAndSubmitsTypedRuntimeCommandsOnly() {
         val source = source("DiaryRecordingService.kt")
 
+        assertTrue(source.contains("runtimeManager.attachAndSubmit("))
         assertTrue(source.contains("runtimeManager.submit("))
-        assertTrue(source.contains("runtimeLease,"))
+        assertTrue(source.contains("androidHost,"))
         assertTrue(source.contains("startId,"))
         assertTrue(source.contains("DiaryRecordingCommand.Start(diaryId, attachmentId)"))
         assertTrue(source.contains("DiaryRecordingCommand.Pause"))
@@ -59,7 +60,7 @@ class DiaryRecordingServiceContractTest {
         val destroy = source.substringAfter("override fun onDestroy()")
             .substringBefore("private fun enterForeground")
 
-        assertTrue(destroy.contains("runtimeManager.detachHost(runtimeLease)"))
+        assertTrue(destroy.contains("runtimeManager.detachHost(androidHost)"))
         assertFalse(destroy.contains("DiaryRecordingCommand.Shutdown"))
         assertFalse(destroy.contains("runtimeManager.shutdown()"))
         assertFalse(destroy.contains("runBlocking"))
@@ -118,11 +119,20 @@ class DiaryRecordingServiceContractTest {
 
         assertFalse(service.contains("Executors.newSingleThreadExecutor"))
         assertFalse(service.contains("DiaryRecorder by inject"))
+        assertFalse(service.contains("DiaryRecordingRuntimeLease"))
+        assertFalse(service.contains("runtimeManager.attachHost("))
+        assertFalse(service.contains("runtimeManager.submit(runtimeLease"))
+        assertTrue(service.contains("runtimeManager.attachAndSubmit("))
+        assertTrue(service.contains("runtimeManager.detachHost(androidHost)"))
         assertTrue(runtime.contains("private val actor = DiaryRecordingActor("))
-        assertTrue(manager.contains("current?.takeUnless { it.isClosing() }"))
-        assertTrue(manager.contains("if (current === runtime) current = null"))
+        assertTrue(manager.contains("private var pendingHost: DiaryRecordingAndroidHost?"))
+        assertTrue(manager.contains("private val pendingCommands = ArrayDeque<PendingCommand>()"))
+        assertTrue(manager.contains("fresh.attachAndSubmitIfOpen("))
+        assertTrue(manager.contains("if (current !== runtime) return"))
         assertTrue(module.contains("DiaryRecordingRuntimeManager { onClosed ->"))
         assertTrue(module.contains("Executors.newSingleThreadExecutor"))
+        assertFalse(module.contains("single<DiaryRecorder>"))
+        assertTrue(module.contains("recorder = AndroidDiaryRecorder(androidContext())"))
         assertTrue(module.contains("DiaryRecordingRuntime("))
         assertTrue(module.contains("recorderDispatcher = recorderDispatcher"))
         assertTrue(module.contains("onClosed = onClosed"))
@@ -133,13 +143,23 @@ class DiaryRecordingServiceContractTest {
         val source = source("DiaryRecordingService.kt")
 
         assertTrue(source.contains("DiaryRecordingAndroidHost"))
-        assertTrue(source.contains("runtimeManager.attachHost("))
+        assertTrue(source.contains("private val androidHost = object : DiaryRecordingAndroidHost"))
+        assertTrue(source.contains("runtimeManager.attachAndSubmit("))
         assertTrue(source.contains("override fun enterForeground(state: DiaryRecordingState)"))
         assertTrue(source.contains("override fun stateChanged(state: DiaryRecordingState)"))
         assertTrue(source.contains("override fun stopForeground()"))
         assertTrue(source.contains("override fun stopSelfResult(startId: Int)"))
         assertTrue(source.contains("this@DiaryRecordingService.stopSelfResult(startId)"))
         assertTrue(source.contains("ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE"))
+    }
+
+    @Test
+    fun closingHandoffUsesContentFreePreparingForegroundCopy() {
+        val strings = File("src/main/res/values/strings.xml").readText()
+
+        assertTrue(strings.contains(
+            "<string name=\"diary_recording_status_starting\">正在准备录音</string>",
+        ))
     }
 
     @Test

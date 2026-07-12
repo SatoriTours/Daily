@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
@@ -27,22 +28,26 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryRecordingRuntimeTest {
     @Test
-    fun hostDuringClosingRuntimeGetsFreshRuntimeAndCanStartBeforeOldCloseCallback() = runTest {
+    fun closingWindowStartUsesPlaceholderAndCreatesFreshRuntimeOnlyAfterOldClosed() = runTest {
         val store = DiaryRecordingStore()
-        val recorder = FakeRecorder()
         val persistence = FakePersistence()
         val root = createTempDirectory("diary-recording-runtime-closing-test").toFile()
         val executors = mutableListOf<CountingExecutorService>()
+        val recorders = mutableListOf<FakeRecorder>()
         val releaseStarted = CountDownLatch(1)
         val releaseMayFinish = CountDownLatch(1)
-        recorder.onRelease = {
-            releaseStarted.countDown()
-            check(releaseMayFinish.await(2, TimeUnit.SECONDS))
-            recorder.currentOutput
-        }
         var nextToken = 0
         val manager = DiaryRecordingRuntimeManager { onClosed ->
             val executor = CountingExecutorService().also(executors::add)
+            val recorder = FakeRecorder().also(recorders::add).apply {
+                if (recorders.size == 1) {
+                    onRelease = {
+                        releaseStarted.countDown()
+                        check(releaseMayFinish.await(2, TimeUnit.SECONDS))
+                        currentOutput
+                    }
+                }
+            }
             DiaryRecordingRuntime(
                 store = store,
                 recorder = recorder,
@@ -62,10 +67,14 @@ class DiaryRecordingRuntimeTest {
             )
         }
 
-        val first = manager.attachHost(FakeAndroidHost())
+        val firstHost = FakeAndroidHost()
         assertEquals(
             DiaryRecordingCommandResult.Accepted,
-            manager.submit(first, 1, DiaryRecordingCommand.Start(11, 101)).await(),
+            manager.attachAndSubmit(
+                firstHost,
+                1,
+                DiaryRecordingCommand.Start(11, 101),
+            ).await(),
         )
         var attempts = 0
         while (store.state.value !is DiaryRecordingState.Recording && attempts++ < 200) {
@@ -73,46 +82,70 @@ class DiaryRecordingRuntimeTest {
             Thread.sleep(5)
         }
         assertIs<DiaryRecordingState.Recording>(store.state.value)
-        manager.detachHost(first)
+        manager.detachHost(firstHost)
         advanceTimeBy(1_000)
         runCurrent()
         assertTrue(releaseStarted.await(2, TimeUnit.SECONDS))
 
-        val replacement = manager.attachHost(FakeAndroidHost())
-        assertEquals(
-            DiaryRecordingCommandResult.Accepted,
-            manager.submit(replacement, 2, DiaryRecordingCommand.Start(22, 202)).await(),
+        val replacementHost = FakeAndroidHost()
+        val pendingStart = manager.attachAndSubmit(
+            replacementHost,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
         )
-        assertEquals(2, executors.size)
+        val placeholder = assertIs<DiaryRecordingState.Starting>(replacementHost.foregroundStates.single())
+        assertEquals(22, placeholder.diaryId)
+        assertEquals(202, placeholder.attachmentId)
+        assertEquals(1, executors.size)
+        assertEquals(1, recorders.size)
+        assertFalse(pendingStart.isCompleted)
 
         releaseMayFinish.countDown()
         attempts = 0
-        while (!executors.first().isShutdown && attempts++ < 200) {
+        while (
+            (executors.size != 2 || store.state.value !is DiaryRecordingState.Recording) &&
+            attempts++ < 200
+        ) {
             runCurrent()
             Thread.sleep(5)
         }
         assertTrue(executors.first().isShutdown)
-
-        val afterOldClose = manager.attachHost(FakeAndroidHost())
-        assertTrue(afterOldClose.runtime === replacement.runtime)
+        assertEquals(DiaryRecordingCommandResult.Accepted, pendingStart.await())
         assertEquals(2, executors.size)
+        assertEquals(2, recorders.size)
 
-        manager.detachHost(afterOldClose)
-        manager.detachHost(replacement)
+        val recording = assertIs<DiaryRecordingState.Recording>(store.state.value)
+        assertEquals(22, recording.diaryId)
+        assertEquals(202, recording.attachmentId)
+        runCurrent()
+        assertIs<DiaryRecordingState.Recording>(store.state.value)
+
+        manager.detachHost(replacementHost)
         advanceTimeBy(1_000)
         runCurrent()
     }
 
     @Test
-    fun hostAfterCompletedShutdownGetsFreshRuntimeAndCanStartNewSession() = runTest {
+    fun pendingPauseAndStopReplayInFifoAfterOldRuntimeCloses() = runTest {
         val store = DiaryRecordingStore()
-        val recorder = FakeRecorder()
         val persistence = FakePersistence()
         val root = createTempDirectory("diary-recording-runtime-manager-test").toFile()
         val executors = mutableListOf<CountingExecutorService>()
+        val recorders = mutableListOf<FakeRecorder>()
+        val releaseStarted = CountDownLatch(1)
+        val releaseMayFinish = CountDownLatch(1)
         var nextToken = 0
         val manager = DiaryRecordingRuntimeManager { onClosed ->
             val executor = CountingExecutorService().also(executors::add)
+            val recorder = FakeRecorder().also(recorders::add).apply {
+                if (recorders.size == 1) {
+                    onRelease = {
+                        releaseStarted.countDown()
+                        check(releaseMayFinish.await(2, TimeUnit.SECONDS))
+                        currentOutput
+                    }
+                }
+            }
             DiaryRecordingRuntime(
                 store = store,
                 recorder = recorder,
@@ -132,41 +165,177 @@ class DiaryRecordingRuntimeTest {
             )
         }
 
-        val first = manager.attachHost(FakeAndroidHost())
+        val firstHost = FakeAndroidHost()
         assertEquals(
             DiaryRecordingCommandResult.Accepted,
-            manager.submit(first, 1, DiaryRecordingCommand.Start(11, 101)).await(),
+            manager.attachAndSubmit(
+                firstHost,
+                1,
+                DiaryRecordingCommand.Start(11, 101),
+            ).await(),
         )
-        runCurrent()
-        manager.detachHost(first)
-        advanceTimeBy(1_000)
-        runCurrent()
         var attempts = 0
-        while (!executors.single().isShutdown && attempts++ < 200) {
+        while (store.state.value !is DiaryRecordingState.Recording && attempts++ < 200) {
             runCurrent()
             Thread.sleep(5)
         }
-        assertTrue(executors.single().isShutdown)
+        manager.detachHost(firstHost)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertTrue(releaseStarted.await(2, TimeUnit.SECONDS))
 
-        val second = manager.attachHost(FakeAndroidHost())
+        val replacementHost = FakeAndroidHost()
+        val completionOrder = CopyOnWriteArrayList<String>()
+        val start = manager.attachAndSubmit(
+            replacementHost,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        val pause = manager.submit(DiaryRecordingCommand.Pause, startId = 3)
+        val stop = manager.submit(DiaryRecordingCommand.Stop, startId = 4)
+        start.invokeOnCompletion { completionOrder += "start" }
+        pause.invokeOnCompletion { completionOrder += "pause" }
+        stop.invokeOnCompletion { completionOrder += "stop" }
+        assertFalse(start.isCompleted)
+        assertFalse(pause.isCompleted)
+        assertFalse(stop.isCompleted)
+        assertEquals(1, recorders.size)
+
+        releaseMayFinish.countDown()
+        attempts = 0
+        while (!stop.isCompleted && attempts++ < 200) {
+            runCurrent()
+            Thread.sleep(5)
+        }
+
+        assertEquals(DiaryRecordingCommandResult.Accepted, start.await())
+        assertEquals(DiaryRecordingCommandResult.Ignored, pause.await())
+        assertEquals(DiaryRecordingCommandResult.Accepted, stop.await())
+        assertEquals(listOf("start", "pause", "stop"), completionOrder)
+        assertEquals(2, executors.size)
+        assertEquals(2, recorders.size)
+        attempts = 0
+        while (recorders[1].stopCalls == 0 && attempts++ < 200) {
+            runCurrent()
+            Thread.sleep(5)
+        }
+        assertEquals(1, recorders[1].stopCalls)
+
+        manager.detachHost(replacementHost)
+        advanceTimeBy(1_000)
+        runCurrent()
+    }
+
+    @Test
+    fun shutdownCannotSplitOpenCheckFromAttachAndSubmit() = runTest {
+        val store = DiaryRecordingStore()
+        val root = createTempDirectory("diary-recording-runtime-attach-race-test").toFile()
+        val runtimeExecutors = mutableListOf<CountingExecutorService>()
+        val runtimes = mutableListOf<DiaryRecordingRuntime>()
+        val manager = DiaryRecordingRuntimeManager { onClosed ->
+            val executor = CountingExecutorService().also(runtimeExecutors::add)
+            DiaryRecordingRuntime(
+                store = store,
+                recorder = FakeRecorder(),
+                persistence = FakePersistence(),
+                outputFile = { diaryId, attachmentId, token ->
+                    File(root, "$diaryId/$attachmentId-$token.m4a")
+                },
+                scope = backgroundScope,
+                actorDispatcher = StandardTestDispatcher(testScheduler),
+                recorderDispatcher = executor.asCoroutineDispatcher(),
+                ioDispatcher = StandardTestDispatcher(testScheduler),
+                monotonicNowMs = { testScheduler.currentTime },
+                nextSessionToken = { "session-token" },
+                retryDelaysMs = emptyList(),
+                tickerIntervalMs = 1_000_000,
+                onClosed = onClosed,
+            ).also(runtimes::add)
+        }
+        val firstHost = FakeAndroidHost()
         assertEquals(
             DiaryRecordingCommandResult.Accepted,
-            manager.submit(second, 2, DiaryRecordingCommand.Start(22, 202)).await(),
+            manager.attachAndSubmit(
+                firstHost,
+                1,
+                DiaryRecordingCommand.Start(11, 101),
+            ).await(),
         )
-        attempts = 0
+        var attempts = 0
         while (store.state.value !is DiaryRecordingState.Recording && attempts++ < 200) {
             runCurrent()
             Thread.sleep(5)
         }
 
-        assertEquals(2, executors.size)
-        val recording = assertIs<DiaryRecordingState.Recording>(store.state.value)
-        assertEquals(22, recording.diaryId)
-        assertEquals(202, recording.attachmentId)
+        val attachEntered = CountDownLatch(1)
+        val attachMayFinish = CountDownLatch(1)
+        val replacement = FakeAndroidHost().apply {
+            onStateChanged = {
+                attachEntered.countDown()
+                check(attachMayFinish.await(2, TimeUnit.SECONDS))
+            }
+        }
+        val callers = Executors.newFixedThreadPool(2)
+        try {
+            val attachCall = callers.submit<kotlinx.coroutines.Deferred<DiaryRecordingCommandResult>> {
+                manager.attachAndSubmit(
+                    replacement,
+                    2,
+                    DiaryRecordingCommand.Start(11, 101),
+                )
+            }
+            assertTrue(attachEntered.await(2, TimeUnit.SECONDS))
+            val shutdownCall = callers.submit<kotlinx.coroutines.Deferred<DiaryRecordingCommandResult>> {
+                runtimes.single().shutdown()
+            }
+            Thread.sleep(50)
+            assertFalse(shutdownCall.isDone)
 
-        manager.detachHost(second)
-        advanceTimeBy(1_000)
-        runCurrent()
+            attachMayFinish.countDown()
+            val attachedResult = attachCall.get(2, TimeUnit.SECONDS)
+            shutdownCall.get(2, TimeUnit.SECONDS)
+            runCurrent()
+
+            assertEquals(DiaryRecordingCommandResult.AlreadyActive, attachedResult.await())
+            assertEquals(1, runtimeExecutors.size)
+        } finally {
+            attachMayFinish.countDown()
+            callers.shutdownNow()
+        }
+    }
+
+    @Test
+    fun detachedPersistenceFailedShutdownClosesMailboxExecutorAndNotifiesManager() = runTest {
+        val executor = CountingExecutorService()
+        val persistence = FakePersistence()
+        val closed = AtomicInteger()
+        withRuntime(
+            persistence = persistence,
+            recorderExecutor = executor,
+            retryDelaysMs = emptyList(),
+            onClosed = { closed.incrementAndGet() },
+        ) { fixture ->
+            val host = FakeAndroidHost()
+            val attachment = fixture.runtime.attachHost(host)
+            fixture.startRecording(attachment)
+            persistence.failWrites = true
+            fixture.runtime.submit(attachment, 2, DiaryRecordingCommand.Stop).await()
+            fixture.awaitState { it is DiaryRecordingState.PersistenceFailed }
+
+            fixture.runtime.detachHost(attachment)
+            advanceTimeBy(1_000)
+            fixture.awaitCondition { executor.isShutdown && closed.get() == 1 }
+
+            assertEquals(
+                DiaryRecordingCommandResult.Ignored,
+                fixture.runtime.submit(
+                    attachment,
+                    3,
+                    DiaryRecordingCommand.RetryPersistence,
+                ).await(),
+            )
+            assertEquals(1, executor.shutdownCalls.get())
+        }
     }
 
     @Test
@@ -511,66 +680,6 @@ class DiaryRecordingRuntimeTest {
     }
 
     @Test
-    fun shutdownPersistenceFailureStaysRetryableOrAbandonableAfterRecorderExecutorCloses() = runTest {
-        val executor = Executors.newSingleThreadExecutor()
-        val persistence = FakePersistence().apply { failWrites = true }
-        withRuntime(
-            persistence = persistence,
-            recorderExecutor = executor,
-            retryDelaysMs = emptyList(),
-        ) { fixture ->
-            val host = FakeAndroidHost()
-            val attachment = fixture.runtime.attachHost(host)
-            fixture.startRecording(attachment)
-
-            fixture.runtime.shutdown().await()
-            fixture.awaitState { it is DiaryRecordingState.PersistenceFailed }
-            assertTrue(executor.isShutdown)
-
-            persistence.failWrites = false
-            assertEquals(
-                DiaryRecordingCommandResult.Accepted,
-                fixture.runtime.submit(attachment, 2, DiaryRecordingCommand.RetryPersistence).await(),
-            )
-            runCurrent()
-
-            assertEquals(DiaryRecordingState.Idle, fixture.store.state.value)
-            assertEquals(2, persistence.completions.size)
-        }
-
-        val discardExecutor = Executors.newSingleThreadExecutor()
-        val discardPersistence = FakePersistence().apply { failWrites = true }
-        withRuntime(
-            persistence = discardPersistence,
-            recorderExecutor = discardExecutor,
-            retryDelaysMs = emptyList(),
-        ) { fixture ->
-            val host = FakeAndroidHost()
-            val attachment = fixture.runtime.attachHost(host)
-            fixture.startRecording(attachment)
-            val output = checkNotNull(fixture.recorder.currentOutput).file
-
-            fixture.runtime.shutdown().await()
-            fixture.awaitState { it is DiaryRecordingState.PersistenceFailed }
-            assertTrue(discardExecutor.isShutdown)
-
-            discardPersistence.failWrites = false
-            assertEquals(
-                DiaryRecordingCommandResult.Accepted,
-                fixture.runtime.submit(attachment, 2, DiaryRecordingCommand.Stop).await(),
-            )
-            runCurrent()
-
-            assertFalse(output.exists())
-            assertEquals(
-                DiaryRecordingErrorCode.USER_CANCELLED,
-                discardPersistence.failures.last().errorCode,
-            )
-            assertEquals(DiaryRecordingState.Idle, fixture.store.state.value)
-        }
-    }
-
-    @Test
     fun stopQueuedAfterStartFailureCompletesOutputDecidedAtReleaseResultTime() = runTest {
         val enteredRelease = CountDownLatch(1)
         val releaseResult = CountDownLatch(1)
@@ -739,6 +848,7 @@ class DiaryRecordingRuntimeTest {
         monotonicNowMs: () -> Long = { 1_000L },
         nextSessionToken: () -> String = { "session-token" },
         outputFile: ((Long, Long, String) -> File)? = null,
+        onClosed: () -> Unit = {},
         block: suspend (RuntimeFixture) -> Unit,
     ) {
         val ownedExecutor = recorderExecutor ?: if (realRecorderThread) {
@@ -765,6 +875,7 @@ class DiaryRecordingRuntimeTest {
             nextSessionToken = nextSessionToken,
             retryDelaysMs = retryDelaysMs,
             tickerIntervalMs = 1_000_000,
+            onClosed = onClosed,
         )
         try {
             block(RuntimeFixture(this, runtime, store, recorder, persistence))
@@ -809,6 +920,7 @@ class DiaryRecordingRuntimeTest {
         var currentOutput: DiaryRecordingOutput? = null
         var stopOutput: DiaryRecordingOutput? = null
         var releaseCalls = 0
+        var stopCalls = 0
         var onStart: (String, File) -> Unit = { token, output ->
             output.parentFile?.mkdirs()
             output.writeBytes(byteArrayOf(1, 2, 3))
@@ -823,7 +935,10 @@ class DiaryRecordingRuntimeTest {
 
         override fun pause() = Unit
         override fun resume() = Unit
-        override fun stop(): DiaryRecordingOutput = onStop()
+        override fun stop(): DiaryRecordingOutput {
+            stopCalls++
+            return onStop()
+        }
         override fun releasePreservingOutput(): DiaryRecordingOutput? {
             releaseCalls++
             return onRelease()
@@ -865,16 +980,22 @@ class DiaryRecordingRuntimeTest {
 
     private class FakeAndroidHost : DiaryRecordingAndroidHost {
         val states = mutableListOf<DiaryRecordingState>()
+        val foregroundStates = mutableListOf<DiaryRecordingState>()
         val stopSelfResultCalls = mutableListOf<Int>()
         var latestStartId = 0
         var stopForegroundCalls = 0
         var foregroundError: String? = null
         var onStopSelfResult: ((Int) -> Boolean)? = null
+        var onStateChanged: (DiaryRecordingState) -> Unit = {}
 
-        override fun enterForeground(state: DiaryRecordingState): String? = foregroundError
+        override fun enterForeground(state: DiaryRecordingState): String? {
+            foregroundStates += state
+            return foregroundError
+        }
 
         override fun stateChanged(state: DiaryRecordingState) {
             states += state
+            onStateChanged(state)
         }
 
         override fun stopForeground() {

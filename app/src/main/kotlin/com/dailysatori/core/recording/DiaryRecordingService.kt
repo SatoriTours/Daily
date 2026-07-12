@@ -15,34 +15,32 @@ class DiaryRecordingService : Service() {
     private val runtimeManager: DiaryRecordingRuntimeManager by inject()
 
     private lateinit var notification: DiaryRecordingNotification
-    private lateinit var runtimeLease: DiaryRecordingRuntimeLease
     @Volatile private var androidResourcesOpen = true
     @Volatile private var foregroundStarted = false
+
+    private val androidHost = object : DiaryRecordingAndroidHost {
+        override fun enterForeground(state: DiaryRecordingState): String? =
+            this@DiaryRecordingService.enterForeground(state)
+
+        override fun stateChanged(state: DiaryRecordingState) {
+            if (!androidResourcesOpen || !foregroundStarted) return
+            val diaryId = state.diaryId ?: return
+            runCatching { notification.notify(state, diaryId) }
+                .onFailure { Log.e(TAG, "Unable to update recording notification", it) }
+        }
+
+        override fun stopForeground() {
+            this@DiaryRecordingService.stopRecordingForeground()
+        }
+
+        override fun stopSelfResult(startId: Int): Boolean {
+            return androidResourcesOpen && this@DiaryRecordingService.stopSelfResult(startId)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
         notification = DiaryRecordingNotification(this)
-        runtimeLease = runtimeManager.attachHost(
-            object : DiaryRecordingAndroidHost {
-                override fun enterForeground(state: DiaryRecordingState): String? =
-                    this@DiaryRecordingService.enterForeground(state)
-
-                override fun stateChanged(state: DiaryRecordingState) {
-                    if (!androidResourcesOpen || !foregroundStarted) return
-                    val diaryId = state.diaryId ?: return
-                    runCatching { notification.notify(state, diaryId) }
-                        .onFailure { Log.e(TAG, "Unable to update recording notification", it) }
-                }
-
-                override fun stopForeground() {
-                    this@DiaryRecordingService.stopRecordingForeground()
-                }
-
-                override fun stopSelfResult(startId: Int): Boolean {
-                    return androidResourcesOpen && this@DiaryRecordingService.stopSelfResult(startId)
-                }
-            },
-        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -51,8 +49,8 @@ class DiaryRecordingService : Service() {
                 val diaryId = intent.getLongExtra(EXTRA_DIARY_ID, 0)
                 val attachmentId = intent.getLongExtra(EXTRA_ATTACHMENT_ID, 0)
                 if (diaryId > 0 && attachmentId > 0) {
-                    runtimeManager.submit(
-                        runtimeLease,
+                    runtimeManager.attachAndSubmit(
+                        androidHost,
                         startId,
                         DiaryRecordingCommand.Start(diaryId, attachmentId),
                     )
@@ -61,13 +59,12 @@ class DiaryRecordingService : Service() {
                     stopSelfResult(startId)
                 }
             }
-            ACTION_PAUSE -> runtimeManager.submit(runtimeLease, startId, DiaryRecordingCommand.Pause)
-            ACTION_RESUME -> runtimeManager.submit(runtimeLease, startId, DiaryRecordingCommand.Resume)
-            ACTION_STOP -> runtimeManager.submit(runtimeLease, startId, DiaryRecordingCommand.Stop)
+            ACTION_PAUSE -> runtimeManager.submit(DiaryRecordingCommand.Pause, startId)
+            ACTION_RESUME -> runtimeManager.submit(DiaryRecordingCommand.Resume, startId)
+            ACTION_STOP -> runtimeManager.submit(DiaryRecordingCommand.Stop, startId)
             ACTION_RETRY_PERSIST -> runtimeManager.submit(
-                runtimeLease,
-                startId,
                 DiaryRecordingCommand.RetryPersistence,
+                startId,
             )
             ACTION_OPEN -> Unit
         }
@@ -77,7 +74,7 @@ class DiaryRecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        runtimeManager.detachHost(runtimeLease)
+        runtimeManager.detachHost(androidHost)
         androidResourcesOpen = false
         stopRecordingForeground()
         super.onDestroy()
