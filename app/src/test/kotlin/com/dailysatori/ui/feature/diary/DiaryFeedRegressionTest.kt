@@ -18,7 +18,20 @@ class DiaryFeedRegressionTest {
         assertTrue(!screen.contains("已入库"))
         assertTrue(card.indexOf("DiaryBody(") < card.indexOf("DiaryAttachmentList("))
         assertTrue(card.indexOf("DiaryAttachmentList(") < card.indexOf("DiaryCardFooter("))
-        assertTrue(attachmentList.contains("attachments.take(2)"))
+        assertTrue(attachmentList.contains("displayableAttachments.take(2)"))
         assertTrue(attachmentList.contains("查看全部"))
+    }
+
+    @Test
+    fun voiceDiaryIsBroughtIntoViewAndRecordedAudioCanBePlayed() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryScreen.kt").readText()
+        val attachmentList = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryAttachmentList.kt").readText()
+
+        assertTrue(screen.contains("animateScrollToItem(0)"))
+        assertTrue(screen.contains("state.diaries.firstOrNull()?.id"))
+        assertTrue(screen.contains("state.recordingState is DiaryRecordingState.Idle"))
+        assertTrue(attachmentList.contains("DiaryAudioPlaybackButton"))
+        assertTrue(attachmentList.contains("MediaPlayer"))
+        assertTrue(attachmentList.contains("attachment.local_path.isNotBlank()"))
     }
 }

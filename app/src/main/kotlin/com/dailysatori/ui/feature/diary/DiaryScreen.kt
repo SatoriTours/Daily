@@ -49,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -132,6 +133,18 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     }
     val diaryListState = rememberLazyListState()
     val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
+    val newestDiaryId = state.diaries.firstOrNull()?.id
+    var recordingWasActive by remember { mutableStateOf(false) }
+    LaunchedEffect(newestDiaryId) {
+        if (newestDiaryId != null) diaryListState.animateScrollToItem(0)
+    }
+    LaunchedEffect(state.recordingState) {
+        val recordingIsActive = state.recordingState !is DiaryRecordingState.Idle
+        if (recordingWasActive && state.recordingState is DiaryRecordingState.Idle && newestDiaryId != null) {
+            diaryListState.animateScrollToItem(0)
+        }
+        recordingWasActive = recordingIsActive
+    }
 
     AppScaffold(
         title = "我的日记",
