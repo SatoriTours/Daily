@@ -67,6 +67,7 @@ import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.skill.DefaultSkillConnectionTester
@@ -114,6 +115,7 @@ val sharedModule: Module = module {
     single { AiModelCatalogService(get(), get()) }
     single { BackupPasswordStore(get()) }
     single { SecretCipher(get()) }
+    single<SecretValueCipher> { get<SecretCipher>() }
     single { SecretFieldProcessor(get(), get<SecretCipher>()) }
     single { BackupService(get(), get(), get(), get(), get<SecretCipher>()) }
     single { PluginService(get(), get()) }
