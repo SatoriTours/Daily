@@ -2,7 +2,7 @@
 
 更新时间：2026-07-12
 当前分支：`main`
-当前 HEAD：`bde5dd79 docs: add token-efficient agent rules`
+当前功能 HEAD：`b71cd889 feat: transcribe and index diary captures`
 
 功能代号：`Diary Multimodal Knowledge`
 中文名称：`日记多模态采集与个人知识库`
@@ -28,8 +28,8 @@
 | 设计与原型 | 已确认 | 深色模式、现有列表不变、小加号采集入口 |
 | Task 1 | 已完成 | 真实日记 ID、附件表、迁移、文件清理 |
 | Task 2 | 已完成 | 知识库提取绑定真实 diary ID |
-| Task 3 | 收尾中 | 后台录音、锁屏通知、Runtime cleanup |
-| Task 4 | 未开始 | 语音转写与知识库异步任务 |
+| Task 3 | 已完成 | 后台录音、锁屏通知、Runtime cleanup |
+| Task 4 | 已完成 | 语音转写与知识库异步任务 |
 | Task 5 | 未开始 | 紧凑采集 UI 与现有 DiaryCard 附件行 |
 | Task 6 | 未开始 | 麦克风/通知权限、视频和文件接入 |
 | Task 7 | 未开始 | 集成、真机、后台与锁屏验收 |
@@ -137,67 +137,19 @@
 
 真机尚未验证：API 26/30/31/34+、OEM `MediaRecorder`、Service recreation、锁屏通知、熄屏持续录音和 `stopSelfResult(startId)` 时序。
 
-## 当前未提交代码：必须先处理
+## Task 3 与 Task 4 收尾
 
-工作区目前有 3 个被中断代理留下的修改，不属于已验证提交：
-
-- `app/src/main/kotlin/com/dailysatori/core/recording/DiaryRecordingRuntimeManager.kt`
-- `app/src/main/kotlin/com/dailysatori/core/recording/DiaryRecordingState.kt`
-- `app/src/test/kotlin/com/dailysatori/core/recording/DiaryRecordingRuntimeTest.kt`
-
-这些修改尝试解决 placeholder foreground 被拒绝后，failure persistence 失败会丢失的问题：
-
-- 新增 `RejectedCleanup` 状态。
-- failure persistence 按 1s/2s/4s 重试。
-- 重试耗尽后保留 cleanup ownership，支持 `RetryPersistence` 或 Stop/放弃。
-- finish Service 时跟踪最新 `startId` 并有限重试 `stopSelfResult`。
-- 新增三组 Runtime 测试。
-
-注意：该代码在代理完成前被停止，**不要直接提交**。下一步先：
-
-1. 阅读这 3 个文件的当前 diff。
-2. 检查 `RejectedCleanup` 是否会永久占用 Manager、是否正确更新通知 actions、Stop/放弃是否会留下数据库未记录失败。
-3. 运行聚焦测试确认当前状态：
-
-```bash
-./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingRuntimeTest'
-```
-
-4. 修复或简化后再运行一次聚焦测试。
-5. 阶段完成时运行：
-
-```bash
-./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin
-```
-
-6. 只提交这 3 个相关文件，建议提交信息：
-
-```text
-fix: retain rejected recording cleanup ownership
-```
-
-不要再启动“实现代理 + 审查代理 + 多轮复审”循环。当前代理本地检查一次即可。
-
-## Task 3 完成标准
-
-完成当前未提交 cleanup 后，Task 3 可标记完成，条件是：
-
-- placeholder FGS 失败时不创建 recorder/runtime。
-- failure 状态写入失败时有明确且有限的重试/放弃路径。
-- `stopSelfResult` 使用该 Service 最新 `startId`，不会留下占位 FGS。
-- 后台/锁屏通知 contract 测试通过。
-- recording 聚焦测试、App/Shared 全量测试和编译通过。
-- 真机风险记录到最终验收，不再用理论 Minor 阻塞开发。
+- Task 3 cleanup 提交：`b8f0717e fix: retain rejected recording cleanup ownership`。
+- Task 4 提交：`b71cd889 feat: transcribe and index diary captures`。
+- 录音完成后按 `diary-transcribe:<attachmentId>` 唯一键排队，并立即交给 WorkManager。
+- OpenAI-compatible multipart `/audio/transcriptions` 复用默认 AI base/token，speech model 默认 `whisper-1`。
+- 转写状态按 queued/processing/completed/failed 持久化；失败不删除音频。
+- 仅精确替换自动正文 `这篇日记正在转写…`，用户已编辑正文则追加 `## 语音转写`。
+- 转写与日记正文在同一数据库事务更新；完成后按真实 diary ID 链式排队知识提取。
+- 知识任务合并当前正文和已完成附件转写，按 `diary-knowledge:<diaryId>:<updatedAt>` 幂等。
+- Shared/App 全量测试及 APK 构建通过；已安装到 `192.168.2.120:37749` 并冷启动，无 Koin/WorkManager 崩溃。
 
 ## 后续任务
-
-### Task 4：转写与知识库异步任务
-
-- 实现 `SpeechTranscriptionClient` 和 OpenAI-compatible `/audio/transcriptions`。
-- 默认 speech model `whisper-1`，复用已配置 API base/token；不支持时保留音频并显示失败。
-- async task 类型：`diary_attachment_transcribe`、`diary_knowledge_extract`。
-- transcription 成功后更新附件状态和日记正文；不得覆盖用户编辑。
-- knowledge extraction 使用真实 diary ID，必须幂等。
 
 ### Task 5：保持现有列表的采集 UI
 
