@@ -560,7 +560,13 @@ class DiaryRecordingActorTest {
         var stopForegroundCalls = 0
         var stopServiceCalls = 0
 
-        override fun enterForeground(state: DiaryRecordingState): String? = null
+        override fun requestForeground(
+            sessionToken: String,
+            sessionCreatedAtMonotonicMs: Long,
+            state: DiaryRecordingState,
+        ) = Unit
+
+        override fun isCurrentHostGeneration(generation: Long): Boolean = true
 
         override fun stateChanged(state: DiaryRecordingState) {
             states += state

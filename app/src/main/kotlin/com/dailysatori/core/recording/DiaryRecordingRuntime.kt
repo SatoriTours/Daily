@@ -48,6 +48,10 @@ class DiaryRecordingRuntime(
         tickerIntervalMs = tickerIntervalMs,
     )
 
+    init {
+        hosts.resultSink = actor::submit
+    }
+
     fun attachHost(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment = hosts.attach(host)
 
     fun detachHost(attachment: DiaryRecordingHostAttachment) {
@@ -84,6 +88,8 @@ class DiaryRecordingRuntime(
         private val effectLock = Any()
         private val generations = AtomicLong()
         private var current: AttachedHost? = null
+        private var foregroundRequest: ForegroundRequest? = null
+        lateinit var resultSink: (DiaryRecordingResult) -> Unit
 
         fun attach(host: DiaryRecordingAndroidHost): DiaryRecordingHostAttachment {
             val attached = AttachedHost(generations.incrementAndGet(), host)
@@ -93,7 +99,9 @@ class DiaryRecordingRuntime(
             synchronized(effectLock) {
                 val state = store.state.value
                 if (state !is DiaryRecordingState.Idle) {
-                    invokeCurrent(attached.generation) { it.enterForeground(state) }
+                    foregroundRequest?.let { request ->
+                        invokeForeground(attached, request.copy(state = state))
+                    }
                 }
                 invokeCurrent(attached.generation) {
                     it.stateChanged(store.state.value)
@@ -112,17 +120,36 @@ class DiaryRecordingRuntime(
         fun isAttached(attachment: DiaryRecordingHostAttachment): Boolean =
             synchronized(lock) { current?.generation == attachment.generation }
 
-        override fun enterForeground(state: DiaryRecordingState): String? {
+        override fun requestForeground(
+            sessionToken: String,
+            sessionCreatedAtMonotonicMs: Long,
+            state: DiaryRecordingState,
+        ) {
+            val request = ForegroundRequest(
+                sessionToken = sessionToken,
+                sessionCreatedAtMonotonicMs = sessionCreatedAtMonotonicMs,
+                state = state,
+            )
             synchronized(effectLock) {
-                repeat(2) {
-                    val attached = snapshot()
-                        ?: return DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED
-                    val result = attached.host.enterForeground(state)
-                    if (isCurrent(attached.generation)) return result
+                foregroundRequest = request
+                val attached = snapshot()
+                if (attached == null) {
+                    submitForegroundResult(
+                        request,
+                        hostGeneration = NO_HOST_GENERATION,
+                        errorCode = DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED,
+                    )
+                } else {
+                    invokeForeground(attached, request)
                 }
-                return DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED
             }
         }
+
+        override fun isCurrentHostGeneration(generation: Long): Boolean =
+            synchronized(lock) {
+                if (generation == NO_HOST_GENERATION) current == null
+                else current?.generation == generation
+            }
 
         override fun stateChanged(state: DiaryRecordingState) {
             synchronized(effectLock) {
@@ -135,12 +162,35 @@ class DiaryRecordingRuntime(
 
         override fun finishService(startId: Int): Boolean {
             synchronized(effectLock) {
-                val attached = snapshot() ?: return false
-                val stoppedCurrent = attached.host.stopSelfResult(startId) &&
-                    isCurrent(attached.generation)
-                if (stoppedCurrent) attached.host.stopForeground()
-                return stoppedCurrent
+                repeat(HOST_EFFECT_ATTEMPTS) {
+                    val attached = snapshot() ?: return false
+                    val stopped = attached.host.stopSelfResult(startId)
+                    if (!isCurrent(attached.generation)) return@repeat
+                    if (stopped) attached.host.stopForeground()
+                    return stopped
+                }
+                return false
             }
+        }
+
+        private fun invokeForeground(attached: AttachedHost, request: ForegroundRequest) {
+            val errorCode = attached.host.enterForeground(request.state)
+            submitForegroundResult(request, attached.generation, errorCode)
+        }
+
+        private fun submitForegroundResult(
+            request: ForegroundRequest,
+            hostGeneration: Long,
+            errorCode: String?,
+        ) {
+            resultSink(
+                DiaryRecordingResult.ForegroundEntryFinished(
+                    sessionToken = request.sessionToken,
+                    sessionCreatedAtMonotonicMs = request.sessionCreatedAtMonotonicMs,
+                    hostGeneration = hostGeneration,
+                    errorCode = errorCode,
+                ),
+            )
         }
 
         private fun <T> invokeLatest(block: (DiaryRecordingAndroidHost) -> T): T? {
@@ -170,5 +220,16 @@ class DiaryRecordingRuntime(
             val generation: Long,
             val host: DiaryRecordingAndroidHost,
         )
+
+        private data class ForegroundRequest(
+            val sessionToken: String,
+            val sessionCreatedAtMonotonicMs: Long,
+            val state: DiaryRecordingState,
+        )
+
+        private companion object {
+            const val NO_HOST_GENERATION = 0L
+            const val HOST_EFFECT_ATTEMPTS = 4
+        }
     }
 }

@@ -79,11 +79,17 @@ internal sealed interface DiaryRecordingResult {
         val output: DiaryRecordingOutput?,
         val errorCode: String,
         val decision: ReleaseDecision,
-        val shutdown: Boolean = false,
     ) : DiaryRecordingResult
 
     data class Tick(
         override val sessionToken: String,
+    ) : DiaryRecordingResult
+
+    data class ForegroundEntryFinished(
+        override val sessionToken: String,
+        val sessionCreatedAtMonotonicMs: Long,
+        val hostGeneration: Long,
+        val errorCode: String?,
     ) : DiaryRecordingResult
 }
 
@@ -105,7 +111,12 @@ interface DiaryRecordingPersistence {
 }
 
 internal interface DiaryRecordingActorHost {
-    fun enterForeground(state: DiaryRecordingState): String?
+    fun requestForeground(
+        sessionToken: String,
+        sessionCreatedAtMonotonicMs: Long,
+        state: DiaryRecordingState,
+    )
+    fun isCurrentHostGeneration(generation: Long): Boolean
     fun stateChanged(state: DiaryRecordingState)
     fun finishService(startId: Int): Boolean
 }
@@ -205,7 +216,7 @@ internal class DiaryRecordingActor(
         activeSession?.let { active ->
             return if (active.diaryId == command.diaryId && active.attachmentId == command.attachmentId) {
                 if (startId > 0) active.latestStartId = startId
-                host.enterForeground(store.state.value)
+                requestForeground(active)
                 DiaryRecordingCommandResult.AlreadyActive
             } else {
                 DiaryRecordingCommandResult.Busy
@@ -217,19 +228,13 @@ internal class DiaryRecordingActor(
             diaryId = command.diaryId,
             attachmentId = command.attachmentId,
             latestStartId = startId,
+            createdAtMonotonicMs = monotonicNowMs(),
         )
         activeSession = session
         publish(session.startingState())
         session.outputFile = outputFile(command.diaryId, command.attachmentId, session.token)
 
-        val foregroundError = host.enterForeground(store.state.value)
-        if (foregroundError != null) {
-            session.pendingPersistence = TerminalPersistence.Failure(null, foregroundError)
-            publish(session.failedState(foregroundError, null))
-            session.serviceFinishRequested = host.finishService(session.latestStartId)
-            persistTerminal(session)
-            return DiaryRecordingCommandResult.Accepted
-        }
+        requestForeground(session)
 
         if (!prepareOutput(session)) {
             session.pendingPersistence = TerminalPersistence.Failure(
@@ -367,7 +372,7 @@ internal class DiaryRecordingActor(
         if (session.pendingPersistence == null) {
             return DiaryRecordingCommandResult.Ignored
         }
-        host.enterForeground(failed)
+        requestForeground(session, failed)
         persistTerminal(session)
         return DiaryRecordingCommandResult.Accepted
     }
@@ -380,21 +385,17 @@ internal class DiaryRecordingActor(
         ticker = null
         val session = activeSession
         if (session == null) {
-            closeRecorderBoundary()
-            mailbox.close()
+            closeTerminalBoundary()
         } else if (store.state.value is DiaryRecordingState.PersistenceFailed) {
             closeRecorderBoundary()
+        } else if (session.terminalRecorderOperationLaunched) {
+            // The in-flight stop/release result owns finalization and terminal close.
         } else {
-            launchRecorder(session.token) {
-                val output = runCatching { recorder.releasePreservingOutput() }.getOrNull()
-                DiaryRecordingResult.RecorderReleased(
-                    sessionToken = session.token,
-                    output = output,
-                    errorCode = DiaryRecordingErrorCode.FINALIZE_FAILED,
-                    decision = ReleaseDecision.CompleteUsableOutput,
-                    shutdown = true,
-                )
-            }
+            launchRelease(
+                session = session,
+                errorCode = DiaryRecordingErrorCode.FINALIZE_FAILED,
+                decision = ReleaseDecision.CompleteUsableOutput,
+            )
         }
         return DiaryRecordingCommandResult.Accepted
     }
@@ -404,9 +405,27 @@ internal class DiaryRecordingActor(
         if (session.token != result.sessionToken) return
 
         when (result) {
+            is DiaryRecordingResult.ForegroundEntryFinished -> {
+                if (
+                    result.errorCode != null &&
+                    result.sessionCreatedAtMonotonicMs == session.createdAtMonotonicMs &&
+                    host.isCurrentHostGeneration(result.hostGeneration) &&
+                    session.pendingPersistence == null &&
+                    !session.foregroundFailureHandled
+                ) {
+                    session.foregroundFailureHandled = true
+                    session.captureElapsed(monotonicNowMs())
+                    ticker?.cancel()
+                    ticker = null
+                    publish(session.failedState(result.errorCode, null))
+                    launchRelease(session, result.errorCode, ReleaseDecision.Fail)
+                }
+            }
             is DiaryRecordingResult.RecorderStarted -> {
                 session.recorderStarted = true
-                if (session.stopRequested) {
+                if (session.terminalRecorderOperationLaunched) {
+                    Unit
+                } else if (session.stopRequested) {
                     launchStop(session)
                 } else {
                     session.runningSinceMs = monotonicNowMs()
@@ -458,7 +477,6 @@ internal class DiaryRecordingActor(
                     TerminalPersistence.Failure(usableOutput, errorCode)
                 }
                 publish(session.stoppingState())
-                if (result.shutdown) closeRecorderBoundary()
                 persistTerminal(session)
             }
             is DiaryRecordingResult.Tick -> {
@@ -470,8 +488,8 @@ internal class DiaryRecordingActor(
     }
 
     private fun launchStop(session: Session) {
-        if (session.stopLaunched) return
-        session.stopLaunched = true
+        if (session.terminalRecorderOperationLaunched) return
+        session.terminalRecorderOperationLaunched = true
         launchRecorder(session.token) {
             try {
                 DiaryRecordingResult.RecorderStopped(session.token, recorder.stop())
@@ -491,6 +509,8 @@ internal class DiaryRecordingActor(
         errorCode: String,
         decision: ReleaseDecision,
     ) {
+        if (session.terminalRecorderOperationLaunched) return
+        session.terminalRecorderOperationLaunched = true
         launchRecorder(session.token) {
             val output = runCatching { recorder.releasePreservingOutput() }.getOrNull()
             DiaryRecordingResult.RecorderReleased(
@@ -547,6 +567,7 @@ internal class DiaryRecordingActor(
             is TerminalPersistence.Failure -> usableOutput(session, pending.output)?.file?.absolutePath
         }
         publish(session.persistenceFailedState(localPath))
+        if (shutdownRequested) closeRecorderBoundary()
     }
 
     private fun handoffTerminal(session: Session) {
@@ -554,7 +575,7 @@ internal class DiaryRecordingActor(
         activeSession = null
         publish(DiaryRecordingState.Idle)
         if (!session.serviceFinishRequested) host.finishService(session.latestStartId)
-        if (shutdownRequested) mailbox.close()
+        if (shutdownRequested) closeTerminalBoundary()
     }
 
     private fun prepareOutput(session: Session): Boolean {
@@ -611,6 +632,18 @@ internal class DiaryRecordingActor(
         host.stateChanged(state)
     }
 
+    private fun requestForeground(
+        session: Session,
+        state: DiaryRecordingState = store.state.value,
+    ) {
+        host.requestForeground(session.token, session.createdAtMonotonicMs, state)
+    }
+
+    private fun closeTerminalBoundary() {
+        closeRecorderBoundary()
+        mailbox.close()
+    }
+
     private fun closeRecorderBoundary() {
         if (recorderBoundaryClosed) return
         recorderBoundaryClosed = true
@@ -646,12 +679,14 @@ internal class DiaryRecordingActor(
         val token: String,
         val diaryId: Long,
         val attachmentId: Long,
+        val createdAtMonotonicMs: Long,
         var outputFile: File? = null,
         var latestStartId: Int,
         var outputPrepared: Boolean = false,
         var recorderStarted: Boolean = false,
         var stopRequested: Boolean = false,
-        var stopLaunched: Boolean = false,
+        var terminalRecorderOperationLaunched: Boolean = false,
+        var foregroundFailureHandled: Boolean = false,
         var accumulatedMs: Long = 0,
         var runningSinceMs: Long? = null,
         var pendingPersistence: TerminalPersistence? = null,
@@ -665,16 +700,36 @@ internal class DiaryRecordingActor(
             runningSinceMs = null
         }
 
-        fun startingState() = DiaryRecordingState.Starting(diaryId, attachmentId)
-        fun recordingState() = DiaryRecordingState.Recording(diaryId, attachmentId, elapsed())
-        fun pausedState() = DiaryRecordingState.Paused(diaryId, attachmentId, accumulatedMs)
-        fun stoppingState() = DiaryRecordingState.Stopping(diaryId, attachmentId, accumulatedMs)
+        fun startingState() = DiaryRecordingState.Starting(
+            diaryId,
+            attachmentId,
+            createdAtMonotonicMs = createdAtMonotonicMs,
+        )
+        fun recordingState() = DiaryRecordingState.Recording(
+            diaryId,
+            attachmentId,
+            elapsed(),
+            createdAtMonotonicMs,
+        )
+        fun pausedState() = DiaryRecordingState.Paused(
+            diaryId,
+            attachmentId,
+            accumulatedMs,
+            createdAtMonotonicMs,
+        )
+        fun stoppingState() = DiaryRecordingState.Stopping(
+            diaryId,
+            attachmentId,
+            accumulatedMs,
+            createdAtMonotonicMs,
+        )
         fun failedState(errorCode: String, localPath: String?) = DiaryRecordingState.Failed(
             diaryId = diaryId,
             attachmentId = attachmentId,
             elapsedMs = elapsed(),
             errorCode = errorCode,
             localPath = localPath,
+            createdAtMonotonicMs = createdAtMonotonicMs,
         )
 
         fun persistenceFailedState(localPath: String?) = DiaryRecordingState.PersistenceFailed(
@@ -682,6 +737,7 @@ internal class DiaryRecordingActor(
             attachmentId = attachmentId,
             elapsedMs = elapsed(),
             localPath = localPath,
+            createdAtMonotonicMs = createdAtMonotonicMs,
         )
     }
 
@@ -704,6 +760,7 @@ internal class DiaryRecordingActor(
             diaryId = command.diaryId,
             attachmentId = command.attachmentId,
             latestStartId = startId,
+            createdAtMonotonicMs = monotonicNowMs(),
         ).also { activeSession = it }
         session.pendingPersistence = TerminalPersistence.Failure(
             output = null,

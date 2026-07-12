@@ -205,3 +205,32 @@ Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `
 ### Remaining Device Risk
 
 - JVM tests cannot reproduce OEM `MediaRecorder` finalize behavior, Android framework Service overlap timing, real `stopSelfResult(startId)` scheduling, notification `PendingIntent` delivery, or API 31+/Android 14+ foreground microphone restrictions. Exercise API 26/30/31/34+ physical or virtual devices, including Service recreation during Starting/Recording and process shutdown with a playable partial file.
+
+## Final Review Remediation: Runtime Lifecycle Gaps
+
+### RED
+
+- Added executable runtime tests before the lifecycle implementation for shutdown during an in-flight Stop, replacement-host foreground failure, same-session Start foreground failure, host replacement during `stopSelfResult`, stale old-generation foreground failure, and monotonic session creation time.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingRuntimeTest'`
+  - First failed compilation because active session states did not expose `createdAtMonotonicMs`.
+  - After the timestamp-only minimum implementation, 4 of 14 runtime tests failed at runtime: the recorder executor never closed after shutdown raced an in-flight Stop, both current foreground failures left the session Recording, and `finishService` did not retry the replacement host.
+
+### GREEN
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingActorTest' --tests '*DiaryRecordingRuntimeTest' --tests '*DiaryRecordingServiceContractTest' --tests '*DiaryRecordingLaunchTest' --tests '*DiaryRecordingManifestTest' --rerun-tasks`
+  - Passed: 42 focused Actor/runtime/Service/launch/manifest tests, 0 failures and 0 errors.
+- `./gradlew :shared:testDebugUnitTest :app:testDebugUnitTest :app:compileDebugKotlin --rerun-tasks`
+  - Passed: app 728 tests and shared 434 tests, 0 failures and 0 errors; debug Kotlin compilation succeeded.
+- `git diff --check`
+  - Passed.
+
+### Remediation Summary
+
+- Shutdown now latches a terminal close request. An in-flight Stop or Release owns recorder finalization and terminal persistence; shutdown does not enqueue another release. Successful handoff closes the mailbox and recorder executor through one idempotent path, while exhausted persistence keeps retry/discard available after closing the recorder boundary.
+- Foreground attempts now return to the Actor as results carrying the session token, monotonic session creation timestamp, and Android host generation. Replacement attach and same-session Start failures safely release/finalize the current session and persist the stable foreground error. A late failure from a replaced host generation cannot mutate the current session.
+- `finishService` retries the latest host up to four generation-aware attempts when replacement occurs during `stopSelfResult`. It stops foreground only for the generation whose stop succeeded; Android `startId` semantics continue preventing an old terminal command from stopping a newer start.
+- Session creation time is captured from the injected monotonic clock and retained across active state transitions for diagnostics and foreground-result contracts. The random session token remains the primary output-file identity and canonical-path validation key.
+
+### Remaining Device Risk
+
+- JVM tests cannot execute framework `Service` replacement, OEM recorder blocking/finalization, or real `stopSelfResult` scheduling. Device coverage remains required on API 26/30/31/34+ for Service recreation during foreground entry and terminal shutdown.
