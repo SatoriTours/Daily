@@ -46,5 +46,18 @@ class DiaryCaptureUiTest {
         assertTrue(screen.contains("state.error?.let"))
     }
 
+    @Test
+    fun recordingStatusAndDeletionFollowRuntimeState() {
+        val controller = source("DiaryRecordingController.kt")
+        val screen = source("DiaryScreen.kt")
+        val viewModel = source("DiaryViewModel.kt")
+
+        assertTrue(controller.contains("DiaryRecordingState.PersistenceFailed -> \"录音已停止 · 保存失败\""))
+        assertTrue(controller.contains("DiaryRecordingState.Stopping -> \"录音已停止 · 正在保存\""))
+        assertTrue(screen.contains("viewModel.deleteDiary(diary.id, recordingController::stop)"))
+        assertTrue(viewModel.contains("store.state.first"))
+        assertTrue(viewModel.contains("等待录音停止超时，未删除日记"))
+    }
+
     private fun source(name: String) = File("src/main/kotlin/com/dailysatori/ui/feature/diary/$name").readText()
 }

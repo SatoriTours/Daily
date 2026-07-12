@@ -60,12 +60,28 @@ fun RecordingStatusStrip(state: DiaryRecordingState, onOpenDiary: () -> Unit) {
             modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("正在录音 · 已创建日记", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text(recordingStatusText(state), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
             Text("打开", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
             IconButton(onClick = onOpenDiary) { Icon(Icons.Default.OpenInNew, contentDescription = "打开日记") }
         }
     }
 }
+
+private fun recordingStatusText(state: DiaryRecordingState): String = when (state) {
+    is DiaryRecordingState.Starting -> "正在准备录音 · 已创建日记"
+    is DiaryRecordingState.Recording -> "正在录音 · 已创建日记"
+    is DiaryRecordingState.Paused -> "录音已暂停"
+    is DiaryRecordingState.Stopping -> "录音已停止 · 正在保存"
+    is DiaryRecordingState.PersistenceFailed -> "录音已停止 · 保存失败"
+    is DiaryRecordingState.Failed -> "录音失败"
+    DiaryRecordingState.Idle -> "录音已结束"
+}
+
+internal fun DiaryRecordingState.showsRecordingControls(): Boolean =
+    this is DiaryRecordingState.Starting ||
+        this is DiaryRecordingState.Recording ||
+        this is DiaryRecordingState.Paused ||
+        this is DiaryRecordingState.PersistenceFailed
 
 @Composable
 fun DiaryRecordingControls(
@@ -98,7 +114,13 @@ fun DiaryRecordingControls(
                     Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = if (paused) "继续" else "暂停")
                 }
             }
-            IconButton(onClick = onStop) { Icon(Icons.Default.Stop, contentDescription = "停止录音", tint = MaterialTheme.colorScheme.error) }
+            IconButton(onClick = onStop) {
+                Icon(
+                    Icons.Default.Stop,
+                    contentDescription = if (state is DiaryRecordingState.PersistenceFailed) "放弃保存" else "停止录音",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
             IconButton(onClick = onOpenDiary) { Icon(Icons.Default.OpenInNew, contentDescription = "打开日记") }
         }
     }

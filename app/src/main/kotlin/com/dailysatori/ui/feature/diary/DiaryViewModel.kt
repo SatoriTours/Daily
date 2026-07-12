@@ -21,8 +21,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class DiaryState(
     val diaries: List<Diary> = emptyList(),
@@ -243,9 +245,23 @@ class DiaryViewModel(
         }
     }
 
-    fun deleteDiary(id: Long) {
+    fun deleteDiary(id: Long, onStopRecording: () -> Unit = {}) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val store = recordingStore
+                val recording = store?.state?.value
+                if (recording != null && recording !is DiaryRecordingState.Idle && recording.diaryId == id) {
+                    onStopRecording()
+                    val stopped = withTimeoutOrNull(15_000) {
+                        store.state.first { state ->
+                            state is DiaryRecordingState.Idle || state.diaryId != id
+                        }
+                    } != null
+                    if (!stopped) {
+                        _state.update { it.copy(error = "等待录音停止超时，未删除日记") }
+                        return@launch
+                    }
+                }
                 diaryRepo.delete(id)
                 refreshAvailableTags()
             } catch (e: Exception) {

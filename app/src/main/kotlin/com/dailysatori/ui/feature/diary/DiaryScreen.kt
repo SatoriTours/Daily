@@ -251,7 +251,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 }
             }
         }
-            if (state.recordingState !is DiaryRecordingState.Idle) {
+            if (state.recordingState.showsRecordingControls()) {
                 DiaryRecordingControls(
                     state = state.recordingState,
                     onPauseResume = {
@@ -322,7 +322,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             title = "删除日记",
             message = "确定要删除这篇日记吗？",
             onConfirm = {
-                viewModel.deleteDiary(diary.id)
+                viewModel.deleteDiary(diary.id, recordingController::stop)
                 showDeleteDialog = null
             },
             onDismiss = { showDeleteDialog = null },
