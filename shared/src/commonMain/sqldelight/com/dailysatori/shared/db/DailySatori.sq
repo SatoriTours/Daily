@@ -48,7 +48,7 @@ WHERE url IS NULL;
 CREATE INDEX IF NOT EXISTS idx_article_tag_tag_article
 ON article_tag(tag_id, article_id);
 
-CREATE VIRTUAL TABLE article_fts USING fts5(
+CREATE VIRTUAL TABLE article_fts USING fts4(
     title,
     ai_title,
     ai_content
@@ -114,7 +114,7 @@ ON book(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_book_viewpoint_book_created
 ON book_viewpoint(book_id, created_at DESC);
 
-CREATE VIRTUAL TABLE book_fts USING fts5(
+CREATE VIRTUAL TABLE book_fts USING fts4(
     title,
     author
 );
@@ -134,7 +134,7 @@ CREATE TRIGGER book_fts_update AFTER UPDATE OF title, author ON book BEGIN
     VALUES (new.id, new.title, new.author);
 END;
 
-CREATE VIRTUAL TABLE book_viewpoint_fts USING fts5(
+CREATE VIRTUAL TABLE book_viewpoint_fts USING fts4(
     title,
     content,
     example
@@ -201,7 +201,7 @@ CREATE TABLE diary (
 CREATE INDEX IF NOT EXISTS idx_diary_created
 ON diary(created_at DESC);
 
-CREATE VIRTUAL TABLE diary_fts USING fts5(
+CREATE VIRTUAL TABLE diary_fts USING fts4(
     content,
     tags
 );
@@ -1696,7 +1696,7 @@ ON memory_entry(type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memory_entry_source
 ON memory_entry(source_type, source_id);
 
-CREATE VIRTUAL TABLE memory_entry_fts USING fts5(
+CREATE VIRTUAL TABLE memory_entry_fts USING fts4(
     title,
     content
 );

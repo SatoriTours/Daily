@@ -85,6 +85,9 @@ class DatabaseMigration(
         if (currentVersion < 20) {
             migrateV19ToV20()
         }
+        if (currentVersion < 21) {
+            migrateV20ToV21()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -742,7 +745,7 @@ class DatabaseMigration(
         log.i { "Migration V18 -> V19: Full-text search indexes" }
         listOf(
             """
-                CREATE VIRTUAL TABLE IF NOT EXISTS article_fts USING fts5(
+                CREATE VIRTUAL TABLE IF NOT EXISTS article_fts USING fts4(
                     title,
                     ai_title,
                     ai_content
@@ -769,7 +772,7 @@ class DatabaseMigration(
                 END
             """.trimIndent(),
             """
-                CREATE VIRTUAL TABLE IF NOT EXISTS book_fts USING fts5(
+                CREATE VIRTUAL TABLE IF NOT EXISTS book_fts USING fts4(
                     title,
                     author
                 )
@@ -795,7 +798,7 @@ class DatabaseMigration(
                 END
             """.trimIndent(),
             """
-                CREATE VIRTUAL TABLE IF NOT EXISTS book_viewpoint_fts USING fts5(
+                CREATE VIRTUAL TABLE IF NOT EXISTS book_viewpoint_fts USING fts4(
                     title,
                     content,
                     example
@@ -822,7 +825,7 @@ class DatabaseMigration(
                 END
             """.trimIndent(),
             """
-                CREATE VIRTUAL TABLE IF NOT EXISTS diary_fts USING fts5(
+                CREATE VIRTUAL TABLE IF NOT EXISTS diary_fts USING fts4(
                     content,
                     tags
                 )
@@ -848,7 +851,7 @@ class DatabaseMigration(
                 END
             """.trimIndent(),
             """
-                CREATE VIRTUAL TABLE IF NOT EXISTS memory_entry_fts USING fts5(
+                CREATE VIRTUAL TABLE IF NOT EXISTS memory_entry_fts USING fts4(
                     title,
                     content
                 )
@@ -888,6 +891,17 @@ class DatabaseMigration(
         log.i { "Created diary_attachment table and indexes" }
     }
 
+    private fun migrateV20ToV21() {
+        log.i { "Migration V20 -> V21: Repair Android-compatible FTS indexes" }
+        migrateV18ToV19()
+        migrateFts4Schema(::runSql)
+        val ftsCount = queryLong(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' " +
+                "AND name IN ('article_fts','book_fts','book_viewpoint_fts','diary_fts','memory_entry_fts')",
+        )
+        check(ftsCount == 5L) { "Unable to create all FTS tables" }
+    }
+
     private fun getCurrentVersion(): Long {
         return settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0L
     }
@@ -916,6 +930,30 @@ class DatabaseMigration(
     }
 
     companion object {
+        internal fun migrateFts4Schema(runSql: (String) -> Unit) {
+            listOf(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS diary_fts USING fts4(content, tags)",
+                "DELETE FROM diary_fts",
+                "INSERT INTO diary_fts(rowid, content, tags) SELECT id, content, tags FROM diary",
+                """
+                    CREATE TRIGGER IF NOT EXISTS diary_fts_insert AFTER INSERT ON diary BEGIN
+                        INSERT INTO diary_fts(rowid, content, tags) VALUES (new.id, new.content, new.tags);
+                    END
+                """.trimIndent(),
+                """
+                    CREATE TRIGGER IF NOT EXISTS diary_fts_delete AFTER DELETE ON diary BEGIN
+                        DELETE FROM diary_fts WHERE rowid = old.id;
+                    END
+                """.trimIndent(),
+                """
+                    CREATE TRIGGER IF NOT EXISTS diary_fts_update AFTER UPDATE OF content, tags ON diary BEGIN
+                        DELETE FROM diary_fts WHERE rowid = old.id;
+                        INSERT INTO diary_fts(rowid, content, tags) VALUES (new.id, new.content, new.tags);
+                    END
+                """.trimIndent(),
+            ).forEach(runSql)
+        }
+
         internal fun migrateDiaryAttachmentSchema(runSql: (String) -> Unit) {
             runSql(
                 """
