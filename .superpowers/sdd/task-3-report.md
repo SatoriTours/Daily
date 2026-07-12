@@ -332,3 +332,35 @@ Replaced the service/store/session/retry/mutex ownership overlap with one FIFO `
 
 - JVM tests prove Manager/Actor ordering and distinct runtime factory ownership, but real Android framework Service recreation and OEM `MediaRecorder` close latency still require device coverage on API 26/30/31/34+.
 - Existing expect/actual Beta, Koin ViewModel DSL deprecation, and unrelated UI deprecation warnings remain unchanged.
+
+## Important Fix: Reject Closing-Window Start Without Foreground Host
+
+### RED
+
+- Added executable Manager/runtime tests for both placeholder `enterForeground` failure forms before production changes: a returned stable error and a thrown `SecurityException`.
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecordingRuntimeTest' --rerun-tasks`
+  - Failed in `compileDebugUnitTestKotlin` as expected because Manager had no rejection persistence boundary and `DiaryRecordingCommandResult.ForegroundRejected` did not exist.
+  - The old implementation discarded both the returned error and the exception, then retained the host and enqueued Start for later runtime/recorder creation.
+
+### GREEN
+
+- Manager now evaluates placeholder foreground entry before assigning `pendingHost` or appending to the FIFO. A returned error or thrown exception rejects Start immediately; `SecurityException` maps to `foreground_security_denied` and other throwables map to `foreground_start_not_allowed`.
+- The process-scoped Manager owns one short-lived rejection coroutine. It calls the existing repository-backed persistence adapter with `output = null`, so the diary attachment receives a stable launch failure without a fabricated path, then finishes the failed host with `stopSelfResult(startId)`.
+- Rejected Start returns the explicit `ForegroundRejected` submit result. Because the host and Start never enter pending state, later Pause/Stop return `Ignored` and cannot reach either the old closing runtime or a new runtime.
+- Tests assert one runtime/recorder factory invocation while old close is blocked, failure persistence for the exact diary/attachment, null output, host finish, and no replacement factory creation after old close.
+
+### Verification
+
+- `./gradlew :app:testDebugUnitTest --tests '*DiaryRecording*Test' --rerun-tasks`
+  - Passed: 57 focused recording manager/runtime/service/launch/manifest tests, 0 failures, 0 errors.
+- `./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest --rerun-tasks`
+  - Passed: app 743 tests and shared 434 tests, 0 skipped, 0 failures, 0 errors.
+- `./gradlew :app:compileDebugKotlin :shared:compileDebugKotlinAndroid --rerun-tasks`
+  - Passed.
+- `git diff --check`
+  - Passed.
+
+### Concerns
+
+- No notification permission UI changed; `POST_NOTIFICATIONS` runtime UX remains Task6 scope. Lock-screen notification visibility on API 33+ is conditional on that permission already being granted.
+- JVM tests cannot execute real framework `startForeground`, `stopSelfResult`, lock-screen notification rendering, or OEM service teardown timing. Device coverage remains required on API 31 and API 34+.

@@ -28,6 +28,26 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryRecordingRuntimeTest {
     @Test
+    fun closingWindowPlaceholderForegroundReturnFailureRejectsStart() = runTest {
+        verifyClosingPlaceholderFailure(
+            configureHost = {
+                foregroundError = DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED
+            },
+            expectedErrorCode = DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED,
+        )
+    }
+
+    @Test
+    fun closingWindowPlaceholderForegroundExceptionRejectsStartWithStableCode() = runTest {
+        verifyClosingPlaceholderFailure(
+            configureHost = {
+                foregroundFailure = SecurityException("notifications denied")
+            },
+            expectedErrorCode = DiaryRecordingErrorCode.FOREGROUND_SECURITY_DENIED,
+        )
+    }
+
+    @Test
     fun closingWindowStartUsesPlaceholderAndCreatesFreshRuntimeOnlyAfterOldClosed() = runTest {
         val store = DiaryRecordingStore()
         val persistence = FakePersistence()
@@ -37,7 +57,7 @@ class DiaryRecordingRuntimeTest {
         val releaseStarted = CountDownLatch(1)
         val releaseMayFinish = CountDownLatch(1)
         var nextToken = 0
-        val manager = DiaryRecordingRuntimeManager { onClosed ->
+        val manager = DiaryRecordingRuntimeManager(backgroundScope, { _, _ -> }) { onClosed ->
             val executor = CountingExecutorService().also(executors::add)
             val recorder = FakeRecorder().also(recorders::add).apply {
                 if (recorders.size == 1) {
@@ -135,7 +155,7 @@ class DiaryRecordingRuntimeTest {
         val releaseStarted = CountDownLatch(1)
         val releaseMayFinish = CountDownLatch(1)
         var nextToken = 0
-        val manager = DiaryRecordingRuntimeManager { onClosed ->
+        val manager = DiaryRecordingRuntimeManager(backgroundScope, { _, _ -> }) { onClosed ->
             val executor = CountingExecutorService().also(executors::add)
             val recorder = FakeRecorder().also(recorders::add).apply {
                 if (recorders.size == 1) {
@@ -232,7 +252,7 @@ class DiaryRecordingRuntimeTest {
         val root = createTempDirectory("diary-recording-runtime-attach-race-test").toFile()
         val runtimeExecutors = mutableListOf<CountingExecutorService>()
         val runtimes = mutableListOf<DiaryRecordingRuntime>()
-        val manager = DiaryRecordingRuntimeManager { onClosed ->
+        val manager = DiaryRecordingRuntimeManager(backgroundScope, { _, _ -> }) { onClosed ->
             val executor = CountingExecutorService().also(runtimeExecutors::add)
             DiaryRecordingRuntime(
                 store = store,
@@ -839,6 +859,93 @@ class DiaryRecordingRuntimeTest {
         }
     }
 
+    private suspend fun TestScope.verifyClosingPlaceholderFailure(
+        configureHost: FakeAndroidHost.() -> Unit,
+        expectedErrorCode: String,
+    ) {
+        val store = DiaryRecordingStore()
+        val persistence = FakePersistence()
+        val root = createTempDirectory("diary-recording-placeholder-failure-test").toFile()
+        val releaseStarted = CountDownLatch(1)
+        val releaseMayFinish = CountDownLatch(1)
+        val recorders = mutableListOf<FakeRecorder>()
+        val manager = DiaryRecordingRuntimeManager(
+            rejectionScope = backgroundScope,
+            rejectStart = { start, errorCode ->
+                persistence.fail(
+                    diaryId = start.diaryId,
+                    attachmentId = start.attachmentId,
+                    output = null,
+                    errorCode = errorCode,
+                )
+            },
+        ) { onClosed ->
+            val recorder = FakeRecorder().also(recorders::add).apply {
+                onRelease = {
+                    releaseStarted.countDown()
+                    check(releaseMayFinish.await(2, TimeUnit.SECONDS))
+                    currentOutput
+                }
+            }
+            DiaryRecordingRuntime(
+                store = store,
+                recorder = recorder,
+                persistence = persistence,
+                outputFile = { diaryId, attachmentId, token ->
+                    File(root, "$diaryId/$attachmentId-$token.m4a")
+                },
+                scope = backgroundScope,
+                actorDispatcher = StandardTestDispatcher(testScheduler),
+                recorderDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
+                ioDispatcher = StandardTestDispatcher(testScheduler),
+                monotonicNowMs = { testScheduler.currentTime },
+                nextSessionToken = { "session-${recorders.size}" },
+                retryDelaysMs = emptyList(),
+                tickerIntervalMs = 1_000_000,
+                onClosed = onClosed,
+            )
+        }
+
+        val firstHost = FakeAndroidHost()
+        manager.attachAndSubmit(firstHost, 1, DiaryRecordingCommand.Start(11, 101)).await()
+        var attempts = 0
+        while (store.state.value !is DiaryRecordingState.Recording && attempts++ < 200) {
+            runCurrent()
+            Thread.sleep(5)
+        }
+        manager.detachHost(firstHost)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertTrue(releaseStarted.await(2, TimeUnit.SECONDS))
+
+        val failedHost = FakeAndroidHost().apply(configureHost)
+        val failedStart = manager.attachAndSubmit(
+            failedHost,
+            2,
+            DiaryRecordingCommand.Start(22, 202),
+        )
+        assertEquals(DiaryRecordingCommandResult.Ignored, manager.submit(DiaryRecordingCommand.Pause).await())
+        assertEquals(DiaryRecordingCommandResult.Ignored, manager.submit(DiaryRecordingCommand.Stop).await())
+        runCurrent()
+
+        assertEquals(DiaryRecordingCommandResult.ForegroundRejected, failedStart.await())
+        assertEquals(1, recorders.size)
+        assertEquals(listOf(2), failedHost.stopSelfResultCalls)
+        val failure = persistence.failures.single()
+        assertEquals(22, failure.diaryId)
+        assertEquals(202, failure.attachmentId)
+        assertNull(failure.output)
+        assertEquals(expectedErrorCode, failure.errorCode)
+
+        releaseMayFinish.countDown()
+        attempts = 0
+        while (!recorders.single().let { it.releaseCalls > 0 } && attempts++ < 200) {
+            runCurrent()
+            Thread.sleep(5)
+        }
+        assertEquals(1, recorders.size)
+    }
+
     private suspend fun TestScope.withRuntime(
         recorder: FakeRecorder = FakeRecorder(),
         persistence: FakePersistence = FakePersistence(),
@@ -985,11 +1092,13 @@ class DiaryRecordingRuntimeTest {
         var latestStartId = 0
         var stopForegroundCalls = 0
         var foregroundError: String? = null
+        var foregroundFailure: Throwable? = null
         var onStopSelfResult: ((Int) -> Boolean)? = null
         var onStateChanged: (DiaryRecordingState) -> Unit = {}
 
         override fun enterForeground(state: DiaryRecordingState): String? {
             foregroundStates += state
+            foregroundFailure?.let { throw it }
             return foregroundError
         }
 

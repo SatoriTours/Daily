@@ -28,6 +28,7 @@ sealed interface DiaryRecordingCommand {
 
 enum class DiaryRecordingCommandResult {
     Accepted,
+    ForegroundRejected,
     AlreadyActive,
     Busy,
     Invalid,

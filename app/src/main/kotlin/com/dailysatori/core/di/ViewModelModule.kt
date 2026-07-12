@@ -77,7 +77,17 @@ val viewModelModule: Module = module {
         val persistence = get<DiaryRecordingPersistence>()
         val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val audioRoot = File(androidContext().filesDir, "DailySatori/diary/audio")
-        DiaryRecordingRuntimeManager { onClosed ->
+        DiaryRecordingRuntimeManager(
+            rejectionScope = runtimeScope,
+            rejectStart = { start, errorCode ->
+                persistence.fail(
+                    diaryId = start.diaryId,
+                    attachmentId = start.attachmentId,
+                    output = null,
+                    errorCode = errorCode,
+                )
+            },
+        ) { onClosed ->
             val recorderDispatcher = Executors.newSingleThreadExecutor { runnable ->
                 Thread(runnable, "diary-recorder")
             }.asCoroutineDispatcher()

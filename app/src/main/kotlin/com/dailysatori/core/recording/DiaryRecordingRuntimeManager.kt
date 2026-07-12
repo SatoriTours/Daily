@@ -2,11 +2,15 @@ package com.dailysatori.core.recording
 
 import java.util.ArrayDeque
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DiaryRecordingRuntimeManager(
+    private val rejectionScope: CoroutineScope,
+    private val rejectStart: suspend (DiaryRecordingCommand.Start, errorCode: String) -> Unit,
     private val createRuntime: (onClosed: () -> Unit) -> DiaryRecordingRuntime,
 ) {
     private val lock = Any()
@@ -76,19 +80,40 @@ class DiaryRecordingRuntimeManager(
         if (enterPlaceholder) {
             val start = command as? DiaryRecordingCommand.Start
             if (start == null) return completedResult(DiaryRecordingCommandResult.Invalid)
-            runCatching {
+            val errorCode = try {
                 host.enterForeground(
                     DiaryRecordingState.Starting(
                         diaryId = start.diaryId,
                         attachmentId = start.attachmentId,
                     ),
                 )
+            } catch (error: Throwable) {
+                placeholderForegroundFailureCode(error)
             }
+            if (errorCode != null) return rejectPendingStart(host, startId, start, errorCode)
         }
         pendingHost = host
         return CompletableDeferred<DiaryRecordingCommandResult>().also { completion ->
             pendingCommands.addLast(PendingCommand(startId, command, completion))
         }
+    }
+
+    private fun rejectPendingStart(
+        host: DiaryRecordingAndroidHost,
+        startId: Int,
+        start: DiaryRecordingCommand.Start,
+        errorCode: String,
+    ): Deferred<DiaryRecordingCommandResult> {
+        val completion = CompletableDeferred<DiaryRecordingCommandResult>()
+        rejectionScope.launch {
+            try {
+                rejectStart(start, errorCode)
+            } finally {
+                runCatching { host.stopSelfResult(startId) }
+                completion.complete(DiaryRecordingCommandResult.ForegroundRejected)
+            }
+        }
+        return completion
     }
 
     private fun createManagedRuntime(): DiaryRecordingRuntime {
@@ -178,3 +203,10 @@ class DiaryRecordingRuntimeManager(
         val completion: CompletableDeferred<DiaryRecordingCommandResult>,
     )
 }
+
+private fun placeholderForegroundFailureCode(error: Throwable): String =
+    if (error is SecurityException) {
+        DiaryRecordingErrorCode.FOREGROUND_SECURITY_DENIED
+    } else {
+        DiaryRecordingErrorCode.FOREGROUND_START_NOT_ALLOWED
+    }
