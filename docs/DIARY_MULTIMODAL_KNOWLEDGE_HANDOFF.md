@@ -2,7 +2,7 @@
 
 更新时间：2026-07-12
 当前分支：`main`
-当前功能 HEAD：`b71cd889 feat: transcribe and index diary captures`
+当前功能 HEAD：`80c6fd36 feat: add compact diary capture controls`
 
 功能代号：`Diary Multimodal Knowledge`
 中文名称：`日记多模态采集与个人知识库`
@@ -30,7 +30,7 @@
 | Task 2 | 已完成 | 知识库提取绑定真实 diary ID |
 | Task 3 | 已完成 | 后台录音、锁屏通知、Runtime cleanup |
 | Task 4 | 已完成 | 语音转写与知识库异步任务 |
-| Task 5 | 未开始 | 紧凑采集 UI 与现有 DiaryCard 附件行 |
+| Task 5 | 已完成 | 紧凑采集 UI 与现有 DiaryCard 附件行 |
 | Task 6 | 未开始 | 麦克风/通知权限、视频和文件接入 |
 | Task 7 | 未开始 | 集成、真机、后台与锁屏验收 |
 
@@ -151,13 +151,16 @@
 
 ## 后续任务
 
-### Task 5：保持现有列表的采集 UI
+### Task 5：保持现有列表的采集 UI（已完成）
 
 - 小加号紧凑菜单。
 - 语音入口创建日记/附件后启动 Runtime。
 - 顶部录音提示、底部紧凑控制条。
 - 附件行放在现有 `DiaryCard` 正文和 footer 之间。
 - 不重做列表。
+- 提交：`80c6fd36 feat: add compact diary capture controls`。
+- Shared/App 全量测试与 APK 构建通过；已安装并冷启动。
+- 设备 ROM 禁止 ADB 注入点击，菜单和录音控制仍需手动视觉验收。
 
 ### Task 6：权限、视频与文件
 
