@@ -90,6 +90,9 @@ class DiaryRecordingServiceContractTest {
         assertTrue(source.contains(".setOngoing(state.isActive())"))
         assertTrue(source.contains(".setCategory(NotificationCompat.CATEGORY_SERVICE)"))
         assertTrue(source.contains(".setVisibility(NotificationCompat.VISIBILITY_PUBLIC)"))
+        assertTrue(source.contains("lockscreenVisibility = Notification.VISIBILITY_PUBLIC"))
+        assertTrue(source.contains(".setUsesChronometer(state is DiaryRecordingState.Recording)"))
+        assertTrue(source.contains("System.currentTimeMillis() - state.elapsedMs"))
         assertTrue(source.contains(".setContentTitle(context.getString(R.string.diary_recording_active))"))
         assertTrue(source.contains(".setContentText(formatStatusElapsed(state))"))
         assertTrue(source.contains("is DiaryRecordingState.Recording -> context.getString(R.string.diary_recording_status_recording)"))
@@ -108,6 +111,18 @@ class DiaryRecordingServiceContractTest {
         assertFalse(source.contains("setStyle(NotificationCompat.BigTextStyle"))
         assertFalse(source.contains("diary.content"))
         assertFalse(source.contains("diary.text"))
+    }
+
+    @Test
+    fun recordingChecksNotificationVisibilityAndAvoidsPerSecondNotificationUpdates() {
+        val notification = source("DiaryRecordingNotification.kt")
+        val service = source("DiaryRecordingService.kt")
+
+        assertTrue(notification.contains("areNotificationsEnabled()"))
+        assertTrue(notification.contains("NotificationManager.IMPORTANCE_NONE"))
+        assertTrue(notification.contains("Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS"))
+        assertTrue(service.contains("lastNotificationStateClass"))
+        assertTrue(service.contains("if (lastNotificationStateClass == state.javaClass) return"))
     }
 
     @Test

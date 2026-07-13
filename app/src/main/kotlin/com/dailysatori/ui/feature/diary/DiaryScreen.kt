@@ -86,6 +86,7 @@ import androidx.core.content.ContextCompat
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
 import com.dailysatori.core.recording.DiaryRecordingState
+import com.dailysatori.core.recording.DiaryRecordingNotification
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -99,10 +100,20 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var showCaptureMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val recordingController = remember(context) { DiaryRecordingController(context) }
+    var showNotificationSettingsAction by remember { mutableStateOf(false) }
     val startVoiceDiary: () -> Unit = {
         viewModel.setError(null)
         viewModel.createVoiceDiary { diaryId, attachmentId ->
             recordingController.start(diaryId, attachmentId)
+        }
+    }
+    val startVoiceDiaryIfNotificationsVisible: () -> Unit = {
+        if (DiaryRecordingNotification.canShow(context)) {
+            showNotificationSettingsAction = false
+            startVoiceDiary()
+        } else {
+            showNotificationSettingsAction = true
+            viewModel.setError("录音通知已关闭，无法在后台或锁屏时提示录音状态")
         }
     }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -113,7 +124,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         val notificationGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             grants[Manifest.permission.POST_NOTIFICATIONS] == true ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        if (microphoneGranted && notificationGranted) startVoiceDiary()
+        if (microphoneGranted && notificationGranted) startVoiceDiaryIfNotificationsVisible()
         else viewModel.setError("需要麦克风和通知权限才能开始语音日记")
     }
     val requestVoicePermissions: () -> Unit = {
@@ -128,7 +139,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-        if (missingPermissions.isEmpty()) startVoiceDiary()
+        if (missingPermissions.isEmpty()) startVoiceDiaryIfNotificationsVisible()
         else permissionLauncher.launch(missingPermissions.toTypedArray())
     }
     val diaryListState = rememberLazyListState()
@@ -204,12 +215,19 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 )
             }
             state.error?.let { error ->
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f).padding(vertical = Spacing.xs),
+                    )
+                    if (showNotificationSettingsAction) {
+                        TextButton(onClick = { DiaryRecordingNotification.openSettings(context) }) {
+                            Text("打开通知设置")
+                        }
+                    }
+                }
             }
             if (state.isSearchVisible) {
                 SearchBar(

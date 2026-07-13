@@ -46,8 +46,11 @@ class DiaryCaptureUiTest {
         assertTrue(screen.contains("Manifest.permission.RECORD_AUDIO"))
         assertTrue(screen.contains("Manifest.permission.POST_NOTIFICATIONS"))
         assertTrue(screen.contains("permissionLauncher.launch(missingPermissions.toTypedArray())"))
-        assertTrue(screen.contains("if (missingPermissions.isEmpty()) startVoiceDiary()"))
+        assertTrue(screen.contains("if (missingPermissions.isEmpty()) startVoiceDiaryIfNotificationsVisible()"))
         assertTrue(screen.contains("state.error?.let"))
+        assertTrue(screen.contains("DiaryRecordingNotification.canShow"))
+        assertTrue(screen.contains("DiaryRecordingNotification.openSettings"))
+        assertTrue(screen.contains("打开通知设置"))
     }
 
     @Test

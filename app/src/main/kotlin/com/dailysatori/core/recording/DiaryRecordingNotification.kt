@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.MainActivity
 import com.dailysatori.R
 
@@ -14,16 +16,7 @@ class DiaryRecordingNotification(
     private val context: Context,
 ) {
     init {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.diary_recording_channel_name),
-            NotificationManager.IMPORTANCE_LOW,
-        )
-        channel.description = context.getString(R.string.diary_recording_channel_description)
-        manager.createNotificationChannel(
-            channel,
-        )
+        ensureChannel(context)
     }
 
     fun build(state: DiaryRecordingState, diaryId: Long): Notification {
@@ -31,6 +24,9 @@ class DiaryRecordingNotification(
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle(context.getString(R.string.diary_recording_active))
             .setContentText(formatStatusElapsed(state))
+            .setWhen(System.currentTimeMillis() - state.elapsedMs)
+            .setUsesChronometer(state is DiaryRecordingState.Recording)
+            .setShowWhen(state is DiaryRecordingState.Recording)
             .setContentIntent(openDiaryIntent(diaryId))
             .setOngoing(state.isActive())
             .setOnlyAlertOnce(true)
@@ -135,5 +131,35 @@ class DiaryRecordingNotification(
         const val NOTIFICATION_ID = 2_003
         private const val CHANNEL_ID = "diary_recording"
         private const val OPEN_REQUEST_CODE = 20_030
+
+        fun ensureChannel(context: Context) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                context.getString(R.string.diary_recording_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = context.getString(R.string.diary_recording_channel_description)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(channel)
+        }
+
+        fun canShow(context: Context): Boolean {
+            ensureChannel(context)
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            return manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
+        }
+
+        fun openSettings(context: Context) {
+            context.startActivity(
+                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_ID)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+        }
     }
 }

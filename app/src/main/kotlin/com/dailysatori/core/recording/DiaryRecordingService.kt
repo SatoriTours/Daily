@@ -17,6 +17,7 @@ class DiaryRecordingService : Service() {
     private lateinit var notification: DiaryRecordingNotification
     @Volatile private var androidResourcesOpen = true
     @Volatile private var foregroundStarted = false
+    private var lastNotificationStateClass: Class<*>? = null
 
     private val androidHost = object : DiaryRecordingAndroidHost {
         override fun enterForeground(state: DiaryRecordingState): String? =
@@ -25,7 +26,9 @@ class DiaryRecordingService : Service() {
         override fun stateChanged(state: DiaryRecordingState) {
             if (!androidResourcesOpen || !foregroundStarted) return
             val diaryId = state.diaryId ?: return
+            if (lastNotificationStateClass == state.javaClass) return
             runCatching { notification.notify(state, diaryId) }
+                .onSuccess { lastNotificationStateClass = state.javaClass }
                 .onFailure { Log.e(TAG, "Unable to update recording notification", it) }
         }
 
@@ -95,6 +98,7 @@ class DiaryRecordingService : Service() {
                 startForeground(DiaryRecordingNotification.NOTIFICATION_ID, foregroundNotification)
             }
             foregroundStarted = true
+            lastNotificationStateClass = state.javaClass
             null
         } catch (error: RuntimeException) {
             foregroundLaunchFailureCode(
@@ -110,6 +114,7 @@ class DiaryRecordingService : Service() {
         if (!foregroundStarted) return
         stopForeground(STOP_FOREGROUND_REMOVE)
         foregroundStarted = false
+        lastNotificationStateClass = null
     }
 
     companion object {
