@@ -19,10 +19,12 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.theme.Spacing
+import kotlinx.coroutines.delay
 
 @Composable
 fun DiaryAttachmentList(
@@ -59,54 +62,61 @@ fun DiaryAttachmentList(
 
 @Composable
 private fun DiaryAttachmentRow(attachment: Diary_attachment, onDelete: ((Diary_attachment) -> Unit)?) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = Spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        val icon = when (attachment.kind) {
-            "audio" -> Icons.Default.Audiotrack
-            "video" -> Icons.Default.Videocam
-            "image" -> Icons.Default.Image
-            else -> Icons.Default.AttachFile
-        }
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                attachment.display_name.ifBlank { attachment.local_path.substringAfterLast('/') },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                attachmentStatus(attachment),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (
-                    attachment.transcript_status == DiaryAttachmentProcessingStatus.failed ||
-                    attachment.knowledge_status == DiaryAttachmentProcessingStatus.failed
-                ) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (attachment.kind == "audio" && attachment.local_path.isNotBlank()) {
-            DiaryAudioPlaybackButton(attachment.local_path)
-        }
-        onDelete?.let { delete ->
-            IconButton(onClick = { delete(attachment) }) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = if (attachment.kind == "audio") "删除录音" else "删除附件",
-                    tint = MaterialTheme.colorScheme.error,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val icon = when (attachment.kind) {
+                "audio" -> Icons.Default.Audiotrack
+                "video" -> Icons.Default.Videocam
+                "image" -> Icons.Default.Image
+                else -> Icons.Default.AttachFile
+            }
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    attachment.display_name.ifBlank { attachment.local_path.substringAfterLast('/') },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    attachmentStatus(attachment),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (
+                        attachment.transcript_status == DiaryAttachmentProcessingStatus.failed ||
+                        attachment.knowledge_status == DiaryAttachmentProcessingStatus.failed
+                    ) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            onDelete?.let { delete ->
+                IconButton(onClick = { delete(attachment) }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = if (attachment.kind == "audio") "删除录音" else "删除附件",
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+        if (attachment.kind == "audio" && attachment.local_path.isNotBlank()) {
+            DiaryAudioPlaybackButton(attachment.local_path, attachment.duration_ms)
         }
     }
 }
 
 @Composable
-private fun DiaryAudioPlaybackButton(path: String) {
+private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
     var isPrepared by remember(path) { mutableStateOf(false) }
     var isPreparing by remember(path) { mutableStateOf(false) }
     var isPlaying by remember(path) { mutableStateOf(false) }
+    var isDragging by remember(path) { mutableStateOf(false) }
+    var positionMs by remember(path) { mutableStateOf(0) }
+    var durationMs by remember(path) { mutableStateOf(recordedDurationMs.coerceAtLeast(0).toInt()) }
     val player = remember(path) {
         MediaPlayer().apply {
             setAudioAttributes(
@@ -121,10 +131,15 @@ private fun DiaryAudioPlaybackButton(path: String) {
         player.setOnPreparedListener {
             isPrepared = true
             isPreparing = false
+            durationMs = it.duration.coerceAtLeast(0)
             it.start()
             isPlaying = true
         }
-        player.setOnCompletionListener { isPlaying = false }
+        player.setOnSeekCompleteListener { positionMs = it.currentPosition }
+        player.setOnCompletionListener {
+            positionMs = durationMs
+            isPlaying = false
+        }
         player.setOnErrorListener { _, _, _ ->
             isPrepared = false
             isPreparing = false
@@ -133,31 +148,61 @@ private fun DiaryAudioPlaybackButton(path: String) {
         }
         onDispose { player.release() }
     }
-    IconButton(
-        enabled = !isPreparing,
-        onClick = {
-            when {
-                isPlaying -> {
-                    player.pause()
-                    isPlaying = false
-                }
-                isPrepared -> {
-                    player.start()
-                    isPlaying = true
-                }
-                else -> runCatching {
-                    isPreparing = true
-                    player.setDataSource(path)
-                    player.prepareAsync()
-                }.onFailure { isPreparing = false }
-            }
-        },
-    ) {
-        Icon(
-            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = if (isPlaying) "暂停录音" else "播放录音",
-        )
+    LaunchedEffect(isPlaying, player) {
+        while (isPlaying) {
+            if (!isDragging) positionMs = runCatching { player.currentPosition }.getOrDefault(positionMs)
+            delay(250)
+        }
     }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            enabled = !isPreparing,
+            onClick = {
+                when {
+                    isPlaying -> {
+                        player.pause()
+                        isPlaying = false
+                    }
+                    isPrepared -> {
+                        if (durationMs > 0 && positionMs >= durationMs) player.seekTo(0)
+                        player.start()
+                        isPlaying = true
+                    }
+                    else -> runCatching {
+                        isPreparing = true
+                        player.setDataSource(path)
+                        player.prepareAsync()
+                    }.onFailure { isPreparing = false }
+                }
+            },
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = if (isPlaying) "暂停录音" else "播放录音",
+            )
+        }
+        Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.labelSmall)
+        Slider(
+            value = positionMs.coerceIn(0, durationMs.coerceAtLeast(0)).toFloat(),
+            onValueChange = {
+                isDragging = true
+                positionMs = it.toInt()
+            },
+            onValueChangeFinished = {
+                if (isPrepared) player.seekTo(positionMs)
+                isDragging = false
+            },
+            valueRange = 0f..durationMs.coerceAtLeast(1).toFloat(),
+            enabled = isPrepared && durationMs > 0,
+            modifier = Modifier.weight(1f),
+        )
+        Text(formatPlaybackTime(durationMs), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+private fun formatPlaybackTime(milliseconds: Int): String {
+    val totalSeconds = milliseconds.coerceAtLeast(0) / 1_000
+    return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
 private fun attachmentStatus(attachment: Diary_attachment): String = when {

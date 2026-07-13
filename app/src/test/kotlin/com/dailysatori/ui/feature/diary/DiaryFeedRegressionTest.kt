@@ -33,5 +33,9 @@ class DiaryFeedRegressionTest {
         assertTrue(attachmentList.contains("DiaryAudioPlaybackButton"))
         assertTrue(attachmentList.contains("MediaPlayer"))
         assertTrue(attachmentList.contains("attachment.local_path.isNotBlank()"))
+        assertTrue(attachmentList.contains("Slider("))
+        assertTrue(attachmentList.contains("player.seekTo"))
+        assertTrue(attachmentList.contains("delay(250)"))
+        assertTrue(attachmentList.contains("formatPlaybackTime"))
     }
 }
