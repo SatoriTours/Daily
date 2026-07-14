@@ -18,35 +18,49 @@ class AndroidDiaryRecorder(
     @Synchronized
     override fun start(sessionToken: String, outputFile: File) {
         if (mediaRecorder != null) throw DiaryRecorderException(DiaryRecordingErrorCode.RECORDER_BUSY)
-        if (!outputFile.parentFile.orEmpty().exists() && !outputFile.parentFile.orEmpty().mkdirs()) {
+        val parent = outputFile.parentFile.orEmpty()
+        if (!parent.exists() && !parent.mkdirs()) {
+            throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
+        }
+        if (parent.usableSpace < MIN_FREE_SPACE_BYTES) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
         if (outputFile.exists() && !outputFile.delete()) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
-        val recorder = createMediaRecorder()
-        this.sessionToken = sessionToken
-        this.outputFile = outputFile
-        mediaRecorder = recorder
-        try {
-            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            recorder.setAudioSamplingRate(44_100)
-            recorder.setAudioEncodingBitRate(128_000)
-            recorder.setOutputFile(outputFile.absolutePath)
-            recorder.prepare()
-            recorder.start()
-            started = true
-        } catch (error: SecurityException) {
-            releaseRecorder()
-            throw DiaryRecorderException(DiaryRecordingErrorCode.PERMISSION_DENIED, error)
-        } catch (error: IOException) {
-            releaseRecorder()
-            throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED, error)
-        } catch (error: RuntimeException) {
-            releaseRecorder()
-            throw DiaryRecorderException(DiaryRecordingErrorCode.START_FAILED, error)
+        val audioSources = listOf(MediaRecorder.AudioSource.VOICE_RECOGNITION, MediaRecorder.AudioSource.MIC)
+        audioSources.forEachIndexed { index, audioSource ->
+            val recorder = createMediaRecorder()
+            mediaRecorder = recorder
+            try {
+                recorder.setAudioSource(audioSource)
+                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                recorder.setAudioChannels(1)
+                recorder.setAudioSamplingRate(44_100)
+                recorder.setAudioEncodingBitRate(96_000)
+                recorder.setOutputFile(outputFile.absolutePath)
+                recorder.prepare()
+                recorder.start()
+                this.sessionToken = sessionToken
+                this.outputFile = outputFile
+                started = true
+                return
+            } catch (error: SecurityException) {
+                releaseRecorder()
+                throw DiaryRecorderException(DiaryRecordingErrorCode.PERMISSION_DENIED, error)
+            } catch (error: IOException) {
+                releaseRecorder()
+                throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED, error)
+            } catch (error: RuntimeException) {
+                releaseRecorder()
+                if (index == audioSources.lastIndex) {
+                    throw DiaryRecorderException(DiaryRecordingErrorCode.START_FAILED, error)
+                }
+                if (outputFile.exists() && !outputFile.delete()) {
+                    throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED, error)
+                }
+            }
         }
     }
 
@@ -74,6 +88,9 @@ class AndroidDiaryRecorder(
         }
         sessionToken = null
         outputFile = null
+        if (!file.isFile || file.length() <= 0) {
+            throw DiaryRecorderException(DiaryRecordingErrorCode.FINALIZE_FAILED)
+        }
         return DiaryRecordingOutput(token, file, probeDuration(file))
     }
 
@@ -127,4 +144,8 @@ class AndroidDiaryRecorder(
     }
 
     private fun File?.orEmpty(): File = this ?: throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
+
+    private companion object {
+        const val MIN_FREE_SPACE_BYTES = 10L * 1024 * 1024
+    }
 }

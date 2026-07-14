@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import org.koin.android.ext.android.inject
@@ -18,6 +19,7 @@ class DiaryRecordingService : Service() {
     @Volatile private var androidResourcesOpen = true
     @Volatile private var foregroundStarted = false
     private var lastNotificationStateClass: Class<*>? = null
+    private var recordingWakeLock: PowerManager.WakeLock? = null
 
     private val androidHost = object : DiaryRecordingAndroidHost {
         override fun enterForeground(state: DiaryRecordingState): String? =
@@ -25,6 +27,7 @@ class DiaryRecordingService : Service() {
 
         override fun stateChanged(state: DiaryRecordingState) {
             if (!androidResourcesOpen || !foregroundStarted) return
+            updateRecordingWakeLock(state)
             val diaryId = state.diaryId ?: return
             if (lastNotificationStateClass == state.javaClass) return
             runCatching { notification.notify(state, diaryId) }
@@ -80,6 +83,7 @@ class DiaryRecordingService : Service() {
         runtimeManager.detachHost(androidHost)
         androidResourcesOpen = false
         stopRecordingForeground()
+        releaseRecordingWakeLock()
         super.onDestroy()
     }
 
@@ -99,6 +103,7 @@ class DiaryRecordingService : Service() {
             }
             foregroundStarted = true
             lastNotificationStateClass = state.javaClass
+            updateRecordingWakeLock(state)
             null
         } catch (error: RuntimeException) {
             foregroundLaunchFailureCode(
@@ -115,6 +120,27 @@ class DiaryRecordingService : Service() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         foregroundStarted = false
         lastNotificationStateClass = null
+        releaseRecordingWakeLock()
+    }
+
+    private fun updateRecordingWakeLock(state: DiaryRecordingState) {
+        val needsWakeLock = state is DiaryRecordingState.Starting || state is DiaryRecordingState.Recording
+        if (!needsWakeLock) {
+            releaseRecordingWakeLock()
+            return
+        }
+        val lock = recordingWakeLock ?: run {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:diary-recording").apply {
+                setReferenceCounted(false)
+            }.also { recordingWakeLock = it }
+        }
+        if (!lock.isHeld) lock.acquire()
+    }
+
+    private fun releaseRecordingWakeLock() {
+        recordingWakeLock?.let { if (it.isHeld) it.release() }
+        recordingWakeLock = null
     }
 
     companion object {

@@ -72,6 +72,7 @@ class DiaryRecordingServiceContractTest {
     @Test
     fun foregroundServiceOwnsRecordingAcrossUiBackgroundAndScreenOff() {
         val source = source("DiaryRecordingService.kt")
+        val manifest = File("src/main/AndroidManifest.xml").readText()
         val destroy = source.substringAfter("override fun onDestroy()")
             .substringBefore("private fun enterForeground")
 
@@ -80,6 +81,10 @@ class DiaryRecordingServiceContractTest {
         assertTrue(source.contains("return START_NOT_STICKY"))
         assertFalse(destroy.contains("DiaryRecordingCommand.Stop"))
         assertFalse(destroy.contains("ACTION_STOP"))
+        assertTrue(manifest.contains("android.permission.WAKE_LOCK"))
+        assertTrue(source.contains("PowerManager.PARTIAL_WAKE_LOCK"))
+        assertTrue(source.contains("updateRecordingWakeLock(state)"))
+        assertTrue(destroy.contains("releaseRecordingWakeLock()"))
     }
 
     @Test
@@ -92,6 +97,7 @@ class DiaryRecordingServiceContractTest {
         assertTrue(source.contains(".setVisibility(NotificationCompat.VISIBILITY_PUBLIC)"))
         assertTrue(source.contains("lockscreenVisibility = Notification.VISIBILITY_PUBLIC"))
         assertTrue(source.contains(".setUsesChronometer(state is DiaryRecordingState.Recording)"))
+        assertTrue(source.contains("NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE"))
         assertTrue(source.contains("System.currentTimeMillis() - state.elapsedMs"))
         assertTrue(source.contains(".setContentTitle(context.getString(R.string.diary_recording_active))"))
         assertTrue(source.contains(".setContentText(formatStatusElapsed(state))"))
@@ -226,6 +232,12 @@ class DiaryRecordingServiceContractTest {
         assertTrue(androidRecorder.contains("Build.VERSION_CODES.S"))
         assertTrue(androidRecorder.contains("MediaRecorder(context)"))
         assertTrue(androidRecorder.contains("MediaRecorder()"))
+        assertTrue(androidRecorder.contains("MediaRecorder.AudioSource.VOICE_RECOGNITION"))
+        assertTrue(androidRecorder.contains("MediaRecorder.AudioSource.MIC"))
+        assertTrue(androidRecorder.contains("setAudioChannels(1)"))
+        assertTrue(androidRecorder.contains("setAudioEncodingBitRate(96_000)"))
+        assertTrue(androidRecorder.contains("usableSpace"))
+        assertTrue(androidRecorder.contains("file.length() <= 0"))
     }
 
     private fun source(fileName: String): String =
