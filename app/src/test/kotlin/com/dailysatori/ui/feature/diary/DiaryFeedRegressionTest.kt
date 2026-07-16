@@ -37,5 +37,11 @@ class DiaryFeedRegressionTest {
         assertTrue(attachmentList.contains("player.seekTo"))
         assertTrue(attachmentList.contains("delay(250)"))
         assertTrue(attachmentList.contains("formatPlaybackTime"))
+        assertTrue(attachmentList.contains("AudioFocusRequest.Builder"))
+        assertTrue(attachmentList.contains("requestAudioFocus"))
+        assertTrue(attachmentList.contains("abandonAudioFocusRequest"))
+        assertTrue(attachmentList.contains("player.reset()"))
+        assertTrue(attachmentList.contains("error_message.startsWith(\"recording_\")"))
+        assertTrue(attachmentList.contains("\"录音失败\""))
     }
 }

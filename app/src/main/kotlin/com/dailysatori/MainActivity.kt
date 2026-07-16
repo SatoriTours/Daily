@@ -13,6 +13,8 @@ import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
+import com.dailysatori.core.recording.DiaryRecordingOpenRequest
+import com.dailysatori.core.recording.DiaryRecordingService
 import com.dailysatori.ui.theme.DailySatoriTheme
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
@@ -21,6 +23,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleOAuthIntent(intent)
+        handleRecordingIntent(intent)
         pruneOldAsyncTasks()
         scheduleExternalFavoritePeriodicSyncs()
         enableEdgeToEdge()
@@ -35,6 +38,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleOAuthIntent(intent)
+        handleRecordingIntent(intent)
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
@@ -52,6 +56,12 @@ class MainActivity : ComponentActivity() {
                 Log.e(TAG, "X OAuth callback handling failed", error)
             }
         }
+    }
+
+    private fun handleRecordingIntent(intent: Intent?) {
+        if (intent?.action != DiaryRecordingService.ACTION_OPEN) return
+        val diaryId = intent.getLongExtra(DiaryRecordingService.EXTRA_DIARY_ID, 0)
+        DiaryRecordingOpenRequest.open(diaryId)
     }
 
     private fun scheduleExternalFavoritePeriodicSyncs() {

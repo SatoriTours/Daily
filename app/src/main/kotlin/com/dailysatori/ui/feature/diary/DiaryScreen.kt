@@ -87,12 +87,14 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.core.recording.DiaryRecordingNotification
+import com.dailysatori.core.recording.DiaryRecordingOpenRequest
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DiaryScreen(onMyClick: () -> Unit = {}) {
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
@@ -155,6 +157,13 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             diaryListState.animateScrollToItem(0)
         }
         recordingWasActive = recordingIsActive
+    }
+    LaunchedEffect(requestedDiaryId, state.diaries) {
+        val diaryId = requestedDiaryId ?: return@LaunchedEffect
+        val requestedDiary = state.diaries.firstOrNull { it.id == diaryId } ?: return@LaunchedEffect
+        editingDiary = requestedDiary
+        showEditor = true
+        DiaryRecordingOpenRequest.consume(diaryId)
     }
 
     AppScaffold(

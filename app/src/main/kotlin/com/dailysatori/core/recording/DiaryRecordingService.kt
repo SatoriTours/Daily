@@ -27,7 +27,7 @@ class DiaryRecordingService : Service() {
 
         override fun stateChanged(state: DiaryRecordingState) {
             if (!androidResourcesOpen || !foregroundStarted) return
-            updateRecordingWakeLock(state)
+            updateRecordingWakeLockSafely(state)
             val diaryId = state.diaryId ?: return
             if (lastNotificationStateClass == state.javaClass) return
             runCatching { notification.notify(state, diaryId) }
@@ -103,7 +103,7 @@ class DiaryRecordingService : Service() {
             }
             foregroundStarted = true
             lastNotificationStateClass = state.javaClass
-            updateRecordingWakeLock(state)
+            updateRecordingWakeLockSafely(state)
             null
         } catch (error: RuntimeException) {
             foregroundLaunchFailureCode(
@@ -135,7 +135,12 @@ class DiaryRecordingService : Service() {
                 setReferenceCounted(false)
             }.also { recordingWakeLock = it }
         }
-        if (!lock.isHeld) lock.acquire()
+        if (!lock.isHeld) lock.acquire(WAKE_LOCK_TIMEOUT_MS)
+    }
+
+    private fun updateRecordingWakeLockSafely(state: DiaryRecordingState) {
+        runCatching { updateRecordingWakeLock(state) }
+            .onFailure { Log.e(TAG, "Unable to update recording wake lock", it) }
     }
 
     private fun releaseRecordingWakeLock() {
@@ -153,6 +158,7 @@ class DiaryRecordingService : Service() {
         const val EXTRA_DIARY_ID = "diaryId"
         const val EXTRA_ATTACHMENT_ID = "attachmentId"
         private const val TAG = "DiaryRecordingService"
+        private const val WAKE_LOCK_TIMEOUT_MS = 10 * 60 * 1_000L
 
         fun startFromUserAction(
             context: Context,

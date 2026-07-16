@@ -47,6 +47,15 @@ internal sealed interface DiaryRecordingResult {
         val errorCode: String,
     ) : DiaryRecordingResult
 
+    data class RecorderRuntimeFailed(
+        override val sessionToken: String,
+        val errorCode: String,
+    ) : DiaryRecordingResult
+
+    data class RecorderMaxFileSizeReached(
+        override val sessionToken: String,
+    ) : DiaryRecordingResult
+
     data class RecorderPaused(
         override val sessionToken: String,
     ) : DiaryRecordingResult
@@ -154,6 +163,12 @@ internal class DiaryRecordingActor(
     private var terminalBoundaryClosed = false
 
     init {
+        recorder.setOnErrorListener { sessionToken, errorCode ->
+            mailbox.trySend(Message.Result(DiaryRecordingResult.RecorderRuntimeFailed(sessionToken, errorCode)))
+        }
+        recorder.setOnMaxFileSizeReachedListener { sessionToken ->
+            mailbox.trySend(Message.Result(DiaryRecordingResult.RecorderMaxFileSizeReached(sessionToken)))
+        }
         scope.launch(actorDispatcher) {
             for (message in mailbox) {
                 when (message) {
@@ -445,6 +460,20 @@ internal class DiaryRecordingActor(
                 errorCode = result.errorCode,
                 decision = ReleaseDecision.CompleteIfStopRequested,
             )
+            is DiaryRecordingResult.RecorderRuntimeFailed -> {
+                session.captureElapsed(monotonicNowMs())
+                ticker?.cancel()
+                ticker = null
+                publish(session.failedState(result.errorCode, session.outputFile?.absolutePath))
+                launchRelease(session, result.errorCode, ReleaseDecision.Fail)
+            }
+            is DiaryRecordingResult.RecorderMaxFileSizeReached -> {
+                session.captureElapsed(monotonicNowMs())
+                ticker?.cancel()
+                ticker = null
+                publish(session.stoppingState())
+                launchRelease(session, DiaryRecordingErrorCode.STORAGE_FAILED, ReleaseDecision.CompleteUsableOutput)
+            }
             is DiaryRecordingResult.RecorderPaused,
             is DiaryRecordingResult.RecorderResumed,
             -> Unit

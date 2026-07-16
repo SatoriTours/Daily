@@ -434,6 +434,31 @@ class DiaryRecordingActorTest {
         assertEquals(listOf("start", "pause", "resume", "stop"), fixture.recorder.calls)
     }
 
+    @Test
+    fun runtimeRecorderErrorReleasesAndPersistsFailure() = runTest {
+        val fixture = fixture()
+        fixture.startRecording()
+
+        fixture.recorder.emitRuntimeError()
+        fixture.awaitState { it is DiaryRecordingState.Idle }
+
+        assertTrue(fixture.recorder.calls.contains("release"))
+        assertEquals(DiaryRecordingErrorCode.RUNTIME_FAILED, fixture.persistence.failures.single().errorCode)
+    }
+
+    @Test
+    fun fileSizeLimitFinalizesUsableRecording() = runTest {
+        val fixture = fixture()
+        fixture.startRecording()
+
+        fixture.recorder.emitFileSizeLimitReached()
+        fixture.awaitState { it is DiaryRecordingState.Idle }
+
+        assertTrue(fixture.recorder.calls.contains("release"))
+        assertEquals(1, fixture.persistence.completions.size)
+        assertTrue(fixture.persistence.failures.isEmpty())
+    }
+
     private fun TestScope.fixture(
         recorder: FakeRecorder = FakeRecorder(),
         persistence: FakePersistence = FakePersistence(),
@@ -517,6 +542,24 @@ class DiaryRecordingActorTest {
         }
         private var sessionToken: String? = null
         private var output: File? = null
+        private var errorListener: ((String, String) -> Unit)? = null
+        private var fileSizeListener: ((String) -> Unit)? = null
+
+        override fun setOnErrorListener(listener: (String, String) -> Unit) {
+            errorListener = listener
+        }
+
+        override fun setOnMaxFileSizeReachedListener(listener: (String) -> Unit) {
+            fileSizeListener = listener
+        }
+
+        fun emitRuntimeError(errorCode: String = DiaryRecordingErrorCode.RUNTIME_FAILED) {
+            errorListener?.invoke(checkNotNull(sessionToken), errorCode)
+        }
+
+        fun emitFileSizeLimitReached() {
+            fileSizeListener?.invoke(checkNotNull(sessionToken))
+        }
 
         override fun start(sessionToken: String, outputFile: File) {
             record("start")

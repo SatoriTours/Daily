@@ -43,6 +43,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -62,6 +63,7 @@ import com.dailysatori.ui.feature.aichat.AiChatScreen
 import com.dailysatori.ui.feature.aichat.ChatInputField
 import com.dailysatori.ui.feature.book.BooksScreen
 import com.dailysatori.ui.feature.diary.DiaryScreen
+import com.dailysatori.core.recording.DiaryRecordingOpenRequest
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
@@ -121,9 +123,17 @@ fun HomeScreen(
     var showMy by rememberSaveable { mutableStateOf(false) }
     var aiInputController by remember { mutableStateOf<AiChatInputController?>(null) }
     val hazeState = rememberHazeState()
+    val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
 
     LaunchedEffect(tabs.size) {
         if (selectedIndex !in tabs.indices) selectedIndex = 0
+    }
+
+    LaunchedEffect(requestedDiaryId) {
+        if (requestedDiaryId != null) {
+            showMy = false
+            selectedIndex = DIARY_TAB_INDEX
+        }
     }
 
     LaunchedEffect(selectedBookId) {

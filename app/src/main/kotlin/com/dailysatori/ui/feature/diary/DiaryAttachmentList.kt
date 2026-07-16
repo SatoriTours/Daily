@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.diary
 
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
@@ -45,7 +48,9 @@ fun DiaryAttachmentList(
     onDelete: ((Diary_attachment) -> Unit)? = null,
 ) {
     val displayableAttachments = attachments.filterNot {
-        it.kind == "audio" && it.local_path.isBlank()
+        it.kind == "audio" &&
+            it.local_path.isBlank() &&
+            it.transcript_status != DiaryAttachmentProcessingStatus.failed
     }
     if (displayableAttachments.isEmpty()) return
     var expanded by remember { mutableStateOf(false) }
@@ -111,20 +116,43 @@ private fun DiaryAttachmentRow(attachment: Diary_attachment, onDelete: ((Diary_a
 
 @Composable
 private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
+    val context = LocalContext.current
     var isPrepared by remember(path) { mutableStateOf(false) }
     var isPreparing by remember(path) { mutableStateOf(false) }
     var isPlaying by remember(path) { mutableStateOf(false) }
     var isDragging by remember(path) { mutableStateOf(false) }
     var positionMs by remember(path) { mutableStateOf(0) }
     var durationMs by remember(path) { mutableStateOf(recordedDurationMs.coerceAtLeast(0).toInt()) }
+    val playbackAudioAttributes = remember {
+        AudioAttributes.Builder()
+            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .build()
+    }
     val player = remember(path) {
         MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .build(),
-            )
+            setAudioAttributes(playbackAudioAttributes)
+        }
+    }
+    val audioManager = remember(context) { context.getSystemService(AudioManager::class.java) }
+    val focusRequest = remember(player) {
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(playbackAudioAttributes)
+            .setOnAudioFocusChangeListener { change ->
+                if (change < 0 && isPlaying) {
+                    runCatching { player.pause() }
+                    isPlaying = false
+                }
+            }
+            .build()
+    }
+    fun abandonAudioFocus() {
+        audioManager.abandonAudioFocusRequest(focusRequest)
+    }
+    fun startWithAudioFocus(target: MediaPlayer) {
+        if (audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            target.start()
+            isPlaying = true
         }
     }
     DisposableEffect(player) {
@@ -132,21 +160,26 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
             isPrepared = true
             isPreparing = false
             durationMs = it.duration.coerceAtLeast(0)
-            it.start()
-            isPlaying = true
+            startWithAudioFocus(it)
         }
         player.setOnSeekCompleteListener { positionMs = it.currentPosition }
         player.setOnCompletionListener {
             positionMs = durationMs
             isPlaying = false
+            abandonAudioFocus()
         }
         player.setOnErrorListener { _, _, _ ->
+            abandonAudioFocus()
             isPrepared = false
             isPreparing = false
             isPlaying = false
+            runCatching { player.reset() }
             true
         }
-        onDispose { player.release() }
+        onDispose {
+            abandonAudioFocus()
+            player.release()
+        }
     }
     LaunchedEffect(isPlaying, player) {
         while (isPlaying) {
@@ -162,14 +195,16 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
                     isPlaying -> {
                         player.pause()
                         isPlaying = false
+                        abandonAudioFocus()
                     }
                     isPrepared -> {
                         if (durationMs > 0 && positionMs >= durationMs) player.seekTo(0)
-                        player.start()
-                        isPlaying = true
+                        startWithAudioFocus(player)
                     }
                     else -> runCatching {
                         isPreparing = true
+                        player.reset()
+                        player.setAudioAttributes(playbackAudioAttributes)
                         player.setDataSource(path)
                         player.prepareAsync()
                     }.onFailure { isPreparing = false }
@@ -206,6 +241,7 @@ private fun formatPlaybackTime(milliseconds: Int): String {
 }
 
 private fun attachmentStatus(attachment: Diary_attachment): String = when {
+    attachment.error_message.startsWith("recording_") -> "录音失败"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.processing -> "正在转写"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.failed -> "转写失败"
     attachment.knowledge_status == DiaryAttachmentProcessingStatus.completed -> "已加入知识库"

@@ -83,6 +83,7 @@ class DiaryRecordingServiceContractTest {
         assertFalse(destroy.contains("ACTION_STOP"))
         assertTrue(manifest.contains("android.permission.WAKE_LOCK"))
         assertTrue(source.contains("PowerManager.PARTIAL_WAKE_LOCK"))
+        assertTrue(source.contains("lock.acquire(WAKE_LOCK_TIMEOUT_MS)"))
         assertTrue(source.contains("updateRecordingWakeLock(state)"))
         assertTrue(destroy.contains("releaseRecordingWakeLock()"))
     }
@@ -129,6 +130,19 @@ class DiaryRecordingServiceContractTest {
         assertTrue(notification.contains("Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS"))
         assertTrue(service.contains("lastNotificationStateClass"))
         assertTrue(service.contains("if (lastNotificationStateClass == state.javaClass) return"))
+    }
+
+    @Test
+    fun notificationOpenActionRoutesToTheRequestedDiary() {
+        val activity = File("src/main/kotlin/com/dailysatori/MainActivity.kt").readText()
+        val home = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val diary = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryScreen.kt").readText()
+
+        assertTrue(activity.contains("DiaryRecordingOpenRequest.open(diaryId)"))
+        assertTrue(home.contains("DiaryRecordingOpenRequest.diaryId"))
+        assertTrue(home.contains("selectedIndex = DIARY_TAB_INDEX"))
+        assertTrue(diary.contains("DiaryRecordingOpenRequest.consume"))
+        assertTrue(diary.contains("showEditor = true"))
     }
 
     @Test
@@ -238,6 +252,10 @@ class DiaryRecordingServiceContractTest {
         assertTrue(androidRecorder.contains("setAudioEncodingBitRate(96_000)"))
         assertTrue(androidRecorder.contains("usableSpace"))
         assertTrue(androidRecorder.contains("file.length() <= 0"))
+        assertTrue(androidRecorder.contains("setOnErrorListener"))
+        assertTrue(androidRecorder.contains("setMaxFileSize"))
+        assertTrue(androidRecorder.contains("MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED"))
+        assertTrue(androidRecorder.contains("outputFile.delete()"))
     }
 
     private fun source(fileName: String): String =

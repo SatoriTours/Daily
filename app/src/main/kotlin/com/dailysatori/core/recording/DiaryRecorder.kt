@@ -3,6 +3,8 @@ package com.dailysatori.core.recording
 import java.io.File
 
 interface DiaryRecorder {
+    fun setOnErrorListener(listener: (sessionToken: String, errorCode: String) -> Unit) = Unit
+    fun setOnMaxFileSizeReachedListener(listener: (sessionToken: String) -> Unit) = Unit
     fun start(sessionToken: String, outputFile: File)
     fun pause()
     fun resume()
@@ -30,6 +32,7 @@ object DiaryRecordingErrorCode {
     const val ATTACHMENT_INVALID = "recording_attachment_invalid"
     const val STORAGE_FAILED = "recording_storage_failed"
     const val FINALIZE_FAILED = "recording_finalize_failed"
+    const val RUNTIME_FAILED = "recording_runtime_failed"
     const val PERSIST_FAILED = "recording_persist_failed"
     const val FOREGROUND_START_NOT_ALLOWED = "foreground_start_not_allowed"
     const val FOREGROUND_SECURITY_DENIED = "foreground_security_denied"

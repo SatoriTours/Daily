@@ -14,6 +14,16 @@ class AndroidDiaryRecorder(
     private var sessionToken: String? = null
     private var outputFile: File? = null
     private var started = false
+    private var errorListener: ((String, String) -> Unit)? = null
+    private var maxFileSizeListener: ((String) -> Unit)? = null
+
+    override fun setOnErrorListener(listener: (String, String) -> Unit) {
+        errorListener = listener
+    }
+
+    override fun setOnMaxFileSizeReachedListener(listener: (String) -> Unit) {
+        maxFileSizeListener = listener
+    }
 
     @Synchronized
     override fun start(sessionToken: String, outputFile: File) {
@@ -25,6 +35,9 @@ class AndroidDiaryRecorder(
         if (parent.usableSpace < MIN_FREE_SPACE_BYTES) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
+        val maxFileSize = (parent.usableSpace - RESERVED_FREE_SPACE_BYTES)
+            .coerceAtMost(MAX_RECORDING_FILE_BYTES)
+            .coerceAtLeast(1)
         if (outputFile.exists() && !outputFile.delete()) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
@@ -33,28 +46,45 @@ class AndroidDiaryRecorder(
             val recorder = createMediaRecorder()
             mediaRecorder = recorder
             try {
+                recorder.setOnErrorListener { _, _, _ ->
+                    this.sessionToken?.let { token ->
+                        errorListener?.invoke(token, DiaryRecordingErrorCode.RUNTIME_FAILED)
+                    }
+                }
+                recorder.setOnInfoListener { _, what, _ ->
+                    if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
+                        this.sessionToken?.let { token -> maxFileSizeListener?.invoke(token) }
+                    }
+                }
                 recorder.setAudioSource(audioSource)
                 recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 recorder.setAudioChannels(1)
                 recorder.setAudioSamplingRate(44_100)
                 recorder.setAudioEncodingBitRate(96_000)
+                runCatching { recorder.setMaxFileSize(maxFileSize) }
                 recorder.setOutputFile(outputFile.absolutePath)
                 recorder.prepare()
-                recorder.start()
                 this.sessionToken = sessionToken
                 this.outputFile = outputFile
+                recorder.start()
                 started = true
                 return
             } catch (error: SecurityException) {
                 releaseRecorder()
+                clearSession()
+                outputFile.delete()
                 throw DiaryRecorderException(DiaryRecordingErrorCode.PERMISSION_DENIED, error)
             } catch (error: IOException) {
                 releaseRecorder()
+                clearSession()
+                outputFile.delete()
                 throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED, error)
             } catch (error: RuntimeException) {
                 releaseRecorder()
+                clearSession()
                 if (index == audioSources.lastIndex) {
+                    outputFile.delete()
                     throw DiaryRecorderException(DiaryRecordingErrorCode.START_FAILED, error)
                 }
                 if (outputFile.exists() && !outputFile.delete()) {
@@ -131,6 +161,11 @@ class AndroidDiaryRecorder(
         started = false
     }
 
+    private fun clearSession() {
+        sessionToken = null
+        outputFile = null
+    }
+
     private fun probeDuration(file: File): Long {
         val retriever = MediaMetadataRetriever()
         return try {
@@ -146,6 +181,8 @@ class AndroidDiaryRecorder(
     private fun File?.orEmpty(): File = this ?: throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
 
     private companion object {
-        const val MIN_FREE_SPACE_BYTES = 10L * 1024 * 1024
+        const val RESERVED_FREE_SPACE_BYTES = 10L * 1024 * 1024
+        const val MIN_FREE_SPACE_BYTES = RESERVED_FREE_SPACE_BYTES + 1L * 1024 * 1024
+        const val MAX_RECORDING_FILE_BYTES = 512L * 1024 * 1024
     }
 }
