@@ -160,7 +160,12 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     }
     LaunchedEffect(requestedDiaryId, state.diaries) {
         val diaryId = requestedDiaryId ?: return@LaunchedEffect
-        val requestedDiary = state.diaries.firstOrNull { it.id == diaryId } ?: return@LaunchedEffect
+        val requestedDiary = state.diaries.firstOrNull { it.id == diaryId }
+            ?: viewModel.getDiaryById(diaryId)
+        if (requestedDiary == null) {
+            DiaryRecordingOpenRequest.consume(diaryId)
+            return@LaunchedEffect
+        }
         editingDiary = requestedDiary
         showEditor = true
         DiaryRecordingOpenRequest.consume(diaryId)

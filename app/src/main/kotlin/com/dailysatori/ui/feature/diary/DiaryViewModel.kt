@@ -279,4 +279,8 @@ class DiaryViewModel(
             }
         }
     }
+
+    suspend fun getDiaryById(id: Long): Diary? = withContext(Dispatchers.IO) {
+        diaryRepo.getById(id)
+    }
 }

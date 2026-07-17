@@ -1,7 +1,8 @@
 package com.dailysatori.core.recording
 
 import android.content.Context
-import android.media.MediaMetadataRetriever
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaRecorder
 import android.os.Build
 import java.io.File
@@ -23,6 +24,15 @@ class AndroidDiaryRecorder(
 
     override fun setOnMaxFileSizeReachedListener(listener: (String) -> Unit) {
         maxFileSizeListener = listener
+    }
+
+    @Synchronized
+    override fun sampleHealth(): DiaryRecorderHealth {
+        val recorder = mediaRecorder ?: throw DiaryRecorderException(DiaryRecordingErrorCode.INVALID_STATE)
+        recorder.getMaxAmplitude()
+        val available = outputFile?.parentFile?.usableSpace
+            ?: throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
+        return DiaryRecorderHealth(available)
     }
 
     @Synchronized
@@ -79,6 +89,7 @@ class AndroidDiaryRecorder(
                 releaseRecorder()
                 clearSession()
                 outputFile.delete()
+                if (index < audioSources.lastIndex) return@forEachIndexed
                 throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED, error)
             } catch (error: RuntimeException) {
                 releaseRecorder()
@@ -116,12 +127,14 @@ class AndroidDiaryRecorder(
         } finally {
             releaseRecorder()
         }
-        sessionToken = null
-        outputFile = null
         if (!file.isFile || file.length() <= 0) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.FINALIZE_FAILED)
         }
-        return DiaryRecordingOutput(token, file, probeDuration(file))
+        val durationMs = probeAudioDuration(file)
+            ?: throw DiaryRecorderException(DiaryRecordingErrorCode.FINALIZE_FAILED)
+        sessionToken = null
+        outputFile = null
+        return DiaryRecordingOutput(token, file, durationMs)
     }
 
     @Synchronized
@@ -132,9 +145,12 @@ class AndroidDiaryRecorder(
         releaseRecorder()
         sessionToken = null
         outputFile = null
-        return file?.takeIf { token != null && it.isFile && it.length() > 0 }?.let {
-            DiaryRecordingOutput(checkNotNull(token), it, probeDuration(it))
+        val validFile = file?.takeIf { token != null && it.isFile && it.length() > 0 } ?: return null
+        val durationMs = probeAudioDuration(validFile) ?: run {
+            validFile.delete()
+            return null
         }
+        return DiaryRecordingOutput(checkNotNull(token), validFile, durationMs)
     }
 
     private fun createMediaRecorder(): MediaRecorder =
@@ -166,15 +182,27 @@ class AndroidDiaryRecorder(
         outputFile = null
     }
 
-    private fun probeDuration(file: File): Long {
-        val retriever = MediaMetadataRetriever()
+    private fun probeAudioDuration(file: File): Long? {
+        val extractor = MediaExtractor()
         return try {
-            retriever.setDataSource(file.absolutePath)
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
-        } catch (_: RuntimeException) {
-            0
+            extractor.setDataSource(file.absolutePath)
+            (0 until extractor.trackCount)
+                .asSequence()
+                .map(extractor::getTrackFormat)
+                .filter { format ->
+                    format.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+                }
+                .mapNotNull { format ->
+                    format.takeIf { it.containsKey(MediaFormat.KEY_DURATION) }
+                        ?.getLong(MediaFormat.KEY_DURATION)
+                        ?.div(1_000)
+                        ?.takeIf { it > 0 }
+                }
+                .maxOrNull()
+        } catch (_: Exception) {
+            null
         } finally {
-            retriever.release()
+            extractor.release()
         }
     }
 

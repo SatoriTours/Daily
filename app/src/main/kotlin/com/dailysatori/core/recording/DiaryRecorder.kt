@@ -5,12 +5,17 @@ import java.io.File
 interface DiaryRecorder {
     fun setOnErrorListener(listener: (sessionToken: String, errorCode: String) -> Unit) = Unit
     fun setOnMaxFileSizeReachedListener(listener: (sessionToken: String) -> Unit) = Unit
+    fun sampleHealth(): DiaryRecorderHealth = DiaryRecorderHealth(Long.MAX_VALUE)
     fun start(sessionToken: String, outputFile: File)
     fun pause()
     fun resume()
     fun stop(): DiaryRecordingOutput
     fun releasePreservingOutput(): DiaryRecordingOutput?
 }
+
+data class DiaryRecorderHealth(
+    val availableStorageBytes: Long,
+)
 
 data class DiaryRecordingOutput(
     val sessionToken: String,

@@ -82,5 +82,15 @@ class DiaryCaptureUiTest {
         assertTrue(viewModel.contains("attachmentRepo?.delete(id)"))
     }
 
+    @Test
+    fun notificationCanOpenDiaryOutsideCurrentFilters() {
+        val screen = source("DiaryScreen.kt")
+        val viewModel = source("DiaryViewModel.kt")
+
+        assertTrue(screen.contains("viewModel.getDiaryById(diaryId)"))
+        assertTrue(viewModel.contains("suspend fun getDiaryById"))
+        assertTrue(viewModel.contains("withContext(Dispatchers.IO)"))
+    }
+
     private fun source(name: String) = File("src/main/kotlin/com/dailysatori/ui/feature/diary/$name").readText()
 }

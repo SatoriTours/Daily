@@ -56,6 +56,11 @@ internal sealed interface DiaryRecordingResult {
         override val sessionToken: String,
     ) : DiaryRecordingResult
 
+    data class RecorderHealth(
+        override val sessionToken: String,
+        val availableStorageBytes: Long,
+    ) : DiaryRecordingResult
+
     data class RecorderPaused(
         override val sessionToken: String,
     ) : DiaryRecordingResult
@@ -152,6 +157,8 @@ internal class DiaryRecordingActor(
     private val nextSessionToken: () -> String,
     private val retryDelaysMs: List<Long> = listOf(1_000, 2_000, 4_000),
     private val tickerIntervalMs: Long = 1_000,
+    private val minimumFreeStorageBytes: Long = 10L * 1024 * 1024,
+    private val healthCheckTimeoutMs: Long = 15_000,
     private val onClosed: () -> Unit = {},
 ) {
     private val mailbox = Channel<Message>(Channel.UNLIMITED)
@@ -461,6 +468,7 @@ internal class DiaryRecordingActor(
                 decision = ReleaseDecision.CompleteIfStopRequested,
             )
             is DiaryRecordingResult.RecorderRuntimeFailed -> {
+                session.healthCheckInFlight = false
                 session.captureElapsed(monotonicNowMs())
                 ticker?.cancel()
                 ticker = null
@@ -473,6 +481,19 @@ internal class DiaryRecordingActor(
                 ticker = null
                 publish(session.stoppingState())
                 launchRelease(session, DiaryRecordingErrorCode.STORAGE_FAILED, ReleaseDecision.CompleteUsableOutput)
+            }
+            is DiaryRecordingResult.RecorderHealth -> {
+                session.healthCheckInFlight = false
+                if (
+                    store.state.value is DiaryRecordingState.Recording &&
+                    result.availableStorageBytes < minimumFreeStorageBytes
+                ) {
+                    session.captureElapsed(monotonicNowMs())
+                    ticker?.cancel()
+                    ticker = null
+                    publish(session.stoppingState())
+                    launchStop(session)
+                }
             }
             is DiaryRecordingResult.RecorderPaused,
             is DiaryRecordingResult.RecorderResumed,
@@ -523,6 +544,32 @@ internal class DiaryRecordingActor(
             is DiaryRecordingResult.Tick -> {
                 if (store.state.value is DiaryRecordingState.Recording) {
                     publish(session.recordingState())
+                    val now = monotonicNowMs()
+                    if (
+                        session.healthCheckInFlight &&
+                        now - session.healthCheckStartedAtMs >= healthCheckTimeoutMs
+                    ) {
+                        session.healthCheckInFlight = false
+                        session.captureElapsed(now)
+                        ticker?.cancel()
+                        ticker = null
+                        publish(session.failedState(DiaryRecordingErrorCode.RUNTIME_FAILED, session.outputFile?.absolutePath))
+                        launchRelease(session, DiaryRecordingErrorCode.RUNTIME_FAILED, ReleaseDecision.Fail)
+                    } else if (!session.healthCheckInFlight) {
+                        session.healthCheckInFlight = true
+                        session.healthCheckStartedAtMs = now
+                        launchRecorder(session.token) {
+                            try {
+                                val health = recorder.sampleHealth()
+                                DiaryRecordingResult.RecorderHealth(session.token, health.availableStorageBytes)
+                            } catch (error: Throwable) {
+                                DiaryRecordingResult.RecorderRuntimeFailed(
+                                    session.token,
+                                    recorderErrorCode(error, DiaryRecordingErrorCode.RUNTIME_FAILED),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -742,6 +789,8 @@ internal class DiaryRecordingActor(
         var runningSinceMs: Long? = null,
         var pendingPersistence: TerminalPersistence? = null,
         var serviceFinishRequested: Boolean = false,
+        var healthCheckInFlight: Boolean = false,
+        var healthCheckStartedAtMs: Long = 0,
     ) {
         fun elapsed(atMs: Long = monotonicNowMs()): Long =
             accumulatedMs + (runningSinceMs?.let { (atMs - it).coerceAtLeast(0) } ?: 0)

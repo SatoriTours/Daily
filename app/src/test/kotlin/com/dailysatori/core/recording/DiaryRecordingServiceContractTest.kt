@@ -256,6 +256,11 @@ class DiaryRecordingServiceContractTest {
         assertTrue(androidRecorder.contains("setMaxFileSize"))
         assertTrue(androidRecorder.contains("MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED"))
         assertTrue(androidRecorder.contains("outputFile.delete()"))
+        assertTrue(androidRecorder.contains("override fun sampleHealth()"))
+        assertTrue(androidRecorder.contains("getMaxAmplitude()"))
+        assertTrue(androidRecorder.contains("MediaExtractor"))
+        assertTrue(androidRecorder.contains("startsWith(\"audio/\")"))
+        assertTrue(androidRecorder.contains("index < audioSources.lastIndex"))
     }
 
     private fun source(fileName: String): String =

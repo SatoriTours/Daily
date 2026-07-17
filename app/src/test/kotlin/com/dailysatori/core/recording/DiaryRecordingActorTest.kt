@@ -459,6 +459,23 @@ class DiaryRecordingActorTest {
         assertTrue(fixture.persistence.failures.isEmpty())
     }
 
+    @Test
+    fun lowStorageHealthSampleFinalizesBeforeDiskIsFull() = runTest {
+        val fixture = fixture()
+        fixture.startRecording()
+
+        fixture.actor.submit(
+            DiaryRecordingResult.RecorderHealth(
+                sessionToken = "1",
+                availableStorageBytes = 5L * 1024 * 1024,
+            ),
+        )
+        fixture.awaitState { it is DiaryRecordingState.Idle }
+
+        assertEquals(1, fixture.persistence.completions.size)
+        assertTrue(fixture.persistence.failures.isEmpty())
+    }
+
     private fun TestScope.fixture(
         recorder: FakeRecorder = FakeRecorder(),
         persistence: FakePersistence = FakePersistence(),
@@ -589,6 +606,11 @@ class DiaryRecordingActorTest {
             record("release")
             return output?.takeIf { it.isFile && it.length() > 0 }
                 ?.let { DiaryRecordingOutput(checkNotNull(sessionToken), it, durationMs = 3_000) }
+        }
+
+        override fun sampleHealth(): DiaryRecorderHealth {
+            record("health")
+            return DiaryRecorderHealth(100L * 1024 * 1024)
         }
 
         private fun record(operation: String) {
