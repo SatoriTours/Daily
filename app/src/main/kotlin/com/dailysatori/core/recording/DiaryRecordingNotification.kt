@@ -12,6 +12,8 @@ import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.MainActivity
 import com.dailysatori.R
 
+internal const val LONG_RECORDING_REMINDER_INTERVAL_MS = 60 * 60 * 1_000L
+
 class DiaryRecordingNotification(
     private val context: Context,
 ) {
@@ -103,7 +105,13 @@ class DiaryRecordingNotification(
 
     private fun statusFor(state: DiaryRecordingState): String = when (state) {
         is DiaryRecordingState.Starting -> context.getString(R.string.diary_recording_status_starting)
-        is DiaryRecordingState.Recording -> context.getString(R.string.diary_recording_status_recording)
+        is DiaryRecordingState.Recording -> if (
+            state.elapsedMs >= LONG_RECORDING_REMINDER_INTERVAL_MS
+        ) {
+            context.getString(R.string.diary_recording_status_long_recording)
+        } else {
+            context.getString(R.string.diary_recording_status_recording)
+        }
         is DiaryRecordingState.Paused -> context.getString(R.string.diary_recording_status_paused)
         is DiaryRecordingState.Stopping -> context.getString(R.string.diary_recording_status_stopping)
         is DiaryRecordingState.Failed -> context.getString(R.string.diary_recording_status_failed)

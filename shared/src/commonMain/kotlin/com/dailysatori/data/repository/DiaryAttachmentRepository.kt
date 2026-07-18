@@ -149,7 +149,18 @@ class DiaryAttachmentRepository(
         require(id > 0) { "attachment id must be positive" }
         q.transaction {
             requireRecordingTarget(diaryId, id)
+            q.markDiaryAttachmentRecordingStarted(
+                updated_at = Clock.System.now().toEpochMilliseconds(),
+                id = id,
+            )
         }
+    }
+
+    fun recoverInterruptedRecordings(startedBefore: Long) {
+        q.recoverInterruptedDiaryAttachmentRecordings(
+            updated_at = Clock.System.now().toEpochMilliseconds(),
+            startedBefore = startedBefore,
+        )
     }
 
     fun completeRecording(diaryId: Long, id: Long, localPath: String, sizeBytes: Long, durationMs: Long) {

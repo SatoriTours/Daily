@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.Clock
 
 data class DiaryState(
     val diaries: List<Diary> = emptyList(),
@@ -55,10 +56,14 @@ class DiaryViewModel(
     private val attachmentJobs = mutableMapOf<Long, Job>()
 
     init {
+        val recoveryCutoff = Clock.System.now().toEpochMilliseconds()
         loadDiaries()
         observeMonthSummaries()
         observeRecording()
         viewModelScope.launch(Dispatchers.IO) {
+            if (recordingStore?.state?.value is DiaryRecordingState.Idle || recordingStore == null) {
+                attachmentRepo?.recoverInterruptedRecordings(startedBefore = recoveryCutoff)
+            }
             refreshAvailableTags()
             monthSummaryService.refreshRecentMonthsIfNeeded()
         }

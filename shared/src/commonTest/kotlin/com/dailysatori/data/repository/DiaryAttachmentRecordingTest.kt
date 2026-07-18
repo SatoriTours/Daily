@@ -120,4 +120,48 @@ class DiaryAttachmentRecordingTest {
             driver.close()
         }
     }
+
+    @Test
+    fun interruptedRecordingIsMarkedFailedOnNextAppSession() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            db.dailySatoriQueries.insertDiary("voice diary", null, null, null, 1, 1)
+            val repository = DiaryAttachmentRepository(db, driver)
+            val interruptedId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
+            val untouchedId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
+
+            repository.beginRecording(1, interruptedId)
+            repository.recoverInterruptedRecordings(startedBefore = Long.MAX_VALUE)
+
+            val interrupted = repository.getById(interruptedId)!!
+            assertEquals(DiaryAttachmentProcessingStatus.failed, interrupted.transcript_status)
+            assertEquals("recording_process_interrupted", interrupted.error_message)
+            assertEquals(DiaryAttachmentProcessingStatus.none, repository.getById(untouchedId)!!.transcript_status)
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
+    fun recoveryDoesNotFailRecordingStartedAfterCurrentProcessOpened() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            db.dailySatoriQueries.insertDiary("voice diary", null, null, null, 1, 1)
+            val repository = DiaryAttachmentRepository(db, driver)
+            val attachmentId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
+
+            repository.beginRecording(1, attachmentId)
+            repository.recoverInterruptedRecordings(startedBefore = Long.MIN_VALUE)
+
+            val attachment = repository.getById(attachmentId)!!
+            assertEquals(DiaryAttachmentProcessingStatus.none, attachment.transcript_status)
+            assertEquals("recording_active", attachment.error_message)
+        } finally {
+            driver.close()
+        }
+    }
 }

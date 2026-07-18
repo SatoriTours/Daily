@@ -102,7 +102,7 @@ class DiaryRecordingServiceContractTest {
         assertTrue(source.contains("System.currentTimeMillis() - state.elapsedMs"))
         assertTrue(source.contains(".setContentTitle(context.getString(R.string.diary_recording_active))"))
         assertTrue(source.contains(".setContentText(formatStatusElapsed(state))"))
-        assertTrue(source.contains("is DiaryRecordingState.Recording -> context.getString(R.string.diary_recording_status_recording)"))
+        assertTrue(source.contains("context.getString(R.string.diary_recording_status_recording)"))
         assertTrue(source.contains("is DiaryRecordingState.Paused -> context.getString(R.string.diary_recording_status_paused)"))
         assertTrue(source.contains("is DiaryRecordingState.Stopping -> context.getString(R.string.diary_recording_status_stopping)"))
         assertTrue(source.contains("is DiaryRecordingState.PersistenceFailed -> context.getString(R.string.diary_recording_status_persistence_failed)"))
@@ -124,12 +124,16 @@ class DiaryRecordingServiceContractTest {
     fun recordingChecksNotificationVisibilityAndAvoidsPerSecondNotificationUpdates() {
         val notification = source("DiaryRecordingNotification.kt")
         val service = source("DiaryRecordingService.kt")
+        val strings = File("src/main/res/values/strings.xml").readText()
 
         assertTrue(notification.contains("areNotificationsEnabled()"))
         assertTrue(notification.contains("NotificationManager.IMPORTANCE_NONE"))
         assertTrue(notification.contains("Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS"))
-        assertTrue(service.contains("lastNotificationStateClass"))
-        assertTrue(service.contains("if (lastNotificationStateClass == state.javaClass) return"))
+        assertTrue(service.contains("lastNotificationPresentationKey"))
+        assertTrue(service.contains("state.elapsedMs / LONG_RECORDING_REMINDER_INTERVAL_MS"))
+        assertTrue(service.contains("if (lastNotificationPresentationKey == presentationKey) return"))
+        assertTrue(notification.contains("state.elapsedMs >= LONG_RECORDING_REMINDER_INTERVAL_MS"))
+        assertTrue(strings.contains("<string name=\"diary_recording_status_long_recording\">长时间录音，请确认是否继续</string>"))
     }
 
     @Test

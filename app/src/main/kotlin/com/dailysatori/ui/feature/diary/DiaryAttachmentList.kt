@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.diary
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -36,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.theme.Spacing
@@ -123,6 +128,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
     var isDragging by remember(path) { mutableStateOf(false) }
     var positionMs by remember(path) { mutableStateOf(0) }
     var durationMs by remember(path) { mutableStateOf(recordedDurationMs.coerceAtLeast(0).toInt()) }
+    var interruptionMessage by remember(path) { mutableStateOf<String?>(null) }
     val playbackAudioAttributes = remember {
         AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -142,6 +148,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
                 if (change < 0 && isPlaying) {
                     runCatching { player.pause() }
                     isPlaying = false
+                    interruptionMessage = "播放被其他音频暂停"
                 }
             }
             .build()
@@ -151,11 +158,30 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
     }
     fun startWithAudioFocus(target: MediaPlayer) {
         if (audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            interruptionMessage = null
             target.start()
             isPlaying = true
+        } else {
+            interruptionMessage = "其他应用正在使用音频，暂时无法播放"
         }
     }
     DisposableEffect(player) {
+        val noisyReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && isPlaying) {
+                    runCatching { player.pause() }
+                    isPlaying = false
+                    interruptionMessage = "耳机已断开，播放已暂停"
+                    abandonAudioFocus()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            noisyReceiver,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         player.setOnPreparedListener {
             isPrepared = true
             isPreparing = false
@@ -177,6 +203,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
             true
         }
         onDispose {
+            context.unregisterReceiver(noisyReceiver)
             abandonAudioFocus()
             player.release()
         }
@@ -187,51 +214,58 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
             delay(250)
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
-            enabled = !isPreparing,
-            onClick = {
-                when {
-                    isPlaying -> {
-                        player.pause()
-                        isPlaying = false
-                        abandonAudioFocus()
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                enabled = !isPreparing,
+                onClick = {
+                    when {
+                        isPlaying -> {
+                            player.pause()
+                            isPlaying = false
+                            interruptionMessage = null
+                            abandonAudioFocus()
+                        }
+                        isPrepared -> {
+                            if (durationMs > 0 && positionMs >= durationMs) player.seekTo(0)
+                            startWithAudioFocus(player)
+                        }
+                        else -> runCatching {
+                            interruptionMessage = null
+                            isPreparing = true
+                            player.reset()
+                            player.setAudioAttributes(playbackAudioAttributes)
+                            player.setDataSource(path)
+                            player.prepareAsync()
+                        }.onFailure { isPreparing = false }
                     }
-                    isPrepared -> {
-                        if (durationMs > 0 && positionMs >= durationMs) player.seekTo(0)
-                        startWithAudioFocus(player)
-                    }
-                    else -> runCatching {
-                        isPreparing = true
-                        player.reset()
-                        player.setAudioAttributes(playbackAudioAttributes)
-                        player.setDataSource(path)
-                        player.prepareAsync()
-                    }.onFailure { isPreparing = false }
-                }
-            },
-        ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "暂停录音" else "播放录音",
+                },
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "暂停录音" else "播放录音",
+                )
+            }
+            Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.labelSmall)
+            Slider(
+                value = positionMs.coerceIn(0, durationMs.coerceAtLeast(0)).toFloat(),
+                onValueChange = {
+                    isDragging = true
+                    positionMs = it.toInt()
+                },
+                onValueChangeFinished = {
+                    if (isPrepared) player.seekTo(positionMs)
+                    isDragging = false
+                },
+                valueRange = 0f..durationMs.coerceAtLeast(1).toFloat(),
+                enabled = isPrepared && durationMs > 0,
+                modifier = Modifier.weight(1f),
             )
+            Text(formatPlaybackTime(durationMs), style = MaterialTheme.typography.labelSmall)
         }
-        Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.labelSmall)
-        Slider(
-            value = positionMs.coerceIn(0, durationMs.coerceAtLeast(0)).toFloat(),
-            onValueChange = {
-                isDragging = true
-                positionMs = it.toInt()
-            },
-            onValueChangeFinished = {
-                if (isPrepared) player.seekTo(positionMs)
-                isDragging = false
-            },
-            valueRange = 0f..durationMs.coerceAtLeast(1).toFloat(),
-            enabled = isPrepared && durationMs > 0,
-            modifier = Modifier.weight(1f),
-        )
-        Text(formatPlaybackTime(durationMs), style = MaterialTheme.typography.labelSmall)
+        interruptionMessage?.let {
+            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

@@ -18,7 +18,7 @@ class DiaryRecordingService : Service() {
     private lateinit var notification: DiaryRecordingNotification
     @Volatile private var androidResourcesOpen = true
     @Volatile private var foregroundStarted = false
-    private var lastNotificationStateClass: Class<*>? = null
+    private var lastNotificationPresentationKey: String? = null
     private var recordingWakeLock: PowerManager.WakeLock? = null
 
     private val androidHost = object : DiaryRecordingAndroidHost {
@@ -29,9 +29,10 @@ class DiaryRecordingService : Service() {
             if (!androidResourcesOpen || !foregroundStarted) return
             updateRecordingWakeLockSafely(state)
             val diaryId = state.diaryId ?: return
-            if (lastNotificationStateClass == state.javaClass) return
+            val presentationKey = notificationPresentationKey(state)
+            if (lastNotificationPresentationKey == presentationKey) return
             runCatching { notification.notify(state, diaryId) }
-                .onSuccess { lastNotificationStateClass = state.javaClass }
+                .onSuccess { lastNotificationPresentationKey = presentationKey }
                 .onFailure { Log.e(TAG, "Unable to update recording notification", it) }
         }
 
@@ -102,7 +103,7 @@ class DiaryRecordingService : Service() {
                 startForeground(DiaryRecordingNotification.NOTIFICATION_ID, foregroundNotification)
             }
             foregroundStarted = true
-            lastNotificationStateClass = state.javaClass
+            lastNotificationPresentationKey = notificationPresentationKey(state)
             updateRecordingWakeLockSafely(state)
             null
         } catch (error: RuntimeException) {
@@ -119,7 +120,7 @@ class DiaryRecordingService : Service() {
         if (!foregroundStarted) return
         stopForeground(STOP_FOREGROUND_REMOVE)
         foregroundStarted = false
-        lastNotificationStateClass = null
+        lastNotificationPresentationKey = null
         releaseRecordingWakeLock()
     }
 
@@ -146,6 +147,15 @@ class DiaryRecordingService : Service() {
     private fun releaseRecordingWakeLock() {
         recordingWakeLock?.let { if (it.isHeld) it.release() }
         recordingWakeLock = null
+    }
+
+    private fun notificationPresentationKey(state: DiaryRecordingState): String {
+        val reminderBucket = if (state is DiaryRecordingState.Recording) {
+            state.elapsedMs / LONG_RECORDING_REMINDER_INTERVAL_MS
+        } else {
+            0
+        }
+        return "${state.javaClass.name}:$reminderBucket"
     }
 
     companion object {

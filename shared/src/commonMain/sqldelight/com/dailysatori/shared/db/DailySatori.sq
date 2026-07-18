@@ -1185,6 +1185,17 @@ SELECT * FROM diary_attachment WHERE diary_id = ? ORDER BY created_at ASC, id AS
 selectDiaryAttachmentById:
 SELECT * FROM diary_attachment WHERE id = ?;
 
+markDiaryAttachmentRecordingStarted:
+UPDATE diary_attachment
+SET error_message = 'recording_active', updated_at = ?
+WHERE id = ?;
+
+recoverInterruptedDiaryAttachmentRecordings:
+UPDATE diary_attachment
+SET transcript_status = 'failed', error_message = 'recording_process_interrupted', updated_at = ?
+WHERE kind = 'audio' AND local_path = '' AND error_message = 'recording_active'
+    AND updated_at < :startedBefore;
+
 updateDiaryAttachmentTranscriptStatus:
 UPDATE diary_attachment
 SET transcript = ?, transcript_status = ?, error_message = ?, updated_at = ?

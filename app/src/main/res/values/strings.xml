@@ -10,6 +10,7 @@
     <string name="diary_recording_idle">语音日记</string>
     <string name="diary_recording_status_starting">正在准备录音</string>
     <string name="diary_recording_status_recording">录音中</string>
+    <string name="diary_recording_status_long_recording">长时间录音，请确认是否继续</string>
     <string name="diary_recording_status_paused">已暂停</string>
     <string name="diary_recording_status_stopping">正在保存</string>
     <string name="diary_recording_status_failed">录音失败</string>

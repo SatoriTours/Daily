@@ -40,8 +40,19 @@ class DiaryFeedRegressionTest {
         assertTrue(attachmentList.contains("AudioFocusRequest.Builder"))
         assertTrue(attachmentList.contains("requestAudioFocus"))
         assertTrue(attachmentList.contains("abandonAudioFocusRequest"))
+        assertTrue(attachmentList.contains("AudioManager.ACTION_AUDIO_BECOMING_NOISY"))
+        assertTrue(attachmentList.contains("耳机已断开，播放已暂停"))
+        assertTrue(attachmentList.contains("播放被其他音频暂停"))
         assertTrue(attachmentList.contains("player.reset()"))
         assertTrue(attachmentList.contains("error_message.startsWith(\"recording_\")"))
         assertTrue(attachmentList.contains("\"录音失败\""))
+    }
+
+    @Test
+    fun staleRecordingPlaceholderIsRecoveredWhenDiaryScreenStartsIdle() {
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryViewModel.kt").readText()
+
+        assertTrue(viewModel.contains("recordingStore?.state?.value is DiaryRecordingState.Idle"))
+        assertTrue(viewModel.contains("recoverInterruptedRecordings(startedBefore = recoveryCutoff)"))
     }
 }

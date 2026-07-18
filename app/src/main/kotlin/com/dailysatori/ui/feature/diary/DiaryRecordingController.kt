@@ -51,7 +51,11 @@ class DiaryRecordingController(private val context: Context) {
 
 private fun recordingStatusText(state: DiaryRecordingState): String = when (state) {
     is DiaryRecordingState.Starting -> "正在准备录音 · 已创建日记"
-    is DiaryRecordingState.Recording -> "正在录音 · 已创建日记"
+    is DiaryRecordingState.Recording -> if (state.elapsedMs >= 60 * 60 * 1_000L) {
+        "已连续录音超过 1 小时，请确认是否继续"
+    } else {
+        "正在录音 · 已创建日记"
+    }
     is DiaryRecordingState.Paused -> "录音已暂停"
     is DiaryRecordingState.Stopping -> "录音已停止 · 正在保存"
     is DiaryRecordingState.PersistenceFailed -> "录音已停止 · 保存失败"
