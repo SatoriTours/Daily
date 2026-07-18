@@ -36,6 +36,24 @@ class DiaryTranscriptionCoordinator(
         )
     }
 
+    fun retry(attachmentId: Long): TranscriptionRetryResult {
+        require(attachmentId > 0)
+        val attachment = requireNotNull(attachmentRepository.getById(attachmentId))
+        return when (val availability = transcriptionClient.availability()) {
+            SpeechTranscriptionAvailability.Available ->
+                TranscriptionRetryResult.Enqueued(enqueue(attachmentId))
+            is SpeechTranscriptionAvailability.Unavailable -> {
+                attachmentRepository.updateTranscriptStatus(
+                    attachmentId,
+                    attachment.transcript,
+                    DiaryAttachmentProcessingStatus.failed,
+                    availability.errorCode,
+                )
+                TranscriptionRetryResult.Unavailable(availability.errorCode)
+            }
+        }
+    }
+
     override suspend fun execute(
         taskId: Long,
         payloadJson: String,
@@ -77,13 +95,23 @@ class DiaryTranscriptionCoordinator(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
+            val failure = error as? SpeechTranscriptionException ?: SpeechTranscriptionException(
+                code = TranscriptionErrorCode.SERVICE_UNAVAILABLE,
+                retryable = true,
+                message = error.message.orEmpty(),
+                cause = error,
+            )
             attachmentRepository.updateTranscriptStatus(
                 attachmentId,
                 attachment.transcript,
                 DiaryAttachmentProcessingStatus.failed,
-                error.message.orEmpty(),
+                failure.code,
             )
-            AsyncTaskExecutionResult.RetryableFailure("transcription_failed", error.message.orEmpty())
+            if (failure.retryable) {
+                AsyncTaskExecutionResult.RetryableFailure(failure.code, failure.message.orEmpty())
+            } else {
+                AsyncTaskExecutionResult.PermanentFailure(failure.code, failure.message.orEmpty())
+            }
         }
     }
 
@@ -91,6 +119,11 @@ class DiaryTranscriptionCoordinator(
         const val AUTO_TRANSCRIBING_BODY = "这篇日记正在转写…"
         private const val TRANSCRIPT_HEADING = "## 语音转写"
     }
+}
+
+sealed interface TranscriptionRetryResult {
+    data class Enqueued(val taskId: Long) : TranscriptionRetryResult
+    data class Unavailable(val errorCode: String) : TranscriptionRetryResult
 }
 
 @Serializable

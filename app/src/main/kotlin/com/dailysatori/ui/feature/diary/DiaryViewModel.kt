@@ -10,8 +10,10 @@ import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.core.recording.DiaryRecordingStore
+import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
+import com.dailysatori.service.diary.TranscriptionRetryResult
 import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.shared.db.Diary_attachment
@@ -48,6 +50,8 @@ class DiaryViewModel(
     private val monthSummaryService: DiaryMonthSummaryService,
     private val attachmentRepo: DiaryAttachmentRepository? = null,
     private val recordingStore: DiaryRecordingStore? = null,
+    private val transcriptionCoordinator: DiaryTranscriptionCoordinator? = null,
+    private val taskScheduler: AsyncTaskScheduler? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
@@ -281,6 +285,24 @@ class DiaryViewModel(
                 attachmentRepo?.delete(id)
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun retryTranscription(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                when (val result = transcriptionCoordinator?.retry(id)) {
+                    is TranscriptionRetryResult.Enqueued -> {
+                        taskScheduler?.enqueue(result.taskId)
+                        _state.update { it.copy(error = null) }
+                    }
+                    is TranscriptionRetryResult.Unavailable ->
+                        _state.update { it.copy(error = transcriptionErrorText(result.errorCode)) }
+                    null -> _state.update { it.copy(error = "语音转写服务暂不可用") }
+                }
+            } catch (error: Exception) {
+                _state.update { it.copy(error = error.message ?: "重新转写失败") }
             }
         }
     }

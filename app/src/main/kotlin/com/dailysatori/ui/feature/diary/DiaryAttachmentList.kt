@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.shared.db.Diary_attachment
+import com.dailysatori.service.diary.TranscriptionErrorCode
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.delay
 
@@ -51,6 +52,8 @@ fun DiaryAttachmentList(
     attachments: List<Diary_attachment>,
     modifier: Modifier = Modifier,
     onDelete: ((Diary_attachment) -> Unit)? = null,
+    onRetryTranscription: ((Long) -> Unit)? = null,
+    onOpenTranscriptionSettings: (() -> Unit)? = null,
 ) {
     val displayableAttachments = attachments.filterNot {
         it.kind == "audio" &&
@@ -61,7 +64,14 @@ fun DiaryAttachmentList(
     var expanded by remember { mutableStateOf(false) }
     val visible = if (expanded) displayableAttachments else displayableAttachments.take(2)
     Column(modifier = modifier.fillMaxWidth()) {
-        visible.forEach { attachment -> DiaryAttachmentRow(attachment, onDelete) }
+        visible.forEach { attachment ->
+            DiaryAttachmentRow(
+                attachment = attachment,
+                onDelete = onDelete,
+                onRetryTranscription = onRetryTranscription,
+                onOpenTranscriptionSettings = onOpenTranscriptionSettings,
+            )
+        }
         if (displayableAttachments.size > 2) {
             TextButton(onClick = { expanded = !expanded }) {
                 Text(if (expanded) "收起附件" else "查看全部 ${displayableAttachments.size} 个附件")
@@ -71,7 +81,12 @@ fun DiaryAttachmentList(
 }
 
 @Composable
-private fun DiaryAttachmentRow(attachment: Diary_attachment, onDelete: ((Diary_attachment) -> Unit)?) {
+private fun DiaryAttachmentRow(
+    attachment: Diary_attachment,
+    onDelete: ((Diary_attachment) -> Unit)?,
+    onRetryTranscription: ((Long) -> Unit)?,
+    onOpenTranscriptionSettings: (() -> Unit)?,
+) {
     Column(
         modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = Spacing.xs),
     ) {
@@ -115,6 +130,22 @@ private fun DiaryAttachmentRow(attachment: Diary_attachment, onDelete: ((Diary_a
         }
         if (attachment.kind == "audio" && attachment.local_path.isNotBlank()) {
             DiaryAudioPlaybackButton(attachment.local_path, attachment.duration_ms)
+        }
+        if (
+            attachment.kind == "audio" &&
+            attachment.local_path.isNotBlank() &&
+            attachment.transcript_status == DiaryAttachmentProcessingStatus.failed
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                onRetryTranscription?.let { retry ->
+                    TextButton(onClick = { retry(attachment.id) }) { Text("重新转写") }
+                }
+                if (attachment.error_message.requiresTranscriptionSettings()) {
+                    onOpenTranscriptionSettings?.let { open ->
+                        TextButton(onClick = open) { Text("去设置") }
+                    }
+                }
+            }
         }
     }
 }
@@ -276,10 +307,29 @@ private fun formatPlaybackTime(milliseconds: Int): String {
 
 private fun attachmentStatus(attachment: Diary_attachment): String = when {
     attachment.error_message.startsWith("recording_") -> "录音失败"
+    attachment.transcript_status == DiaryAttachmentProcessingStatus.failed ->
+        transcriptionErrorText(attachment.error_message)
     attachment.transcript_status == DiaryAttachmentProcessingStatus.processing -> "正在转写"
-    attachment.transcript_status == DiaryAttachmentProcessingStatus.failed -> "转写失败"
     attachment.knowledge_status == DiaryAttachmentProcessingStatus.completed -> "已加入知识库"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.completed -> "已转写"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.queued -> "等待转写"
     else -> "附件"
 }
+
+internal fun transcriptionErrorText(errorCode: String): String = when (errorCode) {
+    TranscriptionErrorCode.NO_SUPPORTED_CONFIG -> "未配置支持语音转写的服务"
+    TranscriptionErrorCode.CONFIG_INVALID -> "语音转写服务配置不完整"
+    TranscriptionErrorCode.AUTH_FAILED -> "转写服务认证失败"
+    TranscriptionErrorCode.MODEL_UNSUPPORTED -> "当前模型不支持音频转写"
+    TranscriptionErrorCode.AUDIO_EMPTY -> "录音文件为空，无法转写"
+    TranscriptionErrorCode.AUDIO_TOO_LARGE -> "录音文件过大，暂时无法转写"
+    TranscriptionErrorCode.REQUEST_REJECTED -> "转写请求被服务拒绝"
+    TranscriptionErrorCode.SERVICE_UNAVAILABLE -> "转写服务暂时不可用，可重试"
+    else -> "转写失败，可重试"
+}
+
+private fun String.requiresTranscriptionSettings(): Boolean =
+    this == TranscriptionErrorCode.NO_SUPPORTED_CONFIG ||
+        this == TranscriptionErrorCode.CONFIG_INVALID ||
+        this == TranscriptionErrorCode.AUTH_FAILED ||
+        this == TranscriptionErrorCode.MODEL_UNSUPPORTED

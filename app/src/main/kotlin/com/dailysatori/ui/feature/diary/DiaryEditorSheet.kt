@@ -104,6 +104,8 @@ fun DiaryEditorSheet(
     onStopRecording: () -> Unit = {},
     attachments: List<Diary_attachment> = emptyList(),
     onDeleteAttachment: (Long) -> Unit = {},
+    onRetryTranscription: (Long) -> Unit = {},
+    onOpenTranscriptionSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
@@ -353,6 +355,8 @@ fun DiaryEditorSheet(
                     DiaryAttachmentList(
                         attachments = attachments,
                         onDelete = { attachmentToDelete = it },
+                        onRetryTranscription = onRetryTranscription,
+                        onOpenTranscriptionSettings = onOpenTranscriptionSettings,
                     )
                     Spacer(modifier = Modifier.height(Spacing.s))
                     DiaryEditorTagRow(

@@ -71,6 +71,8 @@ fun DiaryCard(
     modifier: Modifier = Modifier,
     showDelete: Boolean = true,
     attachments: List<Diary_attachment> = emptyList(),
+    onRetryTranscription: ((Long) -> Unit)? = null,
+    onOpenTranscriptionSettings: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val tags = diaryTags(diary.tags)
@@ -92,7 +94,11 @@ fun DiaryCard(
             DiaryCardHeader(diary, showDelete, menuExpanded, { menuExpanded = it }, onEdit, onDelete)
             if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir)
             DiaryBody(contentText = contentText, expanded = expanded, isLongContent = isLongContent)
-            DiaryAttachmentList(attachments = attachments)
+            DiaryAttachmentList(
+                attachments = attachments,
+                onRetryTranscription = onRetryTranscription,
+                onOpenTranscriptionSettings = onOpenTranscriptionSettings,
+            )
             DiaryCardFooter(tags = tags, isLongContent = isLongContent, expanded = expanded) { expanded = !expanded }
         }
     }

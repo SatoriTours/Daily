@@ -296,6 +296,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                                     showEditor = true
                                 },
                                 onDelete = { showDeleteDialog = diary },
+                                onRetryTranscription = viewModel::retryTranscription,
+                                onOpenTranscriptionSettings = onMyClick,
                             )
                         }
                     }
@@ -345,6 +347,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             onStopRecording = recordingController::stop,
             attachments = state.attachmentsByDiary[editingDiary?.id ?: -1L].orEmpty(),
             onDeleteAttachment = viewModel::deleteAttachment,
+            onRetryTranscription = viewModel::retryTranscription,
+            onOpenTranscriptionSettings = onMyClick,
             onDismiss = { showEditor = false; editingDiary = null },
             onSave = { content, tags, mood, images ->
                 val existingId = editingDiary?.id

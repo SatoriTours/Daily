@@ -33,14 +33,32 @@ class OpenAiCompatibleSpeechTranscriptionClient(
     private val settingRepository: SettingRepository,
     private val fileManager: FileManager,
 ) : SpeechTranscriptionClient {
-    override suspend fun transcribe(localPath: String): String {
-        val config = requireNotNull(aiConfigService.getSpeechConfig()) {
-            "No AI configuration supports audio transcription"
+    override fun availability(): SpeechTranscriptionAvailability {
+        val config = aiConfigService.getSpeechConfig()
+            ?: return SpeechTranscriptionAvailability.Unavailable(TranscriptionErrorCode.NO_SUPPORTED_CONFIG)
+        if (config.api_address.isBlank() || config.api_token.isBlank()) {
+            return SpeechTranscriptionAvailability.Unavailable(TranscriptionErrorCode.CONFIG_INVALID)
         }
-        require(config.api_address.isNotBlank()) { "AI API address is empty" }
-        require(config.api_token.isNotBlank()) { "AI API token is empty" }
+        return SpeechTranscriptionAvailability.Available
+    }
+
+    override suspend fun transcribe(localPath: String): String {
+        val config = aiConfigService.getSpeechConfig() ?: throw SpeechTranscriptionException(
+            TranscriptionErrorCode.NO_SUPPORTED_CONFIG,
+            retryable = false,
+            message = "No AI configuration supports audio transcription",
+        )
+        if (config.api_address.isBlank() || config.api_token.isBlank()) throw SpeechTranscriptionException(
+            TranscriptionErrorCode.CONFIG_INVALID,
+            retryable = false,
+            message = "AI transcription address or token is empty",
+        )
         val bytes = fileManager.readFile(localPath)
-        require(bytes.isNotEmpty()) { "Audio file is empty" }
+        if (bytes.isEmpty()) throw SpeechTranscriptionException(
+            TranscriptionErrorCode.AUDIO_EMPTY,
+            retryable = false,
+            message = "Audio file is empty",
+        )
         val model = settingRepository.get(SettingKeys.speechModel)?.trim().orEmpty().ifBlank { DEFAULT_MODEL }
         val fileName = localPath.substringAfterLast('/').ifBlank { "recording.m4a" }
         if (config.provider.lowercase() in GEMINI_PROVIDERS) {
@@ -70,7 +88,7 @@ class OpenAiCompatibleSpeechTranscriptionClient(
             )
         }
         val body = response.body<String>()
-        check(response.status.isSuccess()) { "Transcription failed (${response.status.value}): $body" }
+        if (!response.status.isSuccess()) throw transcriptionFailureForHttpStatus(response.status.value, body)
         return Json.parseToJsonElement(body).jsonObject["text"]?.jsonPrimitive?.content
             ?.trim()
             ?.takeIf { it.isNotBlank() }
@@ -84,7 +102,11 @@ class OpenAiCompatibleSpeechTranscriptionClient(
         model: String,
         bytes: ByteArray,
     ): String {
-        require(bytes.size <= GEMINI_INLINE_LIMIT_BYTES) { "Audio exceeds Gemini inline upload limit" }
+        if (bytes.size > GEMINI_INLINE_LIMIT_BYTES) throw SpeechTranscriptionException(
+            TranscriptionErrorCode.AUDIO_TOO_LARGE,
+            retryable = false,
+            message = "Audio exceeds Gemini inline upload limit",
+        )
         val request = buildJsonObject {
             putJsonArray("contents") {
                 add(buildJsonObject {
@@ -106,7 +128,7 @@ class OpenAiCompatibleSpeechTranscriptionClient(
             setBody(request.toString())
         }
         val body = response.body<String>()
-        check(response.status.isSuccess()) { "Gemini transcription failed (${response.status.value}): $body" }
+        if (!response.status.isSuccess()) throw transcriptionFailureForHttpStatus(response.status.value, body)
         val root = Json.parseToJsonElement(body).jsonObject
         return root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
             ?.get("content")?.jsonObject
@@ -123,6 +145,26 @@ class OpenAiCompatibleSpeechTranscriptionClient(
         private const val GEMINI_INLINE_LIMIT_BYTES = 20 * 1024 * 1024
         private val GEMINI_PROVIDERS = setOf("gemini", "google", "google-gemini")
     }
+}
+
+internal fun transcriptionFailureForHttpStatus(statusCode: Int, responseBody: String): SpeechTranscriptionException {
+    val normalizedBody = responseBody.lowercase()
+    val code = when {
+        statusCode == 401 || statusCode == 403 -> TranscriptionErrorCode.AUTH_FAILED
+        statusCode == 413 || listOf("too large", "size limit", "maximum file").any(normalizedBody::contains) ->
+            TranscriptionErrorCode.AUDIO_TOO_LARGE
+        statusCode == 404 -> TranscriptionErrorCode.MODEL_UNSUPPORTED
+        statusCode == 429 || statusCode >= 500 -> TranscriptionErrorCode.SERVICE_UNAVAILABLE
+        statusCode in setOf(400, 415, 422) &&
+            listOf("model", "unsupported", "modality").any(normalizedBody::contains) ->
+            TranscriptionErrorCode.MODEL_UNSUPPORTED
+        else -> TranscriptionErrorCode.REQUEST_REJECTED
+    }
+    return SpeechTranscriptionException(
+        code = code,
+        retryable = code == TranscriptionErrorCode.SERVICE_UNAVAILABLE,
+        message = "Transcription failed ($statusCode): $responseBody",
+    )
 }
 
 internal fun geminiGenerateContentEndpoint(apiAddress: String, model: String): String {

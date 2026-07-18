@@ -70,6 +70,72 @@ class DiaryCaptureTaskTest {
             val attachment = fixture.db.dailySatoriQueries.selectDiaryAttachmentById(attachmentId).executeAsOne()
             assertEquals("/audio/keep.m4a", attachment.local_path)
             assertEquals(DiaryAttachmentProcessingStatus.failed, attachment.transcript_status)
+            assertEquals(TranscriptionErrorCode.SERVICE_UNAVAILABLE, attachment.error_message)
+        }
+    }
+
+    @Test
+    fun unsupportedModelIsPermanentAndKeepsAStableUiErrorCode() = runBlocking {
+        withFixture { fixture ->
+            val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = fixture.attachments.create(
+                diaryId,
+                DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/keep.m4a"),
+            )
+            val coordinator = DiaryTranscriptionCoordinator(
+                fixture.attachments,
+                fixture.diaries,
+                fixture.tasks,
+                SpeechTranscriptionClient {
+                    throw SpeechTranscriptionException(
+                        code = TranscriptionErrorCode.MODEL_UNSUPPORTED,
+                        retryable = false,
+                        message = "model does not support audio",
+                    )
+                },
+            )
+
+            val result = coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter)
+
+            assertIs<AsyncTaskExecutionResult.PermanentFailure>(result)
+            assertEquals(TranscriptionErrorCode.MODEL_UNSUPPORTED, result.code)
+            assertEquals(
+                TranscriptionErrorCode.MODEL_UNSUPPORTED,
+                fixture.attachments.getById(attachmentId)?.error_message,
+            )
+        }
+    }
+
+    @Test
+    fun manualRetryPreflightsSpeechConfigurationBeforeCreatingTask() = runBlocking {
+        withFixture { fixture ->
+            val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = fixture.attachments.create(
+                diaryId,
+                DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/keep.m4a"),
+            )
+            val client = object : SpeechTranscriptionClient {
+                override fun availability(): SpeechTranscriptionAvailability =
+                    SpeechTranscriptionAvailability.Unavailable(TranscriptionErrorCode.NO_SUPPORTED_CONFIG)
+
+                override suspend fun transcribe(localPath: String): String = error("must not run")
+            }
+            val coordinator = DiaryTranscriptionCoordinator(
+                fixture.attachments,
+                fixture.diaries,
+                fixture.tasks,
+                client,
+            )
+
+            val result = coordinator.retry(attachmentId)
+
+            assertIs<TranscriptionRetryResult.Unavailable>(result)
+            assertEquals(TranscriptionErrorCode.NO_SUPPORTED_CONFIG, result.errorCode)
+            assertEquals(
+                TranscriptionErrorCode.NO_SUPPORTED_CONFIG,
+                fixture.attachments.getById(attachmentId)?.error_message,
+            )
+            assertTrue(fixture.tasks.runnableTasks(Long.MAX_VALUE).isEmpty())
         }
     }
 

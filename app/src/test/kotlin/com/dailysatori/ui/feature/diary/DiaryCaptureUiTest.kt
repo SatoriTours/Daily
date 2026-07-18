@@ -83,6 +83,26 @@ class DiaryCaptureUiTest {
     }
 
     @Test
+    fun failedTranscriptionExplainsTheCauseAndOffersRecoveryActions() {
+        val screen = source("DiaryScreen.kt")
+        val editor = source("DiaryEditorSheet.kt")
+        val attachmentList = source("DiaryAttachmentList.kt")
+        val viewModel = source("DiaryViewModel.kt")
+
+        assertTrue(attachmentList.contains("重新转写"))
+        assertTrue(attachmentList.contains("去设置"))
+        assertTrue(attachmentList.contains("当前模型不支持音频转写"))
+        assertTrue(attachmentList.contains("未配置支持语音转写的服务"))
+        assertTrue(attachmentList.contains("转写服务认证失败"))
+        assertTrue(attachmentList.contains("录音文件过大，暂时无法转写"))
+        assertTrue(editor.contains("onRetryTranscription"))
+        assertTrue(screen.contains("viewModel::retryTranscription"))
+        assertTrue(screen.contains("onOpenTranscriptionSettings = onMyClick"))
+        assertTrue(viewModel.contains("transcriptionCoordinator?.retry(id)"))
+        assertTrue(viewModel.contains("taskScheduler?.enqueue(result.taskId)"))
+    }
+
+    @Test
     fun notificationCanOpenDiaryOutsideCurrentFilters() {
         val screen = source("DiaryScreen.kt")
         val viewModel = source("DiaryViewModel.kt")

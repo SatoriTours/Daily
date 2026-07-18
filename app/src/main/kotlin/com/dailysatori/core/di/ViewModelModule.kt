@@ -139,6 +139,8 @@ val viewModelModule: Module = module {
             monthSummaryService = get(),
             attachmentRepo = get(),
             recordingStore = get(),
+            transcriptionCoordinator = get(),
+            taskScheduler = get(),
         )
     }
     viewModel {
