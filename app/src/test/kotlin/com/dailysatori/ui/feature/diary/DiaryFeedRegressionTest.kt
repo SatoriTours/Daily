@@ -1,7 +1,11 @@
 package com.dailysatori.ui.feature.diary
 
+import com.dailysatori.ui.component.card.diaryCopyClipLabel
+import com.dailysatori.ui.component.card.diaryCopyMenuLabel
+import com.dailysatori.ui.component.card.diaryCopySuccessMessage
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class DiaryFeedRegressionTest {
@@ -54,5 +58,16 @@ class DiaryFeedRegressionTest {
 
         assertTrue(viewModel.contains("recordingStore?.state?.value is DiaryRecordingState.Idle"))
         assertTrue(viewModel.contains("recoverInterruptedRecordings(startedBefore = recoveryCutoff)"))
+    }
+
+    @Test
+    fun diaryMenuCanCopyTheFullVisibleContent() {
+        val card = File("src/main/kotlin/com/dailysatori/ui/component/card/DiaryCard.kt").readText()
+
+        assertTrue(card.contains("Icons.Default.ContentCopy"))
+        assertTrue(card.contains("ClipData.newPlainText(diaryCopyClipLabel(), contentText)"))
+        assertEquals("拷贝全文", diaryCopyMenuLabel())
+        assertEquals("日记全文", diaryCopyClipLabel())
+        assertEquals("已拷贝全文", diaryCopySuccessMessage())
     }
 }

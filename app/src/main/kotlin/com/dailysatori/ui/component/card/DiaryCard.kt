@@ -1,5 +1,9 @@
 package com.dailysatori.ui.component.card
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Sell
@@ -91,7 +96,15 @@ fun DiaryCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            DiaryCardHeader(diary, showDelete, menuExpanded, { menuExpanded = it }, onEdit, onDelete)
+            DiaryCardHeader(
+                diary = diary,
+                contentText = contentText,
+                showDelete = showDelete,
+                menuExpanded = menuExpanded,
+                onMenuChange = { menuExpanded = it },
+                onEdit = onEdit,
+                onDelete = onDelete,
+            )
             if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir)
             DiaryBody(contentText = contentText, expanded = expanded, isLongContent = isLongContent)
             DiaryAttachmentList(
@@ -107,12 +120,14 @@ fun DiaryCard(
 @Composable
 private fun DiaryCardHeader(
     diary: Diary,
+    contentText: String,
     showDelete: Boolean,
     menuExpanded: Boolean,
     onMenuChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -136,12 +151,32 @@ private fun DiaryCardHeader(
                     )
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { onMenuChange(false) }) {
+                    DropdownMenuItem(
+                        text = { Text(diaryCopyMenuLabel()) },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, null) },
+                        onClick = {
+                            onMenuChange(false)
+                            copyDiaryContent(context, contentText)
+                        },
+                    )
                     DropdownMenuItem(text = { Text("编辑") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { onMenuChange(false); onEdit() })
                     DropdownMenuItem(text = { Text("删除") }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }, onClick = { onMenuChange(false); onDelete() })
                 }
             }
         }
     }
+}
+
+internal fun diaryCopyMenuLabel(): String = "拷贝全文"
+
+internal fun diaryCopyClipLabel(): String = "日记全文"
+
+internal fun diaryCopySuccessMessage(): String = "已拷贝全文"
+
+private fun copyDiaryContent(context: Context, contentText: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(diaryCopyClipLabel(), contentText))
+    Toast.makeText(context, diaryCopySuccessMessage(), Toast.LENGTH_SHORT).show()
 }
 
 @Composable
