@@ -8,13 +8,13 @@ class ExternalFavoritesAddPageTextTest {
     @Test
     fun addPageUsesDedicatedEditorCopy() {
         assertEquals("新增外部收藏", externalFavoriteAddPageTitle())
-        assertEquals("连接 X 收藏", externalFavoriteAddPageHelperTitle())
+        assertEquals("选择要连接的平台", externalFavoriteAddPageHelperTitle())
         assertEquals("保存并打开 X 授权", externalFavoriteConnectXActionLabel())
         assertEquals("X OAuth Client ID", externalFavoriteXClientIdLabel())
         assertEquals("dailysatori://oauth/x", externalFavoriteXOAuthRedirectUri())
-        assertTrue(externalFavoriteAddPageHelperText().contains("OAuth2"))
-        assertTrue(externalFavoriteAddPageHelperText().contains("PKCE"))
-        assertTrue(externalFavoriteAddPageHelperText().contains("回调地址"))
+        assertTrue(externalFavoriteAddPageHelperText().contains("GitHub Stars"))
+        assertTrue(externalFavoriteAddPageHelperText().contains("README"))
+        assertTrue(externalFavoriteAddPageHelperText().contains("AI"))
     }
 
     @Test

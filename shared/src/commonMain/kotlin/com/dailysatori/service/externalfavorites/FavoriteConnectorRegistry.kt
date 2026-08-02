@@ -7,7 +7,7 @@ class FavoriteConnectorRegistry(connectors: List<FavoriteConnector>) {
 
     companion object {
         fun default(): FavoriteConnectorRegistry = FavoriteConnectorRegistry(
-            listOf(XBookmarksConnector()),
+            listOf(XBookmarksConnector(), GitHubStarsConnector()),
         )
     }
 }

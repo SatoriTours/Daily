@@ -16,6 +16,8 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
+import com.dailysatori.service.externalfavorites.GitHubStarsConnector
+import com.dailysatori.service.externalfavorites.githubAuthJson
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.service.externalfavorites.sourceHealth
 import com.dailysatori.shared.db.Async_task
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
@@ -37,6 +40,8 @@ data class ExternalFavoritesSettingsState(
     val syncingSourceId: Long? = null,
     val syncWorkBySourceId: Map<Long, ExternalFavoriteSyncWorkUi> = emptyMap(),
     val xOAuthClientId: String = "",
+    val gitHubToken: String = "",
+    val connectingGitHub: Boolean = false,
 )
 
 data class ExternalFavoriteSourceUi(
@@ -83,6 +88,7 @@ class ExternalFavoritesSettingsViewModel(
     private val asyncTaskRepo: AsyncTaskRepository,
     private val xOAuthCoordinator: XOAuthCoordinator,
     private val settingRepo: SettingRepository,
+    private val gitHubConnector: GitHubStarsConnector,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ExternalFavoritesSettingsState())
     val state: StateFlow<ExternalFavoritesSettingsState> = _state.asStateFlow()
@@ -128,6 +134,52 @@ class ExternalFavoritesSettingsViewModel(
     }.onFailure {
         _state.update { state -> state.copy(message = "请先配置 X OAuth Client ID") }
     }.getOrNull()
+
+    fun updateGitHubToken(value: String) =
+        _state.update { it.copy(gitHubToken = value, message = null) }
+
+    fun connectGitHub(onConnected: () -> Unit) {
+        val token = _state.value.gitHubToken.trim()
+        if (token.isBlank()) {
+            _state.update { it.copy(message = "请先填写 GitHub Personal Access Token") }
+            return
+        }
+        _state.update { it.copy(connectingGitHub = true, message = null) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val account = gitHubConnector.resolveAccount(token)
+                    val sourceId = sourceRepo.save(
+                        provider = ExternalFavoriteProvider.GITHUB.id,
+                        displayName = "GitHub Stars",
+                        accountId = account.id,
+                        accountName = account.login,
+                        authJson = githubAuthJson(token),
+                        syncIntervalMinutes = 720,
+                    )
+                    scheduler.enqueuePeriodic(sourceId, 720)
+                    scheduler.enqueue(sourceId, FavoriteSyncMode.history.name)
+                }
+            }.onSuccess {
+                _state.update {
+                    it.copy(
+                        sources = loadUiSources(),
+                        gitHubToken = "",
+                        connectingGitHub = false,
+                        message = "GitHub 已连接，正在同步 Stars",
+                    )
+                }
+                onConnected()
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        connectingGitHub = false,
+                        message = error.message.orEmpty().ifBlank { "GitHub 连接失败" },
+                    )
+                }
+            }
+        }
+    }
 
     fun syncNow(sourceId: Long) {
         enqueueManualSync(sourceId, FavoriteSyncMode.sync)
@@ -429,19 +481,19 @@ fun externalFavoriteEmptyStateTitle(): String = "连接外部收藏"
 
 fun externalFavoriteEmptyStateSubtitle(message: String? = null): String =
     listOfNotNull(
-        "当前先支持 X 收藏。连接后，收藏会同步到本地文章库，并在后台逐步补全历史。",
+        "支持 X 收藏与 GitHub Stars。连接后，内容会同步到本地文章库，并在后台逐步补全历史。",
         message?.takeIf { it.isNotBlank() },
     ).joinToString("\n")
 
 fun externalFavoriteAddServiceActionLabel(hasSources: Boolean = false): String =
-    if (hasSources) "连接新来源" else "连接 X 收藏"
+    if (hasSources) "连接新来源" else "连接外部收藏"
 
 fun externalFavoriteAddPageTitle(): String = "新增外部收藏"
 
-fun externalFavoriteAddPageHelperTitle(): String = "连接 X 收藏"
+fun externalFavoriteAddPageHelperTitle(): String = "选择要连接的平台"
 
 fun externalFavoriteAddPageHelperText(): String =
-    "填写 X OAuth Client ID 后，会用 OAuth2 + PKCE 打开 X 授权页面。请在 X Developer Portal 配置下面的回调地址。"
+    "GitHub Stars 会保存仓库信息与 README，交给 AI 整理后可在本地文章和 AI 记忆中搜索。"
 
 fun externalFavoriteAddPageSyncNoteTitle(): String = "授权成功后启用定期同步"
 
@@ -554,7 +606,7 @@ private fun externalFavoriteRunningPhaseLabel(phase: String): String = when (pha
     "repair" -> "修复文章状态"
     "organize" -> "整理收藏内容"
     "complete" -> "收尾同步"
-    else -> "读取 X bookmarks"
+    else -> "读取外部收藏"
 }
 
 fun externalFavoriteIdleDetailLines(item: ExternalFavoriteSourceUi): List<ExternalFavoriteDetailLine> = listOf(
@@ -594,7 +646,7 @@ fun externalFavoriteSummaryMetrics(state: ExternalFavoritesSettingsState): List<
         return listOf(
             ExternalFavoriteSummaryMetric("0", "已连接来源"),
             ExternalFavoriteSummaryMetric(state.syncedItemCount.coerceAtLeast(0).toString(), "外部同步总数"),
-            ExternalFavoriteSummaryMetric("X", "当前支持平台"),
+            ExternalFavoriteSummaryMetric("X / GH", "当前支持平台"),
         )
     }
     val syncIntervalMinutes = state.sources
@@ -610,6 +662,7 @@ fun externalFavoriteSummaryMetrics(state: ExternalFavoritesSettingsState): List<
 
 fun externalFavoriteProviderBadge(provider: String): String = when (provider.lowercase()) {
     ExternalFavoriteProvider.X.id -> "X"
+    ExternalFavoriteProvider.GITHUB.id -> "GH"
     else -> provider.take(1).uppercase().ifBlank { "?" }
 }
 

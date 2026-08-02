@@ -134,7 +134,7 @@ class ExternalFavoriteImporter(
     }
 
     private fun External_favorite_item.importTitle(): String =
-        title.trim().ifBlank { "X 收藏" }
+        title.trim().ifBlank { providerLabel(provider) }
 
     private fun External_favorite_item.importArticleUrl(sourceUrl: String): String {
         if (provider != ExternalFavoriteProvider.X.id || !isXArticleUrl(sourceUrl)) return sourceUrl
@@ -171,7 +171,7 @@ class ExternalFavoriteImporter(
             listOf("- 链接：$url")
         }.joinToString("\n            ")
         return """
-            # X 收藏
+            # ${providerLabel(provider)}
 
             ## 原文
 
@@ -240,4 +240,10 @@ class ExternalFavoriteImporter(
             explicitNulls = false
         }
     }
+}
+
+private fun providerLabel(provider: String): String = when (provider) {
+    ExternalFavoriteProvider.GITHUB.id -> "GitHub Star"
+    ExternalFavoriteProvider.X.id -> "X 收藏"
+    else -> "外部收藏"
 }

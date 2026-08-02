@@ -25,8 +25,8 @@ import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.FavoriteSyncProgress
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
-import com.dailysatori.service.externalfavorites.XFavoriteAuthException
-import com.dailysatori.service.externalfavorites.XFavoriteRateLimitException
+import com.dailysatori.service.externalfavorites.FavoriteAuthException
+import com.dailysatori.service.externalfavorites.FavoriteRateLimitException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -216,7 +216,7 @@ internal fun externalFavoriteShouldSchedulePeriodic(enabled: Long, intervalMinut
 internal const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250
 
 internal fun externalFavoriteSyncFailureResult(error: Exception): ListenableWorker.Result = when (error) {
-    is XFavoriteAuthException -> ListenableWorker.Result.failure()
-    is XFavoriteRateLimitException -> ListenableWorker.Result.failure()
+    is FavoriteAuthException -> ListenableWorker.Result.failure()
+    is FavoriteRateLimitException -> ListenableWorker.Result.failure()
     else -> ListenableWorker.Result.retry()
 }

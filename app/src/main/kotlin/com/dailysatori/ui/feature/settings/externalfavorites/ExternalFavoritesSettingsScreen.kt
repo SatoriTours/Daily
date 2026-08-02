@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -118,6 +119,7 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
                     showAddPage = false
                 }
             },
+            onConnectGitHub = { viewModel.connectGitHub { showAddPage = false } },
         )
     } else {
         ExternalFavoriteSourceListPage(
@@ -183,6 +185,7 @@ private fun ExternalFavoriteAddServicePage(
     viewModel: ExternalFavoritesSettingsViewModel,
     onBack: () -> Unit,
     onConnectX: () -> Unit,
+    onConnectGitHub: () -> Unit,
 ) {
     AppScaffold(
         title = externalFavoriteAddPageTitle(),
@@ -198,6 +201,25 @@ private fun ExternalFavoriteAddServicePage(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             ExternalFavoriteAddHelperCard()
+            Text("GitHub Stars", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = state.gitHubToken,
+                onValueChange = viewModel::updateGitHubToken,
+                label = { Text("GitHub Personal Access Token") },
+                supportingText = { Text("只需读取账号与仓库内容；Token 会加密保存在本机") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = onConnectGitHub,
+                enabled = !state.connectingGitHub,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.Bookmark, contentDescription = null)
+                Text(if (state.connectingGitHub) "正在验证…" else "连接 GitHub 并同步 Stars")
+            }
+            Text("X 收藏", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = state.xOAuthClientId,
                 onValueChange = viewModel::updateXOAuthClientId,

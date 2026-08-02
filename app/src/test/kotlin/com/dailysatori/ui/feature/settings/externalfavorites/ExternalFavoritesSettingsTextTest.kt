@@ -39,7 +39,7 @@ class ExternalFavoritesSettingsTextTest {
     @Test
     fun emptyStatePromptsAddingExternalFavoriteService() {
         assertEquals("连接外部收藏", externalFavoriteEmptyStateTitle())
-        assertEquals("连接 X 收藏", externalFavoriteAddServiceActionLabel())
+        assertEquals("连接外部收藏", externalFavoriteAddServiceActionLabel())
     }
 
     @Test
@@ -116,9 +116,9 @@ class ExternalFavoritesSettingsTextTest {
     @Test
     fun emptyStateGuidesFirstConnection() {
         assertEquals("连接外部收藏", externalFavoriteEmptyStateTitle())
-        assertEquals("连接 X 收藏", externalFavoriteAddServiceActionLabel(hasSources = false))
+        assertEquals("连接外部收藏", externalFavoriteAddServiceActionLabel(hasSources = false))
         assertEquals("连接新来源", externalFavoriteAddServiceActionLabel(hasSources = true))
-        assertTrue(externalFavoriteEmptyStateSubtitle().contains("当前先支持 X 收藏"))
+        assertTrue(externalFavoriteEmptyStateSubtitle().contains("GitHub Stars"))
         assertTrue(externalFavoriteEmptyStateSubtitle().contains("本地文章库"))
     }
 
@@ -160,7 +160,7 @@ class ExternalFavoritesSettingsTextTest {
             listOf(
                 ExternalFavoriteSummaryMetric("0", "已连接来源"),
                 ExternalFavoriteSummaryMetric("0", "外部同步总数"),
-                ExternalFavoriteSummaryMetric("X", "当前支持平台"),
+                ExternalFavoriteSummaryMetric("X / GH", "当前支持平台"),
             ),
             externalFavoriteSummaryMetrics(ExternalFavoritesSettingsState()),
         )

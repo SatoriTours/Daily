@@ -104,7 +104,7 @@ class ExternalFavoriteAiOrganizer(
                 return@forEach
             }
 
-            val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "X 收藏" } }
+            val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "外部收藏" } }
             val summary = analysis.summary.trim().ifBlank { input.text }
             val markdown = input.toArticleMarkdown(aiTitle, analysis.markdown)
 
@@ -310,7 +310,8 @@ class ExternalFavoriteAiOrganizer(
         - 不要写“谁分享了关于……”这类来源说明，除非作者身份本身就是内容重点。
         - 优先写结论、方法、步骤、清单、注意事项，让读者直接获得信息。
 
-        标题：${title.ifBlank { "X 收藏" }}
+        来源：$provider
+        标题：${title.ifBlank { "外部收藏" }}
         作者：${authorName.ifBlank { "未知" }}
         时间：${sourceCreatedAt?.let { Instant.fromEpochMilliseconds(it).toString() } ?: "未知"}
         链接：$canonicalUrl
@@ -340,7 +341,7 @@ class ExternalFavoriteAiOrganizer(
         val body = text.ifBlank { "（无正文）" }
         val organized = aiMarkdown.trim().ifBlank { "暂无整理结果。" }
         return """
-            # ${aiTitle.ifBlank { title.ifBlank { "X 收藏" } }}
+            # ${aiTitle.ifBlank { title.ifBlank { "外部收藏" } }}
 
             ## 原文
 
@@ -394,7 +395,7 @@ class ExternalFavoriteAiOrganizer(
         }
 
         const val EXTERNAL_FAVORITE_SYSTEM_PROMPT =
-            "你是内容整理助手。请直接基于用户收藏的 X/Twitter 原文和可用补充来源整理内容。" +
+            "你是内容整理助手。请直接基于用户的外部收藏原文和可用补充来源整理内容。" +
                 "直接输出内容本身，不要用第三方视角，不要把内容写成对文章或帖子的介绍。" +
                 "禁止使用“本文介绍了”“本文整理了”“这篇文章讨论了”等套话，不要写“谁分享了关于……”这类来源说明。" +
                 "title 使用信息型标题，summary 直接概括关键结论，markdown 写成可直接阅读的结构化正文。" +

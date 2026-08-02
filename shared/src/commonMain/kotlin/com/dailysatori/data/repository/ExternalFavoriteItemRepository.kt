@@ -80,6 +80,16 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
     fun getBySource(sourceId: Long): List<External_favorite_item> =
         q.selectExternalFavoriteItemsBySource(sourceId).executeAsList()
 
+    fun favoriteOrderStateBySource(sourceId: Long): ExternalFavoriteOrderState {
+        val items = getBySource(sourceId)
+        val values = items.map { it.favorited_at ?: it.first_seen_at }
+        return ExternalFavoriteOrderState(
+            oldest = values.minOrNull(),
+            newest = values.maxOrNull(),
+            hasMissingFavoriteTime = items.any { it.favorited_at == null },
+        )
+    }
+
     fun latestNumericExternalIdBySource(sourceId: Long): String? =
         q.selectLatestNumericExternalFavoriteExternalIdBySource(sourceId).executeAsOneOrNull()
 
@@ -233,3 +243,9 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             updated_at = updatedAt,
         )
 }
+
+data class ExternalFavoriteOrderState(
+    val oldest: Long?,
+    val newest: Long?,
+    val hasMissingFavoriteTime: Boolean,
+)

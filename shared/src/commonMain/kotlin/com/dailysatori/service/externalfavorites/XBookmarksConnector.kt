@@ -273,15 +273,13 @@ class XBookmarksConnector(
 internal fun xBookmarksEndpointPath(userId: String): String =
     "/2/users/${userId.trim()}/bookmarks"
 
-open class XFavoriteProviderException(
-    val statusCode: Int,
-    message: String,
-) : RuntimeException(message)
+open class XFavoriteProviderException(statusCode: Int, message: String) :
+    FavoriteProviderException(statusCode, message)
 
 class XFavoriteAuthException(
     statusCode: Int,
     providerDetail: String? = null,
-) : XFavoriteProviderException(
+) : FavoriteAuthException(
     statusCode = statusCode,
     message = buildString {
         append("X bookmarks authorization failed with HTTP ")
@@ -295,9 +293,10 @@ class XFavoriteAuthException(
 
 class XFavoriteRateLimitException(
     statusCode: Int,
-    val rateLimitResetAt: Long?,
-) : XFavoriteProviderException(
+    rateLimitResetAt: Long?,
+) : FavoriteRateLimitException(
     statusCode = statusCode,
+    rateLimitResetAt = rateLimitResetAt,
     message = "X bookmarks rate limited with HTTP $statusCode",
 )
 
@@ -917,7 +916,7 @@ private fun JsonElement.jsonArrayOrNull(): JsonArray? = runCatching { jsonArray 
 
 private fun JsonElement.jsonPrimitiveOrNull(): JsonPrimitive? = runCatching { jsonPrimitive }.getOrNull()
 
-private fun sha256Hex(input: String): String = Sha256.digest(input.encodeToByteArray()).joinToString("") {
+internal fun sha256Hex(input: String): String = Sha256.digest(input.encodeToByteArray()).joinToString("") {
     it.toUByte().toString(16).padStart(2, '0')
 }
 

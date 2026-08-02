@@ -286,6 +286,7 @@ val viewModelModule: Module = module {
             asyncTaskRepo = get(),
             xOAuthCoordinator = get(),
             settingRepo = get<SettingRepository>(),
+            gitHubConnector = get(),
         )
     }
     viewModel {

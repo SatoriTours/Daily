@@ -63,6 +63,7 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteAiOrganizer
 import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
 import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
+import com.dailysatori.service.externalfavorites.GitHubStarsConnector
 import com.dailysatori.service.externalfavorites.DefaultExternalFavoriteSupplementResolver
 import com.dailysatori.service.externalfavorites.ExternalFavoriteSupplementResolver
 import com.dailysatori.service.externalfavorites.NoopFavoriteSyncHttpLogger
@@ -126,7 +127,8 @@ val sharedModule: Module = module {
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }
     single { XBookmarksConnector(get()) }
-    single { FavoriteConnectorRegistry(listOf(get<XBookmarksConnector>())) }
+    single { GitHubStarsConnector(get()) }
+    single { FavoriteConnectorRegistry(listOf(get<XBookmarksConnector>(), get<GitHubStarsConnector>())) }
     single { ExternalFavoriteImporter(get(), get()) }
     single<ExternalFavoriteSupplementResolver> {
         DefaultExternalFavoriteSupplementResolver(

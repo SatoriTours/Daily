@@ -30,3 +30,9 @@ New code should prefer `last_error_code` and `last_error_message`. Keep `last_er
 - `external_favorite_item.provider` duplicates `external_favorite_source.provider` intentionally.
 
 It preserves the provider identity on each imported item for source-scoped processing and diagnostics even if source rows are renamed, restored, or analyzed independently.
+
+## External favorite ordering
+
+- `external_favorite_item.favorited_at` is the remote favorite timestamp when the provider supplies one.
+- X does not supply a bookmark timestamp. Its connector therefore stores a synthetic ordering value in this field, preserving the newest-to-oldest order returned by the remote bookmark pages.
+- Existing X rows without this value trigger one remote-order repair scan during the next sync.

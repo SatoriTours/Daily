@@ -9,6 +9,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlinx.datetime.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -199,8 +200,11 @@ class FavoriteSyncService(
     ): SyncRunResult {
         val capabilities = connector.capabilities
         val initialSource = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
+        val initialOrderState = itemRepo.favoriteOrderStateBySource(sourceId)
+        val repairsXRemoteOrder = connector is XBookmarksConnector &&
+            initialOrderState.hasMissingFavoriteTime
         var progress = readSyncProgress(initialSource.config_json)
-        if (policy.resetHistory && progress.historyComplete) {
+        if (repairsXRemoteOrder || policy.resetHistory && progress.historyComplete) {
             progress = ExternalFavoriteSyncProgress(
                 historyCursor = null,
                 historyComplete = false,
@@ -214,6 +218,14 @@ class FavoriteSyncService(
         var historyComplete = progress.historyComplete
         var historyCompleteAnchorCursor = progress.historyCompleteAnchorCursor
         var latestPageAnchorCursor: String? = null
+        val latestOrder = RemoteFavoriteOrderAllocator(
+            nextValue = maxOf(
+                Clock.System.now().toEpochMilliseconds(),
+                initialOrderState.newest ?: Long.MIN_VALUE,
+            ) + policy.maxItems + 1L,
+            direction = -1L,
+        )
+        var historyOrder: RemoteFavoriteOrderAllocator? = null
         val sinceExternalId = if (policy.useSinceExternalId) {
             itemRepo.latestNumericExternalIdBySource(sourceId)
         } else {
@@ -252,7 +264,7 @@ class FavoriteSyncService(
             )
         }
 
-        suspend fun fetchOne(cursor: String?): FavoriteFetchPageResult {
+        suspend fun fetchOne(cursor: String?, placement: RemoteFavoriteOrderPlacement): FavoriteFetchPageResult {
             val remaining = policy.maxItems - itemsSeen
             val page = connector.fetchPage(
                 source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found"),
@@ -266,7 +278,18 @@ class FavoriteSyncService(
             pagesSeen += 1
 
             var changedOnPage = 0
-            val pageItems = page.items.take(remaining)
+            val pageItems = page.items.take(remaining).map { draft ->
+                if (connector !is XBookmarksConnector || draft.favoritedAt != null) return@map draft
+                val allocator = when (placement) {
+                    RemoteFavoriteOrderPlacement.latest -> latestOrder
+                    RemoteFavoriteOrderPlacement.history -> historyOrder ?: RemoteFavoriteOrderAllocator(
+                        nextValue = (itemRepo.favoriteOrderStateBySource(sourceId).oldest
+                            ?: Clock.System.now().toEpochMilliseconds()) - 1L,
+                        direction = -1L,
+                    ).also { historyOrder = it }
+                }
+                draft.copy(favoritedAt = allocator.next())
+            }
             val reachedSinceAnchor = sinceExternalId != null && pageItems.any { it.externalId == sinceExternalId }
             pageItems.forEach { draft ->
                 val existing = itemRepo.getBySourceExternalId(sourceId, draft.externalId)
@@ -286,7 +309,7 @@ class FavoriteSyncService(
         }
 
         if (hasBudget()) {
-            val latest = fetchOne(cursor = null)
+            val latest = fetchOne(cursor = null, placement = RemoteFavoriteOrderPlacement.latest)
             val latestAnchorCursor = latest.page.nextCursor
             latestPageAnchorCursor = latestAnchorCursor
             reportProgress("latest")
@@ -306,7 +329,7 @@ class FavoriteSyncService(
             suspend fun backfillHistoryFrom(startCursor: String?) {
                 var cursor = startCursor
                 while (cursor != null && hasBudget()) {
-                    val pageResult = fetchOne(cursor)
+                    val pageResult = fetchOne(cursor, placement = RemoteFavoriteOrderPlacement.history)
                     cursor = pageResult.page.nextCursor
                     reportProgress("backfill")
                     if (pageResult.page.exhausted) {
@@ -331,7 +354,7 @@ class FavoriteSyncService(
             suspend fun fetchIncrementalUntilKnownItems(startCursor: String?) {
                 var cursor = startCursor
                 while (cursor != null && hasBudget()) {
-                    val pageResult = fetchOne(cursor)
+                    val pageResult = fetchOne(cursor, placement = RemoteFavoriteOrderPlacement.latest)
                     cursor = pageResult.page.nextCursor
                     reportProgress("latest")
                     if (pageResult.page.exhausted ||
@@ -348,7 +371,7 @@ class FavoriteSyncService(
                 persistProgress()
             }
 
-            if (!policy.scanHistory) {
+            if (!policy.scanHistory && !repairsXRemoteOrder) {
                 when {
                     latest.page.exhausted ||
                         latest.reachedSinceAnchor ||
@@ -412,20 +435,20 @@ class FavoriteSyncService(
             ai_input_hash.isBlank()
 
     private fun Throwable.syncFailureStatus(): ExternalSourceStatus = when (this) {
-        is XFavoriteAuthException -> ExternalSourceStatus.auth_required
-        is XFavoriteRateLimitException -> ExternalSourceStatus.rate_limited
+        is FavoriteAuthException -> ExternalSourceStatus.auth_required
+        is FavoriteRateLimitException -> ExternalSourceStatus.rate_limited
         else -> ExternalSourceStatus.failed
     }
 
     private fun Throwable.syncFailureCode(): String = when (this) {
-        is XFavoriteAuthException -> "auth_failed"
-        is XFavoriteRateLimitException -> "rate_limited"
-        is XFavoriteProviderException -> "provider_${statusCode}"
+        is FavoriteAuthException -> "auth_failed"
+        is FavoriteRateLimitException -> "rate_limited"
+        is FavoriteProviderException -> "provider_${statusCode}"
         else -> "sync_failed"
     }
 
     private fun Throwable.syncFailureRateLimitResetAt(): Long? = when (this) {
-        is XFavoriteRateLimitException -> rateLimitResetAt
+        is FavoriteRateLimitException -> rateLimitResetAt
         else -> null
     }
 
@@ -527,6 +550,15 @@ class FavoriteSyncService(
         const val DEFAULT_AI_ORGANIZE_LIMIT = 10L
         const val PENDING_AI_RESUME_LIMIT = 50L
     }
+}
+
+private enum class RemoteFavoriteOrderPlacement { latest, history }
+
+private class RemoteFavoriteOrderAllocator(
+    private var nextValue: Long,
+    private val direction: Long,
+) {
+    fun next(): Long = nextValue.also { nextValue += direction }
 }
 
 private const val CONFIG_HISTORY_CURSOR = "history_cursor"

@@ -1,6 +1,6 @@
 package com.dailysatori.service.externalfavorites
 
-enum class ExternalFavoriteProvider(val id: String) { X("x") }
+enum class ExternalFavoriteProvider(val id: String) { X("x"), GITHUB("github") }
 enum class FavoriteSyncMode { sync, recent, history, full_rescan, retry_failed }
 enum class ExternalSourceStatus { idle, syncing, auth_required, auth_check_required, rate_limited, paused, failed }
 enum class ExternalSourceHealth { healthy, needs_auth, limited, paused, failing, never_synced }
@@ -49,6 +49,20 @@ data class FavoriteSyncProgress(
     val itemsSeen: Int,
     val historyComplete: Boolean,
 )
+
+open class FavoriteProviderException(
+    val statusCode: Int,
+    message: String,
+) : RuntimeException(message)
+
+open class FavoriteAuthException(statusCode: Int, message: String) :
+    FavoriteProviderException(statusCode, message)
+
+open class FavoriteRateLimitException(
+    statusCode: Int,
+    val rateLimitResetAt: Long?,
+    message: String,
+) : FavoriteProviderException(statusCode, message)
 
 fun sourceHealth(status: String, lastSuccessAt: Long?, lastErrorCode: String): ExternalSourceHealth = when (status) {
     "auth_required", "auth_check_required" -> ExternalSourceHealth.needs_auth
