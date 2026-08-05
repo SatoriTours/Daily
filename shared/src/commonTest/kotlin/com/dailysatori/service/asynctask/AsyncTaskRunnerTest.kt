@@ -140,6 +140,22 @@ class AsyncTaskRunnerTest {
         }
     }
 
+    @Test
+    fun expiredRunningTaskIsRecoveredBeforeClaim() = runBlocking {
+        withRunner(
+            nowMs = { 2_000 },
+            handlers = listOf(FakeHandler { _, _, _ -> AsyncTaskExecutionResult.Success() }),
+        ) { repository, runner, _ ->
+            val taskId = repository.enqueue(type = FakeHandler.TYPE, payloadJson = "{}")
+            repository.claimForRun(taskId, leaseOwner = "dead-worker", leaseUntilMs = 1_000)
+
+            val outcome = runner.run(taskId)
+
+            assertIs<AsyncTaskRunOutcome.Succeeded>(outcome)
+            assertEquals(AsyncTaskStatus.succeeded.name, repository.getById(taskId)!!.status)
+        }
+    }
+
     private suspend fun withRunner(
         handlers: List<AsyncTaskHandler>,
         nowMs: () -> Long = { 1_000 },

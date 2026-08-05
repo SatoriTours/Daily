@@ -1,6 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
 import com.dailysatori.shared.db.External_favorite_source
+import com.dailysatori.service.mapConcurrently
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
@@ -77,9 +78,10 @@ class GitHubStarsConnector(
         val body = response.bodyAsText()
         httpLogger.logResponse(taskId, "github_stars", response.status.value, emptyMap(), body)
         validateResponse(response.status.value, body, response.headers[GITHUB_RATE_LIMIT_RESET])
-        val items = json.parseToJsonElement(body).jsonArray.mapNotNull { element ->
-            parseStar(element.jsonObject, token, shouldFetchDetail)
-        }
+        val items = json.parseToJsonElement(body).jsonArray
+            .map { it.jsonObject }
+            .mapConcurrently(GITHUB_DETAIL_CONCURRENCY) { parseStar(it, token, shouldFetchDetail) }
+            .filterNotNull()
         val hasNext = response.headers["Link"]?.contains("rel=\"next\"") == true
         return FavoriteFetchPage(
             items = items,
@@ -100,7 +102,11 @@ class GitHubStarsConnector(
         val description = repo.string("description").orEmpty()
         val owner = (repo["owner"] as? JsonObject)?.string("login").orEmpty()
         val base = draft(id, url, fullName, description, owner, starred, repo, readme = "")
-        val readme = if (shouldFetchDetail(base)) fetchReadme(fullName, token) else ""
+        val readme = if (shouldFetchDetail(base) && !hasEnoughGitHubMetadata(base.text)) {
+            fetchReadme(fullName, token)
+        } else {
+            ""
+        }
         return draft(id, url, fullName, description, owner, starred, repo, readme)
     }
 
@@ -165,6 +171,9 @@ class GitHubStarsConnector(
     private fun httpClient(): HttpClient = client ?: error("GitHubStarsConnector requires an HttpClient")
 }
 
+internal fun hasEnoughGitHubMetadata(text: String): Boolean =
+    text.filterNot(Char::isWhitespace).length >= MIN_GITHUB_METADATA_CHARS
+
 fun githubAuthJson(accessToken: String): String = buildJsonObject {
     put("access_token", accessToken.trim())
 }.toString()
@@ -199,3 +208,5 @@ private const val GITHUB_STAR_ACCEPT = "application/vnd.github.star+json"
 private const val GITHUB_RAW_ACCEPT = "application/vnd.github.raw+json"
 private const val GITHUB_RATE_LIMIT_RESET = "x-ratelimit-reset"
 private const val MAX_README_CHARS = 80_000
+private const val MIN_GITHUB_METADATA_CHARS = 20
+private const val GITHUB_DETAIL_CONCURRENCY = 4

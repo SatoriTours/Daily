@@ -49,6 +49,7 @@ class ExternalFavoriteSyncWorkerTest {
         assertEquals(42L, request.workSpec.input.getLong(ExternalFavoriteSyncWorker.KEY_SOURCE_ID, -1L))
         assertEquals("sync", request.workSpec.input.getString(ExternalFavoriteSyncWorker.KEY_MODE))
         assertEquals(NetworkType.CONNECTED, request.workSpec.constraints.requiredNetworkType)
+        assertEquals(30 * 60 * 1_000L, request.workSpec.initialDelay)
     }
 
     @Test
@@ -97,11 +98,29 @@ class ExternalFavoriteSyncWorkerTest {
     }
 
     @Test
-    fun schedulerExposesCancelForCurrentUnifiedSync() {
+    fun schedulerCancelsEveryModeAndReschedulesDelayedPeriodicWork() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
 
-        assertTrue(source.contains("fun cancelSync(sourceId: Long)"))
-        assertTrue(source.contains("cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, FavoriteSyncMode.sync.name))"))
+        assertTrue(source.contains("fun cancelSync(source: External_favorite_source)"))
+        assertTrue(source.contains("FavoriteSyncMode.entries.forEach"))
+        assertTrue(source.contains("cancelLatestByUniqueKey"))
+        assertTrue(source.contains("asyncTaskScheduler?.cancel(taskId)"))
+        assertTrue(source.contains("cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name))"))
+        assertTrue(source.contains("cancelPeriodic(sourceId)"))
+        assertTrue(source.contains("enqueuePeriodic(source)"))
+    }
+
+    @Test
+    fun githubConnectionStartsWithBoundedRecentSync() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsViewModel.kt").readText()
+        val connect = source.substringAfter("fun connectGitHub").substringBefore("fun syncNow")
+
+        assertTrue(connect.contains("scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)"))
+        assertEquals(false, connect.contains("FavoriteSyncMode.history.name"))
+        assertTrue(
+            connect.indexOf("scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)") <
+                connect.indexOf("scheduler.enqueuePeriodic(sourceId, 720)"),
+        )
     }
 
     @Test
@@ -115,10 +134,12 @@ class ExternalFavoriteSyncWorkerTest {
     }
 
     @Test
-    fun mainActivitySchedulesPeriodicSyncOnStartupAndAfterOAuth() {
-        val source = java.io.File("src/main/kotlin/com/dailysatori/MainActivity.kt").readText()
+    fun applicationSchedulesPeriodicSyncOnProcessStartupAndOAuthReschedulesSource() {
+        val application = java.io.File("src/main/kotlin/com/dailysatori/DailySatoriApplication.kt").readText()
+        val activity = java.io.File("src/main/kotlin/com/dailysatori/MainActivity.kt").readText()
 
-        assertTrue(source.contains("scheduleExternalFavoritePeriodicSyncs()"))
-        assertTrue(source.contains("enqueuePeriodic(source.id, source.sync_interval_minutes)"))
+        assertTrue(application.contains("get<ExternalFavoriteSourceRepository>"))
+        assertTrue(application.contains(".getEnabled()"))
+        assertTrue(activity.contains("enqueuePeriodic(source.id, source.sync_interval_minutes)"))
     }
 }

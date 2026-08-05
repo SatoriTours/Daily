@@ -24,8 +24,8 @@ class RemoteArticleSyncTaskSourceTest {
         assertTrue(source.contains("AsyncTaskType.remote_article_sync.name"))
         assertTrue(source.contains("remoteArticleSyncTaskPayloadJson("))
         assertTrue(source.contains("\"remote_article_sync:\${mode.name.lowercase()}\""))
-        assertTrue(source.contains("asyncTaskScheduler.enqueue(syncTaskId)"))
-        assertTrue(source.contains("asyncTaskScheduler.enqueue(summaryTaskId)"))
+        assertTrue(source.contains("asyncTaskScheduler.enqueueSequential("))
+        assertTrue(source.contains("taskIds = listOf(syncTaskId, summaryTaskId)"))
     }
 
     @Test

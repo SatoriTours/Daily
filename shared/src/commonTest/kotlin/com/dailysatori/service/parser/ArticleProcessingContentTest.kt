@@ -731,6 +731,14 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun retriesTransientWebViewFailuresButNotPermanentClientErrors() {
+        assertEquals(true, isRetryableArticleExtractionFailure(IllegalStateException("WebView load timeout")))
+        assertEquals(true, isRetryableArticleExtractionFailure(IllegalStateException("WebView HTTP error: 429")))
+        assertEquals(true, isRetryableArticleExtractionFailure(IllegalStateException("WebView HTTP error: 503")))
+        assertEquals(false, isRetryableArticleExtractionFailure(IllegalStateException("WebView HTTP error: 404")))
+    }
+
+    @Test
     fun failedExtractionDoesNotFabricateOriginalContentForTwitterStatusUrls() {
         val twitterUrl = "https://x.com/i/status/2051891753821556976"
 

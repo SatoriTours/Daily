@@ -25,7 +25,6 @@ class MainActivity : ComponentActivity() {
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)
         pruneOldAsyncTasks()
-        scheduleExternalFavoritePeriodicSyncs()
         enableEdgeToEdge()
         setContent {
             DailySatoriTheme {
@@ -62,17 +61,6 @@ class MainActivity : ComponentActivity() {
         if (intent?.action != DiaryRecordingService.ACTION_OPEN) return
         val diaryId = intent.getLongExtra(DiaryRecordingService.EXTRA_DIARY_ID, 0)
         DiaryRecordingOpenRequest.open(diaryId)
-    }
-
-    private fun scheduleExternalFavoritePeriodicSyncs() {
-        lifecycleScope.launch {
-            runCatching {
-                val koin = GlobalContext.get()
-                koin.get<ExternalFavoriteSyncScheduler>().enqueuePeriodic(
-                    koin.get<ExternalFavoriteSourceRepository>().getEnabled(),
-                )
-            }
-        }
     }
 
     private fun pruneOldAsyncTasks() {

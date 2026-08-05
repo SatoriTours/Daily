@@ -6,11 +6,13 @@ import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.ai.openAiChatCompletionEndpoint
 import com.dailysatori.service.ai.usesOpenAiCompatibleChatApi
+import com.dailysatori.service.retryTransientFailure
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Ai_config
 import com.dailysatori.shared.db.External_favorite_item
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -49,6 +51,7 @@ class ExternalFavoriteAiOrganizer(
     private val supplementResolver: ExternalFavoriteSupplementResolver? = null,
     private val generateAnalysis: (suspend (ExternalFavoriteAiInput) -> ExternalFavoriteAiAnalysis)? = null,
     private val maxConcurrentAnalysis: Int = DEFAULT_MAX_CONCURRENT_ANALYSIS,
+    private val retryDelayMs: Long = DEFAULT_AI_RETRY_DELAY_MS,
 ) {
     suspend fun organizePending(limit: Long = 10, includeFailed: Boolean = false): Int {
         return organizeItems(if (includeFailed) itemRepo.retryableAi(limit) else itemRepo.pendingAi(limit))
@@ -133,17 +136,26 @@ class ExternalFavoriteAiOrganizer(
                         .withSupplementIfNeeded(item, httpLogger, taskId)
                     val logConfig = aiRequestLogConfig()
                     logAiRequest(httpLogger, taskId, item, input, logConfig)
-                    val analysis = runCatching { generateAnalysis?.invoke(input) ?: generateWithAi(input) }
-                        .getOrElse { error ->
-                            logAiFailure(httpLogger, taskId, item, error)
-                            return@withPermit ExternalFavoriteAiResult(
-                                item = item,
-                                article = entry.article,
-                                input = input,
-                                analysis = null,
-                                error = error,
-                            )
+                    val analysis = try {
+                        retryTransientFailure(
+                            maxAttempts = AI_MAX_ATTEMPTS,
+                            initialDelayMs = retryDelayMs,
+                            shouldRetry = ::isRetryableExternalFavoriteAiFailure,
+                        ) {
+                            generateAnalysis?.invoke(input) ?: generateWithAi(input)
                         }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        logAiFailure(httpLogger, taskId, item, error)
+                        return@withPermit ExternalFavoriteAiResult(
+                            item = item,
+                            article = entry.article,
+                            input = input,
+                            analysis = null,
+                            error = error,
+                        )
+                    }
                     logAiResponse(httpLogger, taskId, item, analysis)
                     ExternalFavoriteAiResult(
                         item = item,
@@ -249,8 +261,13 @@ class ExternalFavoriteAiOrganizer(
     ): ExternalFavoriteAiInput {
         val resolver = supplementResolver ?: return this
         if (hasEnoughExistingFavoriteText(text)) return this
-        val supplement = runCatching { resolver.resolve(item, this, httpLogger, taskId) }.getOrNull()
-            ?: return this
+        val supplement = try {
+            resolver.resolve(item, this, httpLogger, taskId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
+        } ?: return this
         val supplementText = supplement.text.trim()
         if (supplementText.isBlank()) return this
         return copy(
@@ -402,9 +419,18 @@ class ExternalFavoriteAiOrganizer(
                 "只输出 JSON，字段为 title、summary、markdown。"
 
         const val MIN_EXISTING_TEXT_CHARS = 20
-        const val DEFAULT_MAX_CONCURRENT_ANALYSIS = 10
+        const val DEFAULT_MAX_CONCURRENT_ANALYSIS = 4
+        const val AI_MAX_ATTEMPTS = 3
+        const val DEFAULT_AI_RETRY_DELAY_MS = 750L
         const val FALLBACK_AI_LOG_URL = "ai://external-favorite/organize"
     }
+}
+
+internal fun isRetryableExternalFavoriteAiFailure(error: Throwable): Boolean {
+    if (error is IllegalArgumentException) return false
+    val message = error.message.orEmpty().lowercase()
+    if ("config not set" in message || "api token" in message && "missing" in message) return false
+    return listOf("http 400", "http 401", "http 403", "http 404").none(message::contains)
 }
 
 internal fun externalFavoriteAiRequestLogUrl(config: Ai_config): String {

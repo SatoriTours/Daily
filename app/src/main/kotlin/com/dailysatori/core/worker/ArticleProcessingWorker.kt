@@ -151,8 +151,14 @@ class ArticleProcessingWorker(
                     }
                 }
                 MODE_RESUME -> {
-                    parser.resumeInterruptedProcessing()
-                    Result.success()
+                    try {
+                        parser.resumeInterruptedProcessing()
+                        Result.success()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        if (shouldRetryArticleResume(runAttemptCount)) Result.retry() else Result.failure()
+                    }
                 }
                 else -> Result.failure()
             }
@@ -207,3 +213,8 @@ class ArticleProcessingWorker(
         private const val NOTIFICATION_ID = 1001
     }
 }
+
+internal fun shouldRetryArticleResume(runAttemptCount: Int): Boolean =
+    runAttemptCount < MAX_ARTICLE_RESUME_ATTEMPTS - 1
+
+private const val MAX_ARTICLE_RESUME_ATTEMPTS = 3

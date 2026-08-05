@@ -27,7 +27,7 @@ interface ExternalFavoriteSupplementResolver {
 class DefaultExternalFavoriteSupplementResolver(
     private val fetchWebSupplement: suspend (String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
     private val fetchXStatusSupplement: suspend (String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
-    private val fetchXArticleSupplement: suspend (String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
+    private val fetchXArticleSupplement: suspend (String, String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
 ) : ExternalFavoriteSupplementResolver {
     constructor(
         sourceRepo: ExternalFavoriteSourceRepository,
@@ -72,17 +72,16 @@ class DefaultExternalFavoriteSupplementResolver(
                 xBookmarksConnector.fetchPostById(refreshed, postId, httpLogger, taskId)?.toSupplement(url, "x_status")
             }
         },
-        fetchXArticleSupplement = { url, httpLogger, taskId ->
-            val articleId = xArticleIdFromUrl(url)
+        fetchXArticleSupplement = { url, postId, httpLogger, taskId ->
             val source = sourceRepo.getEnabled().firstOrNull { it.provider == ExternalFavoriteProvider.X.id }
-            if (articleId == null || source == null) {
+            if (source == null) {
                 null
             } else {
                 val refreshed = xBookmarksConnector.refreshAuth(source)
                 if (refreshed.auth_json != source.auth_json) {
                     sourceRepo.updateAuthJson(source.id, refreshed.auth_json)
                 }
-                xBookmarksConnector.fetchArticleById(refreshed, articleId, httpLogger, taskId)?.toSupplement(url, "x_article")
+                xBookmarksConnector.fetchPostById(refreshed, postId, httpLogger, taskId)?.toSupplement(url, "x_article")
             }
         },
     )
@@ -95,11 +94,19 @@ class DefaultExternalFavoriteSupplementResolver(
     ): ExternalFavoriteSupplement? {
         val url = externalFavoriteSupplementUrl(item, input) ?: return null
         return when {
-            isXArticleUrl(url) -> fetchXArticleSupplement(url, httpLogger, taskId)
+            isXArticleUrl(url) -> xArticleOwningPostId(item)
+                ?.let { postId -> fetchXArticleSupplement(url, postId, httpLogger, taskId) }
             isXStatusLikeUrl(url) -> fetchXStatusSupplement(url, httpLogger, taskId)
             else -> fetchWebSupplement(url, httpLogger, taskId)
         }?.takeIf { it.text.isNotBlank() }
     }
+}
+
+internal fun xArticleOwningPostId(item: External_favorite_item): String? {
+    val root = runCatching { supplementJson.parseToJsonElement(item.normalized_json).jsonObject }.getOrNull()
+    return root?.stringValue("canonical_tweet_url")
+        ?.let(::xPostIdFromStatusLikeUrl)
+        ?: item.external_id.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
 }
 
 internal fun externalFavoriteSupplementUrl(item: External_favorite_item, input: ExternalFavoriteAiInput): String? {

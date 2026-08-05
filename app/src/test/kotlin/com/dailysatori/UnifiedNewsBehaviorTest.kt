@@ -651,15 +651,14 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsWorkerSchedulesNextOnlyAfterNonRetryResult() {
-        val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
-        val successCheck = handler.indexOf("if (result.success)")
-        val scheduleNext = handler.indexOf("UnifiedNewsScheduler(context).scheduleNext(Clock.System.now())")
-        val retryCheck = handler.indexOf("shouldRetryUnifiedNews(result)")
+    fun unifiedNewsWorkerSchedulesNextBeforeRunningDueChain() {
+        val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
+        val scheduleNext = worker.indexOf("UnifiedNewsScheduler(applicationContext).scheduleNext(Clock.System.now())")
+        val enqueueChain = worker.indexOf("enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.DUE")
 
-        assertTrue(successCheck >= 0)
-        assertTrue(scheduleNext > successCheck)
-        assertTrue(retryCheck > scheduleNext)
+        assertTrue(scheduleNext >= 0)
+        assertTrue(enqueueChain > scheduleNext)
+        assertTrue(worker.contains("asyncTaskScheduler.enqueueSequential("))
     }
 
     @Test

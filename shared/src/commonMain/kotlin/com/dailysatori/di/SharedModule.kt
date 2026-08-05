@@ -139,7 +139,7 @@ val sharedModule: Module = module {
     }
     single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
-    single { RemoteArticleFavoriteService(get(), get()) }
+    single { RemoteArticleFavoriteService(get()) }
     single { RemoteArticleSyncService(get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }

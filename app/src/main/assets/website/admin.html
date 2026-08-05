@@ -32,6 +32,7 @@
                 <g id="ico-image"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g>
                 <g id="ico-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></g>
                 <g id="ico-trash"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></g>
+                <g id="ico-sparkles"><path d="m12 3-1.8 4.7L5.5 9.5l4.7 1.8L12 16l1.8-4.7 4.7-1.8-4.7-1.8Z"/><path d="m19 16-.8 2.2L16 19l2.2.8L19 22l.8-2.2L22 19l-2.2-.8Z"/></g>
             </defs>
         </svg>
 
@@ -69,9 +70,9 @@
                 </div>
                 <nav class="sidebar-nav">
                     <div class="nav-section">导航</div>
-                    <a :class="{ active: page === 'dashboard' }" @click="navigate('dashboard')" title="仪表盘">
+                    <a :class="{ active: page === 'dashboard' }" @click="navigate('dashboard')" title="今日">
                         <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-dashboard"/></svg></span>
-                        <span class="nav-text">仪表盘</span>
+                        <span class="nav-text">今日</span>
                     </a>
                     <a :class="{ active: page === 'articles' }" @click="navigate('articles')" title="文章">
                         <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-file-text"/></svg></span>
@@ -84,6 +85,14 @@
                     <a :class="{ active: page === 'books' }" @click="navigate('books')" title="书籍">
                         <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-library"/></svg></span>
                         <span class="nav-text">书籍</span>
+                    </a>
+                    <a :class="{ active: page === 'ai' }" @click="navigate('ai')" title="AI 助手">
+                        <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-sparkles"/></svg></span>
+                        <span class="nav-text">AI 助手</span>
+                    </a>
+                    <a :class="{ active: page === 'tasks' }" @click="navigate('tasks')" title="任务中心">
+                        <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ico-dashboard"/></svg></span>
+                        <span class="nav-text">任务中心</span>
                     </a>
                 </nav>
                 <div class="sidebar-footer">
@@ -120,30 +129,35 @@
                 </header>
 
                 <div class="content">
-                    <!-- Dashboard -->
+                    <!-- Today -->
                     <template v-if="page === 'dashboard'">
-                        <div class="stats-grid">
-                            <div class="stat" v-for="s in statsCards" :key="s.label">
-                                <div class="stat-icon" :style="{ background: s.color }">
-                                    <svg v-if="s.icon === 'globe'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-globe"/></svg>
-                                    <svg v-else-if="s.icon === 'book-marked'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-book-marked"/></svg>
-                                    <svg v-else-if="s.icon === 'book-open'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-book-open"/></svg>
-                                    <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-star"/></svg>
-                                </div>
-                                <div class="stat-body">
-                                    <div class="stat-value">{{ s.value }}</div>
-                                    <div class="stat-label">{{ s.label }}</div>
-                                </div>
+                        <div class="today-heading">
+                            <div>
+                                <span class="eyebrow">DAILY BRIEFING</span>
+                                <h1>{{ newsSummary.title || '今日阅读' }}</h1>
+                                <p>{{ newsSummary.date ? newsSummary.date + ' · ' + (newsSummary.sources || []).length + ' 个来源' : '从你的新闻来源和收藏中提炼今天值得关注的内容。' }}</p>
                             </div>
+                            <button class="btn btn-primary" :disabled="summaryRefreshing" @click="refreshNewsSummary">
+                                {{ summaryRefreshing ? '生成中…' : (newsSummary.summary ? '更新今日汇总' : '生成今日汇总') }}
+                            </button>
                         </div>
-                        <div class="panels">
-                            <div class="panel panel-main">
-                                <div class="panel-header"><h3>内容趋势</h3></div>
-                                <div class="panel-body"><canvas ref="trendChart" height="260"></canvas></div>
-                            </div>
-                            <div class="panel panel-side">
-                                <div class="panel-header"><h3>最近活动</h3></div>
-                                <div class="panel-body">
+                        <div class="today-layout">
+                            <article class="briefing-sheet">
+                                <div v-if="summaryLoading" class="loading">正在读取今日汇总…</div>
+                                <div v-else-if="newsSummary.summary" class="markdown-body briefing-content" v-html="formatContent(newsSummary.summary)"></div>
+                                <div v-else class="empty today-empty">还没有今日汇总，可以现在生成。</div>
+                                <div v-if="newsSummary.sources && newsSummary.sources.length" class="briefing-sources">
+                                    <span v-for="source in newsSummary.sources" :key="source.refKey" class="source-chip">{{ source.refKey }} · {{ source.title }}</span>
+                                </div>
+                            </article>
+                            <aside class="today-side">
+                                <div class="today-stats">
+                                    <button v-for="s in statsCards" :key="s.label" @click="navigate(s.page)">
+                                        <strong>{{ s.value }}</strong><span>{{ s.label }}</span>
+                                    </button>
+                                </div>
+                                <section class="recent-section">
+                                    <h3>最近活动</h3>
                                     <div v-if="recentLoading" class="loading">加载中...</div>
                                     <div v-else-if="recentItems.length === 0" class="empty">暂无活动</div>
                                     <div v-else class="activity-list">
@@ -153,8 +167,8 @@
                                             <span class="time">{{ formatDate(item.createdAt) }}</span>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
+                                </section>
+                            </aside>
                         </div>
                     </template>
 
@@ -204,67 +218,73 @@
 
                     <!-- Diary -->
                     <template v-if="page === 'diary'">
-                        <div class="table-toolbar">
-                            <div class="toolbar-left"><span class="count">{{ diaryPagination.totalItems }} 篇日记</span></div>
-                            <div class="toolbar-right">
-                                <button class="btn btn-sm" @click="openDiaryEditor()">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-plus"/></svg>
-                                    写日记
-                                </button>
+                        <section class="diary-page">
+                            <header class="page-intro">
+                                <div><span class="eyebrow">PERSONAL JOURNAL</span><h1>日记</h1><p>按时间回顾生活中的想法和瞬间。</p></div>
+                                <button class="btn btn-primary" @click="openDiaryEditor()">+写日记</button>
+                            </header>
+                            <div class="diary-timeline-layout">
+                                <aside class="diary-months">
+                                    <strong>时间</strong>
+                                    <button :class="{ active: selectedDiaryMonth === 'all' }" @click="selectedDiaryMonth = 'all'">全部<span>{{ diaries.length }}</span></button>
+                                    <button v-for="month in diaryMonths" :key="month.key" :class="{ active: selectedDiaryMonth === month.key }" @click="selectedDiaryMonth = month.key">{{ month.label }}<span>{{ month.count }}</span></button>
+                                </aside>
+                                <main class="diary-timeline">
+                                    <div v-if="diariesLoading" class="loading">加载中…</div>
+                                    <div v-else-if="filteredDiaries.length === 0" class="empty-state-card"><h3>这里还没有记录</h3><p>从今天的一个念头开始。</p><button class="btn btn-primary" @click="openDiaryEditor()">写第一篇日记</button></div>
+                                    <article v-for="d in filteredDiaries" :key="d.id" class="timeline-entry" @click="viewDiary(d)" @dblclick="editDiary(d)">
+                                        <time><strong>{{ diaryDayNumber(d.createdAt) }}</strong><span>{{ diaryWeekday(d.createdAt) }}</span></time>
+                                        <div class="timeline-dot"></div>
+                                        <div class="timeline-card">
+                                            <div class="timeline-card-meta"><span v-if="d.mood">{{ d.mood }}</span><span v-for="tag in diaryTagList(d.tags).slice(0, 3)" :key="tag">#{{ tag }}</span></div>
+                                            <p>{{ diaryExcerpt(d.content) }}</p>
+                                            <div v-if="d.images && d.images.length" class="timeline-thumbs"><img v-for="img in d.images.slice(0, 3)" :key="img" :src="img"><span v-if="d.images.length > 3">+{{ d.images.length - 3 }}</span></div>
+                                        </div>
+                                    </article>
+                                    <div class="pagination" v-if="diaryPagination.totalPages > 1">
+                                        <button :disabled="diaryPagination.page <= 1" @click="loadDiaries(diaryPagination.page - 1)">上一页</button><span class="page-info">{{ diaryPagination.page }} / {{ diaryPagination.totalPages }}</span><button :disabled="diaryPagination.page >= diaryPagination.totalPages" @click="loadDiaries(diaryPagination.page + 1)">下一页</button>
+                                    </div>
+                                </main>
                             </div>
-                        </div>
-                        <div v-if="diariesLoading" class="loading">加载中...</div>
-                        <div v-else-if="diaries.length === 0" class="empty">暂无日记</div>
-                        <div v-else class="diary-list">
-                            <div class="diary-card" v-for="d in diaries" :key="d.id" @click="viewDiary(d)">
-                                <div class="diary-date">{{ formatDate(d.createdAt) }}</div>
-                                <div class="diary-preview markdown-body" v-html="formatContent(truncate(d.content, 200))"></div>
-                                <div class="diary-images" v-if="d.images && d.images.length > 0" @click.stop>
-                                    <img v-for="(img, i) in d.images.slice(0, 3)" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }" @error="e => e.target.style.display='none'">
-                                    <span v-if="d.images.length > 3" class="more-images">+{{ d.images.length - 3 }}</span>
-                                </div>
-                                <div class="diary-tags" v-if="d.tags">
-                                    <span class="tag" v-for="t in d.tags.split(',')" :key="t">{{ t.trim() }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="pagination" v-if="diaryPagination.totalPages > 1">
-                            <button :disabled="diaryPagination.page <= 1" @click="loadDiaries(1)">&#171;</button>
-                            <button :disabled="diaryPagination.page <= 1" @click="loadDiaries(diaryPagination.page - 1)">&#8249;</button>
-                            <span class="page-info">{{ diaryPagination.page }} / {{ diaryPagination.totalPages }}</span>
-                            <button :disabled="diaryPagination.page >= diaryPagination.totalPages" @click="loadDiaries(diaryPagination.page + 1)">&#8250;</button>
-                            <button :disabled="diaryPagination.page >= diaryPagination.totalPages" @click="loadDiaries(diaryPagination.totalPages)">&#187;</button>
-                        </div>
+                        </section>
                     </template>
 
                     <!-- Books -->
                     <template v-if="page === 'books'">
-                        <div class="books-layout">
-                            <div class="books-sidebar">
-                                <div class="books-sidebar-header">
-                                    <h3>书架</h3>
-                                    <button class="btn btn-sm" @click="showAddBookModal = true">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-plus"/></svg>
+                        <section class="library-page">
+                            <template v-if="!showBookDetail">
+                                <header class="page-intro"><div><span class="eyebrow">PERSONAL LIBRARY</span><h1>我的书架</h1><p>{{ books.length }} 本书，收集阅读中值得留下的思考。</p></div><button class="btn btn-primary" @click="openBookEditor(null)">+添加书籍</button></header>
+                                <div v-if="booksLoading" class="loading">加载中…</div>
+                                <div v-else-if="books.length === 0" class="empty-state-card"><h3>建立你的第一层书架</h3><p>收藏书籍，把阅读变成可以累积的思考。</p><button class="btn btn-primary" @click="openBookEditor(null)">添加第一本书</button></div>
+                                <div v-else class="bookshelf-grid">
+                                    <button v-for="(b, i) in books" :key="b.id" class="shelf-book" @click="selectBook(i)">
+                                        <div class="shelf-cover"><img v-if="b.coverImage" :src="b.coverImage" alt=""><span v-else>{{ (b.title || '书').slice(0, 1) }}</span></div>
+                                        <strong>{{ b.title }}</strong><small>{{ b.author || '未填写作者' }}</small><em v-if="b.category">{{ b.category }}</em>
                                     </button>
                                 </div>
-                                <div class="book-list">
-                                    <div v-for="(b, i) in books" :key="b.id" class="book-item" :class="{ active: currentBookIndex === i }" @click="selectBook(i)">
-                                        <span>{{ b.title }}</span>
-                                        <small>{{ b.author }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="books-main">
-                                <div v-if="booksLoading" class="loading">加载中...</div>
-                                <div v-else-if="!currentBook" class="empty">选择一本书查看</div>
-                                <div v-else class="book-detail">
+                            </template>
+                            <template v-else-if="currentBook">
+                                <button class="library-back" @click="closeBookDetail">← 返回书架</button>
+                                <div class="book-detail">
                                     <div class="book-info">
-                                        <h3>{{ currentBook.title }}</h3>
-                                        <p v-if="currentBook.author">作者: {{ currentBook.author }}</p>
-                                        <span v-if="currentBook.category" class="tag">{{ currentBook.category }}</span>
+                                        <div class="book-hero">
+                                            <div class="book-hero-cover"><img v-if="currentBook.coverImage" :src="currentBook.coverImage" alt=""><span v-else>{{ (currentBook.title || '书').slice(0, 1) }}</span></div>
+                                            <div class="book-hero-copy">
+                                                <span class="eyebrow">READING NOTES</span><h2>{{ currentBook.title }}</h2>
+                                                <p>{{ currentBook.author || '未填写作者' }}<span v-if="currentBook.category"> · {{ currentBook.category }}</span></p>
+                                                <p v-if="currentBook.introduction" class="book-introduction">{{ currentBook.introduction }}</p>
+                                            </div>
+                                            <div class="book-actions">
+                                                <button class="btn btn-sm" @click="openBookEditor(currentBook)">编辑资料</button>
+                                                <button class="book-more" title="删除书籍" @click="confirmDelete('book', currentBook.id)">···</button>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="viewpoints">
-                                        <h4>读书感悟</h4>
+                                        <div class="viewpoints-heading">
+                                            <div><h4>读书感悟</h4><small>{{ currentBookViewpoints.length }} 条记录</small></div>
+                                            <button class="btn btn-primary btn-sm" @click="openViewpointEditor(null)">+记下感悟</button>
+                                        </div>
                                         <div v-if="bookViewpointsLoading" class="loading">加载中...</div>
                                         <div v-else-if="currentBookViewpoints.length === 0" class="empty">暂无感悟</div>
                                         <div v-else class="viewpoint-list">
@@ -274,9 +294,101 @@
                                                     <small>{{ formatDate(vp.createdAt) }}</small>
                                                 </summary>
                                                 <div class="viewpoint-body markdown-body" v-html="formatContent(vp.content)"></div>
+                                                <blockquote v-if="vp.example" class="viewpoint-example">{{ vp.example }}</blockquote>
+                                                <div class="viewpoint-actions">
+                                                    <button class="btn btn-sm" @click="openViewpointEditor(vp)">编辑</button>
+                                                    <button class="btn btn-sm btn-danger" @click="confirmDelete('viewpoint', vp.id)">删除</button>
+                                                </div>
                                             </details>
                                         </div>
                                     </div>
+                                </div>
+                            </template>
+                        </section>
+                    </template>
+
+                    <div v-if="page === 'diary' && selectedDiary" class="reading-drawer-layer" @click="closeDiaryReader">
+                        <aside class="reading-drawer" @click.stop>
+                            <header><div><span class="eyebrow">JOURNAL ENTRY</span><h2>{{ formatDiaryDay(selectedDiary.createdAt, true) }}</h2></div><button class="modal-close" @click="closeDiaryReader">×</button></header>
+                            <div v-if="diaryDetailLoading" class="loading">加载中…</div>
+                            <div v-else class="reading-drawer-body">
+                                <div class="reader-meta"><span v-if="selectedDiary.mood">心情 · {{ selectedDiary.mood }}</span><span v-for="tag in diaryTagList(selectedDiary.tags)" :key="tag">#{{ tag }}</span></div>
+                                <div class="markdown-body diary-reader-text" v-html="formatContent(selectedDiary.content)"></div>
+                                <div class="diary-reader-images" v-if="selectedDiary.images && selectedDiary.images.length"><img v-for="img in selectedDiary.images" :key="img" :src="img" @click="imageViewer = { visible: true, src: img }"></div>
+                                <div v-if="selectedDiary.attachments && selectedDiary.attachments.length" class="attachment-list"><div v-for="attachment in selectedDiary.attachments" :key="attachment.id" class="attachment-item"><div class="attachment-title"><strong>{{ attachment.name || '附件' }}</strong><span>{{ attachment.kind }}</span></div><audio v-if="attachment.kind === 'audio'" controls :src="attachment.url"></audio><video v-else-if="attachment.kind === 'video'" controls :src="attachment.url"></video><a v-else :href="attachment.url" target="_blank">打开附件</a><p v-if="attachment.transcript" class="attachment-transcript">{{ attachment.transcript }}</p></div></div>
+                            </div>
+                            <footer><button class="btn" @click="confirmDelete('diary', selectedDiary.id)">删除</button><button class="btn btn-primary" @click="editDiary(selectedDiary)">编辑日记</button></footer>
+                        </aside>
+                    </div>
+
+                    <!-- AI Assistant -->
+                    <template v-if="page === 'ai'">
+                        <div class="ai-shell">
+                            <aside class="ai-sessions">
+                                <div class="ai-sessions-head">
+                                    <strong>对话</strong>
+                                    <button class="btn btn-sm" @click="newAiSession">新建</button>
+                                </div>
+                                <div v-if="aiSessionsLoading" class="loading">加载中…</div>
+                                <div v-else class="ai-session-list">
+                                    <button v-for="session in aiSessions" :key="session.id" :class="{ active: activeAiSessionId === session.id }" @click="selectAiSession(session.id)">
+                                        <span>{{ session.title }}</span>
+                                        <small>{{ formatDate(session.updatedAt) }}</small>
+                                        <i @click.stop="deleteAiSession(session.id)" title="删除">×</i>
+                                    </button>
+                                </div>
+                            </aside>
+                            <section class="ai-chat">
+                                <div ref="aiMessagesEl" class="ai-messages">
+                                    <div v-if="aiMessagesLoading" class="loading">正在加载对话…</div>
+                                    <div v-else-if="aiMessages.length === 0" class="ai-welcome">
+                                        <span class="eyebrow">KNOWLEDGE ASSISTANT</span>
+                                        <h2>从你的知识中找到答案</h2>
+                                        <p>可以询问文章、日记、读书观点，回答会附上实际引用。</p>
+                                        <div class="ai-prompts">
+                                            <button @click="aiInput = '帮我整理最近记录的主要思考'">整理最近思考</button>
+                                            <button @click="aiInput = '我最近读过哪些值得回顾的内容？'">回顾阅读内容</button>
+                                            <button @click="aiInput = '从日记和文章中找出相互关联的主题'">发现知识关联</button>
+                                        </div>
+                                    </div>
+                                    <article v-for="message in aiMessages" :key="message.id || message.createdAt" class="ai-message" :class="message.role">
+                                        <div class="ai-avatar">{{ message.role === 'user' ? '你' : 'AI' }}</div>
+                                        <div class="ai-message-body">
+                                            <div v-if="message.role === 'assistant'" class="markdown-body" v-html="formatContent(message.content)"></div>
+                                            <div v-else class="ai-user-text">{{ message.content }}</div>
+                                            <div v-if="message.references && message.references.length" class="ai-references">
+                                                <span v-for="reference in message.references" :key="reference.type + reference.id">{{ reference.type }} · {{ reference.title }}</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    <article v-if="aiSending" class="ai-message assistant"><div class="ai-avatar">AI</div><div class="ai-thinking"><span></span><span></span><span></span> 正在检索并组织回答</div></article>
+                                </div>
+                                <form class="ai-composer" @submit.prevent="sendAiMessage">
+                                    <textarea v-model="aiInput" rows="1" placeholder="询问你的知识库…" @keydown.enter.exact.prevent="sendAiMessage"></textarea>
+                                    <button class="btn btn-primary" type="submit" :disabled="aiSending || !aiInput.trim()">发送</button>
+                                    <small>Enter 发送 · Shift+Enter 换行</small>
+                                </form>
+                            </section>
+                        </div>
+                    </template>
+
+                    <!-- Task Center -->
+                    <template v-if="page === 'tasks'">
+                        <div class="task-page">
+                            <div class="task-toolbar">
+                                <div><span class="eyebrow">BACKGROUND WORK</span><h1>任务中心</h1><p>查看文章处理、新闻同步和知识提取状态。</p></div>
+                                <div><label><input type="checkbox" v-model="showFinishedTasks" @change="loadTasks"> 显示已结束</label><button class="btn btn-sm" @click="loadTasks">刷新</button></div>
+                            </div>
+                            <div v-if="tasksLoading" class="loading">正在读取任务…</div>
+                            <div v-else-if="!tasks.length" class="empty">当前没有任务</div>
+                            <div v-else class="task-table">
+                                <div class="task-row task-header"><span>任务</span><span>状态</span><span>进度</span><span>更新时间</span><span></span></div>
+                                <div v-for="task in tasks" :key="task.id" class="task-row">
+                                    <span><strong>{{ taskTypeName(task.type) }}</strong><small>#{{ task.id }} · {{ task.progressMessage || '等待处理' }}</small></span>
+                                    <span><i class="task-status" :class="task.status">{{ taskStatusName(task.status) }}</i></span>
+                                    <span><progress v-if="task.progressTotal > 0" :value="task.progressCurrent" :max="task.progressTotal"></progress><small>{{ task.progressTotal > 0 ? task.progressCurrent + '/' + task.progressTotal : '—' }}</small></span>
+                                    <span>{{ formatDate(task.updatedAt) }}</span>
+                                    <span><button v-if="['queued','running','retrying'].includes(task.status)" class="btn btn-sm" @click="cancelTask(task.id)">取消</button></span>
                                 </div>
                             </div>
                         </div>
@@ -314,10 +426,15 @@
                             <button :class="{ active: articleTab === 'original' }" @click="articleTab = 'original'">原文</button>
                         </div>
                         <div class="markdown-body" v-if="articleTab === 'summary'" v-html="formatContent(detailItem.aiContent || '暂无摘要')"></div>
-                        <div class="markdown-body" v-if="articleTab === 'original'" v-html="formatContent(detailItem.aiMarkdownContent || '暂无原文')"></div>
+                        <div class="markdown-body" v-if="articleTab === 'original'" v-html="formatContent(detailItem.originalMarkdownContent || detailItem.aiMarkdownContent || '暂无原文')"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button class="btn" :disabled="articleActionLoading" @click="toggleArticleFavorite">
+                        <svg width="14" height="14" viewBox="0 0 24 24" :fill="detailItem.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"><use href="#ico-star"/></svg>
+                        {{ detailItem.isFavorite ? '取消收藏' : '收藏' }}
+                    </button>
+                    <button class="btn" :disabled="articleActionLoading" @click="reprocessArticle">重新处理</button>
                     <button class="btn btn-danger" @click="confirmDelete('article', detailItem.id)">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-trash"/></svg>
                         删除
@@ -347,6 +464,16 @@
                         <div class="diary-images" v-if="detailItem.images && detailItem.images.length > 0" style="margin-top:20px">
                             <img v-for="(img, i) in detailItem.images" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }" @error="e => e.target.style.display='none'">
                         </div>
+                        <div v-if="detailItem.attachments && detailItem.attachments.length" class="attachment-list">
+                            <div v-for="attachment in detailItem.attachments" :key="attachment.id" class="attachment-item">
+                                <div class="attachment-title"><strong>{{ attachment.name || '附件' }}</strong><span>{{ attachment.kind }}</span></div>
+                                <audio v-if="attachment.kind === 'audio'" controls preload="metadata" :src="attachment.url"></audio>
+                                <video v-else-if="attachment.kind === 'video'" controls preload="metadata" :src="attachment.url"></video>
+                                <img v-else-if="attachment.kind === 'image'" :src="attachment.url" @click="imageViewer = { visible: true, src: attachment.url }">
+                                <a v-else :href="attachment.url" target="_blank">打开附件</a>
+                                <p v-if="attachment.transcript" class="attachment-transcript">{{ attachment.transcript }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -364,30 +491,78 @@
         </div>
 
         <!-- Modal: Diary Editor -->
-        <div v-if="showDiaryEditorModal" class="modal-overlay" @click.self="showDiaryEditorModal = false">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3>{{ editingDiaryId ? '编辑日记' : '写日记' }}</h3>
-                    <button class="modal-close" @click="showDiaryEditorModal = false">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-x"/></svg>
-                    </button>
-                </div>
-                <form @submit.prevent="saveDiary">
-                    <div class="modal-body">
-                        <div class="field">
-                            <label>内容</label>
-                            <textarea v-model="diaryContent" rows="12" placeholder="今天发生了什么有趣的事？&#10;支持 Markdown 格式" required></textarea>
-                        </div>
-                        <div class="field">
-                            <label>标签</label>
-                            <input type="text" v-model="diaryTags" placeholder="用逗号分隔，如：工作, 阅读, 健身">
-                        </div>
+        <div v-if="showDiaryEditorModal" class="modal-overlay diary-editor-overlay" @click.self="closeDiaryEditor">
+            <div class="modal diary-editor-modal">
+                <div class="modal-header diary-editor-header">
+                    <div class="diary-title-group">
+                        <button class="diary-back" type="button" title="返回日记" @click="closeDiaryEditor"><span aria-hidden="true">←</span></button>
+                        <div><strong>{{ editingDiaryId ? '编辑日记' : '写日记' }}</strong><small>{{ diaryDateLabel }}</small></div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn" @click="showDiaryEditorModal = false">取消</button>
-                        <button type="submit" class="btn btn-primary" :disabled="savingDiary">
-                            {{ savingDiary ? '保存中...' : '保存' }}
-                        </button>
+                    <div class="diary-editor-state">
+                        <span :class="{ saved: diaryDraftStatus === '草稿已保存' }"></span>
+                        {{ diaryDraftStatus || (diaryHasUnsavedChanges ? '尚未保存' : '已同步') }}
+                    </div>
+                    <div class="diary-header-actions">
+                        <button class="diary-preview-toggle" type="button" :class="{ active: showDiaryPreview }" @click="showDiaryPreview = !showDiaryPreview">{{ showDiaryPreview ? '退出预览' : '预览' }}</button>
+                    </div>
+                </div>
+                <form class="diary-editor-form" @submit.prevent="saveDiary">
+                    <div class="diary-editor-body">
+                        <section class="diary-writing-pane">
+                            <div class="diary-format-toolbar" role="toolbar" aria-label="Markdown 格式工具">
+                                <button type="button" title="标题" @click="insertDiaryLinePrefix('## ')">H2</button>
+                                <button type="button" title="粗体" @click="insertDiaryText('**', '**')"><strong>B</strong></button>
+                                <button type="button" title="斜体" @click="insertDiaryText('*', '*')"><em>I</em></button>
+                                <span></span>
+                                <button type="button" title="无序列表" @click="insertDiaryLinePrefix('- ')">列表</button>
+                                <button type="button" title="引用" @click="insertDiaryLinePrefix('> ')">引用</button>
+                                <button type="button" title="待办" @click="insertDiaryLinePrefix('- [ ] ')">待办</button>
+                                <span></span>
+                                <button type="button" title="链接" @click="insertDiaryText('[', '](https://)')">链接</button>
+                                <button type="button" title="代码块" @click="insertDiaryText('\n```\n', '\n```\n')">代码</button>
+                            </div>
+                            <div class="diary-writing-workspace" :class="{ previewing: showDiaryPreview }">
+                                <div class="diary-paper diary-paper-editing">
+                                    <textarea ref="diaryEditorInput" v-model="diaryContent" class="diary-content-input" :placeholder="diaryCreativePrompt + '\n\n从一句话开始…'" required></textarea>
+                                </div>
+                                <div v-if="showDiaryPreview" class="diary-paper diary-live-preview markdown-body" v-html="formatContent(diaryContent || '*你写下的文字，会在这里慢慢成形。*')"></div>
+                            </div>
+                        </section>
+                        <aside class="diary-meta-pane">
+                            <div class="diary-inspiration">
+                                <span class="diary-aside-eyebrow">INSPIRATION</span>
+                                <h3>灵感边栏</h3>
+                                <p>不知道从哪里开始时，选一个问题。</p>
+                                <button v-for="prompt in diaryInspirationPrompts.slice(0, 3)" :key="prompt" type="button" @click="applyDiaryPrompt(prompt)">
+                                    <span>↗</span>{{ prompt }}
+                                </button>
+                            </div>
+                            <div class="diary-meta-section">
+                                <label>此刻心情</label>
+                                <div class="mood-presets">
+                                    <button v-for="mood in ['平静','开心','专注','疲惫','低落','期待']" :key="mood" type="button" :class="{ active: diaryMood === mood }" @click="diaryMood = diaryMood === mood ? '' : mood">{{ mood }}</button>
+                                </div>
+                                <input type="text" v-model="diaryMood" placeholder="也可以自定义心情">
+                            </div>
+                            <div class="diary-meta-section">
+                                <label>标签</label>
+                                <input type="text" v-model="diaryTags" placeholder="工作, 阅读, 健身">
+                                <small>使用逗号分隔多个标签</small>
+                            </div>
+                            <div class="diary-writing-info">
+                                <div><strong>{{ diaryCharacterCount }}</strong><span>字符</span></div>
+                                <div><strong>{{ diaryReadingMinutes }}</strong><span>分钟阅读</span></div>
+                            </div>
+                        </aside>
+                    </div>
+                    <div class="modal-footer diary-editor-footer">
+                        <div><span>草稿会自动保存在这台电脑</span><kbd>Ctrl/⌘ + S</kbd></div>
+                        <div>
+                            <button type="button" class="diary-cancel" @click="closeDiaryEditor">稍后再写</button>
+                            <button type="submit" class="diary-publish" :disabled="savingDiary || !diaryContent.trim()">
+                                {{ savingDiary ? '保存中...' : (editingDiaryId ? '保存这次修改' : '收进今天的日记') }}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -423,7 +598,7 @@
         <div v-if="showAddBookModal" class="modal-overlay" @click.self="showAddBookModal = false">
             <div class="modal modal-sm">
                 <div class="modal-header">
-                    <h3>添加书籍</h3>
+                    <h3>{{ editingBookId ? '编辑书籍' : '添加书籍' }}</h3>
                     <button class="modal-close" @click="showAddBookModal = false">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#ico-x"/></svg>
                     </button>
@@ -434,12 +609,37 @@
                             <label>书名</label>
                             <input type="text" v-model="newBookTitle" placeholder="输入书名" required>
                         </div>
+                        <div class="field"><label>作者</label><input type="text" v-model="newBookAuthor" placeholder="作者"></div>
+                        <div class="field"><label>分类</label><input type="text" v-model="newBookCategory" placeholder="分类"></div>
+                        <div class="field"><label>封面地址</label><input type="url" v-model="newBookCover" placeholder="https://..."></div>
+                        <div class="field"><label>简介</label><textarea v-model="newBookIntroduction" rows="4" placeholder="书籍简介"></textarea></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn" @click="showAddBookModal = false">取消</button>
                         <button type="submit" class="btn btn-primary" :disabled="addingBook">
-                            {{ addingBook ? '添加中...' : '添加' }}
+                            {{ addingBook ? '保存中...' : '保存' }}
                         </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Viewpoint Editor -->
+        <div v-if="showViewpointModal" class="modal-overlay" @click.self="showViewpointModal = false">
+            <div class="modal modal-lg viewpoint-editor-modal">
+                <div class="modal-header">
+                    <h3>{{ editingViewpointId ? '编辑读书感悟' : '添加读书感悟' }}</h3>
+                    <button class="modal-close" @click="showViewpointModal = false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ico-x"/></svg></button>
+                </div>
+                <form @submit.prevent="saveViewpoint">
+                    <div class="modal-body">
+                        <div class="field"><label>标题</label><input v-model="viewpointTitle" required placeholder="这条感悟的核心观点"></div>
+                        <div class="field"><label>内容</label><textarea v-model="viewpointContent" rows="14" placeholder="写下理解、疑问或对自己的启发，支持 Markdown"></textarea></div>
+                        <div class="field"><label>案例或引用</label><textarea v-model="viewpointExample" rows="4" placeholder="相关案例、书摘或实践"></textarea></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" @click="showViewpointModal = false">取消</button>
+                        <button type="submit" class="btn btn-primary" :disabled="savingViewpoint">{{ savingViewpoint ? '保存中…' : '保存' }}</button>
                     </div>
                 </form>
             </div>
@@ -481,7 +681,6 @@
 
     <script src="/website/js/lib/vue.global.prod.min.js"></script>
     <script src="/website/js/lib/marked.min.js"></script>
-    <script src="/website/js/lib/chart.umd.min.js"></script>
     <script src="/website/js/app.js"></script>
 </body>
 </html>

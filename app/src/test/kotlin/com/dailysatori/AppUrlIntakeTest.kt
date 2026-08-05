@@ -2,6 +2,7 @@ package com.dailysatori
 
 import androidx.work.OutOfQuotaPolicy
 import com.dailysatori.core.worker.buildArticleSaveWorkRequest
+import com.dailysatori.core.worker.shouldRetryArticleResume
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -329,14 +330,14 @@ class AppUrlIntakeTest {
     }
 
     @Test
-    fun articleProcessingQueueRunsOneArticleAtATimeAndQueuesNewArticles() {
+    fun articleProcessingQueueUsesBoundedOverlapAndQueuesNewArticles() {
         val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
         val saveNewArticle = source.substringAfter("val ownsProcessing = markArticleActive(articleId)")
             .substringBefore("val state = mutableMapOf<Long, ArticleProcessingState>()")
         val enqueueIndex = saveNewArticle.indexOf("enqueueArticleProcessing(articleId)")
         val returnIndex = saveNewArticle.indexOf("return articleId")
 
-        assertTrue(source.contains("const val MAX_CONCURRENT_PROCESSING = 1"))
+        assertTrue(source.contains("const val MAX_CONCURRENT_PROCESSING = 2"))
         assertTrue(enqueueIndex >= 0)
         assertTrue(returnIndex >= 0)
         assertTrue(enqueueIndex < returnIndex)
@@ -396,6 +397,18 @@ class AppUrlIntakeTest {
             .substringBefore("private fun enqueueArticleProcessing")
 
         assertTrue(resumeCatch.contains("shouldPersistArticleProcessingError"))
+        assertTrue(resumeCatch.contains("article(s) remain incomplete"))
+    }
+
+    @Test
+    fun resumeWorkerRetriesIncompleteArticlesWithABoundedAttemptCount() {
+        assertTrue(shouldRetryArticleResume(0))
+        assertTrue(shouldRetryArticleResume(1))
+        assertFalse(shouldRetryArticleResume(2))
+
+        val source = File("src/main/kotlin/com/dailysatori/core/worker/ArticleProcessingWorker.kt").readText()
+        val resumeMode = source.substringAfter("MODE_RESUME ->").substringBefore("else -> Result.failure()")
+        assertTrue(resumeMode.contains("shouldRetryArticleResume(runAttemptCount)"))
     }
 
     @Test

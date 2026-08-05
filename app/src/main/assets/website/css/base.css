@@ -40,6 +40,13 @@
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     --font-heading: 'Lora', Georgia, 'Times New Roman', serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    --journal-bg: #EAE4D8;
+    --journal-paper: #FFFDF8;
+    --journal-ink: #292621;
+    --journal-muted: #8A8175;
+    --journal-accent: #A35D3D;
+    --journal-accent-soft: #F2E5DB;
+    --journal-line: #E8DED0;
     --transition: 0.15s ease;
     --transition-slow: 0.25s ease;
 }
@@ -69,6 +76,13 @@
     --sidebar-active-bg: #1E1B4B;
     --sidebar-active-text: #818CF8;
     --sidebar-border: #334155;
+    --journal-bg: #171512;
+    --journal-paper: #211E1A;
+    --journal-ink: #EEE8DE;
+    --journal-muted: #9C9286;
+    --journal-accent: #D18A68;
+    --journal-accent-soft: #3A2921;
+    --journal-line: #383129;
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
@@ -102,6 +116,13 @@
         --sidebar-active-bg: #1E1B4B;
         --sidebar-active-text: #818CF8;
         --sidebar-border: #334155;
+        --journal-bg: #171512;
+        --journal-paper: #211E1A;
+        --journal-ink: #EEE8DE;
+        --journal-muted: #9C9286;
+        --journal-accent: #D18A68;
+        --journal-accent-soft: #3A2921;
+        --journal-line: #383129;
         --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
         --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);

@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.remotenews
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.config.RemoteNewsConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
@@ -65,6 +66,7 @@ class RemoteNewsViewModel(
     private val remoteArticleSyncRepo: RemoteArticleSyncRepository,
     private val remoteArticleSyncService: RemoteArticleSyncService,
     private val remoteArticleFavoriteService: RemoteArticleFavoriteService,
+    private val postProcessingScheduler: ArticlePostProcessingScheduler,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsState())
     val state: StateFlow<RemoteNewsState> = _state.asStateFlow()
@@ -163,6 +165,14 @@ class RemoteNewsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val result = remoteArticleFavoriteService.toggleFavorite(article, localId)
+                if (result.isFavorite) {
+                    result.localArticle?.id?.let { articleId ->
+                        postProcessingScheduler.enqueueRemoteArticlePostProcessing(
+                            articleId,
+                            result.needsReprocessing,
+                        )
+                    }
+                }
                 _state.update { state ->
                     if (state.selectedArticle?.id == article.id) {
                         state.copy(

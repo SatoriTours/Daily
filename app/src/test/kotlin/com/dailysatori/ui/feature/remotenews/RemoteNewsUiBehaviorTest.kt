@@ -166,12 +166,15 @@ class RemoteNewsUiBehaviorTest {
         val unifiedNewsViewModel = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val service = File("../shared/src/commonMain/kotlin/com/dailysatori/service/remotenews/RemoteArticleFavoriteService.kt").readText()
         val sharedDi = File("../shared/src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
+        val handler = File("src/main/kotlin/com/dailysatori/core/task/ArticlePostProcessingTaskHandlers.kt").readText()
 
         assertTrue(remoteNewsViewModel.contains("remoteArticleFavoriteService.toggleFavorite(article, localId)"))
         assertTrue(unifiedNewsViewModel.contains("remoteArticleFavoriteService.toggleFavorite(article, localId)"))
         assertTrue(service.contains("needsLocalAiReprocessingForChineseOutput"))
-        assertTrue(service.contains("webpageParserService.reprocessArticle(saved.id)"))
-        assertTrue(sharedDi.contains("RemoteArticleFavoriteService(get(), get())"))
+        assertTrue(remoteNewsViewModel.contains("enqueueRemoteArticlePostProcessing"))
+        assertTrue(unifiedNewsViewModel.contains("enqueueRemoteArticlePostProcessing"))
+        assertTrue(handler.contains("parser.reprocessArticle(articleId)"))
+        assertTrue(sharedDi.contains("RemoteArticleFavoriteService(get())"))
     }
 
     @Test

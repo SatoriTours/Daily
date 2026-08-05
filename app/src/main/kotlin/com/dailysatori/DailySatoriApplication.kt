@@ -10,7 +10,10 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.core.worker.BackupScheduler
+import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
+import com.dailysatori.core.worker.WeeklySummaryScheduler
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.migration.DatabaseMigration
@@ -34,10 +37,14 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         encryptStoredSecrets()
-        get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAndEnqueueRunnable()
+        get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
         BackupScheduler(this).ensureScheduled()
         UnifiedNewsScheduler(this).ensureScheduled()
+        get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).enqueuePeriodic(
+            get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).getEnabled(),
+        )
+        WeeklySummaryScheduler(this).ensureScheduled()
         I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
         if (com.dailysatori.BuildConfig.DEBUG) {
             GlobalScope.launch(Dispatchers.IO) {

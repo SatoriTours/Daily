@@ -704,7 +704,7 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun importerFailureAfterSuccessfulFetchDoesNotFailSourceSync() = runBlocking {
+    fun importerFailureAfterSuccessfulFetchFailsSyncSoTaskCanRetry() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             val connector = FakeConnector(
@@ -718,15 +718,16 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.recent)
+            assertFailsWith<IllegalStateException> {
+                service.syncSource(sourceId, FavoriteSyncMode.recent)
+            }
 
             sources.getById(sourceId)!!.let { source ->
-                assertEquals("idle", source.status)
-                assertEquals(1, source.last_items_seen_count)
-                assertEquals(1, source.last_pages_seen_count)
-                assertTrue(source.last_success_at != null)
-                assertEquals("", source.last_error_code)
+                assertEquals("failed", source.status)
+                assertEquals(null, source.last_success_at)
+                assertEquals("sync_failed", source.last_error_code)
             }
+            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id })
         }
     }
 
@@ -770,7 +771,7 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun organizerFailureAfterSuccessfulFetchDoesNotFailSourceSync() = runBlocking {
+    fun organizerFailureAfterSuccessfulFetchFailsSyncSoTaskCanRetry() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             val connector = FakeConnector(
@@ -784,15 +785,16 @@ class FavoriteSyncServiceTest {
                 organizePending = { error("organizer failed after fetch") },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.recent)
+            assertFailsWith<IllegalStateException> {
+                service.syncSource(sourceId, FavoriteSyncMode.recent)
+            }
 
             sources.getById(sourceId)!!.let { source ->
-                assertEquals("idle", source.status)
-                assertEquals(1, source.last_items_seen_count)
-                assertEquals(1, source.last_pages_seen_count)
-                assertTrue(source.last_success_at != null)
-                assertEquals("", source.last_error_code)
+                assertEquals("failed", source.status)
+                assertEquals(null, source.last_success_at)
+                assertEquals("sync_failed", source.last_error_code)
             }
+            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id })
         }
     }
 
@@ -1458,6 +1460,63 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun organizerPropagatesCancellationFromSupplementFetch() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-cancel", text = "短"))
+            val articleId = articles.insert(
+                title = "Imported favorite",
+                aiContent = "短",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\n短\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-cancel",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+
+            assertFailsWith<CancellationException> {
+                ExternalFavoriteAiOrganizer(
+                    itemRepo = items,
+                    articleRepo = articles,
+                    supplementResolver = object : ExternalFavoriteSupplementResolver {
+                        override suspend fun resolve(
+                            item: com.dailysatori.shared.db.External_favorite_item,
+                            input: ExternalFavoriteAiInput,
+                            httpLogger: FavoriteSyncHttpLogger,
+                            taskId: Long?,
+                        ): ExternalFavoriteSupplement? = throw CancellationException("cancel supplement")
+                    },
+                    generateAnalysis = { ExternalFavoriteAiAnalysis("title", "summary", "markdown") },
+                ).organizePending(limit = 10)
+            }
+        }
+    }
+
+    @Test
+    fun organizerPropagatesCancellationFromAiRequest() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-ai-cancel", text = "正文足够长，不需要补充抓取。"))
+            val articleId = articles.insert(
+                title = "Imported favorite",
+                aiContent = "正文足够长，不需要补充抓取。",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\n正文足够长，不需要补充抓取。\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-ai-cancel",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+
+            assertFailsWith<CancellationException> {
+                ExternalFavoriteAiOrganizer(
+                    itemRepo = items,
+                    articleRepo = articles,
+                    retryDelayMs = 0,
+                    generateAnalysis = { throw CancellationException("cancel AI") },
+                ).organizePending(limit = 10)
+            }
+        }
+    }
+
+    @Test
     fun supplementResolverRoutesWebAndXArticleUrlsToMatchingFetcher() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -1474,7 +1533,7 @@ class FavoriteSyncServiceTest {
                 xDraft(
                     "post-article",
                     text = "短",
-                    normalizedJson = """{"id":"post-article","primary_url":"https://x.com/i/article/1234567890"}""",
+                    normalizedJson = """{"id":"post-article","primary_url":"https://x.com/i/article/1234567890","canonical_tweet_url":"https://x.com/daily/status/9876543210"}""",
                 ),
             )
             val calls = mutableListOf<String>()
@@ -1487,8 +1546,8 @@ class FavoriteSyncServiceTest {
                     calls += "status:$url"
                     ExternalFavoriteSupplement(url, "Status", "推文正文", "x_status")
                 },
-                fetchXArticleSupplement = { url, _, _ ->
-                    calls += "article:$url"
+                fetchXArticleSupplement = { url, postId, _, _ ->
+                    calls += "article:$url:$postId"
                     ExternalFavoriteSupplement(url, "Article", "X 文章正文", "x_article")
                 },
             )
@@ -1501,7 +1560,7 @@ class FavoriteSyncServiceTest {
             assertEquals(
                 listOf(
                     "web:https://example.com/article",
-                    "article:https://x.com/i/article/1234567890",
+                    "article:https://x.com/i/article/1234567890:9876543210",
                 ),
                 calls,
             )
@@ -1593,6 +1652,47 @@ class FavoriteSyncServiceTest {
             assertEquals(4, organized)
             assertEquals(2, maxActive)
         }
+    }
+
+    @Test
+    fun organizerRetriesTransientAiFailureWithinSameSync() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-transient", text = "原文内容足够用于整理"))
+            val articleId = articles.insert(
+                title = "Transient favorite",
+                aiContent = "原文内容足够用于整理",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\n原文内容足够用于整理\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-transient",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            var attempts = 0
+
+            val organized = ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                retryDelayMs = 0,
+                generateAnalysis = {
+                    attempts += 1
+                    if (attempts < 3) error("HTTP 503 temporary overload")
+                    ExternalFavoriteAiAnalysis("AI title", "AI summary", "AI markdown")
+                },
+            ).organizePendingForSource(sourceId, limit = 1)
+
+            assertEquals(1, organized)
+            assertEquals(3, attempts)
+            assertEquals("completed", items.getBySource(sourceId).single().ai_status)
+            assertTrue(articles.getById(articleId)!!.ai_markdown_content.orEmpty().contains("AI markdown"))
+        }
+    }
+
+    @Test
+    fun organizerDoesNotRetryPermanentAiConfigurationFailure() = runBlocking {
+        assertFalse(isRetryableExternalFavoriteAiFailure(IllegalStateException("AI config not set")))
+        assertFalse(isRetryableExternalFavoriteAiFailure(IllegalStateException("HTTP 401 unauthorized")))
+        assertTrue(isRetryableExternalFavoriteAiFailure(IllegalStateException("HTTP 429 rate limited")))
+        assertTrue(isRetryableExternalFavoriteAiFailure(IllegalStateException("socket timeout")))
     }
 
     @Test

@@ -88,7 +88,7 @@ class FavoriteSyncService(
             )
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Throwable) {
+        } catch (error: Exception) {
             val status = error.syncFailureStatus()
             sourceRepo.markSyncFailed(
                 id = sourceId,
@@ -173,15 +173,7 @@ class FavoriteSyncService(
         )
     }
 
-    private suspend fun runLocalWorkStep(block: suspend () -> Unit) {
-        try {
-            block()
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Throwable) {
-            // Local import/repair/AI failures should not invalidate the provider fetch.
-        }
-    }
+    private suspend fun runLocalWorkStep(block: suspend () -> Unit) = block()
 
     private suspend fun refreshSourceAuth(sourceId: Long, connector: FavoriteConnector) {
         val current = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")

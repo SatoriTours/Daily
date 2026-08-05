@@ -3,6 +3,7 @@ package com.dailysatori.service.externalfavorites
 import co.touchlab.kermit.Logger
 import com.dailysatori.shared.db.External_favorite_source
 import com.dailysatori.shared.isDevelopmentBuild
+import com.dailysatori.service.mapConcurrently
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.forms.submitForm
@@ -10,6 +11,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.parameters
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
@@ -191,15 +193,24 @@ class XBookmarksConnector(
         val referencedIdsByExternalId = page.items.associate { item ->
             item.externalId to xReferencedPostIdsFromDraft(item)
         }
-        val fetchedPosts = page.items
+        val referencedPostIds = page.items
             .filter(shouldFetchDetail)
             .filter(::xShouldLookupReferencedPostDuringBookmarkFetch)
             .map { item -> referencedIdsByExternalId[item.externalId].orEmpty() }
             .flatten()
             .distinct()
-            .associateWith { postId ->
-                runCatching { fetchPostById(source, postId, httpLogger, taskId) }.getOrNull()
+        val fetchedPosts = referencedPostIds
+            .mapConcurrently(X_DETAIL_CONCURRENCY) { postId ->
+                val post = try {
+                    fetchPostById(source, postId, httpLogger, taskId)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    null
+                }
+                postId to post
             }
+            .toMap()
         val referencedEnrichedItems = page.items.map { item ->
             if (!shouldFetchDetail(item)) return@map item
             referencedIdsByExternalId[item.externalId]
@@ -208,51 +219,6 @@ class XBookmarksConnector(
                 ?: item
         }
         return page.copy(items = referencedEnrichedItems)
-    }
-
-    suspend fun fetchArticleById(
-        source: External_favorite_source,
-        articleId: String,
-        httpLogger: FavoriteSyncHttpLogger,
-        taskId: Long?,
-    ): ExternalFavoriteItemDraft? {
-        val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch X articles")
-        val token = extractXAccessToken(source.auth_json)
-            ?: error("X auth_json must contain access_token, bearer_token, or token")
-        val requestUrl = "$apiBaseUrl/2/posts/${articleId.trim()}"
-        val requestParameters = xPostLookupRequestParameters()
-        httpLogger.logRequest(
-            taskId = taskId,
-            label = "article_lookup",
-            method = "GET",
-            url = requestUrl,
-            parameters = requestParameters,
-        )
-        val response = httpClient.get(requestUrl) {
-            bearerAuth(token)
-            requestParameters.forEach { (key, value) -> parameter(key, value) }
-        }
-        val body = response.bodyAsText()
-        httpLogger.logResponse(
-            taskId = taskId,
-            label = "article_lookup",
-            statusCode = response.status.value,
-            headers = xDiagnosticHeaders(response.headers[X_RATE_LIMIT_RESET_HEADER]),
-            body = body,
-        )
-        logXApiResponseBody(
-            label = "article_lookup",
-            statusCode = response.status.value,
-            metadata = "account=${source.account_id}, articleId=${articleId.trim()}",
-            body = body,
-        )
-        return parseXPostLookupHttpResponse(
-            statusCode = response.status.value,
-            body = body,
-            headers = mapOf(
-                X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty(),
-            ),
-        )
     }
 
     private fun logXApiResponseBody(
@@ -311,6 +277,7 @@ private const val X_BOOKMARKS_EXPANSIONS = "author_id,attachments.media_keys,ref
 private const val X_BOOKMARKS_MEDIA_FIELDS = "media_key,type,url,preview_image_url,alt_text,width,height"
 private const val X_API_LOG_CHUNK_SIZE = 3_000
 private const val MIN_BOOKMARK_TEXT_FOR_DETAIL_LOOKUP = 20
+private const val X_DETAIL_CONCURRENCY = 3
 
 private fun xBookmarksRequestParameters(pageSize: Int, cursor: String?): Map<String, String> = buildMap {
     put("max_results", pageSize.toString())
@@ -409,12 +376,6 @@ private fun xEffectiveFavoriteTextLength(value: String): Int =
         .filterNot { line -> line.matches(Regex("""^(?:https?://|t\.co/)\S+$""", RegexOption.IGNORE_CASE)) }
         .joinToString("")
         .length
-
-internal fun xArticleIdFromUrl(url: String): String? =
-    Regex("""^https?://(?:mobile\.)?(?:twitter\.com|x\.com)/i/article/(\d+)(?:[/?#].*)?$""", RegexOption.IGNORE_CASE)
-        .matchEntire(url.trim())
-        ?.groupValues
-        ?.getOrNull(1)
 
 internal fun xBookmarkItemWithFetchedReferencedPost(
     item: ExternalFavoriteItemDraft,

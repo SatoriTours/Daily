@@ -31,4 +31,25 @@ class AsyncTaskWorkerSourceTest {
         assertTrue(persistence.contains("taskScheduler.enqueue(taskId)"))
         assertTrue(worker.contains("recoverAndEnqueueRunnable()"))
     }
+
+    @Test
+    fun networkAndLongRunningTasksHaveBackgroundExecutionGuards() {
+        val source = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
+
+        assertTrue(source.contains("NetworkType.CONNECTED"))
+        assertTrue(source.contains("setForeground(createAsyncTaskForegroundInfo"))
+        assertTrue(source.contains("enqueueSequential("))
+        assertTrue(source.contains("KEY_CONTINUE_CHAIN_ON_FAILURE"))
+    }
+
+    @Test
+    fun processStartReleasesRunningLeasesAndSchedulerCanCancelExactTask() {
+        val worker = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
+        val application = File("src/main/kotlin/com/dailysatori/DailySatoriApplication.kt").readText()
+
+        assertTrue(worker.contains("fun cancel(taskId: Long)"))
+        assertTrue(worker.contains("cancelUniqueWork(asyncTaskWorkName(taskId))"))
+        assertTrue(worker.contains("markRunningForRetryAfterProcessRestart"))
+        assertTrue(application.contains("recoverAfterProcessStart()"))
+    }
 }

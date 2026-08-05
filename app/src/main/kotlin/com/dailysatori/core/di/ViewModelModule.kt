@@ -120,6 +120,7 @@ val viewModelModule: Module = module {
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
             articleProcessingScheduler = get(),
+            postProcessingScheduler = get(),
         )
     }
     viewModel { params ->
@@ -127,7 +128,7 @@ val viewModelModule: Module = module {
             articleId = params.get<Long>(),
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
-            memoryExtractService = get<MemoryExtractService>(),
+            postProcessingScheduler = get(),
             webpageParserService = get<WebpageParserService>(),
         )
     }
@@ -255,6 +256,7 @@ val viewModelModule: Module = module {
             remoteArticleSyncRepo = get(),
             remoteArticleSyncService = get(),
             remoteArticleFavoriteService = get(),
+            postProcessingScheduler = get(),
             isDebugBuild = com.dailysatori.BuildConfig.DEBUG,
         )
     }
@@ -267,6 +269,7 @@ val viewModelModule: Module = module {
             remoteArticleSyncRepo = get(),
             remoteArticleSyncService = get(),
             remoteArticleFavoriteService = get(),
+            postProcessingScheduler = get(),
         )
     }
     viewModel {

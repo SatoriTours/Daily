@@ -10,6 +10,8 @@ import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewPageContent
 import com.dailysatori.platform.WebViewLoader
+import com.dailysatori.service.mapConcurrently
+import com.dailysatori.service.retryTransientFailure
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.externalfavorites.ExternalFavoriteItemDraft
@@ -547,6 +549,15 @@ fun sanitizeArticleAiTitle(value: String?): String? {
 internal fun shouldPersistArticleProcessingError(error: Throwable): Boolean =
     error !is CancellationException || error is TimeoutCancellationException
 
+internal fun isRetryableArticleExtractionFailure(error: Throwable): Boolean {
+    val status = Regex("""WebView HTTP error:\s*(\d{3})""", RegexOption.IGNORE_CASE)
+        .find(error.message.orEmpty())
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.toIntOrNull()
+    return status == null || status == 408 || status == 425 || status == 429 || status >= 500
+}
+
 class WebpageParserService(
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
@@ -570,40 +581,50 @@ class WebpageParserService(
 
     suspend fun resumeInterruptedProcessing() {
         withContext(Dispatchers.IO) {
-            articleRepo.getRecoverableForProcessingSync()
+            val failures = articleRepo.getRecoverableForProcessingSync()
                 .filter { isRecoverableArticleForProcessing(it.status, it.ai_content, it.ai_markdown_content) }
-                .forEach { article ->
-                    if (!markArticleActive(article.id)) {
-                        enqueueArticleProcessing(article.id)
-                        return@forEach
-                    }
-                    try {
-                        val extracted = existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }
-                        if (extracted != null) {
-                            articleRepo.update(
-                                id = article.id,
-                                title = extracted.title ?: article.title,
-                                aiTitle = article.ai_title,
-                                aiContent = article.ai_content,
-                                aiMarkdownContent = article.ai_markdown_content,
-                                url = article.url,
-                                isFavorite = article.is_favorite ?: 0L,
-                                comment = article.comment,
-                                status = "webContentFetched",
-                                coverImage = article.cover_image,
-                                coverImageUrl = extracted.coverImageUrl ?: article.cover_image_url,
-                                pubDate = article.pub_date,
-                            )
-                        }
-                        processAiTasks(article.id, extracted)
-                    } catch (e: Exception) {
-                        if (!shouldPersistArticleProcessingError(e)) throw e
-                        log.e(e) { "Interrupted article processing failed: articleId=${article.id}" }
-                    } finally {
-                        finishQueuedArticle(article.id)
-                    }
-                }
+                .mapConcurrently(MAX_CONCURRENT_PROCESSING, ::resumeArticleProcessing)
+                .filterNotNull()
+            if (failures.isNotEmpty()) {
+                throw IllegalStateException("${failures.size} article(s) remain incomplete", failures.first())
+            }
         }
+    }
+
+    private suspend fun resumeArticleProcessing(article: Article): Throwable? {
+        if (!markArticleActive(article.id)) {
+            enqueueArticleProcessing(article.id)
+            return null
+        }
+        return try {
+            val extracted = existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }
+            if (extracted != null) updateArticleAfterExtraction(article, extracted)
+            processAiTasks(article.id, extracted)
+            null
+        } catch (error: Exception) {
+            if (!shouldPersistArticleProcessingError(error)) throw error
+            log.e(error) { "Interrupted article processing failed: articleId=${article.id}" }
+            error
+        } finally {
+            finishQueuedArticle(article.id)
+        }
+    }
+
+    private fun updateArticleAfterExtraction(article: Article, extracted: ExtractedContent) {
+        articleRepo.update(
+            id = article.id,
+            title = extracted.title ?: article.title,
+            aiTitle = article.ai_title,
+            aiContent = article.ai_content,
+            aiMarkdownContent = article.ai_markdown_content,
+            url = article.url,
+            isFavorite = article.is_favorite ?: 0L,
+            comment = article.comment,
+            status = "webContentFetched",
+            coverImage = article.cover_image,
+            coverImageUrl = extracted.coverImageUrl ?: article.cover_image_url,
+            pubDate = article.pub_date,
+        )
     }
 
     suspend fun saveWebpage(
@@ -1046,40 +1067,46 @@ class WebpageParserService(
     suspend fun extractContent(url: String): ExtractedContent {
         return withContext(Dispatchers.Default) {
             try {
-                val page = suspendCancellableCoroutine<WebViewPageContent> { cont ->
-                    val handle = webViewLoader.loadContent(url, WebViewConfig.timeoutMs) { result ->
-                        if (!cont.isActive) return@loadContent
-                        result.fold(
-                            onSuccess = { cont.resume(it) },
-                            onFailure = { cont.resumeWithException(it) }
-                        )
-                    }
-                    cont.invokeOnCancellation { handle.cancel() }
+                retryTransientFailure(
+                    maxAttempts = ARTICLE_EXTRACTION_MAX_ATTEMPTS,
+                    initialDelayMs = ARTICLE_EXTRACTION_RETRY_DELAY_MS,
+                    shouldRetry = ::isRetryableArticleExtractionFailure,
+                ) {
+                    extractContentOnce(url)
                 }
-
-                val html = page.html
-                if (isWebViewNetworkErrorContent(page.text, html)) throw IllegalStateException("WebView loaded a network error page")
-                val title = page.readableTitle?.trim()?.takeIf { it.isNotBlank() } ?: extractTitle(html)
-                val coverImageUrl = extractCoverImageUrl(html, url)
-                val imageUrls = extractContentImageUrls(html, url)
-                val textContent = page.summaryTextOrHtmlFallback().let { content ->
-                    if (content == html) extractTextContent(html) else content
-                }
-                val usableContent = usableArticleContentOrThrow(textContent, url)
-                ExtractedContent(
-                    title = title,
-                    content = usableContent.take(AIConfig.maxContentLength.toInt()),
-                    htmlContent = html,
-                    coverImageUrl = coverImageUrl,
-                    readableHtmlContent = page.readableContent,
-                    imageUrls = imageUrls,
-                )
             } catch (e: Exception) {
                 if (!shouldPersistArticleProcessingError(e)) throw e
                 log.e(e) { "Content extraction failed for $url" }
                 failedExtractionFallback(url)
             }
         }
+    }
+
+    private suspend fun extractContentOnce(url: String): ExtractedContent {
+        val page = suspendCancellableCoroutine<WebViewPageContent> { cont ->
+            val handle = webViewLoader.loadContent(url, WebViewConfig.timeoutMs) { result ->
+                if (!cont.isActive) return@loadContent
+                result.fold(
+                    onSuccess = { cont.resume(it) },
+                    onFailure = { cont.resumeWithException(it) },
+                )
+            }
+            cont.invokeOnCancellation { handle.cancel() }
+        }
+        val html = page.html
+        if (isWebViewNetworkErrorContent(page.text, html)) throw IllegalStateException("WebView loaded a network error page")
+        val title = page.readableTitle?.trim()?.takeIf { it.isNotBlank() } ?: extractTitle(html)
+        val coverImageUrl = extractCoverImageUrl(html, url)
+        val imageUrls = extractContentImageUrls(html, url)
+        val textContent = page.summaryTextOrHtmlFallback().let { if (it == html) extractTextContent(html) else it }
+        return ExtractedContent(
+            title = title,
+            content = usableArticleContentOrThrow(textContent, url).take(AIConfig.maxContentLength.toInt()),
+            htmlContent = html,
+            coverImageUrl = coverImageUrl,
+            readableHtmlContent = page.readableContent,
+            imageUrls = imageUrls,
+        )
     }
 
     private suspend fun fetchXPostExtractedContent(url: String): ExtractedContent {
@@ -1342,7 +1369,9 @@ class WebpageParserService(
     }
 
     private companion object {
-        const val MAX_CONCURRENT_PROCESSING = 1
+        const val MAX_CONCURRENT_PROCESSING = 2
+        const val ARTICLE_EXTRACTION_MAX_ATTEMPTS = 2
+        const val ARTICLE_EXTRACTION_RETRY_DELAY_MS = 500L
     }
 }
 

@@ -32,10 +32,12 @@ class GitHubStarsConnectorTest {
     }
 
     @Test
-    fun fetchesStarMetadataAndReadmeForAiSearch() = runBlocking {
+    fun richStarMetadataSkipsOneReadmeRequestPerRepository() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
         val client = HttpClient(MockEngine) {
             engine {
                 addHandler { request ->
+                    requestedPaths += request.url.encodedPath
                     when (request.url.encodedPath) {
                         "/user/starred" -> respond(
                             content = STAR_RESPONSE,
@@ -44,7 +46,6 @@ class GitHubStarsConnectorTest {
                                 "Link" to listOf("<https://api.github.com/user/starred?page=2>; rel=\"next\""),
                             ),
                         )
-                        "/repos/owner/project/readme" -> respond("# Project\nUseful Kotlin examples")
                         else -> error("Unexpected path ${request.url.encodedPath}")
                     }
                 }
@@ -58,9 +59,33 @@ class GitHubStarsConnectorTest {
         assertEquals("owner/project", item.title)
         assertEquals("https://github.com/owner/project", item.canonicalUrl)
         assertEquals(1_788_220_800_000L, item.favoritedAt)
-        assertTrue(item.text.contains("Useful Kotlin examples"))
         assertTrue(item.text.contains("主要语言：Kotlin"))
         assertEquals("2", page.nextCursor)
+        assertEquals(listOf("/user/starred"), requestedPaths)
+    }
+
+    @Test
+    fun sparseStarFetchesReadmeForAiSearch() = runBlocking {
+        val client = HttpClient(MockEngine) {
+            engine {
+                addHandler { request ->
+                    when (request.url.encodedPath) {
+                        "/user/starred" -> respond(
+                            """[{"starred_at":"2026-09-01T00:00:00Z","repo":{"id":456,"full_name":"owner/sparse","html_url":"https://github.com/owner/sparse","description":"","updated_at":"2026-08-31T00:00:00Z","owner":{"login":"owner"}}}]""",
+                            headers = jsonHeaders(),
+                        )
+                        "/repos/owner/sparse/readme" -> respond("# Sparse\nUseful setup and usage details")
+                        else -> error("Unexpected path ${request.url.encodedPath}")
+                    }
+                }
+            }
+        }
+
+        val item = GitHubStarsConnector(client).fetchPage(gitHubSource(), pageSize = 20).items.single()
+
+        assertTrue(item.text.contains("Useful setup and usage details"))
+        assertEquals(false, hasEnoughGitHubMetadata("short"))
+        assertEquals(true, hasEnoughGitHubMetadata("useful repository metadata"))
     }
 
     @Test

@@ -23,6 +23,7 @@ import com.dailysatori.service.externalfavorites.sourceHealth
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.External_favorite_source
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -157,8 +158,8 @@ class ExternalFavoritesSettingsViewModel(
                         authJson = githubAuthJson(token),
                         syncIntervalMinutes = 720,
                     )
+                    scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)
                     scheduler.enqueuePeriodic(sourceId, 720)
-                    scheduler.enqueue(sourceId, FavoriteSyncMode.history.name)
                 }
             }.onSuccess {
                 _state.update {
@@ -171,6 +172,7 @@ class ExternalFavoritesSettingsViewModel(
                 }
                 onConnected()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update {
                     it.copy(
                         connectingGitHub = false,
@@ -191,7 +193,8 @@ class ExternalFavoritesSettingsViewModel(
 
     fun cancelSync(sourceId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            scheduler.cancelSync(sourceId)
+            val source = sourceRepo.getById(sourceId) ?: return@launch
+            scheduler.cancelSync(source)
             _state.update {
                 it.copy(
                     syncingSourceId = if (it.syncingSourceId == sourceId) null else it.syncingSourceId,

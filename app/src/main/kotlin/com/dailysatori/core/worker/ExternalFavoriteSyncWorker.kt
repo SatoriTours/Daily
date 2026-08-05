@@ -1,12 +1,18 @@
 package com.dailysatori.core.worker
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
@@ -58,9 +64,16 @@ class ExternalFavoriteSyncScheduler(
         return null
     }
 
-    fun cancelSync(sourceId: Long) {
-        asyncTaskRepo?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.sync.name))
-        WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, FavoriteSyncMode.sync.name))
+    fun cancelSync(source: External_favorite_source) {
+        val sourceId = source.id
+        FavoriteSyncMode.entries.forEach { mode ->
+            asyncTaskRepo
+                ?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name))
+                ?.let { taskId -> asyncTaskScheduler?.cancel(taskId) }
+            WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name))
+        }
+        cancelPeriodic(sourceId)
+        enqueuePeriodic(source)
     }
 
     fun observeSync(sourceId: Long): Flow<WorkInfo?> = callbackFlow {
@@ -116,12 +129,16 @@ class ExternalFavoriteSyncWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        createExternalFavoriteForegroundInfo(applicationContext)
+
     override suspend fun doWork(): Result {
         val sourceId = inputData.getLong(KEY_SOURCE_ID, -1L)
         val mode = externalFavoriteSyncMode(inputData.getString(KEY_MODE)) ?: return Result.failure()
         if (sourceId <= 0L) return Result.failure()
 
         return try {
+            setForeground(getForegroundInfo())
             setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
             GlobalContext.get().get<FavoriteSyncService>().syncSource(sourceId, mode) { progress ->
                 setProgress(externalFavoriteSyncProgressData(progress))
@@ -204,6 +221,7 @@ internal fun buildExternalFavoritePeriodicSyncWorkRequest(
             ),
         )
         .setConstraints(constraints)
+        .setInitialDelay(intervalMinutes, TimeUnit.MINUTES)
         .build()
 }
 
@@ -214,6 +232,38 @@ internal fun externalFavoriteShouldSchedulePeriodic(enabled: Long, intervalMinut
     enabled == 1L && intervalMinutes > 0L
 
 internal const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250
+
+private fun createExternalFavoriteForegroundInfo(context: Context): ForegroundInfo {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(
+            NotificationChannel(
+                EXTERNAL_FAVORITE_CHANNEL_ID,
+                "外部收藏同步",
+                NotificationManager.IMPORTANCE_LOW,
+            ),
+        )
+    }
+    val notification = NotificationCompat.Builder(context, EXTERNAL_FAVORITE_CHANNEL_ID)
+        .setSmallIcon(android.R.drawable.stat_sys_download)
+        .setContentTitle("Daily Satori")
+        .setContentText("正在同步外部收藏…")
+        .setOngoing(true)
+        .setSilent(true)
+        .build()
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        ForegroundInfo(
+            EXTERNAL_FAVORITE_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+    } else {
+        ForegroundInfo(EXTERNAL_FAVORITE_NOTIFICATION_ID, notification)
+    }
+}
+
+private const val EXTERNAL_FAVORITE_CHANNEL_ID = "external_favorite_sync"
+private const val EXTERNAL_FAVORITE_NOTIFICATION_ID = 3101
 
 internal fun externalFavoriteSyncFailureResult(error: Exception): ListenableWorker.Result = when (error) {
     is FavoriteAuthException -> ListenableWorker.Result.failure()

@@ -15,6 +15,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -463,6 +464,35 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun fetchPagePropagatesCancellationFromReferencedPostLookup() = runBlocking {
+        val client = HttpClient(MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/2/users/account-1/bookmarks" -> respondJson(
+                    """
+                        {
+                          "data": [{
+                            "id": "bookmark-short",
+                            "text": "短",
+                            "author_id": "42",
+                            "referenced_tweets": [{"type": "quoted", "id": "100"}]
+                          }],
+                          "includes": {"users": [{"id": "42", "username": "daily", "name": "Daily"}]},
+                          "meta": {"result_count": 1}
+                        }
+                    """.trimIndent(),
+                )
+                "/2/tweets/100" -> throw CancellationException("cancel detail lookup")
+                else -> respond("unexpected path ${request.url.encodedPath}", HttpStatusCode.NotFound)
+            }
+        })
+
+        assertFailsWith<CancellationException> {
+            XBookmarksConnector(client = client).fetchPage(xTestSource(), cursor = null, pageSize = 100)
+        }
+        Unit
+    }
+
+    @Test
     fun xArticleBookmarkKeepsArticleUrlWhenMergingFetchedArticlePostContent() {
         val bookmark = ExternalFavoriteItemDraft(
             provider = ExternalFavoriteProvider.X.id,
@@ -625,20 +655,6 @@ class XBookmarksConnectorTest {
                             "users": [{"id": "42", "username": "daily", "name": "Daily"}]
                           },
                           "meta": {"result_count": 1}
-                        }
-                    """.trimIndent(),
-                )
-                "/2/posts/2010742786430021632" -> respondJson(
-                    """
-                        {
-                          "data": {
-                            "id": "2010742786430021632",
-                            "content": "API 返回的完整文章正文。",
-                            "author_id": "99"
-                          },
-                          "includes": {
-                            "users": [{"id": "99", "username": "writer", "name": "Writer"}]
-                          }
                         }
                     """.trimIndent(),
                 )

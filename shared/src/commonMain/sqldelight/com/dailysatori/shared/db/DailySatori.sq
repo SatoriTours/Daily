@@ -865,13 +865,13 @@ finishAsyncTask:
 UPDATE async_task
 SET status = ?, result_json = ?, finished_at = ?, lease_owner = NULL, lease_until_ms = NULL,
     last_error_code = ?, last_error_message = ?, updated_at = ?
-WHERE id = ?;
+WHERE id = ? AND status = 'running';
 
 markAsyncTaskRetry:
 UPDATE async_task
 SET status = ?, attempt_count = ?, run_after_ms = ?, lease_owner = NULL, lease_until_ms = NULL,
     last_error_code = ?, last_error_message = ?, updated_at = ?
-WHERE id = ?;
+WHERE id = ? AND status = 'running';
 
 cancelAsyncTask:
 UPDATE async_task
@@ -882,6 +882,11 @@ markExpiredRunningAsyncTasksForRetry:
 UPDATE async_task
 SET status = ?, lease_owner = NULL, lease_until_ms = NULL, updated_at = ?
 WHERE status = 'running' AND lease_until_ms IS NOT NULL AND lease_until_ms < ?;
+
+markRunningAsyncTasksForRetryAfterProcessRestart:
+UPDATE async_task
+SET status = ?, lease_owner = NULL, lease_until_ms = NULL, updated_at = ?
+WHERE status = 'running';
 
 -- Tag queries
 selectAllTags:

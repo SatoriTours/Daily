@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.article
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.countNewLeadingArticles
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.data.repository.ArticleRepository
@@ -38,6 +39,7 @@ class ArticlesViewModel(
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
     private val articleProcessingScheduler: ArticleProcessingScheduler,
+    private val postProcessingScheduler: ArticlePostProcessingScheduler,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticlesState())
     val state: StateFlow<ArticlesState> = _state.asStateFlow()
@@ -147,6 +149,9 @@ class ArticlesViewModel(
     fun toggleFavorite(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             articleRepo.toggleFavorite(id)
+            if (articleRepo.getById(id)?.is_favorite == 1L) {
+                postProcessingScheduler.enqueueMemoryExtraction(id)
+            }
         }
     }
 

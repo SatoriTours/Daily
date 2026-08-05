@@ -1,6 +1,7 @@
 package com.dailysatori.core.worker
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -12,7 +13,14 @@ import java.util.concurrent.TimeUnit
 
 class BackupScheduler(private val context: Context) {
     fun ensureScheduled() {
-        val request = PeriodicWorkRequestBuilder<BackupWorker>(24, TimeUnit.HOURS).build()
+        val request = PeriodicWorkRequestBuilder<BackupWorker>(24, TimeUnit.HOURS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiresBatteryNotLow(true)
+                    .setRequiresStorageNotLow(true)
+                    .build(),
+            )
+            .build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             WorkName,
             ExistingPeriodicWorkPolicy.UPDATE,

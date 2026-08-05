@@ -231,10 +231,12 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         q.cancelAsyncTask(AsyncTaskStatus.cancelled.name, now, now, id)
     }
 
-    fun cancelLatestByUniqueKey(uniqueKey: String) {
-        q.selectAsyncTaskByUniqueKey(uniqueKey).executeAsOneOrNull()?.let { task ->
-            if (task.status in activeStatuses) cancel(task.id)
-        }
+    fun cancelLatestByUniqueKey(uniqueKey: String): Long? {
+        val task = q.selectAsyncTaskByUniqueKey(uniqueKey).executeAsOneOrNull()
+            ?.takeIf { it.status in activeStatuses }
+            ?: return null
+        cancel(task.id)
+        return task.id
     }
 
     fun pruneOldTasks(keepLatest: Long = DEFAULT_TASK_RETENTION_COUNT): List<Long> {
@@ -252,6 +254,13 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             status = AsyncTaskStatus.retrying.name,
             updated_at = nowMs,
             lease_until_ms = nowMs,
+        )
+    }
+
+    fun markRunningForRetryAfterProcessRestart(nowMs: Long) {
+        q.markRunningAsyncTasksForRetryAfterProcessRestart(
+            status = AsyncTaskStatus.retrying.name,
+            updated_at = nowMs,
         )
     }
 

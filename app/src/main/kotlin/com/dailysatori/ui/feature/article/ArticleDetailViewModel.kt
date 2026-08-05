@@ -2,9 +2,9 @@ package com.dailysatori.ui.feature.article
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.TagRepository
-import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
@@ -31,7 +31,7 @@ class ArticleDetailViewModel(
     private val articleId: Long,
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
-    private val memoryExtractService: MemoryExtractService,
+    private val postProcessingScheduler: ArticlePostProcessingScheduler,
     private val webpageParserService: WebpageParserService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticleDetailState())
@@ -94,14 +94,7 @@ class ArticleDetailViewModel(
             loadArticle()
             val article = articleRepo.getById(articleId)
             if (article != null && article.is_favorite == 1L) {
-                val text = article.ai_markdown_content ?: ""
-                val title = article.ai_title ?: article.title ?: "未命名"
-                memoryExtractService.extractAndSave(
-                    sourceType = "article",
-                    sourceId = articleId,
-                    title = title,
-                    content = text,
-                )
+                postProcessingScheduler.enqueueMemoryExtraction(articleId)
             }
         }
     }

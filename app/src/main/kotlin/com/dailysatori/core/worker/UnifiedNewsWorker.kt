@@ -49,7 +49,11 @@ class UnifiedNewsWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         return try {
-            when (unifiedNewsWorkerMode(inputData.getString(KEY_MODE))) {
+            val mode = unifiedNewsWorkerMode(inputData.getString(KEY_MODE))
+            if (mode == UnifiedNewsWorkerMode.DUE) {
+                UnifiedNewsScheduler(applicationContext).scheduleNext(Clock.System.now())
+            }
+            when (mode) {
                 UnifiedNewsWorkerMode.DUE -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.DUE, force = true)
                 UnifiedNewsWorkerMode.BACKFILL -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.BACKFILL, force = false)
                 else -> Result.failure()
@@ -71,7 +75,6 @@ class UnifiedNewsWorker(
             payloadJson = remoteArticleSyncTaskPayloadJson(mode = modeValue),
             uniqueKey = "remote_article_sync:${mode.name.lowercase()}",
         )
-        asyncTaskScheduler.enqueue(syncTaskId)
         val summaryTaskId = asyncTaskRepo.enqueue(
             type = AsyncTaskType.remote_news_fetch.name,
             payloadJson = unifiedNewsGenerateTaskPayloadJson(
@@ -81,7 +84,10 @@ class UnifiedNewsWorker(
             ),
             uniqueKey = "remote_news_fetch:${mode.name.lowercase()}",
         )
-        asyncTaskScheduler.enqueue(summaryTaskId)
+        asyncTaskScheduler.enqueueSequential(
+            chainName = "unified-news-chain:${mode.name.lowercase()}:$summaryTaskId",
+            taskIds = listOf(syncTaskId, summaryTaskId),
+        )
         return Result.success()
     }
 

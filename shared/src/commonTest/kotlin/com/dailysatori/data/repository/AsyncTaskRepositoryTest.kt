@@ -22,6 +22,7 @@ class AsyncTaskRepositoryTest {
                 payloadJson = "{}",
                 uniqueKey = "external_favorite_sync:1:sync",
             )
+            repository.claimForRun(taskId, leaseOwner = "worker-a", leaseUntilMs = 10_000)
             repository.markRetry(
                 id = taskId,
                 code = "rate_limited",
@@ -111,6 +112,7 @@ class AsyncTaskRepositoryTest {
                 payloadJson = "{}",
                 uniqueKey = "external_favorite_sync:1:sync",
             )
+            repository.claimForRun(firstId, leaseOwner = "worker-a", leaseUntilMs = 10_000)
             repository.finishSuccess(firstId, """{"ok":true}""")
 
             val secondId = repository.enqueue(
@@ -161,6 +163,59 @@ class AsyncTaskRepositoryTest {
             assertEquals(finished.progress_total, task.progress_total)
             assertEquals(finished.progress_message, task.progress_message)
             assertEquals(finished.checkpoint_json, task.checkpoint_json)
+        }
+    }
+
+    @Test
+    fun cancelledTaskIgnoresLateRetryTransition() {
+        withRepository { repository ->
+            val taskId = repository.enqueue(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = "{}",
+            )
+            repository.claimForRun(taskId, leaseOwner = "worker-a", leaseUntilMs = 10_000)
+            repository.cancel(taskId)
+
+            repository.markRetry(taskId, "cancelled", "late cancellation", 20_000)
+            repository.finishSuccess(taskId, "{}")
+            repository.finishFailure(taskId, "late", "late failure")
+
+            assertEquals(AsyncTaskStatus.cancelled.name, repository.getById(taskId)!!.status)
+        }
+    }
+
+    @Test
+    fun cancellingByUniqueKeyReturnsRunningTaskId() {
+        withRepository { repository ->
+            val taskId = repository.enqueue(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = "{}",
+                uniqueKey = "external_favorite_sync:7:history",
+            )
+            repository.claimForRun(taskId, leaseOwner = "worker-a", leaseUntilMs = Long.MAX_VALUE)
+
+            val cancelledId = repository.cancelLatestByUniqueKey("external_favorite_sync:7:history")
+
+            assertEquals(taskId, cancelledId)
+            assertEquals(AsyncTaskStatus.cancelled.name, repository.getById(taskId)!!.status)
+        }
+    }
+
+    @Test
+    fun processRestartImmediatelyReleasesUnexpiredRunningLease() {
+        withRepository { repository ->
+            val taskId = repository.enqueue(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = "{}",
+            )
+            repository.claimForRun(taskId, leaseOwner = "dead-process", leaseUntilMs = Long.MAX_VALUE)
+
+            repository.markRunningForRetryAfterProcessRestart(nowMs = 1234)
+
+            val recovered = repository.getById(taskId)!!
+            assertEquals(AsyncTaskStatus.retrying.name, recovered.status)
+            assertNull(recovered.lease_owner)
+            assertNull(recovered.lease_until_ms)
         }
     }
 
@@ -219,6 +274,7 @@ class AsyncTaskRepositoryTest {
                 type = AsyncTaskType.external_favorite_sync.name,
                 payloadJson = "{}",
             )
+            repository.claimForRun(taskId, leaseOwner = "worker-a", leaseUntilMs = 10_000)
             repository.finishSuccess(taskId, "{}")
 
             val page = runBlocking {

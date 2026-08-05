@@ -30,6 +30,7 @@ class AsyncTaskRunner(
 ) {
     suspend fun run(taskId: Long): AsyncTaskRunOutcome {
         if (taskId <= 0L) return AsyncTaskRunOutcome.Failed
+        repository.markExpiredRunningForRetry(nowMs())
         val task = repository.getById(taskId) ?: return AsyncTaskRunOutcome.Skipped
         val leaseOwner = leaseOwnerProvider()
         if (!repository.claimForRun(taskId, leaseOwner, nowMs() + leaseMs)) {

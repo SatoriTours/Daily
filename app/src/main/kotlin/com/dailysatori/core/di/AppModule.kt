@@ -6,7 +6,10 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.task.AsyncTaskHttpLogWriter
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.core.task.BookViewpointGenerateTaskHandler
+import com.dailysatori.core.task.ArticleMemoryExtractTaskHandler
+import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.core.task.ExternalFavoriteSyncTaskHandler
+import com.dailysatori.core.task.RemoteArticleReprocessTaskHandler
 import com.dailysatori.core.task.SaveArticleTaskHandler
 import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
@@ -34,14 +37,19 @@ val appModule: Module = module {
     single { ClipboardMonitorService(androidContext()) }
     single { AsyncTaskScheduler(androidContext()) }
     single { SaveArticleTaskHandler(get()) }
+    single { ArticleMemoryExtractTaskHandler(get(), get()) }
+    single { RemoteArticleReprocessTaskHandler(get(), get()) }
+    single { ArticlePostProcessingScheduler(androidContext(), get()) }
     single { ExternalFavoriteSyncTaskHandler(get(), get()) }
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
     single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }
-    single { UnifiedNewsGenerateTaskHandler(get(), androidContext()) }
+    single { UnifiedNewsGenerateTaskHandler(get()) }
     single {
         AsyncTaskHandlerRegistry(
             listOf(
                 get<SaveArticleTaskHandler>(),
+                get<ArticleMemoryExtractTaskHandler>(),
+                get<RemoteArticleReprocessTaskHandler>(),
                 get<ExternalFavoriteSyncTaskHandler>(),
                 get<BookViewpointGenerateTaskHandler>(),
                 get<RemoteArticleSyncTaskHandler>(),

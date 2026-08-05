@@ -28,14 +28,14 @@ class UnifiedNewsGenerateTaskSourceTest {
         assertTrue(source.contains("unifiedNewsGenerateTaskPayloadJson("))
         assertTrue(source.contains("\"remote_news_fetch:\${mode.name.lowercase()}\""))
         assertTrue(source.contains("asyncTaskRepo.enqueue("))
-        assertTrue(source.contains("asyncTaskScheduler.enqueue(summaryTaskId)"))
+        assertTrue(source.contains("asyncTaskScheduler.enqueueSequential("))
     }
 
     @Test
     fun appModuleRegistersUnifiedNewsGenerateHandler() {
         val source = File("src/main/kotlin/com/dailysatori/core/di/AppModule.kt").readText()
 
-        assertTrue(source.contains("single { UnifiedNewsGenerateTaskHandler(get(), androidContext()) }"))
+        assertTrue(source.contains("single { UnifiedNewsGenerateTaskHandler(get()) }"))
         assertTrue(source.contains("get<UnifiedNewsGenerateTaskHandler>()"))
     }
 }
