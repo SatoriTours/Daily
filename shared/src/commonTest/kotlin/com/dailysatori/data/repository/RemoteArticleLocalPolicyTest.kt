@@ -59,4 +59,22 @@ class RemoteArticleLocalPolicyTest {
         assertTrue(hasEnoughEnglishForLocalArticle(english))
         assertTrue(english.needsLocalAiReprocessingForChineseOutput())
     }
+
+    @Test
+    fun generatedOutputMustContainChineseBeforeRemoteReprocessingCanComplete() {
+        assertTrue(needsChineseReprocessing("The generated summary still contains only English words and therefore needs another processing attempt."))
+        assertFalse(needsChineseReprocessing("这是已经整理完成的中文摘要，包含了足够多的中文内容。"))
+    }
+
+    @Test
+    fun shortEnglishRemoteArticleStillUsesChineseProcessingFlow() {
+        assertTrue(
+            RemoteArticle(
+                id = 4,
+                url = "https://example.com/short",
+                title = "New model release",
+                summary = "Faster coding for teams",
+            ).needsLocalAiReprocessingForChineseOutput(),
+        )
+    }
 }

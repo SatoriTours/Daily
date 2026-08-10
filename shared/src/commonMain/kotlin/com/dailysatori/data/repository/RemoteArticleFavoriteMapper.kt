@@ -1,6 +1,7 @@
 package com.dailysatori.data.repository
 
 import com.dailysatori.service.remotenews.RemoteArticle
+import com.dailysatori.service.externalfavorites.sha256Hex
 import kotlinx.datetime.Instant
 
 data class LocalFavoriteArticleFields(
@@ -29,6 +30,20 @@ fun RemoteArticle.toLocalFavoriteArticleFields(): LocalFavoriteArticleFields {
         pubDate = remoteArticleTimeMillis(publishedAt) ?: remoteArticleTimeMillis(processedAt) ?: remoteArticleTimeMillis(createdAt),
     )
 }
+
+internal fun RemoteArticle.canonicalOriginalMarkdown(): String? = buildList {
+    cleanRemoteArticleText(summary)?.let { add("## 摘要\n\n$it") }
+    remoteArticleViewpointMarkdown(viewpoints)?.let(::add)
+    cleanRemoteArticleText(content)?.let { add("## 原文\n\n$it") }
+}.joinToString("\n\n").takeIf(String::isNotBlank)
+
+internal fun RemoteArticle.sourceContentHash(): String = sha256Hex(
+    listOf(
+        cleanRemoteArticleText(title).orEmpty(),
+        cleanRemoteArticleText(url).orEmpty(),
+        canonicalOriginalMarkdown().orEmpty(),
+    ).joinToString("\n"),
+)
 
 fun RemoteArticle.needsLocalAiReprocessingForChineseOutput(): Boolean {
     if (url.isNullOrBlank()) return false

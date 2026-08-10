@@ -129,6 +129,7 @@ class GitHubStarsConnector(
             if (readme.isNotBlank()) add("README：\n${readme.take(MAX_README_CHARS)}")
         }.joinToString("\n\n")
         val normalized = buildJsonObject {
+            put("ai_processing_version", GITHUB_AI_PROCESSING_VERSION)
             put("full_name", fullName)
             put("description", description)
             put("language", language)
@@ -149,7 +150,7 @@ class GitHubStarsConnector(
             favoritedAt = starredAt,
             normalizedJson = normalized,
             contentHash = sha256Hex("$id\n$url\n$text\n$normalized"),
-            aiInputHash = sha256Hex("$id\n$fullName\n$text\n$owner"),
+            aiInputHash = githubAiInputHash(id, fullName, text, owner),
         )
     }
 
@@ -173,6 +174,13 @@ class GitHubStarsConnector(
 
 internal fun hasEnoughGitHubMetadata(text: String): Boolean =
     text.filterNot(Char::isWhitespace).length >= MIN_GITHUB_METADATA_CHARS
+
+internal fun githubAiInputHash(id: String, fullName: String, text: String, owner: String): String =
+    sha256Hex("$GITHUB_AI_PROCESSING_VERSION\n$id\n$fullName\n$text\n$owner")
+
+internal fun hasCurrentGitHubAiProcessingVersion(normalizedJson: String): Boolean = runCatching {
+    json.parseToJsonElement(normalizedJson).jsonObject.string("ai_processing_version") == GITHUB_AI_PROCESSING_VERSION
+}.getOrDefault(false)
 
 fun githubAuthJson(accessToken: String): String = buildJsonObject {
     put("access_token", accessToken.trim())
@@ -210,3 +218,4 @@ private const val GITHUB_RATE_LIMIT_RESET = "x-ratelimit-reset"
 private const val MAX_README_CHARS = 80_000
 private const val MIN_GITHUB_METADATA_CHARS = 20
 private const val GITHUB_DETAIL_CONCURRENCY = 4
+private const val GITHUB_AI_PROCESSING_VERSION = "github-ai-v2-general-article-prompt"

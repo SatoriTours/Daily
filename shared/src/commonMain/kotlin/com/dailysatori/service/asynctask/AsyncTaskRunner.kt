@@ -48,6 +48,7 @@ class AsyncTaskRunner(
         val reporter = object : AsyncTaskProgressReporter {
             override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) {
                 repository.updateProgress(taskId, current, total, message, checkpointJson)
+                repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
                 log(taskId, "TASK progress current=$current total=$total message=$message checkpoint=$checkpointJson")
             }
         }
@@ -113,6 +114,6 @@ class AsyncTaskRunner(
     }
 
     private companion object {
-        const val DEFAULT_LEASE_MS = 10 * 60 * 1000L
+        const val DEFAULT_LEASE_MS = 30 * 60 * 1000L
     }
 }

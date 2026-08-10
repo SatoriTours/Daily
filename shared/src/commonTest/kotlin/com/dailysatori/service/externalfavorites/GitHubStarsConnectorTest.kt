@@ -15,6 +15,13 @@ import kotlin.test.assertTrue
 
 class GitHubStarsConnectorTest {
     @Test
+    fun githubAiInputHashIncludesTheCurrentProcessingVersion() {
+        val legacyHash = sha256Hex("456\nowner/project\nuseful repository metadata\nowner")
+
+        assertTrue(githubAiInputHash("456", "owner/project", "useful repository metadata", "owner") != legacyHash)
+    }
+
+    @Test
     fun resolvesAuthenticatedAccountWithoutExposingToken() = runBlocking {
         val client = HttpClient(MockEngine) {
             engine {
@@ -60,6 +67,8 @@ class GitHubStarsConnectorTest {
         assertEquals("https://github.com/owner/project", item.canonicalUrl)
         assertEquals(1_788_220_800_000L, item.favoritedAt)
         assertTrue(item.text.contains("主要语言：Kotlin"))
+        assertTrue(hasCurrentGitHubAiProcessingVersion(item.normalizedJson))
+        assertEquals(false, hasCurrentGitHubAiProcessingVersion("""{"full_name":"owner/project"}"""))
         assertEquals("2", page.nextCursor)
         assertEquals(listOf("/user/starred"), requestedPaths)
     }

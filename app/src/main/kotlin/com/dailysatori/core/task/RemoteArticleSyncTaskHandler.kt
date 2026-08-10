@@ -58,6 +58,7 @@ class RemoteArticleSyncTaskHandler(
                         inserted += sync.inserted
                         updated += sync.updated
                         skipped += sync.skipped
+                        failures += sync.failures.map { "${source.name}: $it" }
                     }
                     is RemoteNewsResult.Failure -> failures += "${source.name}: ${result.message}"
                 }
@@ -71,8 +72,9 @@ class RemoteArticleSyncTaskHandler(
             )
         }
 
-        return if (failures.isEmpty()) {
-            AsyncTaskExecutionResult.Success("""{"inserted":$inserted,"updated":$updated,"skipped":$skipped}""")
+        val resultJson = """{"inserted":$inserted,"updated":$updated,"skipped":$skipped,"failureCount":${failures.size}}"""
+        return if (failures.isEmpty() || payload.sourceId == null) {
+            AsyncTaskExecutionResult.Success(resultJson)
         } else {
             AsyncTaskExecutionResult.RetryableFailure("remote_article_sync_failed", failures.joinToString("\n"))
         }

@@ -57,9 +57,11 @@ class WeeklySummaryViewModel(
             try {
                 val range = weeklySummaryService.getLastCompletedWeekRange()
                 if (range != null) {
-                    weeklySummaryService.generateWeeklySummary(range.first, range.second)
+                    val generated = weeklySummaryService.generateWeeklySummary(range.first, range.second)
+                    if (!generated) {
+                        _state.update { it.copy(error = "周总结生成失败，已保留现有内容，请稍后重试") }
+                    }
                 }
-                loadSummaries()
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
             } finally {

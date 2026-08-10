@@ -3,6 +3,7 @@ package com.dailysatori.service.parser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
@@ -833,6 +834,20 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun remoteArticleReprocessingPrefersImmutableOriginalOverPreviousAiMarkdown() {
+        val extracted = existingArticleOriginalExtractedContent(
+            title = "Remote title",
+            aiTitle = "旧 AI 标题",
+            aiContent = "旧摘要",
+            aiMarkdownContent = "上一次生成的中文 Markdown",
+            coverImageUrl = null,
+            originalMarkdownContent = "Original remote article body",
+        )
+
+        assertEquals("Original remote article body", extracted?.content)
+    }
+
+    @Test
     fun articleMarkdownInputSupportsPlainTextOriginalsFromRemoteApis() {
         val extracted = ExtractedContent(
             title = "Codex 新功能",
@@ -1090,6 +1105,17 @@ class ArticleProcessingContentTest {
             "https://example.com/twitter-card.jpg",
             extractCoverImageUrl(html, "https://example.com/posts/123"),
         )
+    }
+
+    @Test
+    fun splitsLongRemoteArticleWithoutDroppingContent() {
+        val source = "第一段".repeat(5) + "\n\n" + "second paragraph ".repeat(8) + "\n\n尾段"
+
+        val chunks = splitArticleText(source, maxChunkLength = 40)
+
+        assertTrue(chunks.size > 1)
+        assertTrue(chunks.all { it.length <= 40 })
+        assertEquals(source.replace(Regex("\\s+"), ""), chunks.joinToString("").replace(Regex("\\s+"), ""))
     }
 
 }

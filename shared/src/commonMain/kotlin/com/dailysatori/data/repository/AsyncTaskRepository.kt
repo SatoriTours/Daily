@@ -187,6 +187,16 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         )
     }
 
+    fun renewLease(id: Long, leaseOwner: String, leaseUntilMs: Long) {
+        val now = Clock.System.now().toEpochMilliseconds()
+        q.renewAsyncTaskLease(
+            lease_until_ms = leaseUntilMs,
+            updated_at = now,
+            id = id,
+            lease_owner = leaseOwner,
+        )
+    }
+
     fun finishSuccess(id: Long, resultJson: String) {
         val now = Clock.System.now().toEpochMilliseconds()
         q.finishAsyncTask(

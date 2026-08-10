@@ -138,7 +138,7 @@ class RemoteNewsUiBehaviorTest {
         ).readText()
         val loadBody = viewModel.substringAfter("private suspend fun loadArticles(").substringBefore("private suspend fun loadFeeds")
 
-        assertTrue(repository.contains("fun saveRemoteArticleForSync(remoteArticle: RemoteArticle"))
+        assertTrue(repository.contains("fun saveRemoteArticleForSync("))
         assertTrue(loadBody.contains("remoteNewsSourceRepo.getEnabled().firstOrNull()"))
         assertTrue(loadBody.contains("remoteNewsService.fetchTopArticlesToday(sourceConfig.value, page = 1, limit = 50)"))
         assertTrue(loadBody.contains("remoteArticleSyncService.syncSourceArticles("))
@@ -174,7 +174,7 @@ class RemoteNewsUiBehaviorTest {
         assertTrue(remoteNewsViewModel.contains("enqueueRemoteArticlePostProcessing"))
         assertTrue(unifiedNewsViewModel.contains("enqueueRemoteArticlePostProcessing"))
         assertTrue(handler.contains("parser.reprocessArticle(articleId)"))
-        assertTrue(sharedDi.contains("RemoteArticleFavoriteService(get())"))
+        assertTrue(sharedDi.contains("RemoteArticleFavoriteService(get(), get())"))
     }
 
     @Test

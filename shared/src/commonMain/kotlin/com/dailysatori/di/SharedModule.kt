@@ -139,7 +139,7 @@ val sharedModule: Module = module {
     }
     single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
-    single { RemoteArticleFavoriteService(get()) }
+    single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
@@ -164,7 +164,7 @@ val sharedModule: Module = module {
     }
 
     // Webpage parser service (content processing pipeline)
-    single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // Book search service
     single { DoubanSuggestSearchEngine(get()) }

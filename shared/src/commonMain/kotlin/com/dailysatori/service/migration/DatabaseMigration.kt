@@ -88,6 +88,9 @@ class DatabaseMigration(
         if (currentVersion < 21) {
             migrateV20ToV21()
         }
+        if (currentVersion < 22) {
+            migrateV21ToV22()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -739,6 +742,30 @@ class DatabaseMigration(
                 log.w(e) { "Could not create performance index: $sql" }
             }
         }
+        runSql(
+            """
+            DELETE FROM weekly_summary
+            WHERE EXISTS (
+                SELECT 1 FROM weekly_summary candidate
+                WHERE candidate.week_start_date = weekly_summary.week_start_date
+                  AND candidate.week_end_date = weekly_summary.week_end_date
+                  AND (
+                    (CASE WHEN candidate.status = 'completed' AND TRIM(candidate.content) != '' THEN 1 ELSE 0 END) >
+                    (CASE WHEN weekly_summary.status = 'completed' AND TRIM(weekly_summary.content) != '' THEN 1 ELSE 0 END)
+                    OR (
+                      (CASE WHEN candidate.status = 'completed' AND TRIM(candidate.content) != '' THEN 1 ELSE 0 END) =
+                      (CASE WHEN weekly_summary.status = 'completed' AND TRIM(weekly_summary.content) != '' THEN 1 ELSE 0 END)
+                      AND (candidate.updated_at > weekly_summary.updated_at OR
+                        (candidate.updated_at = weekly_summary.updated_at AND candidate.id > weekly_summary.id))
+                    )
+                  )
+            )
+            """.trimIndent(),
+        )
+        runSql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_summary_unique_week_range " +
+                "ON weekly_summary(week_start_date, week_end_date)",
+        )
     }
 
     private fun migrateV18ToV19() {
@@ -900,6 +927,28 @@ class DatabaseMigration(
                 "AND name IN ('article_fts','book_fts','book_viewpoint_fts','diary_fts','memory_entry_fts')",
         )
         check(ftsCount == 5L) { "Unable to create all FTS tables" }
+    }
+
+    private fun migrateV21ToV22() {
+        log.i { "Migration V21 -> V22: Remote article processing revisions" }
+        listOf(
+            "ALTER TABLE remote_article_sync_item ADD COLUMN source_content_hash TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE remote_article_sync_item ADD COLUMN processed_content_hash TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE remote_article_sync_item ADD COLUMN processing_state TEXT NOT NULL DEFAULT 'pending'",
+            "ALTER TABLE remote_article_sync_item ADD COLUMN processing_error TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE remote_article_sync_item ADD COLUMN processing_version TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE remote_article_sync_item ADD COLUMN favorited_at INTEGER",
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                if (e.message.orEmpty().contains("duplicate column", ignoreCase = true)) {
+                    log.w { "Remote article processing column already exists: $sql" }
+                } else {
+                    throw e
+                }
+            }
+        }
     }
 
     private fun getCurrentVersion(): Long {

@@ -6,7 +6,7 @@ private val ChineseCharacterRegex = Regex("[\\u4e00-\\u9fff]")
 private val EnglishWordRegex = Regex("\\b[A-Za-z][A-Za-z'-]{2,}\\b")
 private const val LOCAL_REPROCESS_LANGUAGE_SAMPLE_LIMIT = 4_000
 private const val LOCAL_REPROCESS_CHINESE_THRESHOLD = 8
-private const val LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD = 12
+private const val LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD = 4
 
 internal fun cleanRemoteArticleText(value: String?): String? =
     value?.trim()?.takeIf { it.isNotBlank() }
@@ -31,3 +31,10 @@ internal fun hasEnoughChineseForLocalArticle(article: RemoteArticle): Boolean =
 
 internal fun hasEnoughEnglishForLocalArticle(article: RemoteArticle): Boolean =
     EnglishWordRegex.findAll(remoteArticleLanguageSample(article)).count() >= LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD
+
+internal fun needsChineseReprocessing(sample: String): Boolean {
+    val limited = sample.take(LOCAL_REPROCESS_LANGUAGE_SAMPLE_LIMIT)
+    val chineseCount = ChineseCharacterRegex.findAll(limited).count()
+    val englishCount = EnglishWordRegex.findAll(limited).count()
+    return chineseCount < LOCAL_REPROCESS_CHINESE_THRESHOLD && englishCount >= LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD
+}

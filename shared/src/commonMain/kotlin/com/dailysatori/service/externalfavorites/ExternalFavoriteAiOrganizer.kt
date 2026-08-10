@@ -2,10 +2,12 @@ package com.dailysatori.service.externalfavorites
 
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
+import com.dailysatori.data.repository.needsChineseReprocessing
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.ai.openAiChatCompletionEndpoint
 import com.dailysatori.service.ai.usesOpenAiCompatibleChatApi
+import com.dailysatori.service.parser.articleAnalysisPrompt
 import com.dailysatori.service.retryTransientFailure
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Ai_config
@@ -142,7 +144,11 @@ class ExternalFavoriteAiOrganizer(
                             initialDelayMs = retryDelayMs,
                             shouldRetry = ::isRetryableExternalFavoriteAiFailure,
                         ) {
-                            generateAnalysis?.invoke(input) ?: generateWithAi(input)
+                            val generated = generateAnalysis?.invoke(input) ?: generateWithAi(input)
+                            if (githubAnalysisNeedsChineseRetry(input, generated)) {
+                                throw IllegalStateException("GitHub 收藏整理未生成有效中文内容")
+                            }
+                            generated
                         }
                     } catch (error: CancellationException) {
                         throw error
@@ -179,7 +185,7 @@ class ExternalFavoriteAiOrganizer(
 
         val response = ai.summarize(
             content = input.toPromptContent(),
-            systemPrompt = EXTERNAL_FAVORITE_SYSTEM_PROMPT,
+            systemPrompt = externalFavoriteAnalysisPrompt(),
             apiAddress = config.api_address.trim().trimEnd('/'),
             apiToken = config.api_token.trim(),
             modelName = config.model_name.trim(),
@@ -411,19 +417,25 @@ class ExternalFavoriteAiOrganizer(
             isLenient = true
         }
 
-        const val EXTERNAL_FAVORITE_SYSTEM_PROMPT =
-            "你是内容整理助手。请直接基于用户的外部收藏原文和可用补充来源整理内容。" +
-                "直接输出内容本身，不要用第三方视角，不要把内容写成对文章或帖子的介绍。" +
-                "禁止使用“本文介绍了”“本文整理了”“这篇文章讨论了”等套话，不要写“谁分享了关于……”这类来源说明。" +
-                "title 使用信息型标题，summary 直接概括关键结论，markdown 写成可直接阅读的结构化正文。" +
-                "只输出 JSON，字段为 title、summary、markdown。"
-
         const val MIN_EXISTING_TEXT_CHARS = 20
         const val DEFAULT_MAX_CONCURRENT_ANALYSIS = 4
         const val AI_MAX_ATTEMPTS = 3
         const val DEFAULT_AI_RETRY_DELAY_MS = 750L
         const val FALLBACK_AI_LOG_URL = "ai://external-favorite/organize"
     }
+}
+
+internal fun externalFavoriteAnalysisPrompt(): String = articleAnalysisPrompt()
+
+internal fun githubAnalysisNeedsChineseRetry(
+    input: ExternalFavoriteAiInput,
+    analysis: ExternalFavoriteAiAnalysis,
+): Boolean {
+    if (input.provider != ExternalFavoriteProvider.GITHUB.id || !needsChineseReprocessing(input.text)) return false
+    return analysis.summary.isBlank() ||
+        analysis.markdown.isBlank() ||
+        needsChineseReprocessing(analysis.summary) ||
+        needsChineseReprocessing(analysis.markdown)
 }
 
 internal fun isRetryableExternalFavoriteAiFailure(error: Throwable): Boolean {

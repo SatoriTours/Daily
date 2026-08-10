@@ -6,6 +6,9 @@ import com.dailysatori.config.WebViewConfig
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.ImageRepository
+import com.dailysatori.data.repository.needsChineseReprocessing
+import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.REMOTE_PROCESSING_STALE
 import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewPageContent
@@ -569,6 +572,7 @@ class WebpageParserService(
     private val httpClient: HttpClient,
     private val externalFavoriteSourceRepo: ExternalFavoriteSourceRepository,
     private val xBookmarksConnector: XBookmarksConnector,
+    private val remoteArticleSyncRepo: RemoteArticleSyncRepository? = null,
 ) {
     private val log = Logger.withTag("WebpageParser")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -980,6 +984,7 @@ class WebpageParserService(
         provider: String,
     ): ArticleAnalysisResult? {
         if (isTwitterStatusUrl(article.url)) return null
+        if (extracted?.htmlContent == null && extracted?.content.orEmpty().length > AIConfig.maxContentLength) return null
         return try {
             val output = aiService.summarize(
                 articleAnalysisInput(article, extracted, modelName),
@@ -1038,6 +1043,29 @@ class WebpageParserService(
         modelName: String,
         provider: String,
     ): String {
+        val longPlainText = extracted?.content?.trim().orEmpty()
+        if (extracted?.htmlContent == null && longPlainText.length > AIConfig.maxContentLength) {
+            return try {
+                val convertedChunks = mutableListOf<String>()
+                for (chunk in splitArticleText(longPlainText)) {
+                    convertedChunks += aiService.htmlToMarkdown(
+                        "正文文本：\n$chunk",
+                        htmlToReadableMarkdownPrompt(),
+                        apiAddress, apiToken, modelName, provider,
+                    ).trim()
+                }
+                convertedChunks.joinToString("\n\n").let { markdown ->
+                    normalizeArticleMarkdownImages(
+                        generatedMarkdownOrFallback(markdown, article.ai_markdown_content, longPlainText),
+                        extracted?.imageUrls.orEmpty(),
+                    )
+                }
+            } catch (e: Exception) {
+                if (!shouldPersistArticleProcessingError(e)) throw e
+                log.e(e) { "Chunked markdown conversion failed" }
+                generatedMarkdownOrFallback("", article.ai_markdown_content, longPlainText)
+            }
+        }
         val markdownInput = articleMarkdownInput(extracted, modelName)
         if (markdownInput.isBlank()) return generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
         return try {
@@ -1285,17 +1313,63 @@ class WebpageParserService(
 
     suspend fun reprocessArticle(articleId: Long) {
         val article = articleRepo.getById(articleId) ?: throw Exception("Article not found: $articleId")
-        articleRepo.update(
-            id = articleId, title = article.title, aiTitle = "",
-            aiContent = "", aiMarkdownContent = article.ai_markdown_content,
-            url = article.url, isFavorite = article.is_favorite ?: 0L, comment = article.comment,
-            status = "webContentFetched", coverImage = article.cover_image,
-            coverImageUrl = article.cover_image_url, pubDate = article.pub_date,
-        )
-        val state = mutableMapOf<Long, ArticleProcessingState>()
-        state[articleId] = ArticleProcessingState(articleId, "webContentFetched")
-        _processingStates.value = state
-        processAiTasksAsync(articleId, existingArticleOriginalExtractedContent(article))
+        val extracted = existingArticleOriginalExtractedContent(article)
+            ?: throw IllegalStateException("Article has no reusable original content")
+        if (!markArticleActive(articleId)) throw IllegalStateException("Article is already processing")
+        val originalMapping = remoteArticleSyncRepo?.findByArticleId(articleId)
+        val expectedSourceHash = originalMapping?.source_content_hash.orEmpty()
+        remoteArticleSyncRepo?.markProcessing(articleId)
+        try {
+            articleRepo.update(
+                id = articleId, title = article.title, aiTitle = "",
+                aiContent = "", aiMarkdownContent = "",
+                url = article.url, isFavorite = article.is_favorite ?: 0L, comment = article.comment,
+                status = "webContentFetched", coverImage = article.cover_image,
+                coverImageUrl = article.cover_image_url, pubDate = article.pub_date,
+            )
+            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, "webContentFetched"))
+            processAiTasks(articleId, extracted)
+
+            val processed = articleRepo.getById(articleId) ?: throw IllegalStateException("Processed article disappeared")
+            val output = listOf(processed.ai_title, processed.ai_content, processed.ai_markdown_content)
+                .filterNotNull()
+                .joinToString("\n")
+            if (needsChineseReprocessing(output)) {
+                articleRepo.updateStatus(articleId, "error")
+                _processingStates.value = mutableMapOf(
+                    articleId to ArticleProcessingState(articleId, "error", "AI did not produce Chinese content"),
+                )
+                throw IllegalStateException("文章整理未生成有效中文内容")
+            }
+            if (expectedSourceHash.isNotBlank() &&
+                remoteArticleSyncRepo?.markProcessingSuccess(articleId, expectedSourceHash, REMOTE_PROCESSING_VERSION) == false
+            ) {
+                throw IllegalStateException("处理期间原文已更新，将使用新版本重试")
+            }
+        } catch (error: Exception) {
+            if (originalMapping?.processed_content_hash?.isNotBlank() == true) {
+                articleRepo.update(
+                    id = articleId,
+                    title = article.title,
+                    aiTitle = article.ai_title,
+                    aiContent = article.ai_content,
+                    aiMarkdownContent = article.ai_markdown_content,
+                    url = article.url,
+                    isFavorite = article.is_favorite ?: 0L,
+                    comment = article.comment,
+                    status = article.status ?: "completed",
+                    coverImage = article.cover_image,
+                    coverImageUrl = article.cover_image_url,
+                    pubDate = article.pub_date,
+                )
+            }
+            if (remoteArticleSyncRepo?.findByArticleId(articleId)?.processing_state != REMOTE_PROCESSING_STALE) {
+                remoteArticleSyncRepo?.markProcessingFailure(articleId, error.message.orEmpty().ifBlank { "文章整理失败" })
+            }
+            throw error
+        } finally {
+            finishQueuedArticle(articleId)
+        }
     }
 
     private suspend fun updateArticleStatus(article: Article, status: String) {
@@ -1374,6 +1448,8 @@ class WebpageParserService(
         const val ARTICLE_EXTRACTION_RETRY_DELAY_MS = 500L
     }
 }
+
+private const val REMOTE_PROCESSING_VERSION = "article-general-v2"
 
 internal fun WebViewPageContent.summaryTextOrHtmlFallback(): String {
     val readable = readableContent.orEmpty().trim()
@@ -1518,6 +1594,7 @@ internal fun existingArticleOriginalExtractedContent(article: Article): Extracte
         aiContent = article.ai_content,
         aiMarkdownContent = article.ai_markdown_content,
         coverImageUrl = article.cover_image_url,
+        originalMarkdownContent = article.original_markdown_content,
     )
 
 internal fun existingArticleOriginalExtractedContent(
@@ -1526,18 +1603,46 @@ internal fun existingArticleOriginalExtractedContent(
     aiContent: String?,
     aiMarkdownContent: String?,
     coverImageUrl: String?,
+    originalMarkdownContent: String? = null,
 ): ExtractedContent? {
-    val original = aiMarkdownContent?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val original = listOf(originalMarkdownContent, aiMarkdownContent)
+        .firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) }
+        ?: return null
     val displayTitle = listOf(title, aiTitle)
         .firstNotNullOfOrNull { it?.trim()?.takeIf { value -> value.isNotBlank() } }
     return ExtractedContent(
         title = displayTitle,
-        content = original.take(AIConfig.maxContentLength.toInt()),
+        content = original,
         htmlContent = null,
         coverImageUrl = coverImageUrl?.trim()?.takeIf { it.isNotBlank() },
         readableHtmlContent = null,
         imageUrls = listOfNotNull(coverImageUrl?.trim()?.takeIf { it.isNotBlank() }),
     )
+}
+
+internal fun splitArticleText(text: String, maxChunkLength: Int = AIConfig.maxContentLength.toInt()): List<String> {
+    require(maxChunkLength > 0)
+    val chunks = mutableListOf<String>()
+    val current = StringBuilder()
+    fun flush() {
+        current.toString().trim().takeIf(String::isNotBlank)?.let(chunks::add)
+        current.clear()
+    }
+    text.trim().split(Regex("\\n{2,}")).forEach { paragraph ->
+        if (paragraph.length > maxChunkLength) {
+            flush()
+            paragraph.chunked(maxChunkLength).map(String::trim).filter(String::isNotBlank).forEach(chunks::add)
+        } else if (current.isEmpty()) {
+            current.append(paragraph)
+        } else if (current.length + 2 + paragraph.length <= maxChunkLength) {
+            current.append("\n\n").append(paragraph)
+        } else {
+            flush()
+            current.append(paragraph)
+        }
+    }
+    flush()
+    return chunks
 }
 
 internal fun articleAnalysisInput(article: Article, extracted: ExtractedContent?, modelName: String): String = buildString {

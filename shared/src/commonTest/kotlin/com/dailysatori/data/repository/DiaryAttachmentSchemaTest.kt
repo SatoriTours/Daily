@@ -34,7 +34,7 @@ class DiaryAttachmentSchemaTest {
     fun migrationCreatesTheCanonicalAttachmentTableAndIndexes() {
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
         val v20Migration = migration.substringAfter("private fun migrateV19ToV20()")
-            .substringBefore("private fun getCurrentVersion()")
+            .substringBefore("private fun migrateV20ToV21()")
 
         assertTrue(migration.contains("migrateV19ToV20()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS diary_attachment"))

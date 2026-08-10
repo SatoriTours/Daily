@@ -251,12 +251,13 @@ class UnifiedNewsBehaviorTest {
             "../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt",
         ).readText()
         val collectionBody = source
-            .substringAfter("private suspend fun collectConfiguredRemoteArticles")
+            .substringAfter("private fun collectConfiguredRemoteArticles")
             .substringBefore("private fun addSources")
 
         assertFalse(source.contains("cacheRemoteArticleSource"))
         assertFalse(collectionBody.contains("articleRepo.cacheRemoteArticle"))
-        assertTrue(collectionBody.contains("article.toUnifiedSource"))
+        assertTrue(collectionBody.contains("toUnifiedRemoteSource"))
+        assertTrue(collectionBody.contains("remoteArticleSyncRepo.getMappingsBySourceDate"))
         assertFalse(collectionBody.contains("sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE"))
     }
 
@@ -626,7 +627,7 @@ class UnifiedNewsBehaviorTest {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("collectConfiguredRemoteArticles"))
-        assertTrue(source.contains("fetchTopArticlesToday"))
+        assertTrue(source.contains("getMappingsBySourceDate"))
         assertFalse(source.contains("collectRemoteArticles(window"))
         assertFalse(source.contains("REMOTE_DIGEST"))
         assertTrue(source.contains("UnifiedNewsSourceType.REMOTE_ARTICLE"))
@@ -692,7 +693,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(repo.contains("fun replaceSources"))
         assertTrue(articleRepo.contains("fun getFavoritesByDateRangeSync"))
         assertTrue(migration.contains("migrateV6ToV7"))
-        assertTrue(config.contains("currentSchemaVersion = 21L"))
+        assertTrue(config.contains("currentSchemaVersion = 22L"))
     }
 
     @Test
@@ -718,7 +719,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(schema.contains("updateRemoteNewsSource"))
         assertTrue(schema.contains("upsertRemoteNewsSource"))
         assertTrue(schema.contains("deleteRemoteNewsSource"))
-        assertTrue(config.contains("currentSchemaVersion = 21L"))
+        assertTrue(config.contains("currentSchemaVersion = 22L"))
         assertTrue(migration.contains("if (currentVersion < 8)"))
         assertTrue(migration.contains("migrateV7ToV8()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS remote_news_source"))
@@ -890,7 +891,7 @@ class UnifiedNewsBehaviorTest {
         val models = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsModels.kt").readText()
 
         assertTrue(service.contains("remoteNewsSourceRepo.getEnabled()"))
-        assertTrue(service.contains("fetchTopArticlesToday"))
+        assertTrue(service.contains("remoteArticleSyncRepo.getMappingsBySourceDate"))
         assertFalse(service.contains("collectCrayfishNews"))
         assertFalse(service.contains("CrayfishNewsService"))
         assertFalse(models.contains("CRAYFISH_GENERAL"))
@@ -1330,11 +1331,11 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsServiceFetchesSingleTopArticlesPagePerConfiguredRemoteSource() {
+    fun unifiedNewsServiceReadsOneLocalSnapshotPerConfiguredRemoteSource() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("remoteNewsSourceRepo.getEnabled().forEach"))
-        assertTrue(source.contains("fetchTopArticlesToday(config.value, page = 1, limit = 50)"))
+        assertTrue(source.contains("getMappingsBySourceDate(source.id, window.summaryDate)"))
         assertFalse(source.contains("MAX_DIGEST_PAGES"))
         assertFalse(source.contains("pagination.next"))
     }
@@ -1356,12 +1357,12 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsServiceCollectsConfiguredRemoteTopArticles() {
+    fun unifiedNewsServiceCollectsConfiguredRemoteArticleSnapshots() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("collectConfiguredRemoteArticles"))
-        assertTrue(source.contains("remoteNewsService.fetchTopArticlesToday"))
-        assertTrue(source.contains("result.value.articles.mapNotNull"))
+        assertTrue(source.contains("remoteArticleSyncRepo.getMappingsBySourceDate"))
+        assertTrue(source.contains("mappings.mapNotNull"))
         assertFalse(source.contains("remoteNewsService.fetchDigests"))
         assertFalse(source.contains("remoteNewsService.fetchArticles"))
         assertTrue(source.contains("UnifiedNewsSourceType.REMOTE_ARTICLE"))
@@ -1914,11 +1915,11 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsTopRemoteArticlesAreUsedDirectlyForPrompt() {
+    fun unifiedNewsLocalRemoteSnapshotsAreUsedDirectlyForPrompt() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
-        assertTrue(source.contains("fetchTopArticlesToday"))
-        assertTrue(source.contains("result.value.articles.mapNotNull"))
+        assertTrue(source.contains("getMappingsBySourceDate"))
+        assertTrue(source.contains("mappings.mapNotNull"))
         assertFalse(source.contains("fetchDigestArticleSources"))
         assertFalse(source.contains("fetchRemoteArticleDetails"))
         assertFalse(source.contains("remoteNewsService.fetchArticle(config, articleId)"))

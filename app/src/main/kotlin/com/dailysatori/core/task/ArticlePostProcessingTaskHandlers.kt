@@ -10,6 +10,7 @@ import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.parser.WebpageParserService
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -95,9 +96,30 @@ class RemoteArticleReprocessTaskHandler(
         val articleId = decodeArticleId(payloadJson) ?: return invalidArticlePayload()
         if (articleRepo.getById(articleId) == null) return AsyncTaskExecutionResult.Success()
         reporter.report(0, 1, "正在整理收藏文章", """{"stage":"processing"}""")
-        parser.reprocessArticle(articleId)
+        try {
+            parser.reprocessArticle(articleId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            return remoteArticleProcessingFailure(error)
+        }
         reporter.report(1, 1, "收藏文章已整理", """{"stage":"completed"}""")
         return AsyncTaskExecutionResult.Success()
+    }
+}
+
+internal fun remoteArticleProcessingFailure(error: Exception): AsyncTaskExecutionResult {
+    val message = error.message.orEmpty().ifBlank { "文章整理失败" }
+    val normalized = message.lowercase()
+    val permanent = normalized.contains("ai config not set") ||
+        normalized.contains("api token") ||
+        normalized.contains("unauthorized") ||
+        normalized.contains("forbidden") ||
+        Regex("(^|\\D)(401|403)(\\D|$)").containsMatchIn(normalized)
+    return if (permanent) {
+        AsyncTaskExecutionResult.PermanentFailure("remote_article_config_error", message)
+    } else {
+        AsyncTaskExecutionResult.RetryableFailure("remote_article_processing_failed", message)
     }
 }
 

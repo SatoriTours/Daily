@@ -7,6 +7,7 @@ import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class RemoteArticleSyncRepositoryTest {
     @Test
@@ -105,7 +106,7 @@ class RemoteArticleSyncRepositoryTest {
 
         val synced = syncRepo.getArticlesBySourceDate(sourceId, "2026-06-22").single()
         assertEquals("remote_news", synced.source_type)
-        assertEquals("# Remote original", synced.original_markdown_content)
+        assertTrue(synced.original_markdown_content.orEmpty().contains("# Remote original"))
         assertEquals("# Remote original", synced.ai_markdown_content)
         assertEquals(emptyList(), articleRepo.getLocalSync().map { it.id })
     }

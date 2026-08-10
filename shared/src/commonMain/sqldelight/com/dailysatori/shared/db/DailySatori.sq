@@ -320,6 +320,12 @@ CREATE TABLE remote_article_sync_item (
     article_id INTEGER NOT NULL REFERENCES article(id) ON DELETE CASCADE,
     url TEXT,
     source_date TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL DEFAULT '',
+    processed_content_hash TEXT NOT NULL DEFAULT '',
+    processing_state TEXT NOT NULL DEFAULT 'pending',
+    processing_error TEXT NOT NULL DEFAULT '',
+    processing_version TEXT NOT NULL DEFAULT '',
+    favorited_at INTEGER,
     first_seen_at INTEGER NOT NULL,
     last_seen_at INTEGER NOT NULL,
     UNIQUE(remote_source_id, remote_article_id)
@@ -436,6 +442,9 @@ CREATE TABLE weekly_summary (
 );
 
 CREATE INDEX IF NOT EXISTS idx_weekly_summary_week_range
+ON weekly_summary(week_start_date, week_end_date);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_summary_unique_week_range
 ON weekly_summary(week_start_date, week_end_date);
 
 CREATE TABLE unified_news_summary (
@@ -660,6 +669,23 @@ selectFavoriteArticlesByDateRange:
 SELECT * FROM article
 WHERE is_favorite = 1 AND created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
+
+selectWeeklyFavoriteArticlesByDateRange:
+SELECT article.* FROM article
+WHERE article.is_favorite = 1
+  AND (
+    (article.source_type != 'remote_news' AND article.created_at >= :startMs AND article.created_at <= :endMs)
+    OR EXISTS (
+      SELECT 1 FROM remote_article_sync_item remote_item
+      WHERE remote_item.article_id = article.id
+        AND COALESCE(remote_item.favorited_at, article.updated_at, article.created_at) >= :startMs
+        AND COALESCE(remote_item.favorited_at, article.updated_at, article.created_at) <= :endMs
+    )
+  )
+ORDER BY COALESCE(
+  (SELECT MAX(remote_item.favorited_at) FROM remote_article_sync_item remote_item WHERE remote_item.article_id = article.id),
+  article.created_at
+) DESC;
 
 selectExternalFavoriteArticles:
 SELECT article.* FROM article
@@ -1365,6 +1391,14 @@ SELECT * FROM remote_article_sync_item WHERE remote_source_id = ? AND remote_art
 selectRemoteArticleSyncItemByUrl:
 SELECT * FROM remote_article_sync_item WHERE remote_source_id = ? AND url = ?;
 
+selectRemoteArticleSyncItemByArticleId:
+SELECT * FROM remote_article_sync_item WHERE article_id = ? ORDER BY last_seen_at DESC LIMIT 1;
+
+selectRemoteArticleSyncMappingsBySourceDate:
+SELECT * FROM remote_article_sync_item
+WHERE remote_source_id = ? AND source_date = ?
+ORDER BY last_seen_at DESC;
+
 selectRemoteArticleSyncItemsBySourceDate:
 SELECT article.* FROM article
 INNER JOIN remote_article_sync_item ON remote_article_sync_item.article_id = article.id
@@ -1395,6 +1429,19 @@ ON CONFLICT(remote_source_id, remote_article_id) DO UPDATE SET
     url = COALESCE(excluded.url, remote_article_sync_item.url),
     source_date = excluded.source_date,
     last_seen_at = excluded.last_seen_at;
+
+updateRemoteArticleSyncProcessingState:
+UPDATE remote_article_sync_item
+SET source_content_hash = ?, processed_content_hash = ?, processing_state = ?,
+    processing_error = ?, processing_version = ?
+WHERE id = ?;
+
+markRemoteArticleFavorited:
+UPDATE remote_article_sync_item SET favorited_at = ? WHERE article_id = ?;
+
+renewAsyncTaskLease:
+UPDATE async_task SET lease_until_ms = ?, updated_at = ?
+WHERE id = ? AND status = 'running' AND lease_owner = ?;
 
 deleteRemoteArticleSyncItemsForSource:
 DELETE FROM remote_article_sync_item WHERE remote_source_id = ?;
@@ -1612,7 +1659,7 @@ selectWeeklySummaryByWeekRange:
 SELECT * FROM weekly_summary WHERE week_start_date = ? AND week_end_date = ?;
 
 insertWeeklySummary:
-INSERT INTO weekly_summary (week_start_date, week_end_date, content, article_count, diary_count, viewpoint_count, article_ids, diary_ids, viewpoint_ids, app_ideas, status, created_at, updated_at)
+INSERT OR IGNORE INTO weekly_summary (week_start_date, week_end_date, content, article_count, diary_count, viewpoint_count, article_ids, diary_ids, viewpoint_ids, app_ideas, status, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateWeeklySummary:

@@ -3,14 +3,15 @@ package com.dailysatori.service.unifiednews
 import co.touchlab.kermit.Logger
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
+import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.REMOTE_PROCESSING_READY
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
-import com.dailysatori.service.remotenews.RemoteNewsResult
-import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.shared.db.Article
+import com.dailysatori.shared.db.Remote_article_sync_item
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -21,8 +22,8 @@ class UnifiedNewsSummaryService(
     private val aiService: AiService,
     private val aiConfigService: AiConfigService,
     private val articleRepo: ArticleRepository,
-    private val remoteNewsService: RemoteNewsService,
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
+    private val remoteArticleSyncRepo: RemoteArticleSyncRepository,
     private val summaryRepo: UnifiedNewsSummaryRepository,
 ) {
     private val log = Logger.withTag("UnifiedNewsSummary")
@@ -106,27 +107,25 @@ class UnifiedNewsSummaryService(
     private fun collectLocalFavorites(window: UnifiedNewsWindow): List<UnifiedNewsSourceItem> =
         articleRepo.getFavoritesByDateRangeSync(window.startMs, window.endMs).map { it.toUnifiedSource() }
 
-    private suspend fun collectConfiguredRemoteArticles(
+    private fun collectConfiguredRemoteArticles(
         window: UnifiedNewsWindow,
         warnings: MutableList<String>,
         ignoreSourceTimeFilter: Boolean,
     ): List<UnifiedNewsSourceItem> {
         val articles = mutableListOf<UnifiedNewsSourceItem>()
         remoteNewsSourceRepo.getEnabled().forEach { source ->
-            when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-                is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
-                    is RemoteNewsResult.Success -> {
-                        articles += result.value.articles.mapNotNull { article ->
-                            article.toUnifiedSource(
-                                window = window,
-                                ignoreSourceTimeFilter = ignoreSourceTimeFilter,
-                                sourceFilename = remoteNewsSourceRouteKey(source.id),
-                            )
-                        }
-                    }
-                    is RemoteNewsResult.Failure -> warnRemoteSourceFailure(warnings, source.name, result.message)
-                }
-                is RemoteNewsResult.Failure -> warnRemoteSourceFailure(warnings, source.name, config.message)
+            val mappings = remoteArticleSyncRepo.getMappingsBySourceDate(source.id, window.summaryDate)
+            if (mappings.isEmpty()) {
+                warnRemoteSourceFailure(warnings, source.name, "当前时间窗口无本地同步快照")
+                return@forEach
+            }
+            articles += mappings.mapNotNull { mapping ->
+                articleRepo.getById(mapping.article_id)?.toUnifiedRemoteSource(
+                    mapping = mapping,
+                    window = window,
+                    ignoreSourceTimeFilter = ignoreSourceTimeFilter,
+                    sourceFilename = remoteNewsSourceRouteKey(source.id),
+                )
             }
         }
         return deduplicateUnifiedNewsSources(articles)
@@ -360,6 +359,29 @@ private fun Article.toUnifiedSource(): UnifiedNewsSourceItem = UnifiedNewsSource
     sourceTime = created_at,
     content = ai_markdown_content ?: ai_content ?: title ?: url.orEmpty(),
 )
+
+private fun Article.toUnifiedRemoteSource(
+    mapping: Remote_article_sync_item,
+    window: UnifiedNewsWindow,
+    ignoreSourceTimeFilter: Boolean,
+    sourceFilename: String,
+): UnifiedNewsSourceItem? {
+    val sourceTime = pub_date ?: created_at
+    if (!ignoreSourceTimeFilter && sourceTime !in window.startMs..window.endMs) return null
+    val ready = mapping.processing_state == REMOTE_PROCESSING_READY
+    val original = original_markdown_content?.takeIf(String::isNotBlank)
+    return UnifiedNewsSourceItem(
+        refKey = "",
+        sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+        sourceId = mapping.remote_article_id,
+        sourceFilename = sourceFilename,
+        sourceUrl = url,
+        title = if (ready) ai_title ?: title ?: url ?: "远程文章 ${mapping.remote_article_id}" else title ?: url ?: "远程文章 ${mapping.remote_article_id}",
+        summary = if (ready) ai_content ?: original?.take(500) ?: title.orEmpty() else original?.take(500) ?: ai_content ?: title.orEmpty(),
+        sourceTime = sourceTime,
+        content = if (ready) ai_markdown_content ?: original ?: ai_content.orEmpty() else original ?: ai_markdown_content ?: ai_content.orEmpty(),
+    )
+}
 
 private fun RemoteArticle.toUnifiedSource(
     window: UnifiedNewsWindow,

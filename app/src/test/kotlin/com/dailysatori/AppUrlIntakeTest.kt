@@ -302,8 +302,8 @@ class AppUrlIntakeTest {
         assertTrue(source.contains("existingArticleOriginalExtractedContent(article)"))
         assertTrue(refresh.contains("existingArticleOriginalExtractedContent(article) ?: extractContent(url)"))
         assertTrue(queue.contains("existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }"))
-        assertFalse(reprocess.contains("aiMarkdownContent = \"\""))
-        assertTrue(reprocess.contains("processAiTasksAsync(articleId, existingArticleOriginalExtractedContent(article))"))
+        assertTrue(reprocess.contains("val extracted = existingArticleOriginalExtractedContent(article)"))
+        assertTrue(reprocess.contains("processAiTasks(articleId, extracted)"))
     }
 
     @Test

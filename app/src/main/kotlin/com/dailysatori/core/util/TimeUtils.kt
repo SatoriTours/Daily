@@ -1,9 +1,6 @@
 package com.dailysatori.core.util
 
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 import java.util.Date
 import java.util.Locale
 
@@ -27,9 +24,8 @@ object TimeUtils {
     }
 
     fun formatDate(epochMs: Long): String {
-        val instant = Instant.ofEpochMilli(epochMs)
-        val localDate = LocalDate.ofInstant(instant, ZoneId.systemDefault())
-        return "${localDate.year}-${localDate.monthValue.toString().padStart(2, '0')}-${localDate.dayOfMonth.toString().padStart(2, '0')}"
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        return sdf.format(Date(epochMs))
     }
 
     fun formatDateTime(epochMs: Long): String {

@@ -59,9 +59,33 @@ class WeeklySummaryRepository(private val db: DailySatoriDatabase) {
     }
 
     fun getOrCreate(weekStart: Long, weekEnd: Long): Weekly_summary {
-        return getByWeekRange(weekStart, weekEnd) ?: run {
-            insert(weekStart, weekEnd, "", 0, 0, 0, null, null, null, null)
-            getByWeekRange(weekStart, weekEnd)!!
+        return db.transactionWithResult {
+            getByWeekRange(weekStart, weekEnd) ?: run {
+                insert(weekStart, weekEnd, "", 0, 0, 0, null, null, null, null)
+                checkNotNull(getByWeekRange(weekStart, weekEnd))
+            }
         }
+    }
+
+    fun claimGeneration(id: Long, staleAfterMs: Long = 30 * 60 * 1000L): Boolean = db.transactionWithResult {
+        val current = q.selectWeeklySummaries().executeAsList().firstOrNull { it.id == id } ?: return@transactionWithResult false
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        if (current.status == "generating" && current.updated_at > now - staleAfterMs) {
+            return@transactionWithResult false
+        }
+        q.updateWeeklySummary(
+            current.content,
+            current.article_count,
+            current.diary_count,
+            current.viewpoint_count,
+            current.article_ids,
+            current.diary_ids,
+            current.viewpoint_ids,
+            current.app_ideas,
+            "generating",
+            now,
+            id,
+        )
+        true
     }
 }

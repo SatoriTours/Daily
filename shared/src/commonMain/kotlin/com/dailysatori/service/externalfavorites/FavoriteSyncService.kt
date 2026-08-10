@@ -424,7 +424,8 @@ class FavoriteSyncService(
         text.isBlank() ||
             normalized_json.isBlank() ||
             content_hash.isBlank() ||
-            ai_input_hash.isBlank()
+            ai_input_hash.isBlank() ||
+            provider == ExternalFavoriteProvider.GITHUB.id && !hasCurrentGitHubAiProcessingVersion(normalized_json)
 
     private fun Throwable.syncFailureStatus(): ExternalSourceStatus = when (this) {
         is FavoriteAuthException -> ExternalSourceStatus.auth_required
