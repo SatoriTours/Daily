@@ -28,6 +28,7 @@ import com.dailysatori.core.task.externalFavoriteSyncTaskPayloadJson
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.shared.db.External_favorite_source
 import com.dailysatori.service.asynctask.AsyncTaskType
+import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
 import com.dailysatori.service.asynctask.AsyncTaskRunner
@@ -38,11 +39,32 @@ import com.dailysatori.service.externalfavorites.FavoriteSyncService
 import com.dailysatori.service.externalfavorites.FavoriteAuthException
 import com.dailysatori.service.externalfavorites.FavoriteRateLimitException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import org.koin.core.context.GlobalContext
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
+
+internal object ExternalFavoriteTaskCancellationRegistry {
+    private val runningJobs = ConcurrentHashMap<Long, Job>()
+
+    fun register(taskId: Long, job: Job) {
+        runningJobs[taskId] = job
+    }
+
+    fun unregister(taskId: Long, job: Job) {
+        runningJobs.remove(taskId, job)
+    }
+
+    fun cancel(taskId: Long): Boolean = runningJobs[taskId]?.let { job ->
+        job.cancel(CancellationException("外部收藏同步已取消"))
+        true
+    } ?: false
+}
 
 class ExternalFavoriteSyncScheduler(
     private val context: Context,
@@ -97,7 +119,10 @@ class ExternalFavoriteSyncScheduler(
         FavoriteSyncMode.entries.forEach { mode ->
             asyncTaskRepo
                 ?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name))
-                ?.let { taskId -> asyncTaskScheduler?.cancel(taskId) }
+                ?.let { taskId ->
+                    ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
+                    asyncTaskScheduler?.cancel(taskId)
+                }
             WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name))
         }
         cancelPeriodic(sourceId)
@@ -208,7 +233,21 @@ class ExternalFavoriteQueueWorker(
                 ?: com.dailysatori.service.asynctask.NoopAsyncTaskLogger,
         )
         val outcome = try {
-            runner.run(task.id)
+            coroutineScope {
+                val taskJob = async { runner.run(task.id) }
+                ExternalFavoriteTaskCancellationRegistry.register(task.id, taskJob)
+                try {
+                    taskJob.await()
+                } catch (error: CancellationException) {
+                    if (repository.getById(task.id)?.status == AsyncTaskStatus.cancelled.name) {
+                        AsyncTaskRunOutcome.Skipped
+                    } else {
+                        throw error
+                    }
+                } finally {
+                    ExternalFavoriteTaskCancellationRegistry.unregister(task.id, taskJob)
+                }
+            }
         } catch (error: CancellationException) {
             scheduleNextRetry(repository, kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
             throw error

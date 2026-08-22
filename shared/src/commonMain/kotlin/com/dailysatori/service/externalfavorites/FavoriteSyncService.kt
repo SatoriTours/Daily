@@ -360,7 +360,11 @@ class FavoriteSyncService(
                         return
                     }
                 }
-                markHistoryComplete()
+                if (cursor != null && pagesSeen >= policy.maxPages && itemsSeen < policy.maxItems) {
+                    markHistoryIncomplete(cursor)
+                } else {
+                    markHistoryComplete()
+                }
                 persistProgress()
             }
 
@@ -462,7 +466,7 @@ class FavoriteSyncService(
             FavoriteSyncMode.recent -> SyncPolicy(
                 shouldFetch = true,
                 pageSize = 20,
-                maxPages = itemBudgetPagesFor(20),
+                maxPages = itemBudgetPagesFor(20).coerceAtMost(cappedPages),
                 maxItems = cappedItems,
                 scanHistory = false,
                 resetHistory = false,
@@ -511,7 +515,7 @@ class FavoriteSyncService(
     }
 
     private fun changedItemAiBudget(localWorkItems: Long): Long =
-        localWorkItems
+        localWorkItems.coerceAtMost(MAX_AI_ORGANIZE_PER_SYNC)
 
     private data class SyncPolicy(
         val shouldFetch: Boolean,
@@ -543,6 +547,7 @@ class FavoriteSyncService(
         const val IMPORT_RETRY_LIMIT = 50L
         const val DEFAULT_AI_ORGANIZE_LIMIT = 10L
         const val PENDING_AI_RESUME_LIMIT = 50L
+        const val MAX_AI_ORGANIZE_PER_SYNC = 20L
     }
 }
 

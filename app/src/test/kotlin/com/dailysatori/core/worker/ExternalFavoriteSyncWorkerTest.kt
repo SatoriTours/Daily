@@ -9,8 +9,28 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Job
 
 class ExternalFavoriteSyncWorkerTest {
+    @Test
+    fun runningTaskCancellationTargetsOnlyMatchingTaskJob() {
+        val githubJob = Job()
+        val xJob = Job()
+        ExternalFavoriteTaskCancellationRegistry.register(11, githubJob)
+        ExternalFavoriteTaskCancellationRegistry.register(12, xJob)
+
+        try {
+            assertTrue(ExternalFavoriteTaskCancellationRegistry.cancel(11))
+            assertTrue(githubJob.isCancelled)
+            assertTrue(xJob.isActive)
+            assertFalse(ExternalFavoriteTaskCancellationRegistry.cancel(99))
+        } finally {
+            ExternalFavoriteTaskCancellationRegistry.unregister(11, githubJob)
+            ExternalFavoriteTaskCancellationRegistry.unregister(12, xJob)
+            xJob.cancel()
+        }
+    }
+
     @Test
     fun buildsUniqueWorkNamePerSourceAndMode() {
         assertEquals("external-favorite-sync-7-recent", externalFavoriteSyncWorkName(7, "recent"))

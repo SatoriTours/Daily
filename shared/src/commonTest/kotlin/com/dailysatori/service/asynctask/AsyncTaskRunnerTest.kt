@@ -156,6 +156,30 @@ class AsyncTaskRunnerTest {
         }
     }
 
+    @Test
+    fun cancellationWinningAfterHandlerStartsCannotBeOverwrittenBySuccess() = runBlocking {
+        lateinit var repository: AsyncTaskRepository
+        var taskId = -1L
+        withRunner(
+            handlers = listOf(
+                FakeHandler { _, _, _ ->
+                    repository.cancel(taskId)
+                    AsyncTaskExecutionResult.Success()
+                },
+            ),
+        ) { repo, runner, logger ->
+            repository = repo
+            taskId = repository.enqueue(type = FakeHandler.TYPE, payloadJson = "{}")
+
+            val outcome = runner.run(taskId)
+
+            assertIs<AsyncTaskRunOutcome.Skipped>(outcome)
+            assertEquals(AsyncTaskStatus.cancelled.name, repository.getById(taskId)!!.status)
+            assertTrue(logger.lines.any { it.contains("TASK cancelled") })
+            assertTrue(logger.lines.none { it.contains("TASK succeeded") })
+        }
+    }
+
     private suspend fun withRunner(
         handlers: List<AsyncTaskHandler>,
         nowMs: () -> Long = { 1_000 },

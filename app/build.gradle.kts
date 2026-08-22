@@ -23,8 +23,8 @@ android {
         applicationId = "com.dailysatori"
         minSdk = 26
         targetSdk = 36
-        versionCode = 50156
-        versionName = "5.1.56"
+        versionCode = 50157
+        versionName = "5.1.57"
         buildConfigField("String", "X_OAUTH_CLIENT_ID", "\"$xOAuthClientId\"")
         manifestPlaceholders["appAuthRedirectScheme"] = "dailysatoriappauth"
     }

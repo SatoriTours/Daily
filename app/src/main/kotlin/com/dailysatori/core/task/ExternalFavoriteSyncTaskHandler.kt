@@ -12,6 +12,7 @@ import com.dailysatori.service.externalfavorites.XFavoriteRateLimitException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CancellationException
 
 @Serializable
 data class ExternalFavoriteSyncTaskPayload(
@@ -53,6 +54,8 @@ class ExternalFavoriteSyncTaskHandler(
             }
             articleProcessingScheduler.enqueueResume()
             AsyncTaskExecutionResult.Success()
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: XFavoriteAuthException) {
             AsyncTaskExecutionResult.PermanentFailure("auth_failed", error.message.orEmpty().ifBlank { "X 授权失败" })
         } catch (error: XFavoriteRateLimitException) {

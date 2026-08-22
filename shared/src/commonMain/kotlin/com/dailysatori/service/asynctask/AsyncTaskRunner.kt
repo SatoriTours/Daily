@@ -64,9 +64,14 @@ class AsyncTaskRunner(
         }
 
         return try {
-            when (val result = executeWithLeaseHeartbeat(taskId, leaseOwner) {
+            val result = executeWithLeaseHeartbeat(taskId, leaseOwner) {
                 handler.execute(taskId, task.payload_json, task.checkpoint_json, reporter)
-            }) {
+            }
+            if (!repository.isRunning(taskId)) {
+                log(taskId, "TASK cancelled")
+                return AsyncTaskRunOutcome.Skipped
+            }
+            when (result) {
                 is AsyncTaskExecutionResult.Success -> {
                     repository.finishSuccess(taskId, result.resultJson)
                     log(taskId, "TASK succeeded")

@@ -21,6 +21,41 @@ import kotlin.test.assertTrue
 
 class FavoriteSyncServiceTest {
     @Test
+    fun incrementalSyncBoundsRemoteAndAiWorkSoAnotherSourceCanRun() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val pages = (1..7).map { page ->
+                FavoriteFetchPage(
+                    items = (1..20).map { item -> xDraft("${page}_$item") },
+                    nextCursor = "cursor-${page + 1}",
+                )
+            }
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 5, maxItemsPerRun = 400),
+                pages = pages,
+            )
+            var organizeLimit = -1L
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, limit -> limit.toInt() },
+                organizePendingForSource = { _, limit ->
+                    organizeLimit = limit
+                    0
+                },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(5, connector.fetchCalls)
+            assertEquals(100, items.getBySource(sourceId).size)
+            assertEquals(20L, organizeLimit)
+            assertTrue(sources.getById(sourceId)!!.config_json.contains("\"history_complete\":false"))
+        }
+    }
+
+    @Test
     fun recentSyncUsesConnectorLimitsAndUpsertsItems() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
