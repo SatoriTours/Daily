@@ -15,6 +15,61 @@ import kotlin.test.assertTrue
 
 class AsyncTaskRepositoryTest {
     @Test
+    fun externalFavoriteUniqueFamilyDeduplicatesModesForSameSource() {
+        withRepository { repository ->
+            val firstId = repository.enqueueUniqueFamily(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = """{"sourceId":7,"mode":"sync"}""",
+                uniqueKey = "external_favorite_sync:7:sync",
+                uniqueKeyPrefix = "external_favorite_sync:7:",
+            )
+
+            val secondId = repository.enqueueUniqueFamily(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = """{"sourceId":7,"mode":"full_rescan"}""",
+                uniqueKey = "external_favorite_sync:7:full_rescan",
+                uniqueKeyPrefix = "external_favorite_sync:7:",
+            )
+
+            assertEquals(firstId, secondId)
+        }
+    }
+
+    @Test
+    fun serialClaimUsesRunnableFifoAndSkipsDelayedRetry() {
+        withRepository { repository ->
+            val delayedId = repository.enqueue(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = "{}",
+            )
+            repository.claimForRun(delayedId, "prepare", Long.MAX_VALUE)
+            repository.markRetry(delayedId, "limited", "later", Long.MAX_VALUE)
+            val firstReady = repository.enqueue(type = AsyncTaskType.external_favorite_sync.name, payloadJson = "{}")
+            val secondReady = repository.enqueue(type = AsyncTaskType.external_favorite_sync.name, payloadJson = "{}")
+
+            assertEquals(
+                firstReady,
+                repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, Long.MAX_VALUE - 1, 1).single().id,
+            )
+            assertTrue(repository.claimForSerialRun(firstReady, AsyncTaskType.external_favorite_sync.name, "queue-a", Long.MAX_VALUE))
+            assertEquals(false, repository.claimForSerialRun(secondReady, AsyncTaskType.external_favorite_sync.name, "queue-b", Long.MAX_VALUE))
+        }
+    }
+
+    @Test
+    fun cancellingTerminalTaskDoesNotOverwriteItsResult() {
+        withRepository { repository ->
+            val taskId = repository.enqueue(type = AsyncTaskType.external_favorite_sync.name, payloadJson = "{}")
+            repository.claimForRun(taskId, "worker", Long.MAX_VALUE)
+            repository.finishSuccess(taskId, "{}")
+
+            repository.cancel(taskId)
+
+            assertEquals(AsyncTaskStatus.succeeded.name, repository.getById(taskId)!!.status)
+        }
+    }
+
+    @Test
     fun enqueueRefreshesExistingRetryingUniqueTaskForImmediateManualRun() {
         withRepository { repository ->
             val taskId = repository.enqueue(

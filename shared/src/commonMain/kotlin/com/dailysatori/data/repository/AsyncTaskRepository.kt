@@ -49,6 +49,24 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         insertTask(type, payloadJson, uniqueKey, batchId, maxAttempts, priority)
     }
 
+    fun enqueueUniqueFamily(
+        type: String,
+        payloadJson: String,
+        uniqueKey: String,
+        uniqueKeyPrefix: String,
+        maxAttempts: Long = 5,
+        priority: Long = 0,
+    ): Long = q.transactionWithResult {
+        val existing = q.selectActiveAsyncTaskByUniqueKeyPrefix(type, uniqueKeyPrefix).executeAsOneOrNull()
+        if (existing != null) {
+            val now = Clock.System.now().toEpochMilliseconds()
+            q.refreshActiveAsyncTaskEnqueue(updated_at = now, id = existing.id)
+            existing.id
+        } else {
+            insertTask(type, payloadJson, uniqueKey, null, maxAttempts, priority)
+        }
+    }
+
     fun enqueueBatch(name: String, requests: List<AsyncTaskEnqueueRequest>): AsyncTaskBatchEnqueueResult =
         q.transactionWithResult {
             val batchId = insertBatch(name, requests.size.toLong())
@@ -162,6 +180,12 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     fun runnableTasks(nowMs: Long, limit: Long = 20): List<Async_task> =
         q.selectRunnableAsyncTasks(nowMs, limit).executeAsList()
 
+    fun runnableTasksByType(type: String, nowMs: Long, limit: Long = 20): List<Async_task> =
+        q.selectRunnableAsyncTasksByType(type, nowMs, limit).executeAsList()
+
+    fun nextRunAfterByType(type: String, afterMs: Long): Long? =
+        q.selectNextAsyncTaskRunAfterByType(type, afterMs).executeAsOne().MIN
+
     fun claimForRun(id: Long, leaseOwner: String, leaseUntilMs: Long): Boolean {
         val now = Clock.System.now().toEpochMilliseconds()
         q.claimAsyncTaskForRun(
@@ -175,6 +199,23 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         )
         return q.selectAsyncTaskById(id).executeAsOneOrNull()?.lease_owner == leaseOwner
     }
+
+    fun claimForSerialRun(id: Long, type: String, leaseOwner: String, leaseUntilMs: Long): Boolean {
+        val now = Clock.System.now().toEpochMilliseconds()
+        q.claimAsyncTaskForSerialRun(
+            new_status = AsyncTaskStatus.running.name,
+            new_lease_owner = leaseOwner,
+            new_lease_until_ms = leaseUntilMs,
+            started_at_value = now,
+            updated_at_value = now,
+            candidate_id = id,
+            serial_type = type,
+            runnable_at = now,
+        )
+        return q.selectAsyncTaskById(id).executeAsOneOrNull()?.lease_owner == leaseOwner
+    }
+
+    fun isRunning(id: Long): Boolean = getById(id)?.status == AsyncTaskStatus.running.name
 
     fun updateProgress(id: Long, current: Long, total: Long, message: String, checkpointJson: String) {
         q.updateAsyncTaskProgress(

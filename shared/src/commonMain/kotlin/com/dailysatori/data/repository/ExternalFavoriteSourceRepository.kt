@@ -215,6 +215,27 @@ class ExternalFavoriteSourceRepository(
         )
     }
 
+    fun markSyncCancelled(id: Long) {
+        val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
+        val now = Clock.System.now().toEpochMilliseconds()
+        q.updateExternalFavoriteSourceSyncState(
+            source.last_sync_started_at,
+            now,
+            source.last_success_at,
+            source.last_sync_window_started_at,
+            source.last_items_seen_count,
+            source.last_pages_seen_count,
+            "",
+            "",
+            "",
+            ExternalSourceStatus.idle.name,
+            source.last_sync_mode,
+            null,
+            now,
+            id,
+        )
+    }
+
     fun markSyncFailed(
         id: Long,
         code: String,

@@ -83,6 +83,10 @@ class GenericAsyncTaskWorker(
 
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
         val taskType = inputData.getString(KEY_TASK_TYPE) ?: repo.getById(taskId)?.type
+        if (taskType == "external_favorite_sync") {
+            GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
+            return Result.success()
+        }
         if (taskType in LONG_RUNNING_TASK_TYPES) {
             setForeground(createAsyncTaskForegroundInfo(applicationContext, taskId, taskType.orEmpty()))
         }

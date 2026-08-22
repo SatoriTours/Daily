@@ -28,6 +28,10 @@ import com.dailysatori.core.task.externalFavoriteSyncTaskPayloadJson
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.shared.db.External_favorite_source
 import com.dailysatori.service.asynctask.AsyncTaskType
+import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
+import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
+import com.dailysatori.service.asynctask.AsyncTaskRunner
+import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.FavoriteSyncProgress
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
@@ -47,12 +51,13 @@ class ExternalFavoriteSyncScheduler(
 ) {
     fun enqueue(sourceId: Long, mode: String = FavoriteSyncMode.sync.name): Long? {
         if (asyncTaskRepo != null && asyncTaskScheduler != null) {
-            val taskId = asyncTaskRepo.enqueue(
+            val taskId = asyncTaskRepo.enqueueUniqueFamily(
                 type = AsyncTaskType.external_favorite_sync.name,
                 payloadJson = externalFavoriteSyncTaskPayloadJson(sourceId, mode),
                 uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode),
+                uniqueKeyPrefix = externalFavoriteSyncUniqueKeyPrefix(sourceId),
             )
-            asyncTaskScheduler.enqueue(taskId)
+            wake()
             return taskId
         }
         val request = buildExternalFavoriteSyncWorkRequest(sourceId, mode)
@@ -62,6 +67,29 @@ class ExternalFavoriteSyncScheduler(
             request,
         )
         return null
+    }
+
+    fun wake() {
+        val request = buildExternalFavoriteQueueWorkRequest()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            EXTERNAL_FAVORITE_QUEUE_WORK_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            request,
+        )
+    }
+
+    fun wakeAfter(delayMs: Long) {
+        WorkManager.getInstance(context).enqueue(buildExternalFavoriteQueueDelayWorkRequest(delayMs))
+    }
+
+    fun recover() {
+        val repository = asyncTaskRepo ?: return
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        if (repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, now, 1).isNotEmpty()) {
+            wake()
+        }
+        repository.nextRunAfterByType(AsyncTaskType.external_favorite_sync.name, now)
+            ?.let { wakeAfter((it - now).coerceAtLeast(1L)) }
     }
 
     fun cancelSync(source: External_favorite_source) {
@@ -137,20 +165,10 @@ class ExternalFavoriteSyncWorker(
         val mode = externalFavoriteSyncMode(inputData.getString(KEY_MODE)) ?: return Result.failure()
         if (sourceId <= 0L) return Result.failure()
 
-        return try {
-            setForeground(getForegroundInfo())
-            setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
-            GlobalContext.get().get<FavoriteSyncService>().syncSource(sourceId, mode) { progress ->
-                setProgress(externalFavoriteSyncProgressData(progress))
-            }
-            Result.success()
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: IllegalArgumentException) {
-            Result.failure()
-        } catch (error: Exception) {
-            externalFavoriteSyncFailureResult(error)
-        }
+        setForeground(getForegroundInfo())
+        setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
+        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().enqueue(sourceId, mode.name)
+        return Result.success()
     }
 
     companion object {
@@ -161,6 +179,69 @@ class ExternalFavoriteSyncWorker(
         const val PROGRESS_MAX_PAGES = "max_pages"
         const val PROGRESS_ITEMS_SEEN = "items_seen"
         const val PROGRESS_HISTORY_COMPLETE = "history_complete"
+    }
+}
+
+class ExternalFavoriteQueueWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        createExternalFavoriteForegroundInfo(applicationContext)
+
+    override suspend fun doWork(): Result {
+        val koin = GlobalContext.get()
+        val repository = koin.get<AsyncTaskRepository>()
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        repository.markExpiredRunningForRetry(now)
+        val task = repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, now, 1).firstOrNull()
+        if (task == null) {
+            scheduleNextRetry(repository, now)
+            return Result.success()
+        }
+
+        setForeground(getForegroundInfo())
+        val runner = AsyncTaskRunner(
+            repository = repository,
+            registry = koin.get<AsyncTaskHandlerRegistry>(),
+            logger = runCatching { koin.get<AsyncTaskLogStore>() }.getOrNull()
+                ?: com.dailysatori.service.asynctask.NoopAsyncTaskLogger,
+        )
+        val outcome = try {
+            runner.run(task.id)
+        } catch (error: CancellationException) {
+            scheduleNextRetry(repository, kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+            throw error
+        }
+        val afterRun = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        val scheduler = koin.get<ExternalFavoriteSyncScheduler>()
+        val current = repository.getById(task.id)
+        val currentRunAfter = current?.run_after_ms
+        val claimWasBusy = outcome == AsyncTaskRunOutcome.RetryScheduled &&
+            current?.status in setOf("queued", "retrying") &&
+            (currentRunAfter == null || currentRunAfter <= afterRun)
+        if (claimWasBusy) {
+            scheduler.wakeAfter(SERIAL_CLAIM_RETRY_DELAY_MS)
+        } else if (repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, afterRun, 1).isNotEmpty()) {
+            scheduler.wake()
+        }
+        scheduleNextRetry(repository, afterRun)
+        return Result.success()
+    }
+
+    private fun scheduleNextRetry(repository: AsyncTaskRepository, now: Long) {
+        val next = repository.nextRunAfterByType(AsyncTaskType.external_favorite_sync.name, now) ?: return
+        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wakeAfter((next - now).coerceAtLeast(1L))
+    }
+}
+
+class ExternalFavoriteQueueDelayWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
+    override suspend fun doWork(): Result {
+        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
+        return Result.success()
     }
 }
 
@@ -192,6 +273,23 @@ internal fun externalFavoriteSyncWorkName(sourceId: Long, mode: String): String 
 
 internal fun externalFavoriteSyncUniqueKey(sourceId: Long, mode: String): String =
     "external_favorite_sync:$sourceId:$mode"
+
+internal fun externalFavoriteSyncUniqueKeyPrefix(sourceId: Long): String =
+    "external_favorite_sync:$sourceId:"
+
+internal fun buildExternalFavoriteQueueWorkRequest(): OneTimeWorkRequest =
+    OneTimeWorkRequestBuilder<ExternalFavoriteQueueWorker>()
+        .setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build(),
+        )
+        .build()
+
+internal fun buildExternalFavoriteQueueDelayWorkRequest(delayMs: Long): OneTimeWorkRequest =
+    OneTimeWorkRequestBuilder<ExternalFavoriteQueueDelayWorker>()
+        .setInitialDelay(delayMs.coerceAtLeast(1L), TimeUnit.MILLISECONDS)
+        .build()
 
 internal fun buildExternalFavoriteSyncWorkRequest(
     sourceId: Long,
@@ -264,6 +362,8 @@ private fun createExternalFavoriteForegroundInfo(context: Context): ForegroundIn
 
 private const val EXTERNAL_FAVORITE_CHANNEL_ID = "external_favorite_sync"
 private const val EXTERNAL_FAVORITE_NOTIFICATION_ID = 3101
+private const val EXTERNAL_FAVORITE_QUEUE_WORK_NAME = "external-favorite-sync-queue"
+private const val SERIAL_CLAIM_RETRY_DELAY_MS = 5_000L
 
 internal fun externalFavoriteSyncFailureResult(error: Exception): ListenableWorker.Result = when (error) {
     is FavoriteAuthException -> ListenableWorker.Result.failure()

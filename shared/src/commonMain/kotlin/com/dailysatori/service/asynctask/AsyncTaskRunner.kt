@@ -3,6 +3,10 @@ package com.dailysatori.service.asynctask
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 
 interface AsyncTaskLogger {
@@ -33,7 +37,12 @@ class AsyncTaskRunner(
         repository.markExpiredRunningForRetry(nowMs())
         val task = repository.getById(taskId) ?: return AsyncTaskRunOutcome.Skipped
         val leaseOwner = leaseOwnerProvider()
-        if (!repository.claimForRun(taskId, leaseOwner, nowMs() + leaseMs)) {
+        val claimed = if (task.type in SERIAL_TASK_TYPES) {
+            repository.claimForSerialRun(taskId, task.type, leaseOwner, nowMs() + leaseMs)
+        } else {
+            repository.claimForRun(taskId, leaseOwner, nowMs() + leaseMs)
+        }
+        if (!claimed) {
             return AsyncTaskRunOutcome.RetryScheduled
         }
         log(taskId, "TASK started type=${task.type}")
@@ -47,6 +56,7 @@ class AsyncTaskRunner(
 
         val reporter = object : AsyncTaskProgressReporter {
             override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) {
+                if (!repository.isRunning(taskId)) throw AsyncTaskCancelledException()
                 repository.updateProgress(taskId, current, total, message, checkpointJson)
                 repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
                 log(taskId, "TASK progress current=$current total=$total message=$message checkpoint=$checkpointJson")
@@ -54,7 +64,9 @@ class AsyncTaskRunner(
         }
 
         return try {
-            when (val result = handler.execute(taskId, task.payload_json, task.checkpoint_json, reporter)) {
+            when (val result = executeWithLeaseHeartbeat(taskId, leaseOwner) {
+                handler.execute(taskId, task.payload_json, task.checkpoint_json, reporter)
+            }) {
                 is AsyncTaskExecutionResult.Success -> {
                     repository.finishSuccess(taskId, result.resultJson)
                     log(taskId, "TASK succeeded")
@@ -69,14 +81,20 @@ class AsyncTaskRunner(
                     handleRetryableFailure(taskId, task, result.code, result.message, result.retryAfterMs)
                 }
             }
+        } catch (_: AsyncTaskCancelledException) {
+            log(taskId, "TASK cancelled")
+            AsyncTaskRunOutcome.Skipped
         } catch (error: CancellationException) {
-            handleRetryableFailure(
-                taskId = taskId,
-                task = task,
-                code = "cancelled",
-                message = error.message.orEmpty().ifBlank { "任务被系统中断" },
-                retryAfterMs = null,
-            )
+            if (repository.isRunning(taskId)) {
+                handleRetryableFailure(
+                    taskId = taskId,
+                    task = task,
+                    code = "interrupted",
+                    message = error.message.orEmpty().ifBlank { "任务被系统中断" },
+                    retryAfterMs = null,
+                )
+            }
+            throw error
         } catch (error: Throwable) {
             handleRetryableFailure(
                 taskId = taskId,
@@ -85,6 +103,25 @@ class AsyncTaskRunner(
                 message = error.message.orEmpty().ifBlank { "任务执行失败" },
                 retryAfterMs = null,
             )
+        }
+    }
+
+    private suspend fun <T> executeWithLeaseHeartbeat(
+        taskId: Long,
+        leaseOwner: String,
+        block: suspend () -> T,
+    ): T = coroutineScope {
+        val heartbeat = launch {
+            while (true) {
+                delay((leaseMs / 3).coerceAtLeast(MIN_HEARTBEAT_MS))
+                if (!repository.isRunning(taskId)) return@launch
+                repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
+            }
+        }
+        try {
+            block()
+        } finally {
+            heartbeat.cancelAndJoin()
         }
     }
 
@@ -115,5 +152,9 @@ class AsyncTaskRunner(
 
     private companion object {
         const val DEFAULT_LEASE_MS = 30 * 60 * 1000L
+        const val MIN_HEARTBEAT_MS = 30_000L
+        val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name)
     }
 }
+
+private class AsyncTaskCancelledException : CancellationException("任务已取消")

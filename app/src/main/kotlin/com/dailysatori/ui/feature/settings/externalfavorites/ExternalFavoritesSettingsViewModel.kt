@@ -78,6 +78,7 @@ data class ExternalFavoriteSyncWorkUi(
     val itemsSeen: Int,
     val phase: String,
     val historyComplete: Boolean = false,
+    val taskStatus: AsyncTaskStatus? = null,
 ) {
     val active: Boolean get() = state == WorkInfo.State.ENQUEUED || state == WorkInfo.State.RUNNING
 }
@@ -267,7 +268,7 @@ class ExternalFavoritesSettingsViewModel(
     }
 
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
-        if (externalFavoriteHasActiveSync(_state.value)) {
+        if (externalFavoriteHasActiveSync(_state.value, sourceId)) {
             _state.update { it.copy(message = externalFavoriteDuplicateSyncMessage()) }
             return
         }
@@ -356,11 +357,17 @@ private val finishedWorkStates = setOf(
     WorkInfo.State.CANCELLED,
 )
 
-internal fun externalFavoriteHasActiveSync(state: ExternalFavoritesSettingsState): Boolean =
+internal fun externalFavoriteHasActiveSync(
+    state: ExternalFavoritesSettingsState,
+    sourceId: Long? = null,
+): Boolean = if (sourceId == null) {
     state.syncingSourceId != null || state.syncWorkBySourceId.values.any { it.active }
+} else {
+    state.syncingSourceId == sourceId || state.syncWorkBySourceId[sourceId]?.active == true
+}
 
 internal fun externalFavoriteDuplicateSyncMessage(): String =
-    "外部收藏同步任务正在执行，请稍后再试"
+    "该来源已有同步任务，请等待完成或先取消"
 
 internal fun externalFavoriteApplySyncWorkState(
     state: ExternalFavoritesSettingsState,
@@ -417,6 +424,7 @@ fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyn
         itemsSeen = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "itemsSeen")?.toInt() ?: 0,
         phase = externalFavoriteTaskCheckpointString(task.checkpoint_json, "phase").orEmpty(),
         historyComplete = externalFavoriteTaskCheckpointBoolean(task.checkpoint_json, "historyComplete") ?: false,
+        taskStatus = status,
     )
 }
 
@@ -553,6 +561,7 @@ fun externalFavoriteEffectiveHealthLabel(
 ): String = if (work?.active == true) "同步中" else externalFavoriteHealthLabel(health)
 
 fun externalFavoriteSyncProgressTitle(work: ExternalFavoriteSyncWorkUi): String = when {
+    work.taskStatus == AsyncTaskStatus.retrying -> "等待重试"
     work.state == WorkInfo.State.ENQUEUED -> "等待同步"
     work.phase == "backfill" -> "正在补全较早收藏"
     work.phase == "import" -> "正在导入收藏文章"

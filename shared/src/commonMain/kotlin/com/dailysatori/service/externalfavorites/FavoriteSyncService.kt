@@ -87,6 +87,7 @@ class FavoriteSyncService(
                 pagesSeen = result.pagesSeen.toLong(),
             )
         } catch (error: CancellationException) {
+            sourceRepo.markSyncCancelled(sourceId)
             throw error
         } catch (error: Exception) {
             val status = error.syncFailureStatus()

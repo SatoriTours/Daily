@@ -818,7 +818,7 @@ class FavoriteSyncServiceTest {
             }
 
             sources.getById(sourceId)!!.let { source ->
-                assertEquals("syncing", source.status)
+                assertEquals("idle", source.status)
                 assertEquals(null, source.last_success_at)
                 assertEquals("", source.last_error_code)
             }
@@ -900,7 +900,7 @@ class FavoriteSyncServiceTest {
             }
 
             sources.getById(sourceId)!!.let { source ->
-                assertEquals("syncing", source.status)
+                assertEquals("idle", source.status)
                 assertEquals("", source.last_error_code)
                 assertEquals("", source.last_error_message)
             }

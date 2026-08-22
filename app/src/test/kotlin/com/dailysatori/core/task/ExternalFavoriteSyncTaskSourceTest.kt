@@ -26,8 +26,10 @@ class ExternalFavoriteSyncTaskSourceTest {
         assertTrue(source.contains("AsyncTaskType.external_favorite_sync.name"))
         assertTrue(source.contains("externalFavoriteSyncTaskPayloadJson(sourceId, mode)"))
         assertTrue(source.contains("\"external_favorite_sync:\$sourceId:\$mode\""))
-        assertTrue(source.contains("asyncTaskRepo.enqueue("))
-        assertTrue(source.contains("asyncTaskScheduler.enqueue(taskId)"))
+        assertTrue(source.contains("asyncTaskRepo.enqueueUniqueFamily("))
+        assertTrue(source.contains("ExistingWorkPolicy.APPEND_OR_REPLACE"))
+        assertTrue(source.contains("ExternalFavoriteQueueWorker"))
+        assertTrue(source.contains("runnableTasksByType"))
     }
 
     @Test

@@ -801,6 +801,14 @@ SELECT * FROM async_task WHERE id = ?;
 selectAsyncTaskByUniqueKey:
 SELECT * FROM async_task WHERE unique_key = ? ORDER BY created_at DESC, id DESC LIMIT 1;
 
+selectActiveAsyncTaskByUniqueKeyPrefix:
+SELECT * FROM async_task
+WHERE type = :task_type
+  AND instr(unique_key, :unique_key_prefix) = 1
+  AND status IN ('queued', 'running', 'retrying')
+ORDER BY created_at ASC, id ASC
+LIMIT 1;
+
 selectAsyncTasksForTaskCenter:
 SELECT id, type, status, progress_current, progress_total, progress_message, checkpoint_json,
        created_at, started_at, finished_at, updated_at, last_error_message
@@ -849,6 +857,21 @@ WHERE status IN ('queued', 'retrying')
 ORDER BY priority DESC, created_at ASC
 LIMIT ?;
 
+selectRunnableAsyncTasksByType:
+SELECT * FROM async_task
+WHERE type = :task_type
+  AND status IN ('queued', 'retrying')
+  AND (run_after_ms IS NULL OR run_after_ms <= :runnable_at)
+ORDER BY priority DESC, created_at ASC, id ASC
+LIMIT :task_limit;
+
+selectNextAsyncTaskRunAfterByType:
+SELECT MIN(run_after_ms) FROM async_task
+WHERE type = :task_type
+  AND status = 'retrying'
+  AND run_after_ms IS NOT NULL
+  AND run_after_ms > :after_ms;
+
 insertAsyncTask:
 INSERT INTO async_task (
     type, status, payload_json, checkpoint_json, result_json,
@@ -882,6 +905,33 @@ WHERE id = ?
   AND status IN ('queued', 'retrying')
   AND (run_after_ms IS NULL OR run_after_ms <= ?);
 
+claimAsyncTaskForSerialRun:
+UPDATE async_task
+SET status = :new_status,
+    lease_owner = :new_lease_owner,
+    lease_until_ms = :new_lease_until_ms,
+    started_at = COALESCE(started_at, :started_at_value),
+    updated_at = :updated_at_value
+WHERE id = :candidate_id
+  AND type = :serial_type
+  AND status IN ('queued', 'retrying')
+  AND (run_after_ms IS NULL OR run_after_ms <= :runnable_at)
+  AND NOT EXISTS (
+      SELECT 1 FROM async_task running
+      WHERE running.type = :serial_type AND running.status = 'running'
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM async_task earlier
+      WHERE earlier.type = :serial_type
+        AND earlier.status IN ('queued', 'retrying')
+        AND (earlier.run_after_ms IS NULL OR earlier.run_after_ms <= :runnable_at)
+        AND (
+            earlier.priority > async_task.priority OR
+            (earlier.priority = async_task.priority AND earlier.created_at < async_task.created_at) OR
+            (earlier.priority = async_task.priority AND earlier.created_at = async_task.created_at AND earlier.id < async_task.id)
+        )
+  );
+
 updateAsyncTaskProgress:
 UPDATE async_task
 SET progress_current = ?, progress_total = ?, progress_message = ?, checkpoint_json = ?, updated_at = ?
@@ -902,7 +952,7 @@ WHERE id = ? AND status = 'running';
 cancelAsyncTask:
 UPDATE async_task
 SET status = ?, finished_at = ?, updated_at = ?
-WHERE id = ?;
+WHERE id = ? AND status IN ('queued', 'running', 'retrying');
 
 markExpiredRunningAsyncTasksForRetry:
 UPDATE async_task

@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 import androidx.work.WorkInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -173,6 +174,22 @@ class ExternalFavoriteSyncStateTest {
 
         assertTrue(externalFavoriteHasActiveSync(ExternalFavoritesSettingsState(syncingSourceId = 42)))
         assertTrue(externalFavoriteHasActiveSync(ExternalFavoritesSettingsState(syncWorkBySourceId = mapOf(42L to running))))
-        assertEquals("外部收藏同步任务正在执行，请稍后再试", externalFavoriteDuplicateSyncMessage())
+        assertEquals("该来源已有同步任务，请等待完成或先取消", externalFavoriteDuplicateSyncMessage())
+    }
+
+    @Test
+    fun activeSyncOnlyBlocksTheSameSource() {
+        val running = ExternalFavoriteSyncWorkUi(
+            taskId = 8,
+            state = WorkInfo.State.RUNNING,
+            pagesSeen = 1,
+            maxPages = 3,
+            itemsSeen = 20,
+            phase = "latest",
+        )
+        val state = ExternalFavoritesSettingsState(syncWorkBySourceId = mapOf(42L to running))
+
+        assertTrue(externalFavoriteHasActiveSync(state, 42))
+        assertFalse(externalFavoriteHasActiveSync(state, 43))
     }
 }

@@ -53,6 +53,17 @@ class ExternalFavoriteSyncWorkerTest {
     }
 
     @Test
+    fun queueWorkUsesNetworkConstraintAndDelayedWakeUsesSeparateWorker() {
+        val queue = buildExternalFavoriteQueueWorkRequest()
+        val delayed = buildExternalFavoriteQueueDelayWorkRequest(5_000)
+
+        assertEquals(NetworkType.CONNECTED, queue.workSpec.constraints.requiredNetworkType)
+        assertTrue(queue.workSpec.workerClassName.endsWith("ExternalFavoriteQueueWorker"))
+        assertTrue(delayed.workSpec.workerClassName.endsWith("ExternalFavoriteQueueDelayWorker"))
+        assertEquals(5_000L, delayed.workSpec.initialDelay)
+    }
+
+    @Test
     fun periodicSchedulingOnlyRunsForEnabledSourcesWithPositiveInterval() {
         assertTrue(externalFavoriteShouldSchedulePeriodic(enabled = 1, intervalMinutes = 720))
         assertFalse(externalFavoriteShouldSchedulePeriodic(enabled = 0, intervalMinutes = 720))
