@@ -492,6 +492,7 @@ private fun ExternalFavoriteSourceCard(
                             identity = externalFavoriteAccountIdentity(source.account_name, source.account_id),
                             lastSuccessAt = if (syncing) null else source.last_success_at,
                             syncIntervalMinutes = source.sync_interval_minutes,
+                            provider = source.provider,
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -21,6 +21,110 @@ import kotlin.test.assertTrue
 
 class FavoriteSyncServiceTest {
     @Test
+    fun automaticXSyncProbesOncePerUtcDayAndSkipsFullFetchWhenHeadIsKnown() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("known-head"))
+            val connector = AutomaticProbeConnector(
+                probe = FavoriteFetchPage(listOf(xDraft("known-head")), null),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePendingForSource = { _, _ -> 0 },
+                nowMs = { 1_787_529_600_000L },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync, automatic = true)
+            service.syncSource(sourceId, FavoriteSyncMode.sync, automatic = true)
+
+            assertEquals(1, connector.probeCalls)
+            assertEquals(0, connector.fetchCalls)
+            assertTrue(sources.getById(sourceId)!!.config_json.contains("\"x_auto_sync_utc_day\":\"2026-08-24\""))
+        }
+    }
+
+    @Test
+    fun automaticXSyncFetchesDetailsOnlyWhenProbeFindsUnknownBookmark() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("known"))
+            val connector = AutomaticProbeConnector(
+                probe = FavoriteFetchPage(listOf(xDraft("new"), xDraft("known")), null),
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("new"), xDraft("known")), "cursor-2")),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePendingForSource = { _, _ -> 0 },
+                nowMs = { 1_787_529_600_000L },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync, automatic = true)
+
+            assertEquals(1, connector.probeCalls)
+            assertEquals(1, connector.fetchCalls)
+            assertEquals(listOf("known", "new"), items.getBySource(sourceId).map { it.external_id }.sorted())
+        }
+    }
+
+    @Test
+    fun automaticXSyncDoesNotRepeatPaidProbeWhenLocalWorkFails() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("known-head"))
+            val connector = AutomaticProbeConnector(
+                probe = FavoriteFetchPage(listOf(xDraft("known-head")), null),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePendingForSource = { _, _ -> 0 },
+                repairImportedPlaceholderArticles = { error("local repair failed") },
+                nowMs = { 1_787_529_600_000L },
+            )
+
+            assertFailsWith<IllegalStateException> {
+                service.syncSource(sourceId, FavoriteSyncMode.sync, automatic = true)
+            }
+            service.syncSource(sourceId, FavoriteSyncMode.sync, automatic = true)
+
+            assertEquals(1, connector.probeCalls)
+        }
+    }
+
+    @Test
+    fun successfulManualXSyncSuppressesSameDayAutomaticProbe() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = AutomaticProbeConnector(
+                probe = FavoriteFetchPage(listOf(xDraft("manual-item")), null),
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("manual-item")), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePendingForSource = { _, _ -> 0 },
+                nowMs = { 1_787_529_600_000L },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+            service.syncSource(sourceId, FavoriteSyncMode.sync, automatic = true)
+
+            assertEquals(1, connector.fetchCalls)
+            assertEquals(0, connector.probeCalls)
+        }
+    }
+
+    @Test
     fun incrementalSyncBoundsRemoteAndAiWorkSoAnotherSourceCanRun() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -1919,6 +2023,23 @@ class FavoriteSyncServiceTest {
             }
             if (failOnFetch) error("retry_failed must not fetch provider pages")
             return pages.getOrElse(fetchCalls - 1) { FavoriteFetchPage(emptyList(), null) }
+        }
+    }
+
+    private class AutomaticProbeConnector(
+        private val probe: FavoriteFetchPage,
+        pages: List<FavoriteFetchPage> = emptyList(),
+    ) : FakeConnector(pages = pages) {
+        var probeCalls = 0
+
+        override suspend fun probePage(
+            source: External_favorite_source,
+            pageSize: Int,
+            httpLogger: FavoriteSyncHttpLogger,
+            taskId: Long?,
+        ): FavoriteFetchPage {
+            probeCalls += 1
+            return probe
         }
     }
 

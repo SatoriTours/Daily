@@ -71,13 +71,17 @@ class ExternalFavoriteSyncScheduler(
     private val asyncTaskRepo: AsyncTaskRepository? = null,
     private val asyncTaskScheduler: AsyncTaskScheduler? = null,
 ) {
-    fun enqueue(sourceId: Long, mode: String = FavoriteSyncMode.sync.name): Long? {
+    fun enqueue(
+        sourceId: Long,
+        mode: String = FavoriteSyncMode.sync.name,
+        automatic: Boolean = false,
+    ): Long? {
         if (asyncTaskRepo != null && asyncTaskScheduler != null) {
             val taskId = asyncTaskRepo.enqueueUniqueFamily(
                 type = AsyncTaskType.external_favorite_sync.name,
-                payloadJson = externalFavoriteSyncTaskPayloadJson(sourceId, mode),
-                uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode),
-                uniqueKeyPrefix = externalFavoriteSyncUniqueKeyPrefix(sourceId),
+                payloadJson = externalFavoriteSyncTaskPayloadJson(sourceId, mode, automatic),
+                uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode, automatic),
+                uniqueKeyPrefix = externalFavoriteSyncUniqueKeyPrefix(sourceId, automatic),
             )
             wake()
             return taskId
@@ -117,12 +121,14 @@ class ExternalFavoriteSyncScheduler(
     fun cancelSync(source: External_favorite_source) {
         val sourceId = source.id
         FavoriteSyncMode.entries.forEach { mode ->
-            asyncTaskRepo
-                ?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name))
-                ?.let { taskId ->
-                    ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
-                    asyncTaskScheduler?.cancel(taskId)
-                }
+            listOf(false, true).forEach { automatic ->
+                asyncTaskRepo
+                    ?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name, automatic))
+                    ?.let { taskId ->
+                        ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
+                        asyncTaskScheduler?.cancel(taskId)
+                    }
+            }
             WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name))
         }
         cancelPeriodic(sourceId)
@@ -156,7 +162,8 @@ class ExternalFavoriteSyncScheduler(
 
     fun enqueuePeriodic(source: External_favorite_source) {
         if (externalFavoriteShouldSchedulePeriodic(source.enabled, source.sync_interval_minutes)) {
-            enqueuePeriodic(source.id, source.sync_interval_minutes)
+            val interval = externalFavoriteAutomaticIntervalMinutes(source.provider, source.sync_interval_minutes)
+            enqueuePeriodic(source.id, interval)
         }
     }
 
@@ -192,13 +199,15 @@ class ExternalFavoriteSyncWorker(
 
         setForeground(getForegroundInfo())
         setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
-        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().enqueue(sourceId, mode.name)
+        val automatic = inputData.getBoolean(KEY_AUTOMATIC, false)
+        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().enqueue(sourceId, mode.name, automatic)
         return Result.success()
     }
 
     companion object {
         const val KEY_SOURCE_ID = "source_id"
         const val KEY_MODE = "mode"
+        const val KEY_AUTOMATIC = "automatic"
         const val PROGRESS_PHASE = "phase"
         const val PROGRESS_PAGES_SEEN = "pages_seen"
         const val PROGRESS_MAX_PAGES = "max_pages"
@@ -310,11 +319,11 @@ internal fun externalFavoriteSyncProgressData(
 internal fun externalFavoriteSyncWorkName(sourceId: Long, mode: String): String =
     "external-favorite-sync-$sourceId-$mode"
 
-internal fun externalFavoriteSyncUniqueKey(sourceId: Long, mode: String): String =
-    "external_favorite_sync:$sourceId:$mode"
+internal fun externalFavoriteSyncUniqueKey(sourceId: Long, mode: String, automatic: Boolean = false): String =
+    if (automatic) "external_favorite_auto_sync:$sourceId:$mode" else "external_favorite_sync:$sourceId:$mode"
 
-internal fun externalFavoriteSyncUniqueKeyPrefix(sourceId: Long): String =
-    "external_favorite_sync:$sourceId:"
+internal fun externalFavoriteSyncUniqueKeyPrefix(sourceId: Long, automatic: Boolean = false): String =
+    if (automatic) "external_favorite_auto_sync:$sourceId:" else "external_favorite_sync:$sourceId:"
 
 internal fun buildExternalFavoriteQueueWorkRequest(): OneTimeWorkRequest =
     OneTimeWorkRequestBuilder<ExternalFavoriteQueueWorker>()
@@ -355,6 +364,7 @@ internal fun buildExternalFavoritePeriodicSyncWorkRequest(
             workDataOf(
                 ExternalFavoriteSyncWorker.KEY_SOURCE_ID to sourceId,
                 ExternalFavoriteSyncWorker.KEY_MODE to FavoriteSyncMode.sync.name,
+                ExternalFavoriteSyncWorker.KEY_AUTOMATIC to true,
             ),
         )
         .setConstraints(constraints)
@@ -367,6 +377,15 @@ internal fun externalFavoriteSyncMode(value: String?): FavoriteSyncMode? =
 
 internal fun externalFavoriteShouldSchedulePeriodic(enabled: Long, intervalMinutes: Long): Boolean =
     enabled == 1L && intervalMinutes > 0L
+
+internal fun externalFavoriteAutomaticIntervalMinutes(provider: String, configuredMinutes: Long): Long =
+    if (provider == com.dailysatori.service.externalfavorites.ExternalFavoriteProvider.X.id) {
+        configuredMinutes.coerceAtLeast(X_AUTOMATIC_SYNC_INTERVAL_MINUTES)
+    } else {
+        configuredMinutes
+    }
+
+internal const val X_AUTOMATIC_SYNC_INTERVAL_MINUTES = 24L * 60L
 
 internal const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250
 

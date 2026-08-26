@@ -10,6 +10,19 @@ interface FavoriteConnector {
 
     suspend fun refreshAuth(source: External_favorite_source): External_favorite_source = source
 
+    suspend fun probePage(
+        source: External_favorite_source,
+        pageSize: Int,
+        httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
+        taskId: Long? = null,
+    ): FavoriteFetchPage = fetchPage(
+        source = source,
+        pageSize = pageSize,
+        httpLogger = httpLogger,
+        taskId = taskId,
+        shouldFetchDetail = { false },
+    )
+
     suspend fun fetchPage(
         source: External_favorite_source,
         cursor: String? = null,

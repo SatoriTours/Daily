@@ -138,6 +138,7 @@ class XOAuthCoordinator(
                 accountName = user.username.ifBlank { user.name },
                 authJson = xOAuthAuthJson(token, clientId),
                 enabled = true,
+                syncIntervalMinutes = 24L * 60L,
             )
             sessionStore?.clear()
             return sourceId

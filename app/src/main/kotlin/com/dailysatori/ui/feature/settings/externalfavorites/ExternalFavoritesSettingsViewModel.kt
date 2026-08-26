@@ -222,7 +222,7 @@ class ExternalFavoritesSettingsViewModel(
                 capabilitiesJson = source.capabilities_json,
             )
             if (enabled) {
-                sourceRepo.getById(sourceId)?.let { scheduler.enqueuePeriodic(it.id, it.sync_interval_minutes) }
+                sourceRepo.getById(sourceId)?.let(scheduler::enqueuePeriodic)
             } else {
                 scheduler.cancelPeriodic(sourceId)
             }
@@ -632,9 +632,15 @@ fun externalFavoriteSourceSubtitle(
     lastSuccessAt: Long?,
     syncIntervalMinutes: Long,
     nowMillis: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+    provider: String = "",
 ): String {
+    val effectiveInterval = if (provider == ExternalFavoriteProvider.X.id) {
+        syncIntervalMinutes.coerceAtLeast(24L * 60L)
+    } else {
+        syncIntervalMinutes
+    }
     val suffix = lastSuccessAt?.let { "上次成功：${externalFavoriteRelativeTimeText(it, nowMillis)}" }
-        ?: "每 ${externalFavoriteReadableIntervalText(syncIntervalMinutes)}自动同步"
+        ?: "每 ${externalFavoriteReadableIntervalText(effectiveInterval)}自动同步"
     return listOf(identity, suffix)
         .filter { it.isNotBlank() }
         .joinToString(" · ")
@@ -662,7 +668,13 @@ fun externalFavoriteSummaryMetrics(state: ExternalFavoritesSettingsState): List<
         )
     }
     val syncIntervalMinutes = state.sources
-        .map { it.source.sync_interval_minutes }
+        .map { item ->
+            if (item.source.provider == ExternalFavoriteProvider.X.id) {
+                item.source.sync_interval_minutes.coerceAtLeast(24L * 60L)
+            } else {
+                item.source.sync_interval_minutes
+            }
+        }
         .filter { it > 0L }
         .minOrNull() ?: 360L
     return listOf(

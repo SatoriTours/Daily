@@ -8,10 +8,11 @@ import kotlin.test.assertTrue
 class ExternalFavoriteSyncTaskSourceTest {
     @Test
     fun payloadJsonCarriesSourceIdAndMode() {
-        val json = externalFavoriteSyncTaskPayloadJson(sourceId = 42, mode = "history")
+        val json = externalFavoriteSyncTaskPayloadJson(sourceId = 42, mode = "history", automatic = true)
 
         assertTrue(json.contains("\"sourceId\":42"))
         assertTrue(json.contains("\"mode\":\"history\""))
+        assertTrue(json.contains("\"automatic\":true"))
     }
 
     @Test
@@ -24,7 +25,7 @@ class ExternalFavoriteSyncTaskSourceTest {
         val source = File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
 
         assertTrue(source.contains("AsyncTaskType.external_favorite_sync.name"))
-        assertTrue(source.contains("externalFavoriteSyncTaskPayloadJson(sourceId, mode)"))
+        assertTrue(source.contains("externalFavoriteSyncTaskPayloadJson(sourceId, mode, automatic)"))
         assertTrue(source.contains("\"external_favorite_sync:\$sourceId:\$mode\""))
         assertTrue(source.contains("asyncTaskRepo.enqueueUniqueFamily("))
         assertTrue(source.contains("ExistingWorkPolicy.APPEND_OR_REPLACE"))

@@ -23,6 +23,26 @@ import kotlinx.serialization.json.contentOrNull
 
 class XBookmarksConnectorTest {
     @Test
+    fun automaticProbeRequestsOnlyFiveBookmarksWithoutExpansions() = runBlocking {
+        var maxResults: String? = null
+        var expansions: String? = null
+        var tweetFields: String? = null
+        val client = HttpClient(MockEngine { request ->
+            maxResults = request.url.parameters["max_results"]
+            expansions = request.url.parameters["expansions"]
+            tweetFields = request.url.parameters["tweet.fields"]
+            respondJson("""{"data":[{"id":"123","text":"Saved"}],"meta":{"result_count":1}}""")
+        })
+
+        val page = XBookmarksConnector(client = client).probePage(xTestSource(), pageSize = 5)
+
+        assertEquals("5", maxResults)
+        assertEquals(null, expansions)
+        assertEquals(null, tweetFields)
+        assertEquals(listOf("123"), page.items.map { it.externalId })
+    }
+
+    @Test
     fun bookmarkEndpointUsesAuthenticatedUserIdPath() {
         assertEquals("/2/users/2244994945/bookmarks", xBookmarksEndpointPath("2244994945"))
     }

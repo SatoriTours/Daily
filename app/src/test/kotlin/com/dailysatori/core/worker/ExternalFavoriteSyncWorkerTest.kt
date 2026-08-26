@@ -38,6 +38,14 @@ class ExternalFavoriteSyncWorkerTest {
     }
 
     @Test
+    fun automaticAndManualTasksUseSeparateDeduplicationFamilies() {
+        assertEquals("external_favorite_sync:7:sync", externalFavoriteSyncUniqueKey(7, "sync"))
+        assertEquals("external_favorite_auto_sync:7:sync", externalFavoriteSyncUniqueKey(7, "sync", automatic = true))
+        assertEquals("external_favorite_sync:7:", externalFavoriteSyncUniqueKeyPrefix(7))
+        assertEquals("external_favorite_auto_sync:7:", externalFavoriteSyncUniqueKeyPrefix(7, automatic = true))
+    }
+
+    @Test
     fun oneTimeRequestCarriesSourceIdAndMode() {
         val request = buildExternalFavoriteSyncWorkRequest(42, "history")
 
@@ -68,6 +76,7 @@ class ExternalFavoriteSyncWorkerTest {
 
         assertEquals(42L, request.workSpec.input.getLong(ExternalFavoriteSyncWorker.KEY_SOURCE_ID, -1L))
         assertEquals("sync", request.workSpec.input.getString(ExternalFavoriteSyncWorker.KEY_MODE))
+        assertTrue(request.workSpec.input.getBoolean(ExternalFavoriteSyncWorker.KEY_AUTOMATIC, false))
         assertEquals(NetworkType.CONNECTED, request.workSpec.constraints.requiredNetworkType)
         assertEquals(30 * 60 * 1_000L, request.workSpec.initialDelay)
     }
@@ -88,6 +97,13 @@ class ExternalFavoriteSyncWorkerTest {
         assertTrue(externalFavoriteShouldSchedulePeriodic(enabled = 1, intervalMinutes = 720))
         assertFalse(externalFavoriteShouldSchedulePeriodic(enabled = 0, intervalMinutes = 720))
         assertFalse(externalFavoriteShouldSchedulePeriodic(enabled = 1, intervalMinutes = 0))
+    }
+
+    @Test
+    fun xAutomaticSyncUsesAtLeastDailyIntervalWithoutChangingGithub() {
+        assertEquals(1_440L, externalFavoriteAutomaticIntervalMinutes("x", 720))
+        assertEquals(2_880L, externalFavoriteAutomaticIntervalMinutes("x", 2_880))
+        assertEquals(720L, externalFavoriteAutomaticIntervalMinutes("github", 720))
     }
 
     @Test

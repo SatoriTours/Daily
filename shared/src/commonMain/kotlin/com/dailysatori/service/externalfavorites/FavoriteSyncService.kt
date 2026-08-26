@@ -10,6 +10,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -38,6 +41,7 @@ class FavoriteSyncService(
         importer?.repairImportedXLongArticlePendingArticles(limit) ?: 0
     },
     private val httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
+    private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
     private val guards = mutableMapOf<Long, Mutex>()
     private val guardsMutex = Mutex()
@@ -46,10 +50,11 @@ class FavoriteSyncService(
         sourceId: Long,
         mode: FavoriteSyncMode,
         taskId: Long? = null,
+        automatic: Boolean = false,
         onProgress: suspend (FavoriteSyncProgress) -> Unit = {},
     ) {
         sourceGuard(sourceId).withLock {
-            syncSourceGuarded(sourceId, mode, taskId, onProgress)
+            syncSourceGuarded(sourceId, mode, taskId, automatic, onProgress)
         }
     }
 
@@ -57,6 +62,7 @@ class FavoriteSyncService(
         sourceId: Long,
         mode: FavoriteSyncMode,
         taskId: Long?,
+        automatic: Boolean,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
     ) {
         val source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
@@ -64,6 +70,9 @@ class FavoriteSyncService(
             sourceRepo.markPaused(sourceId)
             return
         }
+        if (automatic && source.provider == ExternalFavoriteProvider.X.id &&
+            automaticXSyncUtcDay(source.config_json) == currentUtcDay()
+        ) return
 
         val connector = registry.get(source.provider)
             ?: error("No external favorite connector registered for provider ${source.provider}")
@@ -77,7 +86,26 @@ class FavoriteSyncService(
             }
 
             if (policy.shouldFetch) {
-                result = fetchAndUpsert(sourceId, connector, policy, taskId, onProgress)
+                val isAutomaticX = automatic && connector.provider == ExternalFavoriteProvider.X.id
+                val knownProbeItems = if (isAutomaticX) {
+                    markAutomaticXSyncDay(sourceId)
+                    automaticXKnownProbeItemCount(sourceId, connector, taskId, onProgress)
+                } else null
+                if (knownProbeItems != null) {
+                    result = SyncRunResult(knownProbeItems, 1, 0, false)
+                } else {
+                    result = fetchAndUpsert(
+                        sourceId,
+                        connector,
+                        policy,
+                        taskId,
+                        onProgress,
+                        stopAtKnownItem = isAutomaticX,
+                    )
+                }
+                if (!automatic && connector.provider == ExternalFavoriteProvider.X.id) {
+                    markAutomaticXSyncDay(sourceId)
+                }
             }
 
             runLocalWork(sourceId, policy, result, taskId, onProgress)
@@ -100,6 +128,19 @@ class FavoriteSyncService(
             )
             throw error
         }
+    }
+
+    private suspend fun automaticXKnownProbeItemCount(
+        sourceId: Long,
+        connector: FavoriteConnector,
+        taskId: Long?,
+        onProgress: suspend (FavoriteSyncProgress) -> Unit,
+    ): Int? {
+        val source = sourceRepo.getById(sourceId) ?: return null
+        val page = connector.probePage(source, X_AUTOMATIC_PROBE_SIZE, httpLogger, taskId)
+        onProgress(FavoriteSyncProgress("latest", 1, 1, page.items.size, false))
+        val allKnown = page.items.all { itemRepo.getBySourceExternalId(sourceId, it.externalId) != null }
+        return page.items.size.takeIf { allKnown }
     }
 
     private suspend fun runLocalWork(
@@ -190,6 +231,7 @@ class FavoriteSyncService(
         policy: SyncPolicy,
         taskId: Long?,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
+        stopAtKnownItem: Boolean = false,
     ): SyncRunResult {
         val capabilities = connector.capabilities
         val initialSource = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
@@ -284,6 +326,9 @@ class FavoriteSyncService(
                 draft.copy(favoritedAt = allocator.next())
             }
             val reachedSinceAnchor = sinceExternalId != null && pageItems.any { it.externalId == sinceExternalId }
+            val reachedKnownItem = stopAtKnownItem && pageItems.any {
+                itemRepo.getBySourceExternalId(sourceId, it.externalId) != null
+            }
             pageItems.forEach { draft ->
                 val existing = itemRepo.getBySourceExternalId(sourceId, draft.externalId)
                 if (existing != null && !existing.shouldFetchRemoteDetail()) {
@@ -298,7 +343,7 @@ class FavoriteSyncService(
                     changedOnPage += 1
                 }
             }
-            return FavoriteFetchPageResult(page = page, changedItems = changedOnPage, reachedSinceAnchor = reachedSinceAnchor)
+            return FavoriteFetchPageResult(page, changedOnPage, reachedSinceAnchor, reachedKnownItem)
         }
 
         if (hasBudget()) {
@@ -352,6 +397,7 @@ class FavoriteSyncService(
                     reportProgress("latest")
                     if (pageResult.page.exhausted ||
                         pageResult.reachedSinceAnchor ||
+                        pageResult.reachedKnownItem ||
                         (historyComplete && pageResult.changedItems == 0)
                     ) {
                         markHistoryComplete()
@@ -372,6 +418,7 @@ class FavoriteSyncService(
                 when {
                     latest.page.exhausted ||
                         latest.reachedSinceAnchor ||
+                        latest.reachedKnownItem ||
                         (verifiedHistoryComplete() && latest.changedItems == 0) -> {
                         markHistoryComplete()
                         persistProgress()
@@ -517,6 +564,14 @@ class FavoriteSyncService(
     private fun changedItemAiBudget(localWorkItems: Long): Long =
         localWorkItems.coerceAtMost(MAX_AI_ORGANIZE_PER_SYNC)
 
+    private fun currentUtcDay(): String =
+        Instant.fromEpochMilliseconds(nowMs()).toLocalDateTime(TimeZone.UTC).date.toString()
+
+    private fun markAutomaticXSyncDay(sourceId: Long) {
+        val source = sourceRepo.getById(sourceId) ?: return
+        sourceRepo.updateConfigJson(sourceId, renderAutomaticXSyncDay(source.config_json, currentUtcDay()))
+    }
+
     private data class SyncPolicy(
         val shouldFetch: Boolean,
         val pageSize: Int,
@@ -541,6 +596,7 @@ class FavoriteSyncService(
         val page: FavoriteFetchPage,
         val changedItems: Int,
         val reachedSinceAnchor: Boolean,
+        val reachedKnownItem: Boolean,
     )
 
     private companion object {
@@ -564,6 +620,22 @@ private const val CONFIG_HISTORY_CURSOR = "history_cursor"
 private const val CONFIG_HISTORY_COMPLETE = "history_complete"
 private const val CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR = "history_complete_anchor_cursor"
 private const val CONFIG_MAX_ITEMS_PER_SYNC = "max_items_per_sync"
+private const val CONFIG_X_AUTO_SYNC_UTC_DAY = "x_auto_sync_utc_day"
+
+private fun automaticXSyncUtcDay(configJson: String): String? = runCatching {
+    Json.parseToJsonElement(configJson).jsonObject[CONFIG_X_AUTO_SYNC_UTC_DAY]
+        ?.jsonPrimitive
+        ?.contentOrNull
+        ?.takeIf { it.isNotBlank() }
+}.getOrNull()
+
+private fun renderAutomaticXSyncDay(configJson: String, utcDay: String): String {
+    val existing = runCatching { Json.parseToJsonElement(configJson).jsonObject }.getOrNull()
+    return buildJsonObject {
+        existing?.forEach { (key, value) -> put(key, value) }
+        put(CONFIG_X_AUTO_SYNC_UTC_DAY, utcDay)
+    }.toString()
+}
 
 private data class ExternalFavoriteSyncProgress(
     val historyCursor: String?,

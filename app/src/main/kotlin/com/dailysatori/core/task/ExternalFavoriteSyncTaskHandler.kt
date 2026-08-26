@@ -18,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 data class ExternalFavoriteSyncTaskPayload(
     val sourceId: Long,
     val mode: String,
+    val automatic: Boolean = false,
 )
 
 class ExternalFavoriteSyncTaskHandler(
@@ -44,7 +45,7 @@ class ExternalFavoriteSyncTaskHandler(
 
         return try {
             reporter.report(0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, "准备同步外部收藏", checkpointJson = """{"phase":"queued"}""")
-            syncService.syncSource(payload.sourceId, mode, taskId = taskId) { progress ->
+            syncService.syncSource(payload.sourceId, mode, taskId = taskId, automatic = payload.automatic) { progress ->
                 reporter.report(
                     current = progress.pagesSeen.toLong(),
                     total = progress.maxPages.toLong().coerceAtLeast(1),
@@ -77,8 +78,8 @@ class ExternalFavoriteSyncTaskHandler(
     }
 }
 
-fun externalFavoriteSyncTaskPayloadJson(sourceId: Long, mode: String): String =
-    Json.encodeToString(ExternalFavoriteSyncTaskPayload(sourceId = sourceId, mode = mode))
+fun externalFavoriteSyncTaskPayloadJson(sourceId: Long, mode: String, automatic: Boolean = false): String =
+    Json.encodeToString(ExternalFavoriteSyncTaskPayload(sourceId, mode, automatic))
 
 private fun externalFavoriteTaskProgressMessage(phase: String, itemsSeen: Int): String = when (phase) {
     "latest" -> "正在读取最新收藏，已看到 $itemsSeen 条"

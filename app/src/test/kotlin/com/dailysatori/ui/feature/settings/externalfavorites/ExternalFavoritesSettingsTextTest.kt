@@ -148,7 +148,7 @@ class ExternalFavoritesSettingsTextTest {
             listOf(
                 ExternalFavoriteSummaryMetric("2", "已连接来源"),
                 ExternalFavoriteSummaryMetric("347", "外部同步总数"),
-                ExternalFavoriteSummaryMetric("6h", "定期同步间隔"),
+                ExternalFavoriteSummaryMetric("24h", "定期同步间隔"),
             ),
             metrics,
         )
@@ -337,6 +337,10 @@ class ExternalFavoritesSettingsTextTest {
         )
         assertEquals("@daily · 上次成功：刚刚", externalFavoriteSourceSubtitle("@daily", 1_700_000_000_000, 720, 1_700_000_030_000))
         assertEquals("@daily · 每 12 小时自动同步", externalFavoriteSourceSubtitle("@daily", null, 720, 1_700_000_030_000))
+        assertEquals(
+            "@daily · 每 24 小时自动同步",
+            externalFavoriteSourceSubtitle("@daily", null, 720, 1_700_000_030_000, provider = "x"),
+        )
     }
 
     @Test

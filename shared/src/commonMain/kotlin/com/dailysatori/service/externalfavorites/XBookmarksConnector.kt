@@ -138,6 +138,31 @@ class XBookmarksConnector(
         return enrichPageWithFetchedReferencedPosts(source, page, httpLogger, taskId, shouldFetchDetail)
     }
 
+    override suspend fun probePage(
+        source: External_favorite_source,
+        pageSize: Int,
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+    ): FavoriteFetchPage {
+        val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to probe bookmarks")
+        val token = extractXAccessToken(source.auth_json)
+            ?: error("X bookmarks auth_json must contain access_token, bearer_token, or token")
+        val url = "$apiBaseUrl${xBookmarksEndpointPath(source.account_id)}"
+        val size = pageSize.coerceIn(1, X_AUTOMATIC_PROBE_SIZE)
+        httpLogger.logRequest(taskId, "bookmarks_probe", "GET", url, mapOf("max_results" to size.toString()))
+        val response = httpClient.get(url) {
+            bearerAuth(token)
+            parameter("max_results", size)
+        }
+        val body = response.bodyAsText()
+        httpLogger.logResponse(taskId, "bookmarks_probe", response.status.value, emptyMap(), body)
+        return parseXBookmarksHttpResponse(
+            response.status.value,
+            body,
+            mapOf(X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty()),
+        )
+    }
+
     suspend fun fetchPostById(
         source: External_favorite_source,
         postId: String,
@@ -278,6 +303,7 @@ private const val X_BOOKMARKS_MEDIA_FIELDS = "media_key,type,url,preview_image_u
 private const val X_API_LOG_CHUNK_SIZE = 3_000
 private const val MIN_BOOKMARK_TEXT_FOR_DETAIL_LOOKUP = 20
 private const val X_DETAIL_CONCURRENCY = 3
+internal const val X_AUTOMATIC_PROBE_SIZE = 5
 
 private fun xBookmarksRequestParameters(pageSize: Int, cursor: String?): Map<String, String> = buildMap {
     put("max_results", pageSize.toString())
