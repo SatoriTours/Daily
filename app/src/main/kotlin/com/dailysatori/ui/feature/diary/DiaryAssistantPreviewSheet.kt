@@ -20,7 +20,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import com.dailysatori.service.diary.DiaryAssistantExtraction
+import com.dailysatori.service.diary.DiaryAssistantMissingConfigurationException
 import com.dailysatori.service.diary.DiaryAssistantResult
 import com.dailysatori.service.diary.DiaryAssistantVerification
 import com.dailysatori.ui.theme.Radius
@@ -50,6 +53,11 @@ internal sealed interface DiaryAssistantPreviewState {
         val message: String,
     ) : DiaryAssistantPreviewState
 
+    data class MissingConfiguration(
+        override val snapshot: DiaryAssistantSelectionSnapshot,
+        override val url: String?,
+    ) : DiaryAssistantPreviewState
+
     data class Ready(
         override val snapshot: DiaryAssistantSelectionSnapshot,
         override val url: String?,
@@ -59,6 +67,22 @@ internal sealed interface DiaryAssistantPreviewState {
     ) : DiaryAssistantPreviewState
 }
 
+internal fun diaryAssistantFailurePreview(
+    snapshot: DiaryAssistantSelectionSnapshot,
+    url: String?,
+    allowModelKnowledgeFallback: Boolean,
+    error: Exception,
+): DiaryAssistantPreviewState = if (error is DiaryAssistantMissingConfigurationException) {
+    DiaryAssistantPreviewState.MissingConfiguration(snapshot, url)
+} else {
+    DiaryAssistantPreviewState.Failure(
+        snapshot = snapshot,
+        url = url,
+        allowModelKnowledgeFallback = allowModelKnowledgeFallback,
+        message = error.message ?: "生成失败，请稍后重试",
+    )
+}
+
 @Composable
 internal fun DiaryAssistantPreviewSheet(
     state: DiaryAssistantPreviewState,
@@ -66,6 +90,7 @@ internal fun DiaryAssistantPreviewSheet(
     onDraftChange: (String) -> Unit,
     onRetry: () -> Unit,
     onAllowFallback: () -> Unit,
+    onOpenAiSettings: () -> Unit,
     onCancel: () -> Unit,
     onInsert: () -> Unit,
     onReplace: () -> Unit,
@@ -84,6 +109,10 @@ internal fun DiaryAssistantPreviewSheet(
             is DiaryAssistantPreviewState.Loading -> DiaryAssistantLoadingContent(onCancel)
             is DiaryAssistantPreviewState.FallbackConsent -> DiaryAssistantFallbackContent(onAllowFallback, onCancel)
             is DiaryAssistantPreviewState.Failure -> DiaryAssistantFailureContent(state.message, onRetry, onCancel)
+            is DiaryAssistantPreviewState.MissingConfiguration -> DiaryAssistantMissingConfigurationContent(
+                onOpenAiSettings,
+                onCancel,
+            )
             is DiaryAssistantPreviewState.Ready -> DiaryAssistantReadyContent(
                 state = state,
                 canReplaceSelection = canReplaceSelection,
@@ -93,6 +122,20 @@ internal fun DiaryAssistantPreviewSheet(
                 onInsert = onInsert,
                 onReplace = onReplace,
             )
+        }
+    }
+}
+
+@Composable
+private fun DiaryAssistantMissingConfigurationContent(onOpenAiSettings: () -> Unit, onCancel: () -> Unit) {
+    Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(stringResource(R.string.diary_assistant_missing_config_title), style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.diary_assistant_missing_config_message))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.diary_assistant_action_cancel)) }
+            TextButton(onClick = onOpenAiSettings) {
+                Text(stringResource(R.string.diary_assistant_action_open_ai_settings))
+            }
         }
     }
 }

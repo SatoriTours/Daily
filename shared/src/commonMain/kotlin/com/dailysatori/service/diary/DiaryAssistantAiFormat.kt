@@ -1,9 +1,10 @@
 package com.dailysatori.service.diary
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /** The deliberately small, transport-neutral result returned by the AI formatter. */
@@ -33,23 +34,6 @@ fun buildDiaryKnowledgePrompt(
 fun buildDiaryKnowledgePrompt(request: DiaryAssistantRequest): String =
     buildDiaryKnowledgePrompt(request.selectedText, request.contextBefore, request.contextAfter, request.allowModelKnowledgeFallback)
 
-fun buildDiaryLinkSummaryPrompt(
-    selectedText: String,
-    url: String,
-    contextBefore: String = "",
-    contextAfter: String = "",
-): String = buildString {
-    appendLine("请根据网页和选中的内容，给出简洁、准确的中文补充。")
-    appendLine("网页地址：${url.trim()}")
-    appendLine("选中内容：${selectedText.trim()}")
-    appendLine("选中内容前文：${contextBefore.takeLast(DIARY_ASSISTANT_CONTEXT_LIMIT)}")
-    appendLine("选中内容后文：${contextAfter.take(DIARY_ASSISTANT_CONTEXT_LIMIT)}")
-    append("只输出 JSON：{\"content\":\"简洁补充正文\",\"sources\":[{\"title\":\"来源标题\",\"url\":\"https://example.com\"}]}")
-}
-
-fun buildDiaryLinkSummaryPrompt(request: DiaryAssistantRequest): String =
-    buildDiaryLinkSummaryPrompt(request.selectedText, request.url.orEmpty(), request.contextBefore, request.contextAfter)
-
 fun parseDiaryAssistantAiResponse(
     response: String,
     fallbackSources: List<DiaryAssistantSource>,
@@ -57,12 +41,14 @@ fun parseDiaryAssistantAiResponse(
     val cleaned = response.trim().removeCodeFence().trim()
     val parsed = runCatching {
         val objectValue = diaryAssistantJson.parseToJsonElement(cleaned).jsonObject
-        val content = objectValue["content"]?.jsonPrimitive?.contentOrNull?.orEmpty()?.trim().orEmpty()
-        val sources = objectValue["sources"]?.jsonArray.orEmpty().mapNotNull { item ->
-            val source = item.jsonObject
-            val title = source["title"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-            val url = source["url"]?.jsonPrimitive?.contentOrNull?.orEmpty()?.let(::normalizeDiaryAssistantUrl)?.trim().orEmpty()
-            if (url.isHttpUrl()) DiaryAssistantSource(title.ifBlank { url }, url) else null
+        val content = (objectValue["content"] as? JsonPrimitive)?.contentOrNull.orEmpty().trim()
+        val sources = (objectValue["sources"] as? JsonArray).orEmpty().mapNotNull { item ->
+            val source = item as? JsonObject ?: return@mapNotNull null
+            val title = (source["title"] as? JsonPrimitive)?.contentOrNull.orEmpty().trim()
+            val parsedUrl = (source["url"] as? JsonPrimitive)?.contentOrNull
+                ?.let(::parseDiaryAssistantHttpUrl)
+                ?: return@mapNotNull null
+            DiaryAssistantSource(title.ifBlank { parsedUrl.value }, parsedUrl.value)
         }
         DiaryAssistantParsedAi(content, compactDiaryAssistantSources(sources))
     }.getOrNull()
@@ -75,7 +61,7 @@ fun renderDiaryAssistantMarkdown(content: String, sources: List<DiaryAssistantSo
     val compact = compactDiaryAssistantSources(sources)
     if (compact.isEmpty()) return body
     val links = compact.joinToString("、") {
-        "[${it.title.ifBlank { it.url }.escapeDiaryAssistantMarkdownText()}](${it.url.escapeDiaryAssistantMarkdownDestination()})"
+        "[${it.title.ifBlank { it.url }.escapeDiaryAssistantMarkdownText()}](<${it.url}>)"
     }
     return if (body.isEmpty()) "来源：$links" else "$body\n\n来源：$links"
 }
@@ -84,14 +70,6 @@ private fun String.removeCodeFence(): String =
     replace(Regex("^```(?:json)?\\s*", RegexOption.IGNORE_CASE), "")
         .replace(Regex("\\s*```$"), "")
 
-private fun String.isHttpUrl(): Boolean {
-    val match = Regex("^https?://([^\\s/?#]+)(?:[/?#].*)?$", RegexOption.IGNORE_CASE).matchEntire(this)
-        ?: return false
-    val authority = match.groupValues[1]
-    val host = authority.substringAfterLast('@').substringBefore(':')
-    return host.isNotBlank()
-}
-
 private fun String.escapeDiaryAssistantMarkdownText(): String =
     replace("\\", "\\\\")
         .replace("[", "\\[")
@@ -99,16 +77,11 @@ private fun String.escapeDiaryAssistantMarkdownText(): String =
         .replace("(", "\\(")
         .replace(")", "\\)")
 
-private fun String.escapeDiaryAssistantMarkdownDestination(): String =
-    replace("\\", "\\\\")
-        .replace("(", "\\(")
-        .replace(")", "\\)")
-
 private fun compactDiaryAssistantSources(sources: List<DiaryAssistantSource>): List<DiaryAssistantSource> {
     val seen = mutableSetOf<String>()
     return sources.asSequence().mapNotNull { source ->
-        val url = normalizeDiaryAssistantUrl(source.url.trim())
-        if (!url.isHttpUrl() || !seen.add(url.lowercase())) null
-        else DiaryAssistantSource(source.title.trim().ifBlank { url }, url)
+        val url = parseDiaryAssistantHttpUrl(source.url) ?: return@mapNotNull null
+        if (!seen.add(url.value)) null
+        else DiaryAssistantSource(source.title.trim().ifBlank { url.value }, url.value)
     }.take(DIARY_ASSISTANT_SOURCE_LIMIT).toList()
 }

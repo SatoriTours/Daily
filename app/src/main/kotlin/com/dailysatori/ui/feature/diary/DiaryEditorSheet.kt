@@ -157,7 +157,8 @@ fun DiaryEditorSheet(
         }
     }
 
-    val canUseAssistant = !content.selection.collapsed &&
+    val assistantTaskActive = assistantJob?.isActive == true
+    val canUseAssistant = !assistantTaskActive && !content.selection.collapsed &&
         content.text.substring(content.selection.min, content.selection.max).isNotBlank()
 
     fun pushUndo() {
@@ -186,6 +187,7 @@ fun DiaryEditorSheet(
         snapshot: DiaryAssistantSelectionSnapshot,
         url: String? = null,
         allowModelKnowledgeFallback: Boolean = false,
+        forceRefresh: Boolean = false,
     ) {
         assistantRequestGate.invalidate()
         assistantJob?.cancel()
@@ -195,7 +197,7 @@ fun DiaryEditorSheet(
         val nextJob = assistantScope.launch(start = CoroutineStart.LAZY) {
             val runningJob = coroutineContext[Job]
             try {
-                val cached = url?.let { assistantCache[it] }
+                val cached = assistantCache.resultFor(url, forceRefresh)
                 val result = cached ?: assistantService.run(
                     snapshot.toDiaryAssistantRequest(url, allowModelKnowledgeFallback),
                 )
@@ -212,11 +214,11 @@ fun DiaryEditorSheet(
                 }
             } catch (error: Exception) {
                 if (assistantRequestGate.isCurrent(requestGeneration) && assistantJob === runningJob) {
-                    assistantPreview = DiaryAssistantPreviewState.Failure(
-                        snapshot = snapshot,
-                        url = url,
-                        allowModelKnowledgeFallback = allowModelKnowledgeFallback,
-                        message = error.message ?: "生成失败，请稍后重试",
+                    assistantPreview = diaryAssistantFailurePreview(
+                        snapshot,
+                        url,
+                        allowModelKnowledgeFallback,
+                        error,
                     )
                 }
             } finally {
@@ -491,6 +493,7 @@ fun DiaryEditorSheet(
                                 pendingPastedUrl?.let { url ->
                                     DiaryPastedUrlPrompt(
                                         url = url,
+                                        enabled = !assistantTaskActive,
                                         onExtractConfirmed = {
                                             pendingPastedUrl = null
                                             startAssistant(assistantSnapshot(), url)
@@ -529,8 +532,19 @@ fun DiaryEditorSheet(
                                     val ready = assistantPreview as? DiaryAssistantPreviewState.Ready
                                     if (ready != null) assistantPreview = ready.copy(draft = draft)
                                 },
-                                onRetry = { startAssistant(preview.snapshot, preview.url, preview.allowFallbackForRetry()) },
+                                onRetry = {
+                                    startAssistant(
+                                        preview.snapshot,
+                                        preview.url,
+                                        preview.allowFallbackForRetry(),
+                                        forceRefresh = true,
+                                    )
+                                },
                                 onAllowFallback = { startAssistant(preview.snapshot, preview.url, true) },
+                                onOpenAiSettings = {
+                                    cancelAssistantPreview()
+                                    onOpenTranscriptionSettings()
+                                },
                                 onCancel = { cancelAssistantPreview() },
                                 onInsert = { insertAssistantPreview() },
                                 onReplace = { replaceAssistantPreview() },
@@ -591,11 +605,13 @@ private fun DiaryAssistantPreviewState.allowFallbackForRetry(): Boolean = when (
     is DiaryAssistantPreviewState.Failure -> allowModelKnowledgeFallback
     is DiaryAssistantPreviewState.Ready -> allowModelKnowledgeFallback
     is DiaryAssistantPreviewState.FallbackConsent -> false
+    is DiaryAssistantPreviewState.MissingConfiguration -> false
 }
 
 @Composable
 private fun DiaryPastedUrlPrompt(
     url: String,
+    enabled: Boolean,
     onExtractConfirmed: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -616,7 +632,7 @@ private fun DiaryPastedUrlPrompt(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TextButton(onClick = onDismiss) { Text("忽略") }
-            TextButton(onClick = onExtractConfirmed) { Text("提取核心内容") }
+            TextButton(onClick = onExtractConfirmed, enabled = enabled) { Text("提取核心内容") }
         }
     }
 }

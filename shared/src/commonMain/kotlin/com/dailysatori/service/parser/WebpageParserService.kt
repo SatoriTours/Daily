@@ -25,6 +25,8 @@ import com.dailysatori.shared.db.Article
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
+import io.ktor.http.URLBuilder
+import io.ktor.http.takeFrom
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.CoroutineScope
@@ -559,6 +561,14 @@ internal fun isRetryableArticleExtractionFailure(error: Throwable): Boolean {
         ?.getOrNull(1)
         ?.toIntOrNull()
     return status == null || status == 408 || status == 425 || status == 429 || status >= 500
+}
+
+internal fun webpageExtractionFailureLogMessage(url: String, error: Throwable): String {
+    val parsed = runCatching { URLBuilder().takeFrom(url).build() }.getOrNull()
+    val origin = parsed?.takeIf { it.protocol.name in setOf("http", "https") && it.host.isNotBlank() }
+        ?.let { "${it.protocol.name}://${it.host}" }
+        ?: "[redacted URL]"
+    return "Content extraction failed for $origin (${error::class.simpleName ?: "Exception"})"
 }
 
 class WebpageParserService(
@@ -1104,13 +1114,31 @@ class WebpageParserService(
                 }
             } catch (e: Exception) {
                 if (!shouldPersistArticleProcessingError(e)) throw e
-                log.e(e) { "Content extraction failed for $url" }
+                log.e { webpageExtractionFailureLogMessage(url, e) }
                 failedExtractionFallback(url)
             }
         }
     }
 
+    /** Loads a public page without applying article-length gates; cancellation stops the WebView load. */
+    suspend fun fetchPublicPage(url: String): ExtractedContent = withContext(Dispatchers.Default) {
+        retryTransientFailure(
+            maxAttempts = ARTICLE_EXTRACTION_MAX_ATTEMPTS,
+            initialDelayMs = ARTICLE_EXTRACTION_RETRY_DELAY_MS,
+            shouldRetry = ::isRetryableArticleExtractionFailure,
+        ) {
+            fetchPublicPageOnce(url)
+        }
+    }
+
     private suspend fun extractContentOnce(url: String): ExtractedContent {
+        val extracted = fetchPublicPageOnce(url)
+        return extracted.copy(
+            content = usableArticleContentOrThrow(extracted.content, url).take(AIConfig.maxContentLength.toInt()),
+        )
+    }
+
+    private suspend fun fetchPublicPageOnce(url: String): ExtractedContent {
         val page = suspendCancellableCoroutine<WebViewPageContent> { cont ->
             val handle = webViewLoader.loadContent(url, WebViewConfig.timeoutMs) { result ->
                 if (!cont.isActive) return@loadContent
@@ -1129,7 +1157,7 @@ class WebpageParserService(
         val textContent = page.summaryTextOrHtmlFallback().let { if (it == html) extractTextContent(html) else it }
         return ExtractedContent(
             title = title,
-            content = usableArticleContentOrThrow(textContent, url).take(AIConfig.maxContentLength.toInt()),
+            content = textContent,
             htmlContent = html,
             coverImageUrl = coverImageUrl,
             readableHtmlContent = page.readableContent,

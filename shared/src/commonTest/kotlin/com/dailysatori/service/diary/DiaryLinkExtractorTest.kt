@@ -89,6 +89,54 @@ class DiaryLinkExtractorTest {
     }
 
     @Test
+    fun douyinJsonLdObjectFieldsDoNotHideUsableScalarMetadata() {
+        val result = parsePublicDouyinMaterial(
+            "https://v.douyin.com/a/",
+            ExtractedContent(
+                title = null,
+                content = "",
+                htmlContent = """
+                    <script type="application/ld+json">
+                    {"name":{"unexpected":"object"},"description":"仍可使用的公开文案"}
+                    </script>
+                """.trimIndent(),
+                coverImageUrl = null,
+            ),
+        )
+
+        assertEquals("仍可使用的公开文案", result.text)
+        assertEquals(DiaryAssistantExtraction.NO_SUBTITLES, result.extraction)
+    }
+
+    @Test
+    fun douyinProductionContractUsesRawPublicPageBeforeArticleContentGate() = runBlocking {
+        var genericArticleFetches = 0
+        var rawPublicPageFetches = 0
+        val extractor = DefaultDiaryLinkContentExtractor(
+            fetchArticle = {
+                genericArticleFetches++
+                throw IllegalStateException("generic article gate rejected short content")
+            },
+            fetchPublicPage = {
+                rawPublicPageFetches++
+                ExtractedContent(
+                    title = null,
+                    content = "",
+                    htmlContent = """<meta property="og:title" content="公开标题"><meta property="og:description" content="足够的公开文案">""",
+                    coverImageUrl = null,
+                )
+            },
+        )
+
+        val result = extractor.extract("https://v.douyin.com/metadata-only/")
+
+        assertEquals(0, genericArticleFetches)
+        assertEquals(1, rawPublicPageFetches)
+        assertEquals("足够的公开文案", result.text)
+        assertEquals(DiaryAssistantExtraction.NO_SUBTITLES, result.extraction)
+    }
+
+    @Test
     fun douyinRejectsBlockedPublicMaterial() {
         assertFailsWith<DiaryAssistantExtractionException> {
             parsePublicDouyinMaterial(

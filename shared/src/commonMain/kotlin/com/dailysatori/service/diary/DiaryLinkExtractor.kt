@@ -8,7 +8,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 data class DiaryLinkMaterial(
     val url: String,
@@ -26,16 +25,19 @@ fun interface DiaryLinkContentExtractor {
 class DiaryAssistantExtractionException(message: String) : IllegalStateException(message)
 
 class DefaultDiaryLinkContentExtractor(
-    private val fetch: suspend (String) -> ExtractedContent,
+    private val fetchArticle: suspend (String) -> ExtractedContent,
+    private val fetchPublicPage: suspend (String) -> ExtractedContent,
 ) : DiaryLinkContentExtractor {
-    constructor(webpageParserService: WebpageParserService) : this(webpageParserService::extractContent)
+    constructor(fetch: suspend (String) -> ExtractedContent) : this(fetch, fetch)
+    constructor(webpageParserService: WebpageParserService) : this(
+        webpageParserService::extractContent,
+        webpageParserService::fetchPublicPage,
+    )
 
     override suspend fun extract(url: String): DiaryLinkMaterial {
-        val extracted = fetch(url)
-        return if (diaryAssistantTarget(url) == DiaryAssistantTarget.DOUYIN) {
-            parsePublicDouyinMaterial(url, extracted)
-        } else {
-            ordinaryPageMaterial(url, extracted)
+        return when (diaryAssistantTarget(url)) {
+            DiaryAssistantTarget.DOUYIN -> parsePublicDouyinMaterial(url, fetchPublicPage(url))
+            else -> ordinaryPageMaterial(url, fetchArticle(url))
         }
     }
 }
@@ -109,18 +111,18 @@ private fun jsonObjects(element: JsonElement): List<JsonObject> = when (element)
 }
 
 private fun List<JsonObject>.firstValue(vararg keys: String): String? = firstNotNullOfOrNull { objectValue ->
-    keys.firstNotNullOfOrNull { key -> objectValue[key]?.jsonPrimitive?.contentOrNull.clean() }
+    keys.firstNotNullOfOrNull { key -> (objectValue[key] as? JsonPrimitive)?.contentOrNull.clean() }
 }
 
 private fun List<JsonObject>.firstAuthor(): String? = firstNotNullOfOrNull { objectValue ->
     val author = objectValue["author"] ?: return@firstNotNullOfOrNull null
     when (author) {
         is JsonPrimitive -> author.contentOrNull.clean()
-        is JsonObject -> author["name"]?.jsonPrimitive?.contentOrNull.clean()
+        is JsonObject -> (author["name"] as? JsonPrimitive)?.contentOrNull.clean()
         is JsonArray -> author.firstNotNullOfOrNull { item ->
             when (item) {
                 is JsonPrimitive -> item.contentOrNull.clean()
-                is JsonObject -> item["name"]?.jsonPrimitive?.contentOrNull.clean()
+                is JsonObject -> (item["name"] as? JsonPrimitive)?.contentOrNull.clean()
                 is JsonArray -> null
             }
         }

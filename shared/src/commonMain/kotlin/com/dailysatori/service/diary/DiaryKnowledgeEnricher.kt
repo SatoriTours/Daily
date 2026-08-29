@@ -20,7 +20,7 @@ class DiaryKnowledgeEnricher(
             diaryKnowledgeSystemPrompt,
         )
         val parsed = response.toDiaryAssistantParsed(evidence)
-        val sources = if (evidence.isEmpty()) parsed.sources else parsed.sources.verifiedBy(evidence)
+        val sources = if (evidence.isEmpty()) emptyList() else parsed.sources.verifiedBy(evidence)
         val verification = if (evidence.isEmpty()) {
             DiaryAssistantVerification.MODEL_ONLY
         } else {

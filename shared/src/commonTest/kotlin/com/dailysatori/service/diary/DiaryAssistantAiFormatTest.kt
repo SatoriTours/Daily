@@ -31,21 +31,18 @@ class DiaryAssistantAiFormatTest {
     }
 
     @Test
-    fun promptsContainSelectionAndBoundedContextOnly() {
+    fun knowledgePromptContainsSelectionAndBoundedContextOnly() {
         val unrelatedFixture = "整篇日记中不应发送的内容"
         val knowledge = buildDiaryKnowledgePrompt("选中的文字", "前文", "后文")
-        val link = buildDiaryLinkSummaryPrompt("选中的文字", "https://example.com", "前文", "后文")
         assertTrue(knowledge.contains("选中的文字"))
         assertTrue(knowledge.contains("前文") && knowledge.contains("后文"))
-        assertTrue(link.contains("选中的文字") && link.contains("https://example.com"))
         assertFalse(knowledge.contains(unrelatedFixture))
-        assertFalse(link.contains(unrelatedFixture))
     }
 
     @Test
     fun markdownAppendsCompactSources() {
         assertEquals(
-            "背景说明\n\n来源：[资料 A](https://a.example)",
+            "背景说明\n\n来源：[资料 A](<https://a.example>)",
             renderDiaryAssistantMarkdown("背景说明", listOf(DiaryAssistantSource("资料 A", "https://a.example"))),
         )
     }
@@ -54,6 +51,7 @@ class DiaryAssistantAiFormatTest {
     fun markdownEscapesReservedSourceFieldsAndRejectsUnsafeUrls() {
         val sources = listOf(
             DiaryAssistantSource("[伪链接](javascript:bad)", "https://example.com/path)"),
+            DiaryAssistantSource("用户信息", "https://user:secret@example.com/private"),
             DiaryAssistantSource("无主机", "https://"),
             DiaryAssistantSource("含空格", "https://not valid"),
             DiaryAssistantSource("有效", "https://valid.example/path"),
@@ -62,9 +60,22 @@ class DiaryAssistantAiFormatTest {
         val markdown = renderDiaryAssistantMarkdown("正文", sources)
 
         assertEquals(
-            "正文\n\n来源：[\\[伪链接\\]\\(javascript:bad\\)](https://example.com/path\\))、[有效](https://valid.example/path)",
+            "正文\n\n来源：[\\[伪链接\\]\\(javascript:bad\\)](<https://example.com/path)>)、[有效](<https://valid.example/path>)",
             markdown,
         )
         assertEquals(2, markdown.split("](").size - 1)
+    }
+
+    @Test
+    fun markdownRendersEncodedUrlInsideAnAngleBracketDestination() {
+        val markdown = renderDiaryAssistantMarkdown(
+            "正文",
+            listOf(DiaryAssistantSource("编码地址", "https://example.com/CasePath/a>b?q=encoded%20value")),
+        )
+
+        assertEquals(
+            "正文\n\n来源：[编码地址](<https://example.com/CasePath/a%3Eb?q=encoded%20value>)",
+            markdown,
+        )
     }
 }

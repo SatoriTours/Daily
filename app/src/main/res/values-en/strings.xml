@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diary_assistant_missing_config_title">AI service not configured</string>
+    <string name="diary_assistant_missing_config_message">Configure an AI service in Settings, then retry this action.</string>
+    <string name="diary_assistant_action_open_ai_settings">Open AI settings</string>
+    <string name="diary_assistant_action_cancel">Cancel</string>
+</resources>

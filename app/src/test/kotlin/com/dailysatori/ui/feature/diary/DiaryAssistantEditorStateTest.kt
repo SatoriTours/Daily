@@ -3,11 +3,13 @@ package com.dailysatori.ui.feature.diary
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.dailysatori.service.diary.DiaryAssistantResult
+import com.dailysatori.service.diary.DiaryAssistantMissingConfigurationException
 import com.dailysatori.service.diary.DiaryAssistantVerification
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class DiaryAssistantEditorStateTest {
@@ -60,18 +62,63 @@ class DiaryAssistantEditorStateTest {
 
     @Test fun whitespaceIsNotDuplicatedAroundInsertion() {
         val snapshot = DiaryAssistantSelectionSnapshot("hello  ", TextRange(7), "")
-        assertEquals("hello\n\nbackground", insertDiaryAssistantResult(TextFieldValue("hello  "), snapshot, "  background ").text)
+        val current = TextFieldValue("hello  ", TextRange(7))
+        assertEquals("hello  \n\nbackground", insertDiaryAssistantResult(current, snapshot, "  background ").text)
+    }
+
+    @Test fun insertionPreservesTrailingIndentationExactly() {
+        val current = TextFieldValue("paragraph\n    ", TextRange(14))
+        val snapshot = DiaryAssistantSelectionSnapshot(current.text, current.selection, "")
+
+        assertEquals("paragraph\n    \n\nbackground", insertDiaryAssistantResult(current, snapshot, "background").text)
+    }
+
+    @Test fun collapsedPastedUrlSnapshotCannotReplaceExistingText() {
+        val text = "note https://example.com/post"
+        val snapshot = DiaryAssistantSelectionSnapshot(text, TextRange(text.length), "")
+
+        assertFalse(canReplaceDiaryAssistantSelection(TextFieldValue(text), snapshot))
+        assertEquals(text, replaceDiaryAssistantSelection(TextFieldValue(text), snapshot, "summary").text)
+    }
+
+    @Test fun blankSelectionCannotBeReplaced() {
+        val snapshot = DiaryAssistantSelectionSnapshot("hello   world", TextRange(5, 8), "   ")
+
+        assertFalse(canReplaceDiaryAssistantSelection(TextFieldValue("hello   world"), snapshot))
     }
 
     @Test fun cacheNormalizesUrlsAndEvictsOldestAfterTenEntries() {
         val cache = DiaryAssistantSessionCache()
         val result = DiaryAssistantResult("answer", emptyList(), DiaryAssistantVerification.MODEL_ONLY)
         cache.put("https://example.com/a。", result)
-        assertEquals(result, cache.get(" https://example.com/a"))
+        assertEquals(result, cache.get("https://example.com/a"))
         assertNull(cache.get("https://missing.example"))
         repeat(10) { cache.put("https://example.com/$it", result) }
         assertNull(cache.get("https://example.com/a"))
         assertEquals(10, cache.size)
+    }
+
+    @Test fun explicitRefreshBypassesSuccessfulSessionCache() {
+        val cache = DiaryAssistantSessionCache()
+        val result = DiaryAssistantResult("cached", emptyList(), DiaryAssistantVerification.PAGE_EXTRACTED)
+        cache["https://example.com/article"] = result
+
+        assertEquals(result, cache.resultFor("https://example.com/article", forceRefresh = false))
+        assertNull(cache.resultFor("https://example.com/article", forceRefresh = true))
+    }
+
+    @Test fun cacheRejectsWhitespaceUrlsAndKeepsCaseSensitivePathsDistinct() {
+        val cache = DiaryAssistantSessionCache()
+        val upper = DiaryAssistantResult("upper", emptyList(), DiaryAssistantVerification.PAGE_EXTRACTED)
+        val lower = DiaryAssistantResult("lower", emptyList(), DiaryAssistantVerification.PAGE_EXTRACTED)
+
+        cache[" https://example.com/Private"] = upper
+        assertNull(cache["https://example.com/Private"])
+
+        cache["https://example.com/Private"] = upper
+        cache["https://example.com/private"] = lower
+        assertEquals(upper, cache["https://example.com/Private"])
+        assertEquals(lower, cache["https://example.com/private"])
     }
 
     @Test fun snapshotBuildsBoundedRequest() {
@@ -80,5 +127,18 @@ class DiaryAssistantEditorStateTest {
         assertEquals("term", request.selectedText)
         assertEquals(240, request.contextBefore.length)
         assertEquals(240, request.contextAfter.length)
+    }
+
+    @Test fun missingAiConfigurationMapsToDedicatedRecoveryState() {
+        val snapshot = DiaryAssistantSelectionSnapshot("selected", TextRange(0, 8), "selected")
+
+        val state = diaryAssistantFailurePreview(
+            snapshot = snapshot,
+            url = null,
+            allowModelKnowledgeFallback = false,
+            error = DiaryAssistantMissingConfigurationException(),
+        )
+
+        assertIs<DiaryAssistantPreviewState.MissingConfiguration>(state)
     }
 }

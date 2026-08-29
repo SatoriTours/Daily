@@ -22,4 +22,8 @@
     <string name="diary_recording_action_retry">重试保存</string>
     <string name="diary_recording_action_discard">放弃录音</string>
     <string name="diary_recording_action_open">打开日记</string>
+    <string name="diary_assistant_missing_config_title">AI 服务未配置</string>
+    <string name="diary_assistant_missing_config_message">请先在设置中配置 AI 服务，再重试此操作。</string>
+    <string name="diary_assistant_action_open_ai_settings">前往 AI 设置</string>
+    <string name="diary_assistant_action_cancel">取消</string>
 </resources>

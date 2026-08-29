@@ -5,7 +5,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.dailysatori.service.diary.DiaryAssistantRequest
 import com.dailysatori.service.diary.DiaryAssistantResult
 import com.dailysatori.service.diary.boundedDiaryAssistantContext
-import com.dailysatori.service.diary.normalizeDiaryAssistantUrl
+import com.dailysatori.service.diary.canonicalDiaryAssistantUrl
+import com.dailysatori.service.diary.detectDiaryAssistantUrls
 import java.util.LinkedHashMap
 
 /** The editor version and selection captured when an assistant request starts. */
@@ -36,14 +37,10 @@ data class DiaryAssistantSelectionSnapshot(
 /** Returns a URL present in [after] but absent from [before], without invoking a loader. */
 fun detectNewlyPastedDiaryUrl(before: String, after: String): String? {
     if (before == after) return null
-    val urlPattern = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE)
-    val existing = urlPattern.findAll(before)
-        .map { normalizeDiaryAssistantUrl(it.value) }
+    val existing = detectDiaryAssistantUrls(before)
         .groupingBy { it }
         .eachCount()
-    val afterUrls = urlPattern.findAll(after)
-        .map { normalizeDiaryAssistantUrl(it.value) }
-        .toList()
+    val afterUrls = detectDiaryAssistantUrls(after)
     val afterCounts = afterUrls.groupingBy { it }.eachCount()
     return afterUrls.firstOrNull { (afterCounts[it] ?: 0) > (existing[it] ?: 0) }
 }
@@ -51,6 +48,7 @@ fun detectNewlyPastedDiaryUrl(before: String, after: String): String? {
 fun canReplaceDiaryAssistantSelection(current: TextFieldValue, snapshot: DiaryAssistantSelectionSnapshot): Boolean {
     if (current.text != snapshot.text) return false
     val range = snapshot.normalizedSelection
+    if (range.collapsed || snapshot.selectedText.isBlank()) return false
     if (range.start < 0 || range.end > current.text.length || range.start > range.end) return false
     return current.text.substring(range.start, range.end) == snapshot.selectedText
 }
@@ -67,9 +65,9 @@ fun insertDiaryAssistantResult(
     }
     val cleanResult = result.trim()
     if (cleanResult.isEmpty()) return current
-    val before = current.text.substring(0, range.end).trimEnd()
+    val before = current.text.substring(0, range.end)
     val after = current.text.substring(range.end)
-    val separator = if (before.isEmpty() || after.isEmpty()) "\n\n" else "\n\n"
+    val separator = "\n\n"
     val text = before + separator + cleanResult + after
     val cursor = (before.length + separator.length + cleanResult.length).coerceIn(0, text.length)
     return TextFieldValue(text = text, selection = TextRange(cursor))
@@ -95,7 +93,7 @@ class DiaryAssistantSessionCache(private val maxEntries: Int = 10) {
 
     fun put(url: String, result: DiaryAssistantResult) {
         if (maxEntries <= 0) return
-        val key = cacheKey(url)
+        val key = cacheKey(url) ?: return
         entries.remove(key)
         entries[key] = result
         while (entries.size > maxEntries) entries.entries.iterator().apply { next(); remove() }
@@ -103,10 +101,13 @@ class DiaryAssistantSessionCache(private val maxEntries: Int = 10) {
 
     fun clear() = entries.clear()
 
-    operator fun get(url: String): DiaryAssistantResult? = entries[cacheKey(url)]
+    operator fun get(url: String): DiaryAssistantResult? = cacheKey(url)?.let(entries::get)
     operator fun set(url: String, result: DiaryAssistantResult) = put(url, result)
 
-    private fun cacheKey(url: String): String = normalizeDiaryAssistantUrl(url.trim())
+    fun resultFor(url: String?, forceRefresh: Boolean): DiaryAssistantResult? =
+        if (forceRefresh) null else url?.let(::get)
+
+    private fun cacheKey(url: String): String? = canonicalDiaryAssistantUrl(url)
 }
 
 /** Invalidates late assistant completions independently of coroutine cancellation cooperation. */

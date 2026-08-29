@@ -1,5 +1,8 @@
 package com.dailysatori.service.diary
 
+import io.ktor.http.URLBuilder
+import io.ktor.http.takeFrom
+
 data class DiaryAssistantRequest(
     val selectedText: String,
     val contextBefore: String = "",
@@ -29,13 +32,48 @@ private val diaryAssistantSentenceEnding = setOf(
     '。', '，', '！', '？', '；', '：', '、',
 )
 
+internal data class DiaryAssistantHttpUrl(
+    val value: String,
+    val host: String,
+)
+
 /** Finds the first HTTP(S) URL in text and removes sentence punctuation appended to it. */
 fun detectDiaryAssistantUrl(text: String): String? =
-    diaryAssistantUrlPattern.find(text)?.value?.let(::normalizeDiaryAssistantUrl)
+    detectDiaryAssistantUrls(text).firstOrNull()
+
+fun detectDiaryAssistantUrls(text: String): List<String> = diaryAssistantUrlPattern.findAll(text)
+    .mapNotNull { canonicalDiaryAssistantUrl(it.value) }
+    .toList()
+
+fun canonicalDiaryAssistantUrl(url: String): String? = parseDiaryAssistantHttpUrl(url)?.value
 
 /** Removes Chinese sentence punctuation, while preserving ASCII URL path/delimiter characters. */
 fun normalizeDiaryAssistantUrl(url: String): String =
     url.trimEnd { it in diaryAssistantSentenceEnding }
+
+internal fun parseDiaryAssistantHttpUrl(rawUrl: String): DiaryAssistantHttpUrl? {
+    if (rawUrl.isEmpty() || '\\' in rawUrl || rawUrl.any { it.isWhitespace() || it.isISOControl() }) return null
+    val normalized = normalizeDiaryAssistantUrl(rawUrl)
+    val authority = normalized.substringAfter("://", missingDelimiterValue = "")
+        .substringBefore('/').substringBefore('?').substringBefore('#')
+    if (authority.isBlank() || '@' in authority) return null
+    val parsed = runCatching { URLBuilder().takeFrom(normalized).build() }.getOrNull() ?: return null
+    if (parsed.protocol.name !in setOf("http", "https") || parsed.port !in 1..65535) return null
+    if (!parsed.host.isValidDiaryAssistantHost()) return null
+    val encoded = parsed.toString().replace("<", "%3C").replace(">", "%3E")
+    return DiaryAssistantHttpUrl(encoded, parsed.host.lowercase())
+}
+
+private fun String.isValidDiaryAssistantHost(): Boolean {
+    if (isBlank() || startsWith('.') || endsWith('.') || contains(',')) return false
+    if (contains(':')) return all { it.isDigit() || it.lowercaseChar() in 'a'..'f' || it == ':' }
+    return split('.').all { label ->
+        label.isNotBlank() &&
+            !label.startsWith('-') &&
+            !label.endsWith('-') &&
+            label.all { it.isLetterOrDigit() || it == '-' }
+    }
+}
 
 /** Returns at most 240 characters immediately before and after the selected range. */
 fun boundedDiaryAssistantContext(text: String, selection: IntRange): Pair<String, String> {
@@ -48,8 +86,7 @@ fun boundedDiaryAssistantContext(text: String, selection: IntRange): Pair<String
 
 fun diaryAssistantTarget(url: String?): DiaryAssistantTarget {
     if (url == null) return DiaryAssistantTarget.KNOWLEDGE
-    val host = url.substringAfter("://", "").substringBefore('/').substringBefore('?').substringBefore('#')
-        .substringBefore(':').lowercase()
+    val host = parseDiaryAssistantHttpUrl(url)?.host ?: return DiaryAssistantTarget.WEBPAGE
     return if (host == "douyin.com" || host.endsWith(".douyin.com") ||
         host == "iesdouyin.com" || host.endsWith(".iesdouyin.com")
     ) DiaryAssistantTarget.DOUYIN else DiaryAssistantTarget.WEBPAGE
