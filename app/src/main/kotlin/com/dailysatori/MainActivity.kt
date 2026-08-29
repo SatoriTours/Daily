@@ -7,8 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
-import com.dailysatori.core.reminder.ReminderCapabilitySnapshot
-import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.core.reminder.ReminderRecoveryController
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
@@ -19,8 +17,6 @@ import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.core.recording.DiaryRecordingOpenRequest
 import com.dailysatori.core.recording.DiaryRecordingService
 import com.dailysatori.ui.theme.DailySatoriTheme
-import com.dailysatori.ui.feature.settings.reminder.AndroidReminderDeliveryAccessChecker
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
@@ -29,18 +25,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        reminderRecovery = ReminderRecoveryController(
-            capabilitySnapshot = {
-                AndroidReminderDeliveryAccessChecker(this).current().let {
-                    ReminderCapabilitySnapshot(it.notificationsAllowed, it.exactAlarmsAllowed, it.disabledChannelIds)
-                }
-            },
-            recover = {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    GlobalContext.get().get<ReminderCoordinator>().recomputeAll()
-                }
-            },
-        )
+        reminderRecovery = GlobalContext.get().get()
         reminderRecovery.startup()
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)

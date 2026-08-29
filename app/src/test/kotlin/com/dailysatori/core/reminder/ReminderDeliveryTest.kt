@@ -276,7 +276,7 @@ class ReminderDeliveryTest {
             afterDelivered?.invoke()
             return delivered?.version
         }
-        override fun markDismissed(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
+        override fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Boolean = update(expectedVersion) {
             state = ReminderState(state.dismissalCount + 1, LocalDate(2026, 9, 2))
             it.copy(status = ReminderStatus.DISMISSED, version = it.version + 1)
         }

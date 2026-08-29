@@ -7,16 +7,22 @@ import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderStatus
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReminderRecoveryTest {
     @Test
     fun receiverRecognizesEverySystemRecoveryEntryPoint() {
@@ -60,18 +66,70 @@ class ReminderRecoveryTest {
     }
 
     @Test
-    fun startupRestoresOnceAndResumeOnlyRestoresAfterRelevantCapabilityChange() {
+    fun processOwnerRunsStartupOnceAcrossActivityRecreation() = runTest {
         var snapshot = ReminderCapabilitySnapshot(notificationsAllowed = false, exactAlarmsAllowed = false, disabledChannelIds = setOf("silent"))
         var recoveries = 0
-        val recovery = ReminderRecoveryController({ snapshot }) { recoveries++ }
+        val recovery = ReminderRecoveryController(
+            capabilitySnapshot = { snapshot },
+            recoveryScope = this,
+            recover = { recoveries++ },
+        )
+
+        val destroyedActivityJob = Job().also { it.cancel() }
+        recovery.startup()
+        recovery.startup()
+        runCurrent()
+
+        assertTrue(destroyedActivityJob.isCancelled)
+        assertEquals(1, recoveries)
+    }
+
+    @Test
+    fun processOwnerResumesOnlyAfterRelevantCapabilityChange() = runTest {
+        var snapshot = ReminderCapabilitySnapshot(notificationsAllowed = false, exactAlarmsAllowed = false, disabledChannelIds = setOf("silent"))
+        var recoveries = 0
+        val recovery = ReminderRecoveryController(
+            capabilitySnapshot = { snapshot },
+            recoveryScope = this,
+            recover = { recoveries++ },
+        )
 
         recovery.startup()
         recovery.resume()
         snapshot = snapshot.copy(exactAlarmsAllowed = true)
         recovery.resume()
         recovery.resume()
+        runCurrent()
 
         assertEquals(2, recoveries)
+    }
+
+    @Test
+    fun utcToAucklandDismissalsKeepTwoThenFourHourBackoffAcrossUtcDateBoundary() {
+        val auckland = TimeZone.of("Pacific/Auckland")
+        val reminder = reminder("bill").copy(
+            startDate = LocalDate(2026, 9, 1),
+            endDate = LocalDate(2026, 9, 2),
+        )
+        val store = FakeStore(listOf(reminder), false)
+        val scheduler = FakeScheduler()
+        val clock = MutableClock(instant("2026-08-31T22:00:00Z"))
+        val coordinator = ReminderCoordinator(
+            store,
+            ReminderScheduleEngine(),
+            scheduler,
+            FakeNotifier(),
+            clock,
+            currentTimeZone = { auckland },
+        )
+
+        assertTrue(coordinator.dismiss("bill", 0))
+        assertEquals(instant("2026-09-01T00:00:00Z"), scheduler.pending.getValue("bill").at)
+
+        clock.value = instant("2026-09-01T00:00:00Z")
+        assertTrue(coordinator.dismiss("bill", 1))
+
+        assertEquals(instant("2026-09-01T04:00:00Z"), scheduler.pending.getValue("bill").at)
     }
 
     @Test
@@ -171,6 +229,10 @@ class ReminderRecoveryTest {
         override fun now(): Instant = value
     }
 
+    private class MutableClock(var value: Instant) : Clock {
+        override fun now(): Instant = value
+    }
+
     private class FakeScheduler : ReminderScheduler {
         val pending = mutableMapOf<String, ReminderScheduleRequest>()
         override fun schedule(id: String, expectedVersion: Long, at: Instant) {
@@ -201,11 +263,12 @@ class ReminderRecoveryTest {
 
     private class FakeStore(initial: List<Reminder>, private val exposeTerminalAsActive: Boolean) : ReminderDeliveryStore {
         private val reminders = initial.associateBy { it.id }.toMutableMap()
+        private val states = initial.associate { it.id to ReminderState(0, null) }.toMutableMap()
         override fun get(id: String): Reminder? = reminders[id]
         override fun active(now: Instant): List<Reminder> = reminders.values.filter {
             exposeTerminalAsActive || it.status in deliverable
         }
-        override fun state(id: String): ReminderState? = ReminderState(0, null).takeIf { id in reminders }
+        override fun state(id: String): ReminderState? = states[id]
         override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long? {
             val current = reminders[id] ?: return null
             if (current.version != expectedVersion || current.status !in deliverable) return null
@@ -213,7 +276,15 @@ class ReminderRecoveryTest {
             reminders[id] = next
             return next.version
         }
-        override fun markDismissed(id: String, expectedVersion: Long, at: Instant) = false
+        override fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Boolean {
+            val current = reminders[id] ?: return false
+            if (current.version != expectedVersion || current.status !in deliverable) return false
+            val date = at.toLocalDateTime(timeZone).date
+            val previous = states.getValue(id)
+            states[id] = ReminderState(if (previous.stateDate == date) previous.dismissalCount + 1 else 1, date)
+            reminders[id] = current.copy(status = ReminderStatus.DISMISSED, version = current.version + 1)
+            return true
+        }
         override fun complete(id: String, at: Instant) = false
         override fun complete(id: String, expectedVersion: Long, at: Instant) = false
         override fun expire(id: String, at: Instant): Boolean {

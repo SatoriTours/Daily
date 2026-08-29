@@ -154,9 +154,9 @@ class ReminderRepository(
         )
     }
 
-    fun markDismissed(id: String, expectedVersion: Long, at: Instant): Boolean = transition(id, expectedVersion, at) { row ->
+    fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone? = null): Boolean = transition(id, expectedVersion, at) { row ->
         if (row.status !in deliverableStatuses) return@transition null
-        val date = at.toLocalDateTime(TimeZone.of(row.time_zone_id)).date
+        val date = at.toLocalDateTime(timeZone ?: TimeZone.of(row.time_zone_id)).date
         val count = if (row.state_date == date.toString()) row.dismissal_count.toInt() + 1 else 1
         Lifecycle(ReminderStatus.DISMISSED, date, count, row.last_notified_at, at.toEpochMilliseconds(), row.completed_at, row.next_occurrence_at, "dismissed")
     }
