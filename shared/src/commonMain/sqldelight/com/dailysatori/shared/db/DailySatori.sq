@@ -1905,5 +1905,82 @@ DELETE FROM chat_conversation WHERE session_id = ?;
 deleteChatMessage:
 DELETE FROM chat_conversation WHERE session_id = ? AND role = ? AND content = ? AND created_at = ?;
 
+-- Reminder lifecycle. Profile JSON is an immutable, bounded snapshot on each reminder.
+CREATE TABLE reminder_profile (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    profile_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE reminder (
+    id TEXT PRIMARY KEY NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    first_reminder_time TEXT NOT NULL,
+    active_day_rule TEXT NOT NULL,
+    time_zone_id TEXT NOT NULL,
+    profile_json TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    state_date TEXT,
+    dismissal_count INTEGER NOT NULL DEFAULT 0,
+    last_notified_at INTEGER,
+    last_dismissed_at INTEGER,
+    completed_at INTEGER,
+    next_occurrence_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_reminder_status_dates ON reminder(status, start_date, end_date);
+CREATE INDEX idx_reminder_next_occurrence ON reminder(status, next_occurrence_at);
+
+CREATE TABLE reminder_event (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reminder_id TEXT NOT NULL REFERENCES reminder(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    scheduled_at INTEGER,
+    actual_at INTEGER NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX idx_reminder_event_reminder_id ON reminder_event(reminder_id, id DESC);
+
+insertReminder:
+INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, time_zone_id, profile_json, version, state_date, dismissal_count, last_notified_at, last_dismissed_at, completed_at, next_occurrence_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectReminderById:
+SELECT * FROM reminder WHERE id = ?;
+
+selectAllReminders:
+SELECT * FROM reminder ORDER BY created_at DESC;
+
+selectActiveRemindersAt:
+SELECT * FROM reminder
+WHERE status IN ('ACTIVE', 'NOTIFIED', 'DISMISSED') AND ? BETWEEN start_date AND end_date
+ORDER BY next_occurrence_at ASC, created_at ASC;
+
+updateReminderLifecycle:
+UPDATE reminder SET status = ?, version = ?, state_date = ?, dismissal_count = ?, last_notified_at = ?, last_dismissed_at = ?, completed_at = ?, next_occurrence_at = ?, updated_at = ? WHERE id = ?;
+
+updateReminderEditable:
+UPDATE reminder SET content = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, profile_json = ?, version = ?, updated_at = ? WHERE id = ?;
+
+insertReminderEvent:
+INSERT INTO reminder_event (reminder_id, event_type, scheduled_at, actual_at, metadata_json) VALUES (?, ?, ?, ?, ?);
+
+selectReminderEvents:
+SELECT * FROM reminder_event WHERE reminder_id = ? ORDER BY id DESC LIMIT ?;
+
+deleteReminderEventsAfterLimit:
+DELETE FROM reminder_event WHERE reminder_id = ? AND id NOT IN (
+    SELECT id FROM reminder_event WHERE reminder_id = ? ORDER BY id DESC LIMIT ?
+);
+
 selectChatSessions:
 SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;
