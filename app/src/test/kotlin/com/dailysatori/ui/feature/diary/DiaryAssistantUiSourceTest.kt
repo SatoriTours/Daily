@@ -30,4 +30,30 @@ class DiaryAssistantUiSourceTest {
             .substringBefore("},")
         assertFalse(valueChange.contains("assistantService.run"))
     }
+
+    @Test
+    fun disposalInvalidatesRequestBeforeCancellationAndLatePublicationIsGated() {
+        val editor = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText()
+        val disposal = editor.substringAfter("onDispose {").substringBefore("}")
+
+        assertTrue(disposal.contains("assistantRequestGate.invalidate()"))
+        assertTrue(disposal.indexOf("assistantRequestGate.invalidate()") < disposal.indexOf("assistantJob?.cancel()"))
+        assertTrue(editor.contains("assistantRequestGate.isCurrent(requestGeneration)"))
+    }
+
+    @Test
+    fun readyPreviewIsBoundedInsideEditorViewportWithScrollableBodyAndPinnedActions() {
+        val editor = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText()
+        val preview = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryAssistantPreviewSheet.kt").readText()
+        val viewport = editor.substringAfter("DiaryAssistantEditorViewport {")
+            .substringBefore("Spacer(modifier = Modifier.height(Spacing.xs))")
+        val ready = preview.substringAfter("private fun DiaryAssistantReadyContent(")
+            .substringBefore("private fun DiaryAssistantPreviewHeader(")
+
+        assertTrue(editor.contains("private fun ColumnScope.DiaryAssistantEditorViewport("))
+        assertTrue(viewport.contains("DiaryAssistantPreviewSheet("))
+        assertTrue(preview.contains("fillMaxHeight(DiaryAssistantPreviewMaxHeightFraction)"))
+        assertTrue(ready.contains("Modifier.weight(1f).verticalScroll(rememberScrollState())"))
+        assertTrue(ready.indexOf("verticalScroll") < ready.indexOf("DiaryAssistantEditActions("))
+    }
 }

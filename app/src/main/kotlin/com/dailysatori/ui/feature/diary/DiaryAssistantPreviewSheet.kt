@@ -3,9 +3,12 @@ package com.dailysatori.ui.feature.diary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +25,8 @@ import com.dailysatori.service.diary.DiaryAssistantResult
 import com.dailysatori.service.diary.DiaryAssistantVerification
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+
+private const val DiaryAssistantPreviewMaxHeightFraction = 0.66f
 
 internal sealed interface DiaryAssistantPreviewState {
     val snapshot: DiaryAssistantSelectionSnapshot
@@ -65,8 +70,13 @@ internal fun DiaryAssistantPreviewSheet(
     onInsert: () -> Unit,
     onReplace: () -> Unit,
 ) {
+    val sizeModifier = if (state is DiaryAssistantPreviewState.Ready) {
+        Modifier.fillMaxHeight(DiaryAssistantPreviewMaxHeightFraction)
+    } else {
+        Modifier
+    }
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = sizeModifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
@@ -139,22 +149,27 @@ private fun DiaryAssistantReadyContent(
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         DiaryAssistantPreviewHeader(onRetry, onCancel)
-        DiaryAssistantStatus(state.result)
-        OutlinedTextField(
-            value = state.draft,
-            onValueChange = onDraftChange,
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 4,
-            maxLines = 8,
-            label = { Text("补充内容（可编辑）") },
-        )
-        DiaryAssistantSources(state.result)
-        if (!canReplaceSelection) {
-            Text(
-                "原文已更改，不能替换；仍可插入当前光标。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            DiaryAssistantStatus(state.result)
+            OutlinedTextField(
+                value = state.draft,
+                onValueChange = onDraftChange,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
+                maxLines = 8,
+                label = { Text("补充内容（可编辑）") },
             )
+            DiaryAssistantSources(state.result)
+            if (!canReplaceSelection) {
+                Text(
+                    "原文已更改，不能替换；仍可插入当前光标。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         DiaryAssistantEditActions(
             canReplaceSelection = canReplaceSelection,

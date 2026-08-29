@@ -108,3 +108,19 @@ class DiaryAssistantSessionCache(private val maxEntries: Int = 10) {
 
     private fun cacheKey(url: String): String = normalizeDiaryAssistantUrl(url.trim())
 }
+
+/** Invalidates late assistant completions independently of coroutine cancellation cooperation. */
+internal class DiaryAssistantRequestGate {
+    private var generation = 0L
+
+    fun begin(): Long {
+        generation += 1
+        return generation
+    }
+
+    fun invalidate() {
+        generation += 1
+    }
+
+    fun isCurrent(requestGeneration: Long): Boolean = requestGeneration == generation
+}
