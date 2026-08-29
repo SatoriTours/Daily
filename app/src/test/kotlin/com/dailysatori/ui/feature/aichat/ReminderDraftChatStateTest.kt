@@ -8,6 +8,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ReminderDraftChatStateTest {
+    @Test fun cancelledRequestFinalizesItsOwnStreamingMessageWithoutTouchingNewRequest() {
+        val cancelled = AiChatState(messages = listOf(ChatMessageUi("old", "assistant", "partial", 1L, isStreaming = true)))
+            .cancelledStreamingAssistant("old")
+        val newRequest = cancelled.withStreamingAssistantChunk("new", "new partial", now = 2L)
+
+        assertEquals("new", newRequest.messages.last().id)
+        assertTrue(newRequest.messages.last().isStreaming)
+        assertTrue(newRequest.messages.none { it.id == "old" })
+    }
     @Test fun finalizationAttachesDraftOnlyToItsStreamingAssistantMessage() {
         val draft = draft("draft-1")
         val state = AiChatState(messages = listOf(

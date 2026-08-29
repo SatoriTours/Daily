@@ -43,13 +43,14 @@ class McpAgentService(
         onStep: (String, String) -> Unit,
         onChunk: suspend (String) -> Unit,
     ): McpAgentResult {
+        val reminderDrafts = mutableListOf<ReminderDraft>()
         return try {
-            processQueryWithStreamingFinalAnswer(query, onStep, onChunk)
+            processQueryWithStreamingFinalAnswer(query, onStep, onChunk, reminderDrafts)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.w(e) { "Streaming AI chat failed, falling back to non-streaming path" }
-            return processQuery(query, onStep)
+            return processQuery(query, onStep, reminderDrafts)
         }
     }
 
@@ -57,8 +58,15 @@ class McpAgentService(
         query: String,
         onStep: (String, String) -> Unit,
     ): McpAgentResult {
+        return processQuery(query, onStep, mutableListOf())
+    }
+
+    private suspend fun processQuery(
+        query: String,
+        onStep: (String, String) -> Unit,
+        reminderDrafts: MutableList<ReminderDraft>,
+    ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
-        val reminderDrafts = mutableListOf<ReminderDraft>()
         val localSearch = aiSearchOrchestrator.search(query)
         collectedResults.addAll(localSearch.references)
         var currentStepName: String? = null
@@ -180,9 +188,9 @@ class McpAgentService(
         query: String,
         onStep: (String, String) -> Unit,
         onChunk: suspend (String) -> Unit,
+        reminderDrafts: MutableList<ReminderDraft>,
     ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
-        val reminderDrafts = mutableListOf<ReminderDraft>()
         val localSearch = aiSearchOrchestrator.search(query)
         collectedResults.addAll(localSearch.references)
         var currentStepName: String? = null
@@ -202,7 +210,7 @@ class McpAgentService(
 
         val config = aiConfigService.getDefaultConfig()
         if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
-            return processQuery(query, onStep)
+            return processQuery(query, onStep, reminderDrafts)
         }
 
         updateStep("正在理解您的问题...", "processing")
@@ -301,7 +309,7 @@ class McpAgentService(
             val toolCallId = tc["id"]?.jsonPrimitive?.contentOrNull ?: ""
 
             val toolResult = toolRegistry.executeTool(toolName, arguments)
-            toolResult.reminderDraft?.let(reminderDrafts::add)
+            toolResult.reminderDraft?.takeIf { draft -> reminderDrafts.none { it.id == draft.id } }?.let(reminderDrafts::add)
             collectedResults.addAll(extractMcpSearchResults(toolName, toolResult))
 
             val resultContent = toolResult.data?.toString() ?: buildJsonObject {

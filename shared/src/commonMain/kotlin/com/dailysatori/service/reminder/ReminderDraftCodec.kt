@@ -48,6 +48,10 @@ class ReminderDraftCodec(
         put("end_date", draft.endDate?.toString() ?: "")
         put("first_reminder_time", draft.firstReminderTime?.toString() ?: "")
         put("active_day_rule", draft.activeDayRule.encode())
+        if (draft.activeDayRule is ReminderActiveDayRule.SelectedWeekdays) {
+            put("selected_weekdays", JsonArray(draft.activeDayRule.days.sortedBy { it.ordinal }.map { JsonPrimitive(it.name) }))
+        }
+        draft.profile?.let { put("profile", it.kind.name) }
         put("timezone", draft.timeZone.id)
         put("validation_errors", JsonArray(draft.validationErrors.map(::JsonPrimitive)))
     }.toString()

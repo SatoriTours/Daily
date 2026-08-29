@@ -301,10 +301,13 @@ class AiChatViewModel(
     }
 
     fun stopGeneration() {
+        val cancelledAssistantMessageId = activeAssistantMessageId
         activeRequestJob?.cancel()
         activeRequestJob = null
         activeAssistantMessageId = null
-        _state.update { it.stoppedGeneration() }
+        _state.update {
+            cancelledAssistantMessageId?.let(it::cancelledStreamingAssistant) ?: it.stoppedGeneration()
+        }
     }
 
     fun deleteMessage(message: ChatMessageUi) {

@@ -43,6 +43,16 @@ class ReminderDraftToolTest {
         assertTrue(incomplete.validationErrors.any { it.contains("timezone") })
     }
 
+    @Test fun encodedDisplayModelPreservesSelectedWeekdaysAndSuggestedProfile() {
+        val result = codec.create("""{"content":"周报","start_date":"2026-09-01","end_date":"2026-09-30","first_reminder_time":"09:00","active_day_rule":"selected_weekdays","selected_weekdays":["monday","friday"],"profile":"gentle"}""")
+        val encoded = codec.encode(result)
+
+        assertTrue(encoded.contains("selected_weekdays"))
+        assertTrue(encoded.contains("MONDAY"))
+        assertTrue(encoded.contains("FRIDAY"))
+        assertTrue(encoded.contains("GENTLE"))
+    }
+
     @Test fun rejectsInvalidRangesAndOverlongContentWithStrictBoundedJson() {
         val tooLong = "x".repeat(501)
         val result = codec.create("""{"content":"$tooLong","start_date":"2026-09-03","end_date":"2026-09-02","first_reminder_time":"18:00","active_day_rule":"every_day","unexpected":true}""")
