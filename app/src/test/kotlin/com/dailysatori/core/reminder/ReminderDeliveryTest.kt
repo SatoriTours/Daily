@@ -1,0 +1,228 @@
+package com.dailysatori.core.reminder
+
+import com.dailysatori.data.repository.ReminderState
+import com.dailysatori.service.reminder.Reminder
+import com.dailysatori.service.reminder.ReminderActiveDayRule
+import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderScheduleEngine
+import com.dailysatori.service.reminder.ReminderStatus
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class ReminderDeliveryTest {
+    @Test
+    fun hybridSchedulerUsesExactOnlyWhenAllowedAndCancelsTheOtherBackend() {
+        val exact = FakeBackend()
+        val fallback = FakeBackend()
+        val scheduler = HybridReminderScheduler({ true }, exact, fallback)
+
+        scheduler.schedule("bill", 3, instant("2026-09-02T10:00:00Z"))
+
+        assertEquals(3, exact.pending["bill"]?.expectedVersion)
+        assertNull(fallback.pending["bill"])
+        assertEquals(listOf("bill"), fallback.cancelled)
+
+        val deniedScheduler = HybridReminderScheduler({ false }, exact, fallback)
+        deniedScheduler.schedule("bill", 4, instant("2026-09-02T11:00:00Z"))
+        assertNull(exact.pending["bill"])
+        assertEquals(4, fallback.pending["bill"]?.expectedVersion)
+    }
+
+    @Test
+    fun exactPermissionRaceFallsBackWithoutLosingTheOccurrence() {
+        val exact = FakeBackend(failure = SecurityException("access revoked"))
+        val fallback = FakeBackend()
+        val scheduler = HybridReminderScheduler({ true }, exact, fallback)
+
+        scheduler.schedule("bill", 5, instant("2026-09-02T12:00:00Z"))
+
+        assertEquals(5, fallback.pending["bill"]?.expectedVersion)
+    }
+
+    @Test
+    fun replacingScheduleLeavesOnePendingOccurrencePerReminder() {
+        val scheduler = FakeScheduler()
+        scheduler.schedule("bill", 1, instant("2026-09-02T10:00:00Z"))
+        scheduler.schedule("bill", 2, instant("2026-09-02T11:00:00Z"))
+        assertEquals(setOf("bill"), scheduler.pending.keys)
+        assertEquals(2, scheduler.pending.getValue("bill").expectedVersion)
+    }
+
+    @Test
+    fun pendingIntentIdentityIncludesReminderAndVersionAndIsImmutable() {
+        val first = ReminderIntentIdentity.delivery("bill/one", 7)
+        val next = ReminderIntentIdentity.delivery("bill/one", 8)
+        val other = ReminderIntentIdentity.delivery("bill/two", 7)
+        assertNotEquals(first.uri, next.uri)
+        assertNotEquals(first.uri, other.uri)
+        assertTrue(first.immutable)
+    }
+
+    @Test
+    fun duplicateDeliveryPostsOnlyAfterSuccessfulCompareAndSet() {
+        val fixture = fixture(now = "2026-09-02T10:00:00Z")
+        fixture.coordinator.deliver("bill", 0)
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(1, fixture.notifier.posts.size)
+        assertEquals(1, fixture.store.get("bill")?.version)
+    }
+
+    @Test
+    fun swipeAdvancesBackoffWithoutCompleting() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z")
+        assertTrue(fixture.coordinator.dismiss("bill", 0))
+        assertEquals(ReminderStatus.DISMISSED, fixture.store.get("bill")?.status)
+        assertEquals(instant("2026-09-02T14:00:00Z"), fixture.scheduler.pending["bill"]?.at)
+
+        fixture.clock.now = instant("2026-09-02T14:00:00Z")
+        assertTrue(fixture.coordinator.dismiss("bill", 1))
+        assertEquals(instant("2026-09-02T18:00:00Z"), fixture.scheduler.pending["bill"]?.at)
+    }
+
+    @Test
+    fun completeIsTerminalAndCancelsScheduleAndNotification() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z")
+        fixture.scheduler.schedule("bill", 0, fixture.clock.now)
+        assertTrue(fixture.coordinator.complete("bill"))
+        assertEquals(ReminderStatus.COMPLETED, fixture.store.get("bill")?.status)
+        assertNull(fixture.scheduler.pending["bill"])
+        assertEquals(listOf("bill"), fixture.notifier.cancelled)
+    }
+
+    @Test
+    fun workHourNotificationIsVisibleButHasNoSoundOrVibration() {
+        val reminder = reminder()
+        val policy = ReminderNotificationPolicy.forDelivery(reminder, instant("2026-09-02T10:00:00Z"))
+        assertTrue(policy.visible)
+        assertFalse(policy.soundEnabled)
+        assertFalse(policy.vibrationEnabled)
+    }
+
+    @Test
+    fun notificationAlwaysProvidesRedactedLockScreenContent() {
+        val policy = ReminderNotificationPolicy.forDelivery(reminder(), instant("2026-09-02T20:00:00Z"))
+        assertEquals("You have a reminder", policy.lockScreenText)
+        assertFalse(policy.lockScreenText.contains("pay", ignoreCase = true))
+    }
+
+    @Test
+    fun expiredDeliveryDoesNotPostAndBecomesTerminal() {
+        val fixture = fixture(now = "2026-09-03T00:00:00Z", reminder = reminder(endDate = LocalDate(2026, 9, 2)))
+        fixture.coordinator.deliver("bill", 0)
+        assertTrue(fixture.notifier.posts.isEmpty())
+        assertEquals(ReminderStatus.EXPIRED, fixture.store.get("bill")?.status)
+        assertNull(fixture.scheduler.pending["bill"])
+    }
+
+    private fun fixture(
+        now: String,
+        reminder: Reminder = reminder(),
+    ): Fixture {
+        val store = FakeStore(reminder)
+        val scheduler = FakeScheduler()
+        val notifier = FakeNotifier()
+        val clock = MutableClock(instant(now))
+        return Fixture(
+            ReminderCoordinator(store, ReminderScheduleEngine(), scheduler, notifier, clock),
+            store,
+            scheduler,
+            notifier,
+            clock,
+        )
+    }
+
+    private data class Fixture(
+        val coordinator: ReminderCoordinator,
+        val store: FakeStore,
+        val scheduler: FakeScheduler,
+        val notifier: FakeNotifier,
+        val clock: MutableClock,
+    )
+
+    private class MutableClock(var now: Instant) : Clock {
+        override fun now(): Instant = now
+    }
+
+    private class FakeScheduler : ReminderScheduler {
+        val pending = mutableMapOf<String, ReminderScheduleRequest>()
+        override fun schedule(id: String, expectedVersion: Long, at: Instant) {
+            pending[id] = ReminderScheduleRequest(id, expectedVersion, at)
+        }
+        override fun cancel(id: String) { pending.remove(id) }
+    }
+
+    private class FakeBackend(private val failure: RuntimeException? = null) : ReminderScheduleBackend {
+        val pending = mutableMapOf<String, ReminderScheduleRequest>()
+        val cancelled = mutableListOf<String>()
+        override fun schedule(request: ReminderScheduleRequest) {
+            failure?.let { throw it }
+            pending[request.id] = request
+        }
+        override fun cancel(id: String) { pending.remove(id); cancelled += id }
+    }
+
+    private class FakeNotifier : ReminderNotifier {
+        val posts = mutableListOf<ReminderNotificationPost>()
+        val cancelled = mutableListOf<String>()
+        override fun post(post: ReminderNotificationPost) { posts += post }
+        override fun cancel(id: String) { cancelled += id }
+    }
+
+    private class FakeStore(initial: Reminder) : ReminderDeliveryStore {
+        private var reminder: Reminder? = initial
+        private var state = ReminderState(0, null)
+        override fun get(id: String): Reminder? = reminder?.takeIf { it.id == id }
+        override fun active(now: Instant): List<Reminder> = listOfNotNull(reminder).filter { it.status in deliverable }
+        override fun state(id: String): ReminderState? = state.takeIf { reminder?.id == id }
+        override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
+            it.copy(status = ReminderStatus.NOTIFIED, version = it.version + 1)
+        }
+        override fun markDismissed(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
+            state = ReminderState(state.dismissalCount + 1, LocalDate(2026, 9, 2))
+            it.copy(status = ReminderStatus.DISMISSED, version = it.version + 1)
+        }
+        override fun complete(id: String, at: Instant): Boolean = terminal(ReminderStatus.COMPLETED)
+        override fun expire(id: String, at: Instant): Boolean = terminal(ReminderStatus.EXPIRED)
+        private fun update(expectedVersion: Long, transform: (Reminder) -> Reminder): Boolean {
+            val current = reminder ?: return false
+            if (current.version != expectedVersion || current.status !in deliverable) return false
+            reminder = transform(current)
+            return true
+        }
+        private fun terminal(status: ReminderStatus): Boolean {
+            val current = reminder ?: return false
+            if (current.status in setOf(ReminderStatus.COMPLETED, ReminderStatus.EXPIRED)) return false
+            reminder = current.copy(status = status, version = current.version + 1)
+            return true
+        }
+        private companion object {
+            val deliverable = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
+        }
+    }
+
+    private companion object {
+        val UTC = TimeZone.UTC
+        fun instant(value: String): Instant = Instant.parse(value)
+        fun reminder(endDate: LocalDate = LocalDate(2026, 9, 2)) = Reminder(
+            id = "bill",
+            content = "Pay credit card",
+            startDate = LocalDate(2026, 9, 2),
+            endDate = endDate,
+            firstReminderTime = LocalTime(10, 0),
+            activeDayRule = ReminderActiveDayRule.Daily,
+            profile = ReminderProfileSnapshot.strong(),
+            status = ReminderStatus.ACTIVE,
+            timeZone = UTC,
+            version = 0,
+        )
+    }
+}

@@ -1,5 +1,16 @@
 package com.dailysatori.core.di
 
+import android.app.AlarmManager
+import android.os.Build
+import com.dailysatori.core.reminder.AndroidReminderNotification
+import com.dailysatori.core.reminder.ExactAlarmReminderScheduler
+import com.dailysatori.core.reminder.HybridReminderScheduler
+import com.dailysatori.core.reminder.ReminderCoordinator
+import com.dailysatori.core.reminder.ReminderDeliveryStore
+import com.dailysatori.core.reminder.ReminderNotifier
+import com.dailysatori.core.reminder.ReminderScheduler
+import com.dailysatori.core.reminder.RepositoryReminderDeliveryStore
+import com.dailysatori.core.reminder.WorkManagerReminderScheduler
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.ClipboardMonitorService
 import com.dailysatori.core.service.WebServerService
@@ -24,6 +35,7 @@ import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
+import com.dailysatori.service.reminder.ReminderScheduleEngine
 import kotlinx.datetime.Clock
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -78,4 +90,17 @@ val appModule: Module = module {
     }
     single { WebServerService(androidContext()) }
     single { AppUpgradeService(get()) }
+    single { ReminderScheduleEngine() }
+    single<ReminderDeliveryStore> { RepositoryReminderDeliveryStore(get()) }
+    single<ReminderScheduler> {
+        val context = androidContext()
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        HybridReminderScheduler(
+            exactAllowed = { Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms() },
+            exact = ExactAlarmReminderScheduler(context, alarms),
+            fallback = WorkManagerReminderScheduler(context, get()),
+        )
+    }
+    single<ReminderNotifier> { AndroidReminderNotification(androidContext()) }
+    single { ReminderCoordinator(get(), get(), get(), get(), get(), androidContext()) }
 }
