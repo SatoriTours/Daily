@@ -6,13 +6,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.LocalOffer
@@ -29,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.Spacing
 
 @Composable
 fun DiaryEditorToolbar(
@@ -38,11 +43,13 @@ fun DiaryEditorToolbar(
     onMedia: () -> Unit,
     onTags: () -> Unit,
     onMood: () -> Unit,
+    onAssistant: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onMore: () -> Unit,
     canUndo: Boolean,
     canRedo: Boolean,
+    canUseAssistant: Boolean,
 ) {
     val background = MaterialTheme.colorScheme.surfaceContainer
     val primary = MaterialTheme.colorScheme.primary
@@ -50,11 +57,16 @@ fun DiaryEditorToolbar(
     val selectedBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
     Surface(shape = RoundedCornerShape(Radius.circular), color = background) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ToolbarIcon(Icons.Default.AddPhotoAlternate, "添加图片", onMedia, primary, muted, selectedBackground, selected = true)
+            ToolbarIcon(Icons.Default.AutoAwesome, "AI 补充", onAssistant, primary, muted, selectedBackground, canUseAssistant)
             ToolbarIcon(Icons.Default.Title, "标题", onTitle, primary, muted, selectedBackground)
             ToolbarIcon(Icons.Default.FormatListNumbered, "有序列表", onOrderedList, primary, muted, selectedBackground)
             ToolbarIcon(Icons.AutoMirrored.Filled.FormatListBulleted, "无序列表", onUnorderedList, primary, muted, selectedBackground)

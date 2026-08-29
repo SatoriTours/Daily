@@ -39,11 +39,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -57,6 +59,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.dailysatori.core.recording.DiaryRecordingState
+import com.dailysatori.service.diary.DiaryAssistantFallbackRequiredException
+import com.dailysatori.service.diary.DiaryAssistantService
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.theme.Radius
@@ -66,6 +70,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 private data class DiaryEditorColors(
     val sheet: androidx.compose.ui.graphics.Color,
@@ -106,6 +115,7 @@ fun DiaryEditorSheet(
     onDeleteAttachment: (Long) -> Unit = {},
     onRetryTranscription: (Long) -> Unit = {},
     onOpenTranscriptionSettings: () -> Unit = {},
+    assistantService: DiaryAssistantService = koinInject(),
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
@@ -124,6 +134,11 @@ fun DiaryEditorSheet(
     var moodText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.mood)) }
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
     val redoStack = remember { mutableStateListOf<TextFieldValue>() }
+    val assistantCache = remember { DiaryAssistantSessionCache() }
+    val assistantScope = rememberCoroutineScope()
+    var assistantJob by remember { mutableStateOf<Job?>(null) }
+    var pendingPastedUrl by remember { mutableStateOf<String?>(null) }
+    var assistantPreview by remember { mutableStateOf<DiaryAssistantPreviewState?>(null) }
     val images = remember(existingDiary) {
         val existingImages = existingDiary?.images
             ?.split(",")
@@ -140,10 +155,94 @@ fun DiaryEditorSheet(
         }
     }
 
+    val canUseAssistant = !content.selection.collapsed &&
+        content.text.substring(content.selection.min, content.selection.max).isNotBlank()
+
     fun pushUndo() {
         if (undoStack.size >= 50) undoStack.removeAt(0)
         undoStack.add(content)
         redoStack.clear()
+    }
+
+    fun assistantSnapshot(): DiaryAssistantSelectionSnapshot {
+        val selection = TextRange(content.selection.min, content.selection.max)
+        return DiaryAssistantSelectionSnapshot(
+            text = content.text,
+            selection = selection,
+            selectedText = content.text.substring(selection.start, selection.end),
+        )
+    }
+
+    fun cancelAssistantPreview() {
+        assistantJob?.cancel()
+        assistantJob = null
+        assistantPreview = null
+    }
+
+    fun startAssistant(
+        snapshot: DiaryAssistantSelectionSnapshot,
+        url: String? = null,
+        allowModelKnowledgeFallback: Boolean = false,
+    ) {
+        assistantJob?.cancel()
+        assistantPreview = DiaryAssistantPreviewState.Loading(snapshot, url, allowModelKnowledgeFallback)
+        val nextJob = assistantScope.launch(start = CoroutineStart.LAZY) {
+            val runningJob = coroutineContext[Job]
+            try {
+                val cached = url?.let { assistantCache[it] }
+                val result = cached ?: assistantService.run(
+                    snapshot.toDiaryAssistantRequest(url, allowModelKnowledgeFallback),
+                )
+                if (assistantJob !== runningJob) return@launch
+                if (url != null && cached == null) assistantCache[url] = result
+                assistantPreview = DiaryAssistantPreviewState.Ready(
+                    snapshot, url, allowModelKnowledgeFallback, result, result.content,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: DiaryAssistantFallbackRequiredException) {
+                if (assistantJob === runningJob) {
+                    assistantPreview = DiaryAssistantPreviewState.FallbackConsent(snapshot, url)
+                }
+            } catch (error: Exception) {
+                if (assistantJob === runningJob) {
+                    assistantPreview = DiaryAssistantPreviewState.Failure(
+                        snapshot = snapshot,
+                        url = url,
+                        allowModelKnowledgeFallback = allowModelKnowledgeFallback,
+                        message = error.message ?: "生成失败，请稍后重试",
+                    )
+                }
+            } finally {
+                if (assistantJob === runningJob) assistantJob = null
+            }
+        }
+        assistantJob = nextJob
+        nextJob.start()
+    }
+
+    fun insertAssistantPreview() {
+        val ready = assistantPreview as? DiaryAssistantPreviewState.Ready ?: return
+        val updated = insertDiaryAssistantResult(content, ready.snapshot, ready.draft)
+        pushUndo()
+        content = updated
+        cancelAssistantPreview()
+    }
+
+    fun replaceAssistantPreview() {
+        val ready = assistantPreview as? DiaryAssistantPreviewState.Ready ?: return
+        if (!canReplaceDiaryAssistantSelection(content, ready.snapshot)) return
+        val updated = replaceDiaryAssistantSelection(content, ready.snapshot, ready.draft)
+        pushUndo()
+        content = updated
+        cancelAssistantPreview()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            assistantJob?.cancel()
+            assistantCache.clear()
+        }
     }
 
     fun performUndo() {
@@ -380,9 +479,24 @@ fun DiaryEditorSheet(
                             verticalArrangement = Arrangement.spacedBy(Spacing.s),
                         ) {
                             DiaryImageRow(images = images, onRemove = { images.remove(it) })
+                            pendingPastedUrl?.let { url ->
+                                DiaryPastedUrlPrompt(
+                                    url = url,
+                                    onExtractConfirmed = {
+                                        pendingPastedUrl = null
+                                        startAssistant(assistantSnapshot(), url)
+                                    },
+                                    onDismiss = { pendingPastedUrl = null },
+                                )
+                            }
                             BasicTextField(
                                 value = content,
-                                onValueChange = { pushUndo(); content = it },
+                                onValueChange = { updated ->
+                                    val pastedUrl = detectNewlyPastedDiaryUrl(content.text, updated.text)
+                                    pushUndo()
+                                    content = updated
+                                    if (pastedUrl != null) pendingPastedUrl = pastedUrl
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 260.dp),
@@ -398,6 +512,22 @@ fun DiaryEditorSheet(
                         }
                     }
 
+                    assistantPreview?.let { preview ->
+                        DiaryAssistantPreviewSheet(
+                            state = preview,
+                            canReplaceSelection = canReplaceDiaryAssistantSelection(content, preview.snapshot),
+                            onDraftChange = { draft ->
+                                val ready = assistantPreview as? DiaryAssistantPreviewState.Ready
+                                if (ready != null) assistantPreview = ready.copy(draft = draft)
+                            },
+                            onRetry = { startAssistant(preview.snapshot, preview.url, preview.allowFallbackForRetry()) },
+                            onAllowFallback = { startAssistant(preview.snapshot, preview.url, true) },
+                            onCancel = { cancelAssistantPreview() },
+                            onInsert = { insertAssistantPreview() },
+                            onReplace = { replaceAssistantPreview() },
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(Spacing.xs))
 
                     Box(modifier = Modifier.navigationBarsPadding().imePadding()) {
@@ -408,11 +538,13 @@ fun DiaryEditorSheet(
                             onMedia = { showMediaPicker = true },
                             onTags = { showTagEntry = true },
                             onMood = { showMoodEditor = true },
+                            onAssistant = { startAssistant(assistantSnapshot()) },
                             onUndo = { performUndo() },
                             onRedo = { performRedo() },
                             onMore = { showMoreFormats = !showMoreFormats },
                             canUndo = undoStack.isNotEmpty(),
                             canRedo = redoStack.isNotEmpty(),
+                            canUseAssistant = canUseAssistant,
                         )
                         DiaryMoreFormatMenu(
                             expanded = showMoreFormats,
@@ -429,6 +561,42 @@ fun DiaryEditorSheet(
                     Spacer(modifier = Modifier.height(Spacing.s))
                 }
             }
+        }
+    }
+
+}
+
+private fun DiaryAssistantPreviewState.allowFallbackForRetry(): Boolean = when (this) {
+    is DiaryAssistantPreviewState.Loading -> allowModelKnowledgeFallback
+    is DiaryAssistantPreviewState.Failure -> allowModelKnowledgeFallback
+    is DiaryAssistantPreviewState.Ready -> allowModelKnowledgeFallback
+    is DiaryAssistantPreviewState.FallbackConsent -> false
+}
+
+@Composable
+private fun DiaryPastedUrlPrompt(
+    url: String,
+    onExtractConfirmed: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = url,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onDismiss) { Text("忽略") }
+            TextButton(onClick = onExtractConfirmed) { Text("提取核心内容") }
         }
     }
 }
