@@ -10,6 +10,9 @@ import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsState
 import com.dailysatori.ui.feature.settings.reminder.ReminderProfileEditorState
+import com.dailysatori.ui.feature.settings.reminder.ReminderDeliveryAccess
+import com.dailysatori.ui.feature.settings.reminder.ReminderDeliveryAccessChecker
+import com.dailysatori.ui.feature.settings.reminder.ReminderDeliveryAccessController
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
@@ -21,6 +24,14 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class ReminderUiStateTest {
+    @Test
+    fun selectedWeekdaysMustContainAtLeastOneDay() {
+        val state = validDraftState().editActiveDayRule(ReminderActiveDayRule.SelectedWeekdays(emptySet()))
+
+        assertFalse(state.canConfirm)
+        assertTrue(ReminderDraftField.ACTIVE_DAY_RULE in state.validationErrors)
+    }
+
     @Test
     fun requiredFieldsAndInvalidRangesDisableConfirmation() {
         val missing = ReminderDraftUiState.from(ReminderDraft("d", "", null, null, null))
@@ -124,6 +135,45 @@ class ReminderUiStateTest {
         assertEquals(LocalTime(9, 0), defaults.workStart)
         assertEquals(LocalTime(18, 0), defaults.workEnd)
         assertFalse(invalid.isValid)
+    }
+
+    @Test
+    fun customBackoffRejectsMalformedEmptyAndOutOfRangeTokens() {
+        val base = ReminderProfileEditorState(
+            name = "Focus",
+            daytimeBackoffMinutes = listOf(120),
+            daytimeBackoffInput = "120",
+            eveningStart = LocalTime(22, 0),
+            eveningIntervalMinutes = 60,
+            dailyCutoff = LocalTime(0, 0),
+            soundEnabled = true,
+            vibrationEnabled = true,
+        )
+
+        assertFalse(base.editBackoffInput("120,abc").isValid)
+        assertFalse(base.editBackoffInput("120,,240").isValid)
+        assertFalse(base.editBackoffInput("0,240").isValid)
+        assertEquals(listOf(120, 240), base.editBackoffInput("120,240").daytimeBackoffMinutes)
+        assertTrue(base.editBackoffInput("120,240").isValid)
+    }
+
+    @Test
+    fun deliveryAccessControllerCombinesRuntimeAndSystemNotificationStateAndRefreshes() {
+        var runtimePermission = true
+        var systemEnabled = false
+        val checker = ReminderDeliveryAccessChecker {
+            ReminderDeliveryAccess(
+                notificationsAllowed = runtimePermission && systemEnabled,
+                exactAlarmsAllowed = true,
+            )
+        }
+        val controller = ReminderDeliveryAccessController(checker)
+
+        assertFalse(controller.current.notificationsAllowed)
+        systemEnabled = true
+        assertTrue(controller.refresh().notificationsAllowed)
+        runtimePermission = false
+        assertFalse(controller.refresh().notificationsAllowed)
     }
 
     private fun validDraftState() = ReminderDraftUiState.from(

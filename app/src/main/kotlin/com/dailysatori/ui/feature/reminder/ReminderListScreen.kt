@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -21,6 +21,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
@@ -42,14 +44,14 @@ fun ReminderListScreen(
     val visible = remember(all, ui.filter) { filterReminders(all, ui.filter) }
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             ReminderFilter.entries.forEach { filter ->
                 FilterChip(selected = ui.filter == filter, onClick = { viewModel.setFilter(filter) }, label = { Text(filter.label()) })
             }
         }
         if (selected != null) ReminderDetail(selected, latestProfile, viewModel)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            items(visible, key = { it.id }) { reminder ->
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            visible.forEach { reminder ->
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { viewModel.selectReminder(reminder.id) },
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
@@ -57,8 +59,8 @@ fun ReminderListScreen(
                 ) {
                     Column(Modifier.padding(Spacing.m)) {
                         Text(reminder.content, style = MaterialTheme.typography.titleSmall)
-                        Text("${reminder.startDate} ${reminder.firstReminderTime} — ${reminder.endDate}", style = MaterialTheme.typography.bodySmall)
-                        Text(reminder.status.name, style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.reminder_date_range, reminder.startDate, reminder.firstReminderTime, reminder.endDate), style = MaterialTheme.typography.bodySmall)
+                        Text(reminder.status.label(), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -76,18 +78,18 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
     var picker by remember { mutableStateOf<DetailPicker?>(null) }
     Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .35f)) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text("提醒内容") }, modifier = Modifier.fillMaxWidth())
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                TextButton(onClick = { picker = DetailPicker.START }) { Text("开始 $startDate") }
-                TextButton(onClick = { picker = DetailPicker.END }) { Text("结束 $endDate") }
-                TextButton(onClick = { picker = DetailPicker.TIME }) { Text("首次 $firstTime") }
+            OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text(stringResource(R.string.reminder_content_label)) }, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                TextButton(onClick = { picker = DetailPicker.START }) { Text(stringResource(R.string.reminder_start_value, startDate)) }
+                TextButton(onClick = { picker = DetailPicker.END }) { Text(stringResource(R.string.reminder_end_value, endDate)) }
+                TextButton(onClick = { picker = DetailPicker.TIME }) { Text(stringResource(R.string.reminder_first_value, firstTime)) }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf("每天" to ReminderActiveDayRule.Daily, "工作日" to ReminderActiveDayRule.Weekdays, "连续" to ReminderActiveDayRule.ConsecutiveDateRange).forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                listOf(stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily, stringResource(R.string.reminder_rule_weekdays) to ReminderActiveDayRule.Weekdays, stringResource(R.string.reminder_rule_range) to ReminderActiveDayRule.ConsecutiveDateRange).forEach { (label, value) ->
                     FilterChip(selected = rule == value, onClick = { rule = value }, label = { Text(label) })
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 reminderActions(reminder).forEach { action ->
                     TextButton(onClick = {
                         when (action) {
@@ -111,18 +113,31 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
     }
 }
 
-private fun ReminderFilter.label() = when (this) {
-    ReminderFilter.ACTIVE -> "进行中"
-    ReminderFilter.PAUSED -> "已暂停"
-    ReminderFilter.COMPLETED -> "已完成"
-    ReminderFilter.EXPIRED -> "已过期"
-}
+@Composable
+private fun ReminderFilter.label() = stringResource(when (this) {
+    ReminderFilter.ACTIVE -> R.string.reminder_filter_active
+    ReminderFilter.PAUSED -> R.string.reminder_filter_paused
+    ReminderFilter.COMPLETED -> R.string.reminder_filter_completed
+    ReminderFilter.EXPIRED -> R.string.reminder_filter_expired
+})
 
-private fun ReminderAction.label() = when (this) {
-    ReminderAction.PAUSE -> "暂停"
-    ReminderAction.RESUME -> "恢复"
-    ReminderAction.EDIT -> "保存编辑"
-    ReminderAction.COMPLETE -> "完成"
-    ReminderAction.DELETE -> "删除"
-    ReminderAction.APPLY_LATEST_PROFILE -> "应用最新配置"
-}
+@Composable
+private fun ReminderAction.label() = stringResource(when (this) {
+    ReminderAction.PAUSE -> R.string.reminder_action_pause
+    ReminderAction.RESUME -> R.string.reminder_action_resume
+    ReminderAction.EDIT -> R.string.reminder_action_save_edit
+    ReminderAction.COMPLETE -> R.string.reminder_action_complete
+    ReminderAction.DELETE -> R.string.reminder_action_delete
+    ReminderAction.APPLY_LATEST_PROFILE -> R.string.reminder_action_apply_latest
+})
+
+@Composable
+private fun com.dailysatori.service.reminder.ReminderStatus.label() = stringResource(when (this) {
+    com.dailysatori.service.reminder.ReminderStatus.ACTIVE,
+    com.dailysatori.service.reminder.ReminderStatus.NOTIFIED,
+    com.dailysatori.service.reminder.ReminderStatus.DISMISSED -> R.string.reminder_status_active
+    com.dailysatori.service.reminder.ReminderStatus.PAUSED -> R.string.reminder_status_paused
+    com.dailysatori.service.reminder.ReminderStatus.COMPLETED -> R.string.reminder_status_completed
+    com.dailysatori.service.reminder.ReminderStatus.EXPIRED -> R.string.reminder_status_expired
+    com.dailysatori.service.reminder.ReminderStatus.DRAFT -> R.string.reminder_draft_title
+})

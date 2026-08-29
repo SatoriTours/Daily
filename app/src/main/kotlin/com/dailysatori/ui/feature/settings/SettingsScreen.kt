@@ -45,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
 import com.dailysatori.ui.component.settings.SettingsSectionCard
@@ -204,7 +206,7 @@ private fun SettingsList(
 @Composable
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
     SettingsSectionCard("AI 与服务") {
-        SettingsRow(Icons.Default.Notifications, "提醒", "提醒列表、通知状态与配置", onClick = { onNavigate(SettingsPage.REMINDERS) })
+        SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title), stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
         SettingsRow(Icons.AutoMirrored.Filled.MenuBook, skillSettingsRowTitle(), skillSettingsRowSubtitle(), onClick = { onNavigate(SettingsPage.SKILLS) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })

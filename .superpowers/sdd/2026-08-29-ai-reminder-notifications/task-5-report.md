@@ -32,3 +32,13 @@ Implemented the editable AI confirmation card, reminder lifecycle list/detail, u
 
 - No device/instrumentation acceptance was run for real permission return flows, disabled-channel recovery, picker ergonomics, or lock-screen rendering.
 - The settings surface is information-dense on small screens and merits device UX review; functional Compose compilation is covered.
+
+## Fix round 1
+
+- Added horizontally scrollable dense controls and one vertically scrollable settings/reminder surface; removed the nested weighted reminder list that could be clipped on small screens.
+- Empty `SelectedWeekdays` is now a validation error, is shown on the card, and disables confirmation.
+- Delivery access now combines the Android runtime permission with the system-wide notification switch, uses an injectable checker/controller, and refreshes on settings-page `ON_RESUME` without polling.
+- Moved all Task 5 user-visible text to matching `values` / `values-en` resources, including picker, lifecycle, profile, permission, and action labels.
+- Custom backoff input preserves the raw token string and rejects malformed, empty, non-integer, over-count, and out-of-range tokens instead of dropping them.
+- RED: focused tests initially failed to compile because active-day validation, strict input state, and injectable delivery access APIs were absent.
+- GREEN: `ReminderUiStateTest` and `ReminderUiSourceTest` pass after the fixes.

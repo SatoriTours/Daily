@@ -180,7 +180,17 @@ val viewModelModule: Module = module {
         )
     }
     viewModel { ReminderViewModel(repository = get(), coordinator = get(), settingRepository = get(), context = androidContext()) }
-    viewModel { ReminderSettingsViewModel(repository = get(), settingRepository = get(), context = androidContext()) }
+    viewModel {
+        val context = androidContext()
+        ReminderSettingsViewModel(
+            repository = get(),
+            settingRepository = get(),
+            context = context,
+            deliveryAccessController = com.dailysatori.ui.feature.settings.reminder.ReminderDeliveryAccessController(
+                com.dailysatori.ui.feature.settings.reminder.AndroidReminderDeliveryAccessChecker(context),
+            ),
+        )
+    }
     viewModel {
         AiReferenceDetailViewModel(
             articleRepo = get<ArticleRepository>(),

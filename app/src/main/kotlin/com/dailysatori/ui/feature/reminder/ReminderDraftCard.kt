@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderImportance
@@ -59,82 +63,84 @@ fun ReminderDraftCard(
         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text("确认提醒", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.reminder_draft_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = state.content,
                 onValueChange = { onChange(state.editContent(it)) },
-                label = { Text("提醒内容") },
+                label = { Text(stringResource(R.string.reminder_content_label)) },
                 isError = ReminderDraftField.CONTENT in state.validationErrors,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text("绝对时间：${state.absoluteDateTimeText.ifBlank { "请选择日期和时间" }}", style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                TextButton(onClick = { picker = DraftPicker.START_DATE }) { Text("开始 ${state.startDate ?: "未选"}") }
-                TextButton(onClick = { picker = DraftPicker.END_DATE }) { Text("结束 ${state.endDate ?: "未选"}") }
-                TextButton(onClick = { picker = DraftPicker.FIRST_TIME }) { Text("首次 ${state.firstReminderTime ?: "未选"}") }
+            Text(stringResource(R.string.reminder_absolute_time, state.absoluteDateTimeText.ifBlank { stringResource(R.string.reminder_select_date_time) }), style = MaterialTheme.typography.bodyMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                val missing = stringResource(R.string.reminder_not_selected)
+                TextButton(onClick = { picker = DraftPicker.START_DATE }) { Text(stringResource(R.string.reminder_start_value, state.startDate ?: missing)) }
+                TextButton(onClick = { picker = DraftPicker.END_DATE }) { Text(stringResource(R.string.reminder_end_value, state.endDate ?: missing)) }
+                TextButton(onClick = { picker = DraftPicker.FIRST_TIME }) { Text(stringResource(R.string.reminder_first_value, state.firstReminderTime ?: missing)) }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 listOf(
-                    "每天" to ReminderActiveDayRule.Daily,
-                    "工作日" to ReminderActiveDayRule.Weekdays,
-                    "连续日期" to ReminderActiveDayRule.ConsecutiveDateRange,
-                    "自选" to ReminderActiveDayRule.SelectedWeekdays(kotlinx.datetime.DayOfWeek.entries.toSet()),
+                    stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily,
+                    stringResource(R.string.reminder_rule_weekdays) to ReminderActiveDayRule.Weekdays,
+                    stringResource(R.string.reminder_rule_range) to ReminderActiveDayRule.ConsecutiveDateRange,
+                    stringResource(R.string.reminder_rule_selected) to ReminderActiveDayRule.SelectedWeekdays(kotlinx.datetime.DayOfWeek.entries.toSet()),
                 ).forEach { (label, rule) ->
                     FilterChip(selected = state.activeDayRule == rule, onClick = { onChange(state.editActiveDayRule(rule)) }, label = { Text(label) })
                 }
             }
             (state.activeDayRule as? ReminderActiveDayRule.SelectedWeekdays)?.let { selected ->
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     kotlinx.datetime.DayOfWeek.entries.forEach { day ->
-                        FilterChip(selected = day in selected.days, onClick = { onChange(state.editActiveDayRule(ReminderActiveDayRule.SelectedWeekdays(if (day in selected.days) selected.days - day else selected.days + day))) }, label = { Text(day.name.take(2)) })
+                        FilterChip(selected = day in selected.days, onClick = { onChange(state.editActiveDayRule(ReminderActiveDayRule.SelectedWeekdays(if (day in selected.days) selected.days - day else selected.days + day))) }, label = { Text(day.shortLabel()) })
                     }
                 }
+                if (selected.days.isEmpty()) Text(stringResource(R.string.reminder_selected_days_required), color = MaterialTheme.colorScheme.error)
             }
-            Text("提醒强度")
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf("强" to ReminderProfileSnapshot.strong(), "标准" to ReminderProfileSnapshot.standard(), "轻柔" to ReminderProfileSnapshot.gentle()).forEach { (label, profile) ->
+            Text(stringResource(R.string.reminder_profile_strength))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                listOf(stringResource(R.string.reminder_profile_strong) to ReminderProfileSnapshot.strong(), stringResource(R.string.reminder_profile_standard) to ReminderProfileSnapshot.standard(), stringResource(R.string.reminder_profile_gentle) to ReminderProfileSnapshot.gentle()).forEach { (label, profile) ->
                     FilterChip(selected = state.profile?.kind == profile.kind, onClick = { onChange(state.editProfile(profile.withRulesFrom(state.profile))) }, label = { Text(label) })
                 }
             }
             state.profile?.let { profile ->
-                ToggleRow("声音", profile.soundEnabled) { onChange(state.editProfile(profile.copy(soundEnabled = it))) }
-                ToggleRow("振动", profile.vibrationEnabled) { onChange(state.editProfile(profile.copy(vibrationEnabled = it))) }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    ReminderImportance.entries.forEach { value -> FilterChip(selected = profile.importance == value, onClick = { onChange(state.editProfile(profile.copy(importance = value))) }, label = { Text(value.name) }) }
+                ToggleRow(stringResource(R.string.reminder_sound), profile.soundEnabled) { onChange(state.editProfile(profile.copy(soundEnabled = it))) }
+                ToggleRow(stringResource(R.string.reminder_vibration), profile.vibrationEnabled) { onChange(state.editProfile(profile.copy(vibrationEnabled = it))) }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    ReminderImportance.entries.forEach { value -> FilterChip(selected = profile.importance == value, onClick = { onChange(state.editProfile(profile.copy(importance = value))) }, label = { Text(value.label()) }) }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = profile.lockScreenVisibility == value, onClick = { onChange(state.editProfile(profile.copy(lockScreenVisibility = value))) }, label = { Text(value.name) }) }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = profile.lockScreenVisibility == value, onClick = { onChange(state.editProfile(profile.copy(lockScreenVisibility = value))) }, label = { Text(value.label()) }) }
                 }
                 OutlinedTextField(
                     value = profile.daytimeDismissalBackoffMinutes.joinToString(","),
                     onValueChange = { input -> onChange(state.editProfile(profile.copy(daytimeDismissalBackoffMinutes = input.split(',').mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..1_440 }.take(8)))) },
-                    label = { Text("退避分钟") },
+                    label = { Text(stringResource(R.string.reminder_backoff_minutes)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = profile.eveningIntervalMinutes?.toString().orEmpty(),
                     onValueChange = { input -> onChange(state.editProfile(profile.copy(eveningIntervalMinutes = input.toIntOrNull()?.takeIf { it in 1..1_440 }))) },
-                    label = { Text("晚间间隔分钟（留空使用固定时点）") },
+                    label = { Text(stringResource(R.string.reminder_evening_interval_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     kotlinx.datetime.DayOfWeek.entries.forEach { day ->
-                        FilterChip(selected = day in profile.workDays, onClick = { onChange(state.editProfile(profile.copy(workDays = if (day in profile.workDays) profile.workDays - day else profile.workDays + day))) }, label = { Text(day.name.take(2)) })
+                        FilterChip(selected = day in profile.workDays, onClick = { onChange(state.editProfile(profile.copy(workDays = if (day in profile.workDays) profile.workDays - day else profile.workDays + day))) }, label = { Text(day.shortLabel()) })
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    TextButton(onClick = { picker = DraftPicker.SLEEP_START }) { Text("免打扰开始 ${profile.sleepStart}") }
-                    TextButton(onClick = { picker = DraftPicker.SLEEP_END }) { Text("结束 ${profile.sleepEnd}") }
-                    TextButton(onClick = { picker = DraftPicker.WORK_START }) { Text("工作 ${profile.workStart}") }
-                    TextButton(onClick = { picker = DraftPicker.WORK_END }) { Text("至 ${profile.workEnd}") }
-                    TextButton(onClick = { picker = DraftPicker.EVENING_START }) { Text("晚间 ${profile.eveningStart}") }
-                    TextButton(onClick = { picker = DraftPicker.CUTOFF }) { Text("截止 ${profile.dailyCutoff}") }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    TextButton(onClick = { picker = DraftPicker.SLEEP_START }) { Text(stringResource(R.string.reminder_sleep_start, profile.sleepStart)) }
+                    TextButton(onClick = { picker = DraftPicker.SLEEP_END }) { Text(stringResource(R.string.reminder_sleep_end, profile.sleepEnd)) }
+                    TextButton(onClick = { picker = DraftPicker.WORK_START }) { Text(stringResource(R.string.reminder_work_start, profile.workStart)) }
+                    TextButton(onClick = { picker = DraftPicker.WORK_END }) { Text(stringResource(R.string.reminder_work_end, profile.workEnd)) }
+                    TextButton(onClick = { picker = DraftPicker.EVENING_START }) { Text(stringResource(R.string.reminder_evening_start, profile.eveningStart)) }
+                    TextButton(onClick = { picker = DraftPicker.CUTOFF }) { Text(stringResource(R.string.reminder_cutoff, profile.dailyCutoff)) }
                 }
             }
-            state.scheduleWarning?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            state.notice?.let { Text(it.label(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onCancel, enabled = !state.saving && !state.confirmed) { Text("取消") }
-                Button(onClick = onConfirm, enabled = state.canConfirm) { Text(if (state.saving) "保存中…" else if (state.confirmed) "已确认" else "确认") }
+                TextButton(onClick = onCancel, enabled = !state.saving && !state.confirmed) { Text(stringResource(R.string.reminder_cancel)) }
+                Button(onClick = onConfirm, enabled = state.canConfirm) { Text(stringResource(if (state.saving) R.string.reminder_saving else if (state.confirmed) R.string.reminder_confirmed else R.string.reminder_confirm)) }
             }
         }
     }
@@ -195,8 +201,8 @@ internal fun DateDialog(initial: LocalDate?, onDismiss: () -> Unit, onSelected: 
     val picker = rememberDatePickerState(initialSelectedDateMillis = millis)
     DatePickerDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(enabled = picker.selectedDateMillis != null, onClick = { picker.selectedDateMillis?.let { onSelected(LocalDate.parse(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString())) } }) { Text("确定") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(enabled = picker.selectedDateMillis != null, onClick = { picker.selectedDateMillis?.let { onSelected(LocalDate.parse(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString())) } }) { Text(stringResource(R.string.reminder_ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.reminder_cancel)) } },
     ) { DatePicker(state = picker) }
 }
 
@@ -206,9 +212,42 @@ internal fun TimeDialog(initial: LocalTime, onDismiss: () -> Unit, onSelected: (
     val picker = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择时间") },
+        title = { Text(stringResource(R.string.reminder_select_time)) },
         text = { TimePicker(state = picker) },
-        confirmButton = { TextButton(onClick = { onSelected(LocalTime(picker.hour, picker.minute)) }) { Text("确定") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = { onSelected(LocalTime(picker.hour, picker.minute)) }) { Text(stringResource(R.string.reminder_ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.reminder_cancel)) } },
     )
 }
+
+@Composable
+internal fun kotlinx.datetime.DayOfWeek.shortLabel(): String = stringResource(when (this) {
+    kotlinx.datetime.DayOfWeek.MONDAY -> R.string.reminder_weekday_mon
+    kotlinx.datetime.DayOfWeek.TUESDAY -> R.string.reminder_weekday_tue
+    kotlinx.datetime.DayOfWeek.WEDNESDAY -> R.string.reminder_weekday_wed
+    kotlinx.datetime.DayOfWeek.THURSDAY -> R.string.reminder_weekday_thu
+    kotlinx.datetime.DayOfWeek.FRIDAY -> R.string.reminder_weekday_fri
+    kotlinx.datetime.DayOfWeek.SATURDAY -> R.string.reminder_weekday_sat
+    kotlinx.datetime.DayOfWeek.SUNDAY -> R.string.reminder_weekday_sun
+})
+
+@Composable
+internal fun ReminderImportance.label(): String = stringResource(when (this) {
+    ReminderImportance.LOW -> R.string.reminder_importance_low
+    ReminderImportance.DEFAULT -> R.string.reminder_importance_default
+    ReminderImportance.HIGH -> R.string.reminder_importance_high
+})
+
+@Composable
+internal fun ReminderLockScreenVisibility.label(): String = stringResource(when (this) {
+    ReminderLockScreenVisibility.PUBLIC -> R.string.reminder_visibility_public
+    ReminderLockScreenVisibility.PRIVATE -> R.string.reminder_visibility_private
+    ReminderLockScreenVisibility.SECRET -> R.string.reminder_visibility_secret
+})
+
+@Composable
+private fun ReminderDraftNotice.label(): String = stringResource(when (this) {
+    ReminderDraftNotice.NOTIFICATION_PERMISSION -> R.string.reminder_permission_warning
+    ReminderDraftNotice.FALLBACK_TIMING -> R.string.reminder_fallback_warning
+    ReminderDraftNotice.SCHEDULE_FAILED -> R.string.reminder_schedule_failed
+    ReminderDraftNotice.SAVE_FAILED -> R.string.reminder_save_failed
+})

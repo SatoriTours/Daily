@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -18,18 +21,26 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dailysatori.data.repository.ReminderProfile
+import com.dailysatori.R
 import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.reminder.ReminderListScreen
+import com.dailysatori.ui.feature.reminder.label
+import com.dailysatori.ui.feature.reminder.shortLabel
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
@@ -46,37 +57,50 @@ fun ReminderSettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var timeField by remember { mutableStateOf<SettingsTimeField?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val latestProfile = state.profiles.firstOrNull { it.id == state.defaultProfileId }?.snapshot
         ?.copy(sleepStart = state.sleepStart, sleepEnd = state.sleepEnd, workDays = state.workDays, workStart = state.workStart, workEnd = state.workEnd, soundEnabled = state.defaultSoundEnabled, vibrationEnabled = state.defaultVibrationEnabled, importance = state.defaultImportance, lockScreenVisibility = state.defaultLockScreenVisibility)
 
-    AppScaffold(title = "提醒设置", onBack = onBack) { modifier ->
-        Column(modifier.fillMaxSize().padding(horizontal = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshDeliveryAccess()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    AppScaffold(title = stringResource(R.string.reminder_settings_title), onBack = onBack) { modifier ->
+        Column(modifier.fillMaxSize().padding(horizontal = Spacing.m).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             DeliveryAccessSection(state.deliveryAccess, viewModel)
-            Text("默认配置与时段", style = MaterialTheme.typography.titleMedium)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(stringResource(R.string.reminder_default_section), style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 state.profiles.forEach { profile ->
-                    FilterChip(selected = profile.id == state.defaultProfileId, onClick = { viewModel.setDefaultProfile(profile.id) }, label = { Text(profile.name) })
+                    FilterChip(selected = profile.id == state.defaultProfileId, onClick = { viewModel.setDefaultProfile(profile.id) }, label = { Text(profile.localizedName()) })
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                TextButton(onClick = { timeField = SettingsTimeField.SLEEP_START }) { Text("睡眠开始 ${state.sleepStart}") }
-                TextButton(onClick = { timeField = SettingsTimeField.SLEEP_END }) { Text("结束 ${state.sleepEnd}") }
-                TextButton(onClick = { timeField = SettingsTimeField.WORK_START }) { Text("工作开始 ${state.workStart}") }
-                TextButton(onClick = { timeField = SettingsTimeField.WORK_END }) { Text("结束 ${state.workEnd}") }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                TextButton(onClick = { timeField = SettingsTimeField.SLEEP_START }) { Text(stringResource(R.string.reminder_sleep_start, state.sleepStart)) }
+                TextButton(onClick = { timeField = SettingsTimeField.SLEEP_END }) { Text(stringResource(R.string.reminder_sleep_end, state.sleepEnd)) }
+                TextButton(onClick = { timeField = SettingsTimeField.WORK_START }) { Text(stringResource(R.string.reminder_work_start, state.workStart)) }
+                TextButton(onClick = { timeField = SettingsTimeField.WORK_END }) { Text(stringResource(R.string.reminder_work_end, state.workEnd)) }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("默认声音")
-                Switch(state.defaultSoundEnabled, { viewModel.setDefaultDelivery(it, state.defaultVibrationEnabled, state.defaultImportance, state.defaultLockScreenVisibility) })
-                Text("默认振动")
-                Switch(state.defaultVibrationEnabled, { viewModel.setDefaultDelivery(state.defaultSoundEnabled, it, state.defaultImportance, state.defaultLockScreenVisibility) })
+            Column {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(R.string.reminder_default_sound))
+                    Switch(state.defaultSoundEnabled, { viewModel.setDefaultDelivery(it, state.defaultVibrationEnabled, state.defaultImportance, state.defaultLockScreenVisibility) })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(R.string.reminder_default_vibration))
+                    Switch(state.defaultVibrationEnabled, { viewModel.setDefaultDelivery(state.defaultSoundEnabled, it, state.defaultImportance, state.defaultLockScreenVisibility) })
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ReminderImportance.entries.forEach { value -> FilterChip(selected = state.defaultImportance == value, onClick = { viewModel.setDefaultDelivery(state.defaultSoundEnabled, state.defaultVibrationEnabled, value, state.defaultLockScreenVisibility) }, label = { Text("优先级 ${value.name}") }) }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                ReminderImportance.entries.forEach { value -> FilterChip(selected = state.defaultImportance == value, onClick = { viewModel.setDefaultDelivery(state.defaultSoundEnabled, state.defaultVibrationEnabled, value, state.defaultLockScreenVisibility) }, label = { Text(value.label()) }) }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = state.defaultLockScreenVisibility == value, onClick = { viewModel.setDefaultDelivery(state.defaultSoundEnabled, state.defaultVibrationEnabled, state.defaultImportance, value) }, label = { Text("锁屏 ${value.name}") }) }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = state.defaultLockScreenVisibility == value, onClick = { viewModel.setDefaultDelivery(state.defaultSoundEnabled, state.defaultVibrationEnabled, state.defaultImportance, value) }, label = { Text(value.label()) }) }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 DayOfWeek.entries.forEach { day ->
                     FilterChip(
                         selected = day in state.workDays,
@@ -85,11 +109,11 @@ fun ReminderSettingsScreen(
                     )
                 }
             }
-            Text("提醒配置", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.reminder_profiles_section), style = MaterialTheme.typography.titleMedium)
             ProfileRows(state.profiles, viewModel)
-            Button(onClick = { viewModel.editProfile() }) { Text("新建自定义配置") }
-            Text("提醒", style = MaterialTheme.typography.titleMedium)
-            ReminderListScreen(modifier = Modifier.weight(1f), latestProfile = latestProfile ?: com.dailysatori.service.reminder.ReminderProfileSnapshot.standard())
+            Button(onClick = { viewModel.editProfile() }) { Text(stringResource(R.string.reminder_new_custom_profile)) }
+            Text(stringResource(R.string.reminder_list_section), style = MaterialTheme.typography.titleMedium)
+            ReminderListScreen(latestProfile = latestProfile ?: com.dailysatori.service.reminder.ReminderProfileSnapshot.standard())
         }
     }
 
@@ -116,23 +140,24 @@ fun ReminderSettingsScreen(
 @Composable
 private fun DeliveryAccessSection(access: ReminderDeliveryAccess, viewModel: ReminderSettingsViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        if (!access.notificationsAllowed) TextButton(onClick = viewModel::openNotificationSettings) { Text("通知权限未开启 · 前往系统设置") }
-        if (access.usesFallbackTiming) TextButton(onClick = viewModel::openExactAlarmSettings) { Text("正在使用延迟容错调度 · 开启精确闹钟") }
-        access.disabledChannelIds.forEach { id -> TextButton(onClick = { viewModel.openChannelSettings(id) }) { Text("通知渠道已关闭 · 修复 $id") } }
-        if (access.notificationsAllowed && !access.usesFallbackTiming && access.disabledChannelIds.isEmpty()) Text("通知与精确调度可用", style = MaterialTheme.typography.bodySmall)
+        if (!access.notificationsAllowed) TextButton(onClick = viewModel::openNotificationSettings) { Text(stringResource(R.string.reminder_notifications_settings_action)) }
+        if (access.usesFallbackTiming) TextButton(onClick = viewModel::openExactAlarmSettings) { Text(stringResource(R.string.reminder_exact_alarm_settings_action)) }
+        access.disabledChannelIds.forEach { id -> TextButton(onClick = { viewModel.openChannelSettings(id) }) { Text(stringResource(R.string.reminder_channel_settings_action, id)) } }
+        if (access.notificationsAllowed && !access.usesFallbackTiming && access.disabledChannelIds.isEmpty()) Text(stringResource(R.string.reminder_delivery_ready), style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
 private fun ProfileRows(profiles: List<ReminderProfile>, viewModel: ReminderSettingsViewModel) {
     profiles.forEach { profile ->
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${profile.name} · ${profile.snapshot.daytimeDismissalBackoffMinutes.joinToString(" / ")} 分钟")
-            Row {
-                TextButton(onClick = { viewModel.editProfile(profile, duplicate = true) }) { Text("复制") }
+        Column(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.reminder_profile_summary, profile.localizedName(), profile.snapshot.daytimeDismissalBackoffMinutes.joinToString(" / ")))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                val displayName = profile.localizedName()
+                TextButton(onClick = { viewModel.editProfile(profile, duplicate = true, displayName = displayName) }) { Text(stringResource(R.string.reminder_action_duplicate)) }
                 if (profile.kind == ReminderProfileKind.CUSTOM) {
-                    TextButton(onClick = { viewModel.editProfile(profile) }) { Text("编辑") }
-                    TextButton(onClick = { viewModel.deleteProfile(profile) }) { Text("删除") }
+                    TextButton(onClick = { viewModel.editProfile(profile) }) { Text(stringResource(R.string.reminder_action_edit)) }
+                    TextButton(onClick = { viewModel.deleteProfile(profile) }) { Text(stringResource(R.string.reminder_action_delete)) }
                 }
             }
         }
@@ -141,36 +166,32 @@ private fun ProfileRows(profiles: List<ReminderProfile>, viewModel: ReminderSett
 
 @Composable
 private fun ProfileEditorDialog(editor: ReminderProfileEditorState, settings: ReminderSettingsState, viewModel: ReminderSettingsViewModel) {
-    var backoffText by remember(editor.id) { mutableStateOf(editor.daytimeBackoffMinutes.joinToString(",")) }
     var timeField by remember { mutableStateOf<ProfileTimeField?>(null) }
     AlertDialog(
         onDismissRequest = viewModel::dismissEditor,
-        title = { Text("自定义提醒配置") },
+        title = { Text(stringResource(R.string.reminder_custom_profile_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                OutlinedTextField(editor.name, { viewModel.updateEditor(editor.copy(name = it)) }, label = { Text("名称") })
-                OutlinedTextField(backoffText, {
-                    backoffText = it
-                    viewModel.updateEditor(editor.copy(daytimeBackoffMinutes = it.split(',').mapNotNull { value -> value.trim().toIntOrNull() }))
-                }, label = { Text("白天退避分钟（逗号分隔）") })
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("声音"); Switch(editor.soundEnabled, { viewModel.updateEditor(editor.copy(soundEnabled = it)) }) }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("振动"); Switch(editor.vibrationEnabled, { viewModel.updateEditor(editor.copy(vibrationEnabled = it)) }) }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) { ReminderImportance.entries.forEach { value -> FilterChip(editor.importance == value, { viewModel.updateEditor(editor.copy(importance = value)) }, label = { Text(value.name) }) } }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) { ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(editor.lockScreenVisibility == value, { viewModel.updateEditor(editor.copy(lockScreenVisibility = value)) }, label = { Text(value.name) }) } }
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    TextButton(onClick = { timeField = ProfileTimeField.EVENING_START }) { Text("晚间开始 ${editor.eveningStart}") }
-                    TextButton(onClick = { timeField = ProfileTimeField.CUTOFF }) { Text("截止 ${editor.dailyCutoff}") }
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                OutlinedTextField(editor.name, { viewModel.updateEditor(editor.copy(name = it)) }, label = { Text(stringResource(R.string.reminder_profile_name)) })
+                OutlinedTextField(editor.daytimeBackoffInput, { viewModel.updateEditor(editor.editBackoffInput(it)) }, label = { Text(stringResource(R.string.reminder_backoff_input)) })
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(stringResource(R.string.reminder_sound)); Switch(editor.soundEnabled, { viewModel.updateEditor(editor.copy(soundEnabled = it)) }) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(stringResource(R.string.reminder_vibration)); Switch(editor.vibrationEnabled, { viewModel.updateEditor(editor.copy(vibrationEnabled = it)) }) }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) { ReminderImportance.entries.forEach { value -> FilterChip(editor.importance == value, { viewModel.updateEditor(editor.copy(importance = value)) }, label = { Text(value.label()) }) } }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) { ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(editor.lockScreenVisibility == value, { viewModel.updateEditor(editor.copy(lockScreenVisibility = value)) }, label = { Text(value.label()) }) } }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    TextButton(onClick = { timeField = ProfileTimeField.EVENING_START }) { Text(stringResource(R.string.reminder_evening_start, editor.eveningStart)) }
+                    TextButton(onClick = { timeField = ProfileTimeField.CUTOFF }) { Text(stringResource(R.string.reminder_cutoff, editor.dailyCutoff)) }
                 }
                 OutlinedTextField(
                     value = editor.eveningIntervalMinutes?.toString().orEmpty(),
                     onValueChange = { viewModel.updateEditor(editor.copy(eveningIntervalMinutes = it.toIntOrNull())) },
-                    label = { Text("晚间间隔分钟") },
+                    label = { Text(stringResource(R.string.reminder_evening_interval)) },
                 )
-                if (!editor.isValid) Text("请填写名称，并使用 1–1440 分钟的有效间隔", color = MaterialTheme.colorScheme.error)
+                if (!editor.isValid) Text(stringResource(R.string.reminder_profile_invalid), color = MaterialTheme.colorScheme.error)
             }
         },
-        confirmButton = { TextButton(onClick = viewModel::saveEditor, enabled = editor.toProfile(settings) != null) { Text("保存") } },
-        dismissButton = { TextButton(onClick = viewModel::dismissEditor) { Text("取消") } },
+        confirmButton = { TextButton(onClick = viewModel::saveEditor, enabled = editor.toProfile(settings) != null) { Text(stringResource(R.string.reminder_action_save)) } },
+        dismissButton = { TextButton(onClick = viewModel::dismissEditor) { Text(stringResource(R.string.reminder_cancel)) } },
     )
     timeField?.let { field ->
         SettingsTimeDialog(if (field == ProfileTimeField.EVENING_START) editor.eveningStart else editor.dailyCutoff, { timeField = null }) { value ->
@@ -186,11 +207,17 @@ private fun SettingsTimeDialog(initial: LocalTime, onDismiss: () -> Unit, onSele
     val picker = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择时间") },
+        title = { Text(stringResource(R.string.reminder_select_time)) },
         text = { TimePicker(picker) },
-        confirmButton = { TextButton(onClick = { onSelected(LocalTime(picker.hour, picker.minute)) }) { Text("确定") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = { onSelected(LocalTime(picker.hour, picker.minute)) }) { Text(stringResource(R.string.reminder_ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.reminder_cancel)) } },
     )
 }
 
-private fun DayOfWeek.shortLabel() = listOf("一", "二", "三", "四", "五", "六", "日")[value - 1]
+@Composable
+private fun ReminderProfile.localizedName(): String = when (kind) {
+    ReminderProfileKind.STRONG -> stringResource(R.string.reminder_profile_strong)
+    ReminderProfileKind.STANDARD -> stringResource(R.string.reminder_profile_standard)
+    ReminderProfileKind.GENTLE -> stringResource(R.string.reminder_profile_gentle)
+    ReminderProfileKind.CUSTOM -> name
+}

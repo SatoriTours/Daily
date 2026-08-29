@@ -12,6 +12,7 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.data.repository.SettingRepository
@@ -34,6 +35,31 @@ data class ReminderDeliveryAccess(
     val disabledChannelIds: Set<String> = emptySet(),
 ) {
     val usesFallbackTiming: Boolean get() = !exactAlarmsAllowed
+}
+
+fun interface ReminderDeliveryAccessChecker {
+    fun current(): ReminderDeliveryAccess
+}
+
+class ReminderDeliveryAccessController(private val checker: ReminderDeliveryAccessChecker) {
+    var current: ReminderDeliveryAccess = checker.current()
+        private set
+
+    fun refresh(): ReminderDeliveryAccess = checker.current().also { current = it }
+}
+
+class AndroidReminderDeliveryAccessChecker(private val context: Context) : ReminderDeliveryAccessChecker {
+    override fun current(): ReminderDeliveryAccess {
+        val runtimePermission = Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val notificationsAllowed = runtimePermission && NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+        val exactAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val disabled = ReminderSettingsViewModel.CHANNEL_IDS.filterTo(mutableSetOf()) { id ->
+            Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel(id)?.importance == NotificationManager.IMPORTANCE_NONE
+        }
+        return ReminderDeliveryAccess(notificationsAllowed, exactAllowed, disabled)
+    }
 }
 
 data class ReminderSettingsState(
@@ -68,9 +94,9 @@ data class ReminderSettingsState(
         )
 
         fun builtInProfiles() = listOf(
-            ReminderProfile(STRONG_ID, "强提醒", ReminderProfileKind.STRONG, ReminderProfileSnapshot.strong()),
-            ReminderProfile(STANDARD_ID, "标准", ReminderProfileKind.STANDARD, ReminderProfileSnapshot.standard()),
-            ReminderProfile(GENTLE_ID, "轻柔", ReminderProfileKind.GENTLE, ReminderProfileSnapshot.gentle()),
+            ReminderProfile(STRONG_ID, "Strong", ReminderProfileKind.STRONG, ReminderProfileSnapshot.strong()),
+            ReminderProfile(STANDARD_ID, "Standard", ReminderProfileKind.STANDARD, ReminderProfileSnapshot.standard()),
+            ReminderProfile(GENTLE_ID, "Gentle", ReminderProfileKind.GENTLE, ReminderProfileSnapshot.gentle()),
         )
 
         val weekdays = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY)
@@ -87,12 +113,18 @@ data class ReminderProfileEditorState(
     val dailyCutoff: LocalTime,
     val soundEnabled: Boolean,
     val vibrationEnabled: Boolean,
+    val daytimeBackoffInput: String = daytimeBackoffMinutes.joinToString(","),
     val importance: ReminderImportance = ReminderImportance.HIGH,
     val lockScreenVisibility: ReminderLockScreenVisibility = ReminderLockScreenVisibility.PRIVATE,
 ) {
     val isValid: Boolean get() = name.isNotBlank() && name.length <= 80 &&
-        daytimeBackoffMinutes.size <= 8 && daytimeBackoffMinutes.all { it in 1..1_440 } &&
+        parseReminderBackoff(daytimeBackoffInput) != null &&
         (eveningIntervalMinutes == null || eveningIntervalMinutes in 1..1_440)
+
+    fun editBackoffInput(value: String): ReminderProfileEditorState = copy(
+        daytimeBackoffInput = value,
+        daytimeBackoffMinutes = parseReminderBackoff(value) ?: daytimeBackoffMinutes,
+    )
 
     fun toProfile(settings: ReminderSettingsState): ReminderProfile? {
         if (!isValid) return null
@@ -118,7 +150,7 @@ data class ReminderProfileEditorState(
     companion object {
         fun from(profile: ReminderProfile, duplicate: Boolean = false) = ReminderProfileEditorState(
             id = if (duplicate) UUID.randomUUID().toString() else profile.id,
-            name = if (duplicate) "${profile.name} 副本" else profile.name,
+            name = profile.name,
             kind = ReminderProfileKind.CUSTOM,
             daytimeBackoffMinutes = profile.snapshot.daytimeDismissalBackoffMinutes,
             eveningStart = profile.snapshot.eveningStart,
@@ -126,6 +158,7 @@ data class ReminderProfileEditorState(
             dailyCutoff = profile.snapshot.dailyCutoff,
             soundEnabled = profile.snapshot.soundEnabled,
             vibrationEnabled = profile.snapshot.vibrationEnabled,
+            daytimeBackoffInput = profile.snapshot.daytimeDismissalBackoffMinutes.joinToString(","),
             importance = profile.snapshot.importance,
             lockScreenVisibility = profile.snapshot.lockScreenVisibility,
         )
@@ -136,6 +169,7 @@ class ReminderSettingsViewModel(
     private val repository: ReminderRepository,
     private val settingRepository: SettingRepository,
     private val context: Context,
+    private val deliveryAccessController: ReminderDeliveryAccessController,
 ) : ViewModel() {
     private val _state = MutableStateFlow(loadState())
     val state: StateFlow<ReminderSettingsState> = _state
@@ -176,9 +210,9 @@ class ReminderSettingsViewModel(
         _state.update { it.copy(defaultSoundEnabled = sound, defaultVibrationEnabled = vibration, defaultImportance = importance, defaultLockScreenVisibility = visibility) }
     }
 
-    fun editProfile(profile: ReminderProfile? = null, duplicate: Boolean = false) {
+    fun editProfile(profile: ReminderProfile? = null, duplicate: Boolean = false, displayName: String? = null) {
         _state.update {
-            it.copy(editor = profile?.let { value -> ReminderProfileEditorState.from(value, duplicate) } ?: ReminderProfileEditorState(
+            it.copy(editor = profile?.let { value -> ReminderProfileEditorState.from(value, duplicate).let { editor -> displayName?.let { editor.copy(name = it) } ?: editor } } ?: ReminderProfileEditorState(
                 name = "", daytimeBackoffMinutes = listOf(120, 240), eveningStart = LocalTime(22, 0), eveningIntervalMinutes = 60,
                 dailyCutoff = LocalTime(0, 0), soundEnabled = true, vibrationEnabled = true,
             ))
@@ -204,14 +238,7 @@ class ReminderSettingsViewModel(
     }
 
     fun refreshDeliveryAccess() {
-        val notificationsAllowed = Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val exactAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
-        val manager = context.getSystemService(NotificationManager::class.java)
-        val disabled = CHANNEL_IDS.filterTo(mutableSetOf()) { id ->
-            Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel(id)?.importance == NotificationManager.IMPORTANCE_NONE
-        }
-        _state.update { it.copy(deliveryAccess = ReminderDeliveryAccess(notificationsAllowed, exactAllowed, disabled)) }
+        _state.update { it.copy(deliveryAccess = deliveryAccessController.refresh()) }
     }
 
     fun openNotificationSettings() = openSettings(Settings.ACTION_APP_NOTIFICATION_SETTINGS) {
@@ -262,4 +289,11 @@ class ReminderSettingsViewModel(
         const val KEY_IMPORTANCE = "reminder.importance"
         const val KEY_VISIBILITY = "reminder.visibility"
     }
+}
+
+fun parseReminderBackoff(value: String): List<Int>? {
+    if (value.isBlank() || value.startsWith(',') || value.endsWith(',') || ",," in value) return null
+    val tokens = value.split(',').map { it.trim() }
+    if (tokens.size > 8 || tokens.any { it.isEmpty() }) return null
+    return tokens.map { it.toIntOrNull() ?: return null }.takeIf { values -> values.all { it in 1..1_440 } }
 }

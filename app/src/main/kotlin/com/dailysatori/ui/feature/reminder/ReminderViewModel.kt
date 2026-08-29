@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.data.repository.ReminderRepository
@@ -32,7 +33,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.DayOfWeek
 
-enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, PROFILE }
+enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, ACTIVE_DAY_RULE, PROFILE }
 
 data class ReminderConfirmationPayload(
     val draft: ReminderDraft,
@@ -40,6 +41,8 @@ data class ReminderConfirmationPayload(
 )
 
 data class ReminderConfirmationStart(val state: ReminderDraftUiState, val accepted: Boolean)
+
+enum class ReminderDraftNotice { NOTIFICATION_PERMISSION, FALLBACK_TIMING, SCHEDULE_FAILED, SAVE_FAILED }
 
 data class ReminderDraftUiState(
     val id: String,
@@ -52,7 +55,7 @@ data class ReminderDraftUiState(
     val saving: Boolean = false,
     val confirmed: Boolean = false,
     val cancelled: Boolean = false,
-    val scheduleWarning: String? = null,
+    val notice: ReminderDraftNotice? = null,
 ) {
     val validationErrors: Set<ReminderDraftField>
         get() = buildSet {
@@ -60,6 +63,7 @@ data class ReminderDraftUiState(
             if (startDate == null) add(ReminderDraftField.START_DATE)
             if (endDate == null || startDate != null && endDate < startDate) add(ReminderDraftField.END_DATE)
             if (firstReminderTime == null) add(ReminderDraftField.FIRST_TIME)
+            if (activeDayRule is ReminderActiveDayRule.SelectedWeekdays && activeDayRule.days.isEmpty()) add(ReminderDraftField.ACTIVE_DAY_RULE)
             if (profile == null) add(ReminderDraftField.PROFILE)
         }
     val canConfirm: Boolean get() = validationErrors.isEmpty() && !saving && !confirmed && !cancelled
@@ -70,11 +74,11 @@ data class ReminderDraftUiState(
             endDate?.takeIf { it != startDate }?.toString(),
         ).joinToString(" — ")
 
-    fun editContent(value: String) = copy(content = value, scheduleWarning = null)
-    fun editDates(start: LocalDate?, end: LocalDate?) = copy(startDate = start, endDate = end, scheduleWarning = null)
-    fun editFirstTime(value: LocalTime?) = copy(firstReminderTime = value, scheduleWarning = null)
-    fun editActiveDayRule(value: ReminderActiveDayRule) = copy(activeDayRule = value, scheduleWarning = null)
-    fun editProfile(value: ReminderProfileSnapshot?) = copy(profile = value?.copy(), scheduleWarning = null)
+    fun editContent(value: String) = copy(content = value, notice = null)
+    fun editDates(start: LocalDate?, end: LocalDate?) = copy(startDate = start, endDate = end, notice = null)
+    fun editFirstTime(value: LocalTime?) = copy(firstReminderTime = value, notice = null)
+    fun editActiveDayRule(value: ReminderActiveDayRule) = copy(activeDayRule = value, notice = null)
+    fun editProfile(value: ReminderProfileSnapshot?) = copy(profile = value?.copy(), notice = null)
     fun beginConfirmation(): ReminderConfirmationStart =
         if (!canConfirm) ReminderConfirmationStart(this, false) else ReminderConfirmationStart(copy(saving = true), true)
     fun cancel() = copy(cancelled = true, saving = false)
@@ -179,15 +183,15 @@ class ReminderViewModel(
             try {
                 val existing = repository.get(id)
                 if (existing == null) repository.createConfirmed(confirmedPayload.draft, confirmedPayload.profileSnapshot)
-                var warning: String? = deliveryWarning()
+                var notice: ReminderDraftNotice? = deliveryNotice()
                 try {
                     coordinator.recompute(id)
-                } catch (error: Exception) {
-                    warning = "提醒已保存，但系统调度暂不可用：${error.message.orEmpty()}"
+                } catch (_: Exception) {
+                    notice = ReminderDraftNotice.SCHEDULE_FAILED
                 }
-                updateDraft(id) { it.copy(saving = false, confirmed = true, scheduleWarning = warning) }
-            } catch (error: Exception) {
-                updateDraft(id) { it.copy(saving = false, scheduleWarning = error.message) }
+                updateDraft(id) { it.copy(saving = false, confirmed = true, notice = notice) }
+            } catch (_: Exception) {
+                updateDraft(id) { it.copy(saving = false, notice = ReminderDraftNotice.SAVE_FAILED) }
             }
         }
     }
@@ -241,12 +245,13 @@ class ReminderViewModel(
         )
     }
 
-    private fun deliveryWarning(): String? {
-        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            return "提醒已保存，但通知权限未开启"
+    private fun deliveryNotice(): ReminderDraftNotice? {
+        val runtimePermission = Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        if (!runtimePermission || !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return ReminderDraftNotice.NOTIFICATION_PERMISSION
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()) {
-            return "提醒已保存；当前使用可能延迟的容错调度"
+            return ReminderDraftNotice.FALLBACK_TIMING
         }
         return null
     }
