@@ -75,6 +75,7 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteSupplementResol
 import com.dailysatori.service.externalfavorites.NoopFavoriteSyncHttpLogger
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
+import com.dailysatori.service.reminder.ReminderDraftCodec
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
@@ -217,7 +218,8 @@ val sharedModule: Module = module {
     single { ImportService(get(), get(), get()) }
 
     // MCP Tool registry
-    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { ReminderDraftCodec() }
+    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Agent service
     single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }

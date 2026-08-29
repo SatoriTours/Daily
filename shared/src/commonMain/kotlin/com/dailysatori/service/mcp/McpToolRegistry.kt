@@ -6,6 +6,7 @@ import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
+import com.dailysatori.service.reminder.ReminderDraftCodec
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Diary
@@ -21,6 +22,7 @@ class McpToolRegistry(
     private val localSqlQueryService: LocalSqlQueryService,
     private val mcpServerRepo: McpServerRepository,
     private val remoteMcpClient: RemoteMcpClient,
+    private val reminderDraftCodec: ReminderDraftCodec,
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -83,6 +85,7 @@ class McpToolRegistry(
             "source_type" to buildParam("string", "来源类型: article, diary, book, book_viewpoint, chat"),
             "source_id" to buildParam("integer", "来源ID"),
         ), listOf("source_type", "source_id")),
+        reminderDraftToolDefinition(),
     )
 
     suspend fun executeTool(toolName: String, argumentsStr: String): McpToolResult {
@@ -113,10 +116,32 @@ class McpToolRegistry(
                 "search_web_with_mcp" -> searchWebWithMcp(args)
                 "search_memory" -> searchMemory(args)
                 "get_memory_source" -> getMemorySource(args)
+                "create_reminder_draft" -> createReminderDraft(argumentsStr)
                 else -> errorResult("未知工具: $toolName")
             }
         }
     }
+
+    private fun createReminderDraft(arguments: String): McpToolResult {
+        val draft = reminderDraftCodec.create(arguments)
+        val data = Json.parseToJsonElement(reminderDraftCodec.encode(draft)).jsonObject
+        return McpToolResult(success = true, data = data, reminderDraft = draft)
+    }
+
+    private fun reminderDraftToolDefinition(): JsonObject = buildTool(
+        name = "create_reminder_draft",
+        description = "创建仅供用户确认的提醒草稿。使用绝对本地日期和时间；不要调度或声称已创建提醒。",
+        properties = mapOf(
+            "content" to buildParam("string", "提醒内容，最多 500 个字符"),
+            "start_date" to buildParam("string", "本地绝对开始日期 YYYY-MM-DD"),
+            "end_date" to buildParam("string", "本地绝对结束日期 YYYY-MM-DD"),
+            "first_reminder_time" to buildParam("string", "本地首次提醒时间 HH:MM"),
+            "active_day_rule" to buildParam("string", "daily、weekdays、selected_weekdays 或 consecutive_date_range"),
+            "selected_weekdays" to buildParam("array", "selected_weekdays 的英文星期列表"),
+            "profile" to buildParam("string", "可选 strong、standard 或 gentle"),
+        ),
+        required = listOf("content", "start_date", "end_date", "first_reminder_time", "active_day_rule"),
+    )
 
     private fun buildTool(
         name: String,

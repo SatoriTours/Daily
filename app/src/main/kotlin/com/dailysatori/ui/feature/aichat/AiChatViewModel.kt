@@ -8,6 +8,7 @@ import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.decodeMcpSearchResults
 import com.dailysatori.service.mcp.encodeMcpSearchResults
+import com.dailysatori.service.reminder.ReminderDraft
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +34,7 @@ data class ChatMessageUi(
     val timestamp: Long,
     val isError: Boolean = false,
     val searchResults: List<McpSearchResult> = emptyList(),
+    val reminderDrafts: List<ReminderDraft> = emptyList(),
     val steps: List<String> = emptyList(),
     val isStreaming: Boolean = false,
 )
@@ -117,6 +119,7 @@ fun AiChatState.finishedStreamingAssistant(
     finalContent: String,
     searchResults: List<McpSearchResult>,
     steps: List<String>,
+    reminderDrafts: List<ReminderDraft> = emptyList(),
     now: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
 ): AiChatState {
     var foundMessage = false
@@ -128,6 +131,7 @@ fun AiChatState.finishedStreamingAssistant(
                 content = displayedContent,
                 isStreaming = false,
                 searchResults = searchResults,
+                reminderDrafts = reminderDrafts,
                 steps = steps,
                 isError = aiChatAssistantContentIsError(displayedContent),
             )
@@ -143,6 +147,7 @@ fun AiChatState.finishedStreamingAssistant(
             timestamp = now,
             isError = aiChatAssistantContentIsError(finalContent),
             searchResults = searchResults,
+            reminderDrafts = reminderDrafts,
             steps = steps,
             isStreaming = false,
         )
@@ -156,6 +161,10 @@ fun AiChatState.withAssistantMessage(message: ChatMessageUi?): AiChatState = cop
     messages = message?.let { messages + it } ?: messages,
     isProcessing = false,
     currentStep = "",
+)
+
+fun persistedChatMessage(role: String, content: String, timestamp: Long): ChatMessageUi = ChatMessageUi(
+    id = timestamp.toString(), role = role, content = content, timestamp = timestamp,
 )
 
 fun AiChatState.finalizedAssistantMessageForPersistence(messageId: String): ChatMessageUi? =
@@ -179,6 +188,7 @@ class AiChatViewModel(
     private val _state = MutableStateFlow(AiChatState())
     val state: StateFlow<AiChatState> = _state.asStateFlow()
     private var activeRequestJob: Job? = null
+    private var activeAssistantMessageId: String? = null
 
     init {
         loadLatestSession()
@@ -238,25 +248,31 @@ class AiChatViewModel(
         ) }
         persistMessage(userMessage)
 
+        val assistantMessageId = generateId()
+        activeAssistantMessageId = assistantMessageId
         activeRequestJob = viewModelScope.launch(Dispatchers.IO) {
-            val assistantMessageId = generateId()
             try {
                 val steps = mutableListOf<String>()
                 val result = mcpAgentService.processQueryStreaming(
                     query = content,
                     onStep = { step, status ->
-                        _state.update { it.copy(currentStep = step) }
+                        if (activeAssistantMessageId == assistantMessageId) {
+                            _state.update { it.copy(currentStep = step) }
+                        }
                         if (status == "completed") steps.add(step)
                     },
                     onChunk = { chunk ->
-                        _state.update { it.withStreamingAssistantChunk(assistantMessageId, chunk) }
+                        if (activeAssistantMessageId == assistantMessageId) {
+                            _state.update { it.withStreamingAssistantChunk(assistantMessageId, chunk) }
+                        }
                     },
                 )
+                if (activeAssistantMessageId != assistantMessageId) return@launch
                 val finalAssistantMessage = buildAssistantMessageOrNull(
                     answer = result.answer.ifBlank { aiChatBlankResponseMessage() },
                     searchResults = result.searchResults,
                     steps = steps,
-                )?.copy(id = assistantMessageId)
+                )?.copy(id = assistantMessageId, reminderDrafts = result.reminderDrafts)
                 _state.update { current ->
                     if (current.messages.any { it.id == assistantMessageId }) {
                         current.finishedStreamingAssistant(
@@ -264,6 +280,7 @@ class AiChatViewModel(
                             finalContent = finalAssistantMessage?.content ?: aiChatBlankResponseMessage(),
                             searchResults = finalAssistantMessage?.searchResults.orEmpty(),
                             steps = finalAssistantMessage?.steps.orEmpty(),
+                            reminderDrafts = result.reminderDrafts,
                         )
                     } else {
                         current.withAssistantMessage(finalAssistantMessage)
@@ -271,9 +288,14 @@ class AiChatViewModel(
                 }
                 _state.value.finalizedAssistantMessageForPersistence(assistantMessageId)?.let { persistMessage(it) }
             } catch (_: CancellationException) {
-                _state.update { it.cancelledStreamingAssistant(assistantMessageId) }
+                if (activeAssistantMessageId == assistantMessageId) {
+                    _state.update { it.cancelledStreamingAssistant(assistantMessageId) }
+                }
             } finally {
-                activeRequestJob = null
+                if (activeAssistantMessageId == assistantMessageId) {
+                    activeRequestJob = null
+                    activeAssistantMessageId = null
+                }
             }
         }
     }
@@ -281,6 +303,7 @@ class AiChatViewModel(
     fun stopGeneration() {
         activeRequestJob?.cancel()
         activeRequestJob = null
+        activeAssistantMessageId = null
         _state.update { it.stoppedGeneration() }
     }
 
@@ -337,12 +360,7 @@ class AiChatViewModel(
 
     private fun decodeSteps(value: String?): List<String> = value?.lines()?.filter { it.isNotBlank() }.orEmpty()
 
-    private fun toChatMessageUi(msg: Chat_conversation): ChatMessageUi = ChatMessageUi(
-        id = msg.id.toString(),
-        role = msg.role,
-        content = msg.content ?: "",
-        timestamp = msg.created_at,
-        searchResults = decodeMcpSearchResults(msg.search_results),
-        steps = decodeSteps(msg.steps),
-    )
+    private fun toChatMessageUi(msg: Chat_conversation): ChatMessageUi = persistedChatMessage(
+        role = msg.role, content = msg.content ?: "", timestamp = msg.created_at,
+    ).copy(id = msg.id.toString(), searchResults = decodeMcpSearchResults(msg.search_results), steps = decodeSteps(msg.steps))
 }

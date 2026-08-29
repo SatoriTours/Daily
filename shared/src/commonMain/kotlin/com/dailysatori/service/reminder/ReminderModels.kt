@@ -47,6 +47,8 @@ data class ReminderDraft(
     val firstReminderTime: LocalTime?,
     val activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
     val profile: ReminderProfileSnapshot? = null,
+    val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    val validationErrors: List<String> = emptyList(),
 )
 
 data class Reminder(

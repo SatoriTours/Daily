@@ -4,11 +4,16 @@ import co.touchlab.kermit.Logger
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.book.BookSearchResult
+import com.dailysatori.service.reminder.ReminderDraft
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 
-data class McpToolResult(val success: Boolean, val data: JsonObject? = null)
-data class McpAgentResult(val answer: String, val searchResults: List<McpSearchResult>)
+data class McpToolResult(val success: Boolean, val data: JsonObject? = null, val reminderDraft: ReminderDraft? = null)
+data class McpAgentResult(
+    val answer: String,
+    val searchResults: List<McpSearchResult>,
+    val reminderDrafts: List<ReminderDraft> = emptyList(),
+)
 data class McpSearchResult(
     val id: Long,
     val type: String,
@@ -53,6 +58,7 @@ class McpAgentService(
         onStep: (String, String) -> Unit,
     ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
+        val reminderDrafts = mutableListOf<ReminderDraft>()
         val localSearch = aiSearchOrchestrator.search(query)
         collectedResults.addAll(localSearch.references)
         var currentStepName: String? = null
@@ -123,6 +129,7 @@ class McpAgentService(
                         buildMcpErrorResponse("AI 请求失败，请稍后重试")
                     },
                     searchResults = localSearch.references.ifEmpty { collectedResults },
+                    reminderDrafts = reminderDrafts,
                 )
 
                 val message = response["choices"]?.jsonArray?.firstOrNull()
@@ -134,7 +141,7 @@ class McpAgentService(
                 if (toolCalls != null && toolCalls.isNotEmpty()) {
                     updateStep("正在查询数据...", "processing")
                     messages.add(buildAssistantToolMessage(message))
-                    executeToolCalls(toolCalls, messages, collectedResults, privacyMasker)
+                    executeToolCalls(toolCalls, messages, collectedResults, reminderDrafts, privacyMasker)
                     updateStep("正在生成回答...", "processing")
                 } else {
                     finalAnswer = message["content"]?.jsonPrimitive?.contentOrNull
@@ -155,7 +162,7 @@ class McpAgentService(
             val preciseResults = preciseSearchResultsForQuery(query, filteredResults)
             val referenceBase = preciseResults.ifEmpty { localSearch.references }
             val searchResults = referencesForAnswer(answerForRefs, referenceBase, collectedResults)
-            McpAgentResult(answer = cleanAnswer, searchResults = searchResults)
+            McpAgentResult(answer = cleanAnswer, searchResults = searchResults, reminderDrafts = reminderDrafts)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -164,7 +171,7 @@ class McpAgentService(
             onStep("处理失败", "error")
             McpAgentResult(
                 answer = buildMcpErrorResponse("处理失败: ${e.message}"),
-                searchResults = collectedResults,
+                searchResults = collectedResults, reminderDrafts = reminderDrafts,
             )
         }
     }
@@ -175,6 +182,7 @@ class McpAgentService(
         onChunk: suspend (String) -> Unit,
     ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
+        val reminderDrafts = mutableListOf<ReminderDraft>()
         val localSearch = aiSearchOrchestrator.search(query)
         collectedResults.addAll(localSearch.references)
         var currentStepName: String? = null
@@ -235,6 +243,7 @@ class McpAgentService(
                     buildMcpErrorResponse("AI 请求失败，请稍后重试")
                 },
                 searchResults = localSearch.references.ifEmpty { collectedResults },
+                reminderDrafts = reminderDrafts,
             )
 
             val message = response["choices"]?.jsonArray?.firstOrNull()
@@ -246,7 +255,7 @@ class McpAgentService(
             if (toolCalls != null && toolCalls.isNotEmpty()) {
                 updateStep("正在查询数据...", "processing")
                 messages.add(buildAssistantToolMessage(message))
-                executeToolCalls(toolCalls, messages, collectedResults, privacyMasker)
+                executeToolCalls(toolCalls, messages, collectedResults, reminderDrafts, privacyMasker)
                 updateStep("正在生成回答...", "processing")
             } else {
                 finalAnswer = message["content"]?.jsonPrimitive?.contentOrNull
@@ -274,13 +283,14 @@ class McpAgentService(
         val preciseResults = preciseSearchResultsForQuery(query, filteredResults)
         val referenceBase = preciseResults.ifEmpty { localSearch.references }
         val searchResults = referencesForAnswer(answerForRefs, referenceBase, collectedResults)
-        return McpAgentResult(answer = cleanAnswer, searchResults = searchResults)
+        return McpAgentResult(answer = cleanAnswer, searchResults = searchResults, reminderDrafts = reminderDrafts)
     }
 
     private suspend fun executeToolCalls(
         toolCalls: kotlinx.serialization.json.JsonArray,
         messages: MutableList<JsonObject>,
         collectedResults: MutableList<McpSearchResult>,
+        reminderDrafts: MutableList<ReminderDraft>,
         privacyMasker: PrivacyMasker,
     ) {
         for (toolCall in toolCalls) {
@@ -291,6 +301,7 @@ class McpAgentService(
             val toolCallId = tc["id"]?.jsonPrimitive?.contentOrNull ?: ""
 
             val toolResult = toolRegistry.executeTool(toolName, arguments)
+            toolResult.reminderDraft?.let(reminderDrafts::add)
             collectedResults.addAll(extractMcpSearchResults(toolName, toolResult))
 
             val resultContent = toolResult.data?.toString() ?: buildJsonObject {
