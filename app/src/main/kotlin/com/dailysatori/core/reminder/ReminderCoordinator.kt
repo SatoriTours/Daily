@@ -25,6 +25,7 @@ interface ReminderDeliveryStore {
     fun state(id: String): ReminderState?
     fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long?
     fun markDismissed(id: String, expectedVersion: Long, at: Instant): Boolean
+    fun complete(id: String, at: Instant): Boolean
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean
     fun expire(id: String, at: Instant): Boolean
 }
@@ -42,6 +43,7 @@ class RepositoryReminderDeliveryStore(
         return expectedVersion + 1
     }
     override fun markDismissed(id: String, expectedVersion: Long, at: Instant) = repository.markDismissed(id, expectedVersion, at)
+    override fun complete(id: String, at: Instant) = repository.complete(id, at)
     override fun complete(id: String, expectedVersion: Long, at: Instant) = repository.complete(id, expectedVersion, at)
     override fun expire(id: String, at: Instant) = repository.expire(id, at)
 
@@ -60,6 +62,11 @@ class ReminderCoordinator(
 ) {
     @Synchronized
     fun recompute(id: String) {
+        recomputeSchedule(id)
+    }
+
+    @Synchronized
+    fun recomputeAfterStateChange(id: String) {
         notifier.cancel(id)
         recomputeSchedule(id)
     }
@@ -114,8 +121,14 @@ class ReminderCoordinator(
     }
 
     @Synchronized
+    fun complete(id: String): Boolean = finishCompletion(id, store.complete(id, clock.now()))
+
+    @Synchronized
     fun complete(id: String, version: Long): Boolean {
-        val changed = store.complete(id, version, clock.now())
+        return finishCompletion(id, store.complete(id, version, clock.now()))
+    }
+
+    private fun finishCompletion(id: String, changed: Boolean): Boolean {
         if (changed) {
             scheduler.cancel(id)
             notifier.cancel(id)

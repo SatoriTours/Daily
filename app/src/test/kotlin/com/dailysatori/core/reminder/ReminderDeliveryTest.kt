@@ -117,9 +117,11 @@ class ReminderDeliveryTest {
 
     @Test
     fun completeIsTerminalAndCancelsScheduleAndNotification() {
-        val fixture = fixture(now = "2026-09-02T12:00:00Z")
-        fixture.scheduler.schedule("bill", 0, fixture.clock.now)
-        assertTrue(fixture.coordinator.complete("bill", 0))
+        val fixture = fixture(now = "2026-09-02T12:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 2))
+        fixture.scheduler.schedule("bill", 2, fixture.clock.now)
+
+        assertTrue(fixture.coordinator.complete("bill"))
+
         assertEquals(ReminderStatus.COMPLETED, fixture.store.get("bill")?.status)
         assertNull(fixture.scheduler.pending["bill"])
         assertEquals(listOf("bill"), fixture.notifier.cancelled)
@@ -153,9 +155,19 @@ class ReminderDeliveryTest {
         val fixture = fixture(now = "2026-09-02T12:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 1))
         fixture.store.force(ReminderStatus.NOTIFIED)
 
-        fixture.coordinator.recompute("bill")
+        fixture.coordinator.recomputeAfterStateChange("bill")
 
         assertEquals(listOf("bill"), fixture.notifier.cancelled)
+    }
+
+    @Test
+    fun restoreRecomputeKeepsCurrentVisibleNotification() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 1))
+
+        fixture.coordinator.recomputeAll()
+
+        assertTrue(fixture.notifier.cancelled.isEmpty())
+        assertEquals(1, fixture.scheduler.pending["bill"]?.expectedVersion)
     }
 
     @Test
@@ -257,6 +269,7 @@ class ReminderDeliveryTest {
             state = ReminderState(state.dismissalCount + 1, LocalDate(2026, 9, 2))
             it.copy(status = ReminderStatus.DISMISSED, version = it.version + 1)
         }
+        override fun complete(id: String, at: Instant): Boolean = terminal(ReminderStatus.COMPLETED)
         override fun complete(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
             it.copy(status = ReminderStatus.COMPLETED, version = it.version + 1)
         }
