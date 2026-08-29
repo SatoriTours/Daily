@@ -2,16 +2,22 @@ package com.dailysatori.service.diary
 
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
+import io.ktor.http.URLBuilder
+import io.ktor.http.takeFrom
+
+class DiaryAssistantInvalidUrlException(url: String) : IllegalArgumentException("Invalid HTTP(S) URL: $url")
 
 class DiaryAssistantService(
     private val knowledgeEnricher: DiaryKnowledgeEnricher,
     private val linkExtractor: DiaryLinkContentExtractor,
     private val summarize: suspend (prompt: String, systemPrompt: String) -> String,
 ) {
-    suspend fun run(request: DiaryAssistantRequest): DiaryAssistantResult = when (request.url) {
-        null -> knowledgeEnricher.enrich(request)
-        else -> summarizeLink(request.copy(url = normalizeDiaryAssistantUrl(request.url)))
-    }
+    suspend fun run(request: DiaryAssistantRequest): DiaryAssistantResult = request.url
+        ?.let(::normalizeDiaryAssistantUrl)
+        ?.takeIf(String::isUsableDiaryAssistantHttpUrl)
+        ?.let { url -> summarizeLink(request.copy(url = url)) }
+        ?: if (request.url == null) knowledgeEnricher.enrich(request)
+        else throw DiaryAssistantInvalidUrlException(request.url)
 
     private suspend fun summarizeLink(request: DiaryAssistantRequest): DiaryAssistantResult {
         val url = requireNotNull(request.url)
@@ -98,6 +104,20 @@ private val usableDiaryAssistantHttpUrl = Regex(
 )
 
 private fun String.isUsableDiaryAssistantHttpUrl(): Boolean {
-    val match = usableDiaryAssistantHttpUrl.matchEntire(this) ?: return false
-    return match.groupValues[1].substringAfterLast('@').substringBefore(':').isNotBlank()
+    val parsed = runCatching { URLBuilder().takeFrom(this).build() }.getOrNull() ?: return false
+    return parsed.protocol.name in setOf("http", "https") &&
+        parsed.port in 1..65535 &&
+        parsed.host.isValidDiaryAssistantHost() &&
+        usableDiaryAssistantHttpUrl.matches(this)
+}
+
+private fun String.isValidDiaryAssistantHost(): Boolean {
+    if (isBlank() || startsWith('.') || endsWith('.') || contains(',')) return false
+    if (contains(':')) return all { it.isDigit() || it.lowercaseChar() in 'a'..'f' || it == ':' }
+    return split('.').all { label ->
+        label.isNotBlank() &&
+            !label.startsWith('-') &&
+            !label.endsWith('-') &&
+            label.all { it.isLetterOrDigit() || it == '-' }
+    }
 }
