@@ -16,6 +16,13 @@ class DiaryAssistantEditorStateTest {
         assertNull(detectNewlyPastedDiaryUrl("same https://example.com/a", "same https://example.com/a"))
     }
 
+    @Test fun duplicatePastedUrlStillTriggersPrompt() {
+        assertEquals(
+            "https://example.com/a",
+            detectNewlyPastedDiaryUrl("note https://example.com/a", "note https://example.com/a https://example.com/a"),
+        )
+    }
+
     @Test fun changedOriginalSelectionCannotBeReplaced() {
         val snapshot = DiaryAssistantSelectionSnapshot("hello world", TextRange(6, 11), "world")
         assertFalse(canReplaceDiaryAssistantSelection(TextFieldValue("hello earth"), snapshot))
@@ -42,6 +49,12 @@ class DiaryAssistantEditorStateTest {
     @Test fun invalidSelectionFallsBackToCurrentCursorForInsertion() {
         val snapshot = DiaryAssistantSelectionSnapshot("hello world", TextRange(6, 11), "world")
         val current = TextFieldValue("hello changed", TextRange(5))
+        assertEquals("hello\n\nbackground changed", insertDiaryAssistantResult(current, snapshot, "background").text)
+    }
+
+    @Test fun reversedCurrentSelectionUsesItsActiveCursorAfterConflict() {
+        val snapshot = DiaryAssistantSelectionSnapshot("hello world", TextRange(6, 11), "world")
+        val current = TextFieldValue("hello changed", TextRange(13, 5))
         assertEquals("hello\n\nbackground changed", insertDiaryAssistantResult(current, snapshot, "background").text)
     }
 

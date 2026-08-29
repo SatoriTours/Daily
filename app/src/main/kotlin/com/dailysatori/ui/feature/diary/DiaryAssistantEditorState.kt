@@ -39,10 +39,13 @@ fun detectNewlyPastedDiaryUrl(before: String, after: String): String? {
     val urlPattern = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE)
     val existing = urlPattern.findAll(before)
         .map { normalizeDiaryAssistantUrl(it.value) }
-        .toSet()
-    return urlPattern.findAll(after)
+        .groupingBy { it }
+        .eachCount()
+    val afterUrls = urlPattern.findAll(after)
         .map { normalizeDiaryAssistantUrl(it.value) }
-        .firstOrNull { it !in existing }
+        .toList()
+    val afterCounts = afterUrls.groupingBy { it }.eachCount()
+    return afterUrls.firstOrNull { (afterCounts[it] ?: 0) > (existing[it] ?: 0) }
 }
 
 fun canReplaceDiaryAssistantSelection(current: TextFieldValue, snapshot: DiaryAssistantSelectionSnapshot): Boolean {
@@ -60,7 +63,7 @@ fun insertDiaryAssistantResult(
     val range = if (canReplaceDiaryAssistantSelection(current, snapshot)) {
         snapshot.normalizedSelection
     } else {
-        TextRange(current.selection.max.coerceIn(0, current.text.length))
+        TextRange(current.selection.end.coerceIn(0, current.text.length))
     }
     val cleanResult = result.trim()
     if (cleanResult.isEmpty()) return current
