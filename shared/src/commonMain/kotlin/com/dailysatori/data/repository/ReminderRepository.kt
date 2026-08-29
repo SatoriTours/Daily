@@ -8,6 +8,8 @@ import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
 import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderImportance
+import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Reminder_event
@@ -34,6 +36,13 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
 data class ReminderState(val dismissalCount: Int, val stateDate: LocalDate?)
+
+data class ReminderProfile(
+    val id: String,
+    val name: String,
+    val kind: ReminderProfileKind,
+    val snapshot: ReminderProfileSnapshot,
+)
 
 data class ReminderEdit(
     val expectedVersion: Long,
@@ -86,6 +95,41 @@ class ReminderRepository(
     fun get(id: String): Reminder? = q.selectReminderById(id).executeAsOneOrNull()?.toReminder()
 
     fun observeAll(): Flow<List<Reminder>> = q.selectAllReminders().asFlow().mapToList(Dispatchers.IO).map { rows -> rows.map { it.toReminder() } }
+
+    fun upsertProfile(profile: ReminderProfile) {
+        require(profile.id.isNotBlank() && profile.id.length <= 128)
+        require(profile.name.isNotBlank() && profile.name.length <= 80)
+        val now = Clock.System.now().toEpochMilliseconds()
+        q.upsertReminderProfile(profile.id, profile.name, profile.kind.name, profile.snapshot.toBoundedJson(), now, now)
+    }
+
+    fun getProfile(id: String): ReminderProfile? = q.selectReminderProfileById(id).executeAsOneOrNull()?.let {
+        ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile())
+    }
+
+    fun profiles(): List<ReminderProfile> = q.selectAllReminderProfiles().executeAsList().map {
+        ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile())
+    }
+
+    fun observeProfiles(): Flow<List<ReminderProfile>> = q.selectAllReminderProfiles().asFlow().mapToList(Dispatchers.IO).map { rows ->
+        rows.map { ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile()) }
+    }
+
+    fun deleteProfile(id: String): Boolean {
+        if (getProfile(id) == null) return false
+        q.deleteReminderProfile(id)
+        return true
+    }
+
+    fun delete(id: String): Boolean {
+        if (get(id) == null) return false
+        q.transaction {
+            // SQLite JDBC tests do not enable foreign keys by default; keep deletion correct on every driver.
+            q.deleteAllReminderEvents(id)
+            q.deleteReminder(id)
+        }
+        return true
+    }
 
     fun activeAt(now: Instant): List<Reminder> = q.selectActiveReminders().executeAsList().map { it.toReminder() }
         .filter { reminder ->
@@ -235,7 +279,7 @@ private fun ReminderProfileSnapshot.toBoundedJson(): String {
     require(daytimeDismissalBackoffMinutes.size <= 8 && daytimeDismissalBackoffMinutes.all { it in 1..1_440 })
     require(eveningTimes.size <= 8 && workDays.size <= 7)
     val json = buildJsonObject {
-        put("kind", kind.name); put("eveningStart", eveningStart.toString()); put("eveningInterval", eveningIntervalMinutes); put("dailyCutoff", dailyCutoff.toString()); put("sound", soundEnabled); put("vibration", vibrationEnabled); put("sleepStart", sleepStart.toString()); put("sleepEnd", sleepEnd.toString()); put("workStart", workStart.toString()); put("workEnd", workEnd.toString())
+        put("kind", kind.name); put("eveningStart", eveningStart.toString()); put("eveningInterval", eveningIntervalMinutes); put("dailyCutoff", dailyCutoff.toString()); put("sound", soundEnabled); put("vibration", vibrationEnabled); put("sleepStart", sleepStart.toString()); put("sleepEnd", sleepEnd.toString()); put("workStart", workStart.toString()); put("workEnd", workEnd.toString()); put("importance", importance.name); put("lockScreenVisibility", lockScreenVisibility.name)
         putJsonArray("backoff") { daytimeDismissalBackoffMinutes.forEach { add(JsonPrimitive(it)) } }
         putJsonArray("eveningTimes") { eveningTimes.sorted().forEach { add(JsonPrimitive(it.toString())) } }
         putJsonArray("workDays") { workDays.sortedBy { it.ordinal }.forEach { add(JsonPrimitive(it.name)) } }
@@ -247,7 +291,7 @@ private fun String.toProfile(): ReminderProfileSnapshot {
     val root = Json.parseToJsonElement(this).jsonObject
     fun string(name: String) = requireNotNull(root.getValue(name).jsonPrimitive.contentOrNull)
     fun strings(name: String): JsonArray = root.getValue(name).jsonArray
-    return ReminderProfileSnapshot(ReminderProfileKind.valueOf(string("kind")), strings("backoff").map { requireNotNull(it.jsonPrimitive.contentOrNull).toInt() }, LocalTime.parse(string("eveningStart")), root["eveningInterval"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(), strings("eveningTimes").map { LocalTime.parse(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("dailyCutoff")), string("sound").toBoolean(), string("vibration").toBoolean(), LocalTime.parse(string("sleepStart")), LocalTime.parse(string("sleepEnd")), strings("workDays").map { DayOfWeek.valueOf(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("workStart")), LocalTime.parse(string("workEnd")))
+    return ReminderProfileSnapshot(ReminderProfileKind.valueOf(string("kind")), strings("backoff").map { requireNotNull(it.jsonPrimitive.contentOrNull).toInt() }, LocalTime.parse(string("eveningStart")), root["eveningInterval"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(), strings("eveningTimes").map { LocalTime.parse(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("dailyCutoff")), string("sound").toBoolean(), string("vibration").toBoolean(), LocalTime.parse(string("sleepStart")), LocalTime.parse(string("sleepEnd")), strings("workDays").map { DayOfWeek.valueOf(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("workStart")), LocalTime.parse(string("workEnd")), root["importance"]?.jsonPrimitive?.contentOrNull?.let(ReminderImportance::valueOf) ?: ReminderImportance.HIGH, root["lockScreenVisibility"]?.jsonPrimitive?.contentOrNull?.let(ReminderLockScreenVisibility::valueOf) ?: ReminderLockScreenVisibility.PRIVATE)
 }
 
 private fun Map<String, String>.toJson(): String = buildJsonObject { forEach { (key, value) -> put(key, value) } }.toString()

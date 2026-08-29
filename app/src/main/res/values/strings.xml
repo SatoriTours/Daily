@@ -26,4 +26,8 @@
     <string name="diary_assistant_missing_config_message">请先在设置中配置 AI 服务，再重试此操作。</string>
     <string name="diary_assistant_action_open_ai_settings">前往 AI 设置</string>
     <string name="diary_assistant_action_cancel">取消</string>
+    <string name="reminder_settings_title">提醒设置</string>
+    <string name="reminder_confirm">确认提醒</string>
+    <string name="reminder_permission_warning">通知权限未开启，提醒会保留但不会发送通知</string>
+    <string name="reminder_fallback_warning">正在使用可能延迟的容错调度</string>
 </resources>

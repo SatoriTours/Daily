@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -57,6 +58,7 @@ import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSe
 import com.dailysatori.ui.feature.settings.externalfavorites.externalFavoriteSettingsRowSubtitle
 import com.dailysatori.ui.feature.settings.externalfavorites.externalFavoriteSettingsRowTitle
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
+import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.SkillSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowSubtitle
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowTitle
@@ -75,6 +77,7 @@ private enum class SettingsPage {
     EXTERNAL_FAVORITES,
     SKILLS,
     TASK_CENTER,
+    REMINDERS,
 }
 
 @Composable
@@ -112,6 +115,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
         SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.TASK_CENTER -> TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
 
@@ -200,6 +204,7 @@ private fun SettingsList(
 @Composable
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
     SettingsSectionCard("AI 与服务") {
+        SettingsRow(Icons.Default.Notifications, "提醒", "提醒列表、通知状态与配置", onClick = { onNavigate(SettingsPage.REMINDERS) })
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
         SettingsRow(Icons.AutoMirrored.Filled.MenuBook, skillSettingsRowTitle(), skillSettingsRowSubtitle(), onClick = { onNavigate(SettingsPage.SKILLS) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })

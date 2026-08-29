@@ -10,6 +10,10 @@ enum class ReminderStatus { DRAFT, ACTIVE, NOTIFIED, DISMISSED, PAUSED, COMPLETE
 
 enum class ReminderProfileKind { STRONG, STANDARD, GENTLE, CUSTOM }
 
+enum class ReminderImportance { LOW, DEFAULT, HIGH }
+
+enum class ReminderLockScreenVisibility { PUBLIC, PRIVATE, SECRET }
+
 sealed interface ReminderActiveDayRule {
     data object Daily : ReminderActiveDayRule
     data object Weekdays : ReminderActiveDayRule
@@ -31,6 +35,8 @@ data class ReminderProfileSnapshot(
     val workDays: Set<DayOfWeek> = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY),
     val workStart: LocalTime = LocalTime(9, 0),
     val workEnd: LocalTime = LocalTime(18, 0),
+    val importance: ReminderImportance = ReminderImportance.HIGH,
+    val lockScreenVisibility: ReminderLockScreenVisibility = ReminderLockScreenVisibility.PRIVATE,
 ) {
     companion object {
         fun strong() = ReminderProfileSnapshot(ReminderProfileKind.STRONG, listOf(120, 240))

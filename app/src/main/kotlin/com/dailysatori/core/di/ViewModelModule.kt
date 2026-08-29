@@ -54,6 +54,8 @@ import com.dailysatori.ui.feature.settings.skills.SkillSettingsViewModel
 import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
 import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
+import com.dailysatori.ui.feature.reminder.ReminderViewModel
+import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -177,6 +179,8 @@ val viewModelModule: Module = module {
             chatConversationRepo = get<ChatConversationRepository>(),
         )
     }
+    viewModel { ReminderViewModel(repository = get(), coordinator = get(), settingRepository = get(), context = androidContext()) }
+    viewModel { ReminderSettingsViewModel(repository = get(), settingRepository = get(), context = androidContext()) }
     viewModel {
         AiReferenceDetailViewModel(
             articleRepo = get<ArticleRepository>(),

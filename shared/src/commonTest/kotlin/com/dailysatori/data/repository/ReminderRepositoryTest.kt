@@ -4,6 +4,9 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderProfileKind
+import com.dailysatori.service.reminder.ReminderImportance
+import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.datetime.Instant
@@ -122,6 +125,33 @@ class ReminderRepositoryTest {
 
         assertFalse(repo.markDelivered(reminder.id, reminder.version, now))
         assertEquals(ReminderStatus.COMPLETED, repo.get(reminder.id)!!.status)
+    }
+
+    @Test
+    fun profileCrudPersistsIndependentSnapshots() = withRepository { repo ->
+        val original = ReminderProfile("custom-1", "Focus", ReminderProfileKind.CUSTOM, strongProfile().copy(kind = ReminderProfileKind.CUSTOM, importance = ReminderImportance.LOW, lockScreenVisibility = ReminderLockScreenVisibility.SECRET))
+        repo.upsertProfile(original)
+        val savedSnapshot = repo.getProfile(original.id)!!.snapshot
+
+        repo.upsertProfile(original.copy(name = "Focus 2", snapshot = original.snapshot.copy(soundEnabled = false)))
+
+        assertEquals("Focus 2", repo.getProfile(original.id)?.name)
+        assertTrue(savedSnapshot.soundEnabled)
+        assertEquals(ReminderImportance.LOW, savedSnapshot.importance)
+        assertEquals(ReminderLockScreenVisibility.SECRET, savedSnapshot.lockScreenVisibility)
+        assertEquals(listOf(original.id), repo.profiles().map { it.id })
+        assertTrue(repo.deleteProfile(original.id))
+        assertTrue(repo.profiles().isEmpty())
+    }
+
+    @Test
+    fun deletingReminderRemovesItAndItsEvents() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(), strongProfile())
+
+        assertTrue(repo.delete(reminder.id))
+
+        assertEquals(null, repo.get(reminder.id))
+        assertTrue(repo.events(reminder.id).isEmpty())
     }
 
     private fun draft(id: String = "reminder-1", content: String = "pay credit card", rule: ReminderActiveDayRule = ReminderActiveDayRule.ConsecutiveDateRange) = ReminderDraft(

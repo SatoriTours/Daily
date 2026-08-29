@@ -1950,12 +1950,36 @@ CREATE TABLE reminder_event (
 
 CREATE INDEX idx_reminder_event_reminder_id ON reminder_event(reminder_id, id DESC);
 
+upsertReminderProfile:
+INSERT INTO reminder_profile (id, name, kind, profile_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    kind = excluded.kind,
+    profile_json = excluded.profile_json,
+    updated_at = excluded.updated_at;
+
+selectReminderProfileById:
+SELECT * FROM reminder_profile WHERE id = ?;
+
+selectAllReminderProfiles:
+SELECT * FROM reminder_profile ORDER BY created_at ASC, name ASC;
+
+deleteReminderProfile:
+DELETE FROM reminder_profile WHERE id = ?;
+
 insertReminder:
 INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, time_zone_id, profile_json, version, state_date, dismissal_count, last_notified_at, last_dismissed_at, completed_at, next_occurrence_at, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectReminderById:
 SELECT * FROM reminder WHERE id = ?;
+
+deleteReminder:
+DELETE FROM reminder WHERE id = ?;
+
+deleteAllReminderEvents:
+DELETE FROM reminder_event WHERE reminder_id = ?;
 
 selectAllReminders:
 SELECT * FROM reminder ORDER BY created_at DESC;

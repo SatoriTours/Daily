@@ -18,6 +18,8 @@ import androidx.core.content.ContextCompat
 import com.dailysatori.MainActivity
 import com.dailysatori.R
 import com.dailysatori.service.reminder.Reminder
+import com.dailysatori.service.reminder.ReminderImportance
+import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
 
@@ -26,6 +28,8 @@ data class ReminderNotificationPolicy(
     val soundEnabled: Boolean,
     val vibrationEnabled: Boolean,
     val lockScreenText: String,
+    val importance: ReminderImportance,
+    val lockScreenVisibility: ReminderLockScreenVisibility,
 ) {
     companion object {
         fun forDelivery(reminder: Reminder, at: Instant): ReminderNotificationPolicy {
@@ -37,6 +41,8 @@ data class ReminderNotificationPolicy(
                 soundEnabled = reminder.profile.soundEnabled && !workHours,
                 vibrationEnabled = reminder.profile.vibrationEnabled && !workHours,
                 lockScreenText = "You have a reminder",
+                importance = reminder.profile.importance,
+                lockScreenVisibility = reminder.profile.lockScreenVisibility,
             )
         }
     }
@@ -74,19 +80,19 @@ class AndroidReminderNotification(
             .setContentText(policy.lockScreenText)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
-        return NotificationCompat.Builder(context, channelId(policy))
+        val builder = NotificationCompat.Builder(context, channelId(policy))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("Reminder")
             .setContentText(reminder.content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(reminder.content))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(publicVersion)
+            .setVisibility(policy.lockScreenVisibility.compatValue())
             .setContentIntent(viewIntent(reminder))
             .setDeleteIntent(receiverIntent(ReminderReceiver.ACTION_DISMISS, reminder, ReminderIntentIdentity.dismiss(reminder.id, reminder.version)))
             .addAction(0, "Complete", receiverIntent(ReminderReceiver.ACTION_COMPLETE, reminder, ReminderIntentIdentity.complete(reminder.id, reminder.version)))
             .setAutoCancel(false)
-            .build()
+        if (policy.lockScreenVisibility == ReminderLockScreenVisibility.PRIVATE) builder.setPublicVersion(publicVersion)
+        return builder.build()
     }
 
     private fun viewIntent(reminder: Reminder): PendingIntent {
@@ -121,27 +127,35 @@ class AndroidReminderNotification(
         val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val audio = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build()
         channelDefinitions.forEach { definition ->
-            val channel = NotificationChannel(definition.id, definition.name, NotificationManager.IMPORTANCE_HIGH)
-            channel.enableVibration(definition.vibration)
-            channel.setSound(if (definition.sound) sound else null, if (definition.sound) audio else null)
-            channel.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-            manager.createNotificationChannel(channel)
+            ReminderImportance.entries.forEach { importance ->
+                val channel = NotificationChannel(definition.idFor(importance), definition.name, importance.androidValue())
+                channel.enableVibration(definition.vibration)
+                channel.setSound(if (definition.sound) sound else null, if (definition.sound) audio else null)
+                // Allow each reminder's per-notification visibility to decide what the lock screen reveals.
+                channel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                manager.createNotificationChannel(channel)
+            }
         }
     }
 
     private fun canPostNotifications(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-    private fun channelId(policy: ReminderNotificationPolicy): String = when {
+    private fun channelId(policy: ReminderNotificationPolicy): String = (when {
         policy.soundEnabled && policy.vibrationEnabled -> CHANNEL_SOUND_VIBRATION
         policy.soundEnabled -> CHANNEL_SOUND
         policy.vibrationEnabled -> CHANNEL_VIBRATION
         else -> CHANNEL_SILENT
-    }
+    }) + policy.importance.channelSuffix()
 
     private fun notificationId(id: String) = id.hashCode()
 
     private data class ChannelDefinition(val id: String, val name: String, val sound: Boolean, val vibration: Boolean)
+
+    private fun ChannelDefinition.idFor(importance: ReminderImportance) = id + importance.channelSuffix()
+    private fun ReminderImportance.channelSuffix() = when (this) { ReminderImportance.HIGH -> ""; ReminderImportance.DEFAULT -> "-default"; ReminderImportance.LOW -> "-low" }
+    private fun ReminderImportance.androidValue() = when (this) { ReminderImportance.HIGH -> NotificationManager.IMPORTANCE_HIGH; ReminderImportance.DEFAULT -> NotificationManager.IMPORTANCE_DEFAULT; ReminderImportance.LOW -> NotificationManager.IMPORTANCE_LOW }
+    private fun ReminderLockScreenVisibility.compatValue() = when (this) { ReminderLockScreenVisibility.PUBLIC -> NotificationCompat.VISIBILITY_PUBLIC; ReminderLockScreenVisibility.PRIVATE -> NotificationCompat.VISIBILITY_PRIVATE; ReminderLockScreenVisibility.SECRET -> NotificationCompat.VISIBILITY_SECRET }
 
     private companion object {
         const val CHANNEL_SOUND_VIBRATION = "reminder-sound-vibration-v1"

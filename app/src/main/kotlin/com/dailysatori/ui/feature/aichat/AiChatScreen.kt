@@ -49,6 +49,9 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.searchResultOpenTarget
 import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.feature.reminder.ReminderDraftCard
+import com.dailysatori.ui.feature.reminder.ReminderDraftUiState
+import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -73,8 +76,10 @@ fun AiChatScreen(
 ) {
     val viewModel: AiChatViewModel = koinViewModel()
     val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
+    val reminderViewModel: ReminderViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val referenceDetailState by referenceDetailViewModel.state.collectAsState()
+    val reminderState by reminderViewModel.state.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showReferenceSheet by remember { mutableStateOf(false) }
@@ -199,12 +204,23 @@ fun AiChatScreen(
                     key = { it.id },
                     contentType = { aiChatMessageContentType(it) },
                 ) { message ->
-                    MessageBubble(
-                        message = message,
-                        onReferenceClick = ::openReference,
-                        onDelete = viewModel::deleteMessage,
-                        onReAsk = viewModel::reAsk,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        MessageBubble(
+                            message = message,
+                            onReferenceClick = ::openReference,
+                            onDelete = viewModel::deleteMessage,
+                            onReAsk = viewModel::reAsk,
+                        )
+                        message.reminderDrafts.forEach { draft ->
+                            LaunchedEffect(draft.id) { reminderViewModel.registerDraft(draft) }
+                            ReminderDraftCard(
+                                state = reminderState.drafts[draft.id] ?: ReminderDraftUiState.from(draft),
+                                onChange = { updated -> reminderViewModel.updateDraft(draft.id) { updated } },
+                                onConfirm = { reminderViewModel.confirmDraft(draft.id) },
+                                onCancel = { reminderViewModel.cancelDraft(draft.id) },
+                            )
+                        }
+                    }
                 }
                 if (showThinking) {
                     item(key = "thinking", contentType = "status") {

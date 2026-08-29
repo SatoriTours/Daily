@@ -4,6 +4,8 @@ import com.dailysatori.data.repository.ReminderState
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderImportance
+import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderStatus
 import kotlinx.datetime.Clock
@@ -19,6 +21,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReminderDeliveryTest {
+    @Test
+    fun notificationPolicyCarriesImportanceAndLockScreenVisibility() {
+        val reminder = reminder(profile = ReminderProfileSnapshot.standard().copy(importance = ReminderImportance.LOW, lockScreenVisibility = ReminderLockScreenVisibility.SECRET))
+
+        val policy = ReminderNotificationPolicy.forDelivery(reminder, instant("2026-09-02T10:00:00Z"))
+
+        assertEquals(ReminderImportance.LOW, policy.importance)
+        assertEquals(ReminderLockScreenVisibility.SECRET, policy.lockScreenVisibility)
+    }
     @Test
     fun hybridSchedulerKeepsSameGenerationWorkBackupWhenExactIsAllowed() {
         val exact = FakeBackend()
@@ -301,6 +312,7 @@ class ReminderDeliveryTest {
             endDate: LocalDate = LocalDate(2026, 9, 2),
             status: ReminderStatus = ReminderStatus.ACTIVE,
             version: Long = 0,
+            profile: ReminderProfileSnapshot = ReminderProfileSnapshot.strong(),
         ) = Reminder(
             id = "bill",
             content = "Pay credit card",
@@ -308,7 +320,7 @@ class ReminderDeliveryTest {
             endDate = endDate,
             firstReminderTime = LocalTime(10, 0),
             activeDayRule = ReminderActiveDayRule.Daily,
-            profile = ReminderProfileSnapshot.strong(),
+            profile = profile,
             status = status,
             timeZone = UTC,
             version = version,
