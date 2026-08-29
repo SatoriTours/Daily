@@ -13,6 +13,14 @@ class DiaryAssistantModelsTest {
     }
 
     @Test
+    fun preservesUrlEndingCharactersThatCanBelongToTheResource() {
+        assertEquals("https://example.com/version/1.0.", normalizeDiaryAssistantUrl("https://example.com/version/1.0."))
+        assertEquals("https://example.com/path:", normalizeDiaryAssistantUrl("https://example.com/path:"))
+        assertEquals("https://example.com/path)", normalizeDiaryAssistantUrl("https://example.com/path)"))
+        assertEquals("https://example.com/path]", normalizeDiaryAssistantUrl("https://example.com/path]"))
+    }
+
+    @Test
     fun contextNeverIncludesWholeLongDiary() {
         val diary = "A".repeat(500) + "selected" + "B".repeat(500)
         val (before, after) = boundedDiaryAssistantContext(diary, 500 until 508)

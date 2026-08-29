@@ -26,16 +26,14 @@ data class DiaryAssistantResult(
 
 private val diaryAssistantUrlPattern = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE)
 private val diaryAssistantSentenceEnding = setOf(
-    '.', ',', '!', '?', ';', ':',
     '。', '，', '！', '？', '；', '：', '、',
-    '）', ')', '］', ']', '】', '}', '〉', '》', '」', '』', '”', '’',
 )
 
 /** Finds the first HTTP(S) URL in text and removes sentence punctuation appended to it. */
 fun detectDiaryAssistantUrl(text: String): String? =
     diaryAssistantUrlPattern.find(text)?.value?.let(::normalizeDiaryAssistantUrl)
 
-/** Removes punctuation that belongs to the sentence around a URL, not its path. */
+/** Removes Chinese sentence punctuation, while preserving ASCII URL path/delimiter characters. */
 fun normalizeDiaryAssistantUrl(url: String): String =
     url.trimEnd { it in diaryAssistantSentenceEnding }
 
