@@ -50,7 +50,10 @@ class ReminderDraftToolTest {
         assertTrue(encoded.contains("selected_weekdays"))
         assertTrue(encoded.contains("MONDAY"))
         assertTrue(encoded.contains("FRIDAY"))
-        assertTrue(encoded.contains("GENTLE"))
+        assertTrue(encoded.contains("\"gentle\""))
+        val roundTripped = codec.create(encoded)
+        assertTrue(roundTripped.validationErrors.isEmpty())
+        assertEquals(ReminderProfileKind.GENTLE, roundTripped.profile?.kind)
     }
 
     @Test fun rejectsInvalidRangesAndOverlongContentWithStrictBoundedJson() {

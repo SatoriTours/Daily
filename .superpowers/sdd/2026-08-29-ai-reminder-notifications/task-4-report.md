@@ -39,3 +39,4 @@ Fix round 1 result: BUILD SUCCESSFUL.
 
 - This task supplies state handoff only; the editable confirmation-card UI and confirmation scheduling are handled by later tasks.
 - Fix round 1: added selected-weekday/profile display round-trip coverage, cancellation ownership coverage, and streaming-fallback draft-retention coverage. `HH:MM` time-format strictness remains a Minor follow-up for final review.
+- Fix round 2: profile JSON now uses the lowercase tool contract and equivalent fallback drafts deduplicate by normalized draft semantics instead of generated ID.

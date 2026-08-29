@@ -33,6 +33,7 @@ class ReminderDraftCodec(
         val firstTime = absoluteTime(args.string("first_reminder_time"), errors)
         val rule = activeDayRule(args, errors)
         validateRange(startDate, endDate, zone, errors)
+        args.string("timezone")?.takeIf { it != zone.id }?.let { errors += "timezone 必须使用设备当前时区" }
         return ReminderDraft(
             id = "reminder_draft_${now().toEpochMilliseconds()}", content = content,
             startDate = startDate, endDate = endDate, firstReminderTime = firstTime,
@@ -51,7 +52,7 @@ class ReminderDraftCodec(
         if (draft.activeDayRule is ReminderActiveDayRule.SelectedWeekdays) {
             put("selected_weekdays", JsonArray(draft.activeDayRule.days.sortedBy { it.ordinal }.map { JsonPrimitive(it.name) }))
         }
-        draft.profile?.let { put("profile", it.kind.name) }
+        draft.profile?.let { put("profile", it.kind.name.lowercase()) }
         put("timezone", draft.timeZone.id)
         put("validation_errors", JsonArray(draft.validationErrors.map(::JsonPrimitive)))
     }.toString()
@@ -130,7 +131,7 @@ class ReminderDraftCodec(
 
     private companion object {
         const val MAX_CONTENT_LENGTH = 500
-        val allowedFields = setOf("content", "start_date", "end_date", "first_reminder_time", "active_day_rule", "selected_weekdays", "profile")
+        val allowedFields = setOf("draft_id", "content", "start_date", "end_date", "first_reminder_time", "active_day_rule", "selected_weekdays", "profile", "timezone", "validation_errors")
         val dayOfWeek = DayOfWeek.entries.associateBy { it.name }
     }
 }

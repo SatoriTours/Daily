@@ -25,6 +25,10 @@ data class McpSearchResult(
     val matchReason: String? = null,
 )
 
+internal fun addReminderDraftIfNew(drafts: MutableList<ReminderDraft>, draft: ReminderDraft) {
+    if (drafts.none { it.id == draft.id || it.copy(id = "") == draft.copy(id = "") }) drafts += draft
+}
+
 class McpAgentService(
     private val aiService: AiService,
     private val aiConfigService: AiConfigService,
@@ -309,7 +313,7 @@ class McpAgentService(
             val toolCallId = tc["id"]?.jsonPrimitive?.contentOrNull ?: ""
 
             val toolResult = toolRegistry.executeTool(toolName, arguments)
-            toolResult.reminderDraft?.takeIf { draft -> reminderDrafts.none { it.id == draft.id } }?.let(reminderDrafts::add)
+            toolResult.reminderDraft?.let { addReminderDraftIfNew(reminderDrafts, it) }
             collectedResults.addAll(extractMcpSearchResults(toolName, toolResult))
 
             val resultContent = toolResult.data?.toString() ?: buildJsonObject {
