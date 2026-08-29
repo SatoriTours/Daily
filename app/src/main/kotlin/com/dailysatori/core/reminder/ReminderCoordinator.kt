@@ -15,6 +15,7 @@ import com.dailysatori.service.reminder.ReminderStatus
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -59,6 +60,7 @@ class ReminderCoordinator(
     private val notifier: ReminderNotifier,
     private val clock: Clock = Clock.System,
     private val context: Context? = null,
+    private val currentTimeZone: (() -> TimeZone)? = null,
 ) {
     @Synchronized
     fun recompute(id: String) {
@@ -73,7 +75,7 @@ class ReminderCoordinator(
 
     private fun recomputeSchedule(id: String) {
         scheduler.cancel(id)
-        val reminder = store.get(id) ?: return
+        val reminder = store.get(id)?.inCurrentTimeZone() ?: return
         val decision = engine.next(reminder.toScheduleInput(clock.now(), store.state(id)))
         when (decision) {
             is ReminderScheduleDecision.Schedule -> scheduler.schedule(id, decision.expectedVersion, decision.at)
@@ -89,7 +91,7 @@ class ReminderCoordinator(
     @Synchronized
     fun deliver(id: String, expectedVersion: Long) {
         val now = clock.now()
-        val reminder = store.get(id) ?: return
+        val reminder = store.get(id)?.inCurrentTimeZone() ?: return
         if (reminder.version != expectedVersion) return
         if (!reminder.isEligibleAt(now)) {
             if (now.toLocalDateTime(reminder.timeZone).date > reminder.endDate) store.expire(id, now)
@@ -99,7 +101,7 @@ class ReminderCoordinator(
         }
         val deliveredVersion = store.markDelivered(id, expectedVersion, now) ?: return
         try {
-            val current = store.get(id)
+            val current = store.get(id)?.inCurrentTimeZone()
             if (current?.version != deliveredVersion || current.status != ReminderStatus.NOTIFIED) {
                 notifier.cancel(id)
                 return
@@ -158,6 +160,10 @@ class ReminderCoordinator(
         expectedVersion = version,
     )
 
+    private fun Reminder.inCurrentTimeZone(): Reminder = copy(
+        timeZone = currentTimeZone?.invoke() ?: if (context != null) TimeZone.currentSystemDefault() else timeZone,
+    )
+
     private fun Reminder.isEligibleAt(now: Instant): Boolean {
         if (status !in deliverableStatuses) return false
         val local = now.toLocalDateTime(timeZone)
@@ -181,5 +187,30 @@ class ReminderCoordinator(
         const val EXTRA_REMINDER_ID = "reminder_id"
         private val deliverableStatuses = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
         private val terminalStatuses = setOf(ReminderStatus.COMPLETED, ReminderStatus.EXPIRED, ReminderStatus.PAUSED, ReminderStatus.DRAFT)
+    }
+}
+
+data class ReminderCapabilitySnapshot(
+    val notificationsAllowed: Boolean,
+    val exactAlarmsAllowed: Boolean,
+    val disabledChannelIds: Set<String> = emptySet(),
+)
+
+class ReminderRecoveryController(
+    private val capabilitySnapshot: () -> ReminderCapabilitySnapshot,
+    private val recover: () -> Unit,
+) {
+    private var previous: ReminderCapabilitySnapshot? = null
+
+    fun startup() {
+        previous = capabilitySnapshot()
+        recover()
+    }
+
+    fun resume() {
+        val current = capabilitySnapshot()
+        val changed = previous?.let { it != current } == true
+        previous = current
+        if (changed) recover()
     }
 }

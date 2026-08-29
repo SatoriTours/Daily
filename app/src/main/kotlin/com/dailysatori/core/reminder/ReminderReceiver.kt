@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
+internal fun isReminderRestoreAction(action: String?): Boolean = action in REMINDER_RESTORE_ACTIONS
+
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
@@ -18,7 +20,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     ACTION_DELIVER -> withIdentity(intent) { id, version -> coordinator.deliver(id, version) }
                     ACTION_DISMISS -> withIdentity(intent) { id, version -> coordinator.dismiss(id, version) }
                     ACTION_COMPLETE -> withIdentity(intent) { id, version -> coordinator.complete(id, version) }
-                    else -> if (intent.action in RESTORE_ACTIONS) coordinator.recomputeAll()
+                    in REMINDER_RESTORE_ACTIONS -> coordinator.recomputeAll()
+                    else -> Unit
                 }
             } finally {
                 pendingResult.finish()
@@ -38,15 +41,16 @@ class ReminderReceiver : BroadcastReceiver() {
         const val ACTION_COMPLETE = "com.dailysatori.reminder.COMPLETE"
         const val EXTRA_REMINDER_ID = "reminder_id"
         const val EXTRA_EXPECTED_VERSION = "expected_version"
-        private val RESTORE_ACTIONS = setOf(
-            Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_TIME_CHANGED,
-            Intent.ACTION_TIMEZONE_CHANGED,
-            Intent.ACTION_MY_PACKAGE_REPLACED,
-            AlarmManagerActions.EXACT_ALARM_PERMISSION_CHANGED,
-        )
     }
 }
+
+private val REMINDER_RESTORE_ACTIONS = setOf(
+    Intent.ACTION_BOOT_COMPLETED,
+    Intent.ACTION_TIME_CHANGED,
+    Intent.ACTION_TIMEZONE_CHANGED,
+    Intent.ACTION_MY_PACKAGE_REPLACED,
+    AlarmManagerActions.EXACT_ALARM_PERMISSION_CHANGED,
+)
 
 private object AlarmManagerActions {
     const val EXACT_ALARM_PERMISSION_CHANGED = "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
