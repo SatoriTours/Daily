@@ -956,7 +956,7 @@ class DatabaseMigration(
 
     private fun migrateV22ToV23() {
         log.i { "Migration V22 -> V23: Reminder lifecycle" }
-        migrateReminderSchema(::runSql) { e -> log.w(e) { "Could not create reminder lifecycle schema" } }
+        migrateReminderSchema(::runSql)
     }
 
     private fun getCurrentVersion(): Long {
@@ -1039,7 +1039,7 @@ class DatabaseMigration(
             ).forEach(runSql)
         }
 
-        internal fun migrateReminderSchema(runSql: (String) -> Unit, onFailure: (Exception) -> Unit = {}) {
+        internal fun migrateReminderSchema(runSql: (String) -> Unit) {
             listOf(
                 """CREATE TABLE IF NOT EXISTS reminder_profile (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, profile_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)""",
                 """CREATE TABLE IF NOT EXISTS reminder (id TEXT PRIMARY KEY NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT NOT NULL, first_reminder_time TEXT NOT NULL, active_day_rule TEXT NOT NULL, time_zone_id TEXT NOT NULL, profile_json TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 0, state_date TEXT, dismissal_count INTEGER NOT NULL DEFAULT 0, last_notified_at INTEGER, last_dismissed_at INTEGER, completed_at INTEGER, next_occurrence_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)""",
@@ -1047,13 +1047,7 @@ class DatabaseMigration(
                 "CREATE INDEX IF NOT EXISTS idx_reminder_next_occurrence ON reminder(status, next_occurrence_at)",
                 """CREATE TABLE IF NOT EXISTS reminder_event (id INTEGER PRIMARY KEY AUTOINCREMENT, reminder_id TEXT NOT NULL REFERENCES reminder(id) ON DELETE CASCADE, event_type TEXT NOT NULL, scheduled_at INTEGER, actual_at INTEGER NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}')""",
                 "CREATE INDEX IF NOT EXISTS idx_reminder_event_reminder_id ON reminder_event(reminder_id, id DESC)",
-            ).forEach { sql ->
-                try {
-                    runSql(sql)
-                } catch (e: Exception) {
-                    onFailure(e)
-                }
-            }
+            ).forEach(runSql)
         }
     }
 }

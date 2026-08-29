@@ -88,7 +88,7 @@ class ReminderRepository(
     fun observeAll(): Flow<List<Reminder>> = q.selectAllReminders().asFlow().mapToList(Dispatchers.IO).map { rows -> rows.map { it.toReminder() } }
 
     fun activeAt(now: Instant): List<Reminder> = q.selectActiveRemindersAt(now.toLocalDateTime(timeZone).date.toString())
-        .executeAsList().map { it.toReminder() }
+        .executeAsList().map { it.toReminder() }.filter { it.activeDayRule.isActiveOn(now.toLocalDateTime(it.timeZone).date) }
 
     fun state(id: String): ReminderState? = q.selectReminderById(id).executeAsOneOrNull()?.let {
         ReminderState(it.dismissal_count.toInt(), it.state_date?.let(LocalDate::parse))
@@ -128,19 +128,15 @@ class ReminderRepository(
         val start = edit.startDate ?: LocalDate.parse(row.start_date)
         val end = edit.endDate ?: LocalDate.parse(row.end_date)
         if (end < start) return@transactionWithResult false
-        q.updateReminderEditable(edit.content ?: row.content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), (edit.activeDayRule ?: row.active_day_rule.decode()).encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id)
+        if (q.updateReminderEditableIfVersion(edit.content ?: row.content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), (edit.activeDayRule ?: row.active_day_rule.decode()).encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).executeAsOneOrNull() == null) return@transactionWithResult false
         recordEvent(id, "edited", at)
         true
     }
 
     fun recordEvent(id: String, eventType: String, at: Instant, metadata: Map<String, String> = emptyMap(), scheduledAt: Instant? = null) {
         require(eventType.length in 1..64)
-        val safeMetadata = metadata.entries
-            .filter { it.key != "content" && it.key.length <= 40 && it.value.length <= 120 }
-            .take(MAX_EVENT_METADATA_ENTRIES)
-            .associate { it.key to it.value }
         q.transaction {
-            insertBoundedEvent(id, eventType, at, safeMetadata, scheduledAt)
+            insertBoundedEvent(id, eventType, at, emptyMap(), scheduledAt)
         }
     }
 
@@ -151,26 +147,30 @@ class ReminderRepository(
         if (row.version != expectedVersion) return@transactionWithResult false
         val lifecycle = next(row) ?: return@transactionWithResult false
         saveLifecycle(row, lifecycle, at)
-        true
     }
 
-    private fun terminalTransition(id: String, target: ReminderStatus, at: Instant, eventType: String): Boolean = q.transactionWithResult {
-        val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult false
-        if (row.status in terminalStatuses) return@transactionWithResult false
-        saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, at.toEpochMilliseconds(), null, eventType), at)
-        true
+    private fun terminalTransition(id: String, target: ReminderStatus, at: Instant, eventType: String): Boolean {
+        repeat(MAX_CAS_RETRIES) {
+            val result = q.transactionWithResult {
+                val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult TerminalResult.TERMINAL
+                if (row.status in terminalStatuses) return@transactionWithResult TerminalResult.TERMINAL
+                if (saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, at.toEpochMilliseconds(), null, eventType), at)) TerminalResult.UPDATED else TerminalResult.RETRY
+            }
+            if (result != TerminalResult.RETRY) return result == TerminalResult.UPDATED
+        }
+        return false
     }
 
     private fun simpleTransition(id: String, target: ReminderStatus, at: Instant, eventType: String): Boolean = q.transactionWithResult {
         val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult false
         if (row.status in terminalStatuses || row.status == target.name) return@transactionWithResult false
         saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.completed_at, if (target == ReminderStatus.PAUSED) null else row.next_occurrence_at, eventType), at)
-        true
     }
 
-    private fun saveLifecycle(row: com.dailysatori.shared.db.Reminder, state: Lifecycle, at: Instant) {
-        q.updateReminderLifecycle(state.status.name, row.version + 1, state.stateDate?.toString(), state.dismissalCount.toLong(), state.lastNotifiedAt, state.lastDismissedAt, state.completedAt, state.nextOccurrenceAt, at.toEpochMilliseconds(), row.id)
+    private fun saveLifecycle(row: com.dailysatori.shared.db.Reminder, state: Lifecycle, at: Instant): Boolean {
+        if (q.updateReminderLifecycleIfVersion(state.status.name, row.version + 1, state.stateDate?.toString(), state.dismissalCount.toLong(), state.lastNotifiedAt, state.lastDismissedAt, state.completedAt, state.nextOccurrenceAt, at.toEpochMilliseconds(), row.id, row.version).executeAsOneOrNull() == null) return false
         insertBoundedEvent(row.id, state.eventType, at, emptyMap(), null)
+        return true
     }
 
     private fun insertBoundedEvent(id: String, eventType: String, at: Instant, metadata: Map<String, String>, scheduledAt: Instant?) {
@@ -184,11 +184,13 @@ class ReminderRepository(
 
     companion object {
         const val MAX_EVENT_HISTORY = 50
-        private const val MAX_EVENT_METADATA_ENTRIES = 8
         private const val MAX_CONTENT_LENGTH = 2_000
+        private const val MAX_CAS_RETRIES = 3
         private val terminalStatuses = setOf(ReminderStatus.COMPLETED.name, ReminderStatus.EXPIRED.name)
         private val deliverableStatuses = setOf(ReminderStatus.ACTIVE.name, ReminderStatus.NOTIFIED.name, ReminderStatus.DISMISSED.name)
     }
+
+    private enum class TerminalResult { UPDATED, TERMINAL, RETRY }
 }
 
 private fun ReminderActiveDayRule.encode(): String = when (this) {
@@ -204,6 +206,12 @@ private fun String.decode(): ReminderActiveDayRule = when {
     this == "range" -> ReminderActiveDayRule.ConsecutiveDateRange
     startsWith("selected:") -> ReminderActiveDayRule.SelectedWeekdays(removePrefix("selected:").split(',').filter { it.isNotBlank() }.map(DayOfWeek::valueOf).toSet())
     else -> error("Unknown reminder active-day rule")
+}
+
+private fun ReminderActiveDayRule.isActiveOn(date: LocalDate): Boolean = when (this) {
+    ReminderActiveDayRule.Daily, ReminderActiveDayRule.ConsecutiveDateRange -> true
+    ReminderActiveDayRule.Weekdays -> date.dayOfWeek !in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
+    is ReminderActiveDayRule.SelectedWeekdays -> date.dayOfWeek in days
 }
 
 private fun ReminderProfileSnapshot.toBoundedJson(): String {

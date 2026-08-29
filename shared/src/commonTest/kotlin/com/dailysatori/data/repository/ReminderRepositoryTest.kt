@@ -10,6 +10,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.DayOfWeek
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -72,13 +73,40 @@ class ReminderRepositoryTest {
         assertTrue(events.all { !it.metadata_json.contains("private reminder text") })
     }
 
-    private fun draft(id: String = "reminder-1", content: String = "pay credit card") = ReminderDraft(
+    @Test
+    fun eventMetadataDropsPrivateAliasesAndBodies() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(content = "private reminder text"), strongProfile())
+
+        repo.recordEvent(reminder.id, "delivery", now, mapOf("body" to "private reminder text", "alias" to "private reminder text"))
+
+        assertEquals("{}", repo.events(reminder.id).first().metadata_json)
+    }
+
+    @Test
+    fun activeAtHonorsWeekdayAndSelectedWeekdayRules() = withRepository { repo ->
+        val weekday = repo.createConfirmed(draft(id = "weekday", rule = ReminderActiveDayRule.Weekdays), strongProfile())
+        val selected = repo.createConfirmed(draft(id = "selected", rule = ReminderActiveDayRule.SelectedWeekdays(setOf(DayOfWeek.SUNDAY))), strongProfile())
+
+        assertEquals(listOf(selected.id), repo.activeAt(Instant.parse("2026-08-30T10:00:00Z")).map { it.id })
+        assertEquals(listOf(weekday.id), repo.activeAt(Instant.parse("2026-08-31T10:00:00Z")).map { it.id })
+    }
+
+    @Test
+    fun conditionalUpdateRejectsVersionChangedAfterRead() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(), strongProfile())
+        repo.complete(reminder.id)
+
+        assertFalse(repo.markDelivered(reminder.id, reminder.version, now))
+        assertEquals(ReminderStatus.COMPLETED, repo.get(reminder.id)!!.status)
+    }
+
+    private fun draft(id: String = "reminder-1", content: String = "pay credit card", rule: ReminderActiveDayRule = ReminderActiveDayRule.ConsecutiveDateRange) = ReminderDraft(
         id = id,
         content = content,
         startDate = LocalDate(2026, 8, 30),
         endDate = LocalDate(2026, 9, 2),
         firstReminderTime = LocalTime(18, 0),
-        activeDayRule = ReminderActiveDayRule.ConsecutiveDateRange,
+        activeDayRule = rule,
     )
 
     private fun strongProfile() = ReminderProfileSnapshot.strong()
