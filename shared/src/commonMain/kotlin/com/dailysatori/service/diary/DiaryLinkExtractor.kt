@@ -47,6 +47,7 @@ fun parsePublicDouyinMaterial(url: String, content: ExtractedContent): DiaryLink
     val caption = metadata.caption
     val text = caption ?: description
         ?: throw DiaryAssistantExtractionException("未获取到公开抖音内容")
+    if (text.isBlockedPage()) throw DiaryAssistantExtractionException("网页内容不可访问")
     return DiaryLinkMaterial(
         url = url,
         title = title,
@@ -146,7 +147,13 @@ private fun String.isBlockedPage(): Boolean = BLOCKED_PAGE_MARKERS.any { marker 
 }
 
 private const val MAX_MATERIAL_LENGTH = 20_000
-private val BLOCKED_PAGE_MARKERS = listOf("access denied", "captcha", "verify you are human", "请求过于频繁")
+private val BLOCKED_PAGE_MARKERS = listOf(
+    "access denied",
+    "captcha",
+    "verify you are human",
+    "checking your browser",
+    "请求过于频繁",
+)
 private val publicJson = Json { ignoreUnknownKeys = true; isLenient = true }
 private val JSON_LD_SCRIPT = Regex("""<script[^>]*type=[\"']application/ld\+json[\"'][^>]*>([\s\S]*?)</script>""", RegexOption.IGNORE_CASE)
 private val META_TAG = Regex("""<meta\s+([^>]+)>""", RegexOption.IGNORE_CASE)

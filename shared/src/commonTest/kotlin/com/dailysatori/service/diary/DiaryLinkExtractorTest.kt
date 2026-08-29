@@ -89,6 +89,16 @@ class DiaryLinkExtractorTest {
     }
 
     @Test
+    fun douyinRejectsBlockedPublicMaterial() {
+        assertFailsWith<DiaryAssistantExtractionException> {
+            parsePublicDouyinMaterial(
+                "https://v.douyin.com/a/",
+                ExtractedContent("视频", "Just a moment / Checking your browser", "<html/>", null),
+            )
+        }
+    }
+
+    @Test
     fun douyinUsesExplicitPublicCaptionFieldOverDescription() {
         val result = parsePublicDouyinMaterial(
             "https://v.douyin.com/a/",
