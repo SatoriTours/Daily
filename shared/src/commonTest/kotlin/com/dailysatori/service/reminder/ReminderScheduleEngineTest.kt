@@ -130,6 +130,19 @@ class ReminderScheduleEngineTest {
         )))
     }
 
+    @Test fun eveningOccurrenceAtOrAfterDailyCutoffIsNotScheduled() {
+        val profile = ReminderProfileSnapshot(
+            kind = ReminderProfileKind.CUSTOM,
+            daytimeDismissalBackoffMinutes = listOf(240),
+            eveningStart = LocalTime.parse("22:00"),
+            eveningIntervalMinutes = 60,
+            dailyCutoff = LocalTime.parse("21:00"),
+        )
+        assertEquals(ReminderStatus.EXPIRED, assertIs<ReminderScheduleDecision.None>(engine.next(input(
+            now = local("2026-09-02T20:00"), dismissals = 1, profile = profile,
+        ))).status)
+    }
+
     @Test fun pausedCompletedAndExpiredAreTerminal() {
         listOf(ReminderStatus.PAUSED, ReminderStatus.COMPLETED, ReminderStatus.EXPIRED).forEach { status ->
             assertEquals(status, assertIs<ReminderScheduleDecision.None>(engine.next(input(status = status))).status)

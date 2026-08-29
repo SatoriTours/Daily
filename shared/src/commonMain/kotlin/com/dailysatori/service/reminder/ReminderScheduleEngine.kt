@@ -54,11 +54,12 @@ class ReminderScheduleEngine {
         val local = candidate.toLocalDateTime(input.timeZone)
         val current = input.now.toLocalDateTime(input.timeZone)
         val evening = nextEveningTime(current.time, input.profile)
-        return if (local.date != current.date && evening != null) {
-            scheduleAt(input, current.date, evening, ReminderDeliveryReason.EVENING_REINFORCEMENT)
-        } else if (local.time >= input.profile.eveningStart && evening != null) {
-            scheduleAt(input, current.date, evening, ReminderDeliveryReason.EVENING_REINFORCEMENT)
-        } else schedule(input, candidate, reason)
+        if (local.date != current.date || local.time >= input.profile.eveningStart) {
+            return evening?.let {
+                scheduleAt(input, current.date, it, ReminderDeliveryReason.EVENING_REINFORCEMENT)
+            } ?: scheduleNextActiveDate(input, current.date, inclusive = false)
+        }
+        return schedule(input, candidate, reason)
     }
 
     private fun scheduleNextActiveDate(input: ReminderScheduleInput, from: LocalDate, inclusive: Boolean): ReminderScheduleDecision {
@@ -71,15 +72,20 @@ class ReminderScheduleEngine {
     }
 
     private fun nextEveningTime(now: LocalTime, profile: ReminderProfileSnapshot): LocalTime? {
-        profile.eveningTimes.filter { it > now }.minOrNull()?.let { return it }
+        val cutoffMinutes = cutoffMinutes(profile)
+        profile.eveningTimes.filter { it > now && it.toMinutes() < cutoffMinutes }.minOrNull()?.let { return it }
         val interval = profile.eveningIntervalMinutes ?: return null
-        if (now < profile.eveningStart) return profile.eveningStart
+        if (now < profile.eveningStart) return profile.eveningStart.takeIf { it.toMinutes() < cutoffMinutes }
         val startMinutes = profile.eveningStart.hour * 60 + profile.eveningStart.minute
         val nowMinutes = now.hour * 60 + now.minute
         val nextMinutes = startMinutes + ((nowMinutes - startMinutes) / interval + 1) * interval
-        val cutoffMinutes = if (profile.dailyCutoff == LocalTime(0, 0)) 24 * 60 else profile.dailyCutoff.hour * 60 + profile.dailyCutoff.minute
         return nextMinutes.takeIf { it < cutoffMinutes }?.let { LocalTime(it / 60, it % 60) }
     }
+
+    private fun cutoffMinutes(profile: ReminderProfileSnapshot): Int =
+        if (profile.dailyCutoff == LocalTime(0, 0)) 24 * 60 else profile.dailyCutoff.toMinutes()
+
+    private fun LocalTime.toMinutes(): Int = hour * 60 + minute
 
     private fun scheduleAt(input: ReminderScheduleInput, date: LocalDate, time: LocalTime, reason: ReminderDeliveryReason): ReminderScheduleDecision {
         val normalizedTime = if (isSleepTime(time, input.profile)) input.profile.sleepEnd else time
