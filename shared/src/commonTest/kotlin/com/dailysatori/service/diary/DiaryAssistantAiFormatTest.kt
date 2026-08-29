@@ -49,4 +49,22 @@ class DiaryAssistantAiFormatTest {
             renderDiaryAssistantMarkdown("背景说明", listOf(DiaryAssistantSource("资料 A", "https://a.example"))),
         )
     }
+
+    @Test
+    fun markdownEscapesReservedSourceFieldsAndRejectsUnsafeUrls() {
+        val sources = listOf(
+            DiaryAssistantSource("[伪链接](javascript:bad)", "https://example.com/path)"),
+            DiaryAssistantSource("无主机", "https://"),
+            DiaryAssistantSource("含空格", "https://not valid"),
+            DiaryAssistantSource("有效", "https://valid.example/path"),
+        )
+
+        val markdown = renderDiaryAssistantMarkdown("正文", sources)
+
+        assertEquals(
+            "正文\n\n来源：[\\[伪链接\\]\\(javascript:bad\\)](https://example.com/path\\))、[有效](https://valid.example/path)",
+            markdown,
+        )
+        assertEquals(2, markdown.split("](").size - 1)
+    }
 }

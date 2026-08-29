@@ -74,7 +74,9 @@ fun renderDiaryAssistantMarkdown(content: String, sources: List<DiaryAssistantSo
     val body = content.trim()
     val compact = compactDiaryAssistantSources(sources)
     if (compact.isEmpty()) return body
-    val links = compact.joinToString("、") { "[${it.title.ifBlank { it.url }}](${it.url})" }
+    val links = compact.joinToString("、") {
+        "[${it.title.ifBlank { it.url }.escapeDiaryAssistantMarkdownText()}](${it.url.escapeDiaryAssistantMarkdownDestination()})"
+    }
     return if (body.isEmpty()) "来源：$links" else "$body\n\n来源：$links"
 }
 
@@ -82,8 +84,25 @@ private fun String.removeCodeFence(): String =
     replace(Regex("^```(?:json)?\\s*", RegexOption.IGNORE_CASE), "")
         .replace(Regex("\\s*```$"), "")
 
-private fun String.isHttpUrl(): Boolean =
-    startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
+private fun String.isHttpUrl(): Boolean {
+    val match = Regex("^https?://([^\\s/?#]+)(?:[/?#].*)?$", RegexOption.IGNORE_CASE).matchEntire(this)
+        ?: return false
+    val authority = match.groupValues[1]
+    val host = authority.substringAfterLast('@').substringBefore(':')
+    return host.isNotBlank()
+}
+
+private fun String.escapeDiaryAssistantMarkdownText(): String =
+    replace("\\", "\\\\")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
+
+private fun String.escapeDiaryAssistantMarkdownDestination(): String =
+    replace("\\", "\\\\")
+        .replace("(", "\\(")
+        .replace(")", "\\)")
 
 private fun compactDiaryAssistantSources(sources: List<DiaryAssistantSource>): List<DiaryAssistantSource> {
     val seen = mutableSetOf<String>()
