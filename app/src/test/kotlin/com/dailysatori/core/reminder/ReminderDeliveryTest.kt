@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 
 class ReminderDeliveryTest {
     @Test
-    fun hybridSchedulerUsesExactOnlyWhenAllowedAndCancelsTheOtherBackend() {
+    fun hybridSchedulerKeepsSameGenerationWorkBackupWhenExactIsAllowed() {
         val exact = FakeBackend()
         val fallback = FakeBackend()
         val scheduler = HybridReminderScheduler({ true }, exact, fallback)
@@ -28,13 +28,29 @@ class ReminderDeliveryTest {
         scheduler.schedule("bill", 3, instant("2026-09-02T10:00:00Z"))
 
         assertEquals(3, exact.pending["bill"]?.expectedVersion)
-        assertNull(fallback.pending["bill"])
+        assertEquals(3, fallback.pending["bill"]?.expectedVersion)
         assertEquals(listOf("bill"), fallback.cancelled)
 
         val deniedScheduler = HybridReminderScheduler({ false }, exact, fallback)
         deniedScheduler.schedule("bill", 4, instant("2026-09-02T11:00:00Z"))
         assertNull(exact.pending["bill"])
         assertEquals(4, fallback.pending["bill"]?.expectedVersion)
+    }
+
+    @Test
+    fun workBackupDeliversAtMostOnceAfterSystemDeletesExactAlarm() {
+        val exact = FakeBackend()
+        val fallback = FakeBackend()
+        HybridReminderScheduler({ true }, exact, fallback)
+            .schedule("bill", 0, instant("2026-09-02T10:00:00Z"))
+        exact.pending.remove("bill")
+        val backup = fallback.pending.getValue("bill")
+        val fixture = fixture(now = "2026-09-02T10:00:00Z")
+
+        fixture.coordinator.deliver(backup.id, backup.expectedVersion)
+        fixture.coordinator.deliver(backup.id, backup.expectedVersion)
+
+        assertEquals(1, fixture.notifier.posts.size)
     }
 
     @Test
@@ -89,12 +105,56 @@ class ReminderDeliveryTest {
     }
 
     @Test
+    fun staleDismissDoesNotCancelOrRecomputeCurrentGeneration() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 2))
+        fixture.scheduler.schedule("bill", 2, instant("2026-09-02T13:00:00Z"))
+
+        assertFalse(fixture.coordinator.dismiss("bill", 1))
+
+        assertEquals(2, fixture.scheduler.pending["bill"]?.expectedVersion)
+        assertTrue(fixture.notifier.cancelled.isEmpty())
+    }
+
+    @Test
     fun completeIsTerminalAndCancelsScheduleAndNotification() {
         val fixture = fixture(now = "2026-09-02T12:00:00Z")
         fixture.scheduler.schedule("bill", 0, fixture.clock.now)
-        assertTrue(fixture.coordinator.complete("bill"))
+        assertTrue(fixture.coordinator.complete("bill", 0))
         assertEquals(ReminderStatus.COMPLETED, fixture.store.get("bill")?.status)
         assertNull(fixture.scheduler.pending["bill"])
+        assertEquals(listOf("bill"), fixture.notifier.cancelled)
+    }
+
+    @Test
+    fun staleCompleteDoesNotMutateOrCancelCurrentGeneration() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 2))
+        fixture.scheduler.schedule("bill", 2, instant("2026-09-02T13:00:00Z"))
+
+        assertFalse(fixture.coordinator.complete("bill", 1))
+
+        assertEquals(ReminderStatus.NOTIFIED, fixture.store.get("bill")?.status)
+        assertEquals(2, fixture.scheduler.pending["bill"]?.expectedVersion)
+        assertTrue(fixture.notifier.cancelled.isEmpty())
+    }
+
+    @Test
+    fun generationChangeAfterDeliveryCasSuppressesPost() {
+        val fixture = fixture(now = "2026-09-02T10:00:00Z")
+        fixture.store.afterDelivered = { fixture.store.force(ReminderStatus.PAUSED) }
+
+        fixture.coordinator.deliver("bill", 0)
+
+        assertTrue(fixture.notifier.posts.isEmpty())
+        assertEquals(ReminderStatus.PAUSED, fixture.store.get("bill")?.status)
+    }
+
+    @Test
+    fun recomputeAfterEditCancelsDisplayedOlderGeneration() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 1))
+        fixture.store.force(ReminderStatus.NOTIFIED)
+
+        fixture.coordinator.recompute("bill")
+
         assertEquals(listOf("bill"), fixture.notifier.cancelled)
     }
 
@@ -180,18 +240,30 @@ class ReminderDeliveryTest {
     private class FakeStore(initial: Reminder) : ReminderDeliveryStore {
         private var reminder: Reminder? = initial
         private var state = ReminderState(0, null)
+        var afterDelivered: (() -> Unit)? = null
         override fun get(id: String): Reminder? = reminder?.takeIf { it.id == id }
         override fun active(now: Instant): List<Reminder> = listOfNotNull(reminder).filter { it.status in deliverable }
         override fun state(id: String): ReminderState? = state.takeIf { reminder?.id == id }
-        override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
-            it.copy(status = ReminderStatus.NOTIFIED, version = it.version + 1)
+        override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long? {
+            var delivered: Reminder? = null
+            val changed = update(expectedVersion) {
+                it.copy(status = ReminderStatus.NOTIFIED, version = it.version + 1).also { next -> delivered = next }
+            }
+            if (!changed) return null
+            afterDelivered?.invoke()
+            return delivered?.version
         }
         override fun markDismissed(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
             state = ReminderState(state.dismissalCount + 1, LocalDate(2026, 9, 2))
             it.copy(status = ReminderStatus.DISMISSED, version = it.version + 1)
         }
-        override fun complete(id: String, at: Instant): Boolean = terminal(ReminderStatus.COMPLETED)
+        override fun complete(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
+            it.copy(status = ReminderStatus.COMPLETED, version = it.version + 1)
+        }
         override fun expire(id: String, at: Instant): Boolean = terminal(ReminderStatus.EXPIRED)
+        fun force(status: ReminderStatus) {
+            reminder = reminder?.let { it.copy(status = status, version = it.version + 1) }
+        }
         private fun update(expectedVersion: Long, transform: (Reminder) -> Reminder): Boolean {
             val current = reminder ?: return false
             if (current.version != expectedVersion || current.status !in deliverable) return false
@@ -212,7 +284,11 @@ class ReminderDeliveryTest {
     private companion object {
         val UTC = TimeZone.UTC
         fun instant(value: String): Instant = Instant.parse(value)
-        fun reminder(endDate: LocalDate = LocalDate(2026, 9, 2)) = Reminder(
+        fun reminder(
+            endDate: LocalDate = LocalDate(2026, 9, 2),
+            status: ReminderStatus = ReminderStatus.ACTIVE,
+            version: Long = 0,
+        ) = Reminder(
             id = "bill",
             content = "Pay credit card",
             startDate = LocalDate(2026, 9, 2),
@@ -220,9 +296,9 @@ class ReminderDeliveryTest {
             firstReminderTime = LocalTime(10, 0),
             activeDayRule = ReminderActiveDayRule.Daily,
             profile = ReminderProfileSnapshot.strong(),
-            status = ReminderStatus.ACTIVE,
+            status = status,
             timeZone = UTC,
-            version = 0,
+            version = version,
         )
     }
 }

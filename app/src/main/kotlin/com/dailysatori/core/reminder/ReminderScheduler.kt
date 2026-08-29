@@ -43,11 +43,11 @@ class HybridReminderScheduler(
             fallback.schedule(request)
             return
         }
+        fallback.schedule(request)
         try {
             exact.schedule(request)
         } catch (_: SecurityException) {
             exact.cancel(id)
-            fallback.schedule(request)
         }
     }
 

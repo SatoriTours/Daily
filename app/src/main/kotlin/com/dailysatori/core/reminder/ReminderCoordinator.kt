@@ -23,9 +23,9 @@ interface ReminderDeliveryStore {
     fun get(id: String): Reminder?
     fun active(now: Instant): List<Reminder>
     fun state(id: String): ReminderState?
-    fun markDelivered(id: String, expectedVersion: Long, at: Instant): Boolean
+    fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long?
     fun markDismissed(id: String, expectedVersion: Long, at: Instant): Boolean
-    fun complete(id: String, at: Instant): Boolean
+    fun complete(id: String, expectedVersion: Long, at: Instant): Boolean
     fun expire(id: String, at: Instant): Boolean
 }
 
@@ -37,9 +37,12 @@ class RepositoryReminderDeliveryStore(
         repository.observeAll().first().filter { it.status in activeStatuses }
     }
     override fun state(id: String) = repository.state(id)
-    override fun markDelivered(id: String, expectedVersion: Long, at: Instant) = repository.markDelivered(id, expectedVersion, at)
+    override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long? {
+        if (!repository.markDelivered(id, expectedVersion, at)) return null
+        return expectedVersion + 1
+    }
     override fun markDismissed(id: String, expectedVersion: Long, at: Instant) = repository.markDismissed(id, expectedVersion, at)
-    override fun complete(id: String, at: Instant) = repository.complete(id, at)
+    override fun complete(id: String, expectedVersion: Long, at: Instant) = repository.complete(id, expectedVersion, at)
     override fun expire(id: String, at: Instant) = repository.expire(id, at)
 
     private companion object {
@@ -57,6 +60,11 @@ class ReminderCoordinator(
 ) {
     @Synchronized
     fun recompute(id: String) {
+        notifier.cancel(id)
+        recomputeSchedule(id)
+    }
+
+    private fun recomputeSchedule(id: String) {
         scheduler.cancel(id)
         val reminder = store.get(id) ?: return
         val decision = engine.next(reminder.toScheduleInput(clock.now(), store.state(id)))
@@ -75,37 +83,43 @@ class ReminderCoordinator(
     fun deliver(id: String, expectedVersion: Long) {
         val now = clock.now()
         val reminder = store.get(id) ?: return
+        if (reminder.version != expectedVersion) return
         if (!reminder.isEligibleAt(now)) {
             if (now.toLocalDateTime(reminder.timeZone).date > reminder.endDate) store.expire(id, now)
             scheduler.cancel(id)
-            if (store.get(id)?.status !in terminalStatuses) recompute(id)
+            if (store.get(id)?.status !in terminalStatuses) recomputeSchedule(id)
             return
         }
-        if (!store.markDelivered(id, expectedVersion, now)) {
-            recompute(id)
-            return
-        }
+        val deliveredVersion = store.markDelivered(id, expectedVersion, now) ?: return
         try {
-            val delivered = store.get(id) ?: return
-            notifier.post(ReminderNotificationPost(delivered, ReminderNotificationPolicy.forDelivery(delivered, now)))
+            val current = store.get(id)
+            if (current?.version != deliveredVersion || current.status != ReminderStatus.NOTIFIED) {
+                notifier.cancel(id)
+                return
+            }
+            notifier.post(ReminderNotificationPost(current, ReminderNotificationPolicy.forDelivery(current, now)))
         } finally {
-            recompute(id)
+            recomputeSchedule(id)
         }
     }
 
     @Synchronized
     fun dismiss(id: String, version: Long): Boolean {
         val changed = store.markDismissed(id, version, clock.now())
-        notifier.cancel(id)
-        recompute(id)
+        if (changed) {
+            notifier.cancel(id)
+            recomputeSchedule(id)
+        }
         return changed
     }
 
     @Synchronized
-    fun complete(id: String): Boolean {
-        val changed = store.complete(id, clock.now())
-        scheduler.cancel(id)
-        notifier.cancel(id)
+    fun complete(id: String, version: Long): Boolean {
+        val changed = store.complete(id, version, clock.now())
+        if (changed) {
+            scheduler.cancel(id)
+            notifier.cancel(id)
+        }
         return changed
     }
 

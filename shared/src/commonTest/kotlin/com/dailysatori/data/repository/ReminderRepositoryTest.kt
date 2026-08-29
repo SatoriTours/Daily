@@ -56,6 +56,15 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun staleNotificationCannotCompleteANewerGeneration() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(id = "stale-complete"), strongProfile())
+        assertTrue(repo.markDelivered(reminder.id, reminder.version, now))
+
+        assertFalse(repo.complete(reminder.id, reminder.version, now))
+        assertEquals(ReminderStatus.NOTIFIED, repo.get(reminder.id)?.status)
+    }
+
+    @Test
     fun optimisticVersionRejectsStaleDismissal() = withRepository { repo ->
         val reminder = repo.createConfirmed(draft(), strongProfile())
         assertTrue(repo.markDelivered(reminder.id, reminder.version, now))

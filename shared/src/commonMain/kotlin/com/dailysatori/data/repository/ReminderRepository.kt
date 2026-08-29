@@ -119,6 +119,20 @@ class ReminderRepository(
 
     fun complete(id: String, at: Instant = Clock.System.now()): Boolean = terminalTransition(id, ReminderStatus.COMPLETED, at, "completed")
 
+    fun complete(id: String, expectedVersion: Long, at: Instant): Boolean = transition(id, expectedVersion, at) { row ->
+        if (row.status in terminalStatuses) return@transition null
+        Lifecycle(
+            ReminderStatus.COMPLETED,
+            row.state_date?.let(LocalDate::parse),
+            row.dismissal_count.toInt(),
+            row.last_notified_at,
+            row.last_dismissed_at,
+            at.toEpochMilliseconds(),
+            null,
+            "completed",
+        )
+    }
+
     fun expire(id: String, at: Instant = Clock.System.now()): Boolean = terminalTransition(id, ReminderStatus.EXPIRED, at, "expired")
 
     fun pause(id: String, at: Instant = Clock.System.now()): Boolean = simpleTransition(id, ReminderStatus.PAUSED, at, "paused")

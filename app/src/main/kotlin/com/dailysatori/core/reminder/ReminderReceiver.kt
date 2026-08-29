@@ -17,7 +17,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     ACTION_DELIVER -> withIdentity(intent) { id, version -> coordinator.deliver(id, version) }
                     ACTION_DISMISS -> withIdentity(intent) { id, version -> coordinator.dismiss(id, version) }
-                    ACTION_COMPLETE -> intent.getStringExtra(EXTRA_REMINDER_ID)?.let(coordinator::complete)
+                    ACTION_COMPLETE -> withIdentity(intent) { id, version -> coordinator.complete(id, version) }
                     else -> if (intent.action in RESTORE_ACTIONS) coordinator.recomputeAll()
                 }
             } finally {
