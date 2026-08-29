@@ -87,8 +87,11 @@ class ReminderRepository(
 
     fun observeAll(): Flow<List<Reminder>> = q.selectAllReminders().asFlow().mapToList(Dispatchers.IO).map { rows -> rows.map { it.toReminder() } }
 
-    fun activeAt(now: Instant): List<Reminder> = q.selectActiveRemindersAt(now.toLocalDateTime(timeZone).date.toString())
-        .executeAsList().map { it.toReminder() }.filter { it.activeDayRule.isActiveOn(now.toLocalDateTime(it.timeZone).date) }
+    fun activeAt(now: Instant): List<Reminder> = q.selectActiveReminders().executeAsList().map { it.toReminder() }
+        .filter { reminder ->
+            val date = now.toLocalDateTime(reminder.timeZone).date
+            date in reminder.startDate..reminder.endDate && reminder.activeDayRule.isActiveOn(date)
+        }
 
     fun state(id: String): ReminderState? = q.selectReminderById(id).executeAsOneOrNull()?.let {
         ReminderState(it.dismissal_count.toInt(), it.state_date?.let(LocalDate::parse))
@@ -128,7 +131,7 @@ class ReminderRepository(
         val start = edit.startDate ?: LocalDate.parse(row.start_date)
         val end = edit.endDate ?: LocalDate.parse(row.end_date)
         if (end < start) return@transactionWithResult false
-        if (q.updateReminderEditableIfVersion(edit.content ?: row.content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), (edit.activeDayRule ?: row.active_day_rule.decode()).encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).executeAsOneOrNull() == null) return@transactionWithResult false
+        if (q.updateReminderEditableIfVersion(edit.content ?: row.content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), (edit.activeDayRule ?: row.active_day_rule.decode()).encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         recordEvent(id, "edited", at)
         true
     }
@@ -168,7 +171,7 @@ class ReminderRepository(
     }
 
     private fun saveLifecycle(row: com.dailysatori.shared.db.Reminder, state: Lifecycle, at: Instant): Boolean {
-        if (q.updateReminderLifecycleIfVersion(state.status.name, row.version + 1, state.stateDate?.toString(), state.dismissalCount.toLong(), state.lastNotifiedAt, state.lastDismissedAt, state.completedAt, state.nextOccurrenceAt, at.toEpochMilliseconds(), row.id, row.version).executeAsOneOrNull() == null) return false
+        if (q.updateReminderLifecycleIfVersion(state.status.name, row.version + 1, state.stateDate?.toString(), state.dismissalCount.toLong(), state.lastNotifiedAt, state.lastDismissedAt, state.completedAt, state.nextOccurrenceAt, at.toEpochMilliseconds(), row.id, row.version).value != 1L) return false
         insertBoundedEvent(row.id, state.eventType, at, emptyMap(), null)
         return true
     }

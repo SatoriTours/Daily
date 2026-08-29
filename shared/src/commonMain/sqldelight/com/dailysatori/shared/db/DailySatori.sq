@@ -1960,16 +1960,16 @@ SELECT * FROM reminder WHERE id = ?;
 selectAllReminders:
 SELECT * FROM reminder ORDER BY created_at DESC;
 
-selectActiveRemindersAt:
+selectActiveReminders:
 SELECT * FROM reminder
-WHERE status IN ('ACTIVE', 'NOTIFIED', 'DISMISSED') AND ? BETWEEN start_date AND end_date
+WHERE status IN ('ACTIVE', 'NOTIFIED', 'DISMISSED')
 ORDER BY next_occurrence_at ASC, created_at ASC;
 
 updateReminderLifecycleIfVersion:
-UPDATE reminder SET status = ?, version = ?, state_date = ?, dismissal_count = ?, last_notified_at = ?, last_dismissed_at = ?, completed_at = ?, next_occurrence_at = ?, updated_at = ? WHERE id = ? AND version = ? RETURNING version;
+UPDATE reminder SET status = ?, version = ?, state_date = ?, dismissal_count = ?, last_notified_at = ?, last_dismissed_at = ?, completed_at = ?, next_occurrence_at = ?, updated_at = ? WHERE id = ? AND version = ?;
 
 updateReminderEditableIfVersion:
-UPDATE reminder SET content = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, profile_json = ?, version = ?, updated_at = ? WHERE id = ? AND version = ? RETURNING version;
+UPDATE reminder SET content = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, profile_json = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?;
 
 insertReminderEvent:
 INSERT INTO reminder_event (reminder_id, event_type, scheduled_at, actual_at, metadata_json) VALUES (?, ?, ?, ?, ?);

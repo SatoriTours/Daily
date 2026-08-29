@@ -92,6 +92,21 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun activeAtUsesEachRemindersTimezoneAtDateBoundary() = withDatabase { db ->
+        val kiritimati = ReminderRepository(db, TimeZone.of("Pacific/Kiritimati"))
+        val utcReader = ReminderRepository(db, TimeZone.UTC)
+        val reminder = kiritimati.createConfirmed(
+            draft(id = "kiritimati", rule = ReminderActiveDayRule.Daily).copy(
+                startDate = LocalDate(2026, 8, 31),
+                endDate = LocalDate(2026, 8, 31),
+            ),
+            strongProfile(),
+        )
+
+        assertEquals(listOf(reminder.id), utcReader.activeAt(Instant.parse("2026-08-30T12:00:00Z")).map { it.id })
+    }
+
+    @Test
     fun conditionalUpdateRejectsVersionChangedAfterRead() = withRepository { repo ->
         val reminder = repo.createConfirmed(draft(), strongProfile())
         repo.complete(reminder.id)
@@ -112,9 +127,13 @@ class ReminderRepositoryTest {
     private fun strongProfile() = ReminderProfileSnapshot.strong()
 
     private fun withRepository(block: (ReminderRepository) -> Unit) {
+        withDatabase { db -> block(ReminderRepository(db, TimeZone.UTC)) }
+    }
+
+    private fun withDatabase(block: (DailySatoriDatabase) -> Unit) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
-        block(ReminderRepository(DailySatoriDatabase(driver), TimeZone.UTC))
+        block(DailySatoriDatabase(driver))
         driver.close()
     }
 }
