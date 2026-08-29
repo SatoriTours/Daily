@@ -19,10 +19,14 @@ data class ReminderScheduleRequest(
     val id: String,
     val expectedVersion: Long,
     val at: Instant,
+    val kind: ReminderOccurrenceKind = ReminderOccurrenceKind.DELIVERY,
 )
+
+enum class ReminderOccurrenceKind { DELIVERY, CUTOFF }
 
 interface ReminderScheduler {
     fun schedule(id: String, expectedVersion: Long, at: Instant)
+    fun scheduleCutoff(id: String, expectedVersion: Long, at: Instant) = schedule(id, expectedVersion, at)
     fun cancel(id: String)
 }
 
@@ -37,8 +41,15 @@ class HybridReminderScheduler(
     private val fallback: ReminderScheduleBackend,
 ) : ReminderScheduler {
     override fun schedule(id: String, expectedVersion: Long, at: Instant) {
-        cancel(id)
-        val request = ReminderScheduleRequest(id, expectedVersion, at)
+        schedule(ReminderScheduleRequest(id, expectedVersion, at))
+    }
+
+    override fun scheduleCutoff(id: String, expectedVersion: Long, at: Instant) {
+        schedule(ReminderScheduleRequest(id, expectedVersion, at, ReminderOccurrenceKind.CUTOFF))
+    }
+
+    private fun schedule(request: ReminderScheduleRequest) {
+        cancel(request.id)
         if (!exactAllowed()) {
             fallback.schedule(request)
             return
@@ -47,7 +58,7 @@ class HybridReminderScheduler(
         try {
             exact.schedule(request)
         } catch (_: SecurityException) {
-            exact.cancel(id)
+            exact.cancel(request.id)
         }
     }
 
@@ -65,29 +76,33 @@ class ExactAlarmReminderScheduler(
 
     override fun schedule(request: ReminderScheduleRequest) {
         cancel(request.id)
-        val identity = ReminderIntentIdentity.delivery(request.id, request.expectedVersion)
+        val identity = request.identity()
         alarmManager.setExactAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             request.at.toEpochMilliseconds(),
-            deliveryIntent(identity, request.id, request.expectedVersion),
+            deliveryIntent(identity, request),
         )
-        preferences.edit().putLong(request.id, request.expectedVersion).apply()
+        preferences.edit()
+            .putLong(request.id, request.expectedVersion)
+            .putString("${request.id}:kind", request.kind.name)
+            .apply()
     }
 
     override fun cancel(id: String) {
         if (!preferences.contains(id)) return
         val version = preferences.getLong(id, 0)
-        val identity = ReminderIntentIdentity.delivery(id, version)
-        alarmManager.cancel(deliveryIntent(identity, id, version))
-        preferences.edit().remove(id).apply()
+        val kind = preferences.getString("$id:kind", null)?.let(ReminderOccurrenceKind::valueOf) ?: ReminderOccurrenceKind.DELIVERY
+        val request = ReminderScheduleRequest(id, version, Instant.DISTANT_PAST, kind)
+        alarmManager.cancel(deliveryIntent(request.identity(), request))
+        preferences.edit().remove(id).remove("$id:kind").apply()
     }
 
-    private fun deliveryIntent(identity: ReminderIntentIdentity, id: String, version: Long): PendingIntent {
+    private fun deliveryIntent(identity: ReminderIntentIdentity, request: ReminderScheduleRequest): PendingIntent {
         val intent = Intent(context, ReminderReceiver::class.java)
-            .setAction(ReminderReceiver.ACTION_DELIVER)
+            .setAction(if (request.kind == ReminderOccurrenceKind.CUTOFF) ReminderReceiver.ACTION_CUTOFF else ReminderReceiver.ACTION_DELIVER)
             .setData(Uri.parse(identity.uri))
-            .putExtra(ReminderReceiver.EXTRA_REMINDER_ID, id)
-            .putExtra(ReminderReceiver.EXTRA_EXPECTED_VERSION, version)
+            .putExtra(ReminderReceiver.EXTRA_REMINDER_ID, request.id)
+            .putExtra(ReminderReceiver.EXTRA_EXPECTED_VERSION, request.expectedVersion)
         return PendingIntent.getBroadcast(
             context,
             identity.requestCode,
@@ -111,6 +126,7 @@ class WorkManagerReminderScheduler(
         val data = Data.Builder()
             .putString(ReminderWorker.KEY_REMINDER_ID, request.id)
             .putLong(ReminderWorker.KEY_EXPECTED_VERSION, request.expectedVersion)
+            .putString(ReminderWorker.KEY_OCCURRENCE_KIND, request.kind.name)
             .build()
         val delay = (request.at.toEpochMilliseconds() - clock.now().toEpochMilliseconds()).coerceAtLeast(0)
         val work = OneTimeWorkRequestBuilder<ReminderWorker>()
@@ -134,6 +150,7 @@ data class ReminderIntentIdentity(
 ) {
     companion object {
         fun delivery(id: String, version: Long): ReminderIntentIdentity = create("deliver", id, version)
+        fun cutoff(id: String, version: Long): ReminderIntentIdentity = create("cutoff", id, version)
         fun dismiss(id: String, version: Long): ReminderIntentIdentity = create("dismiss", id, version)
         fun complete(id: String, version: Long): ReminderIntentIdentity = create("complete", id, version)
         fun view(id: String, version: Long): ReminderIntentIdentity = create("view", id, version)
@@ -145,3 +162,7 @@ data class ReminderIntentIdentity(
         }
     }
 }
+
+private fun ReminderScheduleRequest.identity(): ReminderIntentIdentity =
+    if (kind == ReminderOccurrenceKind.CUTOFF) ReminderIntentIdentity.cutoff(id, expectedVersion)
+    else ReminderIntentIdentity.delivery(id, expectedVersion)

@@ -37,6 +37,8 @@ import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
+import com.dailysatori.service.reminder.ReminderProfileKind
+import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.datetime.LocalDate
@@ -54,6 +56,7 @@ fun ReminderDraftCard(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    profiles: List<ReminderProfile> = defaultCardProfiles(),
 ) {
     if (state.cancelled) return
     var picker by remember { mutableStateOf<DraftPicker?>(null) }
@@ -98,34 +101,43 @@ fun ReminderDraftCard(
             }
             Text(stringResource(R.string.reminder_profile_strength))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf(stringResource(R.string.reminder_profile_strong) to ReminderProfileSnapshot.strong(), stringResource(R.string.reminder_profile_standard) to ReminderProfileSnapshot.standard(), stringResource(R.string.reminder_profile_gentle) to ReminderProfileSnapshot.gentle()).forEach { (label, profile) ->
-                    FilterChip(selected = state.profile?.kind == profile.kind, onClick = { onChange(state.editProfile(profile.withRulesFrom(state.profile))) }, label = { Text(label) })
+                profiles.forEach { profile ->
+                    FilterChip(
+                        selected = state.profileId == profile.id,
+                        onClick = { onChange(state.selectProfile(profile)) },
+                        label = { Text(profile.cardLabel()) },
+                    )
                 }
             }
             state.profile?.let { profile ->
-                ToggleRow(stringResource(R.string.reminder_sound), profile.soundEnabled) { onChange(state.editProfile(profile.copy(soundEnabled = it))) }
-                ToggleRow(stringResource(R.string.reminder_vibration), profile.vibrationEnabled) { onChange(state.editProfile(profile.copy(vibrationEnabled = it))) }
+                ToggleRow(stringResource(R.string.reminder_sound), profile.soundEnabled) { onChange(state.updateProfile(profile.copy(soundEnabled = it))) }
+                ToggleRow(stringResource(R.string.reminder_vibration), profile.vibrationEnabled) { onChange(state.updateProfile(profile.copy(vibrationEnabled = it))) }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    ReminderImportance.entries.forEach { value -> FilterChip(selected = profile.importance == value, onClick = { onChange(state.editProfile(profile.copy(importance = value))) }, label = { Text(value.label()) }) }
+                    ReminderImportance.entries.forEach { value -> FilterChip(selected = profile.importance == value, onClick = { onChange(state.updateProfile(profile.copy(importance = value))) }, label = { Text(value.label()) }) }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = profile.lockScreenVisibility == value, onClick = { onChange(state.editProfile(profile.copy(lockScreenVisibility = value))) }, label = { Text(value.label()) }) }
+                    ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = profile.lockScreenVisibility == value, onClick = { onChange(state.updateProfile(profile.copy(lockScreenVisibility = value))) }, label = { Text(value.label()) }) }
                 }
                 OutlinedTextField(
-                    value = profile.daytimeDismissalBackoffMinutes.joinToString(","),
-                    onValueChange = { input -> onChange(state.editProfile(profile.copy(daytimeDismissalBackoffMinutes = input.split(',').mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..1_440 }.take(8)))) },
+                    value = state.daytimeBackoffInput,
+                    onValueChange = { input -> onChange(state.editBackoffInput(input)) },
                     label = { Text(stringResource(R.string.reminder_backoff_minutes)) },
+                    isError = ReminderDraftField.ADVANCED_PROFILE in state.validationErrors,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = profile.eveningIntervalMinutes?.toString().orEmpty(),
-                    onValueChange = { input -> onChange(state.editProfile(profile.copy(eveningIntervalMinutes = input.toIntOrNull()?.takeIf { it in 1..1_440 }))) },
+                    value = state.eveningIntervalInput,
+                    onValueChange = { input -> onChange(state.editEveningIntervalInput(input)) },
                     label = { Text(stringResource(R.string.reminder_evening_interval_optional)) },
+                    isError = ReminderDraftField.ADVANCED_PROFILE in state.validationErrors,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (ReminderDraftField.ADVANCED_PROFILE in state.validationErrors) {
+                    Text(stringResource(R.string.reminder_profile_invalid), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     kotlinx.datetime.DayOfWeek.entries.forEach { day ->
-                        FilterChip(selected = day in profile.workDays, onClick = { onChange(state.editProfile(profile.copy(workDays = if (day in profile.workDays) profile.workDays - day else profile.workDays + day))) }, label = { Text(day.shortLabel()) })
+                        FilterChip(selected = day in profile.workDays, onClick = { onChange(state.updateProfile(profile.copy(workDays = if (day in profile.workDays) profile.workDays - day else profile.workDays + day))) }, label = { Text(day.shortLabel()) })
                     }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -168,12 +180,12 @@ fun ReminderDraftCard(
             TimeDialog(initial, { picker = null }) { selected ->
                 onChange(when (current) {
                     DraftPicker.FIRST_TIME -> state.editFirstTime(selected)
-                    DraftPicker.SLEEP_START -> state.editProfile(profile.copy(sleepStart = selected))
-                    DraftPicker.SLEEP_END -> state.editProfile(profile.copy(sleepEnd = selected))
-                    DraftPicker.WORK_START -> state.editProfile(profile.copy(workStart = selected))
-                    DraftPicker.WORK_END -> state.editProfile(profile.copy(workEnd = selected))
-                    DraftPicker.EVENING_START -> state.editProfile(profile.copy(eveningStart = selected))
-                    else -> state.editProfile(profile.copy(dailyCutoff = selected))
+                    DraftPicker.SLEEP_START -> state.updateProfile(profile.copy(sleepStart = selected))
+                    DraftPicker.SLEEP_END -> state.updateProfile(profile.copy(sleepEnd = selected))
+                    DraftPicker.WORK_START -> state.updateProfile(profile.copy(workStart = selected))
+                    DraftPicker.WORK_END -> state.updateProfile(profile.copy(workEnd = selected))
+                    DraftPicker.EVENING_START -> state.updateProfile(profile.copy(eveningStart = selected))
+                    else -> state.updateProfile(profile.copy(dailyCutoff = selected))
                 })
                 picker = null
             }
@@ -190,9 +202,19 @@ private fun ToggleRow(label: String, checked: Boolean, onChecked: (Boolean) -> U
     }
 }
 
-private fun ReminderProfileSnapshot.withRulesFrom(old: ReminderProfileSnapshot?) = old?.let {
-    copy(sleepStart = it.sleepStart, sleepEnd = it.sleepEnd, workDays = it.workDays, workStart = it.workStart, workEnd = it.workEnd, dailyCutoff = it.dailyCutoff)
-} ?: this
+private fun defaultCardProfiles() = listOf(
+    ReminderProfile("builtin-strong", "Strong", ReminderProfileKind.STRONG, ReminderProfileSnapshot.strong()),
+    ReminderProfile("builtin-standard", "Standard", ReminderProfileKind.STANDARD, ReminderProfileSnapshot.standard()),
+    ReminderProfile("builtin-gentle", "Gentle", ReminderProfileKind.GENTLE, ReminderProfileSnapshot.gentle()),
+)
+
+@Composable
+private fun ReminderProfile.cardLabel(): String = when (kind) {
+    ReminderProfileKind.STRONG -> stringResource(R.string.reminder_profile_strong)
+    ReminderProfileKind.STANDARD -> stringResource(R.string.reminder_profile_standard)
+    ReminderProfileKind.GENTLE -> stringResource(R.string.reminder_profile_gentle)
+    ReminderProfileKind.CUSTOM -> name
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

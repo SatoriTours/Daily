@@ -68,6 +68,21 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun dailyCutoffTransitionIsDurableResetsBackoffAndRejectsStaleGeneration() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(id = "cutoff"), strongProfile())
+        assertTrue(repo.markDismissed(reminder.id, reminder.version, now))
+        val dismissed = repo.get(reminder.id)!!
+
+        assertTrue(repo.advanceCutoff(dismissed.id, dismissed.version, now, LocalDate(2026, 8, 30), ReminderStatus.ACTIVE))
+
+        val rolled = repo.get(reminder.id)!!
+        assertEquals(ReminderStatus.ACTIVE, rolled.status)
+        assertEquals(dismissed.version + 1, rolled.version)
+        assertEquals(0, repo.state(reminder.id)?.dismissalCount)
+        assertFalse(repo.advanceCutoff(rolled.id, dismissed.version, now, LocalDate(2026, 8, 30), ReminderStatus.ACTIVE))
+    }
+
+    @Test
     fun optimisticVersionRejectsStaleDismissal() = withRepository { repo ->
         val reminder = repo.createConfirmed(draft(), strongProfile())
         assertTrue(repo.markDelivered(reminder.id, reminder.version, now))

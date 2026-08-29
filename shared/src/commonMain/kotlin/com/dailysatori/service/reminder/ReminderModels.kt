@@ -95,5 +95,9 @@ sealed interface ReminderScheduleDecision {
         val soundEnabled: Boolean = !silent,
         val vibrationEnabled: Boolean = !silent,
     ) : ReminderScheduleDecision
+    data class Cutoff(
+        val at: Instant,
+        val expectedVersion: Long,
+    ) : ReminderScheduleDecision
     data class None(val status: ReminderStatus) : ReminderScheduleDecision
 }

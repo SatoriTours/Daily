@@ -32,6 +32,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.dailysatori.core.navigation.DailySatoriNavHost
+import com.dailysatori.core.navigation.ReminderRoute
+import com.dailysatori.core.reminder.ReminderOpenRequest
 import com.dailysatori.ui.feature.settings.SettingsState
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.UpdateDownloadProgress
@@ -58,6 +60,7 @@ fun DailySatoriApp(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val reminderOpenId by ReminderOpenRequest.state.pending.collectAsState()
 
     LaunchedEffect(Unit) {
         upgradeViewModel.checkUpdateAutomatically()
@@ -68,6 +71,12 @@ fun DailySatoriApp(
             viewModel.handleSharedText(sharedText)
             onSharedTextHandled()
         }
+    }
+
+    LaunchedEffect(reminderOpenId) {
+        val id = reminderOpenId ?: return@LaunchedEffect
+        navController.navigate(ReminderRoute(id)) { launchSingleTop = true }
+        ReminderOpenRequest.state.consume(id)
     }
 
     DisposableEffect(lifecycleOwner, launchedFromShare) {

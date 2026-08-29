@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.dailysatori.core.reminder.ReminderRecoveryController
+import com.dailysatori.core.reminder.handleReminderViewIntent
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.AsyncTaskRepository
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
         reminderRecovery.startup()
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)
+        handleReminderViewIntent(intent)
         pruneOldAsyncTasks()
         enableEdgeToEdge()
         setContent {
@@ -48,6 +50,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)
+        handleReminderViewIntent(intent)
     }
 
     private fun handleOAuthIntent(intent: Intent?) {

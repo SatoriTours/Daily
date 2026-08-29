@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,11 +39,15 @@ fun ReminderListScreen(
     modifier: Modifier = Modifier,
     latestProfile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard(),
     viewModel: ReminderViewModel = koinViewModel(),
+    initialReminderId: String? = null,
 ) {
     val ui by viewModel.state.collectAsState()
     val all by viewModel.reminders.collectAsState()
     val visible = remember(all, ui.filter) { filterReminders(all, ui.filter) }
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
+    LaunchedEffect(initialReminderId) {
+        if (initialReminderId != null) viewModel.selectReminder(initialReminderId)
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             ReminderFilter.entries.forEach { filter ->

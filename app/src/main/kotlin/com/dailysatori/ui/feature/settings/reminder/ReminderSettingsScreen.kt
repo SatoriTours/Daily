@@ -54,6 +54,7 @@ private enum class ProfileTimeField { EVENING_START, CUTOFF }
 fun ReminderSettingsScreen(
     onBack: () -> Unit,
     viewModel: ReminderSettingsViewModel = koinViewModel(),
+    initialReminderId: String? = null,
 ) {
     val state by viewModel.state.collectAsState()
     var timeField by remember { mutableStateOf<SettingsTimeField?>(null) }
@@ -113,7 +114,10 @@ fun ReminderSettingsScreen(
             ProfileRows(state.profiles, viewModel)
             Button(onClick = { viewModel.editProfile() }) { Text(stringResource(R.string.reminder_new_custom_profile)) }
             Text(stringResource(R.string.reminder_list_section), style = MaterialTheme.typography.titleMedium)
-            ReminderListScreen(latestProfile = latestProfile ?: com.dailysatori.service.reminder.ReminderProfileSnapshot.standard())
+            ReminderListScreen(
+                latestProfile = latestProfile ?: com.dailysatori.service.reminder.ReminderProfileSnapshot.standard(),
+                initialReminderId = initialReminderId,
+            )
         }
     }
 

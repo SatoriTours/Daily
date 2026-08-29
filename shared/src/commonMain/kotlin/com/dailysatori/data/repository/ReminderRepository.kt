@@ -179,6 +179,17 @@ class ReminderRepository(
 
     fun expire(id: String, at: Instant = Clock.System.now()): Boolean = terminalTransition(id, ReminderStatus.EXPIRED, at, "expired")
 
+    fun expire(id: String, expectedVersion: Long, at: Instant): Boolean = transition(id, expectedVersion, at) { row ->
+        if (row.status !in deliverableStatuses) return@transition null
+        Lifecycle(ReminderStatus.EXPIRED, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.completed_at, null, "expired")
+    }
+
+    fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: LocalDate, nextStatus: ReminderStatus): Boolean = transition(id, expectedVersion, at) { row ->
+        if (row.status !in deliverableStatuses) return@transition null
+        require(nextStatus == ReminderStatus.ACTIVE || nextStatus == ReminderStatus.NOTIFIED)
+        Lifecycle(nextStatus, cycleDate, 0, row.last_notified_at, row.last_dismissed_at, row.completed_at, null, "daily_cutoff")
+    }
+
     fun pause(id: String, at: Instant = Clock.System.now()): Boolean = simpleTransition(id, ReminderStatus.PAUSED, at, "paused")
 
     fun resume(id: String, at: Instant = Clock.System.now()): Boolean = simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")

@@ -206,6 +206,61 @@ class ReminderDeliveryTest {
         assertNull(fixture.scheduler.pending["bill"])
     }
 
+    @Test
+    fun finalSlotActionsStayCurrentUntilCutoffThenExpireWithoutPosting() {
+        val fixture = fixture(now = "2026-09-02T23:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 2))
+
+        fixture.coordinator.recompute("bill")
+        assertEquals(ReminderOccurrenceKind.CUTOFF, fixture.scheduler.pending.getValue("bill").kind)
+        assertTrue(fixture.coordinator.complete("bill", 2))
+
+        val cutoff = fixture(now = "2026-09-03T00:00:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 2))
+        cutoff.coordinator.cutoff("bill", 2)
+        assertEquals(ReminderStatus.EXPIRED, cutoff.store.get("bill")?.status)
+        assertTrue(cutoff.notifier.posts.isEmpty())
+    }
+
+    @Test
+    fun finalSlotDismissRemainsCurrentAndReschedulesOnlyTheCutoff() {
+        val fixture = fixture(now = "2026-09-02T23:05:00Z", reminder = reminder(status = ReminderStatus.NOTIFIED, version = 2))
+
+        assertTrue(fixture.coordinator.dismiss("bill", 2))
+
+        assertEquals(ReminderStatus.DISMISSED, fixture.store.get("bill")?.status)
+        assertEquals(3, fixture.store.get("bill")?.version)
+        assertEquals(ReminderOccurrenceKind.CUTOFF, fixture.scheduler.pending.getValue("bill").kind)
+        assertEquals(instant("2026-09-03T00:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+    }
+
+    @Test
+    fun cutoffRollsMultiDayReminderAndResetsGenerationWithoutPosting() {
+        val fixture = fixture(
+            now = "2026-09-03T00:00:00Z",
+            reminder = reminder(endDate = LocalDate(2026, 9, 4), status = ReminderStatus.NOTIFIED, version = 2),
+        )
+
+        fixture.coordinator.cutoff("bill", 2)
+
+        assertEquals(ReminderStatus.ACTIVE, fixture.store.get("bill")?.status)
+        assertEquals(3, fixture.store.get("bill")?.version)
+        assertEquals(instant("2026-09-03T10:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+        assertTrue(fixture.notifier.posts.isEmpty())
+    }
+
+    @Test
+    fun wrappingQuietHoursCutoffRollsThenSchedulesNextDayWake() {
+        val wrap = ReminderProfileSnapshot.strong().copy(sleepStart = LocalTime(22, 0), sleepEnd = LocalTime(9, 0))
+        val fixture = fixture(
+            now = "2026-09-03T00:00:00Z",
+            reminder = reminder(endDate = LocalDate(2026, 9, 3), status = ReminderStatus.NOTIFIED, version = 2, profile = wrap),
+        )
+
+        fixture.coordinator.cutoff("bill", 2)
+
+        assertEquals(instant("2026-09-03T09:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+        assertEquals(ReminderOccurrenceKind.DELIVERY, fixture.scheduler.pending.getValue("bill").kind)
+    }
+
     private fun fixture(
         now: String,
         reminder: Reminder = reminder(),
@@ -239,6 +294,9 @@ class ReminderDeliveryTest {
         val pending = mutableMapOf<String, ReminderScheduleRequest>()
         override fun schedule(id: String, expectedVersion: Long, at: Instant) {
             pending[id] = ReminderScheduleRequest(id, expectedVersion, at)
+        }
+        override fun scheduleCutoff(id: String, expectedVersion: Long, at: Instant) {
+            pending[id] = ReminderScheduleRequest(id, expectedVersion, at, ReminderOccurrenceKind.CUTOFF)
         }
         override fun cancel(id: String) { pending.remove(id) }
     }
@@ -285,6 +343,13 @@ class ReminderDeliveryTest {
             it.copy(status = ReminderStatus.COMPLETED, version = it.version + 1)
         }
         override fun expire(id: String, at: Instant): Boolean = terminal(ReminderStatus.EXPIRED)
+        override fun expire(id: String, expectedVersion: Long, at: Instant): Boolean = update(expectedVersion) {
+            it.copy(status = ReminderStatus.EXPIRED, version = it.version + 1)
+        }
+        override fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: LocalDate, nextStatus: ReminderStatus): Boolean = update(expectedVersion) {
+            state = ReminderState(0, cycleDate)
+            it.copy(status = nextStatus, version = it.version + 1)
+        }
         fun force(status: ReminderStatus) {
             reminder = reminder?.let { it.copy(status = status, version = it.version + 1) }
         }

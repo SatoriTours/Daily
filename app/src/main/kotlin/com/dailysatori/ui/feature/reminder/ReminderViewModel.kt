@@ -12,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.data.repository.ReminderRepository
+import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
@@ -33,7 +34,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.DayOfWeek
 
-enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, ACTIVE_DAY_RULE, PROFILE }
+enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, ACTIVE_DAY_RULE, PROFILE, ADVANCED_PROFILE }
 
 data class ReminderConfirmationPayload(
     val draft: ReminderDraft,
@@ -52,6 +53,9 @@ data class ReminderDraftUiState(
     val firstReminderTime: LocalTime?,
     val activeDayRule: ReminderActiveDayRule,
     val profile: ReminderProfileSnapshot?,
+    val profileId: String? = null,
+    val daytimeBackoffInput: String = profile?.daytimeDismissalBackoffMinutes?.joinToString(",").orEmpty(),
+    val eveningIntervalInput: String = profile?.eveningIntervalMinutes?.toString().orEmpty(),
     val saving: Boolean = false,
     val confirmed: Boolean = false,
     val cancelled: Boolean = false,
@@ -65,6 +69,7 @@ data class ReminderDraftUiState(
             if (firstReminderTime == null) add(ReminderDraftField.FIRST_TIME)
             if (activeDayRule is ReminderActiveDayRule.SelectedWeekdays && activeDayRule.days.isEmpty()) add(ReminderDraftField.ACTIVE_DAY_RULE)
             if (profile == null) add(ReminderDraftField.PROFILE)
+            if (parseDraftBackoff(daytimeBackoffInput) == null || !parseDraftEveningInterval(eveningIntervalInput).valid) add(ReminderDraftField.ADVANCED_PROFILE)
         }
     val canConfirm: Boolean get() = validationErrors.isEmpty() && !saving && !confirmed && !cancelled
     val shouldPersist: Boolean get() = !cancelled
@@ -78,7 +83,36 @@ data class ReminderDraftUiState(
     fun editDates(start: LocalDate?, end: LocalDate?) = copy(startDate = start, endDate = end, notice = null)
     fun editFirstTime(value: LocalTime?) = copy(firstReminderTime = value, notice = null)
     fun editActiveDayRule(value: ReminderActiveDayRule) = copy(activeDayRule = value, notice = null)
-    fun editProfile(value: ReminderProfileSnapshot?) = copy(profile = value?.copy(), notice = null)
+    fun editProfile(value: ReminderProfileSnapshot?) = copy(
+        profile = value?.copy(),
+        daytimeBackoffInput = value?.daytimeDismissalBackoffMinutes?.joinToString(",").orEmpty(),
+        eveningIntervalInput = value?.eveningIntervalMinutes?.toString().orEmpty(),
+        notice = null,
+    )
+    fun updateProfile(value: ReminderProfileSnapshot?) = copy(profile = value?.copy(), notice = null)
+    fun selectProfile(value: ReminderProfile) = copy(
+        profile = value.snapshot.copy(),
+        profileId = value.id,
+        daytimeBackoffInput = value.snapshot.daytimeDismissalBackoffMinutes.joinToString(","),
+        eveningIntervalInput = value.snapshot.eveningIntervalMinutes?.toString().orEmpty(),
+        notice = null,
+    )
+    fun editBackoffInput(value: String): ReminderDraftUiState {
+        val parsed = parseDraftBackoff(value)
+        return copy(
+            daytimeBackoffInput = value,
+            profile = if (parsed != null) profile?.copy(daytimeDismissalBackoffMinutes = parsed) else profile,
+            notice = null,
+        )
+    }
+    fun editEveningIntervalInput(value: String): ReminderDraftUiState {
+        val parsed = parseDraftEveningInterval(value)
+        return copy(
+            eveningIntervalInput = value,
+            profile = if (parsed.valid) profile?.copy(eveningIntervalMinutes = parsed.value) else profile,
+            notice = null,
+        )
+    }
     fun beginConfirmation(): ReminderConfirmationStart =
         if (!canConfirm) ReminderConfirmationStart(this, false) else ReminderConfirmationStart(copy(saving = true), true)
     fun cancel() = copy(cancelled = true, saving = false)
@@ -92,7 +126,11 @@ data class ReminderDraftUiState(
     }
 
     companion object {
-        fun from(draft: ReminderDraft, fallbackProfile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard()) = ReminderDraftUiState(
+        fun from(
+            draft: ReminderDraft,
+            fallbackProfile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard(),
+            fallbackProfileId: String = "builtin-standard",
+        ) = ReminderDraftUiState(
             id = draft.id,
             content = draft.content,
             startDate = draft.startDate,
@@ -110,8 +148,31 @@ data class ReminderDraftUiState(
                 importance = fallbackProfile.importance,
                 lockScreenVisibility = fallbackProfile.lockScreenVisibility,
             ) ?: fallbackProfile.copy(),
+            profileId = draft.profile?.kind?.builtInId() ?: fallbackProfileId,
         )
     }
+}
+
+private data class ParsedInterval(val valid: Boolean, val value: Int?)
+
+private fun parseDraftBackoff(value: String): List<Int>? {
+    if (value.isBlank()) return emptyList()
+    val tokens = value.split(',').map(String::trim)
+    if (tokens.size > 8 || tokens.any(String::isEmpty)) return null
+    return tokens.map { it.toIntOrNull() ?: return null }.takeIf { values -> values.all { it in 1..1_440 } }
+}
+
+private fun parseDraftEveningInterval(value: String): ParsedInterval {
+    if (value.isBlank()) return ParsedInterval(true, null)
+    val parsed = value.toIntOrNull()
+    return ParsedInterval(parsed != null && parsed in 1..1_440, parsed?.takeIf { it in 1..1_440 })
+}
+
+private fun com.dailysatori.service.reminder.ReminderProfileKind.builtInId(): String? = when (this) {
+    com.dailysatori.service.reminder.ReminderProfileKind.STRONG -> "builtin-strong"
+    com.dailysatori.service.reminder.ReminderProfileKind.STANDARD -> "builtin-standard"
+    com.dailysatori.service.reminder.ReminderProfileKind.GENTLE -> "builtin-gentle"
+    com.dailysatori.service.reminder.ReminderProfileKind.CUSTOM -> null
 }
 
 enum class ReminderFilter { ACTIVE, PAUSED, COMPLETED, EXPIRED }
@@ -151,12 +212,18 @@ class ReminderViewModel(
     val state: StateFlow<ReminderUiState> = _state
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val profiles: StateFlow<List<ReminderProfile>> = repository.observeProfiles()
+        .map { custom -> builtInProfiles() + custom }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInProfiles() + repository.profiles())
     val visibleReminders: StateFlow<List<Reminder>> = combine(reminders, state) { items, ui -> filterReminders(items, ui.filter) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun registerDraft(draft: ReminderDraft) {
         _state.update { current ->
-            if (draft.id in current.drafts) current else current.copy(drafts = current.drafts + (draft.id to ReminderDraftUiState.from(draft, defaultProfileSnapshot())))
+            if (draft.id in current.drafts) current else {
+                val default = defaultProfile()
+                current.copy(drafts = current.drafts + (draft.id to ReminderDraftUiState.from(draft, default.snapshot, default.id)))
+            }
         }
     }
 
@@ -223,16 +290,13 @@ class ReminderViewModel(
         }
     }
 
-    private fun defaultProfileSnapshot(): ReminderProfileSnapshot {
+    private fun defaultProfile(): ReminderProfile {
         val defaultId = settingRepository.get("reminder.default_profile") ?: "builtin-standard"
-        val base = repository.getProfile(defaultId)?.snapshot ?: when (defaultId) {
-            "builtin-strong" -> ReminderProfileSnapshot.strong()
-            "builtin-gentle" -> ReminderProfileSnapshot.gentle()
-            else -> ReminderProfileSnapshot.standard()
-        }
+        val selected = repository.getProfile(defaultId) ?: builtInProfiles().firstOrNull { it.id == defaultId } ?: builtInProfiles()[1]
+        val base = selected.snapshot
         fun time(key: String, fallback: LocalTime) = settingRepository.get(key)?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: fallback
         val workDays = settingRepository.get("reminder.work_days")?.split(',')?.mapNotNull { runCatching { DayOfWeek.valueOf(it) }.getOrNull() }?.toSet().orEmpty().ifEmpty { base.workDays }
-        return base.copy(
+        return selected.copy(snapshot = base.copy(
             sleepStart = time("reminder.sleep_start", base.sleepStart),
             sleepEnd = time("reminder.sleep_end", base.sleepEnd),
             workDays = workDays,
@@ -242,8 +306,14 @@ class ReminderViewModel(
             vibrationEnabled = settingRepository.get("reminder.vibration")?.toBooleanStrictOrNull() ?: base.vibrationEnabled,
             importance = settingRepository.get("reminder.importance")?.let { runCatching { ReminderImportance.valueOf(it) }.getOrNull() } ?: base.importance,
             lockScreenVisibility = settingRepository.get("reminder.visibility")?.let { runCatching { ReminderLockScreenVisibility.valueOf(it) }.getOrNull() } ?: base.lockScreenVisibility,
-        )
+        ))
     }
+
+    private fun builtInProfiles() = listOf(
+        ReminderProfile("builtin-strong", "Strong", com.dailysatori.service.reminder.ReminderProfileKind.STRONG, ReminderProfileSnapshot.strong()),
+        ReminderProfile("builtin-standard", "Standard", com.dailysatori.service.reminder.ReminderProfileKind.STANDARD, ReminderProfileSnapshot.standard()),
+        ReminderProfile("builtin-gentle", "Gentle", com.dailysatori.service.reminder.ReminderProfileKind.GENTLE, ReminderProfileSnapshot.gentle()),
+    )
 
     private fun deliveryNotice(): ReminderDraftNotice? {
         val runtimePermission = Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED

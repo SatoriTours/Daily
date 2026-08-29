@@ -18,6 +18,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 val coordinator = GlobalContext.get().get<ReminderCoordinator>()
                 when (intent.action) {
                     ACTION_DELIVER -> withIdentity(intent) { id, version -> coordinator.deliver(id, version) }
+                    ACTION_CUTOFF -> withIdentity(intent) { id, version -> coordinator.cutoff(id, version) }
                     ACTION_DISMISS -> withIdentity(intent) { id, version -> coordinator.dismiss(id, version) }
                     ACTION_COMPLETE -> withIdentity(intent) { id, version -> coordinator.complete(id, version) }
                     in REMINDER_RESTORE_ACTIONS -> coordinator.recomputeAll()
@@ -37,6 +38,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_DELIVER = "com.dailysatori.reminder.DELIVER"
+        const val ACTION_CUTOFF = "com.dailysatori.reminder.CUTOFF"
         const val ACTION_DISMISS = "com.dailysatori.reminder.DISMISS"
         const val ACTION_COMPLETE = "com.dailysatori.reminder.COMPLETE"
         const val EXTRA_REMINDER_ID = "reminder_id"

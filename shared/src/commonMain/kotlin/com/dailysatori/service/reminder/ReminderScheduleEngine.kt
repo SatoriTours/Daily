@@ -24,13 +24,16 @@ class ReminderScheduleEngine {
         }
         val firstAt = at(input, localNow.date, input.firstReminderTime)
         if (isSleepTime(localNow.time, input.profile) && (isDueBeforeWake(cycleInput, firstAt) || isSleepTime(input.firstReminderTime, input.profile))) {
+            if (input.profile.sleepStart > input.profile.sleepEnd && localNow.time >= input.profile.sleepStart) {
+                return scheduleCutoff(input, localNow.date)
+            }
             return scheduleAt(input, localNow.date, input.profile.sleepEnd, ReminderDeliveryReason.WAKE_RECOVERY)
         }
 
         if (localNow.time >= input.profile.eveningStart) {
             return nextEveningTime(localNow.time, input.profile)?.let {
                 scheduleAt(input, localNow.date, it, ReminderDeliveryReason.EVENING_REINFORCEMENT)
-            } ?: scheduleNextActiveDate(input, localNow.date, inclusive = false)
+            } ?: scheduleCutoff(input, localNow.date)
         }
         if (input.now < firstAt) return schedule(input, firstAt, ReminderDeliveryReason.INITIAL)
         return when (cycleInput.status) {
@@ -46,7 +49,7 @@ class ReminderScheduleEngine {
             ?: input.profile.daytimeDismissalBackoffMinutes.lastOrNull()
             ?: return nextEveningTime(input.now.toLocalDateTime(input.timeZone).time, input.profile)?.let {
                 scheduleAt(input, date, it, ReminderDeliveryReason.EVENING_REINFORCEMENT)
-            } ?: ReminderScheduleDecision.None(ReminderStatus.ACTIVE)
+            } ?: scheduleCutoff(input, date)
         return nextDaytime(input, input.now.plus(minutes, DateTimeUnit.MINUTE, input.timeZone), ReminderDeliveryReason.DISMISSAL_BACKOFF)
     }
 
@@ -57,7 +60,7 @@ class ReminderScheduleEngine {
         if (local.date != current.date || local.time >= input.profile.eveningStart) {
             return evening?.let {
                 scheduleAt(input, current.date, it, ReminderDeliveryReason.EVENING_REINFORCEMENT)
-            } ?: scheduleNextActiveDate(input, current.date, inclusive = false)
+            } ?: scheduleCutoff(input, current.date)
         }
         return schedule(input, candidate, reason)
     }
@@ -88,9 +91,22 @@ class ReminderScheduleEngine {
     private fun LocalTime.toMinutes(): Int = hour * 60 + minute
 
     private fun scheduleAt(input: ReminderScheduleInput, date: LocalDate, time: LocalTime, reason: ReminderDeliveryReason): ReminderScheduleDecision {
+        val wrapsToNextDay = input.profile.sleepStart > input.profile.sleepEnd && time >= input.profile.sleepStart
+        val normalizedDate = if (isSleepTime(time, input.profile) && wrapsToNextDay) date.plus(1, DateTimeUnit.DAY) else date
         val normalizedTime = if (isSleepTime(time, input.profile)) input.profile.sleepEnd else time
         val normalizedReason = if (normalizedTime == time) reason else ReminderDeliveryReason.WAKE_RECOVERY
-        return schedule(input, at(input, date, normalizedTime), normalizedReason)
+        if (normalizedDate > input.endDate) return scheduleCutoff(input, date)
+        if (normalizedDate != date && !isActiveDate(normalizedDate, input)) return scheduleCutoff(input, date)
+        return schedule(input, at(input, normalizedDate, normalizedTime), normalizedReason)
+    }
+
+    private fun scheduleCutoff(input: ReminderScheduleInput, date: LocalDate): ReminderScheduleDecision {
+        val cutoffAt = if (input.profile.dailyCutoff == LocalTime(0, 0)) {
+            date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(input.timeZone)
+        } else {
+            at(input, date, input.profile.dailyCutoff)
+        }
+        return ReminderScheduleDecision.Cutoff(cutoffAt, input.expectedVersion)
     }
 
     private fun schedule(input: ReminderScheduleInput, at: Instant, reason: ReminderDeliveryReason): ReminderScheduleDecision {

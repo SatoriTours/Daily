@@ -102,6 +102,7 @@ class AndroidReminderNotification(
             identity.requestCode,
             Intent(context, MainActivity::class.java)
                 .setAction(ReminderCoordinator.ACTION_VIEW_REMINDER)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .setData(Uri.parse(identity.uri))
                 .putExtra(ReminderCoordinator.EXTRA_REMINDER_ID, reminder.id),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

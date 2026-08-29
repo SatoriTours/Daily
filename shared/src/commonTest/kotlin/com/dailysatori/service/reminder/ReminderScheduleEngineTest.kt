@@ -97,9 +97,46 @@ class ReminderScheduleEngineTest {
         assertSchedule("2026-09-02T23:00", engine.next(input(
             now = local("2026-09-02T22:05"), dismissals = 2, profile = profile,
         )))
-        assertEquals(ReminderStatus.EXPIRED, assertIs<ReminderScheduleDecision.None>(engine.next(input(
+        assertCutoff("2026-09-03T00:00", engine.next(input(
             now = local("2026-09-02T23:05"), dismissals = 2, profile = profile,
-        ))).status)
+        )))
+    }
+
+    @Test fun finalVisibleSlotRemainsActionableUntilDurableCutoffTransition() {
+        val afterFinalSlot = engine.next(input(now = local("2026-09-02T23:05"), status = ReminderStatus.NOTIFIED))
+
+        assertCutoff("2026-09-03T00:00", afterFinalSlot)
+        assertEquals(ReminderStatus.EXPIRED, assertIs<ReminderScheduleDecision.None>(
+            engine.next(input(now = local("2026-09-03T00:00"), status = ReminderStatus.NOTIFIED)),
+        ).status)
+    }
+
+    @Test fun cutoffTransitionRollsMultipleDaysWithoutPosting() {
+        val decision = engine.next(input(
+            now = local("2026-09-02T23:05"),
+            endDate = LocalDate.parse("2026-09-04"),
+            status = ReminderStatus.NOTIFIED,
+        ))
+
+        assertCutoff("2026-09-03T00:00", decision)
+    }
+
+    @Test fun wrappingQuietHoursWakeOnNextDayAndRespectFinalBoundary() {
+        val wrap = ReminderProfileSnapshot.strong().copy(
+            sleepStart = LocalTime.parse("22:00"),
+            sleepEnd = LocalTime.parse("09:00"),
+        )
+        assertCutoff("2026-09-03T00:00", engine.next(input(
+            now = local("2026-09-02T23:00"),
+            endDate = LocalDate.parse("2026-09-03"),
+            status = ReminderStatus.NOTIFIED,
+            profile = wrap,
+        )))
+        assertCutoff("2026-09-03T00:00", engine.next(input(
+            now = local("2026-09-02T23:00"),
+            status = ReminderStatus.NOTIFIED,
+            profile = wrap,
+        )))
     }
 
     @Test fun customProfileDrivesBackoffAndEveningConfiguration() {
@@ -138,9 +175,9 @@ class ReminderScheduleEngineTest {
             eveningIntervalMinutes = 60,
             dailyCutoff = LocalTime.parse("21:00"),
         )
-        assertEquals(ReminderStatus.EXPIRED, assertIs<ReminderScheduleDecision.None>(engine.next(input(
+        assertCutoff("2026-09-02T21:00", engine.next(input(
             now = local("2026-09-02T20:00"), dismissals = 1, profile = profile,
-        ))).status)
+        )))
     }
 
     @Test fun pausedCompletedAndExpiredAreTerminal() {
@@ -184,5 +221,9 @@ class ReminderScheduleEngineTest {
 
     private fun assertSchedule(expected: String, actual: ReminderScheduleDecision) {
         assertEquals(local(expected), assertIs<ReminderScheduleDecision.Schedule>(actual).at)
+    }
+
+    private fun assertCutoff(expected: String, actual: ReminderScheduleDecision) {
+        assertEquals(local(expected), assertIs<ReminderScheduleDecision.Cutoff>(actual).at)
     }
 }

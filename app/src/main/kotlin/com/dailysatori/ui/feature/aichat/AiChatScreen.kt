@@ -80,6 +80,7 @@ fun AiChatScreen(
     val state by viewModel.state.collectAsState()
     val referenceDetailState by referenceDetailViewModel.state.collectAsState()
     val reminderState by reminderViewModel.state.collectAsState()
+    val reminderProfiles by reminderViewModel.profiles.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showReferenceSheet by remember { mutableStateOf(false) }
@@ -218,6 +219,7 @@ fun AiChatScreen(
                                 onChange = { updated -> reminderViewModel.updateDraft(draft.id) { updated } },
                                 onConfirm = { reminderViewModel.confirmDraft(draft.id) },
                                 onCancel = { reminderViewModel.cancelDraft(draft.id) },
+                                profiles = reminderProfiles,
                             )
                         }
                     }

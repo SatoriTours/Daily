@@ -15,7 +15,9 @@ import com.dailysatori.service.reminder.ReminderStatus
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,8 @@ interface ReminderDeliveryStore {
     fun complete(id: String, at: Instant): Boolean
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean
     fun expire(id: String, at: Instant): Boolean
+    fun expire(id: String, expectedVersion: Long, at: Instant): Boolean = false
+    fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus): Boolean = false
 }
 
 class RepositoryReminderDeliveryStore(
@@ -50,6 +54,9 @@ class RepositoryReminderDeliveryStore(
     override fun complete(id: String, at: Instant) = repository.complete(id, at)
     override fun complete(id: String, expectedVersion: Long, at: Instant) = repository.complete(id, expectedVersion, at)
     override fun expire(id: String, at: Instant) = repository.expire(id, at)
+    override fun expire(id: String, expectedVersion: Long, at: Instant) = repository.expire(id, expectedVersion, at)
+    override fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus) =
+        repository.advanceCutoff(id, expectedVersion, at, cycleDate, nextStatus)
 
     private companion object {
         val activeStatuses = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
@@ -82,6 +89,7 @@ class ReminderCoordinator(
         val decision = engine.next(reminder.toScheduleInput(clock.now(), store.state(id)))
         when (decision) {
             is ReminderScheduleDecision.Schedule -> scheduler.schedule(id, decision.expectedVersion, decision.at)
+            is ReminderScheduleDecision.Cutoff -> scheduler.scheduleCutoff(id, decision.expectedVersion, decision.at)
             is ReminderScheduleDecision.None -> if (decision.status == ReminderStatus.EXPIRED) store.expire(id, clock.now())
         }
     }
@@ -116,6 +124,26 @@ class ReminderCoordinator(
     }
 
     @Synchronized
+    fun cutoff(id: String, expectedVersion: Long) {
+        val now = clock.now()
+        val reminder = store.get(id)?.inCurrentTimeZone() ?: return
+        if (reminder.version != expectedVersion || reminder.status !in deliverableStatuses) return
+        val local = now.toLocalDateTime(reminder.timeZone)
+        val cycleDate = if (reminder.profile.dailyCutoff == LocalTime(0, 0)) local.date.minus(1, DateTimeUnit.DAY) else local.date
+        val changed = if (cycleDate >= reminder.endDate) {
+            store.expire(id, expectedVersion, now)
+        } else {
+            val wrapsQuietHours = reminder.profile.sleepStart > reminder.profile.sleepEnd
+            val nextStatus = if (wrapsQuietHours && reminder.status == ReminderStatus.NOTIFIED) ReminderStatus.NOTIFIED else ReminderStatus.ACTIVE
+            store.advanceCutoff(id, expectedVersion, now, local.date, nextStatus)
+        }
+        if (changed) {
+            scheduler.cancel(id)
+            if (cycleDate >= reminder.endDate) notifier.cancel(id) else recomputeSchedule(id)
+        }
+    }
+
+    @Synchronized
     fun dismiss(id: String, version: Long): Boolean {
         val reminder = store.get(id) ?: return false
         val changed = store.markDismissed(id, version, clock.now(), reminder.currentTimeZone())
@@ -146,6 +174,7 @@ class ReminderCoordinator(
         val appContext = checkNotNull(context) { "Android context is required for view intents" }
         return Intent(appContext, MainActivity::class.java)
             .setAction(ACTION_VIEW_REMINDER)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .setData(Uri.parse("dailysatori://reminder/view/${Uri.encode(id)}"))
             .putExtra(EXTRA_REMINDER_ID, id)
     }

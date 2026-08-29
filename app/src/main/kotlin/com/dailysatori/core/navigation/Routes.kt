@@ -9,4 +9,5 @@ import kotlinx.serialization.Serializable
 @Serializable data object AiConfigRoute
 @Serializable data class AiConfigEditRoute(val configId: Long? = null)
 @Serializable data object SettingsRoute
+@Serializable data class ReminderRoute(val reminderId: String)
 @Serializable data class ShareDialogRoute(val url: String)

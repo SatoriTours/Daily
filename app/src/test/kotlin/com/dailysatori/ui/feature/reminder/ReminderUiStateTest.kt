@@ -8,6 +8,7 @@ import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderStatus
+import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsState
 import com.dailysatori.ui.feature.settings.reminder.ReminderProfileEditorState
 import com.dailysatori.ui.feature.settings.reminder.ReminderDeliveryAccess
@@ -155,6 +156,34 @@ class ReminderUiStateTest {
         assertFalse(base.editBackoffInput("0,240").isValid)
         assertEquals(listOf(120, 240), base.editBackoffInput("120,240").daytimeBackoffMinutes)
         assertTrue(base.editBackoffInput("120,240").isValid)
+    }
+
+    @Test
+    fun draftAdvancedInputsPreserveMalformedTextAndDisableConfirmation() {
+        val malformedBackoff = validDraftState().editBackoffInput("120,abc")
+        val malformedEvening = validDraftState().editEveningIntervalInput("oops")
+        val outOfRangeEvening = validDraftState().editEveningIntervalInput("1441")
+
+        assertEquals("120,abc", malformedBackoff.daytimeBackoffInput)
+        assertFalse(malformedBackoff.canConfirm)
+        assertEquals("oops", malformedEvening.eveningIntervalInput)
+        assertFalse(malformedEvening.canConfirm)
+        assertFalse(outOfRangeEvening.canConfirm)
+    }
+
+    @Test
+    fun persistedCustomProfileCanBeSelectedAndConfirmationKeepsItsSnapshot() {
+        val customSnapshot = ReminderProfileSnapshot.strong().copy(
+            kind = ReminderProfileKind.CUSTOM,
+            daytimeDismissalBackoffMinutes = listOf(15, 45),
+        )
+        val custom = ReminderProfile("custom-focus", "Focus", ReminderProfileKind.CUSTOM, customSnapshot)
+        val selected = validDraftState().selectProfile(custom)
+        val laterEdited = custom.copy(snapshot = custom.snapshot.copy(daytimeDismissalBackoffMinutes = listOf(90)))
+
+        assertEquals("custom-focus", selected.profileId)
+        assertEquals(listOf(15, 45), selected.confirmationPayload()!!.profileSnapshot.daytimeDismissalBackoffMinutes)
+        assertEquals(listOf(90), laterEdited.snapshot.daytimeDismissalBackoffMinutes)
     }
 
     @Test

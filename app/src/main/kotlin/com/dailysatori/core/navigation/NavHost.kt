@@ -19,6 +19,7 @@ import com.dailysatori.ui.feature.book.BookContentSearchScreen
 import com.dailysatori.ui.feature.book.BookSearchScreen
 import com.dailysatori.ui.feature.home.HomeScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
+import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogScreen
 
@@ -201,6 +202,14 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             },
         ) {
             SettingsScreen(settingsViewModel)
+        }
+
+        composable<ReminderRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ReminderRoute>()
+            ReminderSettingsScreen(
+                onBack = { navController.popBackStack() },
+                initialReminderId = route.reminderId,
+            )
         }
 
         composable<ShareDialogRoute>(
