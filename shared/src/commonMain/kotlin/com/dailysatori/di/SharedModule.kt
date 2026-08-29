@@ -51,9 +51,14 @@ import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
+import com.dailysatori.service.diary.DiaryKnowledgeEnricher
+import com.dailysatori.service.diary.DiaryAssistantService
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
+import com.dailysatori.service.diary.DiaryLinkContentExtractor
+import com.dailysatori.service.diary.DefaultDiaryLinkContentExtractor
 import com.dailysatori.service.diary.OpenAiCompatibleSpeechTranscriptionClient
 import com.dailysatori.service.diary.SpeechTranscriptionClient
+import com.dailysatori.service.diary.diaryAssistantCompletion
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
@@ -165,6 +170,25 @@ val sharedModule: Module = module {
 
     // Webpage parser service (content processing pipeline)
     single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single<DiaryLinkContentExtractor> { DefaultDiaryLinkContentExtractor(get<WebpageParserService>()) }
+    single<DiaryKnowledgeEnricher> {
+        val mcpServers: McpServerRepository = get()
+        val remoteMcp: RemoteMcpClient = get()
+        val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get())
+        DiaryKnowledgeEnricher(
+            collectWebNotes = { query ->
+                remoteMcp.collectWebSearchNotes(
+                    mcpServers.getEnabled().filter { it.server_url.startsWith("http", ignoreCase = true) },
+                    query,
+                )
+            },
+            complete = complete,
+        )
+    }
+    single<DiaryAssistantService> {
+        val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get())
+        DiaryAssistantService(get(), get(), complete)
+    }
 
     // Book search service
     single { DoubanSuggestSearchEngine(get()) }
