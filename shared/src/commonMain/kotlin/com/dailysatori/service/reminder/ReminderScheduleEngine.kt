@@ -23,7 +23,7 @@ class ReminderScheduleEngine {
             return scheduleNextActiveDate(input, localNow.date, inclusive = false)
         }
         val firstAt = at(input, localNow.date, input.firstReminderTime)
-        if (isSleepTime(localNow.time, input.profile) && isDueBeforeWake(cycleInput, firstAt)) {
+        if (isSleepTime(localNow.time, input.profile) && (isDueBeforeWake(cycleInput, firstAt) || isSleepTime(input.firstReminderTime, input.profile))) {
             return scheduleAt(input, localNow.date, input.profile.sleepEnd, ReminderDeliveryReason.WAKE_RECOVERY)
         }
 
@@ -52,7 +52,10 @@ class ReminderScheduleEngine {
 
     private fun nextDaytime(input: ReminderScheduleInput, candidate: Instant, reason: ReminderDeliveryReason): ReminderScheduleDecision {
         val local = candidate.toLocalDateTime(input.timeZone)
-        return if (local.date == input.now.toLocalDateTime(input.timeZone).date && local.time >= input.profile.eveningStart) {
+        val currentDate = input.now.toLocalDateTime(input.timeZone).date
+        return if (local.date != currentDate && hasEveningPolicy(input.profile)) {
+            scheduleAt(input, currentDate, input.profile.eveningStart, ReminderDeliveryReason.EVENING_REINFORCEMENT)
+        } else if (local.time >= input.profile.eveningStart && hasEveningPolicy(input.profile)) {
             scheduleAt(input, local.date, input.profile.eveningStart, ReminderDeliveryReason.EVENING_REINFORCEMENT)
         } else schedule(input, candidate, reason)
     }
@@ -67,7 +70,8 @@ class ReminderScheduleEngine {
     }
 
     private fun nextEveningTime(now: LocalTime, profile: ReminderProfileSnapshot): LocalTime? {
-        val interval = profile.eveningIntervalMinutes ?: return if (profile.kind == ReminderProfileKind.GENTLE && now < profile.eveningStart) profile.eveningStart else null
+        profile.eveningTimes.filter { it > now }.minOrNull()?.let { return it }
+        val interval = profile.eveningIntervalMinutes ?: return null
         if (now < profile.eveningStart) return null
         val startMinutes = profile.eveningStart.hour * 60 + profile.eveningStart.minute
         val nowMinutes = now.hour * 60 + now.minute
@@ -81,7 +85,10 @@ class ReminderScheduleEngine {
 
     private fun schedule(input: ReminderScheduleInput, at: Instant, reason: ReminderDeliveryReason): ReminderScheduleDecision {
         val local = at.toLocalDateTime(input.timeZone)
-        return ReminderScheduleDecision.Schedule(at, local.date.dayOfWeek in input.profile.workDays && local.time >= input.profile.workStart && local.time < input.profile.workEnd, reason, input.expectedVersion)
+        val workHours = local.date.dayOfWeek in input.profile.workDays && local.time >= input.profile.workStart && local.time < input.profile.workEnd
+        val soundEnabled = input.profile.soundEnabled && !workHours
+        val vibrationEnabled = input.profile.vibrationEnabled && !workHours
+        return ReminderScheduleDecision.Schedule(at, !soundEnabled && !vibrationEnabled, reason, input.expectedVersion, soundEnabled, vibrationEnabled)
     }
 
     private fun at(input: ReminderScheduleInput, date: LocalDate, time: LocalTime): Instant = LocalDateTime(date, time).toInstant(input.timeZone)
@@ -97,6 +104,9 @@ class ReminderScheduleEngine {
 
     private fun isDueBeforeWake(input: ReminderScheduleInput, firstAt: Instant): Boolean =
         input.status == ReminderStatus.NOTIFIED || (input.status == ReminderStatus.DISMISSED && (input.dismissalCount > 0 || input.now >= firstAt))
+
+    private fun hasEveningPolicy(profile: ReminderProfileSnapshot): Boolean =
+        profile.eveningIntervalMinutes != null || profile.eveningTimes.isNotEmpty()
 
     private companion object { val terminalStatuses = setOf(ReminderStatus.DRAFT, ReminderStatus.PAUSED, ReminderStatus.COMPLETED, ReminderStatus.EXPIRED) }
 }

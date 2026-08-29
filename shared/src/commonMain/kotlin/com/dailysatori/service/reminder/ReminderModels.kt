@@ -22,6 +22,7 @@ data class ReminderProfileSnapshot(
     val daytimeDismissalBackoffMinutes: List<Int>,
     val eveningStart: LocalTime = LocalTime(22, 0),
     val eveningIntervalMinutes: Int? = 60,
+    val eveningTimes: Set<LocalTime> = emptySet(),
     val dailyCutoff: LocalTime = LocalTime(0, 0),
     val soundEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
@@ -33,8 +34,8 @@ data class ReminderProfileSnapshot(
 ) {
     companion object {
         fun strong() = ReminderProfileSnapshot(ReminderProfileKind.STRONG, listOf(120, 240))
-        fun standard() = ReminderProfileSnapshot(ReminderProfileKind.STANDARD, listOf(120, 240))
-        fun gentle() = ReminderProfileSnapshot(ReminderProfileKind.GENTLE, emptyList(), eveningIntervalMinutes = null, soundEnabled = false, vibrationEnabled = false)
+        fun standard() = ReminderProfileSnapshot(ReminderProfileKind.STANDARD, listOf(120, 240), eveningIntervalMinutes = null, eveningTimes = setOf(LocalTime(22, 0), LocalTime(23, 0)))
+        fun gentle() = ReminderProfileSnapshot(ReminderProfileKind.GENTLE, emptyList(), eveningIntervalMinutes = null, eveningTimes = setOf(LocalTime(22, 0)), soundEnabled = false, vibrationEnabled = false)
     }
 }
 
@@ -78,6 +79,13 @@ data class ReminderScheduleInput(
 )
 
 sealed interface ReminderScheduleDecision {
-    data class Schedule(val at: Instant, val silent: Boolean, val reason: ReminderDeliveryReason, val expectedVersion: Long) : ReminderScheduleDecision
+    data class Schedule(
+        val at: Instant,
+        val silent: Boolean,
+        val reason: ReminderDeliveryReason,
+        val expectedVersion: Long,
+        val soundEnabled: Boolean = !silent,
+        val vibrationEnabled: Boolean = !silent,
+    ) : ReminderScheduleDecision
     data class None(val status: ReminderStatus) : ReminderScheduleDecision
 }
