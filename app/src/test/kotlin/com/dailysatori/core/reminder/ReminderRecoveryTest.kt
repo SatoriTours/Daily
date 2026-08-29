@@ -269,7 +269,7 @@ class ReminderRecoveryTest {
             exposeTerminalAsActive || it.status in deliverable
         }
         override fun state(id: String): ReminderState? = states[id]
-        override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long? {
+        override fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Long? {
             val current = reminders[id] ?: return null
             if (current.version != expectedVersion || current.status !in deliverable) return null
             val next = current.copy(status = ReminderStatus.NOTIFIED, version = current.version + 1)

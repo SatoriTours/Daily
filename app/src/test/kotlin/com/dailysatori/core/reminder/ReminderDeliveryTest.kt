@@ -13,6 +13,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -261,6 +262,26 @@ class ReminderDeliveryTest {
         assertEquals(ReminderOccurrenceKind.DELIVERY, fixture.scheduler.pending.getValue("bill").kind)
     }
 
+    @Test
+    fun cutoffAcrossInactiveDaysDoesNotImmediatelyRedeliverAfterNextActiveDelivery() {
+        val weekdays = reminder(
+            endDate = LocalDate(2026, 9, 7),
+            status = ReminderStatus.NOTIFIED,
+            version = 2,
+            activeDayRule = ReminderActiveDayRule.Weekdays,
+        )
+        val fixture = fixture(now = "2026-09-05T00:00:00Z", reminder = weekdays)
+
+        fixture.coordinator.cutoff("bill", 2)
+        assertEquals(instant("2026-09-07T10:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+
+        fixture.clock.now = instant("2026-09-07T10:00:00Z")
+        fixture.coordinator.deliver("bill", 3)
+
+        assertEquals(1, fixture.notifier.posts.size)
+        assertEquals(instant("2026-09-07T11:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+    }
+
     private fun fixture(
         now: String,
         reminder: Reminder = reminder(),
@@ -325,9 +346,10 @@ class ReminderDeliveryTest {
         override fun get(id: String): Reminder? = reminder?.takeIf { it.id == id }
         override fun active(now: Instant): List<Reminder> = listOfNotNull(reminder).filter { it.status in deliverable }
         override fun state(id: String): ReminderState? = state.takeIf { reminder?.id == id }
-        override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long? {
+        override fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Long? {
             var delivered: Reminder? = null
             val changed = update(expectedVersion) {
+                state = ReminderState(state.dismissalCount, at.toLocalDateTime(timeZone).date)
                 it.copy(status = ReminderStatus.NOTIFIED, version = it.version + 1).also { next -> delivered = next }
             }
             if (!changed) return null
@@ -378,13 +400,14 @@ class ReminderDeliveryTest {
             status: ReminderStatus = ReminderStatus.ACTIVE,
             version: Long = 0,
             profile: ReminderProfileSnapshot = ReminderProfileSnapshot.strong(),
+            activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
         ) = Reminder(
             id = "bill",
             content = "Pay credit card",
             startDate = LocalDate(2026, 9, 2),
             endDate = endDate,
             firstReminderTime = LocalTime(10, 0),
-            activeDayRule = ReminderActiveDayRule.Daily,
+            activeDayRule = activeDayRule,
             profile = profile,
             status = status,
             timeZone = UTC,

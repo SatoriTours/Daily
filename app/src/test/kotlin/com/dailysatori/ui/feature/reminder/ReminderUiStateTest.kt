@@ -187,6 +187,31 @@ class ReminderUiStateTest {
     }
 
     @Test
+    fun selectingBuiltInProfilePreservesCurrentGlobalScheduleRules() {
+        val current = validDraftState().updateProfile(
+            ReminderProfileSnapshot.standard().copy(
+                sleepStart = LocalTime(22, 0),
+                sleepEnd = LocalTime(8, 30),
+                workDays = setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY),
+                workStart = LocalTime(10, 0),
+                workEnd = LocalTime(16, 0),
+                dailyCutoff = LocalTime(23, 30),
+            ),
+        )
+        val selected = current.selectProfile(
+            ReminderProfile("builtin-strong", "Strong", ReminderProfileKind.STRONG, ReminderProfileSnapshot.strong()),
+        )
+
+        assertEquals(listOf(120, 240), selected.profile!!.daytimeDismissalBackoffMinutes)
+        assertEquals(LocalTime(22, 0), selected.profile.sleepStart)
+        assertEquals(LocalTime(8, 30), selected.profile.sleepEnd)
+        assertEquals(setOf(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY), selected.profile.workDays)
+        assertEquals(LocalTime(10, 0), selected.profile.workStart)
+        assertEquals(LocalTime(16, 0), selected.profile.workEnd)
+        assertEquals(LocalTime(23, 30), selected.profile.dailyCutoff)
+    }
+
+    @Test
     fun deliveryAccessControllerCombinesRuntimeAndSystemNotificationStateAndRefreshes() {
         var runtimePermission = true
         var systemEnabled = false

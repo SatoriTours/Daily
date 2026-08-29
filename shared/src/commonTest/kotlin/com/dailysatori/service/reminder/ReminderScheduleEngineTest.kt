@@ -1,6 +1,7 @@
 package com.dailysatori.service.reminder
 
 import kotlinx.datetime.Instant
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -136,6 +137,26 @@ class ReminderScheduleEngineTest {
             now = local("2026-09-02T23:00"),
             status = ReminderStatus.NOTIFIED,
             profile = wrap,
+        )))
+    }
+
+    @Test fun wrappingQuietHoursSkipInactiveDaysAndWakeOnNextActiveDate() {
+        val wrap = ReminderProfileSnapshot.strong().copy(
+            sleepStart = LocalTime.parse("22:00"),
+            sleepEnd = LocalTime.parse("09:00"),
+        )
+
+        assertSchedule("2026-09-07T09:00", engine.next(ReminderScheduleInput(
+            now = local("2026-09-05T00:00"),
+            timeZone = zone,
+            startDate = LocalDate.parse("2026-09-04"),
+            endDate = LocalDate.parse("2026-09-07"),
+            firstReminderTime = LocalTime.parse("10:00"),
+            activeDayRule = ReminderActiveDayRule.Weekdays,
+            profile = wrap,
+            status = ReminderStatus.NOTIFIED,
+            stateDate = LocalDate.parse("2026-09-05"),
+            expectedVersion = 7,
         )))
     }
 

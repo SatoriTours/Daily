@@ -68,7 +68,15 @@ class ReminderScheduleEngine {
     private fun scheduleNextActiveDate(input: ReminderScheduleInput, from: LocalDate, inclusive: Boolean): ReminderScheduleDecision {
         var date = if (inclusive) from else from.plus(1, DateTimeUnit.DAY)
         while (date <= input.endDate) {
-            if (isActiveDate(date, input)) return scheduleAt(input, date, input.firstReminderTime, ReminderDeliveryReason.NEXT_ACTIVE_DATE)
+            if (isActiveDate(date, input)) {
+                val wakeAfterWrappingQuietHours = input.status == ReminderStatus.NOTIFIED && input.profile.sleepStart > input.profile.sleepEnd
+                return scheduleAt(
+                    input,
+                    date,
+                    if (wakeAfterWrappingQuietHours) input.profile.sleepEnd else input.firstReminderTime,
+                    if (wakeAfterWrappingQuietHours) ReminderDeliveryReason.WAKE_RECOVERY else ReminderDeliveryReason.NEXT_ACTIVE_DATE,
+                )
+            }
             date = date.plus(1, DateTimeUnit.DAY)
         }
         return ReminderScheduleDecision.None(ReminderStatus.EXPIRED)

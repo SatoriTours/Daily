@@ -28,7 +28,7 @@ interface ReminderDeliveryStore {
     fun get(id: String): Reminder?
     fun active(now: Instant): List<Reminder>
     fun state(id: String): ReminderState?
-    fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long?
+    fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Long?
     fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Boolean
     fun complete(id: String, at: Instant): Boolean
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean
@@ -45,8 +45,8 @@ class RepositoryReminderDeliveryStore(
         repository.observeAll().first().filter { it.status in activeStatuses }
     }
     override fun state(id: String) = repository.state(id)
-    override fun markDelivered(id: String, expectedVersion: Long, at: Instant): Long? {
-        if (!repository.markDelivered(id, expectedVersion, at)) return null
+    override fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Long? {
+        if (!repository.markDelivered(id, expectedVersion, at, timeZone)) return null
         return expectedVersion + 1
     }
     override fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone) =
@@ -110,7 +110,7 @@ class ReminderCoordinator(
             if (store.get(id)?.status !in terminalStatuses) recomputeSchedule(id)
             return
         }
-        val deliveredVersion = store.markDelivered(id, expectedVersion, now) ?: return
+        val deliveredVersion = store.markDelivered(id, expectedVersion, now, reminder.timeZone) ?: return
         try {
             val current = store.get(id)?.inCurrentTimeZone()
             if (current?.version != deliveredVersion || current.status != ReminderStatus.NOTIFIED) {

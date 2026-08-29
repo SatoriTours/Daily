@@ -18,6 +18,7 @@ import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
@@ -90,13 +91,20 @@ data class ReminderDraftUiState(
         notice = null,
     )
     fun updateProfile(value: ReminderProfileSnapshot?) = copy(profile = value?.copy(), notice = null)
-    fun selectProfile(value: ReminderProfile) = copy(
-        profile = value.snapshot.copy(),
-        profileId = value.id,
-        daytimeBackoffInput = value.snapshot.daytimeDismissalBackoffMinutes.joinToString(","),
-        eveningIntervalInput = value.snapshot.eveningIntervalMinutes?.toString().orEmpty(),
-        notice = null,
-    )
+    fun selectProfile(value: ReminderProfile): ReminderDraftUiState {
+        val selected = if (value.kind == ReminderProfileKind.CUSTOM) {
+            value.snapshot.copy()
+        } else {
+            value.snapshot.withGlobalScheduleRulesFrom(profile)
+        }
+        return copy(
+            profile = selected,
+            profileId = value.id,
+            daytimeBackoffInput = selected.daytimeDismissalBackoffMinutes.joinToString(","),
+            eveningIntervalInput = selected.eveningIntervalMinutes?.toString().orEmpty(),
+            notice = null,
+        )
+    }
     fun editBackoffInput(value: String): ReminderDraftUiState {
         val parsed = parseDraftBackoff(value)
         return copy(
@@ -151,6 +159,18 @@ data class ReminderDraftUiState(
             profileId = draft.profile?.kind?.builtInId() ?: fallbackProfileId,
         )
     }
+}
+
+private fun ReminderProfileSnapshot.withGlobalScheduleRulesFrom(current: ReminderProfileSnapshot?): ReminderProfileSnapshot {
+    current ?: return copy()
+    return copy(
+        sleepStart = current.sleepStart,
+        sleepEnd = current.sleepEnd,
+        workDays = current.workDays,
+        workStart = current.workStart,
+        workEnd = current.workEnd,
+        dailyCutoff = current.dailyCutoff,
+    )
 }
 
 private data class ParsedInterval(val valid: Boolean, val value: Int?)
