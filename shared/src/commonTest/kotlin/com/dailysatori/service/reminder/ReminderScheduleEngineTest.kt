@@ -48,6 +48,17 @@ class ReminderScheduleEngineTest {
         assertSchedule("2026-09-03T10:00", decision)
     }
 
+    @Test fun futureActiveDateInitialTimeInsideSleepHoursMovesToNine() {
+        val decision = engine.next(input(
+            now = local("2026-09-02T23:00"),
+            startDate = LocalDate.parse("2026-09-03"),
+            firstTime = LocalTime.parse("08:00"),
+            status = ReminderStatus.ACTIVE,
+        ))
+        assertSchedule("2026-09-03T09:00", decision)
+        assertEquals(ReminderDeliveryReason.WAKE_RECOVERY, assertIs<ReminderScheduleDecision.Schedule>(decision).reason)
+    }
+
     @Test fun sleepHoursSuppressRepeatsAndRecoverOnceAtNine() {
         val decision = engine.next(input(now = local("2026-09-02T02:00"), status = ReminderStatus.NOTIFIED))
         assertSchedule("2026-09-02T09:00", decision)
@@ -104,6 +115,18 @@ class ReminderScheduleEngineTest {
         )))
         assertSchedule("2026-09-02T21:00", engine.next(input(
             now = local("2026-09-02T20:40"), dismissals = 1, profile = profile,
+        )))
+    }
+
+    @Test fun customExplicitEveningSlotDoesNotScheduleDefaultEveningStartAfterMidnightBackoff() {
+        val profile = ReminderProfileSnapshot(
+            kind = ReminderProfileKind.CUSTOM,
+            daytimeDismissalBackoffMinutes = listOf(240),
+            eveningIntervalMinutes = null,
+            eveningTimes = setOf(LocalTime.parse("23:00")),
+        )
+        assertSchedule("2026-09-02T23:00", engine.next(input(
+            now = local("2026-09-02T20:00"), dismissals = 1, profile = profile,
         )))
     }
 
