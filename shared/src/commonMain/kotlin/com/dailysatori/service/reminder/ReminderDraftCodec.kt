@@ -23,8 +23,7 @@ class ReminderDraftCodec(
 ) {
     private val json = Json { ignoreUnknownKeys = false; isLenient = false }
 
-    fun create(arguments: String): ReminderDraft {
-        val zone = currentTimeZone()
+    fun create(arguments: String, zone: TimeZone = currentTimeZone()): ReminderDraft {
         val errors = mutableListOf<String>()
         val args = parseArguments(arguments, errors)
         val content = boundedContent(args.string("content"), errors)
@@ -44,7 +43,7 @@ class ReminderDraftCodec(
     }
 
     /** Decodes AI output through the same strict validation used by reminder tools. */
-    fun decodeInterpretationResponse(arguments: String): ReminderDraft = create(arguments)
+    fun decodeInterpretationResponse(arguments: String, zone: TimeZone = currentTimeZone()): ReminderDraft = create(arguments, zone)
 
     fun encode(draft: ReminderDraft): String = buildJsonObject {
         put("draft_id", draft.id)

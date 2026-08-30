@@ -25,6 +25,7 @@ import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderTextInterpreter
+import com.dailysatori.service.reminder.ReminderInterpretation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -113,10 +114,16 @@ data class ReminderAiParseState(
     val isInterpreting: Boolean = false,
     val submitCount: Int = 0,
     val error: String? = null,
+    val draft: ReminderDraft? = null,
 ) {
     fun onPromptChanged(value: String) = copy(prompt = value, error = null)
     fun onExplicitSubmit() = copy(isInterpreting = true, submitCount = submitCount + 1, error = null)
     fun onInterpretationFinished(error: String? = null) = copy(isInterpreting = false, error = error)
+    fun onInterpretationFinished(interpretation: ReminderInterpretation) = copy(
+        isInterpreting = false,
+        error = interpretation.failure,
+        draft = interpretation.draft,
+    )
 }
 
 enum class ReminderEditorMode { ONCE, MONTHLY, YEARLY, CONSECUTIVE }
@@ -361,11 +368,11 @@ class ReminderViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val interpretation = textInterpreter.interpret(prompt, Clock.System.now(), TimeZone.currentSystemDefault())
             _state.update { current ->
-                val next = if (interpretation.failure == null) {
-                    val default = defaultProfile()
-                    current.copy(drafts = current.drafts + (interpretation.draft.id to ReminderDraftUiState.from(interpretation.draft, default.snapshot, default.id)))
-                } else current
-                next.copy(aiParse = next.aiParse.onInterpretationFinished(interpretation.failure))
+                val default = defaultProfile()
+                current.copy(
+                    drafts = current.drafts + (interpretation.draft.id to ReminderDraftUiState.from(interpretation.draft, default.snapshot, default.id)),
+                    aiParse = current.aiParse.onInterpretationFinished(interpretation),
+                )
             }
         }
     }
