@@ -23,6 +23,37 @@ sealed interface ReminderActiveDayRule {
     data object ConsecutiveDateRange : ReminderActiveDayRule
 }
 
+sealed interface ReminderRecurrence {
+    data object Once : ReminderRecurrence
+
+    data class Monthly(val dayOfMonth: Int) : ReminderRecurrence {
+        init {
+            require(dayOfMonth in 1..31) { "Monthly reminder day must be between 1 and 31" }
+        }
+    }
+
+    data class Yearly(
+        val month: Int,
+        val dayOfMonth: Int,
+        val leapDayPolicy: LeapDayPolicy,
+    ) : ReminderRecurrence {
+        init {
+            require(month in 1..12) { "Yearly reminder month must be between 1 and 12" }
+            require(dayOfMonth in 1..maxDayForMonth(month)) { "Yearly reminder day is not valid for its month" }
+        }
+    }
+
+    private companion object {
+        fun maxDayForMonth(month: Int): Int = when (month) {
+            2 -> 29
+            4, 6, 9, 11 -> 30
+            else -> 31
+        }
+    }
+}
+
+enum class LeapDayPolicy { FEBRUARY_28, MARCH_1 }
+
 data class ReminderProfileSnapshot(
     val kind: ReminderProfileKind,
     val daytimeDismissalBackoffMinutes: List<Int>,
@@ -57,6 +88,7 @@ data class ReminderDraft(
     val profile: ReminderProfileSnapshot? = null,
     val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     val validationErrors: List<String> = emptyList(),
+    val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
 )
 
 data class Reminder(
@@ -71,6 +103,7 @@ data class Reminder(
     val timeZone: TimeZone,
     val version: Long,
     val dataIssue: ReminderDataIssue? = null,
+    val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
 )
 
 enum class ReminderDeliveryReason { INITIAL, HOURLY_REPEAT, DISMISSAL_BACKOFF, EVENING_REINFORCEMENT, WAKE_RECOVERY, NEXT_ACTIVE_DATE }
