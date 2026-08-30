@@ -211,11 +211,12 @@ class ReminderCoordinatorTest {
     }
 
     @Test
-    fun quarantinedReminderDoesNotScheduleDuringRecompute() {
+    fun quarantinedReminderCancelsExistingScheduleWithoutReplacement() {
         val fixture = fixture(
             now = "2026-09-02T10:00:00Z",
             reminder = reminder(dataIssue = ReminderDataIssue.CORRUPT_PROFILE),
         )
+        fixture.scheduler.schedule("bill", 0, instant("2026-09-02T10:30:00Z"))
 
         fixture.coordinator.recompute("bill")
 
