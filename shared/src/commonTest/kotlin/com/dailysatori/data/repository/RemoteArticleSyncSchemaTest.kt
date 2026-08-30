@@ -27,7 +27,7 @@ class RemoteArticleSyncSchemaTest {
         val config = File("src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
 
-        assertTrue(config.contains("currentSchemaVersion = 23L"))
+        assertTrue(config.contains("currentSchemaVersion = 24L"))
         assertTrue(migration.contains("migrateV21ToV22()"))
         assertTrue(migration.contains("if (currentVersion < 15)"))
         assertTrue(migration.contains("migrateV14ToV15()"))
