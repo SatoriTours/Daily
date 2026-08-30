@@ -12,6 +12,9 @@ import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderStatus
+import com.dailysatori.service.reminder.ReminderDataIssue
+import com.dailysatori.service.reminder.ReminderRecurrence
+import kotlinx.datetime.DayOfWeek
 
 class ProfileStateTest {
     @Test
@@ -45,6 +48,16 @@ class ProfileStateTest {
         assertEquals("续费", profileReminderSummary(listOf(reminder), LocalDate(2026, 9, 2)).nextContent)
         assertEquals(null, profileReminderSummary(listOf(reminder), LocalDate(2026, 9, 3)).nextContent)
     }
+
+    @Test
+    fun nextReminderUsesTheSameTodayOccurrenceRulesAsTheBadge() {
+        val weekday = profileReminder(LocalDate(2026, 9, 5), "weekday", 8, ReminderActiveDayRule.Weekdays)
+        val selected = profileReminder(LocalDate(2026, 9, 5), "selected", 9, ReminderActiveDayRule.SelectedWeekdays(setOf(DayOfWeek.SATURDAY)))
+        val corrupt = profileReminder(LocalDate(2026, 9, 5), "corrupt", 7, dataIssue = ReminderDataIssue.CORRUPT_PROFILE)
+        val monthly = profileReminder(LocalDate(2026, 9, 5), "monthly", 10, recurrence = ReminderRecurrence.Monthly(6))
+
+        assertEquals("selected", profileReminderSummary(listOf(weekday, selected, corrupt, monthly), LocalDate(2026, 9, 5)).nextContent)
+    }
 }
 
 private fun profileTask(status: String, current: Long, total: Long) = AsyncTaskListItem(
@@ -52,8 +65,8 @@ private fun profileTask(status: String, current: Long, total: Long) = AsyncTaskL
     progressMessage = "", checkpointJson = "", createdAt = 0, startedAt = null, finishedAt = null, updatedAt = 0, lastErrorMessage = "",
 )
 
-private fun profileReminder(date: LocalDate, content: String, hour: Int) = Reminder(
+private fun profileReminder(date: LocalDate, content: String, hour: Int, rule: ReminderActiveDayRule = ReminderActiveDayRule.Daily, dataIssue: ReminderDataIssue? = null, recurrence: ReminderRecurrence = ReminderRecurrence.Once) = Reminder(
     id = content, content = content, startDate = date, endDate = date, firstReminderTime = LocalTime(hour, 0),
-    activeDayRule = ReminderActiveDayRule.Daily, profile = ReminderProfileSnapshot.strong(), status = ReminderStatus.ACTIVE,
-    timeZone = TimeZone.UTC, version = 1,
+    activeDayRule = rule, profile = ReminderProfileSnapshot.strong(), status = ReminderStatus.ACTIVE,
+    timeZone = TimeZone.UTC, version = 1, dataIssue = dataIssue, recurrence = recurrence,
 )

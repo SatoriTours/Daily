@@ -10,7 +10,6 @@ import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.service.reminder.Reminder
-import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.service.asynctask.AsyncTaskListItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -47,10 +46,9 @@ data class ProfileReminderSummary(val count: Int, val nextContent: String?, val 
 data class ProfileTaskSummary(val activeCount: Int, val failedCount: Int, val progressLabel: String?, val canOpenFailedTasks: Boolean)
 
 fun profileReminderSummary(reminders: List<Reminder>, today: LocalDate): ProfileReminderSummary {
-    val pending = ReminderSummary.todayPendingCount(reminders, today)
-    val next = reminders.filter { it.status in pendingReminderStatuses && it.startDate <= today && it.endDate >= today }
-        .minByOrNull { it.firstReminderTime }
-    return ProfileReminderSummary(pending, next?.content, next?.firstReminderTime?.toString())
+    val pending = ReminderSummary.todayPendingReminders(reminders, today)
+    val next = pending.minByOrNull { it.firstReminderTime }
+    return ProfileReminderSummary(pending.size, next?.content, next?.firstReminderTime?.toString())
 }
 
 fun profileTaskSummary(tasks: List<AsyncTaskListItem>): ProfileTaskSummary {
@@ -119,4 +117,3 @@ class ProfileViewModel(
 }
 
 private val activeTaskStatuses = setOf(AsyncTaskStatus.queued.name, AsyncTaskStatus.running.name, AsyncTaskStatus.retrying.name)
-private val pendingReminderStatuses = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)

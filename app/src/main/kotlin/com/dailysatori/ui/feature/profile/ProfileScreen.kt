@@ -60,7 +60,7 @@ fun ProfileScreen(
             ProfileSection("运行状态") {
                 val progress = state.taskProgressLabel?.let { " · 进度 $it" }.orEmpty()
                 SettingsRow(Icons.Default.Task, "同步与任务", "进行中 ${state.activeTaskCount} · 失败 ${state.failedTaskCount}$progress", onTasks)
-                if (state.failedTaskCount > 0) TextButton(onClick = onTasks) { Text("查看失败任务并重试") }
+                if (state.failedTaskCount > 0) TextButton(onClick = onTasks) { Text("查看失败任务") }
             }
             ProfileSection("应用管理") {
                 SettingsRow(Icons.Default.Settings, "设置", "应用与提醒设置", onSettings)

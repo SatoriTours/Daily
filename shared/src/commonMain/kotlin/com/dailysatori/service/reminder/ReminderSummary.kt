@@ -5,9 +5,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 
 object ReminderSummary {
-    fun todayPendingCount(reminders: List<Reminder>, today: LocalDate): Int = reminders.count {
+    fun todayPendingReminders(reminders: List<Reminder>, today: LocalDate): List<Reminder> = reminders.filter {
         it.dataIssue == null && it.status in pendingStatuses && it.isActiveOccurrenceOn(today)
     }
+
+    fun todayPendingCount(reminders: List<Reminder>, today: LocalDate): Int =
+        todayPendingReminders(reminders, today).size
 
     private fun Reminder.isActiveOccurrenceOn(today: LocalDate): Boolean =
         today in startDate..endDate && activeDayRule.includes(today) && when (recurrence) {
