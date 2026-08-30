@@ -7,6 +7,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import java.io.File
 
@@ -52,13 +53,23 @@ class ReminderRouteStateTest {
     }
 
     @Test
-    fun reminderSettingsDoesNotEmbedTheReminderList() {
+    fun reminderSettingsEntryDoesNotCarryRemovedListCallbacks() {
         val navHost = source("core/navigation/NavHost.kt")
+        val settingsRoute = navHost
+            .substringAfter("composable<SettingsRoute>")
+            .substringBefore("composable<ReminderListRoute>")
+        val settingsHost = source("ui/feature/settings/SettingsScreen.kt")
         val settings = source("ui/feature/settings/reminder/ReminderSettingsScreen.kt")
 
-        assertTrue(navHost.contains("onAddReminder = { navController.navigate(ReminderEditRoute()) }"))
-        assertTrue(navHost.contains("onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) }"))
+        assertTrue(navHost.contains("SettingsScreen(\n                viewModel = settingsViewModel,"))
+        assertTrue(settingsHost.contains("SettingsPage.REMINDERS -> ReminderSettingsScreen("))
+        assertTrue(settingsHost.contains("onBack = { currentPage = SettingsPage.MAIN }"))
         assertTrue(!settings.contains("ReminderListScreen("))
+        listOf(settingsRoute, settingsHost, settings).forEach { source ->
+            assertFalse(source.contains("onAddReminder"))
+            assertFalse(source.contains("onOpenReminder"))
+            assertFalse(source.contains("onOpenSettings"))
+        }
     }
 
     @Test

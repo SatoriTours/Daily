@@ -29,9 +29,6 @@ internal enum class ProfileTimeField { EVENING_START, CUTOFF }
 @Composable
 fun ReminderSettingsScreen(
     onBack: () -> Unit,
-    onAddReminder: () -> Unit = {},
-    onOpenReminder: (String) -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     viewModel: ReminderSettingsViewModel = koinViewModel(),
     initialReminderId: String? = null,
 ) {

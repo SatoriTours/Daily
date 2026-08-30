@@ -86,9 +86,6 @@ private enum class SettingsPage {
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: (() -> Unit)? = null,
-    onAddReminder: () -> Unit = {},
-    onOpenReminder: (String) -> Unit = {},
-    onOpenReminderSettings: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -125,9 +122,6 @@ fun SettingsScreen(
         SettingsPage.TASK_CENTER -> TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.REMINDERS -> ReminderSettingsScreen(
             onBack = { currentPage = SettingsPage.MAIN },
-            onAddReminder = onAddReminder,
-            onOpenReminder = onOpenReminder,
-            onOpenSettings = onOpenReminderSettings,
         )
     }
 }
