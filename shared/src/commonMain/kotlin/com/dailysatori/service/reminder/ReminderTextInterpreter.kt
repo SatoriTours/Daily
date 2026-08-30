@@ -71,7 +71,14 @@ class ReminderTextInterpreter(
         if (content.isBlank() || hour != null && hour !in 0..23 || minute !in 0..59) return null
         val year = now.toLocalDateTime(zone).year
         val localToday = now.toLocalDateTime(zone).date
-        val initialDate = runCatching { LocalDate(year, requireNotNull(month), requireNotNull(day)) }.getOrNull() ?: return null
+        val requestedMonth = requireNotNull(month)
+        val requestedDay = requireNotNull(day)
+        val leapFallback = isYearly && requestedMonth == 2 && requestedDay == 29 && !isLeapYear(year)
+        val initialDate = when {
+            isMonthly -> nextValidMonthlyDate(year, requestedMonth, requestedDay, localToday) ?: return null
+            leapFallback -> LocalDate(year, 2, 28)
+            else -> runCatching { LocalDate(year, requestedMonth, requestedDay) }.getOrNull() ?: return null
+        }
         val date = when {
             isMonthly && initialDate < localToday -> initialDate.plus(DatePeriod(months = 1))
             !isYearly && initialDate < localToday -> initialDate.plus(DatePeriod(years = 1))
@@ -92,7 +99,7 @@ class ReminderTextInterpreter(
             }.toString(),
             zone,
         )
-        return ReminderInterpretation(draft, draft.validationErrors.isNotEmpty())
+        return ReminderInterpretation(draft, draft.validationErrors.isNotEmpty() || leapFallback)
     }
 
     private suspend fun parseRemotely(text: String, now: Instant, zone: TimeZone): ReminderInterpretation {
@@ -121,6 +128,18 @@ class ReminderTextInterpreter(
         )
         return ReminderInterpretation(draft, requiresConfirmation = true, failure = failure)
     }
+
+    private fun nextValidMonthlyDate(year: Int, month: Int, day: Int, today: LocalDate): LocalDate? {
+        var cursor = LocalDate(year, month, 1)
+        repeat(24) {
+            val candidate = runCatching { LocalDate(cursor.year, cursor.monthNumber, day) }.getOrNull()
+            if (candidate != null && candidate >= today) return candidate
+            cursor = cursor.plus(DatePeriod(months = 1))
+        }
+        return null
+    }
+
+    private fun isLeapYear(year: Int): Boolean = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 
     private companion object {
         val YEARLY_PATTERN = Regex("""每年\s*(\d{1,2})月(\d{1,2})日(?:(?:晚上|下午)?(\d{1,2})点(?:(\d{1,2})分?)?)?提醒我(.+)""")

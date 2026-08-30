@@ -45,6 +45,27 @@ class ReminderTextInterpreterTest {
     }
 
     @Test
+    fun monthlyThirtyFirstStaysLocalWhenCurrentMonthHasNoThirtyFirst() = runBlocking {
+        val remote = FakeRemote()
+        val february = Instant.parse("2026-02-15T00:00:00Z")
+        val interpretation = interpreter(remote).interpret("每月31日晚上8点提醒我充值", february, zone)
+
+        assertEquals(ReminderRecurrence.Monthly(31), interpretation.draft.recurrence)
+        assertEquals(0, remote.calls)
+    }
+
+    @Test
+    fun yearlyLeapDayStaysLocalInNonLeapYearAndRequiresFallbackConfirmation() = runBlocking {
+        val remote = FakeRemote()
+        val nonLeapYear = Instant.parse("2026-01-01T00:00:00Z")
+        val interpretation = interpreter(remote).interpret("每年2月29日晚上8点提醒我充值", nonLeapYear, zone)
+
+        assertEquals(ReminderRecurrence.Yearly(2, 29, LeapDayPolicy.FEBRUARY_28), interpretation.draft.recurrence)
+        assertTrue(interpretation.requiresConfirmation)
+        assertEquals(0, remote.calls)
+    }
+
+    @Test
     fun localDateUsesInterpretationTimezoneAcrossYearBoundary() = runBlocking {
         val utcNow = Instant.parse("2026-12-31T16:30:00Z")
         val interpretation = interpreter(FakeRemote()).interpret("每月2日提醒我充值", utcNow, TimeZone.of("Asia/Shanghai"))
