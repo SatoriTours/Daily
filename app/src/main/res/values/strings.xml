@@ -115,4 +115,23 @@
     <string name="reminder_weekday_fri">五</string>
     <string name="reminder_weekday_sat">六</string>
     <string name="reminder_weekday_sun">日</string>
+    <string name="reminder_list_title">提醒</string>
+    <string name="reminder_list_search">搜索提醒</string>
+    <string name="reminder_list_filter">筛选</string>
+    <string name="reminder_list_add">新增提醒</string>
+    <string name="reminder_list_recent">最近</string>
+    <string name="reminder_list_months">月份</string>
+    <string name="reminder_list_finished">已结束</string>
+    <string name="reminder_list_summary">未来 30 天 · %1$d 个 / 下一项：%2$s</string>
+    <string name="reminder_list_none">暂无</string>
+    <string name="reminder_list_month_density">%1$d 月 · %2$d</string>
+    <string name="reminder_list_item_meta">%1$s · %2$s · %3$d 天后 · %4$s</string>
+    <string name="reminder_list_show_results">查看结果</string>
+    <string name="reminder_list_repeat_once">一次</string>
+    <string name="reminder_list_repeat_monthly">每月</string>
+    <string name="reminder_list_repeat_yearly">每年</string>
+    <string name="reminder_list_next_week">未来 7 天</string>
+    <string name="reminder_list_later_this_month">本月稍后</string>
+    <string name="reminder_list_later">之后</string>
+    <string name="reminder_list_month">月份</string>
 </resources>

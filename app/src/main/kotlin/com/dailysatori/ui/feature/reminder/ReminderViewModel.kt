@@ -34,6 +34,9 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 
 enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, ACTIVE_DAY_RULE, PROFILE, ADVANCED_PROFILE }
 
@@ -218,6 +221,9 @@ fun reminderActions(reminder: Reminder): List<ReminderAction> = when (reminder.s
 data class ReminderUiState(
     val drafts: Map<String, ReminderDraftUiState> = emptyMap(),
     val filter: ReminderFilter = ReminderFilter.ACTIVE,
+    val listMode: ReminderListMode = ReminderListMode.RECENT,
+    val listFilter: ReminderListFilter = ReminderListFilter(),
+    val isListSearchVisible: Boolean = false,
     val selectedReminderId: String? = null,
     val error: String? = null,
 )
@@ -237,6 +243,9 @@ class ReminderViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInProfiles() + repository.profiles())
     val visibleReminders: StateFlow<List<Reminder>> = combine(reminders, state) { items, ui -> filterReminders(items, ui.filter) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val listState: StateFlow<ReminderListState> = combine(reminders, state) { items, ui ->
+        buildReminderListState(items, Clock.System.todayIn(TimeZone.currentSystemDefault()), ui.listMode, ui.listFilter)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), buildReminderListState(emptyList(), Clock.System.todayIn(TimeZone.currentSystemDefault()), ReminderListMode.RECENT, ReminderListFilter()))
 
     fun registerDraft(draft: ReminderDraft) {
         _state.update { current ->
@@ -285,6 +294,18 @@ class ReminderViewModel(
 
     fun setFilter(filter: ReminderFilter) {
         _state.update { it.copy(filter = filter) }
+    }
+
+    fun setListMode(mode: ReminderListMode) {
+        _state.update { it.copy(listMode = mode) }
+    }
+
+    fun updateListFilter(transform: (ReminderListFilter) -> ReminderListFilter) {
+        _state.update { it.copy(listFilter = transform(it.listFilter)) }
+    }
+
+    fun toggleListSearch() {
+        _state.update { it.copy(isListSearchVisible = !it.isListSearchVisible) }
     }
 
     fun selectReminder(id: String?) {

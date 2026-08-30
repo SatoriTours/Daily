@@ -26,6 +26,21 @@ import kotlin.test.assertTrue
 
 class ReminderUiStateTest {
     @Test
+    fun listFilterPanelCanOpenWithoutChangingTheSelectedFilters() {
+        val closed = ReminderListFilter(
+            statuses = setOf(ReminderStatus.ACTIVE),
+            recurrences = setOf(ReminderRecurrenceKind.YEARLY),
+            query = "birthday",
+        )
+
+        val opened = closed.copy(isPanelOpen = true)
+
+        assertEquals(closed.statuses, opened.statuses)
+        assertEquals(closed.recurrences, opened.recurrences)
+        assertEquals(closed.query, opened.query)
+    }
+
+    @Test
     fun detailEditValidatesContentDatesAndSelectedWeekdays() {
         assertFalse(isValidReminderDetailEdit(" ", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), ReminderActiveDayRule.Daily))
         assertFalse(isValidReminderDetailEdit("x".repeat(2_001), LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), ReminderActiveDayRule.Daily))

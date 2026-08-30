@@ -1,14 +1,29 @@
 package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -21,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
@@ -28,8 +44,11 @@ import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.Height
+import com.dailysatori.ui.theme.IconSize
 import kotlinx.datetime.DayOfWeek
 import org.koin.androidx.compose.koinViewModel
 
@@ -41,38 +60,155 @@ fun ReminderListScreen(
     latestProfile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard(),
     viewModel: ReminderViewModel = koinViewModel(),
     initialReminderId: String? = null,
+    onAddReminder: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     val ui by viewModel.state.collectAsState()
     val all by viewModel.reminders.collectAsState()
-    val visible = remember(all, ui.filter) { filterReminders(all, ui.filter) }
+    val listState by viewModel.listState.collectAsState()
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
+    val scrollState = rememberLazyListState()
     LaunchedEffect(initialReminderId) {
         if (initialReminderId != null) viewModel.selectReminder(initialReminderId)
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            ReminderFilter.entries.forEach { filter ->
-                FilterChip(selected = ui.filter == filter, onClick = { viewModel.setFilter(filter) }, label = { Text(filter.label()) })
+    Box(modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            ReminderListToolbar(
+                onToggleSearch = viewModel::toggleListSearch,
+                onOpenFilter = { viewModel.updateListFilter { it.copy(isPanelOpen = true) } },
+                onOpenSettings = onOpenSettings,
+            )
+            if (ui.isListSearchVisible) {
+                OutlinedTextField(
+                    value = ui.listFilter.query,
+                    onValueChange = { query -> viewModel.updateListFilter { it.copy(query = query) } },
+                    label = { Text(stringResource(R.string.reminder_list_search)) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+                    singleLine = true,
+                )
             }
-        }
-        if (selected != null) ReminderDetail(selected, latestProfile, viewModel)
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            visible.forEach { reminder ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth().clickable { viewModel.selectReminder(reminder.id) },
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                ) {
-                    Column(Modifier.padding(Spacing.m)) {
-                        Text(reminder.content, style = MaterialTheme.typography.titleSmall)
-                        Text(stringResource(R.string.reminder_date_range, reminder.startDate, reminder.firstReminderTime, reminder.endDate), style = MaterialTheme.typography.bodySmall)
-                        Text(reminder.status.label(), style = MaterialTheme.typography.labelSmall)
+            ReminderListModeTabs(ui.listMode, viewModel::setListMode)
+            LazyColumn(
+                state = scrollState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            ) {
+                item(key = "summary") { ReminderListSummary(listState.summary) }
+                if (selected != null) item(key = "detail_${selected.id}") { ReminderDetail(selected, latestProfile, viewModel) }
+                if (ui.listMode == ReminderListMode.MONTHS) item(key = "months") { ReminderMonthGrid(listState.months) }
+                listState.sections.forEach { section ->
+                    item(key = "header_${section.key}") { Text(section.key.sectionLabel(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = Spacing.m)) }
+                    items(section.items.size, key = { section.items[it].id }) { index ->
+                        ReminderListCard(section.items[index]) { viewModel.selectReminder(section.items[index].id) }
                     }
                 }
             }
         }
+        if (ui.listFilter.isPanelOpen) {
+            Surface(
+                modifier = Modifier.fillMaxSize().padding(top = Height.appBar).background(MaterialTheme.colorScheme.scrim.copy(alpha = .42f)).clickable { viewModel.updateListFilter { it.copy(isPanelOpen = false) } },
+                color = androidx.compose.ui.graphics.Color.Transparent,
+            ) {}
+            ReminderFilterPanel(
+                filter = ui.listFilter,
+                onFilterChange = { change -> viewModel.updateListFilter(change) },
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = Height.appBar),
+            )
+        } else {
+            FloatingActionButton(
+                onClick = onAddReminder,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.l),
+            ) { Icon(Icons.Default.Add, stringResource(R.string.reminder_list_add), Modifier.size(IconSize.l)) }
+        }
     }
 }
+
+@Composable
+private fun ReminderListToolbar(onToggleSearch: () -> Unit, onOpenFilter: () -> Unit, onOpenSettings: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(Height.appBar), contentAlignment = Alignment.Center) {
+        Text(stringResource(R.string.reminder_list_title), style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.align(Alignment.CenterEnd)) {
+            IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search)) }
+            IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter)) }
+            IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title)) }
+        }
+    }
+}
+
+@Composable
+private fun ReminderListModeTabs(selected: ReminderListMode, onSelected: (ReminderListMode) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        ReminderListMode.entries.forEach { mode -> FilterChip(selected = selected == mode, onClick = { onSelected(mode) }, label = { Text(mode.label()) }) }
+    }
+}
+
+@Composable
+private fun ReminderListSummary(summary: ReminderListSummaryUi) {
+    val next = summary.nextOccurrence?.toString() ?: stringResource(R.string.reminder_list_none)
+    Text(stringResource(R.string.reminder_list_summary, summary.upcomingInThirtyDays, next), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))
+}
+
+@Composable
+private fun ReminderMonthGrid(months: List<ReminderMonthUi>) {
+    Column(Modifier.padding(horizontal = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        months.chunked(3).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                row.forEach { month -> Text(stringResource(R.string.reminder_list_month_density, month.month, month.count), modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderListCard(item: ReminderListItemUi, onClick: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m).clickable(onClick = onClick), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(item.content, style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.reminder_list_item_meta, item.occurrenceDate, item.firstReminderTime, item.daysUntil, item.recurrence.label()), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun ReminderFilterPanel(filter: ReminderListFilter, onFilterChange: ((ReminderListFilter) -> ReminderListFilter) -> Unit, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.m), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(stringResource(R.string.reminder_list_filter), style = MaterialTheme.typography.titleSmall)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                listOf(ReminderStatus.ACTIVE, ReminderStatus.PAUSED).forEach { status -> FilterChip(selected = status in filter.statuses, onClick = { onFilterChange { current -> current.copy(statuses = current.statuses.toggle(status)) } }, label = { Text(status.label()) }) }
+            }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                ReminderRecurrenceKind.entries.forEach { recurrence -> FilterChip(selected = recurrence in filter.recurrences, onClick = { onFilterChange { current -> current.copy(recurrences = current.recurrences.toggle(recurrence)) } }, label = { Text(recurrence.label()) }) }
+            }
+            TextButton(onClick = { onFilterChange { it.copy(isPanelOpen = false) } }) { Text(stringResource(R.string.reminder_list_show_results)) }
+        }
+    }
+}
+
+private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value
+
+@Composable
+private fun ReminderListMode.label() = stringResource(when (this) {
+    ReminderListMode.RECENT -> R.string.reminder_list_recent
+    ReminderListMode.MONTHS -> R.string.reminder_list_months
+    ReminderListMode.FINISHED -> R.string.reminder_list_finished
+})
+
+@Composable
+private fun ReminderRecurrenceKind.label() = stringResource(when (this) {
+    ReminderRecurrenceKind.ONCE -> R.string.reminder_list_repeat_once
+    ReminderRecurrenceKind.MONTHLY -> R.string.reminder_list_repeat_monthly
+    ReminderRecurrenceKind.YEARLY -> R.string.reminder_list_repeat_yearly
+})
+
+@Composable
+private fun String.sectionLabel() = stringResource(when (this) {
+    "next_week" -> R.string.reminder_list_next_week
+    "later_this_month" -> R.string.reminder_list_later_this_month
+    "later" -> R.string.reminder_list_later
+    "finished" -> R.string.reminder_list_finished
+    else -> R.string.reminder_list_month
+})
 
 @Composable
 private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSnapshot, viewModel: ReminderViewModel) {

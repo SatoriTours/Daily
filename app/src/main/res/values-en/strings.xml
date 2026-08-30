@@ -93,4 +93,23 @@
     <string name="reminder_weekday_fri">F</string>
     <string name="reminder_weekday_sat">S</string>
     <string name="reminder_weekday_sun">S</string>
+    <string name="reminder_list_title">Reminders</string>
+    <string name="reminder_list_search">Search reminders</string>
+    <string name="reminder_list_filter">Filter</string>
+    <string name="reminder_list_add">Add reminder</string>
+    <string name="reminder_list_recent">Recent</string>
+    <string name="reminder_list_months">Months</string>
+    <string name="reminder_list_finished">Finished</string>
+    <string name="reminder_list_summary">Next 30 days · %1$d / Next: %2$s</string>
+    <string name="reminder_list_none">None</string>
+    <string name="reminder_list_month_density">Month %1$d · %2$d</string>
+    <string name="reminder_list_item_meta">%1$s · %2$s · in %3$d days · %4$s</string>
+    <string name="reminder_list_show_results">Show results</string>
+    <string name="reminder_list_repeat_once">Once</string>
+    <string name="reminder_list_repeat_monthly">Monthly</string>
+    <string name="reminder_list_repeat_yearly">Yearly</string>
+    <string name="reminder_list_next_week">Next 7 days</string>
+    <string name="reminder_list_later_this_month">Later this month</string>
+    <string name="reminder_list_later">Later</string>
+    <string name="reminder_list_month">Month</string>
 </resources>

@@ -16,7 +16,7 @@ class ReminderUiSourceTest {
         assertTrue(draft.contains("horizontalScroll(rememberScrollState())"))
         assertTrue(settings.contains("verticalScroll(rememberScrollState())"))
         assertFalse(settings.contains("Modifier.weight(1f)"))
-        assertFalse(list.contains("LazyColumn"))
+        assertTrue(list.contains("LazyColumn"))
     }
 
     @Test
