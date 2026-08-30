@@ -62,5 +62,14 @@ class ReminderRouteStateTest {
         assertTrue(settings.contains("onOpenReminder = onOpenReminder"))
     }
 
+    @Test
+    fun embeddedReminderListHidesItsRedundantSettingsButton() {
+        val list = source("ui/feature/reminder/ReminderListScreen.kt")
+        val settings = source("ui/feature/settings/reminder/ReminderSettingsScreen.kt")
+
+        assertTrue(list.contains("showSettings: Boolean = true"))
+        assertTrue(settings.contains("showSettings = false"))
+    }
+
     private fun source(relative: String) = File("src/main/kotlin/com/dailysatori/$relative").readText()
 }

@@ -64,6 +64,7 @@ fun ReminderListScreen(
     onAddReminder: () -> Unit = {},
     onOpenReminder: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    showSettings: Boolean = true,
 ) {
     val ui by viewModel.state.collectAsState()
     val all by viewModel.reminders.collectAsState()
@@ -79,6 +80,7 @@ fun ReminderListScreen(
                 onToggleSearch = viewModel::toggleListSearch,
                 onOpenFilter = { viewModel.updateListFilter { it.copy(isPanelOpen = true) } },
                 onOpenSettings = onOpenSettings,
+                showSettings = showSettings,
             )
             if (ui.isListSearchVisible) {
                 OutlinedTextField(
@@ -126,13 +128,13 @@ fun ReminderListScreen(
 }
 
 @Composable
-private fun ReminderListToolbar(onToggleSearch: () -> Unit, onOpenFilter: () -> Unit, onOpenSettings: () -> Unit) {
+private fun ReminderListToolbar(onToggleSearch: () -> Unit, onOpenFilter: () -> Unit, onOpenSettings: () -> Unit, showSettings: Boolean) {
     Box(Modifier.fillMaxWidth().height(Height.appBar), contentAlignment = Alignment.Center) {
         Text(stringResource(R.string.reminder_list_title), style = MaterialTheme.typography.titleMedium)
         Row(Modifier.align(Alignment.CenterEnd)) {
             IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search)) }
             IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter)) }
-            IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title)) }
+            if (showSettings) IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title)) }
         }
     }
 }

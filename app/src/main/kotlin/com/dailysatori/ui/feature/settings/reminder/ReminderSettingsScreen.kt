@@ -123,6 +123,7 @@ fun ReminderSettingsScreen(
                 onAddReminder = onAddReminder,
                 onOpenReminder = onOpenReminder,
                 onOpenSettings = onOpenSettings,
+                showSettings = false,
             )
         }
     }
