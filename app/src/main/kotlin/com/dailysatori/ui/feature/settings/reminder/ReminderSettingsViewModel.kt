@@ -78,6 +78,20 @@ data class ReminderSettingsState(
     val editor: ReminderProfileEditorState? = null,
     val saving: Boolean = false,
 ) {
+    val defaultRhythm: ReminderDefaultRhythm
+        get() = profiles.firstOrNull { it.id == defaultProfileId }
+            ?.snapshot
+            ?.let(::ReminderDefaultRhythm)
+            ?: ReminderDefaultRhythm(ReminderProfileSnapshot.standard())
+
+    val primarySections: List<ReminderSettingsSection>
+        get() = listOf(
+            ReminderSettingsSection("default-rhythm"),
+            ReminderSettingsSection("notification-effect"),
+            ReminderSettingsSection("quiet-rules"),
+            ReminderSettingsSection("advanced"),
+        )
+
     companion object {
         const val STRONG_ID = "builtin-strong"
         const val STANDARD_ID = "builtin-standard"
@@ -102,6 +116,25 @@ data class ReminderSettingsState(
         val weekdays = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY)
     }
 }
+
+data class ReminderSettingsSection(val id: String)
+
+data class ReminderDefaultRhythm(private val profile: ReminderProfileSnapshot) {
+    val eveningSummary: String
+        get() {
+            val start = profile.eveningStart.display()
+            val cutoff = profile.dailyCutoff.takeUnless { it == LocalTime(0, 0) }?.display() ?: "24:00"
+            val interval = profile.eveningIntervalMinutes
+                ?: profile.eveningTimes.sorted().zipWithNext().firstOrNull()?.let { (first, second) ->
+                    (second.hour * 60 + second.minute) - (first.hour * 60 + first.minute)
+                }
+                ?: return "$start–$cutoff"
+            val intervalSummary = if (interval == 60) "每小时" else "每${interval}分钟"
+            return "$start–$cutoff · $intervalSummary"
+        }
+}
+
+private fun LocalTime.display(): String = toString().padEnd(5, '0')
 
 data class ReminderProfileEditorState(
     val id: String = UUID.randomUUID().toString(),
