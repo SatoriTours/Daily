@@ -52,23 +52,20 @@ class ReminderRouteStateTest {
     }
 
     @Test
-    fun reminderNavigationBindsListAndEmbeddedSettingsCallbacks() {
+    fun reminderSettingsDoesNotEmbedTheReminderList() {
         val navHost = source("core/navigation/NavHost.kt")
         val settings = source("ui/feature/settings/reminder/ReminderSettingsScreen.kt")
 
         assertTrue(navHost.contains("onAddReminder = { navController.navigate(ReminderEditRoute()) }"))
         assertTrue(navHost.contains("onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) }"))
-        assertTrue(settings.contains("onAddReminder = onAddReminder"))
-        assertTrue(settings.contains("onOpenReminder = onOpenReminder"))
+        assertTrue(!settings.contains("ReminderListScreen("))
     }
 
     @Test
-    fun embeddedReminderListHidesItsRedundantSettingsButton() {
+    fun standaloneReminderListShowsItsSettingsButton() {
         val list = source("ui/feature/reminder/ReminderListScreen.kt")
-        val settings = source("ui/feature/settings/reminder/ReminderSettingsScreen.kt")
 
         assertTrue(list.contains("showSettings: Boolean = true"))
-        assertTrue(settings.contains("showSettings = false"))
     }
 
     private fun source(relative: String) = File("src/main/kotlin/com/dailysatori/$relative").readText()

@@ -79,7 +79,15 @@ fun ReminderSettingsScreen(
 
 @Composable private fun DefaultRhythmCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) = SettingsCard(R.string.reminder_settings_default_rhythm) {
     ChoiceRow(state.profiles, { it.id == state.defaultProfileId }, { profile -> profile.localizedName() }) { viewModel.setDefaultProfile(it.id) }
-    Text(state.defaultRhythm.eveningSummary, style = MaterialTheme.typography.bodyMedium)
+    val rhythm = state.defaultRhythm
+    val interval = rhythm.intervalMinutes?.let { minutes ->
+        if (minutes == 60) stringResource(R.string.reminder_settings_interval_hourly)
+        else stringResource(R.string.reminder_settings_interval_minutes, minutes)
+    }
+    Text(
+        text = interval?.let { stringResource(R.string.reminder_settings_rhythm_summary, rhythm.timeRange, it) } ?: rhythm.timeRange,
+        style = MaterialTheme.typography.bodyMedium,
+    )
 }
 
 @Composable private fun NotificationEffectCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) = SettingsCard(R.string.reminder_settings_notification_effect) {

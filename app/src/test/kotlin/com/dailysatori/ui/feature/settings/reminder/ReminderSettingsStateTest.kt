@@ -10,7 +10,8 @@ class ReminderSettingsStateTest {
     fun settingsSummarySeparatesDefaultsFromProfileManagement() {
         val state = ReminderSettingsState.defaults()
 
-        assertEquals("22:00–24:00 · 每小时", state.defaultRhythm.eveningSummary)
+        assertEquals("22:00–24:00", state.defaultRhythm.timeRange)
+        assertEquals(60, state.defaultRhythm.intervalMinutes)
         assertFalse(state.primarySections.any { it.id == "profiles" })
     }
 

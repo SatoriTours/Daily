@@ -72,6 +72,9 @@
     <string name="reminder_settings_notification_effect">Notification effects</string>
     <string name="reminder_settings_quiet_rules">Quiet rules</string>
     <string name="reminder_settings_advanced">Advanced</string>
+    <string name="reminder_settings_rhythm_summary">%1$s · %2$s</string>
+    <string name="reminder_settings_interval_hourly">Hourly</string>
+    <string name="reminder_settings_interval_minutes">Every %1$d minutes</string>
     <string name="reminder_settings_manage_profiles">Manage reminder profiles</string>
     <string name="reminder_settings_delivery_access">System notification and delivery access</string>
     <string name="reminder_default_sound">Default sound</string>

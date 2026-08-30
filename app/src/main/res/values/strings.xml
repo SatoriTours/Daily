@@ -94,6 +94,9 @@
     <string name="reminder_settings_notification_effect">通知效果</string>
     <string name="reminder_settings_quiet_rules">免打扰规则</string>
     <string name="reminder_settings_advanced">高级</string>
+    <string name="reminder_settings_rhythm_summary">%1$s · %2$s</string>
+    <string name="reminder_settings_interval_hourly">每小时</string>
+    <string name="reminder_settings_interval_minutes">每 %1$d 分钟</string>
     <string name="reminder_settings_manage_profiles">管理提醒配置</string>
     <string name="reminder_settings_delivery_access">系统通知与投递权限</string>
     <string name="reminder_default_sound">默认声音</string>

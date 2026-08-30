@@ -125,18 +125,14 @@ data class ReminderSettingsNavigationState(val managingProfiles: Boolean = false
 }
 
 data class ReminderDefaultRhythm(private val profile: ReminderProfileSnapshot) {
-    val eveningSummary: String
-        get() {
-            val start = profile.eveningStart.display()
-            val cutoff = profile.dailyCutoff.takeUnless { it == LocalTime(0, 0) }?.display() ?: "24:00"
-            val interval = profile.eveningIntervalMinutes
-                ?: profile.eveningTimes.sorted().zipWithNext().firstOrNull()?.let { (first, second) ->
-                    (second.hour * 60 + second.minute) - (first.hour * 60 + first.minute)
-                }
-                ?: return "$start–$cutoff"
-            val intervalSummary = if (interval == 60) "每小时" else "每${interval}分钟"
-            return "$start–$cutoff · $intervalSummary"
-        }
+    val timeRange: String
+        get() = "${profile.eveningStart.display()}–${profile.dailyCutoff.takeUnless { it == LocalTime(0, 0) }?.display() ?: "24:00"}"
+
+    val intervalMinutes: Int?
+        get() = profile.eveningIntervalMinutes
+            ?: profile.eveningTimes.sorted().zipWithNext().firstOrNull()?.let { (first, second) ->
+                (second.hour * 60 + second.minute) - (first.hour * 60 + first.minute)
+            }
 }
 
 private fun LocalTime.display(): String = toString().padEnd(5, '0')
