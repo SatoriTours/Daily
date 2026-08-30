@@ -112,4 +112,6 @@
     <string name="reminder_list_later_this_month">Later this month</string>
     <string name="reminder_list_later">Later</string>
     <string name="reminder_list_month">Month</string>
+    <string name="reminder_recurrence_title">Repeat</string>
+    <string name="reminder_recurrence_consecutive">Consecutive</string>
 </resources>

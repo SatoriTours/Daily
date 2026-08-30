@@ -101,18 +101,18 @@ fun ReminderDraftCard(
                 }
                 if (selected.days.isEmpty()) Text(stringResource(R.string.reminder_selected_days_required), color = MaterialTheme.colorScheme.error)
             }
-            Text("重复方式")
+            Text(stringResource(R.string.reminder_recurrence_title))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 listOf(
-                    "一次" to ReminderRecurrence.Once,
-                    "每月" to state.startDate?.let { ReminderRecurrence.Monthly(it.dayOfMonth) },
-                    "每年" to state.startDate?.let { ReminderRecurrence.Yearly(it.monthNumber, it.dayOfMonth, LeapDayPolicy.FEBRUARY_28) },
-                    "连续" to ReminderRecurrence.Once,
+                    R.string.reminder_list_repeat_once to ReminderRecurrence.Once,
+                    R.string.reminder_list_repeat_monthly to state.startDate?.let { ReminderRecurrence.Monthly(it.dayOfMonth) },
+                    R.string.reminder_list_repeat_yearly to state.startDate?.let { ReminderRecurrence.Yearly(it.monthNumber, it.dayOfMonth, LeapDayPolicy.FEBRUARY_28) },
+                    R.string.reminder_recurrence_consecutive to ReminderRecurrence.Once,
                 ).forEach { (label, recurrence) ->
                     if (recurrence != null) FilterChip(
-                        selected = if (label == "连续") state.activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange else state.recurrence::class == recurrence::class,
-                        onClick = { onChange(if (label == "连续") state.editActiveDayRule(ReminderActiveDayRule.ConsecutiveDateRange) else state.editRecurrence(recurrence)) },
-                        label = { Text(label) },
+                        selected = if (label == R.string.reminder_recurrence_consecutive) state.activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange else state.recurrence::class == recurrence::class,
+                        onClick = { onChange(state.selectRecurrenceMode(recurrence, label == R.string.reminder_recurrence_consecutive)) },
+                        label = { Text(stringResource(label)) },
                     )
                 }
             }

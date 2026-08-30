@@ -54,23 +54,39 @@ data class ReminderEditorState(
     val saving: Boolean = false,
     val notice: String? = null,
 ) {
+    fun selectMode(mode: ReminderEditorMode): ReminderEditorState = when (mode) {
+        ReminderEditorMode.ONCE -> copy(recurrence = ReminderRecurrence.Once, activeDayRule = ReminderActiveDayRule.Daily)
+        ReminderEditorMode.MONTHLY -> copy(recurrence = ReminderRecurrence.Monthly(startDate.dayOfMonth), activeDayRule = ReminderActiveDayRule.Daily)
+        ReminderEditorMode.YEARLY -> copy(
+            recurrence = ReminderRecurrence.Yearly(startDate.monthNumber, startDate.dayOfMonth, LeapDayPolicy.FEBRUARY_28),
+            activeDayRule = ReminderActiveDayRule.Daily,
+            leapDayFallbackChosen = startDate.monthNumber != 2 || startDate.dayOfMonth != 29,
+        )
+        ReminderEditorMode.CONSECUTIVE -> copy(
+            recurrence = ReminderRecurrence.Once,
+            activeDayRule = ReminderActiveDayRule.ConsecutiveDateRange,
+        )
+    }
+
     val validationMessage: String?
         get() = when {
-            content.isBlank() -> "请填写提醒内容。"
-            endDate < startDate -> "结束日期不能早于开始日期。"
-            activeDayRule is ReminderActiveDayRule.SelectedWeekdays && activeDayRule.days.isEmpty() -> "请至少选择一个星期。"
-            recurrence is ReminderRecurrence.Yearly && (recurrence as ReminderRecurrence.Yearly).month == 2 && (recurrence as ReminderRecurrence.Yearly).dayOfMonth == 29 && !leapDayFallbackChosen -> "请指定非闰年的 2 月 29 日处理方式。"
+            content.isBlank() -> "\u8bf7\u586b\u5199\u63d0\u9192\u5185\u5bb9\u3002"
+            endDate < startDate -> "\u7ed3\u675f\u65e5\u671f\u4e0d\u80fd\u65e9\u4e8e\u5f00\u59cb\u65e5\u671f\u3002"
+            activeDayRule is ReminderActiveDayRule.SelectedWeekdays && activeDayRule.days.isEmpty() -> "\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u661f\u671f\u3002"
+            recurrence is ReminderRecurrence.Yearly && (recurrence as ReminderRecurrence.Yearly).month == 2 && (recurrence as ReminderRecurrence.Yearly).dayOfMonth == 29 && !leapDayFallbackChosen -> "\u8bf7\u6307\u5b9a\u975e\u95f0\u5e74\u7684 2 \u6708 29 \u65e5\u5904\u7406\u65b9\u5f0f\u3002"
             else -> null
         }
     val canSave: Boolean get() = validationMessage == null && !saving
 
     fun actualBehaviorSummary(): String {
-        val date = when (val rule = recurrence) {
-            ReminderRecurrence.Once -> if (startDate == endDate) "${startDate.monthNumber}月${startDate.dayOfMonth}日" else "${startDate.monthNumber}月${startDate.dayOfMonth}日至${endDate.monthNumber}月${endDate.dayOfMonth}日"
-            is ReminderRecurrence.Monthly -> "每月${rule.dayOfMonth}日"
-            is ReminderRecurrence.Yearly -> "每年${rule.month}月${rule.dayOfMonth}日至${if (endDate.monthNumber == rule.month) "" else "${endDate.monthNumber}月"}${endDate.dayOfMonth}日"
+        val date = if (activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange) {
+            "\u8fde\u7eed${startDate.monthNumber}\u6708${startDate.dayOfMonth}\u65e5\u81f3${endDate.monthNumber}\u6708${endDate.dayOfMonth}\u65e5"
+        } else when (val rule = recurrence) {
+            ReminderRecurrence.Once -> if (startDate == endDate) "${startDate.monthNumber}\u6708${startDate.dayOfMonth}\u65e5" else "${startDate.monthNumber}\u6708${startDate.dayOfMonth}\u65e5\u81f3${endDate.monthNumber}\u6708${endDate.dayOfMonth}\u65e5"
+            is ReminderRecurrence.Monthly -> "\u6bcf\u6708${rule.dayOfMonth}\u65e5"
+            is ReminderRecurrence.Yearly -> "\u6bcf\u5e74${rule.month}\u6708${rule.dayOfMonth}\u65e5\u81f3${if (endDate.monthNumber == rule.month) "" else "${endDate.monthNumber}\u6708"}${endDate.dayOfMonth}\u65e5"
         }
-        return "$date，${firstReminderTime.toString().padEnd(5, '0')}开始提醒；工作时间仅显示通知，不播放声音。"
+        return "$date\uff0c${firstReminderTime.toString().padEnd(5, '0')}\u5f00\u59cb\u63d0\u9192\uff1b\u5de5\u4f5c\u65f6\u95f4\u4ec5\u663e\u793a\u901a\u77e5\uff0c\u4e0d\u64ad\u653e\u58f0\u97f3\u3002"
     }
 
     companion object {
@@ -90,6 +106,8 @@ data class ReminderEditorState(
         )
     }
 }
+
+enum class ReminderEditorMode { ONCE, MONTHLY, YEARLY, CONSECUTIVE }
 
 enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, ACTIVE_DAY_RULE, PROFILE, ADVANCED_PROFILE }
 
@@ -142,6 +160,11 @@ data class ReminderDraftUiState(
     fun editFirstTime(value: LocalTime?) = copy(firstReminderTime = value, notice = null)
     fun editActiveDayRule(value: ReminderActiveDayRule) = copy(activeDayRule = value, notice = null)
     fun editRecurrence(value: ReminderRecurrence) = copy(recurrence = value, notice = null)
+    fun selectRecurrenceMode(value: ReminderRecurrence, consecutive: Boolean) = if (consecutive) {
+        copy(recurrence = ReminderRecurrence.Once, activeDayRule = ReminderActiveDayRule.ConsecutiveDateRange, notice = null)
+    } else {
+        copy(recurrence = value, activeDayRule = ReminderActiveDayRule.Daily, notice = null)
+    }
     fun editProfile(value: ReminderProfileSnapshot?) = copy(
         profile = value?.copy(),
         daytimeBackoffInput = value?.daytimeDismissalBackoffMinutes?.joinToString(",").orEmpty(),
@@ -274,6 +297,8 @@ fun reminderActions(reminder: Reminder): List<ReminderAction> = when (reminder.s
     ReminderStatus.DRAFT -> emptyList()
 }
 
+fun canResumeReminder(reminder: Reminder): Boolean = reminder.dataIssue == null
+
 data class ReminderUiState(
     val drafts: Map<String, ReminderDraftUiState> = emptyMap(),
     val filter: ReminderFilter = ReminderFilter.ACTIVE,
@@ -379,6 +404,8 @@ class ReminderViewModel(
         edit(id, ReminderEdit(expectedVersion = reminder.version, profile = profile.copy()))
     }
 
+    fun applyLatestProfile(id: String) = applyLatestProfile(id, defaultProfile().snapshot)
+
     fun delete(id: String) = mutateAndRecompute(id) { repository.delete(id) }
 
     fun saveEditor(existing: Reminder?, editor: ReminderEditorState, onResult: (String?, ReminderEditorState) -> Unit) {
@@ -401,7 +428,7 @@ class ReminderViewModel(
             }
             result.fold(
                 onSuccess = { onResult(it, editor.copy(saving = false)) },
-                onFailure = { onResult(null, editor.copy(saving = false, notice = "保存或调度失败，请重试。")) },
+                onFailure = { onResult(null, editor.copy(saving = false, notice = "\u4fdd\u5b58\u6216\u8c03\u5ea6\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002")) },
             )
         }
     }

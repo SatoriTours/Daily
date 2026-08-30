@@ -83,7 +83,13 @@ private enum class SettingsPage {
 }
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    onBack: (() -> Unit)? = null,
+    onAddReminder: () -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
+    onOpenReminderSettings: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsState()
 
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
@@ -117,7 +123,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
         SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.TASK_CENTER -> TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.REMINDERS -> ReminderSettingsScreen(
+            onBack = { currentPage = SettingsPage.MAIN },
+            onAddReminder = onAddReminder,
+            onOpenReminder = onOpenReminder,
+            onOpenSettings = onOpenReminderSettings,
+        )
     }
 }
 

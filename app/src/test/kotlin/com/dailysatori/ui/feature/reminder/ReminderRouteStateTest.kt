@@ -2,11 +2,13 @@ package com.dailysatori.ui.feature.reminder
 
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.service.reminder.ReminderActiveDayRule
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import java.io.File
 
 class ReminderRouteStateTest {
     @Test
@@ -37,4 +39,28 @@ class ReminderRouteStateTest {
 
         assertTrue(editor.validationMessage != null)
     }
+
+    @Test
+    fun consecutiveModeAtomicallyResetsRecurrenceAndUsesTheRangeRule() {
+        val state = ReminderEditorState.createDefault().copy(
+            recurrence = ReminderRecurrence.Yearly(9, 2, com.dailysatori.service.reminder.LeapDayPolicy.FEBRUARY_28),
+        ).selectMode(ReminderEditorMode.CONSECUTIVE)
+
+        assertEquals(ReminderRecurrence.Once, state.recurrence)
+        assertEquals(ReminderActiveDayRule.ConsecutiveDateRange, state.activeDayRule)
+        assertTrue(state.actualBehaviorSummary().startsWith("连续"))
+    }
+
+    @Test
+    fun reminderNavigationBindsListAndEmbeddedSettingsCallbacks() {
+        val navHost = source("core/navigation/NavHost.kt")
+        val settings = source("ui/feature/settings/reminder/ReminderSettingsScreen.kt")
+
+        assertTrue(navHost.contains("onAddReminder = { navController.navigate(ReminderEditRoute()) }"))
+        assertTrue(navHost.contains("onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) }"))
+        assertTrue(settings.contains("onAddReminder = onAddReminder"))
+        assertTrue(settings.contains("onOpenReminder = onOpenReminder"))
+    }
+
+    private fun source(relative: String) = File("src/main/kotlin/com/dailysatori/$relative").readText()
 }

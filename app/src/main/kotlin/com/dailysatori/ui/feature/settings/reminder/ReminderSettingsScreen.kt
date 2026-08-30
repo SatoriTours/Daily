@@ -53,6 +53,9 @@ private enum class ProfileTimeField { EVENING_START, CUTOFF }
 @Composable
 fun ReminderSettingsScreen(
     onBack: () -> Unit,
+    onAddReminder: () -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: ReminderSettingsViewModel = koinViewModel(),
     initialReminderId: String? = null,
 ) {
@@ -117,6 +120,9 @@ fun ReminderSettingsScreen(
             ReminderListScreen(
                 latestProfile = latestProfile ?: com.dailysatori.service.reminder.ReminderProfileSnapshot.standard(),
                 initialReminderId = initialReminderId,
+                onAddReminder = onAddReminder,
+                onOpenReminder = onOpenReminder,
+                onOpenSettings = onOpenSettings,
             )
         }
     }

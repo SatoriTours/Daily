@@ -8,6 +8,8 @@ import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderStatus
+import com.dailysatori.service.reminder.ReminderDataIssue
+import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsState
 import com.dailysatori.ui.feature.settings.reminder.ReminderProfileEditorState
@@ -145,6 +147,25 @@ class ReminderUiStateTest {
         assertEquals(setOf(ReminderAction.PAUSE, ReminderAction.EDIT, ReminderAction.COMPLETE, ReminderAction.DELETE, ReminderAction.APPLY_LATEST_PROFILE), reminderActions(active).toSet())
         assertEquals(setOf(ReminderAction.RESUME, ReminderAction.EDIT, ReminderAction.COMPLETE, ReminderAction.DELETE, ReminderAction.APPLY_LATEST_PROFILE), reminderActions(paused).toSet())
         assertEquals(listOf(ReminderAction.DELETE), reminderActions(completed))
+    }
+
+    @Test
+    fun quarantinedReminderOffersProfileRecoveryButCannotResumeUntilRepaired() {
+        val quarantined = reminder(ReminderStatus.PAUSED).copy(dataIssue = ReminderDataIssue.CORRUPT_PROFILE)
+
+        assertTrue(ReminderAction.APPLY_LATEST_PROFILE in reminderActions(quarantined))
+        assertFalse(canResumeReminder(quarantined))
+    }
+
+    @Test
+    fun draftConsecutiveModeResetsRecurrenceAndOtherModesResetTheRangeRule() {
+        val consecutive = validDraftState().selectRecurrenceMode(ReminderRecurrence.Once, consecutive = true)
+        val monthly = consecutive.selectRecurrenceMode(ReminderRecurrence.Monthly(2), consecutive = false)
+
+        assertEquals(ReminderRecurrence.Once, consecutive.recurrence)
+        assertEquals(ReminderActiveDayRule.ConsecutiveDateRange, consecutive.activeDayRule)
+        assertEquals(ReminderRecurrence.Monthly(2), monthly.recurrence)
+        assertEquals(ReminderActiveDayRule.Daily, monthly.activeDayRule)
     }
 
     @Test

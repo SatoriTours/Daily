@@ -203,13 +203,19 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 ) + fadeOut(animationSpec = tween(ANIM_DURATION))
             },
         ) {
-            SettingsScreen(settingsViewModel)
+            SettingsScreen(
+                viewModel = settingsViewModel,
+                onAddReminder = { navController.navigate(ReminderEditRoute()) },
+                onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) },
+                onOpenReminderSettings = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
+            )
         }
 
         composable<ReminderListRoute> {
             ReminderListScreen(
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) },
+                onOpenSettings = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
             )
         }
 

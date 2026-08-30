@@ -51,17 +51,13 @@ fun ReminderEditScreen(
             }
             Text("重复方式", style = MaterialTheme.typography.titleSmall)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf("一次" to ReminderRecurrence.Once, "每月" to ReminderRecurrence.Monthly(editor.startDate.dayOfMonth), "每年" to ReminderRecurrence.Yearly(editor.startDate.monthNumber, editor.startDate.dayOfMonth, LeapDayPolicy.FEBRUARY_28), "连续" to ReminderRecurrence.Once).forEach { (label, recurrence) ->
-                    FilterChip(selected = when (label) { "连续" -> editor.activeDayRule is com.dailysatori.service.reminder.ReminderActiveDayRule.ConsecutiveDateRange; else -> editor.recurrence::class == recurrence::class }, onClick = {
-                        editor = if (label == "连续") {
-                            editor.copy(activeDayRule = com.dailysatori.service.reminder.ReminderActiveDayRule.ConsecutiveDateRange)
-                        } else {
-                            editor.copy(
-                                recurrence = recurrence,
-                                leapDayFallbackChosen = !(recurrence is ReminderRecurrence.Yearly && recurrence.month == 2 && recurrence.dayOfMonth == 29),
-                            )
-                        }
-                    }, label = { Text(label) })
+                listOf("一次" to ReminderEditorMode.ONCE, "每月" to ReminderEditorMode.MONTHLY, "每年" to ReminderEditorMode.YEARLY, "连续" to ReminderEditorMode.CONSECUTIVE).forEach { (label, mode) ->
+                    FilterChip(selected = when (mode) {
+                        ReminderEditorMode.CONSECUTIVE -> editor.activeDayRule is com.dailysatori.service.reminder.ReminderActiveDayRule.ConsecutiveDateRange
+                        ReminderEditorMode.ONCE -> editor.recurrence == ReminderRecurrence.Once && editor.activeDayRule !is com.dailysatori.service.reminder.ReminderActiveDayRule.ConsecutiveDateRange
+                        ReminderEditorMode.MONTHLY -> editor.recurrence is ReminderRecurrence.Monthly
+                        ReminderEditorMode.YEARLY -> editor.recurrence is ReminderRecurrence.Yearly
+                    }, onClick = { editor = editor.selectMode(mode) }, label = { Text(label) })
                 }
             }
             if (editor.recurrence is ReminderRecurrence.Yearly && editor.startDate.monthNumber == 2 && editor.startDate.dayOfMonth == 29) {

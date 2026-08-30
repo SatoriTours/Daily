@@ -45,10 +45,10 @@ fun ReminderDetailScreen(
                         when (action) {
                             ReminderAction.COMPLETE -> Button(onClick = { viewModel.complete(reminder.id) }) { Text("完成") }
                             ReminderAction.PAUSE -> TextButton(onClick = { viewModel.pause(reminder.id) }) { Text("暂停") }
-                            ReminderAction.RESUME -> TextButton(onClick = { viewModel.resume(reminder.id) }) { Text("恢复") }
+                            ReminderAction.RESUME -> TextButton(onClick = { viewModel.resume(reminder.id) }, enabled = canResumeReminder(reminder)) { Text("恢复") }
                             ReminderAction.EDIT -> TextButton(onClick = { onEdit(reminder.id) }) { Text("编辑") }
                             ReminderAction.DELETE -> TextButton(onClick = { viewModel.delete(reminder.id); onBack() }) { Text("删除") }
-                            ReminderAction.APPLY_LATEST_PROFILE -> Unit
+                            ReminderAction.APPLY_LATEST_PROFILE -> TextButton(onClick = { viewModel.applyLatestProfile(reminder.id) }) { Text("应用最新配置") }
                         }
                     }
                 }

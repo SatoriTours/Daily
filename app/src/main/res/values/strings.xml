@@ -134,4 +134,6 @@
     <string name="reminder_list_later_this_month">本月稍后</string>
     <string name="reminder_list_later">之后</string>
     <string name="reminder_list_month">月份</string>
+    <string name="reminder_recurrence_title">重复方式</string>
+    <string name="reminder_recurrence_consecutive">连续</string>
 </resources>
