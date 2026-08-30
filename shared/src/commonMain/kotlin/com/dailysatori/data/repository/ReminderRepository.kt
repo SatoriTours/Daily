@@ -6,6 +6,7 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
+import com.dailysatori.service.reminder.ReminderDataIssue
 import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderImportance
@@ -105,15 +106,15 @@ class ReminderRepository(
     }
 
     fun getProfile(id: String): ReminderProfile? = q.selectReminderProfileById(id).executeAsOneOrNull()?.let {
-        ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile())
+        runCatching { ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile()) }.getOrNull()
     }
 
-    fun profiles(): List<ReminderProfile> = q.selectAllReminderProfiles().executeAsList().map {
-        ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile())
+    fun profiles(): List<ReminderProfile> = q.selectAllReminderProfiles().executeAsList().mapNotNull {
+        runCatching { ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile()) }.getOrNull()
     }
 
     fun observeProfiles(): Flow<List<ReminderProfile>> = q.selectAllReminderProfiles().asFlow().mapToList(Dispatchers.IO).map { rows ->
-        rows.map { ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile()) }
+        rows.mapNotNull { runCatching { ReminderProfile(it.id, it.name, ReminderProfileKind.valueOf(it.kind), it.profile_json.toProfile()) }.getOrNull() }
     }
 
     fun deleteProfile(id: String): Boolean {
@@ -135,7 +136,7 @@ class ReminderRepository(
     fun activeAt(now: Instant): List<Reminder> = q.selectActiveReminders().executeAsList().map { it.toReminder() }
         .filter { reminder ->
             val date = now.toLocalDateTime(reminder.timeZone).date
-            date in reminder.startDate..reminder.endDate && reminder.activeDayRule.isActiveOn(date)
+            reminder.status.name in deliverableStatuses && date in reminder.startDate..reminder.endDate && reminder.activeDayRule.isActiveOn(date)
         }
 
     fun state(id: String): ReminderState? = q.selectReminderById(id).executeAsOneOrNull()?.let {
@@ -143,7 +144,7 @@ class ReminderRepository(
     }
 
     fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone? = null): Boolean = transition(id, expectedVersion, at) { row ->
-        if (row.status !in deliverableStatuses) null else Lifecycle(
+        if (row.status !in deliverableStatuses || !row.hasValidProfile()) null else Lifecycle(
             status = ReminderStatus.NOTIFIED,
             stateDate = at.toLocalDateTime(timeZone ?: TimeZone.of(row.time_zone_id)).date,
             dismissalCount = row.dismissal_count.toInt(),
@@ -156,7 +157,7 @@ class ReminderRepository(
     }
 
     fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone? = null): Boolean = transition(id, expectedVersion, at) { row ->
-        if (row.status !in deliverableStatuses) return@transition null
+        if (row.status !in deliverableStatuses || !row.hasValidProfile()) return@transition null
         val date = at.toLocalDateTime(timeZone ?: TimeZone.of(row.time_zone_id)).date
         val count = if (row.state_date == date.toString()) row.dismissal_count.toInt() + 1 else 1
         Lifecycle(ReminderStatus.DISMISSED, date, count, row.last_notified_at, at.toEpochMilliseconds(), row.completed_at, row.next_occurrence_at, "dismissed")
@@ -203,7 +204,8 @@ class ReminderRepository(
         val content = edit.content ?: row.content
         val rule = edit.activeDayRule ?: row.active_day_rule.decode()
         if (end < start || content.isBlank() || content.length > MAX_CONTENT_LENGTH || !rule.isValid()) return@transactionWithResult false
-        if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
+        val profile = edit.profile ?: runCatching { row.profile_json.toProfile() }.getOrNull() ?: return@transactionWithResult false
+        if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         recordEvent(id, "edited", at)
         true
     }
@@ -238,7 +240,7 @@ class ReminderRepository(
 
     private fun simpleTransition(id: String, target: ReminderStatus, at: Instant, eventType: String): Boolean = q.transactionWithResult {
         val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult false
-        if (row.status in terminalStatuses || row.status == target.name) return@transactionWithResult false
+        if (row.status in terminalStatuses || row.status == target.name || target == ReminderStatus.ACTIVE && !row.hasValidProfile()) return@transactionWithResult false
         saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.completed_at, if (target == ReminderStatus.PAUSED) null else row.next_occurrence_at, eventType), at)
     }
 
@@ -253,7 +255,18 @@ class ReminderRepository(
         q.deleteReminderEventsAfterLimit(id, id, MAX_EVENT_HISTORY.toLong())
     }
 
-    private fun com.dailysatori.shared.db.Reminder.toReminder() = Reminder(id, content, LocalDate.parse(start_date), LocalDate.parse(end_date), LocalTime.parse(first_reminder_time), active_day_rule.decode(), profile_json.toProfile(), ReminderStatus.valueOf(status), TimeZone.of(time_zone_id), version)
+    private fun com.dailysatori.shared.db.Reminder.toReminder(): Reminder {
+        val decodedProfile = runCatching { profile_json.toProfile() }
+        return Reminder(
+            id, content, LocalDate.parse(start_date), LocalDate.parse(end_date), LocalTime.parse(first_reminder_time),
+            active_day_rule.decode(), decodedProfile.getOrElse { quarantinedProfile() },
+            if (decodedProfile.isFailure) ReminderStatus.PAUSED else ReminderStatus.valueOf(status),
+            TimeZone.of(time_zone_id), version,
+            if (decodedProfile.isFailure) ReminderDataIssue.CORRUPT_PROFILE else null,
+        )
+    }
+
+    private fun com.dailysatori.shared.db.Reminder.hasValidProfile() = runCatching { profile_json.toProfile() }.isSuccess
 
     private data class Lifecycle(val status: ReminderStatus, val stateDate: LocalDate?, val dismissalCount: Int, val lastNotifiedAt: Long?, val lastDismissedAt: Long?, val completedAt: Long?, val nextOccurrenceAt: Long?, val eventType: String)
 
@@ -304,10 +317,24 @@ private fun ReminderProfileSnapshot.toBoundedJson(): String {
 }
 
 private fun String.toProfile(): ReminderProfileSnapshot {
+    require(length <= 4_096)
     val root = Json.parseToJsonElement(this).jsonObject
     fun string(name: String) = requireNotNull(root.getValue(name).jsonPrimitive.contentOrNull)
     fun strings(name: String): JsonArray = root.getValue(name).jsonArray
-    return ReminderProfileSnapshot(ReminderProfileKind.valueOf(string("kind")), strings("backoff").map { requireNotNull(it.jsonPrimitive.contentOrNull).toInt() }, LocalTime.parse(string("eveningStart")), root["eveningInterval"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(), strings("eveningTimes").map { LocalTime.parse(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("dailyCutoff")), string("sound").toBoolean(), string("vibration").toBoolean(), LocalTime.parse(string("sleepStart")), LocalTime.parse(string("sleepEnd")), strings("workDays").map { DayOfWeek.valueOf(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("workStart")), LocalTime.parse(string("workEnd")), root["importance"]?.jsonPrimitive?.contentOrNull?.let(ReminderImportance::valueOf) ?: ReminderImportance.HIGH, root["lockScreenVisibility"]?.jsonPrimitive?.contentOrNull?.let(ReminderLockScreenVisibility::valueOf) ?: ReminderLockScreenVisibility.PRIVATE)
+    fun boolean(name: String) = when (val value = string(name)) { "true" -> true; "false" -> false; else -> error("Invalid $name: $value") }
+    return ReminderProfileSnapshot(ReminderProfileKind.valueOf(string("kind")), strings("backoff").map { requireNotNull(it.jsonPrimitive.contentOrNull).toInt() }, LocalTime.parse(string("eveningStart")), root["eveningInterval"]?.jsonPrimitive?.contentOrNull?.toIntOrNull(), strings("eveningTimes").map { LocalTime.parse(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("dailyCutoff")), boolean("sound"), boolean("vibration"), LocalTime.parse(string("sleepStart")), LocalTime.parse(string("sleepEnd")), strings("workDays").map { DayOfWeek.valueOf(requireNotNull(it.jsonPrimitive.contentOrNull)) }.toSet(), LocalTime.parse(string("workStart")), LocalTime.parse(string("workEnd")), root["importance"]?.jsonPrimitive?.contentOrNull?.let(ReminderImportance::valueOf) ?: ReminderImportance.HIGH, root["lockScreenVisibility"]?.jsonPrimitive?.contentOrNull?.let(ReminderLockScreenVisibility::valueOf) ?: ReminderLockScreenVisibility.PRIVATE).also {
+        require(it.daytimeDismissalBackoffMinutes.size <= 8 && it.daytimeDismissalBackoffMinutes.all { minutes -> minutes in 1..1_440 })
+        require(it.eveningTimes.size <= 8 && it.workDays.size <= 7)
+        require(it.eveningIntervalMinutes == null || it.eveningIntervalMinutes in 1..1_440)
+    }
 }
+
+private fun quarantinedProfile() = ReminderProfileSnapshot.gentle().copy(
+    eveningTimes = emptySet(),
+    eveningIntervalMinutes = null,
+    soundEnabled = false,
+    vibrationEnabled = false,
+    lockScreenVisibility = ReminderLockScreenVisibility.SECRET,
+)
 
 private fun Map<String, String>.toJson(): String = buildJsonObject { forEach { (key, value) -> put(key, value) } }.toString()

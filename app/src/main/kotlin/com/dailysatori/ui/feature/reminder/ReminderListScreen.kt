@@ -85,6 +85,9 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
     val validEdit = isValidReminderDetailEdit(content, startDate, endDate, rule)
     Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .35f)) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            if (reminder.dataIssue != null) {
+                Text(stringResource(R.string.reminder_corrupt_profile_warning), color = MaterialTheme.colorScheme.error)
+            }
             OutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
@@ -130,7 +133,8 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
                             ReminderAction.DELETE -> viewModel.delete(reminder.id)
                             ReminderAction.APPLY_LATEST_PROFILE -> viewModel.applyLatestProfile(reminder.id, latestProfile)
                         }
-                    }, enabled = action != ReminderAction.EDIT || validEdit) { Text(action.label()) }
+                    }, enabled = (action != ReminderAction.EDIT || validEdit) &&
+                        !(action == ReminderAction.RESUME && reminder.dataIssue != null)) { Text(action.label()) }
                 }
             }
         }

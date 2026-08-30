@@ -8,6 +8,8 @@ import kotlinx.datetime.TimeZone
 
 enum class ReminderStatus { DRAFT, ACTIVE, NOTIFIED, DISMISSED, PAUSED, COMPLETED, EXPIRED }
 
+enum class ReminderDataIssue { CORRUPT_PROFILE }
+
 enum class ReminderProfileKind { STRONG, STANDARD, GENTLE, CUSTOM }
 
 enum class ReminderImportance { LOW, DEFAULT, HIGH }
@@ -68,6 +70,7 @@ data class Reminder(
     val status: ReminderStatus,
     val timeZone: TimeZone,
     val version: Long,
+    val dataIssue: ReminderDataIssue? = null,
 )
 
 enum class ReminderDeliveryReason { INITIAL, HOURLY_REPEAT, DISMISSAL_BACKOFF, EVENING_REINFORCEMENT, WAKE_RECOVERY, NEXT_ACTIVE_DATE }

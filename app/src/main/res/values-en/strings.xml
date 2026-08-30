@@ -13,6 +13,7 @@
     <string name="reminder_draft_title">Confirm reminder</string>
     <string name="reminder_content_label">Reminder content</string>
     <string name="reminder_detail_invalid">Enter 1–2000 characters, use valid dates, and select at least one weekday</string>
+    <string name="reminder_corrupt_profile_warning">This reminder profile is damaged and has been safely paused. Apply the latest profile to recover it.</string>
     <string name="reminder_absolute_time">Absolute time: %1$s</string>
     <string name="reminder_select_date_time">Select dates and time</string>
     <string name="reminder_not_selected">Not selected</string>

@@ -3,6 +3,7 @@ package com.dailysatori.data.repository
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
+import com.dailysatori.service.reminder.ReminderDataIssue
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderImportance
@@ -14,6 +15,8 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.DayOfWeek
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -178,6 +181,55 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun corruptReminderProfileIsQuarantinedWithoutBlockingOtherReminders() =
+        withDriverDatabase { db, driver ->
+            val repo = ReminderRepository(db, TimeZone.UTC)
+            repo.createConfirmed(draft(id = "corrupt"), strongProfile())
+            val healthy = repo.createConfirmed(draft(id = "healthy"), strongProfile())
+            driver.execute(null, "UPDATE reminder SET profile_json = '{broken' WHERE id = 'corrupt'", 0)
+
+            val reminders = runBlocking { repo.observeAll().first() }
+            val corrupt = reminders.first { it.id == "corrupt" }
+            assertEquals(ReminderStatus.PAUSED, corrupt.status)
+            assertEquals(ReminderDataIssue.CORRUPT_PROFILE, corrupt.dataIssue)
+            assertFalse(corrupt.profile.soundEnabled)
+            assertFalse(corrupt.profile.vibrationEnabled)
+            assertEquals(ReminderLockScreenVisibility.SECRET, corrupt.profile.lockScreenVisibility)
+            assertEquals(listOf(healthy.id), repo.activeAt(now).map { it.id })
+            assertFalse(repo.resume(corrupt.id))
+            assertFalse(repo.update(corrupt.id, ReminderEdit(corrupt.version, content = "still quarantined")))
+        }
+
+    @Test
+    fun invalidProfileValuesAreQuarantinedAndApplyingValidProfileRepairsReminder() = withDriverDatabase { db, driver ->
+        val repo = ReminderRepository(db, TimeZone.UTC)
+        val saved = repo.createConfirmed(draft(id = "invalid-values"), strongProfile())
+        val invalid = profileJson(strongProfile()).replace("\"backoff\":[120,240]", "\"backoff\":[0]")
+        driver.execute(null, "UPDATE reminder SET profile_json = '${invalid.replace("'", "''")}' WHERE id = 'invalid-values'", 0)
+
+        val quarantined = repo.get(saved.id)!!
+        assertEquals(ReminderDataIssue.CORRUPT_PROFILE, quarantined.dataIssue)
+        assertTrue(repo.update(saved.id, ReminderEdit(quarantined.version, profile = strongProfile())))
+        val repaired = repo.get(saved.id)!!
+        assertEquals(null, repaired.dataIssue)
+        assertEquals(ReminderStatus.ACTIVE, repaired.status)
+        assertEquals(strongProfile(), repaired.profile)
+    }
+
+    @Test
+    fun corruptCustomProfilesAreSkippedWithoutDeletingTheirRows() =
+        withDatabase { db ->
+            val repo = ReminderRepository(db, TimeZone.UTC)
+            repo.upsertProfile(ReminderProfile("healthy", "Healthy", ReminderProfileKind.CUSTOM, strongProfile().copy(kind = ReminderProfileKind.CUSTOM)))
+            db.dailySatoriQueries.upsertReminderProfile("corrupt", "Corrupt", ReminderProfileKind.CUSTOM.name, "{broken", 1, 1)
+
+            assertEquals(listOf("healthy"), repo.profiles().map { it.id })
+            assertEquals(listOf("healthy"), runBlocking { repo.observeProfiles().first() }.map { it.id })
+            assertEquals(null, repo.getProfile("corrupt"))
+            assertTrue(db.dailySatoriQueries.selectReminderProfileById("corrupt").executeAsOneOrNull() != null)
+        }
+
+    @Test
     fun deletingReminderRemovesItAndItsEvents() = withRepository { repo ->
         val reminder = repo.createConfirmed(draft(), strongProfile())
 
@@ -198,14 +250,29 @@ class ReminderRepositoryTest {
 
     private fun strongProfile() = ReminderProfileSnapshot.strong()
 
+    private fun profileJson(profile: ReminderProfileSnapshot): String {
+        val repoProfile = ReminderProfile("json", "JSON", profile.kind, profile)
+        var json = ""
+        withDatabase { db ->
+            val repo = ReminderRepository(db, TimeZone.UTC)
+            repo.upsertProfile(repoProfile)
+            json = db.dailySatoriQueries.selectReminderProfileById("json").executeAsOne().profile_json
+        }
+        return json
+    }
+
     private fun withRepository(block: (ReminderRepository) -> Unit) {
         withDatabase { db -> block(ReminderRepository(db, TimeZone.UTC)) }
     }
 
     private fun withDatabase(block: (DailySatoriDatabase) -> Unit) {
+        withDriverDatabase { db, _ -> block(db) }
+    }
+
+    private fun withDriverDatabase(block: (DailySatoriDatabase, JdbcSqliteDriver) -> Unit) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
-        block(DailySatoriDatabase(driver))
+        block(DailySatoriDatabase(driver), driver)
         driver.close()
     }
 }
