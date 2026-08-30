@@ -8,7 +8,9 @@ import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
+import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.ReminderStatus
+import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -38,6 +40,16 @@ class ReminderRepositoryTest {
         val saved = repo.createConfirmed(draft().copy(timeZone = TimeZone.of("Pacific/Auckland")), strongProfile())
 
         assertEquals("Pacific/Auckland", saved.timeZone.id)
+    }
+
+    @Test
+    fun yearlyRecurrenceRoundTrips() = withRepository { repo ->
+        val saved = repo.createConfirmed(
+            draft().copy(recurrence = ReminderRecurrence.Yearly(9, 2, LeapDayPolicy.FEBRUARY_28)),
+            strongProfile(),
+        )
+
+        assertEquals(ReminderRecurrence.Yearly(9, 2, LeapDayPolicy.FEBRUARY_28), repo.get(saved.id)?.recurrence)
     }
 
     @Test

@@ -32,12 +32,13 @@ class ReminderDraftCodec(
         val endDate = absoluteDate(args.string("end_date"), "end_date", errors)
         val firstTime = absoluteTime(args.string("first_reminder_time"), errors)
         val rule = activeDayRule(args, errors)
+        val recurrence = recurrence(args.string("recurrence_rule"), errors)
         validateRange(startDate, endDate, zone, errors)
         args.string("timezone")?.takeIf { it != zone.id }?.let { errors += "timezone 必须使用设备当前时区" }
         return ReminderDraft(
             id = "reminder_draft_${now().toEpochMilliseconds()}", content = content,
             startDate = startDate, endDate = endDate, firstReminderTime = firstTime,
-            activeDayRule = rule, profile = profile(args.string("profile"), errors),
+            activeDayRule = rule, profile = profile(args.string("profile"), errors), recurrence = recurrence,
             timeZone = zone, validationErrors = errors.distinct(),
         )
     }
@@ -49,6 +50,7 @@ class ReminderDraftCodec(
         put("end_date", draft.endDate?.toString() ?: "")
         put("first_reminder_time", draft.firstReminderTime?.toString() ?: "")
         put("active_day_rule", draft.activeDayRule.encode())
+        put("recurrence_rule", draft.recurrence.encode())
         if (draft.activeDayRule is ReminderActiveDayRule.SelectedWeekdays) {
             put("selected_weekdays", JsonArray(draft.activeDayRule.days.sortedBy { it.ordinal }.map { JsonPrimitive(it.name) }))
         }
@@ -110,6 +112,21 @@ class ReminderDraftCodec(
         return ReminderActiveDayRule.SelectedWeekdays(days)
     }
 
+    private fun recurrence(value: String?, errors: MutableList<String>): ReminderRecurrence = runCatching {
+        when {
+            value == null || value == "once" -> ReminderRecurrence.Once
+            value.startsWith("monthly:") -> ReminderRecurrence.Monthly(value.removePrefix("monthly:").toInt())
+            value.startsWith("yearly:") -> value.split(':').let { parts ->
+                require(parts.size == 4)
+                ReminderRecurrence.Yearly(parts[1].toInt(), parts[2].toInt(), LeapDayPolicy.valueOf(parts[3]))
+            }
+            else -> error("Unknown recurrence rule")
+        }
+    }.getOrElse {
+        errors += "recurrence_rule 必须是 once、monthly:<day> 或 yearly:<month>:<day>:<policy>"
+        ReminderRecurrence.Once
+    }
+
     private fun profile(value: String?, errors: MutableList<String>): ReminderProfileSnapshot? = when (value) {
         null, "" -> null
         "strong" -> ReminderProfileSnapshot.strong()
@@ -129,10 +146,16 @@ class ReminderDraftCodec(
         is ReminderActiveDayRule.SelectedWeekdays -> "selected_weekdays"
     }
 
+    private fun ReminderRecurrence.encode(): String = when (this) {
+        ReminderRecurrence.Once -> "once"
+        is ReminderRecurrence.Monthly -> "monthly:$dayOfMonth"
+        is ReminderRecurrence.Yearly -> "yearly:$month:$dayOfMonth:${leapDayPolicy.name}"
+    }
+
     private companion object {
         const val MAX_CONTENT_LENGTH = 500
         val HH_MM = Regex("^(?:[01]\\d|2[0-3]):[0-5]\\d$")
-        val allowedFields = setOf("draft_id", "content", "start_date", "end_date", "first_reminder_time", "active_day_rule", "selected_weekdays", "profile", "timezone", "validation_errors")
+        val allowedFields = setOf("draft_id", "content", "start_date", "end_date", "first_reminder_time", "active_day_rule", "recurrence_rule", "selected_weekdays", "profile", "timezone", "validation_errors")
         val dayOfWeek = DayOfWeek.entries.associateBy { it.name }
     }
 }

@@ -94,6 +94,9 @@ class DatabaseMigration(
         if (currentVersion < 23) {
             migrateV22ToV23()
         }
+        if (currentVersion < 24) {
+            migrateV23ToV24()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -959,6 +962,11 @@ class DatabaseMigration(
         migrateReminderSchema(::runSql)
     }
 
+    private fun migrateV23ToV24() {
+        log.i { "Migration V23 -> V24: Reminder recurrence" }
+        migrateReminderRecurrenceSchema(::runSql)
+    }
+
     private fun getCurrentVersion(): Long {
         return settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0L
     }
@@ -1048,6 +1056,10 @@ class DatabaseMigration(
                 """CREATE TABLE IF NOT EXISTS reminder_event (id INTEGER PRIMARY KEY AUTOINCREMENT, reminder_id TEXT NOT NULL REFERENCES reminder(id) ON DELETE CASCADE, event_type TEXT NOT NULL, scheduled_at INTEGER, actual_at INTEGER NOT NULL, metadata_json TEXT NOT NULL DEFAULT '{}')""",
                 "CREATE INDEX IF NOT EXISTS idx_reminder_event_reminder_id ON reminder_event(reminder_id, id DESC)",
             ).forEach(runSql)
+        }
+
+        internal fun migrateReminderRecurrenceSchema(runSql: (String) -> Unit) {
+            runSql("ALTER TABLE reminder ADD COLUMN recurrence_rule TEXT NOT NULL DEFAULT 'once'")
         }
     }
 }

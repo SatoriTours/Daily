@@ -11,6 +11,8 @@ import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
+import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Reminder_event
@@ -52,6 +54,7 @@ data class ReminderEdit(
     val endDate: LocalDate? = null,
     val firstReminderTime: LocalTime? = null,
     val activeDayRule: ReminderActiveDayRule? = null,
+    val recurrence: ReminderRecurrence? = null,
     val profile: ReminderProfileSnapshot? = null,
 )
 
@@ -78,6 +81,7 @@ class ReminderRepository(
             end_date = endDate.toString(),
             first_reminder_time = firstTime.toString(),
             active_day_rule = draft.activeDayRule.encode(),
+            recurrence_rule = draft.recurrence.encode(),
             time_zone_id = draft.timeZone.id,
             profile_json = profileJson,
             version = 0,
@@ -203,9 +207,10 @@ class ReminderRepository(
         val end = edit.endDate ?: LocalDate.parse(row.end_date)
         val content = edit.content ?: row.content
         val rule = edit.activeDayRule ?: row.active_day_rule.decode()
+        val recurrence = edit.recurrence ?: row.recurrence_rule.decodeRecurrence()
         if (end < start || content.isBlank() || content.length > MAX_CONTENT_LENGTH || !rule.isValid()) return@transactionWithResult false
         val profile = edit.profile ?: runCatching { row.profile_json.toProfile() }.getOrNull() ?: return@transactionWithResult false
-        if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
+        if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         recordEvent(id, "edited", at)
         true
     }
@@ -263,6 +268,7 @@ class ReminderRepository(
             if (decodedProfile.isFailure) ReminderStatus.PAUSED else ReminderStatus.valueOf(status),
             TimeZone.of(time_zone_id), version,
             if (decodedProfile.isFailure) ReminderDataIssue.CORRUPT_PROFILE else null,
+            recurrence_rule.decodeRecurrence(),
         )
     }
 
@@ -294,6 +300,22 @@ private fun String.decode(): ReminderActiveDayRule = when {
     this == "range" -> ReminderActiveDayRule.ConsecutiveDateRange
     startsWith("selected:") -> ReminderActiveDayRule.SelectedWeekdays(removePrefix("selected:").split(',').filter { it.isNotBlank() }.map(DayOfWeek::valueOf).toSet())
     else -> error("Unknown reminder active-day rule")
+}
+
+private fun ReminderRecurrence.encode(): String = when (this) {
+    ReminderRecurrence.Once -> "once"
+    is ReminderRecurrence.Monthly -> "monthly:$dayOfMonth"
+    is ReminderRecurrence.Yearly -> "yearly:$month:$dayOfMonth:${leapDayPolicy.name}"
+}
+
+private fun String.decodeRecurrence(): ReminderRecurrence = when {
+    this == "once" -> ReminderRecurrence.Once
+    startsWith("monthly:") -> ReminderRecurrence.Monthly(removePrefix("monthly:").toInt())
+    startsWith("yearly:") -> split(':').let { parts ->
+        require(parts.size == 4)
+        ReminderRecurrence.Yearly(parts[1].toInt(), parts[2].toInt(), LeapDayPolicy.valueOf(parts[3]))
+    }
+    else -> error("Unknown reminder recurrence rule")
 }
 
 private fun ReminderActiveDayRule.isActiveOn(date: LocalDate): Boolean = when (this) {
