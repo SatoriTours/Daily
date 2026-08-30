@@ -3,6 +3,11 @@ package com.dailysatori.core.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable data object HomeRoute
+@Serializable data object ProfileRoute
+@Serializable data object DataPrivacyRoute
+@Serializable data object ProfileFavoritesRoute
+@Serializable data object ProfileExternalFavoritesRoute
+@Serializable data object TaskCenterRoute
 @Serializable data class ArticleDetailRoute(val articleId: Long)
 @Serializable data object BookSearchRoute
 @Serializable data object BookContentSearchRoute

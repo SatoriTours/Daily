@@ -58,6 +58,7 @@ import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsViewModel
+import com.dailysatori.ui.feature.profile.ProfileViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -180,6 +181,7 @@ val viewModelModule: Module = module {
         )
     }
     viewModel { ReminderViewModel(repository = get(), coordinator = get(), settingRepository = get(), textInterpreter = get(), context = androidContext()) }
+    viewModel { ProfileViewModel(reminders = get(), articles = get(), externalSources = get(), tasks = get()) }
     viewModel {
         val context = androidContext()
         ReminderSettingsViewModel(

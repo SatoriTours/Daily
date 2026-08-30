@@ -58,6 +58,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.appbar.HomeCompactHeader
+import com.dailysatori.ui.component.appbar.HomeCompactTab
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -78,6 +80,7 @@ fun UnifiedNewsScreen(
     settingsViewModel: SettingsViewModel,
     onArticleClick: (Long) -> Unit = {},
     onMyClick: () -> Unit = {},
+    avatarBadgeCount: Int = 0,
 ) {
     val viewModel: UnifiedNewsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -97,6 +100,7 @@ fun UnifiedNewsScreen(
         settingsViewModel = settingsViewModel,
         onArticleClick = onArticleClick,
         onMyClick = onMyClick,
+        avatarBadgeCount = avatarBadgeCount,
     )
 }
 
@@ -147,6 +151,7 @@ private fun UnifiedNewsMainPageRoute(
     settingsViewModel: SettingsViewModel,
     onArticleClick: (Long) -> Unit,
     onMyClick: () -> Unit,
+    avatarBadgeCount: Int,
 ) {
     BackHandler(enabled = state.page != UnifiedNewsPage.SUMMARY) {
         viewModel.switchPage(UnifiedNewsPage.SUMMARY)
@@ -156,7 +161,7 @@ private fun UnifiedNewsMainPageRoute(
     }
 
     when (state.page) {
-        UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick)
+        UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick, avatarBadgeCount)
         UnifiedNewsPage.LOCAL_ARTICLES -> ArticleListScreen(
             onArticleClick = onArticleClick,
             onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
@@ -177,6 +182,7 @@ private fun UnifiedNewsSummaryPage(
     viewModel: UnifiedNewsViewModel,
     onArticleClick: (Long) -> Unit,
     onMyClick: () -> Unit,
+    avatarBadgeCount: Int,
 ) {
     Scaffold(
         topBar = {
@@ -184,12 +190,12 @@ private fun UnifiedNewsSummaryPage(
                 state = state,
                 viewModel = viewModel,
                 onMyClick = onMyClick,
+                avatarBadgeCount = avatarBadgeCount,
             )
         },
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
         Column(modifier = modifier.fillMaxSize()) {
-            UnifiedNewsSourceSwitcher(state = state, viewModel = viewModel)
             if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
             val refreshMessage = state.manualRefreshMessage ?: state.error
             if (!state.isRegenerating && !refreshMessage.isNullOrBlank()) {
@@ -225,6 +231,7 @@ private fun UnifiedNewsTopBar(
     state: UnifiedNewsState,
     viewModel: UnifiedNewsViewModel,
     onMyClick: () -> Unit,
+    avatarBadgeCount: Int,
 ) {
     if (state.isSearchVisible) {
         UnifiedNewsSearchTopBar(
@@ -233,20 +240,28 @@ private fun UnifiedNewsTopBar(
             onClose = viewModel::closeSearch,
         )
     } else {
-        AppTopBar(
-            title = "新闻汇总",
-            showBack = false,
-            myNavigationLabel = "我的",
-            onMyNavigationClick = onMyClick,
-            onTitleDoubleClick = viewModel::requestScrollToTop,
-            actions = {
-                IconButton(onClick = viewModel::toggleSearch) {
-                    Icon(Icons.Default.Search, contentDescription = "搜索")
-                }
-                UnifiedNewsMenu(viewModel)
-            },
+        HomeCompactHeader(
+            avatarBadgeCount = avatarBadgeCount,
+            tabs = unifiedNewsHeaderTabs(state, viewModel),
+            selectedTab = unifiedNewsSelectedTab(state),
+            onAvatar = onMyClick,
+            onSearch = viewModel::toggleSearch,
         )
     }
+}
+
+private fun unifiedNewsHeaderTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): List<HomeCompactTab> = buildList {
+    add(HomeCompactTab("汇总", viewModel::selectSummarySource))
+    state.remoteSources.forEach { source -> add(HomeCompactTab(source.name) { viewModel.selectRemoteSource(source) }) }
+    state.externalFavoriteSources.forEach { source -> add(HomeCompactTab(source.name) { viewModel.selectExternalFavoriteSource(source) }) }
+    add(HomeCompactTab("本地新闻", viewModel::selectLocalArticlesSource))
+}
+
+private fun unifiedNewsSelectedTab(state: UnifiedNewsState): String = when (val selection = state.sourceSelection) {
+    UnifiedNewsSourceSelection.Summary -> "汇总"
+    is UnifiedNewsSourceSelection.RemoteSource -> selection.name
+    is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name
+    UnifiedNewsSourceSelection.LocalArticles -> "本地新闻"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

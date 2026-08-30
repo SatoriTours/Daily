@@ -66,6 +66,7 @@ import com.dailysatori.ui.feature.diary.DiaryScreen
 import com.dailysatori.core.recording.DiaryRecordingOpenRequest
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsScreen
+import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
@@ -76,6 +77,8 @@ import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import org.koin.androidx.compose.koinViewModel
+import kotlinx.datetime.todayIn
 
 data class TabItem(
     val label: String,
@@ -117,11 +120,13 @@ fun HomeScreen(
     onBookAnalysisMessageConsumed: () -> Unit = {},
     onArticleClick: (Long) -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
+    onProfileClick: () -> Unit = {},
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
-    var showMy by rememberSaveable { mutableStateOf(false) }
     var aiInputController by remember { mutableStateOf<AiChatInputController?>(null) }
+    val reminderViewModel: ReminderViewModel = koinViewModel()
+    val reminders by reminderViewModel.reminders.collectAsState()
     val hazeState = rememberHazeState()
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
 
@@ -131,7 +136,6 @@ fun HomeScreen(
 
     LaunchedEffect(requestedDiaryId) {
         if (requestedDiaryId != null) {
-            showMy = false
             selectedIndex = DIARY_TAB_INDEX
         }
     }
@@ -152,32 +156,27 @@ fun HomeScreen(
                     targetState = selectedIndex,
                     modifier = Modifier.fillMaxSize(),
                 ) { index ->
-                    if (showMy) {
-                        SettingsScreen(settingsViewModel, onBack = { showMy = false })
-                        return@Crossfade
-                    }
-                    val openMy = { showMy = true }
                     when (index) {
-                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
-                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = openMy)
+                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())))
+                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick)
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,
                             bookAnalysisMessage = bookAnalysisMessage,
                             onSelectedBookConsumed = onSelectedBookConsumed,
                             onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
-                            onMyClick = openMy,
+                            onMyClick = onProfileClick,
                         )
                         AI_CHAT_TAB_INDEX -> AiChatScreen(
                             onArticleClick = onAiArticleClick,
-                            onMyClick = openMy,
+                            onMyClick = onProfileClick,
                             onInputControllerChange = { aiInputController = it },
                         )
-                        else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
+                        else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick)
                     }
                 }
             }
-            if (!showMy && homeBottomBarVisibleForTab(selectedIndex)) {
+            if (homeBottomBarVisibleForTab(selectedIndex)) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter,

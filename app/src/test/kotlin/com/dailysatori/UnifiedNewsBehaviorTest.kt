@@ -1619,7 +1619,7 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun mainPagesExposeMyEntryFromTopBar() {
+    fun mainPagesExposeProfileEntryFromTopBar() {
         val topBar = java.io.File("src/main/kotlin/com/dailysatori/ui/component/appbar/AppTopBar.kt").readText()
         val scaffold = java.io.File("src/main/kotlin/com/dailysatori/ui/component/scaffold/AppScaffold.kt").readText()
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
@@ -1629,9 +1629,9 @@ class UnifiedNewsBehaviorTest {
         assertTrue(topBar.contains("contentDescription = myNavigationLabel"))
         assertFalse(topBar.contains("TextButton"))
         assertTrue(scaffold.contains("onMyNavigationClick"))
-        assertTrue(home.contains("showMy"))
-        assertTrue(home.contains("SettingsScreen(settingsViewModel, onBack = { showMy = false })"))
-        assertTrue(unified.contains("myNavigationLabel = \"我的\""))
+        assertTrue(home.contains("onProfileClick"))
+        assertTrue(unified.contains("HomeCompactHeader("))
+        assertTrue(unified.contains("avatarBadgeCount"))
     }
 
     @Test

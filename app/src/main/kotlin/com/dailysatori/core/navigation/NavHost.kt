@@ -18,6 +18,11 @@ import com.dailysatori.ui.feature.article.ArticleDetailScreen
 import com.dailysatori.ui.feature.book.BookContentSearchScreen
 import com.dailysatori.ui.feature.book.BookSearchScreen
 import com.dailysatori.ui.feature.home.HomeScreen
+import com.dailysatori.ui.feature.profile.DataPrivacyScreen
+import com.dailysatori.ui.feature.profile.ProfileScreen
+import com.dailysatori.ui.feature.article.ArticleListScreen
+import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterScreen
+import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogScreen
@@ -65,9 +70,34 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 },
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
+                onProfileClick = { navController.navigate(ProfileRoute) },
                 settingsViewModel = settingsViewModel,
             )
         }
+
+        composable<ProfileRoute> {
+            ProfileScreen(
+                onBack = { navController.popBackStack() },
+                onReminders = { navController.navigate(ReminderListRoute) },
+                onAddReminder = { navController.navigate(ReminderEditRoute()) },
+                onFavorites = { navController.navigate(ProfileFavoritesRoute) },
+                onExternalFavorites = { navController.navigate(ProfileExternalFavoritesRoute) },
+                onTasks = { navController.navigate(TaskCenterRoute) },
+                onSettings = { navController.navigate(SettingsRoute) },
+                onPrivacy = { navController.navigate(DataPrivacyRoute) },
+            )
+        }
+        composable<DataPrivacyRoute> { DataPrivacyScreen(onBack = { navController.popBackStack() }) }
+        composable<ProfileFavoritesRoute> {
+            ArticleListScreen(
+                onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
+                onBack = { navController.popBackStack() },
+                showFavoritesOnly = true,
+                lockFavoritesFilter = true,
+            )
+        }
+        composable<ProfileExternalFavoritesRoute> { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
+        composable<TaskCenterRoute> { TaskCenterScreen(onBack = { navController.popBackStack() }) }
 
         composable<ArticleDetailRoute>(
             enterTransition = {
