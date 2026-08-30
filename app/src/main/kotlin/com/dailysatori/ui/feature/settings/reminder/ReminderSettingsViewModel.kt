@@ -119,6 +119,11 @@ data class ReminderSettingsState(
 
 data class ReminderSettingsSection(val id: String)
 
+data class ReminderSettingsNavigationState(val managingProfiles: Boolean = false) {
+    fun openProfileManagement(): ReminderSettingsNavigationState = copy(managingProfiles = true)
+    fun back(): ReminderSettingsNavigationState = copy(managingProfiles = false)
+}
+
 data class ReminderDefaultRhythm(private val profile: ReminderProfileSnapshot) {
     val eveningSummary: String
         get() {

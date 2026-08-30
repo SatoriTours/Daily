@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.settings.reminder
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +21,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ReminderProfileManagementScreen(onBack: () -> Unit, viewModel: ReminderSettingsViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsState()
+    BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.reminder_profiles_section), onBack = onBack) { modifier ->
         Column(modifier.fillMaxSize().padding(horizontal = Spacing.m).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             state.profiles.forEach { ProfileCard(it, viewModel) }

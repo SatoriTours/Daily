@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.settings.reminder
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,9 +35,9 @@ fun ReminderSettingsScreen(
     viewModel: ReminderSettingsViewModel = koinViewModel(),
     initialReminderId: String? = null,
 ) {
-    var managingProfiles by remember { mutableStateOf(false) }
-    if (managingProfiles) {
-        ReminderProfileManagementScreen(onBack = { managingProfiles = false }, viewModel = viewModel)
+    var navigation by remember { mutableStateOf(ReminderSettingsNavigationState()) }
+    if (navigation.managingProfiles) {
+        ReminderProfileManagementScreen(onBack = { navigation = navigation.back() }, viewModel = viewModel)
         return
     }
     val state by viewModel.state.collectAsState()
@@ -49,10 +50,14 @@ fun ReminderSettingsScreen(
     }
     AppScaffold(title = stringResource(R.string.reminder_settings_title), onBack = onBack) { modifier ->
         Column(modifier.fillMaxSize().padding(horizontal = Spacing.m).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            DefaultRhythmCard(state, viewModel)
-            NotificationEffectCard(state, viewModel)
-            QuietRulesCard(state, viewModel) { timeField = it }
-            AdvancedCard(state.deliveryAccess, viewModel) { managingProfiles = true }
+            state.primarySections.forEach { section ->
+                when (section.id) {
+                    "default-rhythm" -> DefaultRhythmCard(state, viewModel)
+                    "notification-effect" -> NotificationEffectCard(state, viewModel)
+                    "quiet-rules" -> QuietRulesCard(state, viewModel) { timeField = it }
+                    "advanced" -> AdvancedCard(state.deliveryAccess, viewModel) { navigation = navigation.openProfileManagement() }
+                }
+            }
         }
     }
     timeField?.let { field ->
@@ -72,19 +77,19 @@ fun ReminderSettingsScreen(
     }
 }
 
-@Composable private fun DefaultRhythmCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) = SettingsCard(R.string.reminder_default_section) {
+@Composable private fun DefaultRhythmCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) = SettingsCard(R.string.reminder_settings_default_rhythm) {
     ChoiceRow(state.profiles, { it.id == state.defaultProfileId }, { profile -> profile.localizedName() }) { viewModel.setDefaultProfile(it.id) }
     Text(state.defaultRhythm.eveningSummary, style = MaterialTheme.typography.bodyMedium)
 }
 
-@Composable private fun NotificationEffectCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) = SettingsCard(R.string.reminder_profile_strength) {
+@Composable private fun NotificationEffectCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) = SettingsCard(R.string.reminder_settings_notification_effect) {
     ToggleRow(stringResource(R.string.reminder_default_sound), state.defaultSoundEnabled) { viewModel.setDefaultDelivery(it, state.defaultVibrationEnabled, state.defaultImportance, state.defaultLockScreenVisibility) }
     ToggleRow(stringResource(R.string.reminder_default_vibration), state.defaultVibrationEnabled) { viewModel.setDefaultDelivery(state.defaultSoundEnabled, it, state.defaultImportance, state.defaultLockScreenVisibility) }
     ChoiceRow(ReminderImportance.entries, { it == state.defaultImportance }, { it.label() }) { viewModel.setDefaultDelivery(state.defaultSoundEnabled, state.defaultVibrationEnabled, it, state.defaultLockScreenVisibility) }
     ChoiceRow(ReminderLockScreenVisibility.entries, { it == state.defaultLockScreenVisibility }, { it.label() }) { viewModel.setDefaultDelivery(state.defaultSoundEnabled, state.defaultVibrationEnabled, state.defaultImportance, it) }
 }
 
-@Composable private fun QuietRulesCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel, onSelectTime: (SettingsTimeField) -> Unit) = SettingsCard(R.string.reminder_default_section) {
+@Composable private fun QuietRulesCard(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel, onSelectTime: (SettingsTimeField) -> Unit) = SettingsCard(R.string.reminder_settings_quiet_rules) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         TextButton({ onSelectTime(SettingsTimeField.SLEEP_START) }) { Text(stringResource(R.string.reminder_sleep_start, state.sleepStart)) }
         TextButton({ onSelectTime(SettingsTimeField.SLEEP_END) }) { Text(stringResource(R.string.reminder_sleep_end, state.sleepEnd)) }
@@ -94,8 +99,9 @@ fun ReminderSettingsScreen(
     ChoiceRow(DayOfWeek.entries, state.workDays, { it.shortLabel() }) { day -> viewModel.setWorkHours(if (day in state.workDays) state.workDays - day else state.workDays + day, state.workStart, state.workEnd) }
 }
 
-@Composable private fun AdvancedCard(access: ReminderDeliveryAccess, viewModel: ReminderSettingsViewModel, onManageProfiles: () -> Unit) = SettingsCard(R.string.reminder_profiles_section) {
-    TextButton(onManageProfiles) { Text(stringResource(R.string.reminder_profiles_section)) }
+@Composable private fun AdvancedCard(access: ReminderDeliveryAccess, viewModel: ReminderSettingsViewModel, onManageProfiles: () -> Unit) = SettingsCard(R.string.reminder_settings_advanced) {
+    TextButton(onManageProfiles) { Text(stringResource(R.string.reminder_settings_manage_profiles)) }
+    Text(stringResource(R.string.reminder_settings_delivery_access), style = MaterialTheme.typography.bodyMedium)
     DeliveryAccessSection(access, viewModel)
 }
 
