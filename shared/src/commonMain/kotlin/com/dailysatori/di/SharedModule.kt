@@ -76,6 +76,8 @@ import com.dailysatori.service.externalfavorites.NoopFavoriteSyncHttpLogger
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
 import com.dailysatori.service.reminder.ReminderDraftCodec
+import com.dailysatori.service.reminder.ReminderAiInterpretationRemote
+import com.dailysatori.service.reminder.ReminderTextInterpreter
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
@@ -219,6 +221,8 @@ val sharedModule: Module = module {
 
     // MCP Tool registry
     single { ReminderDraftCodec() }
+    single { ReminderAiInterpretationRemote(get(), get()) }
+    single { ReminderTextInterpreter(get(), get<ReminderAiInterpretationRemote>()) }
     single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Agent service

@@ -24,6 +24,7 @@ import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.LeapDayPolicy
+import com.dailysatori.service.reminder.ReminderTextInterpreter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -105,6 +106,17 @@ data class ReminderEditorState(
             profile = reminder.profile,
         )
     }
+}
+
+data class ReminderAiParseState(
+    val prompt: String = "",
+    val isInterpreting: Boolean = false,
+    val submitCount: Int = 0,
+    val error: String? = null,
+) {
+    fun onPromptChanged(value: String) = copy(prompt = value, error = null)
+    fun onExplicitSubmit() = copy(isInterpreting = true, submitCount = submitCount + 1, error = null)
+    fun onInterpretationFinished(error: String? = null) = copy(isInterpreting = false, error = error)
 }
 
 enum class ReminderEditorMode { ONCE, MONTHLY, YEARLY, CONSECUTIVE }
@@ -306,6 +318,7 @@ data class ReminderUiState(
     val listFilter: ReminderListFilter = ReminderListFilter(),
     val isListSearchVisible: Boolean = false,
     val selectedReminderId: String? = null,
+    val aiParse: ReminderAiParseState = ReminderAiParseState(),
     val error: String? = null,
 )
 
@@ -313,6 +326,7 @@ class ReminderViewModel(
     private val repository: ReminderRepository,
     private val coordinator: ReminderCoordinator,
     private val settingRepository: SettingRepository,
+    private val textInterpreter: ReminderTextInterpreter,
     private val context: Context,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReminderUiState())
@@ -333,6 +347,25 @@ class ReminderViewModel(
             if (draft.id in current.drafts) current else {
                 val default = defaultProfile()
                 current.copy(drafts = current.drafts + (draft.id to ReminderDraftUiState.from(draft, default.snapshot, default.id)))
+            }
+        }
+    }
+
+    fun onAiPromptChanged(value: String) {
+        _state.update { it.copy(aiParse = it.aiParse.onPromptChanged(value)) }
+    }
+
+    fun interpretAiPrompt() {
+        val prompt = state.value.aiParse.prompt
+        _state.update { it.copy(aiParse = it.aiParse.onExplicitSubmit()) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val interpretation = textInterpreter.interpret(prompt, Clock.System.now(), TimeZone.currentSystemDefault())
+            _state.update { current ->
+                val next = if (interpretation.failure == null) {
+                    val default = defaultProfile()
+                    current.copy(drafts = current.drafts + (interpretation.draft.id to ReminderDraftUiState.from(interpretation.draft, default.snapshot, default.id)))
+                } else current
+                next.copy(aiParse = next.aiParse.onInterpretationFinished(interpretation.failure))
             }
         }
     }

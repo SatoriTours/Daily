@@ -43,6 +43,9 @@ class ReminderDraftCodec(
         )
     }
 
+    /** Decodes AI output through the same strict validation used by reminder tools. */
+    fun decodeInterpretationResponse(arguments: String): ReminderDraft = create(arguments)
+
     fun encode(draft: ReminderDraft): String = buildJsonObject {
         put("draft_id", draft.id)
         put("content", draft.content)
