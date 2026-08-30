@@ -8,6 +8,7 @@ import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.LeapDayPolicy
+import com.dailysatori.service.reminder.ReminderDataIssue
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderStatus
 import kotlinx.datetime.Clock
@@ -207,6 +208,18 @@ class ReminderCoordinatorTest {
 
         assertTrue(fixture.notifier.cancelled.isEmpty())
         assertEquals(1, fixture.scheduler.pending["bill"]?.expectedVersion)
+    }
+
+    @Test
+    fun quarantinedReminderDoesNotScheduleDuringRecompute() {
+        val fixture = fixture(
+            now = "2026-09-02T10:00:00Z",
+            reminder = reminder(dataIssue = ReminderDataIssue.CORRUPT_PROFILE),
+        )
+
+        fixture.coordinator.recompute("bill")
+
+        assertNull(fixture.scheduler.pending["bill"])
     }
 
     @Test
@@ -431,6 +444,7 @@ class ReminderCoordinatorTest {
             profile: ReminderProfileSnapshot = ReminderProfileSnapshot.strong(),
             activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
             recurrence: ReminderRecurrence = ReminderRecurrence.Once,
+            dataIssue: ReminderDataIssue? = null,
         ) = Reminder(
             id = "bill",
             content = "Pay credit card",
@@ -442,6 +456,7 @@ class ReminderCoordinatorTest {
             status = status,
             timeZone = UTC,
             version = version,
+            dataIssue = dataIssue,
             recurrence = recurrence,
         )
     }

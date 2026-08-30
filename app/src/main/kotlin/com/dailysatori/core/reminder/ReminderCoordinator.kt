@@ -90,6 +90,7 @@ class ReminderCoordinator(
     private fun recomputeSchedule(id: String) {
         scheduler.cancel(id)
         val reminder = store.get(id)?.inCurrentTimeZone() ?: return
+        if (reminder.dataIssue != null) return
         val decision = engine.next(reminder.toScheduleInput(clock.now(), store.state(id)))
         when (decision) {
             is ReminderScheduleDecision.Schedule -> scheduler.schedule(id, decision.expectedVersion, decision.at)

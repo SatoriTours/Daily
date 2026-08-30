@@ -10,7 +10,10 @@ object ReminderSummary {
     }
 
     private fun Reminder.isActiveOccurrenceOn(today: LocalDate): Boolean =
-        today in startDate..endDate && nextOccurrenceOnOrAfter(today) == today && activeDayRule.includes(today)
+        today in startDate..endDate && activeDayRule.includes(today) && when (recurrence) {
+            ReminderRecurrence.Once -> true
+            else -> nextOccurrenceOnOrAfter(today) == today
+        }
 
     private fun ReminderActiveDayRule.includes(date: LocalDate): Boolean = when (this) {
         ReminderActiveDayRule.Daily, ReminderActiveDayRule.ConsecutiveDateRange -> true

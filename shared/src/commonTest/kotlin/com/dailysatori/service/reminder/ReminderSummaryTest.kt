@@ -13,6 +13,16 @@ class ReminderSummaryTest {
         assertEquals(1, ReminderSummary.todayPendingCount(listOf(reminder(ReminderStatus.DISMISSED)), today))
     }
 
+    @Test fun onceReminderCountsOnAnActiveDayAfterItsStartDate() {
+        val reminder = reminder(
+            status = ReminderStatus.ACTIVE,
+            startDate = LocalDate(2026, 9, 1),
+            endDate = LocalDate(2026, 9, 3),
+        )
+
+        assertEquals(1, ReminderSummary.todayPendingCount(listOf(reminder), today))
+    }
+
     @Test fun excludesTerminalFutureAndQuarantinedReminders() {
         val reminders = listOf(
             reminder(ReminderStatus.ACTIVE, recurrence = ReminderRecurrence.Yearly(9, 3, LeapDayPolicy.FEBRUARY_28)),
@@ -27,11 +37,13 @@ class ReminderSummaryTest {
         status: ReminderStatus,
         recurrence: ReminderRecurrence = ReminderRecurrence.Once,
         dataIssue: ReminderDataIssue? = null,
+        startDate: LocalDate = today,
+        endDate: LocalDate = LocalDate(9999, 12, 31),
     ) = Reminder(
         id = "reminder-$status-$recurrence-$dataIssue",
         content = "Pay bill",
-        startDate = today,
-        endDate = LocalDate(9999, 12, 31),
+        startDate = startDate,
+        endDate = endDate,
         firstReminderTime = LocalTime(10, 0),
         activeDayRule = ReminderActiveDayRule.Daily,
         profile = ReminderProfileSnapshot.strong(),
