@@ -30,6 +30,7 @@ import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import kotlinx.datetime.DayOfWeek
 import org.koin.androidx.compose.koinViewModel
 
 private enum class DetailPicker { START, END, TIME }
@@ -81,17 +82,41 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
     var firstTime by remember(reminder.id, reminder.version) { mutableStateOf(reminder.firstReminderTime) }
     var rule by remember(reminder.id, reminder.version) { mutableStateOf(reminder.activeDayRule) }
     var picker by remember { mutableStateOf<DetailPicker?>(null) }
+    val validEdit = isValidReminderDetailEdit(content, startDate, endDate, rule)
     Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .35f)) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text(stringResource(R.string.reminder_content_label)) }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = content,
+                onValueChange = { content = it },
+                label = { Text(stringResource(R.string.reminder_content_label)) },
+                isError = !validEdit,
+                supportingText = if (validEdit) null else { { Text(stringResource(R.string.reminder_detail_invalid)) } },
+                modifier = Modifier.fillMaxWidth(),
+            )
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 TextButton(onClick = { picker = DetailPicker.START }) { Text(stringResource(R.string.reminder_start_value, startDate)) }
                 TextButton(onClick = { picker = DetailPicker.END }) { Text(stringResource(R.string.reminder_end_value, endDate)) }
                 TextButton(onClick = { picker = DetailPicker.TIME }) { Text(stringResource(R.string.reminder_first_value, firstTime)) }
             }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf(stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily, stringResource(R.string.reminder_rule_weekdays) to ReminderActiveDayRule.Weekdays, stringResource(R.string.reminder_rule_range) to ReminderActiveDayRule.ConsecutiveDateRange).forEach { (label, value) ->
-                    FilterChip(selected = rule == value, onClick = { rule = value }, label = { Text(label) })
+                listOf(
+                    stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily,
+                    stringResource(R.string.reminder_rule_weekdays) to ReminderActiveDayRule.Weekdays,
+                    stringResource(R.string.reminder_rule_selected) to ReminderActiveDayRule.SelectedWeekdays((rule as? ReminderActiveDayRule.SelectedWeekdays)?.days ?: DayOfWeek.entries.toSet()),
+                    stringResource(R.string.reminder_rule_range) to ReminderActiveDayRule.ConsecutiveDateRange,
+                ).forEach { (label, value) ->
+                    FilterChip(selected = rule::class == value::class, onClick = { rule = value }, label = { Text(label) })
+                }
+            }
+            (rule as? ReminderActiveDayRule.SelectedWeekdays)?.let { selected ->
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    DayOfWeek.entries.forEach { day ->
+                        FilterChip(
+                            selected = day in selected.days,
+                            onClick = { rule = toggleReminderDetailWeekday(selected, day) },
+                            label = { Text(day.shortLabel()) },
+                        )
+                    }
                 }
             }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -105,7 +130,7 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
                             ReminderAction.DELETE -> viewModel.delete(reminder.id)
                             ReminderAction.APPLY_LATEST_PROFILE -> viewModel.applyLatestProfile(reminder.id, latestProfile)
                         }
-                    }) { Text(action.label()) }
+                    }, enabled = action != ReminderAction.EDIT || validEdit) { Text(action.label()) }
                 }
             }
         }
@@ -117,6 +142,13 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
         null -> Unit
     }
 }
+
+internal fun isValidReminderDetailEdit(content: String, startDate: kotlinx.datetime.LocalDate, endDate: kotlinx.datetime.LocalDate, rule: ReminderActiveDayRule): Boolean =
+    content.isNotBlank() && content.length <= 2_000 && endDate >= startDate &&
+        (rule !is ReminderActiveDayRule.SelectedWeekdays || rule.days.isNotEmpty())
+
+internal fun toggleReminderDetailWeekday(rule: ReminderActiveDayRule.SelectedWeekdays, day: DayOfWeek) =
+    ReminderActiveDayRule.SelectedWeekdays(if (day in rule.days) rule.days - day else rule.days + day)
 
 @Composable
 private fun ReminderFilter.label() = stringResource(when (this) {

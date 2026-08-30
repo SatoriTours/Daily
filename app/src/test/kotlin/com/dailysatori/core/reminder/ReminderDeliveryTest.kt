@@ -23,6 +23,12 @@ import kotlin.test.assertTrue
 
 class ReminderDeliveryTest {
     @Test
+    fun collidingStringHashesStillUseDifferentNotificationTags() {
+        assertEquals("FB".hashCode(), "Ea".hashCode())
+        assertNotEquals(reminderNotificationTag("FB"), reminderNotificationTag("Ea"))
+    }
+
+    @Test
     fun notificationPolicyCarriesImportanceAndLockScreenVisibility() {
         val reminder = reminder(profile = ReminderProfileSnapshot.standard().copy(importance = ReminderImportance.LOW, lockScreenVisibility = ReminderLockScreenVisibility.SECRET))
 

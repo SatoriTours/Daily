@@ -58,17 +58,19 @@ interface ReminderNotifier {
     fun cancel(id: String)
 }
 
+internal fun reminderNotificationTag(id: String) = "reminder:$id"
+
 class AndroidReminderNotification(
     private val context: Context,
 ) : ReminderNotifier {
     override fun post(post: ReminderNotificationPost) {
         ensureChannels()
         if (!canPostNotifications()) return
-        NotificationManagerCompat.from(context).notify(notificationId(post.reminder.id), build(post))
+        NotificationManagerCompat.from(context).notify(reminderNotificationTag(post.reminder.id), NOTIFICATION_ID, build(post))
     }
 
     override fun cancel(id: String) {
-        NotificationManagerCompat.from(context).cancel(notificationId(id))
+        NotificationManagerCompat.from(context).cancel(reminderNotificationTag(id), NOTIFICATION_ID)
     }
 
     private fun build(post: ReminderNotificationPost): Notification {
@@ -149,8 +151,6 @@ class AndroidReminderNotification(
         else -> CHANNEL_SILENT
     }) + policy.importance.channelSuffix()
 
-    private fun notificationId(id: String) = id.hashCode()
-
     private data class ChannelDefinition(val id: String, val name: String, val sound: Boolean, val vibration: Boolean)
 
     private fun ChannelDefinition.idFor(importance: ReminderImportance) = id + importance.channelSuffix()
@@ -163,6 +163,7 @@ class AndroidReminderNotification(
         const val CHANNEL_SOUND = "reminder-sound-v1"
         const val CHANNEL_VIBRATION = "reminder-vibration-v1"
         const val CHANNEL_SILENT = "reminder-silent-v1"
+        const val NOTIFICATION_ID = 1
         val channelDefinitions = listOf(
             ChannelDefinition(CHANNEL_SOUND_VIBRATION, "Reminders: sound and vibration", sound = true, vibration = true),
             ChannelDefinition(CHANNEL_SOUND, "Reminders: sound", sound = true, vibration = false),

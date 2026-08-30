@@ -66,4 +66,11 @@ class ReminderDraftToolTest {
         assertTrue(result.validationErrors.any { it.contains("unexpected") })
         assertFalse(codec.encode(result).contains(tooLong))
     }
+
+    @Test fun rejectsReminderTimeWithSecondsOutsideTheHhMmContract() {
+        val result = codec.create("""{"content":"还信用卡","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"18:00:30","active_day_rule":"daily"}""")
+
+        assertTrue(result.validationErrors.any { it.contains("HH:MM") })
+        assertEquals(null, result.firstReminderTime)
+    }
 }

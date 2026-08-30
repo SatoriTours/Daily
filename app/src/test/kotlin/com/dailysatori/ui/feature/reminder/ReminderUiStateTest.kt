@@ -26,6 +26,23 @@ import kotlin.test.assertTrue
 
 class ReminderUiStateTest {
     @Test
+    fun detailEditValidatesContentDatesAndSelectedWeekdays() {
+        assertFalse(isValidReminderDetailEdit(" ", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), ReminderActiveDayRule.Daily))
+        assertFalse(isValidReminderDetailEdit("x".repeat(2_001), LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), ReminderActiveDayRule.Daily))
+        assertFalse(isValidReminderDetailEdit("pay", LocalDate(2026, 9, 3), LocalDate(2026, 9, 2), ReminderActiveDayRule.Daily))
+        assertFalse(isValidReminderDetailEdit("pay", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), ReminderActiveDayRule.SelectedWeekdays(emptySet())))
+        assertTrue(isValidReminderDetailEdit("pay", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), ReminderActiveDayRule.SelectedWeekdays(setOf(DayOfWeek.MONDAY))))
+    }
+
+    @Test
+    fun detailSelectedWeekdayTogglePreservesTheRuleAndUpdatesDays() {
+        val initial = ReminderActiveDayRule.SelectedWeekdays(setOf(DayOfWeek.MONDAY))
+
+        assertEquals(setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), toggleReminderDetailWeekday(initial, DayOfWeek.FRIDAY).days)
+        assertEquals(emptySet(), toggleReminderDetailWeekday(initial, DayOfWeek.MONDAY).days)
+    }
+
+    @Test
     fun selectedWeekdaysMustContainAtLeastOneDay() {
         val state = validDraftState().editActiveDayRule(ReminderActiveDayRule.SelectedWeekdays(emptySet()))
 

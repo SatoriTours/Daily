@@ -82,7 +82,7 @@ class ReminderDraftCodec(
     }
 
     private fun absoluteTime(value: String?, errors: MutableList<String>): LocalTime? = try {
-        require(!value.isNullOrBlank())
+        require(value != null && HH_MM.matches(value))
         LocalTime.parse(value)
     } catch (_: Exception) {
         errors += "first_reminder_time 必须是本地时间 HH:MM"
@@ -131,6 +131,7 @@ class ReminderDraftCodec(
 
     private companion object {
         const val MAX_CONTENT_LENGTH = 500
+        val HH_MM = Regex("^(?:[01]\\d|2[0-3]):[0-5]\\d$")
         val allowedFields = setOf("draft_id", "content", "start_date", "end_date", "first_reminder_time", "active_day_rule", "selected_weekdays", "profile", "timezone", "validation_errors")
         val dayOfWeek = DayOfWeek.entries.associateBy { it.name }
     }

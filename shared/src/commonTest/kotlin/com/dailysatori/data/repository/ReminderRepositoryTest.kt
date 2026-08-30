@@ -31,6 +31,23 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun confirmationPersistsTheDraftTimezoneInsteadOfRepositoryStartupTimezone() = withRepository { repo ->
+        val saved = repo.createConfirmed(draft().copy(timeZone = TimeZone.of("Pacific/Auckland")), strongProfile())
+
+        assertEquals("Pacific/Auckland", saved.timeZone.id)
+    }
+
+    @Test
+    fun editRejectsInvalidContentAndEmptySelectedWeekdays() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(), strongProfile())
+
+        assertFalse(repo.update(reminder.id, ReminderEdit(reminder.version, content = "   ")))
+        assertFalse(repo.update(reminder.id, ReminderEdit(reminder.version, content = "x".repeat(2_001))))
+        assertFalse(repo.update(reminder.id, ReminderEdit(reminder.version, activeDayRule = ReminderActiveDayRule.SelectedWeekdays(emptySet()))))
+        assertEquals("pay credit card", repo.get(reminder.id)?.content)
+    }
+
+    @Test
     fun terminalRemindersAreExcludedFromActiveQuery() = withRepository { repo ->
         val active = repo.createConfirmed(draft(id = "active"), strongProfile())
         val completed = repo.createConfirmed(draft(id = "completed"), strongProfile())
@@ -126,6 +143,7 @@ class ReminderRepositoryTest {
             draft(id = "kiritimati", rule = ReminderActiveDayRule.Daily).copy(
                 startDate = LocalDate(2026, 8, 31),
                 endDate = LocalDate(2026, 8, 31),
+                timeZone = TimeZone.of("Pacific/Kiritimati"),
             ),
             strongProfile(),
         )

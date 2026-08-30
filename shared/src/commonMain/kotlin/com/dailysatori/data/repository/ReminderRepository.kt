@@ -66,6 +66,7 @@ class ReminderRepository(
         val firstTime = requireNotNull(draft.firstReminderTime) { "Confirmed reminder requires a first time" }
         require(draft.content.isNotBlank() && draft.content.length <= MAX_CONTENT_LENGTH)
         require(endDate >= startDate)
+        require(draft.activeDayRule.isValid())
         val now = Clock.System.now().toEpochMilliseconds()
         val profileJson = profileSnapshot.toBoundedJson()
         q.insertReminder(
@@ -76,7 +77,7 @@ class ReminderRepository(
             end_date = endDate.toString(),
             first_reminder_time = firstTime.toString(),
             active_day_rule = draft.activeDayRule.encode(),
-            time_zone_id = timeZone.id,
+            time_zone_id = draft.timeZone.id,
             profile_json = profileJson,
             version = 0,
             state_date = null,
@@ -199,8 +200,10 @@ class ReminderRepository(
         if (row.version != edit.expectedVersion || row.status in terminalStatuses) return@transactionWithResult false
         val start = edit.startDate ?: LocalDate.parse(row.start_date)
         val end = edit.endDate ?: LocalDate.parse(row.end_date)
-        if (end < start) return@transactionWithResult false
-        if (q.updateReminderEditableIfVersion(edit.content ?: row.content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), (edit.activeDayRule ?: row.active_day_rule.decode()).encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
+        val content = edit.content ?: row.content
+        val rule = edit.activeDayRule ?: row.active_day_rule.decode()
+        if (end < start || content.isBlank() || content.length > MAX_CONTENT_LENGTH || !rule.isValid()) return@transactionWithResult false
+        if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), (edit.profile ?: row.profile_json.toProfile()).toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         recordEvent(id, "edited", at)
         true
     }
@@ -285,6 +288,8 @@ private fun ReminderActiveDayRule.isActiveOn(date: LocalDate): Boolean = when (t
     ReminderActiveDayRule.Weekdays -> date.dayOfWeek !in setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
     is ReminderActiveDayRule.SelectedWeekdays -> date.dayOfWeek in days
 }
+
+private fun ReminderActiveDayRule.isValid(): Boolean = this !is ReminderActiveDayRule.SelectedWeekdays || days.isNotEmpty()
 
 private fun ReminderProfileSnapshot.toBoundedJson(): String {
     require(daytimeDismissalBackoffMinutes.size <= 8 && daytimeDismissalBackoffMinutes.all { it in 1..1_440 })
