@@ -22,6 +22,8 @@ import com.dailysatori.service.reminder.ReminderProfileKind
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
+import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.service.reminder.LeapDayPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,12 +33,63 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import java.util.UUID
+
+data class ReminderEditorState(
+    val content: String,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val firstReminderTime: LocalTime,
+    val activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
+    val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
+    val profile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard(),
+    val leapDayFallbackChosen: Boolean = true,
+    val saving: Boolean = false,
+    val notice: String? = null,
+) {
+    val validationMessage: String?
+        get() = when {
+            content.isBlank() -> "请填写提醒内容。"
+            endDate < startDate -> "结束日期不能早于开始日期。"
+            activeDayRule is ReminderActiveDayRule.SelectedWeekdays && activeDayRule.days.isEmpty() -> "请至少选择一个星期。"
+            recurrence is ReminderRecurrence.Yearly && (recurrence as ReminderRecurrence.Yearly).month == 2 && (recurrence as ReminderRecurrence.Yearly).dayOfMonth == 29 && !leapDayFallbackChosen -> "请指定非闰年的 2 月 29 日处理方式。"
+            else -> null
+        }
+    val canSave: Boolean get() = validationMessage == null && !saving
+
+    fun actualBehaviorSummary(): String {
+        val date = when (val rule = recurrence) {
+            ReminderRecurrence.Once -> if (startDate == endDate) "${startDate.monthNumber}月${startDate.dayOfMonth}日" else "${startDate.monthNumber}月${startDate.dayOfMonth}日至${endDate.monthNumber}月${endDate.dayOfMonth}日"
+            is ReminderRecurrence.Monthly -> "每月${rule.dayOfMonth}日"
+            is ReminderRecurrence.Yearly -> "每年${rule.month}月${rule.dayOfMonth}日至${if (endDate.monthNumber == rule.month) "" else "${endDate.monthNumber}月"}${endDate.dayOfMonth}日"
+        }
+        return "$date，${firstReminderTime.toString().padEnd(5, '0')}开始提醒；工作时间仅显示通知，不播放声音。"
+    }
+
+    companion object {
+        fun createDefault(profile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard()): ReminderEditorState {
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            return ReminderEditorState("", today, today, LocalTime(9, 0), profile = profile)
+        }
+
+        fun from(reminder: Reminder) = ReminderEditorState(
+            content = reminder.content,
+            startDate = reminder.startDate,
+            endDate = reminder.endDate,
+            firstReminderTime = reminder.firstReminderTime,
+            activeDayRule = reminder.activeDayRule,
+            recurrence = reminder.recurrence,
+            profile = reminder.profile,
+        )
+    }
+}
 
 enum class ReminderDraftField { CONTENT, START_DATE, END_DATE, FIRST_TIME, ACTIVE_DAY_RULE, PROFILE, ADVANCED_PROFILE }
 
@@ -56,6 +109,7 @@ data class ReminderDraftUiState(
     val endDate: LocalDate?,
     val firstReminderTime: LocalTime?,
     val activeDayRule: ReminderActiveDayRule,
+    val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
     val profile: ReminderProfileSnapshot?,
     val profileId: String? = null,
     val daytimeBackoffInput: String = profile?.daytimeDismissalBackoffMinutes?.joinToString(",").orEmpty(),
@@ -87,6 +141,7 @@ data class ReminderDraftUiState(
     fun editDates(start: LocalDate?, end: LocalDate?) = copy(startDate = start, endDate = end, notice = null)
     fun editFirstTime(value: LocalTime?) = copy(firstReminderTime = value, notice = null)
     fun editActiveDayRule(value: ReminderActiveDayRule) = copy(activeDayRule = value, notice = null)
+    fun editRecurrence(value: ReminderRecurrence) = copy(recurrence = value, notice = null)
     fun editProfile(value: ReminderProfileSnapshot?) = copy(
         profile = value?.copy(),
         daytimeBackoffInput = value?.daytimeDismissalBackoffMinutes?.joinToString(",").orEmpty(),
@@ -131,7 +186,7 @@ data class ReminderDraftUiState(
     fun confirmationPayload(): ReminderConfirmationPayload? {
         if (validationErrors.isNotEmpty()) return null
         return ReminderConfirmationPayload(
-            draft = ReminderDraft(id, content.trim(), startDate, endDate, firstReminderTime, activeDayRule, profile?.copy()),
+            draft = ReminderDraft(id, content.trim(), startDate, endDate, firstReminderTime, activeDayRule, profile?.copy(), recurrence = recurrence),
             profileSnapshot = profile!!.copy(),
         )
     }
@@ -148,6 +203,7 @@ data class ReminderDraftUiState(
             endDate = draft.endDate,
             firstReminderTime = draft.firstReminderTime,
             activeDayRule = draft.activeDayRule,
+            recurrence = draft.recurrence,
             profile = draft.profile?.copy(
                 sleepStart = fallbackProfile.sleepStart,
                 sleepEnd = fallbackProfile.sleepEnd,
@@ -324,6 +380,31 @@ class ReminderViewModel(
     }
 
     fun delete(id: String) = mutateAndRecompute(id) { repository.delete(id) }
+
+    fun saveEditor(existing: Reminder?, editor: ReminderEditorState, onResult: (String?, ReminderEditorState) -> Unit) {
+        if (!editor.canSave) return
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val id = existing?.id ?: UUID.randomUUID().toString()
+                    if (existing == null) {
+                        repository.createConfirmed(
+                            ReminderDraft(id, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.profile, recurrence = editor.recurrence),
+                            editor.profile,
+                        )
+                    } else {
+                        check(repository.update(id, ReminderEdit(existing.version, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.recurrence, editor.profile)))
+                    }
+                    coordinator.recompute(id)
+                    id
+                }
+            }
+            result.fold(
+                onSuccess = { onResult(it, editor.copy(saving = false)) },
+                onFailure = { onResult(null, editor.copy(saving = false, notice = "保存或调度失败，请重试。")) },
+            )
+        }
+    }
 
     private fun mutateAndRecompute(id: String, mutation: () -> Boolean) {
         viewModelScope.launch(Dispatchers.IO) {

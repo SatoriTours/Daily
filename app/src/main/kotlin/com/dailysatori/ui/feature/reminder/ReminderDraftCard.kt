@@ -38,6 +38,8 @@ import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderProfileKind
+import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -98,6 +100,21 @@ fun ReminderDraftCard(
                     }
                 }
                 if (selected.days.isEmpty()) Text(stringResource(R.string.reminder_selected_days_required), color = MaterialTheme.colorScheme.error)
+            }
+            Text("重复方式")
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                listOf(
+                    "一次" to ReminderRecurrence.Once,
+                    "每月" to state.startDate?.let { ReminderRecurrence.Monthly(it.dayOfMonth) },
+                    "每年" to state.startDate?.let { ReminderRecurrence.Yearly(it.monthNumber, it.dayOfMonth, LeapDayPolicy.FEBRUARY_28) },
+                    "连续" to ReminderRecurrence.Once,
+                ).forEach { (label, recurrence) ->
+                    if (recurrence != null) FilterChip(
+                        selected = if (label == "连续") state.activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange else state.recurrence::class == recurrence::class,
+                        onClick = { onChange(if (label == "连续") state.editActiveDayRule(ReminderActiveDayRule.ConsecutiveDateRange) else state.editRecurrence(recurrence)) },
+                        label = { Text(label) },
+                    )
+                }
             }
             Text(stringResource(R.string.reminder_profile_strength))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {

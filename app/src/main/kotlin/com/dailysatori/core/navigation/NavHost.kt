@@ -19,9 +19,11 @@ import com.dailysatori.ui.feature.book.BookContentSearchScreen
 import com.dailysatori.ui.feature.book.BookSearchScreen
 import com.dailysatori.ui.feature.home.HomeScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
-import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogScreen
+import com.dailysatori.ui.feature.reminder.ReminderDetailScreen
+import com.dailysatori.ui.feature.reminder.ReminderEditScreen
+import com.dailysatori.ui.feature.reminder.ReminderListScreen
 
 private const val ANIM_DURATION = 350
 private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
@@ -204,11 +206,37 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             SettingsScreen(settingsViewModel)
         }
 
+        composable<ReminderListRoute> {
+            ReminderListScreen(
+                onAddReminder = { navController.navigate(ReminderEditRoute()) },
+                onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) },
+            )
+        }
+
+        composable<ReminderDetailRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ReminderDetailRoute>()
+            ReminderDetailScreen(
+                reminderId = route.reminderId,
+                onBack = { navController.popBackStack() },
+                onEdit = { id -> navController.navigate(ReminderEditRoute(id)) },
+            )
+        }
+
+        composable<ReminderEditRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ReminderEditRoute>()
+            ReminderEditScreen(
+                reminderId = route.reminderId,
+                onBack = { navController.popBackStack() },
+                onSaved = { id -> navController.navigate(ReminderDetailRoute(id)) { popUpTo<ReminderEditRoute> { inclusive = true } } },
+            )
+        }
+
         composable<ReminderRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ReminderRoute>()
-            ReminderSettingsScreen(
+            ReminderDetailScreen(
+                reminderId = route.reminderId,
                 onBack = { navController.popBackStack() },
-                initialReminderId = route.reminderId,
+                onEdit = { id -> navController.navigate(ReminderEditRoute(id)) },
             )
         }
 

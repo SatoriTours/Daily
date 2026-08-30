@@ -62,6 +62,7 @@ fun ReminderListScreen(
     viewModel: ReminderViewModel = koinViewModel(),
     initialReminderId: String? = null,
     onAddReminder: () -> Unit = {},
+    onOpenReminder: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
 ) {
     val ui by viewModel.state.collectAsState()
@@ -100,7 +101,7 @@ fun ReminderListScreen(
                 listState.sections.forEach { section ->
                     item(key = "header_${section.key}") { Text(section.key.sectionLabel(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = Spacing.m)) }
                     items(section.items.size, key = { section.items[it].id }) { index ->
-                        ReminderListCard(section.items[index]) { viewModel.selectReminder(section.items[index].id) }
+                        ReminderListCard(section.items[index]) { onOpenReminder(section.items[index].id) }
                     }
                 }
             }
