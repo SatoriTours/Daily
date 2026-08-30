@@ -79,6 +79,7 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.datetime.todayIn
+import com.dailysatori.ui.feature.profile.localDayTicker
 
 data class TabItem(
     val label: String,
@@ -127,6 +128,7 @@ fun HomeScreen(
     var aiInputController by remember { mutableStateOf<AiChatInputController?>(null) }
     val reminderViewModel: ReminderViewModel = koinViewModel()
     val reminders by reminderViewModel.reminders.collectAsState()
+    val today by remember { localDayTicker() }.collectAsState(initial = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
     val hazeState = rememberHazeState()
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
 
@@ -157,7 +159,7 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) { index ->
                     when (index) {
-                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault())))
+                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today))
                         DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick)
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,

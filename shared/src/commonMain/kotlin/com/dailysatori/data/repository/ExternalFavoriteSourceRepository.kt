@@ -5,6 +5,11 @@ import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_source
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 
 class ExternalFavoriteSourceRepository(
@@ -27,6 +32,9 @@ class ExternalFavoriteSourceRepository(
 
     fun getEnabled(): List<External_favorite_source> =
         q.selectEnabledExternalFavoriteSources().executeAsList().map(::decryptSource)
+
+    fun observeEnabled(): Flow<List<External_favorite_source>> =
+        q.selectEnabledExternalFavoriteSources().asFlow().mapToList(Dispatchers.IO).map { it.map(::decryptSource) }
 
     fun getById(id: Long): External_favorite_source? =
         q.selectExternalFavoriteSourceById(id).executeAsOneOrNull()?.let(::decryptSource)

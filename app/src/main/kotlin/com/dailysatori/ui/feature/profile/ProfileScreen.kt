@@ -45,6 +45,11 @@ fun ProfileScreen(
         ) {
             ProfileSection("今日提醒") {
                 Text("待完成 ${state.todayReminderCount} 项", style = MaterialTheme.typography.titleMedium)
+                if (state.nextReminderContent == null) {
+                    Text("今天没有待完成提醒", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text("下一项：${state.nextReminderContent} · ${state.nextReminderTime}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 TextButton(onClick = onReminders) { Text("查看全部") }
                 Button(onClick = onAddReminder) { Text("新增提醒") }
             }
@@ -53,7 +58,9 @@ fun ProfileScreen(
                 SettingsRow(Icons.Default.CloudSync, "外部收藏", "${state.externalFavoriteCount} 项 · ${state.enabledExternalSourceCount} 个来源", onExternalFavorites)
             }
             ProfileSection("运行状态") {
-                SettingsRow(Icons.Default.Task, "同步与任务", "进行中 ${state.activeTaskCount} · 失败 ${state.failedTaskCount}", onTasks)
+                val progress = state.taskProgressLabel?.let { " · 进度 $it" }.orEmpty()
+                SettingsRow(Icons.Default.Task, "同步与任务", "进行中 ${state.activeTaskCount} · 失败 ${state.failedTaskCount}$progress", onTasks)
+                if (state.failedTaskCount > 0) TextButton(onClick = onTasks) { Text("查看失败任务并重试") }
             }
             ProfileSection("应用管理") {
                 SettingsRow(Icons.Default.Settings, "设置", "应用与提醒设置", onSettings)
