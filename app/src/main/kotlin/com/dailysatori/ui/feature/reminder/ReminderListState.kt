@@ -76,7 +76,7 @@ private fun Reminder.matchesFilters(filter: ReminderListFilter): Boolean =
         (filter.recurrences.isEmpty() || recurrence.kind() in filter.recurrences)
 
 private fun List<Reminder>.upcomingItems(now: LocalDate): List<ReminderListItemUi> = mapNotNull { reminder ->
-    if (reminder.status.isTerminal()) return@mapNotNull null
+    if (reminder.recurrence == ReminderRecurrence.Once && reminder.status.isTerminal()) return@mapNotNull null
     reminder.nextOccurrenceOnOrAfter(now)?.let { reminder.toItem(it, now) }
 }
 
@@ -88,7 +88,7 @@ private fun List<Reminder>.finishedItems(now: LocalDate): List<ReminderListItemU
 private fun List<Reminder>.monthsFor(year: Int, now: LocalDate, query: String): List<ReminderMonthUi> = (1..12).map { month ->
     val firstDay = LocalDate(year, month, 1)
     val items = asSequence()
-        .filter { !it.status.isTerminal() }
+        .filter { it.recurrence != ReminderRecurrence.Once || !it.status.isTerminal() }
         .mapNotNull { reminder -> reminder.nextOccurrenceOnOrAfter(firstDay)?.takeIf { it.year == year && it.monthNumber == month }?.let { reminder.toItem(it, now) } }
         .filter { it.matchesQuery(query, now) }
         .sortedWith(compareBy<ReminderListItemUi> { it.occurrenceDate }.thenBy { it.firstReminderTime }.thenBy { it.id })

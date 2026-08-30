@@ -53,6 +53,20 @@ class ReminderListStateTest {
     }
 
     @Test
+    fun terminalRecurringRemindersProjectIntoRecentAndNeverFinished() {
+        val reminders = listOf(
+            reminder("monthly", ReminderRecurrence.Monthly(3), ReminderStatus.EXPIRED),
+            reminder("yearly", yearly(9, 2), ReminderStatus.COMPLETED),
+        )
+
+        val recent = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.RECENT, ReminderListFilter())
+        val finished = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.FINISHED, ReminderListFilter())
+
+        assertEquals(listOf("yearly", "monthly"), recent.sections.flatMap { it.items }.map { it.id })
+        assertTrue(finished.sections.isEmpty())
+    }
+
+    @Test
     fun filtersApplyCategoryRepeatAndSearchBeforeProjection() {
         val state = buildReminderListState(
             reminders = listOf(

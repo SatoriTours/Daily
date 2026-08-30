@@ -17,6 +17,8 @@ class ReminderUiSourceTest {
         assertTrue(settings.contains("verticalScroll(rememberScrollState())"))
         assertFalse(settings.contains("Modifier.weight(1f)"))
         assertTrue(list.contains("LazyColumn"))
+        assertTrue(list.contains("maxLines = 1"))
+        assertTrue(list.contains("TextOverflow.Ellipsis"))
     }
 
     @Test

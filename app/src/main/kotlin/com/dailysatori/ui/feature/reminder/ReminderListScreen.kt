@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.service.reminder.Reminder
@@ -145,7 +146,13 @@ private fun ReminderListModeTabs(selected: ReminderListMode, onSelected: (Remind
 @Composable
 private fun ReminderListSummary(summary: ReminderListSummaryUi) {
     val next = summary.nextOccurrence?.toString() ?: stringResource(R.string.reminder_list_none)
-    Text(stringResource(R.string.reminder_list_summary, summary.upcomingInThirtyDays, next), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))
+    Text(
+        stringResource(R.string.reminder_list_summary, summary.upcomingInThirtyDays, next),
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
