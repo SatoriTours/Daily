@@ -60,9 +60,11 @@ class ReminderListStateTest {
         )
 
         val recent = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.RECENT, ReminderListFilter())
+        val months = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.MONTHS, ReminderListFilter())
         val finished = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.FINISHED, ReminderListFilter())
 
         assertEquals(listOf("yearly", "monthly"), recent.sections.flatMap { it.items }.map { it.id })
+        assertEquals(listOf("yearly", "monthly"), months.months.single { it.month == 9 }.items.map { it.id })
         assertTrue(finished.sections.isEmpty())
     }
 
