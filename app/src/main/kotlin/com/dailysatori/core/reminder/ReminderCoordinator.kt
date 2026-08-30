@@ -12,12 +12,16 @@ import com.dailysatori.service.reminder.ReminderScheduleDecision
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderScheduleInput
 import com.dailysatori.service.reminder.ReminderStatus
+import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.service.reminder.nextCycleDate
+import com.dailysatori.service.reminder.nextOccurrenceOnOrAfter
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CoroutineScope
@@ -129,17 +133,19 @@ class ReminderCoordinator(
         val reminder = store.get(id)?.inCurrentTimeZone() ?: return
         if (reminder.version != expectedVersion || reminder.status !in deliverableStatuses) return
         val local = now.toLocalDateTime(reminder.timeZone)
-        val cycleDate = if (reminder.profile.dailyCutoff == LocalTime(0, 0)) local.date.minus(1, DateTimeUnit.DAY) else local.date
-        val changed = if (cycleDate >= reminder.endDate) {
+        val fallbackCycleDate = if (reminder.profile.dailyCutoff == LocalTime(0, 0)) local.date.minus(1, DateTimeUnit.DAY) else local.date
+        val cycleDate = store.state(id)?.stateDate ?: fallbackCycleDate
+        val nextCycleDate = nextActiveCycleDate(reminder, cycleDate)
+        val changed = if (nextCycleDate == null) {
             store.expire(id, expectedVersion, now)
         } else {
             val wrapsQuietHours = reminder.profile.sleepStart > reminder.profile.sleepEnd
             val nextStatus = if (wrapsQuietHours && reminder.status == ReminderStatus.NOTIFIED) ReminderStatus.NOTIFIED else ReminderStatus.ACTIVE
-            store.advanceCutoff(id, expectedVersion, now, local.date, nextStatus)
+            store.advanceCutoff(id, expectedVersion, now, nextCycleDate, nextStatus)
         }
         if (changed) {
             scheduler.cancel(id)
-            if (cycleDate >= reminder.endDate) notifier.cancel(id) else recomputeSchedule(id)
+            if (nextCycleDate == null) notifier.cancel(id) else recomputeSchedule(id)
         }
     }
 
@@ -155,17 +161,32 @@ class ReminderCoordinator(
     }
 
     @Synchronized
-    fun complete(id: String): Boolean = finishCompletion(id, store.complete(id, clock.now()))
+    fun complete(id: String): Boolean {
+        val reminder = store.get(id)?.inCurrentTimeZone() ?: return false
+        return finishCompletion(id, reminder, completeOccurrence(reminder, null))
+    }
 
     @Synchronized
     fun complete(id: String, version: Long): Boolean {
-        return finishCompletion(id, store.complete(id, version, clock.now()))
+        val reminder = store.get(id)?.inCurrentTimeZone() ?: return false
+        if (reminder.version != version) return false
+        return finishCompletion(id, reminder, completeOccurrence(reminder, version))
     }
 
-    private fun finishCompletion(id: String, changed: Boolean): Boolean {
+    private fun completeOccurrence(reminder: Reminder, expectedVersion: Long?): Boolean {
+        val now = clock.now()
+        if (reminder.recurrence == ReminderRecurrence.Once) {
+            return if (expectedVersion == null) store.complete(reminder.id, now) else store.complete(reminder.id, expectedVersion, now)
+        }
+        val nextDate = nextActiveCycleDate(reminder, now.toLocalDateTime(reminder.timeZone).date)
+        return nextDate != null && store.advanceCutoff(reminder.id, reminder.version, now, nextDate, ReminderStatus.ACTIVE)
+    }
+
+    private fun finishCompletion(id: String, reminder: Reminder, changed: Boolean): Boolean {
         if (changed) {
             scheduler.cancel(id)
             notifier.cancel(id)
+            if (reminder.recurrence != ReminderRecurrence.Once) recomputeSchedule(id)
         }
         return changed
     }
@@ -179,20 +200,53 @@ class ReminderCoordinator(
             .putExtra(EXTRA_REMINDER_ID, id)
     }
 
-    private fun Reminder.toScheduleInput(now: Instant, state: ReminderState?) = ReminderScheduleInput(
-        now = now,
-        timeZone = timeZone,
-        startDate = startDate,
-        endDate = endDate,
-        firstReminderTime = firstReminderTime,
-        activeDayRule = activeDayRule,
-        profile = profile,
-        status = status,
-        dismissalCount = state?.dismissalCount ?: 0,
-        stateDate = state?.stateDate,
-        expectedVersion = version,
-    )
+    private fun Reminder.toScheduleInput(now: Instant, state: ReminderState?): ReminderScheduleInput {
+        val localDate = now.toLocalDateTime(timeZone).date
+        val cycleDate = state?.stateDate ?: nextActiveCycleDateOnOrAfter(this, localDate) ?: startDate
+        return ReminderScheduleInput(
+            now = now,
+            timeZone = timeZone,
+            startDate = if (recurrence == ReminderRecurrence.Once) startDate else cycleDate,
+            endDate = if (recurrence == ReminderRecurrence.Once) endDate else cycleDate,
+            firstReminderTime = firstReminderTime,
+            activeDayRule = activeDayRule,
+            profile = profile,
+            status = status,
+            dismissalCount = state?.dismissalCount ?: 0,
+            stateDate = state?.stateDate,
+            expectedVersion = version,
+            recurring = recurrence != ReminderRecurrence.Once,
+        )
+    }
 
+    private fun nextActiveCycleDate(reminder: Reminder, after: kotlinx.datetime.LocalDate): kotlinx.datetime.LocalDate? {
+        if (reminder.recurrence == ReminderRecurrence.Once) {
+            return nextActiveDate(reminder, after.plus(1, DateTimeUnit.DAY))
+        }
+        var candidate = nextCycleDate(reminder, after) ?: return null
+        while (!reminder.activeDayRule.includes(candidate.dayOfWeek)) {
+            candidate = nextCycleDate(reminder, candidate) ?: return null
+        }
+        return candidate
+    }
+
+    private fun nextActiveCycleDateOnOrAfter(reminder: Reminder, onOrAfter: kotlinx.datetime.LocalDate): kotlinx.datetime.LocalDate? {
+        if (reminder.recurrence == ReminderRecurrence.Once) return nextActiveDate(reminder, onOrAfter)
+        var candidate = reminder.nextOccurrenceOnOrAfter(onOrAfter) ?: return null
+        while (!reminder.activeDayRule.includes(candidate.dayOfWeek)) {
+            candidate = nextCycleDate(reminder, candidate) ?: return null
+        }
+        return candidate
+    }
+
+    private fun nextActiveDate(reminder: Reminder, from: kotlinx.datetime.LocalDate): kotlinx.datetime.LocalDate? {
+        var candidate = from
+        while (candidate <= reminder.endDate) {
+            if (reminder.activeDayRule.includes(candidate.dayOfWeek)) return candidate
+            candidate = candidate.plus(1, DateTimeUnit.DAY)
+        }
+        return null
+    }
     private fun Reminder.inCurrentTimeZone(): Reminder = copy(
         timeZone = currentTimeZone(),
     )
@@ -201,7 +255,7 @@ class ReminderCoordinator(
         currentTimeZone?.invoke() ?: if (context != null) TimeZone.currentSystemDefault() else timeZone
 
     private fun Reminder.isEligibleAt(now: Instant): Boolean {
-        if (status !in deliverableStatuses) return false
+        if (dataIssue != null || status !in deliverableStatuses) return false
         val local = now.toLocalDateTime(timeZone)
         if (local.date !in startDate..endDate || !activeDayRule.includes(local.date.dayOfWeek)) return false
         if (local.date == startDate && local.time < firstReminderTime) return false

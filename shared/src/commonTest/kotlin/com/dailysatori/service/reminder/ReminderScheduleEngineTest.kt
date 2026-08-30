@@ -122,6 +122,24 @@ class ReminderScheduleEngineTest {
         assertCutoff("2026-09-03T00:00", decision)
     }
 
+    @Test fun completedYearlyCycleSchedulesNextYear() {
+        val yearly = Reminder(
+            id = "yearly",
+            content = "Review insurance",
+            startDate = LocalDate(2026, 9, 2),
+            endDate = LocalDate(9999, 12, 31),
+            firstReminderTime = LocalTime(10, 0),
+            activeDayRule = ReminderActiveDayRule.Daily,
+            profile = ReminderProfileSnapshot.strong(),
+            status = ReminderStatus.NOTIFIED,
+            timeZone = zone,
+            version = 1,
+            recurrence = ReminderRecurrence.Yearly(9, 2, LeapDayPolicy.FEBRUARY_28),
+        )
+
+        assertEquals(LocalDate(2027, 9, 2), nextCycleDate(yearly, LocalDate(2026, 9, 2)))
+    }
+
     @Test fun wrappingQuietHoursWakeOnNextDayAndRespectFinalBoundary() {
         val wrap = ReminderProfileSnapshot.strong().copy(
             sleepStart = LocalTime.parse("22:00"),

@@ -17,7 +17,10 @@ class ReminderScheduleEngine {
         val cycleInput = if (input.stateDate != null && input.stateDate != localNow.date) {
             input.copy(status = ReminderStatus.ACTIVE, dismissalCount = 0)
         } else input
-        if (localNow.date > input.endDate) return ReminderScheduleDecision.None(ReminderStatus.EXPIRED)
+        if (localNow.date > input.endDate) {
+            return if (input.recurring) scheduleCutoff(input, input.endDate)
+            else ReminderScheduleDecision.None(ReminderStatus.EXPIRED)
+        }
         if (!isActiveDate(localNow.date, input)) return scheduleNextActiveDate(input, localNow.date, inclusive = true)
         if (localNow.time >= input.profile.dailyCutoff && input.profile.dailyCutoff != LocalTime(0, 0)) {
             return scheduleNextActiveDate(input, localNow.date, inclusive = false)

@@ -6,6 +6,8 @@ import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderImportance
 import com.dailysatori.service.reminder.ReminderLockScreenVisibility
+import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderStatus
 import kotlinx.datetime.Clock
@@ -21,7 +23,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class ReminderDeliveryTest {
+class ReminderCoordinatorTest {
     @Test
     fun collidingStringHashesStillUseDifferentNotificationTags() {
         assertEquals("FB".hashCode(), "Ea".hashCode())
@@ -142,6 +144,25 @@ class ReminderDeliveryTest {
 
         assertEquals(ReminderStatus.COMPLETED, fixture.store.get("bill")?.status)
         assertNull(fixture.scheduler.pending["bill"])
+        assertEquals(listOf("bill"), fixture.notifier.cancelled)
+    }
+
+    @Test
+    fun completingRecurringReminderAdvancesItsSingleRowToNextCycle() {
+        val fixture = fixture(
+            now = "2026-09-02T12:00:00Z",
+            reminder = reminder(
+                status = ReminderStatus.NOTIFIED,
+                version = 2,
+                recurrence = ReminderRecurrence.Yearly(9, 2, LeapDayPolicy.FEBRUARY_28),
+            ),
+        )
+
+        assertTrue(fixture.coordinator.complete("bill", 2))
+
+        assertEquals(ReminderStatus.ACTIVE, fixture.store.get("bill")?.status)
+        assertEquals(3, fixture.store.get("bill")?.version)
+        assertEquals(instant("2027-09-02T10:00:00Z"), fixture.scheduler.pending["bill"]?.at)
         assertEquals(listOf("bill"), fixture.notifier.cancelled)
     }
 
@@ -280,6 +301,7 @@ class ReminderDeliveryTest {
 
         fixture.coordinator.cutoff("bill", 2)
         assertEquals(instant("2026-09-07T10:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+        assertEquals(LocalDate(2026, 9, 7), fixture.store.currentStateDate())
 
         fixture.clock.now = instant("2026-09-07T10:00:00Z")
         fixture.coordinator.deliver("bill", 3)
@@ -381,6 +403,7 @@ class ReminderDeliveryTest {
         fun force(status: ReminderStatus) {
             reminder = reminder?.let { it.copy(status = status, version = it.version + 1) }
         }
+        fun currentStateDate(): LocalDate? = state.stateDate
         private fun update(expectedVersion: Long, transform: (Reminder) -> Reminder): Boolean {
             val current = reminder ?: return false
             if (current.version != expectedVersion || current.status !in deliverable) return false
@@ -407,6 +430,7 @@ class ReminderDeliveryTest {
             version: Long = 0,
             profile: ReminderProfileSnapshot = ReminderProfileSnapshot.strong(),
             activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
+            recurrence: ReminderRecurrence = ReminderRecurrence.Once,
         ) = Reminder(
             id = "bill",
             content = "Pay credit card",
@@ -418,6 +442,7 @@ class ReminderDeliveryTest {
             status = status,
             timeZone = UTC,
             version = version,
+            recurrence = recurrence,
         )
     }
 }

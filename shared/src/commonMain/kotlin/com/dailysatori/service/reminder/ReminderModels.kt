@@ -120,6 +120,7 @@ data class ReminderScheduleInput(
     val dismissalCount: Int = 0,
     val stateDate: LocalDate? = null,
     val expectedVersion: Long,
+    val recurring: Boolean = false,
 )
 
 sealed interface ReminderScheduleDecision {
