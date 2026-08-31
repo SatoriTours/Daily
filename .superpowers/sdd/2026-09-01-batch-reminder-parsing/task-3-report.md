@@ -49,3 +49,16 @@
 - `ReminderBatchStateTransitions` now exclusively publishes prompt/reset/submit/completion, batch edits, save claims, and save results under `ReminderBatchSaveGate.serialized`; every publication uses an explicit `MutableStateFlow.compareAndSet` loop.
 - Gate invalidation/activation happens only after or alongside the matching state publication in the same lock, never inside a retryable Flow update lambda. Remote interpretation and notification scheduling remain outside the lock; synchronous repository creation retains verification-to-create coverage under that lock.
 - The production-transition regression forces reset to own the gate while a completion attempts to publish, then proves the completion is stale and the old batch/generation key cannot create.
+
+## Final review remediation round 5: active claim and save-launch ownership
+
+### RED / GREEN
+
+- RED: the focused batch test failed to compile because the production `ReminderBatchSaveLaunchController` did not exist; the new parse-in-flight regression also exposed that `claimSelectedBatch` did not require the gate's active batch/generation key.
+- GREEN: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --tests '*ReminderBatchUiStateTest' --tests '*ReminderAiParseStateTest' --tests '*ReminderRouteStateTest'` passed.
+
+### Remediation
+
+- `claimSelectedBatch` now checks the exact active batch/generation key inside the gate's serialized section before publishing `SAVING`. Starting or failing a replacement parse leaves the visible old items unchanged and unclaimable.
+- `ReminderBatchSaveLaunchController` atomically rejects a launch while its current job is active, before invoking the claim callback. It no longer cancels an in-progress batch to start a retry; prompt changes, resets, and new submissions retain explicit cancellation ownership.
+- The production regressions prove parse-in-flight save clicks cannot claim the old batch, and a retryable failed item cannot be reclaimed while a later slow item is active; the slow item completes before the retry becomes launchable.

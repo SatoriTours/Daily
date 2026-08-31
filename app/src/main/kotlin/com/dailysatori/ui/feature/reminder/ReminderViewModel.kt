@@ -27,7 +27,7 @@ import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderTextInterpreter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -377,7 +377,7 @@ class ReminderViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReminderUiState())
     private val batchStateTransitions = ReminderBatchStateTransitions(_state)
-    private var activeBatchSaveJob: Job? = null
+    private val batchSaveLaunchController = ReminderBatchSaveLaunchController()
     val state: StateFlow<ReminderUiState> = _state
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -439,17 +439,19 @@ class ReminderViewModel(
     }
 
     fun saveSelectedBatch() {
-        val operation = batchStateTransitions.claimSelectedBatch() ?: return
-        activeBatchSaveJob?.cancel()
-        activeBatchSaveJob = viewModelScope.launch(Dispatchers.IO) {
+        batchSaveLaunchController.launchIfIdle(
+            scope = viewModelScope,
+            context = Dispatchers.IO,
+            claim = batchStateTransitions::claimSelectedBatch,
+        ) save@{ operation ->
             val snapshot = operation.claim
             snapshot.items.forEach { (id, item) ->
-                ensureActive()
+                currentCoroutineContext().ensureActive()
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
                     val created = batchStateTransitions.createIfCurrent(operation.key) {
                         repository.createConfirmed(payload.draft, payload.profileSnapshot)
-                    } ?: return@launch
+                    } ?: return@save
                     var schedulingError: String? = null
                     try {
                         coordinator.recompute(created.id)
@@ -468,8 +470,7 @@ class ReminderViewModel(
     }
 
     private fun cancelActiveBatchSave() {
-        activeBatchSaveJob?.cancel()
-        activeBatchSaveJob = null
+        batchSaveLaunchController.cancelActive()
     }
 
     fun updateDraft(id: String, transform: (ReminderDraftUiState) -> ReminderDraftUiState) {

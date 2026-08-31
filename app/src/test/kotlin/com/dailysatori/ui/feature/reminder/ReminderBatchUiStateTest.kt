@@ -16,6 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -84,10 +85,10 @@ class ReminderBatchUiStateTest {
 
     @Test
     fun concurrentStateFlowClaimsGiveEachItemToOnlyOneSaver() = runTest {
-        val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(
-            batch = ReminderBatchUiState.from(batch(item("a"), item("b"))),
-        )))
+        val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(prompt = "batch")))
         val transitions = ReminderBatchStateTransitions(flow)
+        val request = transitions.beginInterpretation()
+        transitions.completeInterpretation(request.token, ReminderBatchUiState.from(batch(item("a"), item("b"))))
 
         val claims = List(2) {
             async(Dispatchers.Default) { transitions.claimSelectedBatch() }
@@ -96,6 +97,77 @@ class ReminderBatchUiStateTest {
         assertEquals(1, claims.size)
         assertEquals(setOf("a", "b"), claims.single().claim.items.keys)
         assertTrue(flow.value.aiParse.batch!!.items.values.all { it.saveStatus == BatchSaveStatus.SAVING })
+    }
+
+    @Test
+    fun parseInFlightAndFailedReplacementCannotClaimTheVisibleOldBatch() {
+        val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(prompt = "old")))
+        val transitions = ReminderBatchStateTransitions(flow)
+        val first = transitions.beginInterpretation()
+        transitions.completeInterpretation(first.token, ReminderBatchUiState.from(batch(item("a"))))
+
+        val replacement = transitions.beginInterpretation()
+
+        assertEquals(null, transitions.claimSelectedBatch())
+        assertEquals(BatchSaveStatus.PENDING, flow.value.aiParse.batch!!.items.getValue("a").saveStatus)
+
+        transitions.failInterpretation(replacement.token, "parse failed")
+
+        assertEquals(null, transitions.claimSelectedBatch())
+        assertEquals(BatchSaveStatus.PENDING, flow.value.aiParse.batch!!.items.getValue("a").saveStatus)
+    }
+
+    @Test
+    fun activeSaveRejectsRetryClaimUntilTheSlowItemFinishes() = runTest {
+        val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(prompt = "batch")))
+        val transitions = ReminderBatchStateTransitions(flow)
+        val request = transitions.beginInterpretation()
+        transitions.completeInterpretation(request.token, ReminderBatchUiState.from(batch(item("a"), item("b"))))
+        val controller = ReminderBatchSaveLaunchController()
+        val slowItemStarted = CountDownLatch(1)
+        val releaseSlowItem = CountDownLatch(1)
+        var aAttempts = 0
+
+        fun launchSave() = controller.launchIfIdle(
+            scope = backgroundScope,
+            context = Dispatchers.Default,
+            claim = transitions::claimSelectedBatch,
+        ) { operation ->
+            operation.claim.items.forEach { (id, _) ->
+                if (id == "a") {
+                    aAttempts++
+                    if (aAttempts == 1) {
+                        transitions.markFailed(operation.key, id, "disk")
+                    } else {
+                        transitions.markSaved(operation.key, id, "created-a", null)
+                    }
+                } else {
+                    slowItemStarted.countDown()
+                    assertTrue(releaseSlowItem.await(5, TimeUnit.SECONDS))
+                    ensureActive()
+                    transitions.markSaved(operation.key, id, "created-b", null)
+                }
+            }
+        }
+
+        val firstSave = launchSave()
+        assertTrue(firstSave != null)
+        assertTrue(slowItemStarted.await(5, TimeUnit.SECONDS))
+
+        val rejectedRetry = launchSave()
+
+        assertEquals(null, rejectedRetry)
+        assertEquals(BatchSaveStatus.FAILED, flow.value.aiParse.batch!!.items.getValue("a").saveStatus)
+        assertEquals(BatchSaveStatus.SAVING, flow.value.aiParse.batch!!.items.getValue("b").saveStatus)
+
+        releaseSlowItem.countDown()
+        firstSave!!.join()
+
+        val retry = launchSave()
+        assertTrue(retry != null)
+        retry!!.join()
+        assertEquals(BatchSaveStatus.SAVED, flow.value.aiParse.batch!!.items.getValue("a").saveStatus)
+        assertEquals(BatchSaveStatus.SAVED, flow.value.aiParse.batch!!.items.getValue("b").saveStatus)
     }
 
     @Test

@@ -3,7 +3,12 @@ package com.dailysatori.ui.feature.reminder
 import com.dailysatori.service.reminder.ReminderBatchInterpretation
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
 
 enum class BatchSaveStatus { PENDING, SAVING, SAVED, FAILED }
 
@@ -196,14 +201,13 @@ class ReminderBatchStateTransitions(
         while (true) {
             val current = state.value
             val batch = current.aiParse.batch ?: break
+            val key = ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration)
+            if (!isCurrent(key)) break
             val claim = batch.claimSelectedItems()
             if (claim.items.isEmpty()) break
             val next = current.copy(aiParse = current.aiParse.copy(batch = claim.state))
             if (state.compareAndSet(current, next)) {
-                operation = ReminderBatchSaveOperation(
-                    claim,
-                    ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration),
-                )
+                operation = ReminderBatchSaveOperation(claim, key)
                 break
             }
         }
@@ -253,6 +257,39 @@ class ReminderBatchStateTransitions(
             val next = transform(current)
             if (next === current || state.compareAndSet(current, next)) return next
         }
+    }
+}
+
+class ReminderBatchSaveLaunchController {
+    private val lock = Any()
+    private var activeJob: Job? = null
+
+    fun <T> launchIfIdle(
+        scope: CoroutineScope,
+        context: CoroutineContext,
+        claim: () -> T?,
+        save: suspend (T) -> Unit,
+    ): Job? = synchronized(lock) {
+        if (activeJob?.isActive == true) return@synchronized null
+        val operation = claim() ?: return@synchronized null
+        lateinit var launched: Job
+        launched = scope.launch(context, start = CoroutineStart.LAZY) {
+            try {
+                save(operation)
+            } finally {
+                synchronized(lock) {
+                    if (activeJob === launched) activeJob = null
+                }
+            }
+        }
+        activeJob = launched
+        launched.start()
+        launched
+    }
+
+    fun cancelActive() = synchronized(lock) {
+        activeJob?.cancel()
+        activeJob = null
     }
 }
 
