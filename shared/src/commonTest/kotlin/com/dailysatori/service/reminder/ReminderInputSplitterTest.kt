@@ -10,6 +10,13 @@ class ReminderInputSplitterTest {
             splitReminderInput("9月2日提醒我还款。工作时间不要响").map { it.text },
         )
     }
+
+    @Test fun splitsCommonRelativeReminderSentences() {
+        assertEquals(
+            listOf("今晚提醒我充值", "下周提醒我还信用卡"),
+            splitReminderInput("今晚提醒我充值。下周提醒我还信用卡").map { it.text },
+        )
+    }
     @Test fun splitsLinesSemicolonsAndNumberedItemsWithoutSplittingCommaQualifiers() {
         val input = "1. 9月2日提醒我还信用卡，工作时间静音\n2. 9月5日提醒我充值；每年12月20日提醒我续订域名"
 

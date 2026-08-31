@@ -48,5 +48,6 @@ class ReminderBatchSavedStateTest {
             id = "saved", sourceText = "已保存", draft = draft, saveStatus = BatchSaveStatus.SAVED,
         )))
         assertSame(batch, batch.removeItem("saved"))
+        assertSame(batch, batch.updateItem("saved") { it.copy(draft = it.draft.copy(content = "ignored")) })
     }
 }

@@ -57,7 +57,7 @@ data class ReminderBatchUiState(
 
     fun updateItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem): ReminderBatchUiState {
         val item = items[id] ?: return this
-        if (item.isSaving) return this
+        if (item.saveStatus in setOf(BatchSaveStatus.SAVING, BatchSaveStatus.SAVED)) return this
         val updated = transform(item)
         val recovered = if (item.parseError != null && updated.draft.confirmationPayload() != null) {
             updated.copy(parseError = null, requiresConfirmation = false, selected = true)

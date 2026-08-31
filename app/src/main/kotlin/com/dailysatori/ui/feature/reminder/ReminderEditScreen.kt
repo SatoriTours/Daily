@@ -23,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,7 +53,6 @@ fun ReminderEditScreen(
     var editor by remember(existing?.id) { mutableStateOf(existing?.let(ReminderEditorState::from) ?: ReminderEditorState.createDefault()) }
     var picker by remember { mutableStateOf<EditorPicker?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(reminderId) { viewModel.resetAiParse() }
     val batch = ui.aiParse.batch
     val hasUnsavedBatch = batch?.items?.values?.any { it.saveStatus != BatchSaveStatus.SAVED } == true
     val requestBack = { if (hasUnsavedBatch) showDiscardDialog = true else onBack() }

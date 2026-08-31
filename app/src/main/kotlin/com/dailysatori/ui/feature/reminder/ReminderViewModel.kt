@@ -467,7 +467,7 @@ class ReminderViewModel(
                 currentCoroutineContext().ensureActive()
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
-                    item.createdReminderId?.let { createdId ->
+                    (item.createdReminderId ?: repository.get(item.id)?.id)?.let { createdId ->
                         try {
                             coordinator.recompute(createdId)
                             batchStateTransitions.markSaved(operation.key, id, createdId, null)
