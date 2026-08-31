@@ -12,20 +12,28 @@ data class ReminderBatchRemoteDraft(
     val draft: ReminderDraft,
 )
 
+data class ReminderBatchDecodedResponse(
+    val drafts: List<ReminderBatchRemoteDraft>,
+    val failure: String? = null,
+)
+
 class ReminderBatchCodec(
     private val draftCodec: ReminderDraftCodec,
 ) {
     private val json = Json { ignoreUnknownKeys = false; isLenient = false }
 
-    fun decode(response: String, zone: TimeZone): List<ReminderBatchRemoteDraft> {
-        val array = json.parseToJsonElement(response) as? JsonArray
-            ?: error("Batch response must be a JSON array")
-        return array.map { element ->
-            val item = element as? JsonObject ?: error("Batch response entries must be JSON objects")
+    fun decode(response: String, zone: TimeZone): ReminderBatchDecodedResponse {
+        val array = runCatching { json.parseToJsonElement(response) as? JsonArray }.getOrNull()
+            ?: return ReminderBatchDecodedResponse(emptyList(), "Batch response must be a JSON array")
+        val errors = mutableListOf<String>()
+        val drafts = array.mapIndexedNotNull { position, element ->
+            val item = element as? JsonObject
+                ?: return@mapIndexedNotNull errors.add("Batch response entry $position must be a JSON object").let { null }
             val sourceIndex = item["source_index"]?.jsonPrimitive?.intOrNull
-                ?: error("Batch response entry is missing a valid source_index")
+                ?: return@mapIndexedNotNull errors.add("Batch response entry $position is missing a valid source_index").let { null }
             val draftJson = JsonObject(item.filterKeys { it != "source_index" })
             ReminderBatchRemoteDraft(sourceIndex, draftCodec.decodeInterpretationResponse(draftJson.toString(), zone))
         }
+        return ReminderBatchDecodedResponse(drafts, errors.takeIf { it.isNotEmpty() }?.joinToString("; "))
     }
 }

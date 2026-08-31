@@ -2,6 +2,8 @@ package com.dailysatori.service.reminder
 
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.service.ai.AiService
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
@@ -9,6 +11,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.plus
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.put
 
 data class ReminderInterpretation(
@@ -19,13 +22,7 @@ data class ReminderInterpretation(
 
 interface ReminderInterpretationRemote {
     suspend fun interpret(text: String, now: Instant, zone: TimeZone): String
-
-    suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String =
-        interpret(
-            text = fragments.joinToString("\\n") { "[${it.index}] ${it.text}" },
-            now = now,
-            zone = zone,
-        )
+    suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String
 }
 
 class ReminderAiInterpretationRemote(
@@ -46,8 +43,16 @@ class ReminderAiInterpretationRemote(
 
     override suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String {
         val config = configRepository.getDefault() ?: error("AI is not configured")
+        val input = buildJsonArray {
+            fragments.forEach { fragment ->
+                add(buildJsonObject {
+                    put("source_index", fragment.index)
+                    put("text", fragment.text)
+                })
+            }
+        }
         return aiService.complete(
-            prompt = """Convert every reminder below into a strict JSON array only. Each array element must include source_index copied exactly from the input plus these required fields: content, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), first_reminder_time (HH:MM), active_day_rule (daily), recurrence_rule (once|monthly:<day>|yearly:<month>:<day>:FEBRUARY_28). Current instant: $now. Timezone: ${zone.id}. Input: ${fragments.joinToString("\\n") { "[${it.index}] ${it.text}" }}""",
+            prompt = """Convert every structured reminder below into a strict JSON array only. Each array element must include source_index copied exactly from the input plus these required fields: content, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), first_reminder_time (HH:MM), active_day_rule (daily), recurrence_rule (once|monthly:<day>|yearly:<month>:<day>:FEBRUARY_28). Current instant: $now. Timezone: ${zone.id}. Input: $input""",
             apiAddress = config.api_address,
             apiToken = config.api_token,
             modelName = config.model_name,
@@ -63,6 +68,7 @@ class ReminderTextInterpreter(
 ) {
     private val cache = mutableMapOf<String, ReminderInterpretation>()
     private val batchCache = mutableMapOf<String, ReminderBatchInterpretation>()
+    private val batchMutex = Mutex()
     private val batchCodec = ReminderBatchCodec(codec)
 
     suspend fun interpret(text: String, now: Instant, zone: TimeZone): ReminderInterpretation {
@@ -75,17 +81,19 @@ class ReminderTextInterpreter(
     }
 
     suspend fun interpretBatch(text: String, now: Instant, zone: TimeZone): ReminderBatchInterpretation {
-        val normalized = normalize(text)
-        val key = batchCacheKey(normalized, now, zone)
-        batchCache[key]?.let { return it }
         val fragments = splitReminderInput(text)
-        if (fragments.isEmpty()) return failedBatch(normalized, "Reminder text is empty")
-        val local = fragments.associateWith { parseLocally(it.text, now, zone) }
-        val unresolved = fragments.filter { local[it] == null }
-        val remoteResults = if (unresolved.isEmpty()) emptyMap() else parseBatchRemotely(unresolved, now, zone)
-        val result = mergeBatch(fragments, local, remoteResults, normalized, now, zone)
-        if (result.failure == null && result.items.none { it.interpretation.failure != null }) batchCache[key] = result
-        return result
+        val normalized = normalize(text)
+        val key = batchCacheKey(fragments, now, zone)
+        return batchMutex.withLock {
+            batchCache[key]?.let { return@withLock it }
+            if (fragments.isEmpty()) return@withLock failedBatch(normalized, "Reminder text is empty")
+            val local = fragments.associateWith { parseLocally(it.text, now, zone) }
+            val unresolved = fragments.filter { local[it] == null }
+            val remote = if (unresolved.isEmpty()) RemoteBatchParse(emptyMap()) else parseBatchRemotely(unresolved, now, zone)
+            mergeBatch(fragments, local, remote, normalized, now, zone).also { result ->
+                if (result.failure == null && result.items.none { it.interpretation.failure != null }) batchCache[key] = result
+            }
+        }
     }
 
     private fun parseLocally(text: String, now: Instant, zone: TimeZone): ReminderInterpretation? {
@@ -141,35 +149,20 @@ class ReminderTextInterpreter(
         fragments: List<ReminderInputFragment>,
         now: Instant,
         zone: TimeZone,
-    ): Map<Int, ReminderInterpretation> {
+    ): RemoteBatchParse {
         val response = runCatching { remote?.interpretBatch(fragments, now, zone) ?: error("AI is not configured") }
             .getOrElse { exception ->
-                return fragments.associate { fragment ->
+                return RemoteBatchParse(fragments.associate { fragment ->
                     fragment.index to failedDraft(fragment.text, now, zone, exception.message ?: "AI parsing failed")
-                }
+                }, exception.message ?: "AI parsing failed")
             }
-        val decoded = runCatching { batchCodec.decode(response, zone) }
-            .getOrElse { exception ->
-                return fragments.associate { fragment ->
-                    fragment.index to failedDraft(fragment.text, now, zone, exception.message ?: "Batch response is invalid")
-                }
-            }
+        val decoded = batchCodec.decode(response, zone)
         val expected = fragments.map { it.index }.toSet()
-        val duplicateIndexes = decoded.groupingBy { it.sourceIndex }.eachCount().filterValues { it > 1 }.keys
-        val invalidIndexes = decoded.map { it.sourceIndex }.filter { it !in expected }.toSet()
-        if (invalidIndexes.isNotEmpty()) {
-            return fragments.associate { fragment ->
-                fragment.index to failedDraft(
-                    fragment.text,
-                    now,
-                    zone,
-                    "Batch response contains out-of-range source_index ${invalidIndexes.sorted().joinToString()}",
-                )
-            }
-        }
-        val usable = decoded.filter { it.sourceIndex !in duplicateIndexes && it.sourceIndex !in invalidIndexes }
+        val duplicateIndexes = decoded.drafts.groupingBy { it.sourceIndex }.eachCount().filterValues { it > 1 }.keys
+        val invalidIndexes = decoded.drafts.map { it.sourceIndex }.filter { it !in expected }.toSet()
+        val usable = decoded.drafts.filter { it.sourceIndex !in duplicateIndexes && it.sourceIndex !in invalidIndexes }
             .associateBy { it.sourceIndex }
-        return fragments.associate { fragment ->
+        val results = fragments.associate { fragment ->
             val failure = when {
                 fragment.index in duplicateIndexes -> "Batch response contains duplicate source_index ${fragment.index}"
                 usable[fragment.index] == null -> "Batch response is missing source_index ${fragment.index}"
@@ -178,17 +171,22 @@ class ReminderTextInterpreter(
             fragment.index to (failure?.let { failedDraft(fragment.text, now, zone, it) }
                 ?: ReminderInterpretation(usable.getValue(fragment.index).draft, usable.getValue(fragment.index).draft.validationErrors.isNotEmpty()))
         }
+        val failure = listOfNotNull(
+            decoded.failure,
+            invalidIndexes.takeIf { it.isNotEmpty() }?.let { "Batch response contains out-of-range source_index ${it.sorted().joinToString()}" },
+        ).joinToString("; ").takeIf { it.isNotEmpty() }
+        return RemoteBatchParse(results, failure)
     }
 
     private fun mergeBatch(
         fragments: List<ReminderInputFragment>,
         local: Map<ReminderInputFragment, ReminderInterpretation?>,
-        remote: Map<Int, ReminderInterpretation>,
+        remote: RemoteBatchParse,
         normalized: String,
         now: Instant,
         zone: TimeZone,
     ): ReminderBatchInterpretation {
-        val batchId = "reminder_batch_${batchCacheKey(normalized, now, zone).hashCode()}"
+        val batchId = "reminder_batch_${batchCacheKey(fragments, now, zone).hashCode()}"
         return ReminderBatchInterpretation(
             batchId = batchId,
             normalizedInput = normalized,
@@ -197,10 +195,11 @@ class ReminderTextInterpreter(
                     id = "${batchId}_${fragment.index}",
                     sourceIndex = fragment.index,
                     sourceText = fragment.text,
-                    interpretation = local[fragment] ?: remote[fragment.index]
+                    interpretation = local[fragment] ?: remote.results[fragment.index]
                         ?: failedDraft(fragment.text, now, zone, "Batch response is missing source_index ${fragment.index}"),
                 )
             },
+            failure = remote.failure,
         )
     }
 
@@ -213,8 +212,13 @@ class ReminderTextInterpreter(
 
     private fun normalize(text: String): String = text.trim().replace(Regex("\\s+"), " ")
 
-    private fun batchCacheKey(text: String, now: Instant, zone: TimeZone): String =
-        "$text:${now.toLocalDateTime(zone).date}:${zone.id}"
+    private fun batchCacheKey(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String =
+        "${fragments.joinToString("|") { "${it.index}:${normalize(it.text)}" }}:${now.toLocalDateTime(zone).date}:${zone.id}"
+
+    private data class RemoteBatchParse(
+        val results: Map<Int, ReminderInterpretation>,
+        val failure: String? = null,
+    )
 
     private suspend fun parseRemotely(text: String, now: Instant, zone: TimeZone): ReminderInterpretation {
         if (text.isBlank()) return failedDraft(text, now, zone, "Reminder text is empty")

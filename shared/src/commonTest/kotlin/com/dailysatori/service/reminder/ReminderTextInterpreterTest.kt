@@ -1,6 +1,9 @@
 package com.dailysatori.service.reminder
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -156,15 +159,40 @@ class ReminderTextInterpreterTest {
     }
 
     @Test
-    fun malformedDuplicateAndOutOfRangeRemoteIndexesPreserveEveryUnresolvedFragment() = runBlocking {
+    fun malformedIndexPreservesValidRemoteResultAndFailsOnlyMissingFragment() = runBlocking {
         val remote = BatchRemote("""
-            [{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":0,"content":"重复","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":9,"content":"越界","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
+            [{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":"bad","content":"损坏"}]
         """.trimIndent())
 
         val result = interpreter(remote).interpretBatch("明晚提醒我充值；下周提醒我交账单", now, zone)
 
-        assertEquals(listOf("明晚提醒我充值", "下周提醒我交账单"), result.items.map { it.sourceText })
-        assertTrue(result.items.all { it.interpretation.failure != null })
+        assertEquals("充值", result.items[0].interpretation.draft.content)
+        assertEquals("下周提醒我交账单", result.items[1].interpretation.draft.content)
+        assertTrue(result.items[1].interpretation.failure != null)
+    }
+
+    @Test
+    fun duplicateIndexFailsOnlyItsOriginalFragment() = runBlocking {
+        val remote = BatchRemote("""
+            [{"source_index":0,"content":"重复一","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":0,"content":"重复二","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"交账单","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
+        """.trimIndent())
+
+        val result = interpreter(remote).interpretBatch("明晚提醒我充值；下周提醒我交账单", now, zone)
+
+        assertTrue(result.items[0].interpretation.failure != null)
+        assertEquals("交账单", result.items[1].interpretation.draft.content)
+    }
+
+    @Test
+    fun outOfRangeIndexDoesNotDiscardValidIndexedResults() = runBlocking {
+        val remote = BatchRemote("""
+            [{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"交账单","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":9,"content":"越界","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
+        """.trimIndent())
+
+        val result = interpreter(remote).interpretBatch("明晚提醒我充值；下周提醒我交账单", now, zone)
+
+        assertEquals(listOf("充值", "交账单"), result.items.map { it.interpretation.draft.content })
+        assertTrue(result.failure != null)
     }
 
     @Test
@@ -180,6 +208,32 @@ class ReminderTextInterpreterTest {
         subject.interpretBatch("提醒我充值", now, TimeZone.UTC)
 
         assertEquals(3, remote.calls)
+    }
+
+    @Test
+    fun batchCacheKeepsSplitBoundariesDistinct() = runBlocking {
+        val remote = BatchRemote("""
+            [{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"交账单","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
+        """.trimIndent())
+        val subject = interpreter(remote)
+
+        subject.interpretBatch("明晚提醒我充值\n下周提醒我交账单", now, zone)
+        subject.interpretBatch("明晚提醒我充值 下周提醒我交账单", now, zone)
+
+        assertEquals(2, remote.calls)
+    }
+
+    @Test
+    fun concurrentEqualBatchesShareOneRemoteCall() = runBlocking {
+        val remote = BatchRemote(
+            """[{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]""",
+            delayMillis = 50,
+        )
+        val subject = interpreter(remote)
+
+        List(4) { async { subject.interpretBatch("提醒我充值", now, zone) } }.awaitAll()
+
+        assertEquals(1, remote.calls)
     }
 
     private fun interpreter(remote: ReminderInterpretationRemote) = ReminderTextInterpreter(
@@ -198,15 +252,22 @@ class ReminderTextInterpreterTest {
             if (response is Throwable) throw response
             return response as String
         }
+
+        override suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String =
+            error("batch interpretation is not expected")
     }
 
-    private class BatchRemote(private val batchResponse: String) : ReminderInterpretationRemote {
+    private class BatchRemote(
+        private val batchResponse: String,
+        private val delayMillis: Long = 0,
+    ) : ReminderInterpretationRemote {
         var calls = 0
 
         override suspend fun interpret(text: String, now: Instant, zone: TimeZone): String = error("single interpretation is not expected")
 
         override suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String {
             calls++
+            if (delayMillis > 0) delay(delayMillis)
             return batchResponse
         }
     }
