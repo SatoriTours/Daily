@@ -25,7 +25,6 @@ import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderTextInterpreter
-import com.dailysatori.service.reminder.ReminderInterpretation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -130,19 +129,16 @@ data class ReminderAiParseState(
     val isInterpreting: Boolean = false,
     val submitCount: Int = 0,
     val error: String? = null,
-    val draft: ReminderDraft? = null,
-    val requiresConfirmation: Boolean = false,
+    val batch: ReminderBatchUiState? = null,
 ) {
+    private val compatibilityItem get() = batch?.items?.values?.firstOrNull()
+    val draft: ReminderDraft? get() = compatibilityItem?.draft?.confirmationPayload()?.draft
+    val requiresConfirmation: Boolean get() = compatibilityItem?.requiresConfirmation == true
+
     fun resetForEditor() = ReminderAiParseState()
-    fun onPromptChanged(value: String) = copy(prompt = value, error = null)
+    fun onPromptChanged(value: String) = copy(prompt = value, error = null, batch = null)
     fun onExplicitSubmit() = copy(isInterpreting = true, submitCount = submitCount + 1, error = null)
     fun onInterpretationFinished(error: String? = null) = copy(isInterpreting = false, error = error)
-    fun onInterpretationFinished(interpretation: ReminderInterpretation) = copy(
-        isInterpreting = false,
-        error = interpretation.failure,
-        draft = interpretation.draft,
-        requiresConfirmation = interpretation.requiresConfirmation,
-    )
 }
 
 enum class ReminderEditorMode { ONCE, MONTHLY, YEARLY, CONSECUTIVE }
@@ -389,13 +385,66 @@ class ReminderViewModel(
         val prompt = state.value.aiParse.prompt
         _state.update { it.copy(aiParse = it.aiParse.onExplicitSubmit()) }
         viewModelScope.launch(Dispatchers.IO) {
-            val interpretation = textInterpreter.interpret(prompt, Clock.System.now(), TimeZone.currentSystemDefault())
-            _state.update { current ->
-                val default = defaultProfile()
-                current.copy(
-                    drafts = current.drafts + (interpretation.draft.id to ReminderDraftUiState.from(interpretation.draft, default.snapshot, default.id)),
-                    aiParse = current.aiParse.onInterpretationFinished(interpretation),
-                )
+            runCatching { textInterpreter.interpretBatch(prompt, Clock.System.now(), TimeZone.currentSystemDefault()) }
+                .onSuccess { interpretation ->
+                    _state.update { current ->
+                        val default = defaultProfile()
+                        current.copy(
+                            aiParse = current.aiParse.copy(
+                                batch = ReminderBatchUiState.from(interpretation, default.snapshot, default.id),
+                            ).onInterpretationFinished(interpretation.failure),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { current -> current.copy(aiParse = current.aiParse.onInterpretationFinished(error.message ?: "解析失败")) }
+                }
+        }
+    }
+
+    fun toggleBatchItem(id: String) {
+        _state.update { current -> current.copy(aiParse = current.aiParse.copy(batch = current.aiParse.batch?.toggleItem(id))) }
+    }
+
+    fun removeBatchItem(id: String) {
+        _state.update { current -> current.copy(aiParse = current.aiParse.copy(batch = current.aiParse.batch?.removeItem(id))) }
+    }
+
+    fun updateBatchItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem) {
+        _state.update { current -> current.copy(aiParse = current.aiParse.copy(batch = current.aiParse.batch?.updateItem(id, transform))) }
+    }
+
+    fun saveSelectedBatch() {
+        val snapshot = state.value.aiParse.batch ?: return
+        val selected = snapshot.selectedIds.associateWith { snapshot.items.getValue(it) }
+        if (selected.isEmpty()) return
+        _state.update { current ->
+            val batch = current.aiParse.batch ?: return@update current
+            if (batch.batchId != snapshot.batchId) current else current.copy(aiParse = current.aiParse.copy(batch = batch.markSaving(selected.keys)))
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            selected.forEach { (id, item) ->
+                val payload = item.draft.confirmationPayload() ?: return@forEach
+                try {
+                    val created = repository.createConfirmed(payload.draft, payload.profileSnapshot)
+                    var schedulingError: String? = null
+                    try {
+                        coordinator.recompute(created.id)
+                    } catch (error: Exception) {
+                        schedulingError = error.message ?: "调度失败"
+                    }
+                    _state.update { current ->
+                        val currentBatch = current.aiParse.batch
+                        if (currentBatch?.batchId != snapshot.batchId) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markSaved(id, created.id).let { saved ->
+                            if (schedulingError == null) saved else saved.updateItem(id) { it.copy(saveError = schedulingError) }
+                        }))
+                    }
+                } catch (error: Exception) {
+                    _state.update { current ->
+                        val currentBatch = current.aiParse.batch
+                        if (currentBatch?.batchId != snapshot.batchId) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markFailed(id, error.message ?: "保存失败")))
+                    }
+                }
             }
         }
     }
