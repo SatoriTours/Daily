@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.reminder
 
 import com.dailysatori.service.reminder.ReminderBatchInterpretation
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import kotlinx.coroutines.CancellationException
 
 enum class BatchSaveStatus { PENDING, SAVING, SAVED, FAILED }
 
@@ -42,6 +43,11 @@ data class ReminderBatchUiState(
         if (id in ids && item.canSave) item.copy(saveStatus = BatchSaveStatus.SAVING, saveError = null) else item
     })
 
+    fun claimSelectedItems(): ReminderBatchSaveClaim {
+        val claimed = selectedIds.associateWith { items.getValue(it) }
+        return ReminderBatchSaveClaim(markSaving(claimed.keys), claimed)
+    }
+
     fun markSaved(id: String, createdReminderId: String): ReminderBatchUiState = updateItem(id) {
         it.copy(selected = false, saveStatus = BatchSaveStatus.SAVED, createdReminderId = createdReminderId, saveError = null)
     }
@@ -74,16 +80,26 @@ data class ReminderBatchUiState(
     }
 }
 
+data class ReminderBatchSaveClaim(
+    val state: ReminderBatchUiState,
+    val items: Map<String, ReminderBatchUiItem>,
+)
+
 suspend fun saveBatch(
     initial: ReminderBatchUiState,
     save: suspend (ReminderBatchUiItem) -> String,
+): ReminderBatchUiState = saveClaim(initial.claimSelectedItems(), save)
+
+suspend fun saveClaim(
+    claim: ReminderBatchSaveClaim,
+    save: suspend (ReminderBatchUiItem) -> String,
 ): ReminderBatchUiState {
-    val selectedIds = initial.selectedIds
-    var current = initial.markSaving(selectedIds)
-    selectedIds.forEach { id ->
-        val item = current.items[id] ?: return@forEach
+    var current = claim.state
+    claim.items.forEach { (id, item) ->
         try {
             current = current.markSaved(id, save(item))
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             current = current.markFailed(id, error.message ?: "Save failed")
         }

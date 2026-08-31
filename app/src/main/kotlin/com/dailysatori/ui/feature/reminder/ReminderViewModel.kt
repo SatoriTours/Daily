@@ -26,6 +26,7 @@ import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderTextInterpreter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -128,6 +129,8 @@ data class ReminderAiParseState(
     val prompt: String = "",
     val isInterpreting: Boolean = false,
     val submitCount: Int = 0,
+    val requestToken: Long = 0,
+    val batchGeneration: Long = 0,
     val error: String? = null,
     val batch: ReminderBatchUiState? = null,
 ) {
@@ -136,8 +139,24 @@ data class ReminderAiParseState(
     val requiresConfirmation: Boolean get() = compatibilityItem?.requiresConfirmation == true
 
     fun resetForEditor() = ReminderAiParseState()
-    fun onPromptChanged(value: String) = copy(prompt = value, error = null, batch = null)
-    fun onExplicitSubmit() = copy(isInterpreting = true, submitCount = submitCount + 1, error = null)
+    fun onPromptChanged(value: String) = copy(
+        prompt = value,
+        isInterpreting = false,
+        error = null,
+        batch = null,
+        requestToken = requestToken + 1,
+        batchGeneration = batchGeneration + 1,
+    )
+    fun onExplicitSubmit() = copy(
+        isInterpreting = true,
+        submitCount = submitCount + 1,
+        error = null,
+        requestToken = requestToken + 1,
+        batchGeneration = batchGeneration + 1,
+    )
+    fun acceptsInterpretation(token: Long): Boolean = requestToken == token
+    fun acceptsBatchGeneration(generation: Long): Boolean = batchGeneration == generation
+    fun onInterpretationSucceeded(value: ReminderBatchUiState) = copy(batch = value).onInterpretationFinished(value.failure)
     fun onInterpretationFinished(error: String? = null) = copy(isInterpreting = false, error = error)
 }
 
@@ -382,23 +401,32 @@ class ReminderViewModel(
     }
 
     fun interpretAiPrompt() {
-        val prompt = state.value.aiParse.prompt
-        _state.update { it.copy(aiParse = it.aiParse.onExplicitSubmit()) }
+        var prompt = ""
+        var token = 0L
+        _state.update { current ->
+            val parsing = current.aiParse.onExplicitSubmit()
+            prompt = parsing.prompt
+            token = parsing.requestToken
+            current.copy(aiParse = parsing)
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { textInterpreter.interpretBatch(prompt, Clock.System.now(), TimeZone.currentSystemDefault()) }
-                .onSuccess { interpretation ->
-                    _state.update { current ->
+            try {
+                val interpretation = textInterpreter.interpretBatch(prompt, Clock.System.now(), TimeZone.currentSystemDefault())
+                _state.update { current ->
+                    if (!current.aiParse.acceptsInterpretation(token)) current else {
                         val default = defaultProfile()
-                        current.copy(
-                            aiParse = current.aiParse.copy(
-                                batch = ReminderBatchUiState.from(interpretation, default.snapshot, default.id),
-                            ).onInterpretationFinished(interpretation.failure),
-                        )
+                        current.copy(aiParse = current.aiParse.onInterpretationSucceeded(
+                            ReminderBatchUiState.from(interpretation, default.snapshot, default.id),
+                        ))
                     }
                 }
-                .onFailure { error ->
-                    _state.update { current -> current.copy(aiParse = current.aiParse.onInterpretationFinished(error.message ?: "解析失败")) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _state.update { current ->
+                    if (!current.aiParse.acceptsInterpretation(token)) current else current.copy(aiParse = current.aiParse.onInterpretationFinished(error.message ?: "解析失败"))
                 }
+            }
         }
     }
 
@@ -415,34 +443,42 @@ class ReminderViewModel(
     }
 
     fun saveSelectedBatch() {
-        val snapshot = state.value.aiParse.batch ?: return
-        val selected = snapshot.selectedIds.associateWith { snapshot.items.getValue(it) }
-        if (selected.isEmpty()) return
+        var claim: ReminderBatchSaveClaim? = null
+        var generation = 0L
         _state.update { current ->
             val batch = current.aiParse.batch ?: return@update current
-            if (batch.batchId != snapshot.batchId) current else current.copy(aiParse = current.aiParse.copy(batch = batch.markSaving(selected.keys)))
+            val nextClaim = batch.claimSelectedItems()
+            if (nextClaim.items.isEmpty()) current else {
+                claim = nextClaim
+                generation = current.aiParse.batchGeneration
+                current.copy(aiParse = current.aiParse.copy(batch = nextClaim.state))
+            }
         }
+        val snapshot = claim ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            selected.forEach { (id, item) ->
+            snapshot.items.forEach { (id, item) ->
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
                     val created = repository.createConfirmed(payload.draft, payload.profileSnapshot)
                     var schedulingError: String? = null
                     try {
                         coordinator.recompute(created.id)
+                    } catch (error: CancellationException) {
+                        throw error
                     } catch (error: Exception) {
                         schedulingError = error.message ?: "调度失败"
                     }
                     _state.update { current ->
                         val currentBatch = current.aiParse.batch
-                        if (currentBatch?.batchId != snapshot.batchId) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markSaved(id, created.id).let { saved ->
+                        if (currentBatch == null || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markSaved(id, created.id).let { saved ->
                             if (schedulingError == null) saved else saved.updateItem(id) { it.copy(saveError = schedulingError) }
                         }))
                     }
                 } catch (error: Exception) {
+                    if (error is CancellationException) throw error
                     _state.update { current ->
                         val currentBatch = current.aiParse.batch
-                        if (currentBatch?.batchId != snapshot.batchId) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markFailed(id, error.message ?: "保存失败")))
+                        if (currentBatch == null || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markFailed(id, error.message ?: "保存失败")))
                     }
                 }
             }

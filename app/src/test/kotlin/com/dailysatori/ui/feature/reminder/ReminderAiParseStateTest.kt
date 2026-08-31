@@ -33,4 +33,30 @@ class ReminderAiParseStateTest {
 
         assertEquals(ReminderAiParseState(), previous.resetForEditor())
     }
+
+    @Test
+    fun newerPromptInvalidatesAnOlderInterpretationRequest() {
+        val first = ReminderAiParseState().onPromptChanged("第一个").onExplicitSubmit()
+        val newer = first.onPromptChanged("第二个").onExplicitSubmit()
+
+        assertFalse(newer.acceptsInterpretation(first.requestToken))
+        assertTrue(newer.acceptsInterpretation(newer.requestToken))
+    }
+
+    @Test
+    fun changingThePromptStopsTheInvalidatedInterpretationIndicator() {
+        val changed = ReminderAiParseState().onExplicitSubmit().onPromptChanged("新输入")
+
+        assertFalse(changed.isInterpreting)
+    }
+
+    @Test
+    fun replacementBatchWithTheSameIdInvalidatesOlderSaveResults() {
+        val batch = ReminderBatchUiState(batchId = "same-id", items = emptyMap())
+        val first = ReminderAiParseState().onExplicitSubmit().onInterpretationSucceeded(batch)
+        val replacement = first.onExplicitSubmit().onInterpretationSucceeded(batch)
+
+        assertFalse(replacement.acceptsBatchGeneration(first.batchGeneration))
+        assertTrue(replacement.acceptsBatchGeneration(replacement.batchGeneration))
+    }
 }

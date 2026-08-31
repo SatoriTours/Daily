@@ -11,6 +11,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.CancellationException
 
 class ReminderBatchUiStateTest {
     @Test
@@ -55,6 +57,37 @@ class ReminderBatchUiStateTest {
         saveBatch(once) { calls++; "duplicate" }
 
         assertEquals(1, calls)
+    }
+
+    @Test
+    fun concurrentSaveClaimsLeaveEachItemForOnlyOneCreate() {
+        val state = ReminderBatchUiState.from(batch(item("a"), item("b")))
+        val first = state.claimSelectedItems()
+        val second = first.state.claimSelectedItems()
+        var creates = 0
+
+        runTest { saveClaim(first) { creates++; "created-${it.id}" } }
+        runTest { saveClaim(second) { creates++; "duplicate-${it.id}" } }
+
+        assertEquals(setOf("a", "b"), first.items.keys)
+        assertTrue(second.items.isEmpty())
+        assertTrue(first.state.items.values.all { it.saveStatus == BatchSaveStatus.SAVING })
+        assertEquals(2, creates)
+    }
+
+    @Test
+    fun cancellationStopsTheBatchWithoutMarkingLaterItemsFailed() = runTest {
+        var laterCalls = 0
+
+        assertFailsWith<CancellationException> {
+            saveBatch(ReminderBatchUiState.from(batch(item("a"), item("b")))) { item ->
+                if (item.id == "a") throw CancellationException("stopped")
+                laterCalls++
+                "created-b"
+            }
+        }
+
+        assertEquals(0, laterCalls)
     }
 
     private fun batch(vararg items: ReminderBatchItem) = ReminderBatchInterpretation(
