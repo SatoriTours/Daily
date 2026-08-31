@@ -86,11 +86,32 @@ data class ReminderBatchSaveClaim(
     val items: Map<String, ReminderBatchUiItem>,
 )
 
-data class ReminderBatchSaveOperation(
-    val claim: ReminderBatchSaveClaim,
+data class ReminderBatchOperationKey(
     val batchId: String,
     val generation: Long,
 )
+
+data class ReminderBatchSaveOperation(
+    val claim: ReminderBatchSaveClaim,
+    val key: ReminderBatchOperationKey,
+)
+
+class ReminderBatchSaveGate {
+    private val lock = Any()
+    private var active: ReminderBatchOperationKey? = null
+
+    fun activate(key: ReminderBatchOperationKey) = synchronized(lock) {
+        active = key
+    }
+
+    fun invalidate() = synchronized(lock) {
+        active = null
+    }
+
+    fun <T> createIfCurrent(key: ReminderBatchOperationKey, create: () -> T): T? = synchronized(lock) {
+        if (active == key) create() else null
+    }
+}
 
 fun claimSelectedBatch(state: MutableStateFlow<ReminderUiState>): ReminderBatchSaveOperation? {
     while (true) {
@@ -100,7 +121,7 @@ fun claimSelectedBatch(state: MutableStateFlow<ReminderUiState>): ReminderBatchS
         if (claim.items.isEmpty()) return null
         val next = current.copy(aiParse = current.aiParse.copy(batch = claim.state))
         if (state.compareAndSet(current, next)) {
-            return ReminderBatchSaveOperation(claim, batch.batchId, current.aiParse.batchGeneration)
+            return ReminderBatchSaveOperation(claim, ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration))
         }
     }
 }

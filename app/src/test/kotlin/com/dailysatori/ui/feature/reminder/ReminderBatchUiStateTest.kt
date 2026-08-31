@@ -17,6 +17,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 class ReminderBatchUiStateTest {
     @Test
@@ -92,6 +95,59 @@ class ReminderBatchUiStateTest {
         assertEquals(1, claims.size)
         assertEquals(setOf("a", "b"), claims.single().claim.items.keys)
         assertTrue(flow.value.aiParse.batch!!.items.values.all { it.saveStatus == BatchSaveStatus.SAVING })
+    }
+
+    @Test
+    fun invalidationThatWinsBeforeCreateSkipsTheOldBatch() {
+        val gate = ReminderBatchSaveGate()
+        val key = ReminderBatchOperationKey("old", 1)
+        val releaseCreate = CountDownLatch(1)
+        val invalidated = CountDownLatch(1)
+        var creates = 0
+        gate.activate(key)
+
+        val saver = thread {
+            releaseCreate.await(5, TimeUnit.SECONDS)
+            gate.createIfCurrent(key) { creates++ }
+        }
+        val reset = thread {
+            gate.invalidate()
+            invalidated.countDown()
+        }
+
+        assertTrue(invalidated.await(5, TimeUnit.SECONDS))
+        releaseCreate.countDown()
+        saver.join()
+        reset.join()
+
+        assertEquals(0, creates)
+    }
+
+    @Test
+    fun createThatWinsBeforeInvalidationRunsOnceAndOldKeyCannotRunAgain() {
+        val gate = ReminderBatchSaveGate()
+        val key = ReminderBatchOperationKey("old", 1)
+        val createEntered = CountDownLatch(1)
+        val releaseCreate = CountDownLatch(1)
+        var creates = 0
+        gate.activate(key)
+
+        val saver = thread {
+            gate.createIfCurrent(key) {
+                createEntered.countDown()
+                assertTrue(releaseCreate.await(5, TimeUnit.SECONDS))
+                creates++
+            }
+        }
+        assertTrue(createEntered.await(5, TimeUnit.SECONDS))
+        val reset = thread { gate.invalidate() }
+        releaseCreate.countDown()
+        saver.join()
+        reset.join()
+
+        gate.createIfCurrent(key) { creates++ }
+
+        assertEquals(1, creates)
     }
 
     @Test

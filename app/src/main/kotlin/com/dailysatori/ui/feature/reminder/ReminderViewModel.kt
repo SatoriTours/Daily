@@ -376,6 +376,7 @@ class ReminderViewModel(
     private val context: Context,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReminderUiState())
+    private val batchSaveGate = ReminderBatchSaveGate()
     private var activeBatchSaveJob: Job? = null
     val state: StateFlow<ReminderUiState> = _state
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
@@ -399,16 +400,19 @@ class ReminderViewModel(
     }
 
     fun onAiPromptChanged(value: String) {
+        batchSaveGate.invalidate()
         cancelActiveBatchSave()
         _state.update { it.copy(aiParse = it.aiParse.onPromptChanged(value)) }
     }
 
     fun resetAiParse() {
+        batchSaveGate.invalidate()
         cancelActiveBatchSave()
         _state.update { it.copy(aiParse = it.aiParse.resetForEditor()) }
     }
 
     fun interpretAiPrompt() {
+        batchSaveGate.invalidate()
         cancelActiveBatchSave()
         var prompt = ""
         var token = 0L
@@ -424,9 +428,9 @@ class ReminderViewModel(
                 _state.update { current ->
                     if (!current.aiParse.acceptsInterpretation(token)) current else {
                         val default = defaultProfile()
-                        current.copy(aiParse = current.aiParse.onInterpretationSucceeded(
-                            ReminderBatchUiState.from(interpretation, default.snapshot, default.id),
-                        ))
+                        val batch = ReminderBatchUiState.from(interpretation, default.snapshot, default.id)
+                        batchSaveGate.activate(ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration))
+                        current.copy(aiParse = current.aiParse.onInterpretationSucceeded(batch))
                     }
                 }
             } catch (error: CancellationException) {
@@ -455,15 +459,16 @@ class ReminderViewModel(
         val operation = claimSelectedBatch(_state) ?: return
         activeBatchSaveJob?.cancel()
         activeBatchSaveJob = viewModelScope.launch(Dispatchers.IO) {
-            val batchId = operation.batchId
-            val generation = operation.generation
+            val batchId = operation.key.batchId
+            val generation = operation.key.generation
             val snapshot = operation.claim
             snapshot.items.forEach { (id, item) ->
                 ensureActive()
-                if (!isCurrentBatch(batchId, generation)) return@launch
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
-                    val created = repository.createConfirmed(payload.draft, payload.profileSnapshot)
+                    val created = batchSaveGate.createIfCurrent(operation.key) {
+                        repository.createConfirmed(payload.draft, payload.profileSnapshot)
+                    } ?: return@launch
                     var schedulingError: String? = null
                     try {
                         coordinator.recompute(created.id)
@@ -492,11 +497,6 @@ class ReminderViewModel(
     private fun cancelActiveBatchSave() {
         activeBatchSaveJob?.cancel()
         activeBatchSaveJob = null
-    }
-
-    private fun isCurrentBatch(batchId: String, generation: Long): Boolean {
-        val parse = state.value.aiParse
-        return parse.batch?.batchId == batchId && parse.acceptsBatchGeneration(generation)
     }
 
     fun updateDraft(id: String, transform: (ReminderDraftUiState) -> ReminderDraftUiState) {
