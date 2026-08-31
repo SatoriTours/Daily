@@ -82,6 +82,10 @@ data class ReminderBatchUiState(
         it.copy(selected = true, saveStatus = BatchSaveStatus.FAILED, saveError = message)
     }
 
+    fun markSchedulingFailed(id: String, createdReminderId: String, message: String): ReminderBatchUiState = replaceItem(id) {
+        it.copy(selected = true, saveStatus = BatchSaveStatus.FAILED, createdReminderId = createdReminderId, saveError = message)
+    }
+
     private fun replaceItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem): ReminderBatchUiState {
         val item = items[id] ?: return this
         return copy(items = items + (id to transform(item)))
@@ -98,6 +102,7 @@ data class ReminderBatchUiState(
             items = interpretation.items.associateTo(linkedMapOf()) { parsed ->
                 val parseError = parsed.interpretation.failure
                 val draft = ReminderDraftUiState.from(parsed.interpretation.draft, fallbackProfile, fallbackProfileId)
+                    .copy(id = parsed.id)
                 parsed.id to ReminderBatchUiItem(
                     id = parsed.id,
                     sourceText = parsed.sourceText,
@@ -255,6 +260,9 @@ class ReminderBatchStateTransitions(
 
     fun markFailed(key: ReminderBatchOperationKey, id: String, message: String): Boolean =
         publishIfCurrent(key) { it.markFailed(id, message) }
+
+    fun markSchedulingFailed(key: ReminderBatchOperationKey, id: String, createdReminderId: String, message: String): Boolean =
+        publishIfCurrent(key) { it.markSchedulingFailed(id, createdReminderId, message) }
 
     private fun publishIfCurrent(
         key: ReminderBatchOperationKey,

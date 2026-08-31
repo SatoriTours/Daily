@@ -85,7 +85,9 @@ private fun BatchReminderCard(
             item.parseError?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
             item.saveError?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
             Text(stringResource(statusLabel(item.saveStatus)), style = MaterialTheme.typography.bodySmall)
-            if (item.isSaving) {
+            if (item.saveStatus == BatchSaveStatus.SAVED) {
+                Text(stringResource(R.string.reminder_batch_saved_read_only), style = MaterialTheme.typography.bodySmall)
+            } else if (item.isSaving) {
                 Text(stringResource(R.string.reminder_batch_editing_disabled), style = MaterialTheme.typography.bodySmall)
             } else {
                 if (item.requiresConfirmation) {

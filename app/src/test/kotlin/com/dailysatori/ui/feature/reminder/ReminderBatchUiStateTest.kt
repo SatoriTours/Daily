@@ -25,6 +25,14 @@ import kotlin.concurrent.thread
 
 class ReminderBatchUiStateTest {
     @Test
+    fun batchItemIdOverridesTimestampBasedDecodedDraftId() {
+        val decoded = item("same").copy(id = "batch_item_1")
+
+        val state = ReminderBatchUiState.from(batch(decoded))
+
+        assertEquals("batch_item_1", state.items.getValue("batch_item_1").draft.id)
+    }
+    @Test
     fun confirmationRequiredItemCannotSaveUntilExplicitlyConfirmed() {
         val initial = ReminderBatchUiState.from(batch(item("a", requiresConfirmation = true)))
 
@@ -64,6 +72,16 @@ class ReminderBatchUiStateTest {
 
         assertFalse(partiallySaved.isComplete)
         assertTrue(partiallySaved.markSaved("b", "created-b").isComplete)
+    }
+
+    @Test
+    fun schedulingFailureKeepsCreatedIdRetryableWithoutBeingComplete() {
+        val failed = ReminderBatchUiState.from(batch(item("a")))
+            .markSchedulingFailed("a", "created-a", ReminderBatchErrorCode.SCHEDULING_FAILED)
+
+        assertEquals("created-a", failed.items.getValue("a").createdReminderId)
+        assertEquals(setOf("a"), failed.selectedIds)
+        assertFalse(failed.isComplete)
     }
 
     @Test

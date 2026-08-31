@@ -44,6 +44,7 @@
     <string name="reminder_batch_confirmation_required">请确认解析结果后再保存。</string>
     <string name="reminder_batch_confirm_item">确认此提醒</string>
     <string name="reminder_batch_editing_disabled">正在保存，暂不能编辑或移除。</string>
+    <string name="reminder_batch_saved_read_only">已保存，不能再编辑或移除。</string>
     <string name="reminder_batch_parse_incomplete">解析未完全成功：%1$s，可继续手动修改。</string>
     <string name="reminder_batch_error_parse">解析失败</string>
     <string name="reminder_batch_error_scheduling">系统调度失败</string>

@@ -421,7 +421,7 @@ class ReminderViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                batchStateTransitions.failInterpretation(request.token, error.message ?: ReminderBatchErrorCode.PARSE_FAILED)
+                batchStateTransitions.failInterpretation(request.token, ReminderBatchErrorCode.PARSE_FAILED)
             }
         }
     }
@@ -453,6 +453,22 @@ class ReminderViewModel(
                 currentCoroutineContext().ensureActive()
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
+                    item.createdReminderId?.let { createdId ->
+                        try {
+                            coordinator.recompute(createdId)
+                            batchStateTransitions.markSaved(operation.key, id, createdId, null)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (_: Exception) {
+                            batchStateTransitions.markSchedulingFailed(
+                                operation.key,
+                                id,
+                                createdId,
+                                ReminderBatchErrorCode.SCHEDULING_FAILED,
+                            )
+                        }
+                        return@forEach
+                    }
                     val created = batchStateTransitions.createIfCurrent(operation.key) {
                         repository.createConfirmed(payload.draft, payload.profileSnapshot)
                     } ?: return@save
@@ -462,12 +478,16 @@ class ReminderViewModel(
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        schedulingError = error.message ?: ReminderBatchErrorCode.SCHEDULING_FAILED
+                        schedulingError = ReminderBatchErrorCode.SCHEDULING_FAILED
                     }
-                    batchStateTransitions.markSaved(operation.key, id, created.id, schedulingError)
+                    if (schedulingError == null) {
+                        batchStateTransitions.markSaved(operation.key, id, created.id, null)
+                    } else {
+                        batchStateTransitions.markSchedulingFailed(operation.key, id, created.id, schedulingError)
+                    }
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
-                    batchStateTransitions.markFailed(operation.key, id, error.message ?: ReminderBatchErrorCode.SAVE_FAILED)
+                    batchStateTransitions.markFailed(operation.key, id, ReminderBatchErrorCode.SAVE_FAILED)
                 }
             }
             val completed = batchStateTransitions.createIfCurrent(operation.key) {

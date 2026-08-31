@@ -22,6 +22,7 @@
     <string name="reminder_batch_confirmation_required">Confirm this parsed result before saving.</string>
     <string name="reminder_batch_confirm_item">Confirm this reminder</string>
     <string name="reminder_batch_editing_disabled">Saving in progress. Editing and removal are unavailable.</string>
+    <string name="reminder_batch_saved_read_only">Saved items are read-only.</string>
     <string name="reminder_batch_parse_incomplete">Parsing was incomplete: %1$s. You can continue editing manually.</string>
     <string name="reminder_batch_error_parse">Could not parse reminder</string>
     <string name="reminder_batch_error_scheduling">Could not schedule reminder</string>
