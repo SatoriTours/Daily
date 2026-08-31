@@ -421,7 +421,7 @@ class ReminderViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                batchStateTransitions.failInterpretation(request.token, error.message ?: "解析失败")
+                batchStateTransitions.failInterpretation(request.token, error.message ?: "Parse failed")
             }
         }
     }
@@ -458,12 +458,12 @@ class ReminderViewModel(
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        schedulingError = error.message ?: "调度失败"
+                        schedulingError = error.message ?: "Scheduling failed"
                     }
                     batchStateTransitions.markSaved(operation.key, id, created.id, schedulingError)
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
-                    batchStateTransitions.markFailed(operation.key, id, error.message ?: "保存失败")
+                    batchStateTransitions.markFailed(operation.key, id, error.message ?: "Save failed")
                 }
             }
         }

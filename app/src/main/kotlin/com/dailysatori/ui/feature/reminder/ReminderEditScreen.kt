@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +29,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -49,7 +53,12 @@ fun ReminderEditScreen(
     val existing = reminders.firstOrNull { it.id == reminderId }
     var editor by remember(existing?.id) { mutableStateOf(existing?.let(ReminderEditorState::from) ?: ReminderEditorState.createDefault()) }
     var picker by remember { mutableStateOf<EditorPicker?>(null) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
     LaunchedEffect(reminderId) { viewModel.resetAiParse() }
+    val batch = ui.aiParse.batch
+    val hasUnsavedBatch = batch?.items?.values?.any { it.saveStatus != BatchSaveStatus.SAVED } == true
+    val requestBack = { if (hasUnsavedBatch) showDiscardDialog = true else onBack() }
+    BackHandler(enabled = hasUnsavedBatch, onBack = requestBack)
     val save = {
         val submitted = editor
         editor = submitted.copy(saving = true)
@@ -57,11 +66,22 @@ fun ReminderEditScreen(
     }
     AppScaffold(
         title = if (existing == null) "新建提醒" else "编辑提醒",
-        onBack = onBack,
+        onBack = requestBack,
         bottomBar = {
             Surface(shadowElevation = Spacing.xs) {
-                Button(onClick = save, enabled = editor.canSave, modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
-                    Text(if (editor.saving) "保存中…" else "保存提醒")
+                if (batch == null) {
+                    Button(onClick = save, enabled = editor.canSave, modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
+                        Text(if (editor.saving) "保存中…" else "保存提醒")
+                    }
+                } else {
+                    val savingBatch = batch.items.values.any { it.saveStatus == BatchSaveStatus.SAVING }
+                    Button(
+                        onClick = viewModel::saveSelectedBatch,
+                        enabled = batch.selectedCount > 0 && !savingBatch,
+                        modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                    ) {
+                        Text(stringResource(R.string.reminder_batch_save_selected, batch.selectedCount))
+                    }
                 }
             }
         },
@@ -88,11 +108,18 @@ fun ReminderEditScreen(
                             }
                         }
                         ui.aiParse.error?.let { Text("解析未完全成功：$it，可继续手动修改。", color = MaterialTheme.colorScheme.error) }
-                        ui.aiParse.draft?.let { draft ->
-                            Text(if (ui.aiParse.requiresConfirmation) "解析结果需要你确认，应用后仍可修改。" else "已生成配置预览，应用后仍可修改。", style = MaterialTheme.typography.bodySmall)
-                            Button(onClick = { editor = editor.applyParsedDraft(draft) }) { Text("应用解析结果") }
-                        }
                     }
+                }
+            }
+            batch?.let { preview ->
+                item {
+                    ReminderBatchPreview(
+                        batch = preview,
+                        profiles = profiles,
+                        onToggleItem = viewModel::toggleBatchItem,
+                        onRemoveItem = viewModel::removeBatchItem,
+                        onUpdateItem = viewModel::updateBatchItem,
+                    )
                 }
             }
             item { Text("详细配置", style = MaterialTheme.typography.titleMedium) }
@@ -150,5 +177,18 @@ fun ReminderEditScreen(
         EditorPicker.END -> DateDialog(editor.endDate, { picker = null }) { editor = editor.copy(endDate = it); picker = null }
         EditorPicker.TIME -> TimeDialog(editor.firstReminderTime, { picker = null }) { editor = editor.copy(firstReminderTime = it); picker = null }
         null -> Unit
+    }
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text(stringResource(R.string.reminder_batch_discard_title)) },
+            text = { Text(stringResource(R.string.reminder_batch_discard_message)) },
+            confirmButton = {
+                TextButton(onClick = onBack) { Text(stringResource(R.string.reminder_batch_discard_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text(stringResource(R.string.reminder_batch_discard_cancel)) }
+            },
+        )
     }
 }

@@ -8,6 +8,27 @@ import kotlin.test.assertTrue
 
 class ReminderUiSourceTest {
     @Test
+    fun reminderEditorUsesBatchPreviewAndBatchActions() {
+        val editor = source("ui/feature/reminder/ReminderEditScreen.kt")
+        val preview = source("ui/feature/reminder/ReminderBatchPreview.kt")
+
+        assertTrue(editor.contains("ReminderBatchPreview("))
+        assertTrue(preview.contains("onToggleItem"))
+        assertTrue(preview.contains("onRemoveItem"))
+        assertTrue(preview.contains("onUpdateItem"))
+        assertTrue(preview.contains("selectedCount"))
+    }
+
+    @Test
+    fun batchReminderResourcesStayInLocaleParity() {
+        val zh = resourceNames("src/main/res/values/strings.xml").filter { it.startsWith("reminder_batch_") }.toSet()
+        val en = resourceNames("src/main/res/values-en/strings.xml").filter { it.startsWith("reminder_batch_") }.toSet()
+
+        assertEquals(zh, en)
+        assertTrue("reminder_batch_save_selected" in zh)
+    }
+
+    @Test
     fun denseControlsScrollAndSettingsContentRemainsVerticallyReachable() {
         val draft = source("ui/feature/reminder/ReminderDraftCard.kt")
         val list = source("ui/feature/reminder/ReminderListScreen.kt")
