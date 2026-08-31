@@ -67,7 +67,7 @@ class ReminderTextInterpreter(
     private val remote: ReminderInterpretationRemote? = null,
 ) {
     private val cache = mutableMapOf<String, ReminderInterpretation>()
-    private val batchCache = mutableMapOf<String, ReminderBatchInterpretation>()
+    private val batchCache = mutableMapOf<BatchCacheKey, ReminderBatchInterpretation>()
     private val batchMutex = Mutex()
     private val batchCodec = ReminderBatchCodec(codec)
 
@@ -212,8 +212,18 @@ class ReminderTextInterpreter(
 
     private fun normalize(text: String): String = text.trim().replace(Regex("\\s+"), " ")
 
-    private fun batchCacheKey(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String =
-        "${fragments.joinToString("|") { "${it.index}:${normalize(it.text)}" }}:${now.toLocalDateTime(zone).date}:${zone.id}"
+    private fun batchCacheKey(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone) =
+        BatchCacheKey(
+            fragments = fragments.map { it.index to normalize(it.text) },
+            localDate = now.toLocalDateTime(zone).date,
+            zoneId = zone.id,
+        )
+
+    private data class BatchCacheKey(
+        val fragments: List<Pair<Int, String>>,
+        val localDate: LocalDate,
+        val zoneId: String,
+    )
 
     private data class RemoteBatchParse(
         val results: Map<Int, ReminderInterpretation>,

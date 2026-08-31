@@ -29,7 +29,7 @@ class ReminderBatchCodec(
         val drafts = array.mapIndexedNotNull { position, element ->
             val item = element as? JsonObject
                 ?: return@mapIndexedNotNull errors.add("Batch response entry $position must be a JSON object").let { null }
-            val sourceIndex = item["source_index"]?.jsonPrimitive?.intOrNull
+            val sourceIndex = runCatching { item["source_index"]?.jsonPrimitive?.intOrNull }.getOrNull()
                 ?: return@mapIndexedNotNull errors.add("Batch response entry $position is missing a valid source_index").let { null }
             val draftJson = JsonObject(item.filterKeys { it != "source_index" })
             ReminderBatchRemoteDraft(sourceIndex, draftCodec.decodeInterpretationResponse(draftJson.toString(), zone))

@@ -172,6 +172,18 @@ class ReminderTextInterpreterTest {
     }
 
     @Test
+    fun nonPrimitiveSourceIndexesDoNotDiscardValidRemoteResults() = runBlocking {
+        val remote = BatchRemote("""
+            [{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":{"bad":1},"content":"损坏"},{"source_index":[1],"content":"损坏"}]
+        """.trimIndent())
+
+        val result = interpreter(remote).interpretBatch("明晚提醒我充值；下周提醒我交账单", now, zone)
+
+        assertEquals("充值", result.items[0].interpretation.draft.content)
+        assertTrue(result.items[1].interpretation.failure != null)
+    }
+
+    @Test
     fun duplicateIndexFailsOnlyItsOriginalFragment() = runBlocking {
         val remote = BatchRemote("""
             [{"source_index":0,"content":"重复一","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":0,"content":"重复二","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"交账单","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
@@ -224,6 +236,17 @@ class ReminderTextInterpreterTest {
     }
 
     @Test
+    fun batchCacheKeyDoesNotCollideWithFragmentDelimiters() = runBlocking {
+        val remote = DynamicBatchRemote()
+        val subject = interpreter(remote)
+
+        subject.interpretBatch("a|1:b", now, zone)
+        subject.interpretBatch("a; b", now, zone)
+
+        assertEquals(2, remote.calls)
+    }
+
+    @Test
     fun concurrentEqualBatchesShareOneRemoteCall() = runBlocking {
         val remote = BatchRemote(
             """[{"source_index":0,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]""",
@@ -269,6 +292,19 @@ class ReminderTextInterpreterTest {
             calls++
             if (delayMillis > 0) delay(delayMillis)
             return batchResponse
+        }
+    }
+
+    private class DynamicBatchRemote : ReminderInterpretationRemote {
+        var calls = 0
+
+        override suspend fun interpret(text: String, now: Instant, zone: TimeZone): String = error("single interpretation is not expected")
+
+        override suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String {
+            calls++
+            return fragments.joinToString(prefix = "[", postfix = "]") { fragment ->
+                """{"source_index":${fragment.index},"content":"${fragment.text}","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}"""
+            }
         }
     }
 }
