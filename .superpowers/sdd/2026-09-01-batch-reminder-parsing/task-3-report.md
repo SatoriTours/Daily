@@ -36,3 +36,16 @@
 - `ReminderBatchSaveGate` owns the active batch/generation key under one lock. `invalidate()` and `createIfCurrent()` use that same lock, so reset/new interpretation either invalidates before creation (skip) or follows a creation that has formally started.
 - The ViewModel invalidates before prompt changes, resets, and new interpretations; accepted batch results activate their key. Repository creation only occurs inside `createIfCurrent`; cancellation remains rethrown.
 - The gate tests exercise the real production class: invalidation-first performs zero creates; creation-first performs one and the invalidated old key cannot create again.
+
+## Review remediation round 4: single-owner state/gate transitions
+
+### RED / GREEN
+
+- RED: `./gradlew :app:testDebugUnitTest --tests '*ReminderBatchUiStateTest'` failed in `compileDebugUnitTestKotlin` because the production `ReminderBatchStateTransitions` and `ReminderBatchSaveGate.serialized` APIs did not exist.
+- GREEN: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --tests '*ReminderBatchUiStateTest' --tests '*ReminderAiParseStateTest' --tests '*ReminderRouteStateTest'` passed.
+
+### Remediation
+
+- `ReminderBatchStateTransitions` now exclusively publishes prompt/reset/submit/completion, batch edits, save claims, and save results under `ReminderBatchSaveGate.serialized`; every publication uses an explicit `MutableStateFlow.compareAndSet` loop.
+- Gate invalidation/activation happens only after or alongside the matching state publication in the same lock, never inside a retryable Flow update lambda. Remote interpretation and notification scheduling remain outside the lock; synchronous repository creation retains verification-to-create coverage under that lock.
+- The production-transition regression forces reset to own the gate while a completion attempts to publish, then proves the completion is stale and the old batch/generation key cannot create.

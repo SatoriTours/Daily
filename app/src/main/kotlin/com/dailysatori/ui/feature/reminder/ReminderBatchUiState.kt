@@ -100,28 +100,158 @@ class ReminderBatchSaveGate {
     private val lock = Any()
     private var active: ReminderBatchOperationKey? = null
 
-    fun activate(key: ReminderBatchOperationKey) = synchronized(lock) {
-        active = key
+    inner class LockedScope internal constructor() {
+        fun activate(key: ReminderBatchOperationKey) {
+            active = key
+        }
+
+        fun invalidate() {
+            active = null
+        }
+
+        fun isCurrent(key: ReminderBatchOperationKey): Boolean = active == key
+
+        fun <T> createIfCurrent(key: ReminderBatchOperationKey, create: () -> T): T? =
+            if (isCurrent(key)) create() else null
     }
 
-    fun invalidate() = synchronized(lock) {
-        active = null
-    }
+    fun <T> serialized(block: LockedScope.() -> T): T = synchronized(lock) { LockedScope().block() }
 
     fun <T> createIfCurrent(key: ReminderBatchOperationKey, create: () -> T): T? = synchronized(lock) {
-        if (active == key) create() else null
+        LockedScope().createIfCurrent(key, create)
     }
 }
 
-fun claimSelectedBatch(state: MutableStateFlow<ReminderUiState>): ReminderBatchSaveOperation? {
-    while (true) {
-        val current = state.value
-        val batch = current.aiParse.batch ?: return null
-        val claim = batch.claimSelectedItems()
-        if (claim.items.isEmpty()) return null
-        val next = current.copy(aiParse = current.aiParse.copy(batch = claim.state))
-        if (state.compareAndSet(current, next)) {
-            return ReminderBatchSaveOperation(claim, ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration))
+data class ReminderBatchInterpretationRequest(
+    val prompt: String,
+    val token: Long,
+    val generation: Long,
+)
+
+class ReminderBatchStateTransitions(
+    private val state: MutableStateFlow<ReminderUiState>,
+    private val gate: ReminderBatchSaveGate = ReminderBatchSaveGate(),
+) {
+    fun promptChanged(value: String) = gate.serialized {
+        invalidate()
+        updateState { current -> current.copy(aiParse = current.aiParse.onPromptChanged(value)) }
+    }
+
+    fun reset() = gate.serialized {
+        invalidate()
+        updateState { current -> current.copy(aiParse = current.aiParse.resetForEditor()) }
+    }
+
+    fun beginInterpretation(): ReminderBatchInterpretationRequest = gate.serialized {
+        invalidate()
+        val next = updateState { current -> current.copy(aiParse = current.aiParse.onExplicitSubmit()) }
+        ReminderBatchInterpretationRequest(next.aiParse.prompt, next.aiParse.requestToken, next.aiParse.batchGeneration)
+    }
+
+    fun completeInterpretation(token: Long, batch: ReminderBatchUiState): Boolean = gate.serialized {
+        var completed: Boolean
+        while (true) {
+            val current = state.value
+            if (!current.aiParse.acceptsInterpretation(token)) {
+                completed = false
+                break
+            }
+            val next = current.copy(aiParse = current.aiParse.onInterpretationSucceeded(batch))
+            if (state.compareAndSet(current, next)) {
+                activate(ReminderBatchOperationKey(batch.batchId, next.aiParse.batchGeneration))
+                completed = true
+                break
+            }
+        }
+        completed
+    }
+
+    fun failInterpretation(token: Long, message: String): Boolean = gate.serialized {
+        var completed: Boolean
+        while (true) {
+            val current = state.value
+            if (!current.aiParse.acceptsInterpretation(token)) {
+                completed = false
+                break
+            }
+            val next = current.copy(aiParse = current.aiParse.onInterpretationFinished(message))
+            if (state.compareAndSet(current, next)) {
+                invalidate()
+                completed = true
+                break
+            }
+        }
+        completed
+    }
+
+    fun updateBatch(transform: (ReminderBatchUiState) -> ReminderBatchUiState) = gate.serialized {
+        updateState { current ->
+            val batch = current.aiParse.batch ?: return@updateState current
+            current.copy(aiParse = current.aiParse.copy(batch = transform(batch)))
+        }
+    }
+
+    fun claimSelectedBatch(): ReminderBatchSaveOperation? = gate.serialized {
+        var operation: ReminderBatchSaveOperation? = null
+        while (true) {
+            val current = state.value
+            val batch = current.aiParse.batch ?: break
+            val claim = batch.claimSelectedItems()
+            if (claim.items.isEmpty()) break
+            val next = current.copy(aiParse = current.aiParse.copy(batch = claim.state))
+            if (state.compareAndSet(current, next)) {
+                operation = ReminderBatchSaveOperation(
+                    claim,
+                    ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration),
+                )
+                break
+            }
+        }
+        operation
+    }
+
+    fun <T> createIfCurrent(key: ReminderBatchOperationKey, create: () -> T): T? =
+        gate.createIfCurrent(key, create)
+
+    fun markSaved(
+        key: ReminderBatchOperationKey,
+        id: String,
+        createdReminderId: String,
+        schedulingError: String?,
+    ): Boolean = publishIfCurrent(key) { batch ->
+        batch.markSaved(id, createdReminderId).let { saved ->
+            if (schedulingError == null) saved else saved.updateItem(id) { it.copy(saveError = schedulingError) }
+        }
+    }
+
+    fun markFailed(key: ReminderBatchOperationKey, id: String, message: String): Boolean =
+        publishIfCurrent(key) { it.markFailed(id, message) }
+
+    private fun publishIfCurrent(
+        key: ReminderBatchOperationKey,
+        transform: (ReminderBatchUiState) -> ReminderBatchUiState,
+    ): Boolean = gate.serialized {
+        var published = false
+        while (isCurrent(key)) {
+            val current = state.value
+            val batch = current.aiParse.batch
+            if (batch?.batchId != key.batchId || !current.aiParse.acceptsBatchGeneration(key.generation)) {
+                break
+            }
+            val next = current.copy(aiParse = current.aiParse.copy(batch = transform(batch)))
+            if (state.compareAndSet(current, next)) {
+                published = true
+                break
+            }
+        }
+        published
+    }
+
+    private fun updateState(transform: (ReminderUiState) -> ReminderUiState): ReminderUiState {
+        while (true) {
+            val current = state.value
+            val next = transform(current)
+            if (next === current || state.compareAndSet(current, next)) return next
         }
     }
 }

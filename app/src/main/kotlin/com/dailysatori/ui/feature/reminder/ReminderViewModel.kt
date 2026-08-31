@@ -376,7 +376,7 @@ class ReminderViewModel(
     private val context: Context,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReminderUiState())
-    private val batchSaveGate = ReminderBatchSaveGate()
+    private val batchStateTransitions = ReminderBatchStateTransitions(_state)
     private var activeBatchSaveJob: Job? = null
     val state: StateFlow<ReminderUiState> = _state
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
@@ -400,73 +400,54 @@ class ReminderViewModel(
     }
 
     fun onAiPromptChanged(value: String) {
-        batchSaveGate.invalidate()
+        batchStateTransitions.promptChanged(value)
         cancelActiveBatchSave()
-        _state.update { it.copy(aiParse = it.aiParse.onPromptChanged(value)) }
     }
 
     fun resetAiParse() {
-        batchSaveGate.invalidate()
+        batchStateTransitions.reset()
         cancelActiveBatchSave()
-        _state.update { it.copy(aiParse = it.aiParse.resetForEditor()) }
     }
 
     fun interpretAiPrompt() {
-        batchSaveGate.invalidate()
         cancelActiveBatchSave()
-        var prompt = ""
-        var token = 0L
-        _state.update { current ->
-            val parsing = current.aiParse.onExplicitSubmit()
-            prompt = parsing.prompt
-            token = parsing.requestToken
-            current.copy(aiParse = parsing)
-        }
+        val request = batchStateTransitions.beginInterpretation()
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val interpretation = textInterpreter.interpretBatch(prompt, Clock.System.now(), TimeZone.currentSystemDefault())
-                _state.update { current ->
-                    if (!current.aiParse.acceptsInterpretation(token)) current else {
-                        val default = defaultProfile()
-                        val batch = ReminderBatchUiState.from(interpretation, default.snapshot, default.id)
-                        batchSaveGate.activate(ReminderBatchOperationKey(batch.batchId, current.aiParse.batchGeneration))
-                        current.copy(aiParse = current.aiParse.onInterpretationSucceeded(batch))
-                    }
-                }
+                val interpretation = textInterpreter.interpretBatch(request.prompt, Clock.System.now(), TimeZone.currentSystemDefault())
+                val default = defaultProfile()
+                val batch = ReminderBatchUiState.from(interpretation, default.snapshot, default.id)
+                batchStateTransitions.completeInterpretation(request.token, batch)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _state.update { current ->
-                    if (!current.aiParse.acceptsInterpretation(token)) current else current.copy(aiParse = current.aiParse.onInterpretationFinished(error.message ?: "解析失败"))
-                }
+                batchStateTransitions.failInterpretation(request.token, error.message ?: "解析失败")
             }
         }
     }
 
     fun toggleBatchItem(id: String) {
-        _state.update { current -> current.copy(aiParse = current.aiParse.copy(batch = current.aiParse.batch?.toggleItem(id))) }
+        batchStateTransitions.updateBatch { it.toggleItem(id) }
     }
 
     fun removeBatchItem(id: String) {
-        _state.update { current -> current.copy(aiParse = current.aiParse.copy(batch = current.aiParse.batch?.removeItem(id))) }
+        batchStateTransitions.updateBatch { it.removeItem(id) }
     }
 
     fun updateBatchItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem) {
-        _state.update { current -> current.copy(aiParse = current.aiParse.copy(batch = current.aiParse.batch?.updateItem(id, transform))) }
+        batchStateTransitions.updateBatch { it.updateItem(id, transform) }
     }
 
     fun saveSelectedBatch() {
-        val operation = claimSelectedBatch(_state) ?: return
+        val operation = batchStateTransitions.claimSelectedBatch() ?: return
         activeBatchSaveJob?.cancel()
         activeBatchSaveJob = viewModelScope.launch(Dispatchers.IO) {
-            val batchId = operation.key.batchId
-            val generation = operation.key.generation
             val snapshot = operation.claim
             snapshot.items.forEach { (id, item) ->
                 ensureActive()
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
-                    val created = batchSaveGate.createIfCurrent(operation.key) {
+                    val created = batchStateTransitions.createIfCurrent(operation.key) {
                         repository.createConfirmed(payload.draft, payload.profileSnapshot)
                     } ?: return@launch
                     var schedulingError: String? = null
@@ -477,18 +458,10 @@ class ReminderViewModel(
                     } catch (error: Exception) {
                         schedulingError = error.message ?: "调度失败"
                     }
-                    _state.update { current ->
-                        val currentBatch = current.aiParse.batch
-                        if (currentBatch?.batchId != batchId || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markSaved(id, created.id).let { saved ->
-                            if (schedulingError == null) saved else saved.updateItem(id) { it.copy(saveError = schedulingError) }
-                        }))
-                    }
+                    batchStateTransitions.markSaved(operation.key, id, created.id, schedulingError)
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
-                    _state.update { current ->
-                        val currentBatch = current.aiParse.batch
-                        if (currentBatch?.batchId != batchId || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markFailed(id, error.message ?: "保存失败")))
-                    }
+                    batchStateTransitions.markFailed(operation.key, id, error.message ?: "保存失败")
                 }
             }
         }

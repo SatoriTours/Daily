@@ -87,14 +87,52 @@ class ReminderBatchUiStateTest {
         val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(
             batch = ReminderBatchUiState.from(batch(item("a"), item("b"))),
         )))
+        val transitions = ReminderBatchStateTransitions(flow)
 
         val claims = List(2) {
-            async(Dispatchers.Default) { claimSelectedBatch(flow) }
+            async(Dispatchers.Default) { transitions.claimSelectedBatch() }
         }.awaitAll().filterNotNull()
 
         assertEquals(1, claims.size)
         assertEquals(setOf("a", "b"), claims.single().claim.items.keys)
         assertTrue(flow.value.aiParse.batch!!.items.values.all { it.saveStatus == BatchSaveStatus.SAVING })
+    }
+
+    @Test
+    fun resetThatPublishesBeforeStaleCompletionPreventsOldKeyCreation() {
+        val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(prompt = "old")))
+        val gate = ReminderBatchSaveGate()
+        val transitions = ReminderBatchStateTransitions(flow, gate)
+        val request = transitions.beginInterpretation()
+        val oldBatch = ReminderBatchUiState.from(batch(item("a")))
+        val oldKey = ReminderBatchOperationKey(oldBatch.batchId, request.generation)
+        val resetOwnsGate = CountDownLatch(1)
+        val releaseReset = CountDownLatch(1)
+        val completionAttempted = CountDownLatch(1)
+        var creates = 0
+
+        val reset = thread {
+            gate.serialized {
+                resetOwnsGate.countDown()
+                assertTrue(releaseReset.await(5, TimeUnit.SECONDS))
+                transitions.reset()
+            }
+        }
+        assertTrue(resetOwnsGate.await(5, TimeUnit.SECONDS))
+        val staleCompletion = thread {
+            completionAttempted.countDown()
+            transitions.completeInterpretation(request.token, oldBatch)
+        }
+        assertTrue(completionAttempted.await(5, TimeUnit.SECONDS))
+        releaseReset.countDown()
+        reset.join()
+        staleCompletion.join()
+
+        gate.createIfCurrent(oldKey) { creates++ }
+
+        assertEquals(0, creates)
+        assertEquals(null, flow.value.aiParse.batch)
+        assertFalse(flow.value.aiParse.acceptsInterpretation(request.token))
     }
 
     @Test
@@ -104,14 +142,14 @@ class ReminderBatchUiStateTest {
         val releaseCreate = CountDownLatch(1)
         val invalidated = CountDownLatch(1)
         var creates = 0
-        gate.activate(key)
+        gate.serialized { activate(key) }
 
         val saver = thread {
             releaseCreate.await(5, TimeUnit.SECONDS)
             gate.createIfCurrent(key) { creates++ }
         }
         val reset = thread {
-            gate.invalidate()
+            gate.serialized { invalidate() }
             invalidated.countDown()
         }
 
@@ -130,7 +168,7 @@ class ReminderBatchUiStateTest {
         val createEntered = CountDownLatch(1)
         val releaseCreate = CountDownLatch(1)
         var creates = 0
-        gate.activate(key)
+        gate.serialized { activate(key) }
 
         val saver = thread {
             gate.createIfCurrent(key) {
@@ -140,7 +178,7 @@ class ReminderBatchUiStateTest {
             }
         }
         assertTrue(createEntered.await(5, TimeUnit.SECONDS))
-        val reset = thread { gate.invalidate() }
+        val reset = thread { gate.serialized { invalidate() } }
         releaseCreate.countDown()
         saver.join()
         reset.join()
