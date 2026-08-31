@@ -20,4 +20,23 @@ class ReminderInputSplitterTest {
                 .map { it.index to it.text },
         )
     }
+
+    @Test fun removesFragmentsContainingOnlyWhitespaceAndPunctuation() {
+        assertEquals(emptyList(), splitReminderInput("  ，,。！？!?…；; \n  "))
+    }
+
+    @Test fun splitsConsecutiveReminderStatementsAtSentenceBoundaries() {
+        assertEquals(
+            listOf("9月2日提醒我还款", "9月5日提醒我充值"),
+            splitReminderInput("9月2日提醒我还款。9月5日提醒我充值。。").map { it.text },
+        )
+    }
+
+    @Test fun splitsNumberedItemsWithoutNewlines() {
+        assertEquals(
+            listOf("9月2日提醒我还款", "9月5日提醒我充值", "每年12月20日提醒我续订域名"),
+            splitReminderInput("1. 9月2日提醒我还款 2. 9月5日提醒我充值 3、每年12月20日提醒我续订域名")
+                .map { it.text },
+        )
+    }
 }
