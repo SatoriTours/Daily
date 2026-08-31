@@ -74,7 +74,10 @@ private fun BatchReminderCard(
                         style = MaterialTheme.typography.titleSmall,
                     )
                 }
-                TextButton(onClick = { onRemoveItem(item.id) }, enabled = !item.isSaving) {
+                TextButton(
+                    onClick = { onRemoveItem(item.id) },
+                    enabled = item.saveStatus in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED),
+                ) {
                     Text(stringResource(R.string.reminder_batch_remove))
                 }
             }
@@ -121,5 +124,5 @@ fun batchErrorText(error: String): String = when (error) {
     ReminderBatchErrorCode.PARSE_FAILED -> stringResource(R.string.reminder_batch_error_parse)
     ReminderBatchErrorCode.SCHEDULING_FAILED -> stringResource(R.string.reminder_batch_error_scheduling)
     ReminderBatchErrorCode.SAVE_FAILED -> stringResource(R.string.reminder_batch_error_save)
-    else -> error
+    else -> stringResource(R.string.reminder_batch_error_parse)
 }

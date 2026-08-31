@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
@@ -36,6 +37,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
@@ -369,13 +372,16 @@ data class ReminderUiState(
 )
 
 class ReminderViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val repository: ReminderRepository,
     private val coordinator: ReminderCoordinator,
     private val settingRepository: SettingRepository,
     private val textInterpreter: ReminderTextInterpreter,
     private val context: Context,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ReminderUiState())
+    private val _state = MutableStateFlow(
+        ReminderUiState(aiParse = decodeReminderBatchState(savedStateHandle[REMINDER_BATCH_STATE_KEY]) ?: ReminderAiParseState()),
+    )
     private val batchStateTransitions = ReminderBatchStateTransitions(_state)
     private val batchSaveLaunchController = ReminderBatchSaveLaunchController()
     val state: StateFlow<ReminderUiState> = _state
@@ -389,6 +395,14 @@ class ReminderViewModel(
     val listState: StateFlow<ReminderListState> = combine(reminders, state) { items, ui ->
         buildReminderListState(items, Clock.System.todayIn(TimeZone.currentSystemDefault()), ui.listMode, ui.listFilter)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), buildReminderListState(emptyList(), Clock.System.todayIn(TimeZone.currentSystemDefault()), ReminderListMode.RECENT, ReminderListFilter()))
+
+    init {
+        batchStateTransitions.activateRestoredBatch()
+        savedStateHandle[REMINDER_BATCH_STATE_KEY] = encodeReminderBatchState(_state.value.aiParse)
+        viewModelScope.launch {
+            _state.drop(1).collect { savedStateHandle[REMINDER_BATCH_STATE_KEY] = encodeReminderBatchState(it.aiParse) }
+        }
+    }
 
     fun registerDraft(draft: ReminderDraft) {
         _state.update { current ->
@@ -639,3 +653,5 @@ class ReminderViewModel(
         return null
     }
 }
+
+private const val REMINDER_BATCH_STATE_KEY = "reminder_batch_state"

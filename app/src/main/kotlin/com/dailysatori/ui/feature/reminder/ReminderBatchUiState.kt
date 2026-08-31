@@ -52,7 +52,7 @@ data class ReminderBatchUiState(
 
     fun removeItem(id: String): ReminderBatchUiState {
         val item = items[id] ?: return this
-        return if (item.isSaving) this else copy(items = items - id)
+        return if (item.saveStatus !in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED)) this else copy(items = items - id)
     }
 
     fun updateItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem): ReminderBatchUiState {
@@ -167,6 +167,11 @@ class ReminderBatchStateTransitions(
     private val state: MutableStateFlow<ReminderUiState>,
     private val gate: ReminderBatchSaveGate = ReminderBatchSaveGate(),
 ) {
+    fun activateRestoredBatch() = gate.serialized {
+        val current = state.value.aiParse
+        current.batch?.let { activate(ReminderBatchOperationKey(it.batchId, current.batchGeneration)) }
+    }
+
     fun promptChanged(value: String) = gate.serialized {
         invalidate()
         updateState { current -> current.copy(aiParse = current.aiParse.onPromptChanged(value)) }

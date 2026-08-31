@@ -180,7 +180,7 @@ val viewModelModule: Module = module {
             chatConversationRepo = get<ChatConversationRepository>(),
         )
     }
-    viewModel { ReminderViewModel(repository = get(), coordinator = get(), settingRepository = get(), textInterpreter = get(), context = androidContext()) }
+    viewModel { ReminderViewModel(savedStateHandle = get(), repository = get(), coordinator = get(), settingRepository = get(), textInterpreter = get(), context = androidContext()) }
     viewModel { ProfileViewModel(reminders = get(), articles = get(), externalSources = get(), tasks = get()) }
     viewModel {
         val context = androidContext()
