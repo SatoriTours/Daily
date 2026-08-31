@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class AiConfigEditRoute(val configId: Long? = null)
 @Serializable data object SettingsRoute
 @Serializable data object ReminderListRoute
+@Serializable data object ReminderSettingsRoute
 @Serializable data class ReminderDetailRoute(val reminderId: String)
 @Serializable data class ReminderEditRoute(val reminderId: String? = null)
 @Serializable data class ReminderRoute(val reminderId: String)

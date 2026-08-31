@@ -105,17 +105,26 @@ fun ReminderSettingsScreen(
 }
 
 @Composable private fun AdvancedCard(access: ReminderDeliveryAccess, viewModel: ReminderSettingsViewModel, onManageProfiles: () -> Unit) = SettingsCard(R.string.reminder_settings_advanced) {
-    TextButton(onManageProfiles) { Text(stringResource(R.string.reminder_settings_manage_profiles)) }
-    Text(stringResource(R.string.reminder_settings_delivery_access), style = MaterialTheme.typography.bodyMedium)
+    TextButton(onManageProfiles, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.reminder_settings_manage_profiles)) }
+    HorizontalDivider()
+    Text(stringResource(R.string.reminder_settings_delivery_access), style = MaterialTheme.typography.titleSmall)
     DeliveryAccessSection(access, viewModel)
 }
 
 @Composable private fun SettingsCard(title: Int, content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) { Text(stringResource(title), style = MaterialTheme.typography.titleMedium); content() } }
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
+            content()
+        }
+    }
 }
 
 @Composable private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(label); Switch(checked, onChange) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(label); Switch(checked, onChange) }
 }
 
 @Composable private fun <T> ChoiceRow(values: Iterable<T>, isSelected: (T) -> Boolean, label: @Composable (T) -> String, onSelected: (T) -> Unit) {

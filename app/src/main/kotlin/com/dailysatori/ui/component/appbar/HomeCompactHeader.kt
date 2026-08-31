@@ -1,11 +1,17 @@
 package com.dailysatori.ui.component.appbar
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -19,6 +25,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Spacing
 
@@ -39,7 +47,7 @@ fun HomeCompactHeader(
     onSearch: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
@@ -57,11 +65,11 @@ fun HomeCompactHeader(
         ) {
             tabs.forEach { tab ->
                 TextButton(onClick = tab.onClick) {
-                    Text(
-                        text = tab.label,
-                        color = if (tab.label == selectedTab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                    val selected = tab.label == selectedTab
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = tab.label, color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleSmall, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                        Box(Modifier.height(2.dp).fillMaxWidth().background(if (selected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent))
+                    }
                 }
             }
         }

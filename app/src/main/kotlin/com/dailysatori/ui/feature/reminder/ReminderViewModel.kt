@@ -56,6 +56,22 @@ data class ReminderEditorState(
     val saving: Boolean = false,
     val notice: String? = null,
 ) {
+    fun applyParsedDraft(draft: ReminderDraft): ReminderEditorState {
+        val parsedRecurrence = draft.recurrence
+        return copy(
+        content = draft.content.ifBlank { content },
+        startDate = draft.startDate ?: startDate,
+        endDate = draft.endDate ?: draft.startDate ?: endDate,
+        firstReminderTime = draft.firstReminderTime ?: firstReminderTime,
+        activeDayRule = draft.activeDayRule,
+        recurrence = draft.recurrence,
+        profile = draft.profile ?: profile,
+        leapDayFallbackChosen = parsedRecurrence !is ReminderRecurrence.Yearly ||
+            parsedRecurrence.month != 2 || parsedRecurrence.dayOfMonth != 29,
+        notice = null,
+    )
+    }
+
     fun selectMode(mode: ReminderEditorMode): ReminderEditorState = when (mode) {
         ReminderEditorMode.ONCE -> copy(recurrence = ReminderRecurrence.Once, activeDayRule = ReminderActiveDayRule.Daily)
         ReminderEditorMode.MONTHLY -> copy(recurrence = ReminderRecurrence.Monthly(startDate.dayOfMonth), activeDayRule = ReminderActiveDayRule.Daily)
@@ -115,7 +131,9 @@ data class ReminderAiParseState(
     val submitCount: Int = 0,
     val error: String? = null,
     val draft: ReminderDraft? = null,
+    val requiresConfirmation: Boolean = false,
 ) {
+    fun resetForEditor() = ReminderAiParseState()
     fun onPromptChanged(value: String) = copy(prompt = value, error = null)
     fun onExplicitSubmit() = copy(isInterpreting = true, submitCount = submitCount + 1, error = null)
     fun onInterpretationFinished(error: String? = null) = copy(isInterpreting = false, error = error)
@@ -123,6 +141,7 @@ data class ReminderAiParseState(
         isInterpreting = false,
         error = interpretation.failure,
         draft = interpretation.draft,
+        requiresConfirmation = interpretation.requiresConfirmation,
     )
 }
 
@@ -360,6 +379,10 @@ class ReminderViewModel(
 
     fun onAiPromptChanged(value: String) {
         _state.update { it.copy(aiParse = it.aiParse.onPromptChanged(value)) }
+    }
+
+    fun resetAiParse() {
+        _state.update { it.copy(aiParse = it.aiParse.resetForEditor()) }
     }
 
     fun interpretAiPrompt() {

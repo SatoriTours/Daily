@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,16 +12,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Badge
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.service.reminder.Reminder
@@ -51,6 +58,9 @@ import com.dailysatori.ui.theme.Spacing
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 
 private enum class DetailPicker { START, END, TIME }
@@ -65,18 +75,21 @@ fun ReminderListScreen(
     onOpenReminder: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     showSettings: Boolean = true,
+    onBack: (() -> Unit)? = null,
 ) {
     val ui by viewModel.state.collectAsState()
     val all by viewModel.reminders.collectAsState()
     val listState by viewModel.listState.collectAsState()
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
+    val currentYear = Clock.System.todayIn(TimeZone.currentSystemDefault()).year
     val scrollState = rememberLazyListState()
     LaunchedEffect(initialReminderId) {
         if (initialReminderId != null) viewModel.selectReminder(initialReminderId)
     }
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().statusBarsPadding()) {
         Column(Modifier.fillMaxSize()) {
             ReminderListToolbar(
+                onBack = onBack,
                 onToggleSearch = viewModel::toggleListSearch,
                 onOpenFilter = { viewModel.updateListFilter { it.copy(isPanelOpen = true) } },
                 onOpenSettings = onOpenSettings,
@@ -91,7 +104,13 @@ fun ReminderListScreen(
                     singleLine = true,
                 )
             }
-            ReminderListModeTabs(ui.listMode, viewModel::setListMode)
+            ReminderListModeTabs(
+                selected = ui.listMode,
+                year = ui.listFilter.displayYear ?: currentYear,
+                onSelected = viewModel::setListMode,
+                onPreviousYear = { viewModel.updateListFilter { current -> current.copy(displayYear = (current.displayYear ?: currentYear) - 1, expandedMonth = null) } },
+                onNextYear = { viewModel.updateListFilter { current -> current.copy(displayYear = (current.displayYear ?: currentYear) + 1, expandedMonth = null) } },
+            )
             LazyColumn(
                 state = scrollState,
                 modifier = Modifier.fillMaxSize(),
@@ -99,12 +118,22 @@ fun ReminderListScreen(
             ) {
                 item(key = "summary") { ReminderListSummary(listState.summary) }
                 if (selected != null) item(key = "detail_${selected.id}") { ReminderDetail(selected, latestProfile, viewModel) }
-                if (ui.listMode == ReminderListMode.MONTHS) item(key = "months") { ReminderMonthGrid(listState.months) }
+                if (ui.listMode == ReminderListMode.MONTHS) item(key = "months") {
+                    ReminderMonthGrid(
+                        months = listState.months,
+                        currentMonth = Clock.System.todayIn(TimeZone.currentSystemDefault()).let { if ((ui.listFilter.displayYear ?: currentYear) == it.year) it.monthNumber else null },
+                        expandedMonth = ui.listFilter.expandedMonth,
+                        onMonth = { month -> viewModel.updateListFilter { current -> current.copy(expandedMonth = month.takeUnless { it == current.expandedMonth }) } },
+                    )
+                }
                 listState.sections.forEach { section ->
                     item(key = "header_${section.key}") { Text(section.key.sectionLabel(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = Spacing.m)) }
                     items(section.items.size, key = { section.items[it].id }) { index ->
                         ReminderListCard(section.items[index]) { onOpenReminder(section.items[index].id) }
                     }
+                }
+                if (listState.sections.isEmpty() && ui.listMode != ReminderListMode.MONTHS) {
+                    item(key = "empty") { ReminderEmptyState(hasFilters = ui.listFilter.query.isNotBlank() || ui.listFilter.statuses.isNotEmpty() || ui.listFilter.recurrences.isNotEmpty(), onAdd = onAddReminder, onClear = { viewModel.updateListFilter { ReminderListFilter(displayYear = it.displayYear) } }) }
                 }
             }
         }
@@ -128,9 +157,10 @@ fun ReminderListScreen(
 }
 
 @Composable
-private fun ReminderListToolbar(onToggleSearch: () -> Unit, onOpenFilter: () -> Unit, onOpenSettings: () -> Unit, showSettings: Boolean) {
+private fun ReminderListToolbar(onBack: (() -> Unit)?, onToggleSearch: () -> Unit, onOpenFilter: () -> Unit, onOpenSettings: () -> Unit, showSettings: Boolean) {
     Box(Modifier.fillMaxWidth().height(Height.appBar), contentAlignment = Alignment.Center) {
         Text(stringResource(R.string.reminder_list_title), style = MaterialTheme.typography.titleMedium)
+        if (onBack != null) IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back)) }
         Row(Modifier.align(Alignment.CenterEnd)) {
             IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search)) }
             IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter)) }
@@ -140,32 +170,69 @@ private fun ReminderListToolbar(onToggleSearch: () -> Unit, onOpenFilter: () -> 
 }
 
 @Composable
-private fun ReminderListModeTabs(selected: ReminderListMode, onSelected: (ReminderListMode) -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        ReminderListMode.entries.forEach { mode -> FilterChip(selected = selected == mode, onClick = { onSelected(mode) }, label = { Text(mode.label()) }) }
+private fun ReminderListModeTabs(selected: ReminderListMode, year: Int, onSelected: (ReminderListMode) -> Unit, onPreviousYear: () -> Unit, onNextYear: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            ReminderListMode.entries.forEach { mode -> FilterChip(selected = selected == mode, onClick = { onSelected(mode) }, label = { Text(mode.label()) }) }
+        }
+        if (selected.showsYearSwitcher()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onPreviousYear, modifier = Modifier.size(40.dp)) { Icon(Icons.Default.ChevronLeft, stringResource(R.string.reminder_previous_year)) }
+                Text(year.toString(), style = MaterialTheme.typography.labelLarge)
+                IconButton(onClick = onNextYear, modifier = Modifier.size(40.dp)) { Icon(Icons.Default.ChevronRight, stringResource(R.string.reminder_next_year)) }
+            }
+        }
     }
 }
 
 @Composable
 private fun ReminderListSummary(summary: ReminderListSummaryUi) {
     val next = summary.nextOccurrence?.toString() ?: stringResource(R.string.reminder_list_none)
-    Text(
-        stringResource(R.string.reminder_list_summary, summary.upcomingInThirtyDays, next),
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    Surface(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.secondaryContainer) {
+        Text(stringResource(R.string.reminder_list_summary, summary.upcomingInThirtyDays, next), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 @Composable
-private fun ReminderMonthGrid(months: List<ReminderMonthUi>) {
+private fun ReminderMonthGrid(months: List<ReminderMonthUi>, currentMonth: Int?, expandedMonth: Int?, onMonth: (Int) -> Unit) {
     Column(Modifier.padding(horizontal = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         months.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                row.forEach { month -> Text(stringResource(R.string.reminder_list_month_density, month.month, month.count), modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium) }
+                row.forEach { month ->
+                    val card = month.toCardUi(currentMonth, expandedMonth)
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(76.dp)
+                            .then(if (card.isCurrent && !card.isExpanded) Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .55f), androidx.compose.foundation.shape.RoundedCornerShape(Radius.m)) else Modifier)
+                            .clickable { onMonth(card.month) },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
+                        color = if (card.isExpanded) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                    ) {
+                        Column(Modifier.fillMaxSize().padding(Spacing.s), verticalArrangement = Arrangement.SpaceBetween) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(R.string.reminder_month_name, card.month), style = MaterialTheme.typography.titleSmall, color = if (card.hasReminders) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (card.hasReminders) Badge { Text(card.count.toString()) }
+                            }
+                            Text(
+                                text = if (card.hasReminders) stringResource(R.string.reminder_month_count, card.count) else stringResource(R.string.reminder_month_none),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
+        if (expandedMonth != null && months.firstOrNull { it.month == expandedMonth }?.count == 0) Text(stringResource(R.string.reminder_month_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ReminderEmptyState(hasFilters: Boolean, onAdd: () -> Unit, onClear: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(Spacing.l), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(stringResource(if (hasFilters) R.string.reminder_filter_empty else R.string.reminder_empty), style = MaterialTheme.typography.titleMedium)
+        TextButton(onClick = if (hasFilters) onClear else onAdd) { Text(stringResource(if (hasFilters) R.string.reminder_clear_filters else R.string.reminder_list_add)) }
     }
 }
 

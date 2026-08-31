@@ -9,6 +9,8 @@ import kotlinx.datetime.daysUntil
 
 enum class ReminderListMode { RECENT, MONTHS, FINISHED }
 
+fun ReminderListMode.showsYearSwitcher(): Boolean = this == ReminderListMode.MONTHS
+
 enum class ReminderRecurrenceKind { ONCE, MONTHLY, YEARLY }
 
 data class ReminderListFilter(
@@ -34,6 +36,22 @@ data class ReminderListSectionUi(val key: String, val items: List<ReminderListIt
 
 data class ReminderMonthUi(val month: Int, val count: Int, val items: List<ReminderListItemUi>)
 
+data class ReminderMonthCardUi(
+    val month: Int,
+    val count: Int,
+    val isCurrent: Boolean,
+    val isExpanded: Boolean,
+) {
+    val hasReminders: Boolean get() = count > 0
+}
+
+fun ReminderMonthUi.toCardUi(currentMonth: Int?, expandedMonth: Int?): ReminderMonthCardUi = ReminderMonthCardUi(
+    month = month,
+    count = count,
+    isCurrent = month == currentMonth,
+    isExpanded = month == expandedMonth,
+)
+
 data class ReminderListSummaryUi(val upcomingInThirtyDays: Int, val nextOccurrence: LocalDate?)
 
 data class ReminderListState(
@@ -56,13 +74,17 @@ fun buildReminderListState(
     }).filter { it.matchesQuery(filter.query, now) }
     val sorted = items.sortedWith(compareBy<ReminderListItemUi> { it.occurrenceDate }.thenBy { it.firstReminderTime }.thenBy { it.id })
     val year = filter.displayYear ?: now.year
+    val months = if (mode == ReminderListMode.MONTHS) filtered.monthsFor(year, now, filter.query) else emptyList()
     return ReminderListState(
         sections = when (mode) {
             ReminderListMode.RECENT -> sorted.groupForRecent(now)
-            ReminderListMode.MONTHS -> sorted.groupByMonth(year)
+            ReminderListMode.MONTHS -> filter.expandedMonth?.let { month ->
+                months.firstOrNull { it.month == month }?.items?.takeIf { it.isNotEmpty() }
+                    ?.let { listOf(ReminderListSectionUi("month_$month", it)) }
+            }.orEmpty()
             ReminderListMode.FINISHED -> listOfNotNull(ReminderListSectionUi("finished", sorted).takeIf { sorted.isNotEmpty() })
         },
-        months = if (mode == ReminderListMode.MONTHS) filtered.monthsFor(year, now, filter.query) else emptyList(),
+        months = months,
         summary = ReminderListSummaryUi(
             upcomingInThirtyDays = sorted.count { it.daysUntil in 0..30 },
             nextOccurrence = sorted.firstOrNull()?.occurrenceDate,

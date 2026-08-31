@@ -11,9 +11,45 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ReminderListStateTest {
+    @Test
+    fun yearSwitcherOnlyAppearsForMonthsMode() {
+        assertTrue(ReminderListMode.MONTHS.showsYearSwitcher())
+        assertFalse(ReminderListMode.RECENT.showsYearSwitcher())
+        assertFalse(ReminderListMode.FINISHED.showsYearSwitcher())
+    }
+
+    @Test
+    fun monthCardStateDistinguishesCurrentSelectedAndEmptyMonths() {
+        val selected = ReminderMonthUi(month = 9, count = 3, items = emptyList()).toCardUi(currentMonth = 9, expandedMonth = 9)
+        val empty = ReminderMonthUi(month = 10, count = 0, items = emptyList()).toCardUi(currentMonth = 9, expandedMonth = 9)
+
+        assertTrue(selected.isCurrent)
+        assertTrue(selected.isExpanded)
+        assertEquals(3, selected.count)
+        assertTrue(selected.hasReminders)
+        assertFalse(empty.isCurrent)
+        assertFalse(empty.isExpanded)
+        assertFalse(empty.hasReminders)
+    }
+
+    @Test
+    fun monthsOnlyExposeDetailsForExpandedMonth() {
+        val reminders = listOf(
+            reminder(id = "september", recurrence = yearly(9, 5)),
+            reminder(id = "october", recurrence = yearly(10, 5)),
+        )
+
+        val collapsed = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.MONTHS, ReminderListFilter(displayYear = 2026))
+        val expanded = buildReminderListState(reminders, LocalDate(2026, 9, 1), ReminderListMode.MONTHS, ReminderListFilter(displayYear = 2026, expandedMonth = 10))
+
+        assertTrue(collapsed.sections.isEmpty())
+        assertEquals(listOf("month_10"), expanded.sections.map { it.key })
+        assertEquals(listOf("october"), expanded.sections.single().items.map { it.id })
+    }
     @Test
     fun recentSortsByNextOccurrenceAcrossYearBoundary() {
         val state = buildReminderListState(

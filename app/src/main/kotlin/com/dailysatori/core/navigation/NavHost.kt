@@ -240,10 +240,15 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
 
         composable<ReminderListRoute> {
             ReminderListScreen(
+                onBack = { navController.popBackStack() },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) },
-                onOpenSettings = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
+                onOpenSettings = { navController.navigate(ReminderSettingsRoute) },
             )
+        }
+
+        composable<ReminderSettingsRoute> {
+            com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable<ReminderDetailRoute> { backStackEntry ->

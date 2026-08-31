@@ -7,6 +7,7 @@ import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ReminderAiParseStateTest {
     @Test
@@ -30,5 +31,13 @@ class ReminderAiParseStateTest {
         assertFalse(completed.isInterpreting)
         assertEquals("offline", completed.error)
         assertEquals(draft, completed.draft)
+        assertTrue(completed.requiresConfirmation)
+    }
+
+    @Test
+    fun openingAnotherEditorClearsPreviousPromptAndDraft() {
+        val previous = ReminderAiParseState(prompt = "旧输入", draft = ReminderDraft("old", "旧结果", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), LocalTime(20, 0)))
+
+        assertEquals(ReminderAiParseState(), previous.resetForEditor())
     }
 }

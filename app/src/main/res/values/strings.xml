@@ -145,4 +145,15 @@
     <string name="reminder_list_month">月份</string>
     <string name="reminder_recurrence_title">重复方式</string>
     <string name="reminder_recurrence_consecutive">连续</string>
+    <string name="reminder_previous_year">上一年</string>
+    <string name="reminder_next_year">下一年</string>
+    <string name="reminder_display_year">%1$d 年</string>
+    <string name="reminder_month_empty">这个月暂无提醒</string>
+    <string name="reminder_filter_empty">没有符合条件的提醒</string>
+    <string name="reminder_empty">尚无提醒</string>
+    <string name="reminder_clear_filters">清除条件</string>
+    <string name="reminder_back">返回</string>
+    <string name="reminder_month_name">%1$d 月</string>
+    <string name="reminder_month_count">%1$d 个提醒</string>
+    <string name="reminder_month_none">暂无</string>
 </resources>

@@ -1,6 +1,10 @@
 package com.dailysatori.ui.feature.reminder
 
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
+import com.dailysatori.service.reminder.ReminderDraft
+import com.dailysatori.service.reminder.Reminder
+import com.dailysatori.service.reminder.ReminderStatus
+import kotlinx.datetime.TimeZone
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import kotlinx.datetime.LocalDate
@@ -12,6 +16,72 @@ import kotlin.test.assertTrue
 import java.io.File
 
 class ReminderRouteStateTest {
+    @Test
+    fun detailTimelineExplainsInitialBackoffEveningAndCutoff() {
+        val reminder = Reminder(
+            id = "bill",
+            content = "还信用卡",
+            startDate = LocalDate(2026, 9, 2),
+            endDate = LocalDate(2026, 9, 2),
+            firstReminderTime = LocalTime(10, 0),
+            activeDayRule = ReminderActiveDayRule.Daily,
+            profile = ReminderProfileSnapshot.strong(),
+            status = ReminderStatus.ACTIVE,
+            timeZone = TimeZone.of("Asia/Hong_Kong"),
+            version = 1,
+        )
+
+        val timeline = buildReminderTimeline(reminder, LocalDate(2026, 9, 1))
+
+        assertEquals(LocalDate(2026, 9, 2), timeline.occurrenceDate)
+        assertEquals(listOf("首次提醒", "划掉后", "晚间加强", "当天结束"), timeline.steps.map { it.title })
+        assertTrue(timeline.steps[1].detail.contains("2 小时、4 小时"))
+        assertTrue(timeline.steps[2].detail.contains("22:00"))
+        assertTrue(timeline.steps[3].detail.contains("24:00"))
+    }
+    @Test
+    fun aiDraftOnlyChangesEditorAfterUserAppliesIt() {
+        val original = ReminderEditorState(
+            content = "旧内容",
+            startDate = LocalDate(2026, 8, 31),
+            endDate = LocalDate(2026, 8, 31),
+            firstReminderTime = LocalTime(9, 0),
+        )
+        val parsed = ReminderDraft(
+            id = "parsed",
+            content = "给海外手机号充值",
+            startDate = LocalDate(2026, 9, 2),
+            endDate = LocalDate(2026, 9, 4),
+            firstReminderTime = LocalTime(20, 0),
+            activeDayRule = ReminderActiveDayRule.ConsecutiveDateRange,
+            recurrence = ReminderRecurrence.Once,
+        )
+
+        assertEquals("旧内容", original.content)
+        val applied = original.applyParsedDraft(parsed)
+        assertEquals("给海外手机号充值", applied.content)
+        assertEquals(LocalDate(2026, 9, 2), applied.startDate)
+        assertEquals(LocalDate(2026, 9, 4), applied.endDate)
+        assertEquals(LocalTime(20, 0), applied.firstReminderTime)
+        assertTrue(applied.activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange)
+    }
+
+    @Test
+    fun incompleteAiDraftKeepsExistingRequiredValues() {
+        val original = ReminderEditorState(
+            content = "旧内容",
+            startDate = LocalDate(2026, 8, 31),
+            endDate = LocalDate(2026, 8, 31),
+            firstReminderTime = LocalTime(9, 0),
+        )
+        val parsed = ReminderDraft(id = "parsed", content = "新内容", startDate = null, endDate = null, firstReminderTime = null)
+
+        val applied = original.applyParsedDraft(parsed)
+
+        assertEquals(LocalDate(2026, 8, 31), applied.startDate)
+        assertEquals(LocalTime(9, 0), applied.firstReminderTime)
+        assertEquals("新内容", applied.content)
+    }
     @Test
     fun yearlyEditorSummaryExplainsActualBehavior() {
         val editor = ReminderEditorState(
