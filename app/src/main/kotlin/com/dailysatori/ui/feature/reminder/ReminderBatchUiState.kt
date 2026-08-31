@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.reminder
 import com.dailysatori.service.reminder.ReminderBatchInterpretation
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
 
 enum class BatchSaveStatus { PENDING, SAVING, SAVED, FAILED }
 
@@ -84,6 +85,25 @@ data class ReminderBatchSaveClaim(
     val state: ReminderBatchUiState,
     val items: Map<String, ReminderBatchUiItem>,
 )
+
+data class ReminderBatchSaveOperation(
+    val claim: ReminderBatchSaveClaim,
+    val batchId: String,
+    val generation: Long,
+)
+
+fun claimSelectedBatch(state: MutableStateFlow<ReminderUiState>): ReminderBatchSaveOperation? {
+    while (true) {
+        val current = state.value
+        val batch = current.aiParse.batch ?: return null
+        val claim = batch.claimSelectedItems()
+        if (claim.items.isEmpty()) return null
+        val next = current.copy(aiParse = current.aiParse.copy(batch = claim.state))
+        if (state.compareAndSet(current, next)) {
+            return ReminderBatchSaveOperation(claim, batch.batchId, current.aiParse.batchGeneration)
+        }
+    }
+}
 
 suspend fun saveBatch(
     initial: ReminderBatchUiState,

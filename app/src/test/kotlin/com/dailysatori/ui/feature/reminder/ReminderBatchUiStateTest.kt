@@ -13,6 +13,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class ReminderBatchUiStateTest {
     @Test
@@ -73,6 +77,21 @@ class ReminderBatchUiStateTest {
         assertTrue(second.items.isEmpty())
         assertTrue(first.state.items.values.all { it.saveStatus == BatchSaveStatus.SAVING })
         assertEquals(2, creates)
+    }
+
+    @Test
+    fun concurrentStateFlowClaimsGiveEachItemToOnlyOneSaver() = runTest {
+        val flow = MutableStateFlow(ReminderUiState(aiParse = ReminderAiParseState(
+            batch = ReminderBatchUiState.from(batch(item("a"), item("b"))),
+        )))
+
+        val claims = List(2) {
+            async(Dispatchers.Default) { claimSelectedBatch(flow) }
+        }.awaitAll().filterNotNull()
+
+        assertEquals(1, claims.size)
+        assertEquals(setOf("a", "b"), claims.single().claim.items.keys)
+        assertTrue(flow.value.aiParse.batch!!.items.values.all { it.saveStatus == BatchSaveStatus.SAVING })
     }
 
     @Test

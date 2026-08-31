@@ -27,6 +27,8 @@ import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderTextInterpreter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -138,7 +140,10 @@ data class ReminderAiParseState(
     val draft: ReminderDraft? get() = compatibilityItem?.draft?.confirmationPayload()?.draft
     val requiresConfirmation: Boolean get() = compatibilityItem?.requiresConfirmation == true
 
-    fun resetForEditor() = ReminderAiParseState()
+    fun resetForEditor() = ReminderAiParseState(
+        requestToken = requestToken + 1,
+        batchGeneration = batchGeneration + 1,
+    )
     fun onPromptChanged(value: String) = copy(
         prompt = value,
         isInterpreting = false,
@@ -371,6 +376,7 @@ class ReminderViewModel(
     private val context: Context,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReminderUiState())
+    private var activeBatchSaveJob: Job? = null
     val state: StateFlow<ReminderUiState> = _state
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -393,14 +399,17 @@ class ReminderViewModel(
     }
 
     fun onAiPromptChanged(value: String) {
+        cancelActiveBatchSave()
         _state.update { it.copy(aiParse = it.aiParse.onPromptChanged(value)) }
     }
 
     fun resetAiParse() {
+        cancelActiveBatchSave()
         _state.update { it.copy(aiParse = it.aiParse.resetForEditor()) }
     }
 
     fun interpretAiPrompt() {
+        cancelActiveBatchSave()
         var prompt = ""
         var token = 0L
         _state.update { current ->
@@ -443,20 +452,15 @@ class ReminderViewModel(
     }
 
     fun saveSelectedBatch() {
-        var claim: ReminderBatchSaveClaim? = null
-        var generation = 0L
-        _state.update { current ->
-            val batch = current.aiParse.batch ?: return@update current
-            val nextClaim = batch.claimSelectedItems()
-            if (nextClaim.items.isEmpty()) current else {
-                claim = nextClaim
-                generation = current.aiParse.batchGeneration
-                current.copy(aiParse = current.aiParse.copy(batch = nextClaim.state))
-            }
-        }
-        val snapshot = claim ?: return
-        viewModelScope.launch(Dispatchers.IO) {
+        val operation = claimSelectedBatch(_state) ?: return
+        activeBatchSaveJob?.cancel()
+        activeBatchSaveJob = viewModelScope.launch(Dispatchers.IO) {
+            val batchId = operation.batchId
+            val generation = operation.generation
+            val snapshot = operation.claim
             snapshot.items.forEach { (id, item) ->
+                ensureActive()
+                if (!isCurrentBatch(batchId, generation)) return@launch
                 val payload = item.draft.confirmationPayload() ?: return@forEach
                 try {
                     val created = repository.createConfirmed(payload.draft, payload.profileSnapshot)
@@ -470,7 +474,7 @@ class ReminderViewModel(
                     }
                     _state.update { current ->
                         val currentBatch = current.aiParse.batch
-                        if (currentBatch == null || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markSaved(id, created.id).let { saved ->
+                        if (currentBatch?.batchId != batchId || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markSaved(id, created.id).let { saved ->
                             if (schedulingError == null) saved else saved.updateItem(id) { it.copy(saveError = schedulingError) }
                         }))
                     }
@@ -478,11 +482,21 @@ class ReminderViewModel(
                     if (error is CancellationException) throw error
                     _state.update { current ->
                         val currentBatch = current.aiParse.batch
-                        if (currentBatch == null || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markFailed(id, error.message ?: "保存失败")))
+                        if (currentBatch?.batchId != batchId || !current.aiParse.acceptsBatchGeneration(generation)) current else current.copy(aiParse = current.aiParse.copy(batch = currentBatch.markFailed(id, error.message ?: "保存失败")))
                     }
                 }
             }
         }
+    }
+
+    private fun cancelActiveBatchSave() {
+        activeBatchSaveJob?.cancel()
+        activeBatchSaveJob = null
+    }
+
+    private fun isCurrentBatch(batchId: String, generation: Long): Boolean {
+        val parse = state.value.aiParse
+        return parse.batch?.batchId == batchId && parse.acceptsBatchGeneration(generation)
     }
 
     fun updateDraft(id: String, transform: (ReminderDraftUiState) -> ReminderDraftUiState) {

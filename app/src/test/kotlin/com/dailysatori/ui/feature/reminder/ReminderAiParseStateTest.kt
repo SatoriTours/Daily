@@ -29,9 +29,29 @@ class ReminderAiParseStateTest {
 
     @Test
     fun openingAnotherEditorClearsPreviousPromptAndError() {
-        val previous = ReminderAiParseState(prompt = "旧输入", error = "offline")
+        val previous = ReminderAiParseState(
+            prompt = "旧输入",
+            requestToken = 1,
+            batchGeneration = 1,
+            error = "offline",
+        )
 
-        assertEquals(ReminderAiParseState(), previous.resetForEditor())
+        val reset = previous.resetForEditor()
+
+        assertEquals("", reset.prompt)
+        assertEquals(2, reset.requestToken)
+        assertEquals(2, reset.batchGeneration)
+    }
+
+    @Test
+    fun resetNeverReusesAnOlderInterpretationToken() {
+        val old = ReminderAiParseState(requestToken = 1, batchGeneration = 1)
+        val reset = old.resetForEditor()
+        val new = reset.copy(prompt = "新输入").onExplicitSubmit()
+
+        assertEquals(1, old.requestToken)
+        assertTrue(new.requestToken >= 3)
+        assertFalse(new.acceptsInterpretation(old.requestToken))
     }
 
     @Test
