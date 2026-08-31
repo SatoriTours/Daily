@@ -421,7 +421,7 @@ class ReminderViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                batchStateTransitions.failInterpretation(request.token, error.message ?: "Parse failed")
+                batchStateTransitions.failInterpretation(request.token, error.message ?: ReminderBatchErrorCode.PARSE_FAILED)
             }
         }
     }
@@ -434,11 +434,15 @@ class ReminderViewModel(
         batchStateTransitions.updateBatch { it.removeItem(id) }
     }
 
+    fun confirmBatchItem(id: String) {
+        batchStateTransitions.updateBatch { it.confirmItem(id) }
+    }
+
     fun updateBatchItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem) {
         batchStateTransitions.updateBatch { it.updateItem(id, transform) }
     }
 
-    fun saveSelectedBatch() {
+    fun saveSelectedBatch(onFullySaved: () -> Unit = {}) {
         batchSaveLaunchController.launchIfIdle(
             scope = viewModelScope,
             context = Dispatchers.IO,
@@ -458,14 +462,18 @@ class ReminderViewModel(
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        schedulingError = error.message ?: "Scheduling failed"
+                        schedulingError = error.message ?: ReminderBatchErrorCode.SCHEDULING_FAILED
                     }
                     batchStateTransitions.markSaved(operation.key, id, created.id, schedulingError)
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
-                    batchStateTransitions.markFailed(operation.key, id, error.message ?: "Save failed")
+                    batchStateTransitions.markFailed(operation.key, id, error.message ?: ReminderBatchErrorCode.SAVE_FAILED)
                 }
             }
+            val completed = batchStateTransitions.createIfCurrent(operation.key) {
+                _state.value.aiParse.batch?.isComplete == true
+            }
+            if (completed == true) withContext(Dispatchers.Main) { onFullySaved() }
         }
     }
 

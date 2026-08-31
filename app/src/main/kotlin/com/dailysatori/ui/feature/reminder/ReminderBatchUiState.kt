@@ -12,6 +12,12 @@ import kotlin.coroutines.CoroutineContext
 
 enum class BatchSaveStatus { PENDING, SAVING, SAVED, FAILED }
 
+object ReminderBatchErrorCode {
+    const val PARSE_FAILED = "reminder_batch_error_parse"
+    const val SCHEDULING_FAILED = "reminder_batch_error_scheduling"
+    const val SAVE_FAILED = "reminder_batch_error_save"
+}
+
 data class ReminderBatchUiItem(
     val id: String,
     val sourceText: String,
@@ -23,7 +29,8 @@ data class ReminderBatchUiItem(
     val createdReminderId: String? = null,
     val saveError: String? = null,
 ) {
-    val canSave: Boolean get() = selected && saveStatus in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED) && draft.confirmationPayload() != null
+    val canSave: Boolean get() = selected && !requiresConfirmation && saveStatus in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED) && draft.confirmationPayload() != null
+    val isSaving: Boolean get() = saveStatus == BatchSaveStatus.SAVING
 }
 
 data class ReminderBatchUiState(
@@ -33,16 +40,29 @@ data class ReminderBatchUiState(
 ) {
     val selectedIds: Set<String> get() = items.values.filter { it.canSave }.mapTo(linkedSetOf()) { it.id }
     val selectedCount: Int get() = selectedIds.size
+    val isComplete: Boolean get() = items.isNotEmpty() && items.values.all { it.saveStatus == BatchSaveStatus.SAVED }
 
     fun toggleItem(id: String): ReminderBatchUiState = updateItem(id) { item ->
-        if (item.saveStatus == BatchSaveStatus.SAVED || item.parseError != null) item else item.copy(selected = !item.selected)
+        if (item.saveStatus !in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED) || item.parseError != null || item.requiresConfirmation) item else item.copy(selected = !item.selected)
     }
 
-    fun removeItem(id: String): ReminderBatchUiState = copy(items = items - id)
+    fun confirmItem(id: String): ReminderBatchUiState = updateItem(id) { item ->
+        if (item.parseError != null || item.draft.confirmationPayload() == null) item else item.copy(requiresConfirmation = false, selected = true)
+    }
+
+    fun removeItem(id: String): ReminderBatchUiState {
+        val item = items[id] ?: return this
+        return if (item.isSaving) this else copy(items = items - id)
+    }
 
     fun updateItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem): ReminderBatchUiState {
         val item = items[id] ?: return this
-        return copy(items = items + (id to transform(item)))
+        if (item.isSaving) return this
+        val updated = transform(item)
+        val recovered = if (item.parseError != null && updated.draft.confirmationPayload() != null) {
+            updated.copy(parseError = null, requiresConfirmation = false, selected = true)
+        } else updated
+        return copy(items = items + (id to recovered))
     }
 
     fun markSaving(ids: Set<String>): ReminderBatchUiState = copy(items = items.mapValues { (id, item) ->
@@ -54,12 +74,17 @@ data class ReminderBatchUiState(
         return ReminderBatchSaveClaim(markSaving(claimed.keys), claimed)
     }
 
-    fun markSaved(id: String, createdReminderId: String): ReminderBatchUiState = updateItem(id) {
+    fun markSaved(id: String, createdReminderId: String): ReminderBatchUiState = replaceItem(id) {
         it.copy(selected = false, saveStatus = BatchSaveStatus.SAVED, createdReminderId = createdReminderId, saveError = null)
     }
 
-    fun markFailed(id: String, message: String): ReminderBatchUiState = updateItem(id) {
+    fun markFailed(id: String, message: String): ReminderBatchUiState = replaceItem(id) {
         it.copy(selected = true, saveStatus = BatchSaveStatus.FAILED, saveError = message)
+    }
+
+    private fun replaceItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem): ReminderBatchUiState {
+        val item = items[id] ?: return this
+        return copy(items = items + (id to transform(item)))
     }
 
     companion object {
@@ -79,7 +104,7 @@ data class ReminderBatchUiState(
                     draft = draft,
                     parseError = parseError,
                     requiresConfirmation = parsed.interpretation.requiresConfirmation,
-                    selected = parseError == null && draft.confirmationPayload() != null,
+                    selected = parseError == null && !parsed.interpretation.requiresConfirmation && draft.confirmationPayload() != null,
                 )
             },
         )
@@ -309,7 +334,7 @@ suspend fun saveClaim(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            current = current.markFailed(id, error.message ?: "Save failed")
+            current = current.markFailed(id, error.message ?: ReminderBatchErrorCode.SAVE_FAILED)
         }
     }
     return current

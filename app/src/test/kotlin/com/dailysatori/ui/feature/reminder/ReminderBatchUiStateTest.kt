@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -23,6 +24,48 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class ReminderBatchUiStateTest {
+    @Test
+    fun confirmationRequiredItemCannotSaveUntilExplicitlyConfirmed() {
+        val initial = ReminderBatchUiState.from(batch(item("a", requiresConfirmation = true)))
+
+        val confirmed = initial.confirmItem("a")
+
+        assertEquals(0, initial.selectedCount)
+        assertFalse(initial.items.getValue("a").canSave)
+        assertEquals(1, confirmed.selectedCount)
+        assertFalse(confirmed.items.getValue("a").requiresConfirmation)
+    }
+
+    @Test
+    fun validManualEditClearsParseFailureAndMakesItemSelectable() {
+        val initial = ReminderBatchUiState.from(batch(item("a", failure = "unreadable")))
+
+        val edited = initial.updateItem("a") { item ->
+            item.copy(draft = item.draft.editContent("manual reminder"))
+        }
+
+        assertNull(edited.items.getValue("a").parseError)
+        assertEquals(1, edited.selectedCount)
+    }
+
+    @Test
+    fun savingItemRejectsSelectionEditAndRemoval() {
+        val saving = ReminderBatchUiState.from(batch(item("a"))).confirmItem("a").claimSelectedItems().state
+
+        assertEquals(saving, saving.toggleItem("a"))
+        assertEquals(saving, saving.removeItem("a"))
+        assertEquals(saving, saving.updateItem("a") { it.copy(sourceText = "changed") })
+    }
+
+    @Test
+    fun batchIsCompleteOnlyAfterEveryRemainingItemSaves() {
+        val initial = ReminderBatchUiState.from(batch(item("a"), item("b"))).confirmItem("a").confirmItem("b")
+        val partiallySaved = initial.markSaved("a", "created-a")
+
+        assertFalse(partiallySaved.isComplete)
+        assertTrue(partiallySaved.markSaved("b", "created-b").isComplete)
+    }
+
     @Test
     fun validItemsStartSelectedAndFailedItemsStartUnselected() {
         val valid = item("a")
@@ -281,13 +324,13 @@ class ReminderBatchUiStateTest {
         items = items.toList(),
     )
 
-    private fun item(id: String, failure: String? = null) = ReminderBatchItem(
+    private fun item(id: String, failure: String? = null, requiresConfirmation: Boolean = false) = ReminderBatchItem(
         id = id,
         sourceIndex = if (id == "a") 0 else 1,
         sourceText = id,
         interpretation = ReminderInterpretation(
             draft = ReminderDraft(id, "提醒 $id", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), LocalTime(20, 0)),
-            requiresConfirmation = true,
+            requiresConfirmation = requiresConfirmation,
             failure = failure,
         ),
     )

@@ -76,7 +76,7 @@ fun ReminderEditScreen(
                 } else {
                     val savingBatch = batch.items.values.any { it.saveStatus == BatchSaveStatus.SAVING }
                     Button(
-                        onClick = viewModel::saveSelectedBatch,
+                        onClick = { viewModel.saveSelectedBatch { onBack() } },
                         enabled = batch.selectedCount > 0 && !savingBatch,
                         modifier = Modifier.fillMaxWidth().padding(Spacing.m),
                     ) {
@@ -107,7 +107,7 @@ fun ReminderEditScreen(
                                 Text(if (ui.aiParse.isInterpreting) "解析中…" else "AI 解析")
                             }
                         }
-                        ui.aiParse.error?.let { Text("解析未完全成功：$it，可继续手动修改。", color = MaterialTheme.colorScheme.error) }
+                        ui.aiParse.error?.let { Text(stringResource(R.string.reminder_batch_parse_incomplete, batchErrorText(it)), color = MaterialTheme.colorScheme.error) }
                     }
                 }
             }
@@ -118,6 +118,7 @@ fun ReminderEditScreen(
                         profiles = profiles,
                         onToggleItem = viewModel::toggleBatchItem,
                         onRemoveItem = viewModel::removeBatchItem,
+                        onConfirmItem = viewModel::confirmBatchItem,
                         onUpdateItem = viewModel::updateBatchItem,
                     )
                 }

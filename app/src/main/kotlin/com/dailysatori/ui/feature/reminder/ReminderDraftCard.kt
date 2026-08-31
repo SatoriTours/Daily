@@ -59,6 +59,7 @@ fun ReminderDraftCard(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     profiles: List<ReminderProfile> = defaultCardProfiles(),
+    showActions: Boolean = true,
 ) {
     if (state.cancelled) return
     var picker by remember { mutableStateOf<DraftPicker?>(null) }
@@ -167,9 +168,11 @@ fun ReminderDraftCard(
                 }
             }
             state.notice?.let { Text(it.label(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onCancel, enabled = !state.saving && !state.confirmed) { Text(stringResource(R.string.reminder_cancel)) }
-                Button(onClick = onConfirm, enabled = state.canConfirm) { Text(stringResource(if (state.saving) R.string.reminder_saving else if (state.confirmed) R.string.reminder_confirmed else R.string.reminder_confirm)) }
+            if (showActions) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onCancel, enabled = !state.saving && !state.confirmed) { Text(stringResource(R.string.reminder_cancel)) }
+                    Button(onClick = onConfirm, enabled = state.canConfirm) { Text(stringResource(if (state.saving) R.string.reminder_saving else if (state.confirmed) R.string.reminder_confirmed else R.string.reminder_confirm)) }
+                }
             }
         }
     }
