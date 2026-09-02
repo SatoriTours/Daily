@@ -25,6 +25,20 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReminderRecoveryTest {
     @Test
+    fun reminderAiBatchIntentRestoresOneConsumableBatchRouteForColdAndForegroundLaunches() {
+        val openRequest = ReminderAiBatchOpenRequestState()
+
+        handleReminderAiBatchViewIntent(ReminderAiParseNotifier.ACTION_VIEW_BATCH, "batch-42", openRequest)
+
+        assertEquals("batch-42", openRequest.pending.value)
+        openRequest.consume("batch-42")
+        assertNull(openRequest.pending.value)
+
+        handleReminderAiBatchViewIntent(ReminderAiParseNotifier.ACTION_VIEW_BATCH, "batch-42", openRequest)
+        assertEquals("batch-42", openRequest.pending.value)
+    }
+
+    @Test
     fun receiverRecognizesEverySystemRecoveryEntryPoint() {
         val actions = listOf(
             Intent.ACTION_BOOT_COMPLETED,

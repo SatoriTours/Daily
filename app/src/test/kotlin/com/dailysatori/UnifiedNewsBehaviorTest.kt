@@ -21,6 +21,7 @@ import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.service.unifiednews.dueUnifiedNewsWindows
 import com.dailysatori.service.unifiednews.hasValidCitationTokens
 import com.dailysatori.service.unifiednews.invalidCitationTokens
+import com.dailysatori.service.unifiednews.isRecentUnifiedNewsSnapshot
 import com.dailysatori.service.unifiednews.nextUnifiedNewsWindow
 import com.dailysatori.service.unifiednews.prepareUnifiedNewsSources
 import com.dailysatori.service.unifiednews.removeInvalidCitationTokens
@@ -1027,14 +1028,22 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsAllSourceFailureStillReturnsFailurePath() {
+    fun unifiedNewsAllSourceFailurePersistsEmptySummaryInsteadOfFailingTheDay() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("catch (e: Exception)"))
         assertTrue(source.contains("Unified news source collection failed"))
         assertTrue(source.contains("return saveFailure(window, emptyList(), warnings, \"新闻来源收集失败，请稍后重试\")"))
-        assertTrue(source.contains("if (sources.isEmpty() && warnings.isNotEmpty())"))
-        assertTrue(source.contains("新闻来源暂时不可用，请稍后重试"))
+        assertFalse(source.contains("if (sources.isEmpty() && warnings.isNotEmpty())"))
+        assertTrue(source.contains("if (sources.isEmpty()) return persistEmpty(window, warnings)"))
+        assertTrue(source.contains("getLatestMappingsBySource"))
+    }
+
+    @Test
+    fun remoteSnapshotFallbackIsBoundedToThreeDays() {
+        val day = 24 * 60 * 60 * 1000L
+        assertTrue(isRecentUnifiedNewsSnapshot(lastSeenAt = 10 * day, windowStartMs = 12 * day))
+        assertFalse(isRecentUnifiedNewsSnapshot(lastSeenAt = 8 * day - 1, windowStartMs = 12 * day))
     }
 
     @Test
@@ -1366,6 +1375,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(source.contains("remoteNewsService.fetchDigests"))
         assertFalse(source.contains("remoteNewsService.fetchArticles"))
         assertTrue(source.contains("UnifiedNewsSourceType.REMOTE_ARTICLE"))
+        assertTrue(source.contains("ignoreSourceTimeFilter = true"))
     }
 
     @Test

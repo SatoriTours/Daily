@@ -1,12 +1,21 @@
 package com.dailysatori.service.parser
 
+private val MetadataImageRegex = Regex(
+    """<meta[^>]*(?:property|name)\s*=\s*["'](?:og:image|og:image:secure_url|twitter:image|twitter:image:src)["'][^>]*content\s*=\s*["']([^"']*)["']""",
+    RegexOption.IGNORE_CASE,
+)
+private val ReversedMetadataImageRegex = Regex(
+    """<meta[^>]*content\s*=\s*["']([^"']*)["'][^>]*(?:property|name)\s*=\s*["'](?:og:image|og:image:secure_url|twitter:image|twitter:image:src)["']""",
+    RegexOption.IGNORE_CASE,
+)
+private val ImageTagRegex = Regex("""<img\b[^>]*>""", RegexOption.IGNORE_CASE)
+private val SrcsetWhitespaceRegex = Regex("\\s+")
+private val TwitterImageSizeRegex = Regex("([?&]name=)[^&]+", RegexOption.IGNORE_CASE)
+private val UrlOriginRegex = Regex("""^(https?://[^/]+)""", RegexOption.IGNORE_CASE)
+
 private fun extractMetadataImageUrl(html: String): String? {
-    val opts = setOf(RegexOption.IGNORE_CASE)
-    val names = "(?:og:image|og:image:secure_url|twitter:image|twitter:image:src)"
-    val imageRegex = Regex("""<meta[^>]*(?:property|name)\s*=\s*["']$names["'][^>]*content\s*=\s*["']([^"']*)["']""", opts)
-    val image2Regex = Regex("""<meta[^>]*content\s*=\s*["']([^"']*)["'][^>]*(?:property|name)\s*=\s*["']$names["']""", opts)
-    return imageRegex.find(html)?.groupValues?.get(1)
-        ?: image2Regex.find(html)?.groupValues?.get(1)
+    return MetadataImageRegex.find(html)?.groupValues?.get(1)
+        ?: ReversedMetadataImageRegex.find(html)?.groupValues?.get(1)
 }
 
 internal fun extractCoverImageUrl(html: String, sourceUrl: String? = null): String? {
@@ -16,8 +25,7 @@ internal fun extractCoverImageUrl(html: String, sourceUrl: String? = null): Stri
 }
 
 internal fun extractContentImageUrls(html: String, sourceUrl: String? = null): List<String> {
-    val imgRegex = Regex("""<img\b[^>]*>""", setOf(RegexOption.IGNORE_CASE))
-    return imgRegex.findAll(html)
+    return ImageTagRegex.findAll(html)
         .mapNotNull { imageCandidate(it.value) }
         .filter { it.isLargeEnough }
         .map { it.src.toAbsoluteUrl(sourceUrl).normalizeTwitterImageUrl() }
@@ -26,8 +34,7 @@ internal fun extractContentImageUrls(html: String, sourceUrl: String? = null): L
 }
 
 private fun extractLargestContentImgSrc(html: String, sourceUrl: String?): String? {
-    val imgRegex = Regex("""<img\b[^>]*>""", setOf(RegexOption.IGNORE_CASE))
-    return imgRegex.findAll(html)
+    return ImageTagRegex.findAll(html)
         .mapNotNull { match -> imageCandidate(match.value) }
         .filter { it.isLargeEnough }
         .maxByOrNull { it.area }
@@ -37,8 +44,7 @@ private fun extractLargestContentImgSrc(html: String, sourceUrl: String?): Strin
 }
 
 private fun extractFirstImgSrc(html: String, sourceUrl: String?): String? {
-    val imgRegex = Regex("""<img\b[^>]*>""", setOf(RegexOption.IGNORE_CASE))
-    return imgRegex.findAll(html)
+    return ImageTagRegex.findAll(html)
         .mapNotNull { imageSrc(it.value) }
         .firstOrNull { !it.shouldSkipImage() && !it.hasSkippedKeyword() }
         ?.toAbsoluteUrl(sourceUrl)
@@ -70,7 +76,7 @@ private fun bestSrcsetUrl(srcset: String?): String? {
 }
 
 private fun srcsetCandidate(candidate: String): SrcsetCandidate? {
-    val parts = candidate.split(Regex("\\s+")).filter { it.isNotBlank() }
+    val parts = candidate.split(SrcsetWhitespaceRegex).filter { it.isNotBlank() }
     val url = parts.firstOrNull() ?: return null
     if (url.shouldSkipImage() || url.hasSkippedKeyword()) return null
     val width = parts.drop(1)
@@ -112,12 +118,11 @@ private fun String.toAbsoluteUrl(sourceUrl: String?): String {
 
 internal fun String.normalizeTwitterImageUrl(): String {
     if (!contains("pbs.twimg.com/media/", ignoreCase = true)) return this
-    return replace(Regex("([?&]name=)[^&]+", RegexOption.IGNORE_CASE), "$1large")
+    return replace(TwitterImageSizeRegex, "$1large")
 }
 
 private fun String.origin(): String? {
-    val regex = Regex("""^(https?://[^/]+)""", RegexOption.IGNORE_CASE)
-    return regex.find(this)?.groupValues?.get(1)
+    return UrlOriginRegex.find(this)?.groupValues?.get(1)
 }
 
 private fun String.basePathUrl(): String {

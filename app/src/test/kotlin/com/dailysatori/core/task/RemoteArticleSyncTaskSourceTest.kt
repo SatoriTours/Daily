@@ -5,8 +5,20 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertIs
+import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 
 class RemoteArticleSyncTaskSourceTest {
+    @Test
+    fun allSourceFailuresRetryButPartialFailuresKeepUsableResults() {
+        assertIs<AsyncTaskExecutionResult.RetryableFailure>(
+            remoteArticleSyncOutcome(successfulSources = 0, failures = listOf("source failed"), resultJson = "{}"),
+        )
+        assertIs<AsyncTaskExecutionResult.Success>(
+            remoteArticleSyncOutcome(successfulSources = 1, failures = listOf("other failed"), resultJson = "{}"),
+        )
+    }
+
     @Test
     fun taskTypeAndHandlerUseAsyncTaskFramework() {
         assertEquals("remote_article_sync", AsyncTaskType.remote_article_sync.name)

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +28,21 @@ data class TaskCenterState(
     val requestedLimit: Int = DEFAULT_TASK_CENTER_PAGE_SIZE,
     val selectedTask: Async_task? = null,
     val taskLog: String = "",
+    val selectedFailureSuperseded: Boolean = false,
 )
+
+private data class SelectedTaskState(
+    val task: Async_task?,
+    val log: String,
+    val failureSuperseded: Boolean,
+)
+
+internal fun taskFailureIsSuperseded(
+    selectedId: Long,
+    selectedStatus: String,
+    latestId: Long?,
+    latestStatus: String?,
+): Boolean = selectedStatus == "failed" && latestId != null && latestId != selectedId && latestStatus == "succeeded"
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskCenterViewModel(
@@ -39,9 +54,19 @@ class TaskCenterViewModel(
     private val selectedTaskId = MutableStateFlow<Long?>(null)
     private val selected = selectedTaskId.flatMapLatest { id ->
         if (id == null) {
-            flowOf(null to "")
+            flowOf(SelectedTaskState(null, "", false))
         } else {
             repository.observeTaskById(id).combine(logStore.observe(id)) { task, log -> task to log }
+                .map { (task, log) ->
+                    val latest = task?.unique_key?.let(repository::getLatestByUniqueKey)
+                    SelectedTaskState(
+                        task = task,
+                        log = log,
+                        failureSuperseded = task?.let {
+                            taskFailureIsSuperseded(it.id, it.status, latest?.id, latest?.status)
+                        } == true,
+                    )
+                }
         }
     }
 
@@ -59,8 +84,9 @@ class TaskCenterViewModel(
                     hasMore = page.hasMore,
                     loadedCount = page.loadedCount,
                     requestedLimit = page.requestedLimit,
-                    selectedTask = selectedTask.first,
-                    taskLog = selectedTask.second,
+                    selectedTask = selectedTask.task,
+                    taskLog = selectedTask.log,
+                    selectedFailureSuperseded = selectedTask.failureSuperseded,
                 )
             }
         }

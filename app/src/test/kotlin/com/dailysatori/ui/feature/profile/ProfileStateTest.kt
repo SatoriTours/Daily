@@ -22,23 +22,53 @@ class ProfileStateTest {
         val state = ProfileUiState()
 
         assertEquals(
-            listOf("reminders", "favorites", "external_favorites", "tasks", "settings", "privacy"),
+            listOf("reminders", "favorites", "external_favorites", "remote_news", "tasks", "settings", "privacy"),
             state.destinations.map { it.id },
         )
         assertFalse(state.destinations.any { it.id in setOf("read_later", "history") })
     }
 
     @Test
+    fun remoteNewsProjectionExposesCountsAndConfiguredSubtitle() {
+        val state = ProfileUiState(
+            remoteNewsArticleCount = 12,
+            enabledRemoteNewsSourceCount = 3,
+        )
+
+        assertEquals(12, state.remoteNewsArticleCount)
+        assertEquals(3, state.enabledRemoteNewsSourceCount)
+        assertEquals("已同步 12 篇 · 3 个来源", remoteNewsProfileSubtitle(12, 3))
+        assertEquals("尚未配置来源", remoteNewsProfileSubtitle(12, 0))
+    }
+
+    @Test
     fun taskProjectionExposesProgressAndFailureForTheProfile() {
+        val now = 2 * 24 * 60 * 60 * 1000L
         val summary = profileTaskSummary(listOf(
-            profileTask(status = "running", current = 2, total = 5),
-            profileTask(status = "failed", current = 1, total = 5),
-        ))
+            profileTask(status = "running", current = 2, total = 5, updatedAt = now),
+            profileTask(status = "failed", current = 1, total = 5, updatedAt = now),
+        ), nowMs = now)
 
         assertEquals(1, summary.activeCount)
         assertEquals(1, summary.failedCount)
         assertEquals("2/5", summary.progressLabel)
         assertTrue(summary.canOpenFailedTasks)
+    }
+
+    @Test
+    fun profileDoesNotPresentOldFailuresAsCurrentFailures() {
+        val day = 24 * 60 * 60 * 1000L
+        val now = 10 * day
+        val summary = profileTaskSummary(
+            tasks = listOf(
+                profileTask(status = "failed", current = 0, total = 0, updatedAt = now - day - 1),
+                profileTask(status = "succeeded", current = 2, total = 2, updatedAt = now),
+            ),
+            nowMs = now,
+        )
+
+        assertEquals(0, summary.failedCount)
+        assertFalse(summary.canOpenFailedTasks)
     }
 
     @Test
@@ -60,9 +90,9 @@ class ProfileStateTest {
     }
 }
 
-private fun profileTask(status: String, current: Long, total: Long) = AsyncTaskListItem(
+private fun profileTask(status: String, current: Long, total: Long, updatedAt: Long = 0) = AsyncTaskListItem(
     id = 1, type = "remote_article_sync", status = status, progressCurrent = current, progressTotal = total,
-    progressMessage = "", checkpointJson = "", createdAt = 0, startedAt = null, finishedAt = null, updatedAt = 0, lastErrorMessage = "",
+    progressMessage = "", checkpointJson = "", createdAt = 0, startedAt = null, finishedAt = null, updatedAt = updatedAt, lastErrorMessage = "",
 )
 
 private fun profileReminder(date: LocalDate, content: String, hour: Int, rule: ReminderActiveDayRule = ReminderActiveDayRule.Daily, dataIssue: ReminderDataIssue? = null, recurrence: ReminderRecurrence = ReminderRecurrence.Once) = Reminder(

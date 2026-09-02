@@ -47,6 +47,7 @@ class RemoteArticleSyncTaskHandler(
         var inserted = 0
         var updated = 0
         var skipped = 0
+        var successfulSources = 0
         val failures = mutableListOf<String>()
 
         reporter.report(0, sources.size.toLong(), "准备同步远程文章", checkpointJson = """{"mode":"${payload.mode}"}""")
@@ -54,6 +55,7 @@ class RemoteArticleSyncTaskHandler(
             when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
                 is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
                     is RemoteNewsResult.Success -> {
+                        successfulSources += 1
                         val sync = remoteArticleSyncService.syncSourceArticles(source.id, sourceDate, result.value.articles, now)
                         inserted += sync.inserted
                         updated += sync.updated
@@ -73,16 +75,22 @@ class RemoteArticleSyncTaskHandler(
         }
 
         val resultJson = """{"inserted":$inserted,"updated":$updated,"skipped":$skipped,"failureCount":${failures.size}}"""
-        return if (failures.isEmpty() || payload.sourceId == null) {
-            AsyncTaskExecutionResult.Success(resultJson)
-        } else {
-            AsyncTaskExecutionResult.RetryableFailure("remote_article_sync_failed", failures.joinToString("\n"))
-        }
+        return remoteArticleSyncOutcome(successfulSources, failures, resultJson)
     }
 
     companion object {
         const val TYPE = "remote_article_sync"
     }
+}
+
+internal fun remoteArticleSyncOutcome(
+    successfulSources: Int,
+    failures: List<String>,
+    resultJson: String,
+): AsyncTaskExecutionResult = if (successfulSources == 0 && failures.isNotEmpty()) {
+    AsyncTaskExecutionResult.RetryableFailure("remote_article_sync_failed", failures.joinToString("\n"))
+} else {
+    AsyncTaskExecutionResult.Success(resultJson)
 }
 
 fun remoteArticleSyncTaskPayloadJson(mode: String, sourceId: Long? = null): String =

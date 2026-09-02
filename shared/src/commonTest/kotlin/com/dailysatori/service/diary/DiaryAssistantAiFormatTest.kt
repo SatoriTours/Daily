@@ -3,6 +3,7 @@ package com.dailysatori.service.diary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class DiaryAssistantAiFormatTest {
@@ -17,7 +18,7 @@ class DiaryAssistantAiFormatTest {
     }
 
     @Test
-    fun parserStripsCodeFenceAndFallsBackSafely() {
+    fun parserStripsCodeFenceFallsBackSourcesAndRejectsPlainText() {
         val parsed = parseDiaryAssistantAiResponse(
             "```json\n{\"content\":\"补充\",\"sources\":[{\"title\":\"资料\",\"url\":\"ftp://bad\"}]}\n```",
             listOf(DiaryAssistantSource("搜索", "https://search.example")),
@@ -25,9 +26,9 @@ class DiaryAssistantAiFormatTest {
         assertEquals("补充", parsed.content)
         assertEquals(listOf("https://search.example"), parsed.sources.map { it.url })
 
-        val text = parseDiaryAssistantAiResponse("普通回答", listOf(DiaryAssistantSource("搜索", "https://search.example")))
-        assertEquals("普通回答", text.content)
-        assertEquals(listOf("https://search.example"), text.sources.map { it.url })
+        assertFailsWith<DiaryAssistantInvalidResponseException> {
+            parseDiaryAssistantAiResponse("普通回答", listOf(DiaryAssistantSource("搜索", "https://search.example")))
+        }
     }
 
     @Test
@@ -77,5 +78,51 @@ class DiaryAssistantAiFormatTest {
             "正文\n\n来源：[编码地址](<https://example.com/CasePath/a%3Eb?q=encoded%20value>)",
             markdown,
         )
+    }
+
+    @Test
+    fun markdownRemovesEveryModelGeneratedLinkFormFromBody() {
+        val markdown = renderDiaryAssistantMarkdown(
+            "普通 [脚本](javascript:alert(1)) [相对链接](//evil.example/path) [引用][bad] " +
+                "<https://auto.example> <ftp://files.example/a> <alice@example.com> " +
+                "mailto:bob@example.com www.unverified.example。\n[bad]: https://reference.example",
+            emptyList(),
+        )
+
+        assertFalse(markdown.contains("javascript:"))
+        assertFalse(markdown.contains("//evil.example"))
+        assertFalse(markdown.contains("auto.example"))
+        assertFalse(markdown.contains("reference.example"))
+        assertFalse(markdown.contains("files.example"))
+        assertFalse(markdown.contains("@example.com"))
+        assertFalse(markdown.contains("www."))
+        assertFalse(markdown.contains("]("))
+        assertFalse(markdown.contains("]["))
+        assertTrue(markdown.contains("脚本 相对链接 引用"))
+        assertTrue(markdown.endsWith("。"))
+        assertFalse(markdown.contains("脚本)"))
+    }
+
+    @Test
+    fun markdownSanitizerHandlesNestedLabelsWithoutRemovingOrdinaryColonText() {
+        val markdown = renderDiaryAssistantMarkdown(
+            "[外层 [内层]](//evil.example/path) version:2.0 Note:important C:\\notes " +
+                "data:point tel:extension geo:37.422,-122.084 sms:+15551234 " +
+                "[多行\n标签](//multiline.example/path) [转义引用][ref\\]name] " +
+                "[带标题](//quoted.example/path \"标题 (\") " +
+                "（https://bad.example/path）\n[ref\\]name]: //reference-escape.example/path",
+            emptyList(),
+        )
+
+        assertEquals(
+            "外层 [内层] version:2.0 Note:important C:\\notes " +
+                "data:point tel:extension geo:37.422,-122.084 sms:+15551234 多行\n标签 转义引用 带标题 （）",
+            markdown,
+        )
+        assertFalse(markdown.contains("evil.example"))
+        assertFalse(markdown.contains("bad.example"))
+        assertFalse(markdown.contains("multiline.example"))
+        assertFalse(markdown.contains("reference-escape.example"))
+        assertFalse(markdown.contains("quoted.example"))
     }
 }

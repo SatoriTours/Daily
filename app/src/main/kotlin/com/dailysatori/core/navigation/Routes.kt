@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object DataPrivacyRoute
 @Serializable data object ProfileFavoritesRoute
 @Serializable data object ProfileExternalFavoritesRoute
+@Serializable data object RemoteNewsSettingsRoute
 @Serializable data object TaskCenterRoute
 @Serializable data class ArticleDetailRoute(val articleId: Long)
 @Serializable data object BookSearchRoute
@@ -19,4 +20,5 @@ import kotlinx.serialization.Serializable
 @Serializable data class ReminderDetailRoute(val reminderId: String)
 @Serializable data class ReminderEditRoute(val reminderId: String? = null)
 @Serializable data class ReminderRoute(val reminderId: String)
+@Serializable data class ReminderAiBatchRoute(val batchId: String)
 @Serializable data class ShareDialogRoute(val url: String)

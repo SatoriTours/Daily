@@ -168,7 +168,7 @@ class McpAgentPresentationTest {
         assertTrue(service.contains("suspend fun processQueryStreaming("))
         assertTrue(service.contains("onChunk: suspend (String) -> Unit"))
         assertTrue(service.contains("chatCompletionStreaming("))
-        assertTrue(service.contains("return processQuery(query, onStep)"))
+        assertTrue(service.contains("return processQuery(query, onStep, reminderDrafts)"))
     }
 
     @Test

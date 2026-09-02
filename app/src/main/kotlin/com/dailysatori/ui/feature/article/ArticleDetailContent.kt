@@ -2,6 +2,13 @@ package com.dailysatori.ui.feature.article
 
 import com.dailysatori.service.parser.normalizeArticleMarkdownImages
 
+private val MarkdownHeadingRegex = Regex("""#{1,6}\s+.+""")
+private val ExcessiveMarkdownNewlinesRegex = Regex("\n{3,}")
+private val MalformedImagePlaceholderRegex = Regex(
+    """[!！](?:\[[^]]*]|图片|配图|插图|图像|image|photo|figure)""",
+    RegexOption.IGNORE_CASE,
+)
+
 internal fun articleDetailPageContent(
     page: Int,
     summary: String?,
@@ -22,10 +29,10 @@ private fun String?.normalizedSummaryMarkdownOrFallback(fallback: String): Strin
     if (content == fallback) return content
     val cleaned = content
         .lines()
-        .dropWhile { line -> line.trim().isBlank() || line.trim().matches(Regex("""#{1,6}\s+.+""")) }
+        .dropWhile { line -> line.trim().isBlank() || line.trim().matches(MarkdownHeadingRegex) }
         .filterNot { line -> line.trim().matches(generatedSummaryGuideHeadingRegex) }
         .joinToString("\n")
-        .replace(Regex("\n{3,}"), "\n\n")
+        .replace(ExcessiveMarkdownNewlinesRegex, "\n\n")
         .trim()
     return cleaned.ifBlank { content }
 }
@@ -41,6 +48,6 @@ private val generatedSummaryGuideHeadingRegex = Regex(
 )
 
 private fun String.hasMalformedImagePlaceholder(): Boolean =
-    Regex("""[!！](?:\[[^]]*]|图片|配图|插图|图像|image|photo|figure)""", RegexOption.IGNORE_CASE).containsMatchIn(this)
+    MalformedImagePlaceholderRegex.containsMatchIn(this)
 
 internal fun canManuallyRefreshArticle(isRefreshing: Boolean, articleStatus: String?): Boolean = true

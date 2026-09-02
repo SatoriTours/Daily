@@ -22,6 +22,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -57,10 +59,11 @@ class DiaryViewModel(
     val state: StateFlow<DiaryState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
-    private val attachmentJobs = mutableMapOf<Long, Job>()
+    private val visibleDiaryIds = MutableStateFlow<List<Long>>(emptyList())
 
     init {
         val recoveryCutoff = Clock.System.now().toEpochMilliseconds()
+        observeAttachments()
         loadDiaries()
         observeMonthSummaries()
         observeRecording()
@@ -82,22 +85,17 @@ class DiaryViewModel(
         }
     }
 
-    private fun observeAttachments(diaries: List<Diary>) {
+    private fun observeAttachments() {
         val repository = attachmentRepo ?: return
-        val diaryIds = diaries.mapTo(mutableSetOf()) { it.id }
-        attachmentJobs.keys.filterNot(diaryIds::contains).forEach { id ->
-            attachmentJobs.remove(id)?.cancel()
-            _state.update { it.copy(attachmentsByDiary = it.attachmentsByDiary - id) }
-        }
-        diaries.forEach { diary ->
-            if (attachmentJobs.containsKey(diary.id)) return@forEach
-            attachmentJobs[diary.id] = viewModelScope.launch(Dispatchers.IO) {
-                repository.observeForDiary(diary.id).collect { attachments ->
-                    _state.update {
-                        it.copy(attachmentsByDiary = it.attachmentsByDiary + (diary.id to attachments))
-                    }
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeAll()
+                .map { attachments -> attachments.groupBy { it.diary_id } }
+                .combine(visibleDiaryIds) { attachments, diaryIds ->
+                    diaryIds.associateWith { attachments[it].orEmpty() }
                 }
-            }
+                .collect { attachmentsByDiary ->
+                    _state.update { it.copy(attachmentsByDiary = attachmentsByDiary) }
+                }
         }
     }
 
@@ -135,7 +133,7 @@ class DiaryViewModel(
                     diaries
                 }
                 _state.update { it.copy(diaries = filtered, isLoading = false) }
-                observeAttachments(filtered)
+                visibleDiaryIds.value = filtered.map { it.id }
             }
         }
     }

@@ -536,6 +536,51 @@ ON async_task(unique_key, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_async_task_batch
 ON async_task(batch_id);
 
+CREATE TABLE reminder_ai_batch (
+    id TEXT PRIMARY KEY NOT NULL,
+    parent_batch_id TEXT,
+    original_input TEXT NOT NULL,
+    normalized_key TEXT NOT NULL,
+    time_zone_id TEXT NOT NULL,
+    local_date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    task_id INTEGER,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    last_attempt_at INTEGER,
+    error_summary TEXT NOT NULL DEFAULT '',
+    terminal_notification_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_ai_batch_active_key
+ON reminder_ai_batch(normalized_key, time_zone_id, local_date)
+WHERE status IN ('PARSING', 'RUNNING');
+
+CREATE INDEX IF NOT EXISTS idx_reminder_ai_batch_status_updated ON reminder_ai_batch(status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_reminder_ai_batch_task ON reminder_ai_batch(task_id);
+
+CREATE TABLE reminder_ai_draft (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT NOT NULL REFERENCES reminder_ai_batch(id) ON DELETE CASCADE,
+    source_index INTEGER NOT NULL,
+    source_text TEXT NOT NULL,
+    draft_json TEXT NOT NULL,
+    override_json TEXT NOT NULL DEFAULT '',
+    selected INTEGER NOT NULL DEFAULT 1,
+    discarded INTEGER NOT NULL DEFAULT 0,
+    confirmation_state TEXT NOT NULL DEFAULT 'PENDING',
+    reminder_id TEXT,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    confirmed_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(batch_id, source_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reminder_ai_draft_batch_source ON reminder_ai_draft(batch_id, source_index ASC);
+
 -- Session
 CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -798,6 +843,75 @@ SELECT COUNT(*) FROM article;
 selectAsyncTaskById:
 SELECT * FROM async_task WHERE id = ?;
 
+selectReminderAiBatchById:
+SELECT * FROM reminder_ai_batch WHERE id = ?;
+
+selectActiveReminderAiBatch:
+SELECT * FROM reminder_ai_batch
+WHERE normalized_key = ? AND time_zone_id = ? AND local_date = ?
+  AND status IN ('PARSING', 'RUNNING')
+LIMIT 1;
+
+selectReminderAiDraftsByBatchId:
+SELECT * FROM reminder_ai_draft WHERE batch_id = ? ORDER BY source_index ASC, id ASC;
+
+insertReminderAiBatch:
+INSERT INTO reminder_ai_batch(id, parent_batch_id, original_input, normalized_key, time_zone_id, local_date, status, task_id, attempt_count, max_attempts, last_attempt_at, error_summary, terminal_notification_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+markReminderAiBatchRunning:
+UPDATE reminder_ai_batch SET status = 'RUNNING', task_id = ?, attempt_count = ?, last_attempt_at = ?, updated_at = ?
+WHERE id = ? AND status IN ('PARSING', 'RUNNING');
+
+markReminderAiBatchReady:
+UPDATE reminder_ai_batch SET status = 'READY_FOR_CONFIRMATION', error_summary = '', updated_at = ?
+WHERE id = ? AND status IN ('PARSING', 'RUNNING');
+
+markReminderAiBatchFailed:
+UPDATE reminder_ai_batch SET status = 'PARSE_FAILED', error_summary = ?, updated_at = ?
+WHERE id = ? AND status IN ('PARSING', 'RUNNING');
+
+restartFailedReminderAiBatch:
+UPDATE reminder_ai_batch
+SET status = 'PARSING', task_id = NULL, attempt_count = 0, last_attempt_at = NULL,
+    error_summary = '', terminal_notification_at = NULL, updated_at = ?
+WHERE id = ? AND status = 'PARSE_FAILED';
+
+discardReadyReminderAiBatch:
+UPDATE reminder_ai_batch SET status = 'DISCARDED', updated_at = ?
+WHERE id = ? AND status = 'READY_FOR_CONFIRMATION';
+
+deleteReminderAiDraftsByBatchId:
+DELETE FROM reminder_ai_draft WHERE batch_id = ?;
+
+insertReminderAiDraft:
+INSERT INTO reminder_ai_draft(batch_id, source_index, source_text, draft_json, override_json, selected, discarded, confirmation_state, reminder_id, confirmed, confirmed_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, '', 1, 0, 'PENDING', NULL, 0, NULL, ?, ?);
+
+updateReminderAiDraftUiState:
+UPDATE reminder_ai_draft SET override_json = ?, selected = ?, discarded = ?, updated_at = ?
+WHERE batch_id = ? AND source_index = ? AND confirmed = 0;
+
+markReminderAiDraftSchedulingFailed:
+UPDATE reminder_ai_draft SET confirmation_state = 'SCHEDULING_FAILED', reminder_id = ?, updated_at = ?
+WHERE batch_id = ? AND source_index = ? AND confirmed = 0;
+
+markReminderAiDraftConfirmed:
+UPDATE reminder_ai_draft SET confirmed = 1, selected = 0, confirmation_state = 'CONFIRMED', reminder_id = ?, confirmed_at = ?, updated_at = ? WHERE batch_id = ? AND source_index = ? AND confirmed = 0;
+
+attachReminderAiBatchTask:
+UPDATE reminder_ai_batch SET task_id = ?, updated_at = ? WHERE id = ? AND task_id IS NULL AND status = 'PARSING';
+
+selectOrphanReminderAiBatches:
+SELECT * FROM reminder_ai_batch WHERE status = 'PARSING' AND task_id IS NULL ORDER BY created_at ASC;
+
+markReminderAiBatchConfirmed:
+UPDATE reminder_ai_batch SET status = 'CONFIRMED', updated_at = ? WHERE id = ? AND status = 'READY_FOR_CONFIRMATION';
+
+claimReminderAiBatchTerminalNotification:
+UPDATE reminder_ai_batch SET terminal_notification_at = ?, updated_at = ?
+WHERE id = ? AND terminal_notification_at IS NULL AND status IN ('READY_FOR_CONFIRMATION', 'PARSE_FAILED');
+
 selectAsyncTaskByUniqueKey:
 SELECT * FROM async_task WHERE unique_key = ? ORDER BY created_at DESC, id DESC LIMIT 1;
 
@@ -871,6 +985,13 @@ WHERE type = :task_type
   AND status = 'retrying'
   AND run_after_ms IS NOT NULL
   AND run_after_ms > :after_ms;
+
+selectFutureRetryingAsyncTasks:
+SELECT * FROM async_task
+WHERE status = 'retrying'
+  AND run_after_ms IS NOT NULL
+  AND run_after_ms > ?
+ORDER BY run_after_ms ASC;
 
 insertAsyncTask:
 INSERT INTO async_task (
@@ -1263,6 +1384,9 @@ INSERT INTO diary_attachment (
 selectAttachmentsForDiary:
 SELECT * FROM diary_attachment WHERE diary_id = ? ORDER BY created_at ASC, id ASC;
 
+selectAllDiaryAttachments:
+SELECT * FROM diary_attachment ORDER BY diary_id ASC, created_at ASC, id ASC;
+
 selectDiaryAttachmentById:
 SELECT * FROM diary_attachment WHERE id = ?;
 
@@ -1411,6 +1535,9 @@ SELECT * FROM remote_news_source ORDER BY created_at ASC;
 selectEnabledRemoteNewsSources:
 SELECT * FROM remote_news_source WHERE enabled = 1 ORDER BY created_at ASC;
 
+countEnabledRemoteNewsSources:
+SELECT COUNT(*) FROM remote_news_source WHERE enabled = 1;
+
 selectRemoteNewsSourceById:
 SELECT * FROM remote_news_source WHERE id = ?;
 
@@ -1448,6 +1575,12 @@ selectRemoteArticleSyncMappingsBySourceDate:
 SELECT * FROM remote_article_sync_item
 WHERE remote_source_id = ? AND source_date = ?
 ORDER BY last_seen_at DESC;
+
+selectLatestRemoteArticleSyncMappingsBySource:
+SELECT * FROM remote_article_sync_item
+WHERE remote_source_id = ?
+ORDER BY last_seen_at DESC
+LIMIT ?;
 
 selectRemoteArticleSyncItemsBySourceDate:
 SELECT article.* FROM article

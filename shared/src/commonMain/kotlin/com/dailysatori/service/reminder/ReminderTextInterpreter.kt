@@ -5,6 +5,7 @@ import com.dailysatori.service.ai.AiService
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.Clock
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -25,10 +26,25 @@ interface ReminderInterpretationRemote {
     suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String
 }
 
+data class ReminderBatchRemoteTiming(
+    val configMs: Long,
+    val requestMs: Long,
+    val response: String? = null,
+    val error: Throwable? = null,
+)
+
+interface TimedReminderInterpretationRemote {
+    suspend fun interpretBatchTimed(
+        fragments: List<ReminderInputFragment>,
+        now: Instant,
+        zone: TimeZone,
+    ): ReminderBatchRemoteTiming
+}
+
 class ReminderAiInterpretationRemote(
     private val aiService: AiService,
     private val configRepository: AIConfigRepository,
-) : ReminderInterpretationRemote {
+) : ReminderInterpretationRemote, TimedReminderInterpretationRemote {
     override suspend fun interpret(text: String, now: Instant, zone: TimeZone): String {
         val config = configRepository.getDefault() ?: error("AI is not configured")
         return aiService.complete(
@@ -42,7 +58,20 @@ class ReminderAiInterpretationRemote(
     }
 
     override suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String {
-        val config = configRepository.getDefault() ?: error("AI is not configured")
+        val timed = interpretBatchTimed(fragments, now, zone)
+        timed.error?.let { throw it }
+        return requireNotNull(timed.response)
+    }
+
+    override suspend fun interpretBatchTimed(
+        fragments: List<ReminderInputFragment>,
+        now: Instant,
+        zone: TimeZone,
+    ): ReminderBatchRemoteTiming {
+        val configStarted = Clock.System.now().toEpochMilliseconds()
+        val config = runCatching { configRepository.getDefault() ?: error("AI is not configured") }
+            .getOrElse { return ReminderBatchRemoteTiming(Clock.System.now().toEpochMilliseconds() - configStarted, 0, error = it) }
+        val configMs = Clock.System.now().toEpochMilliseconds() - configStarted
         val input = buildJsonArray {
             fragments.forEach { fragment ->
                 add(buildJsonObject {
@@ -51,13 +80,16 @@ class ReminderAiInterpretationRemote(
                 })
             }
         }
-        return aiService.complete(
-            prompt = """Convert every structured reminder below into a strict JSON array only. Each array element must include source_index copied exactly from the input plus these required fields: content, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), first_reminder_time (HH:MM), active_day_rule (daily), recurrence_rule (once|monthly:<day>|yearly:<month>:<day>:FEBRUARY_28). Current instant: $now. Timezone: ${zone.id}. Input: $input""",
-            apiAddress = config.api_address,
-            apiToken = config.api_token,
-            modelName = config.model_name,
-            provider = config.provider,
-            temperature = 0.0,
+        val requestStarted = Clock.System.now().toEpochMilliseconds()
+        return runCatching {
+            aiService.complete(
+                prompt = """Convert every structured reminder below into a strict JSON array only. Each array element must include source_index copied exactly from the input plus these required fields: content, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), first_reminder_time (HH:MM), active_day_rule (daily), recurrence_rule (once|monthly:<day>|yearly:<month>:<day>:FEBRUARY_28). Current instant: $now. Timezone: ${zone.id}. Input: $input""",
+                apiAddress = config.api_address, apiToken = config.api_token, modelName = config.model_name,
+                provider = config.provider, temperature = 0.0,
+            )
+        }.fold(
+            onSuccess = { ReminderBatchRemoteTiming(configMs, Clock.System.now().toEpochMilliseconds() - requestStarted, response = it) },
+            onFailure = { ReminderBatchRemoteTiming(configMs, Clock.System.now().toEpochMilliseconds() - requestStarted, error = it) },
         )
     }
 }
@@ -87,13 +119,38 @@ class ReminderTextInterpreter(
         return batchMutex.withLock {
             batchCache[key]?.let { return@withLock it }
             if (fragments.isEmpty()) return@withLock failedBatch(normalized, "Reminder text is empty")
-            val local = fragments.associateWith { parseLocally(it.text, now, zone) }
-            val unresolved = fragments.filter { local[it] == null }
-            val remote = if (unresolved.isEmpty()) RemoteBatchParse(emptyMap()) else parseBatchRemotely(unresolved, now, zone)
-            mergeBatch(fragments, local, remote, normalized, now, zone).also { result ->
+            val remote = parseBatchRemotely(fragments, now, zone)
+            mergeBatch(fragments, remote, normalized, now, zone).also { result ->
                 if (result.failure == null && result.items.none { it.interpretation.failure != null }) batchCache[key] = result
             }
         }
+    }
+
+    /** Strict AI-only batch parsing for durable background work; it has no UI fallback state. */
+    suspend fun parseBatchForPersistence(
+        fragments: List<ReminderInputFragment>,
+        now: Instant,
+        zone: TimeZone,
+    ): List<ReminderBatchRemoteDraft> {
+        if (fragments.isEmpty()) throw ReminderAiBatchResponseException("Reminder text is empty")
+        val response = remote?.interpretBatch(fragments, now, zone) ?: error("AI is not configured")
+        val decoded = batchCodec.decode(response, zone)
+        val expected = fragments.map { it.index }.toSet()
+        val indexes = decoded.drafts.map { it.sourceIndex }
+        val duplicates = indexes.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        val unexpected = indexes.filterNot(expected::contains).toSet()
+        val missing = expected - indexes.toSet()
+        val invalidDraft = decoded.drafts.firstOrNull { it.draft.validationErrors.isNotEmpty() }
+        val error = when {
+            decoded.failure != null -> decoded.failure
+            duplicates.isNotEmpty() -> "Batch response contains duplicate source_index ${duplicates.sorted().joinToString()}"
+            unexpected.isNotEmpty() -> "Batch response contains out-of-range source_index ${unexpected.sorted().joinToString()}"
+            missing.isNotEmpty() -> "Batch response is missing source_index ${missing.sorted().joinToString()}"
+            invalidDraft != null -> "Batch response contains invalid reminder fields for source_index ${invalidDraft.sourceIndex}"
+            else -> null
+        }
+        if (error != null) throw ReminderAiBatchResponseException(error)
+        return decoded.drafts.sortedBy { it.sourceIndex }
     }
 
     private fun parseLocally(text: String, now: Instant, zone: TimeZone): ReminderInterpretation? {
@@ -180,7 +237,6 @@ class ReminderTextInterpreter(
 
     private fun mergeBatch(
         fragments: List<ReminderInputFragment>,
-        local: Map<ReminderInputFragment, ReminderInterpretation?>,
         remote: RemoteBatchParse,
         normalized: String,
         now: Instant,
@@ -195,7 +251,7 @@ class ReminderTextInterpreter(
                     id = "${batchId}_${fragment.index}",
                     sourceIndex = fragment.index,
                     sourceText = fragment.text,
-                    interpretation = local[fragment] ?: remote.results[fragment.index]
+                    interpretation = remote.results[fragment.index]
                         ?: failedDraft(fragment.text, now, zone, "Batch response is missing source_index ${fragment.index}"),
                 )
             },
@@ -275,3 +331,5 @@ class ReminderTextInterpreter(
         val DATE_PATTERN = Regex("""(\d{1,2})月(\d{1,2})日(?:(?:晚上|下午)?(\d{1,2})点(?:(\d{1,2})分?)?)?提醒我(.+)""")
     }
 }
+
+class ReminderAiBatchResponseException(message: String) : IllegalArgumentException(message)

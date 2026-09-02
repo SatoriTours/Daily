@@ -85,6 +85,9 @@ class DiaryAttachmentRepository(
         return q.selectAttachmentsForDiary(diaryId).asFlow().mapToList(Dispatchers.IO)
     }
 
+    fun observeAll(): Flow<List<Diary_attachment>> =
+        q.selectAllDiaryAttachments().asFlow().mapToList(Dispatchers.IO)
+
     fun getById(id: Long): Diary_attachment? = q.selectDiaryAttachmentById(id).executeAsOneOrNull()
 
     fun getForDiary(diaryId: Long): List<Diary_attachment> =

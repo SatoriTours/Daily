@@ -67,12 +67,12 @@ class HomeIaTest {
     }
 
     @Test
-    fun settingsPageHidesHomeBottomBarOverlay() {
+    fun homeBottomBarOnlyRendersInsideHomeTabs() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val bottomBarGate = source.substringAfter("if (!showMy && homeBottomBarVisibleForTab(selectedIndex))")
+        val bottomBarGate = source.substringAfter("if (homeBottomBarVisibleForTab(selectedIndex))")
 
         assertTrue(bottomBarGate.contains("HomeBottomBarSurface("))
-        assertFalse(source.contains("if (homeBottomBarVisibleForTab(selectedIndex))"))
+        assertFalse(source.contains("showMy"))
     }
 
     private fun String.extractCallBlock(anchor: String): String {

@@ -28,7 +28,7 @@ class TaskCenterScreenSourceTest {
         assertFalse(source.contains("默认显示未完成任务"))
         assertTrue(source.contains("任务类型"))
         assertTrue(source.contains("任务状态"))
-        assertFalse(source.contains("历史"))
+        assertFalse(source.contains("历史任务筛选"))
         assertFalse(source.contains("Switch("))
         assertFalse(source.contains("showTerminal"))
         assertTrue(source.contains("TaskCenterFilterBar"))
@@ -78,7 +78,15 @@ class TaskCenterScreenSourceTest {
         assertTrue(viewModel.contains("selectedTaskId"))
         assertTrue(viewModel.contains("repository.observeTaskById(id)"))
         assertTrue(viewModel.contains("logStore.observe(id)"))
+        assertTrue(screen.contains("这是历史失败记录，后续同类任务已经成功完成"))
         assertFalse(viewModel.contains("selected.value = repository.getById(taskId) to logStore.read(taskId)"))
+    }
+
+    @Test
+    fun laterSuccessfulTaskMarksOldFailureAsSuperseded() {
+        assertTrue(taskFailureIsSuperseded(110, "failed", 118, "succeeded"))
+        assertFalse(taskFailureIsSuperseded(118, "succeeded", 118, "succeeded"))
+        assertFalse(taskFailureIsSuperseded(110, "failed", 119, "failed"))
     }
 
     @Test

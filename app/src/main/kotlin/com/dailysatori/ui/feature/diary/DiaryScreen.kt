@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,10 +65,8 @@ import com.dailysatori.core.util.diaryDateCountLabel
 import com.dailysatori.core.util.diaryDateDayNumber
 import com.dailysatori.core.util.diaryDateMonthLabel
 import com.dailysatori.core.util.diaryDateWeekLabel
-import com.dailysatori.core.util.diaryDayKey
 import com.dailysatori.core.util.diaryImagePaths
 import com.dailysatori.core.util.diaryMonthDayLabel
-import com.dailysatori.core.util.diaryMonthKey
 import com.dailysatori.core.util.diaryMonthSummary
 import com.dailysatori.core.util.diaryMonthTitle
 import com.dailysatori.shared.db.Diary
@@ -88,6 +85,7 @@ import org.koin.androidx.compose.koinViewModel
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.core.recording.DiaryRecordingNotification
 import com.dailysatori.core.recording.DiaryRecordingOpenRequest
+import java.util.TimeZone
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -147,6 +145,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     val diaryListState = rememberLazyListState()
     val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
     val newestDiaryId = state.diaries.firstOrNull()?.id
+    val timeZoneId = TimeZone.getDefault().id
+    val feedEntries = remember(state.diaries, timeZoneId) { buildDiaryFeedEntries(state.diaries) }
     var recordingWasActive by remember { mutableStateOf(false) }
     LaunchedEffect(newestDiaryId) {
         if (newestDiaryId != null) diaryListState.animateScrollToItem(0)
@@ -276,17 +276,20 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                         contentPadding = PaddingValues(top = Spacing.s, bottom = 112.dp),
                         verticalArrangement = Arrangement.spacedBy(Spacing.s),
                     ) {
-                        itemsIndexed(state.diaries, key = { _, diary -> diary.id }) { index, diary ->
-                            val hasMonthHeader = index == 0 || diaryMonthKey(state.diaries[index - 1]) != diaryMonthKey(diary)
-                            val dayDiaryCount = state.diaries.count { diaryDayKey(it) == diaryDayKey(diary) }
-                            if (hasMonthHeader) {
+                        items(feedEntries, key = { it.diary.id }) { entry ->
+                            val diary = entry.diary
+                            if (entry.showMonthHeader) {
                                 DiaryMonthHeader(
-                                    diaries = state.diaries.filter { diaryMonthKey(it) == diaryMonthKey(diary) },
-                                    summary = state.monthSummaries[diaryMonthKey(diary)],
+                                    diaries = checkNotNull(entry.monthDiaries),
+                                    summary = state.monthSummaries[entry.monthKey],
                                 )
                             }
-                            if (index == 0 || diaryDayKey(state.diaries[index - 1]) != diaryDayKey(diary)) {
-                                DiaryDateHeader(diary = diary, dayDiaryCount = dayDiaryCount, hasMonthHeader = hasMonthHeader)
+                            if (entry.showDateHeader) {
+                                DiaryDateHeader(
+                                    diary = diary,
+                                    dayDiaryCount = entry.dayDiaryCount,
+                                    hasMonthHeader = entry.showMonthHeader,
+                                )
                             }
                             DiaryCard(
                                 diary = diary,

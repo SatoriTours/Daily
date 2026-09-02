@@ -5,14 +5,14 @@ import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
-import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.security.SecretValueCipher
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.QueryResult
 
 class DatabaseMigration(
     private val driver: SqlDriver,
     private val settingRepo: SettingRepository,
-    private val secretCipher: SecretCipher,
+    private val secretCipher: SecretValueCipher,
 ) {
     private val log = Logger.withTag("DBMigration")
 
@@ -96,6 +96,15 @@ class DatabaseMigration(
         }
         if (currentVersion < 24) {
             migrateV23ToV24()
+        }
+        if (currentVersion < 25) {
+            migrateV24ToV25()
+        }
+        if (currentVersion < 26) {
+            migrateV25ToV26()
+        }
+        if (currentVersion < 27) {
+            migrateV26ToV27()
         }
 
         // After migrations, update version
@@ -967,6 +976,35 @@ class DatabaseMigration(
         migrateReminderRecurrenceSchema(::runSql)
     }
 
+    private fun migrateV24ToV25() {
+        log.i { "Migration V24 -> V25: Reminder AI batches" }
+        migrateReminderAiBatchSchema(::runSql)
+    }
+
+    private fun migrateV25ToV26() {
+        log.i { "Migration V25 -> V26: Reminder AI retry lineage" }
+        try { runSql("ALTER TABLE reminder_ai_batch ADD COLUMN parent_batch_id TEXT") }
+        catch (e: Exception) { log.w(e) { "Could not add reminder AI parent batch column" } }
+    }
+
+    private fun migrateV26ToV27() {
+        log.i { "Migration V26 -> V27: durable reminder AI confirmation state" }
+        addColumnIfMissing("reminder_ai_draft", "override_json", "TEXT NOT NULL DEFAULT ''")
+        addColumnIfMissing("reminder_ai_draft", "selected", "INTEGER NOT NULL DEFAULT 1")
+        addColumnIfMissing("reminder_ai_draft", "discarded", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing("reminder_ai_draft", "confirmation_state", "TEXT NOT NULL DEFAULT 'PENDING'")
+        addColumnIfMissing("reminder_ai_draft", "reminder_id", "TEXT")
+    }
+
+    private fun addColumnIfMissing(table: String, column: String, definition: String) {
+        var exists = false
+        driver.executeQuery<Unit>(0, "PRAGMA table_info($table)", { cursor ->
+            while (cursor.next().value) if (cursor.getString(1) == column) exists = true
+            QueryResult.Value(Unit)
+        }, 0)
+        if (!exists) runSql("ALTER TABLE $table ADD COLUMN $column $definition")
+    }
+
     private fun getCurrentVersion(): Long {
         return settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0L
     }
@@ -1060,6 +1098,17 @@ class DatabaseMigration(
 
         internal fun migrateReminderRecurrenceSchema(runSql: (String) -> Unit) {
             runSql("ALTER TABLE reminder ADD COLUMN recurrence_rule TEXT NOT NULL DEFAULT 'once'")
+        }
+
+        internal fun migrateReminderAiBatchSchema(runSql: (String) -> Unit) {
+            listOf(
+                """CREATE TABLE IF NOT EXISTS reminder_ai_batch (id TEXT PRIMARY KEY NOT NULL, original_input TEXT NOT NULL, normalized_key TEXT NOT NULL, time_zone_id TEXT NOT NULL, local_date TEXT NOT NULL, status TEXT NOT NULL, task_id INTEGER, attempt_count INTEGER NOT NULL DEFAULT 0, max_attempts INTEGER NOT NULL DEFAULT 3, last_attempt_at INTEGER, error_summary TEXT NOT NULL DEFAULT '', terminal_notification_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)""",
+                """CREATE TABLE IF NOT EXISTS reminder_ai_draft (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL REFERENCES reminder_ai_batch(id) ON DELETE CASCADE, source_index INTEGER NOT NULL, source_text TEXT NOT NULL, draft_json TEXT NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0, confirmed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(batch_id, source_index))""",
+                """CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_ai_batch_active_key ON reminder_ai_batch(normalized_key, time_zone_id, local_date) WHERE status IN ('PARSING', 'RUNNING')""",
+                "CREATE INDEX IF NOT EXISTS idx_reminder_ai_batch_status_updated ON reminder_ai_batch(status, updated_at DESC)",
+                "CREATE INDEX IF NOT EXISTS idx_reminder_ai_batch_task ON reminder_ai_batch(task_id)",
+                "CREATE INDEX IF NOT EXISTS idx_reminder_ai_draft_batch_source ON reminder_ai_draft(batch_id, source_index ASC)",
+            ).forEach(runSql)
         }
     }
 }

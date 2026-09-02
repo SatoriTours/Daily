@@ -23,6 +23,7 @@ import com.dailysatori.ui.feature.profile.ProfileScreen
 import com.dailysatori.ui.feature.article.ArticleListScreen
 import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterScreen
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
+import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogScreen
@@ -82,6 +83,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onFavorites = { navController.navigate(ProfileFavoritesRoute) },
                 onExternalFavorites = { navController.navigate(ProfileExternalFavoritesRoute) },
+                onRemoteNews = { navController.navigate(RemoteNewsSettingsRoute) },
                 onTasks = { navController.navigate(TaskCenterRoute) },
                 onSettings = { navController.navigate(SettingsRoute) },
                 onPrivacy = { navController.navigate(DataPrivacyRoute) },
@@ -97,6 +99,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             )
         }
         composable<ProfileExternalFavoritesRoute> { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
+        composable<RemoteNewsSettingsRoute> { RemoteNewsSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<TaskCenterRoute> { TaskCenterScreen(onBack = { navController.popBackStack() }) }
 
         composable<ArticleDetailRoute>(
@@ -266,6 +269,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 reminderId = route.reminderId,
                 onBack = { navController.popBackStack() },
                 onSaved = { id -> navController.navigate(ReminderDetailRoute(id)) { popUpTo<ReminderEditRoute> { inclusive = true } } },
+                onBatchSubmitted = { batchId -> navController.navigate(ReminderAiBatchRoute(batchId)) },
             )
         }
 
@@ -275,6 +279,15 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 reminderId = route.reminderId,
                 onBack = { navController.popBackStack() },
                 onEdit = { id -> navController.navigate(ReminderEditRoute(id)) },
+            )
+        }
+
+        composable<ReminderAiBatchRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ReminderAiBatchRoute>()
+            com.dailysatori.ui.feature.reminder.ReminderAiBatchScreen(
+                batchId = route.batchId,
+                onBack = { navController.popBackStack() },
+                onOpenSuccessor = { batchId -> navController.navigate(ReminderAiBatchRoute(batchId)) },
             )
         }
 

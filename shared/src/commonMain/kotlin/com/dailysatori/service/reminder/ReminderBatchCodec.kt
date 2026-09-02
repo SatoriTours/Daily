@@ -36,4 +36,6 @@ class ReminderBatchCodec(
         }
         return ReminderBatchDecodedResponse(drafts, errors.takeIf { it.isNotEmpty() }?.joinToString("; "))
     }
+
+    fun encode(draft: ReminderBatchRemoteDraft): String = draftCodec.encode(draft.draft)
 }

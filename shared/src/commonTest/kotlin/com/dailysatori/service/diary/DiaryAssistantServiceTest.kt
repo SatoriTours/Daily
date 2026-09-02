@@ -43,6 +43,19 @@ class DiaryAssistantServiceTest {
     }
 
     @Test
+    fun modelOnlyFallbackRemovesInlineModelGeneratedLinks() = runBlocking {
+        val result = assistant(
+            aiText = """{"content":"可参考 [伪造资料](https://invented.example/path) 或 https://other.example/token?q=secret","sources":[]}""",
+        ).run(
+            DiaryAssistantRequest(selectedText = "某个概念", allowModelKnowledgeFallback = true),
+        )
+
+        assertEquals(DiaryAssistantVerification.MODEL_ONLY, result.verification)
+        assertEquals("可参考 伪造资料 或", result.content)
+        assertFalse(result.content.contains("http"))
+    }
+
+    @Test
     fun unusableHttpLookingSearchTextStillRequiresFallbackConsent() = runBlocking {
         val service = assistant(searchNotes = "坏链接：https:///missing-host")
 
@@ -84,6 +97,18 @@ class DiaryAssistantServiceTest {
 
         assertEquals(DiaryAssistantVerification.PAGE_EXTRACTED, result.verification)
         assertEquals(listOf("https://example.com/post"), result.sources.map { it.url })
+    }
+
+    @Test
+    fun linkSummaryRemovesInlineUrlsAndRendersOnlyConfirmedSource() = runBlocking {
+        val result = assistant(
+            aiText = """{"content":"摘要含 [钓鱼链接](https://evil.example/login) 和 https://invented.example","sources":[]}""",
+        ).run(DiaryAssistantRequest(selectedText = "链接", url = "https://example.com/post"))
+
+        assertFalse(result.content.contains("evil.example"))
+        assertFalse(result.content.contains("invented.example"))
+        assertEquals(1, result.content.split("](<https://").size - 1)
+        assertTrue(result.content.contains("](<https://example.com/post>)"))
     }
 
     @Test
@@ -219,6 +244,87 @@ class DiaryAssistantServiceTest {
             service.run(DiaryAssistantRequest(selectedText = "概念"))
         }
         Unit
+    }
+
+    @Test
+    fun malformedAiJsonIsRejectedInsteadOfInsertedAsRawText() = runBlocking {
+        val service = assistant(searchNotes = "https://source.example/a", aiText = "这不是 JSON")
+
+        val error = assertFailsWith<IllegalStateException> {
+            service.run(DiaryAssistantRequest(selectedText = "概念"))
+        }
+
+        assertTrue(error.message.orEmpty().contains("格式"))
+    }
+
+    @Test
+    fun lenientNonStandardJsonIsRejected() = runBlocking {
+        val service = assistant(searchNotes = "https://source.example/a", aiText = "{content:说明,sources:[]}")
+
+        assertFailsWith<DiaryAssistantInvalidResponseException> {
+            service.run(DiaryAssistantRequest(selectedText = "概念"))
+        }
+        Unit
+    }
+
+    @Test
+    fun oversizedAiOutputIsRejectedInsteadOfTruncated() = runBlocking {
+        val service = assistant(
+            searchNotes = "https://source.example/a",
+            aiText = """{"content":"${"x".repeat(12_001)}","sources":[]}""",
+        )
+
+        val error = assertFailsWith<IllegalStateException> {
+            service.run(DiaryAssistantRequest(selectedText = "概念"))
+        }
+
+        assertTrue(error.message.orEmpty().contains("过长"))
+    }
+
+    @Test
+    fun oversizedSelectionIsRejectedWithoutSilentTruncation() = runBlocking {
+        val service = assistant(searchNotes = "https://source.example/a")
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            service.run(DiaryAssistantRequest(selectedText = "x".repeat(8_001)))
+        }
+
+        assertTrue(error.message.orEmpty().contains("8,000"))
+    }
+
+    @Test
+    fun externalEvidenceAndPageMetadataAreBoundedBeforeAiCall() = runBlocking {
+        val evidenceTail = "EVIDENCE_TAIL_SENTINEL"
+        var knowledgePrompt = ""
+        assistant(
+            searchNotes = "https://source.example/a " + "e".repeat(16_000) + evidenceTail,
+            complete = { prompt, _ ->
+                knowledgePrompt = prompt
+                """{"content":"说明","sources":[]}"""
+            },
+        ).run(DiaryAssistantRequest(selectedText = "概念"))
+        assertFalse(knowledgePrompt.contains(evidenceTail))
+
+        val titleTail = "TITLE_TAIL_SENTINEL"
+        val authorTail = "AUTHOR_TAIL_SENTINEL"
+        val bodyTail = "BODY_TAIL_SENTINEL"
+        var linkPrompt = ""
+        assistant(
+            linkMaterial = DiaryLinkMaterial(
+                url = "https://example.com/post",
+                title = "t".repeat(300) + titleTail,
+                author = "a".repeat(100) + authorTail,
+                text = "b".repeat(16_000) + bodyTail,
+                extraction = DiaryAssistantExtraction.FULL_TEXT,
+            ),
+            complete = { prompt, _ ->
+                linkPrompt = prompt
+                """{"content":"摘要","sources":[]}"""
+            },
+        ).run(DiaryAssistantRequest(selectedText = "链接", url = "https://example.com/post"))
+        assertFalse(linkPrompt.contains(titleTail))
+        assertFalse(linkPrompt.contains(authorTail))
+        assertFalse(linkPrompt.contains(bodyTail))
     }
 
     @Test

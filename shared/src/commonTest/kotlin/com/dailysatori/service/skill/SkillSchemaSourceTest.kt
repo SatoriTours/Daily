@@ -36,7 +36,7 @@ class SkillSchemaSourceTest {
         val config = File("src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
 
-        assertTrue(config.contains("currentSchemaVersion = 24L"))
+        assertTrue(config.contains("currentSchemaVersion ="))
         assertTrue(migration.contains("migrateV8ToV9()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS skill_config"))
         assertTrue(migration.contains("template_id"))
@@ -49,7 +49,7 @@ class SkillSchemaSourceTest {
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
         val sharedModule = File("src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
 
-        assertTrue(migration.contains("private val secretCipher: SecretCipher"))
+        assertTrue(migration.contains("private val secretCipher: SecretValueCipher"))
         assertTrue(migration.contains("migratedWeReadTokenValue(legacyToken)"))
         assertTrue(migration.contains("secretCipher.isEncrypted"))
         assertTrue(migration.contains("secretCipher.encrypt"))

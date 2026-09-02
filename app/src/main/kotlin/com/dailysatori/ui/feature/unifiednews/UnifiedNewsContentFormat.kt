@@ -6,6 +6,7 @@ private val UnifiedNewsCitationRegex = Regex("""\[([RCDF]\d+)]""")
 private val BlankLineBetweenListItemsRegex = Regex("""(?m)^(\s*[-*+]\s+.+)\n\s*\n(?=\s*[-*+]\s+)""")
 private val OrderedListItemRegex = Regex("""^\s*\d+[.)]\s+(.+)""")
 private val UnorderedListItemRegex = Regex("""^\s*[-*+]\s+.+""")
+private val UnifiedNewsListPrefixRegex = Regex("""^(\s*[-*+]\s+)(.*)$""")
 
 fun displayUnifiedNewsMarkdown(content: String): String = content
     .replace(LeadingUnifiedNewsTitleRegex, "")
@@ -46,7 +47,7 @@ fun unifiedNewsMarkdownWithCitationLinks(content: String): String = content
     .joinToString("\n") { line ->
         val citation = primaryCitationInUnifiedNewsLine(line) ?: return@joinToString line
         val visible = visibleUnifiedNewsTextWithoutCitation(line)
-        val listPrefix = Regex("""^(\s*[-*+]\s+)(.*)$""").find(visible)
+        val listPrefix = UnifiedNewsListPrefixRegex.find(visible)
         if (listPrefix != null) {
             val prefix = listPrefix.groupValues[1]
             val text = listPrefix.groupValues[2]
@@ -58,10 +59,8 @@ fun unifiedNewsMarkdownWithCitationLinks(content: String): String = content
 
 fun visibleUnifiedNewsTextWithoutCitation(text: String): String = text
     .replace(UnifiedNewsCitationRegex, "")
-    .replace(Regex("""\*\*(.*?)\*\*"""), "$1")
-    .replace(Regex("""__(.*?)__"""), "$1")
-    .replace(Regex("""`([^`]*)`"""), "$1")
-    .replace(Regex("""\s+([。！？；：，,.!?;:])"""), "$1")
+    .withoutUnifiedNewsBasicMarkdown()
+    .normalizeUnifiedNewsPunctuationSpacing()
     .trimEnd()
 
 fun unifiedNewsCitationUrl(citation: String): String = "daily-satori-citation://$citation"

@@ -53,7 +53,7 @@ class UnifiedNewsSearchDesignTest {
 
         assertTrue(viewModel.contains("val scrollToTopRequestKey: Int = 0"))
         assertTrue(viewModel.contains("fun requestScrollToTop()"))
-        assertTrue(screen.contains("onTitleDoubleClick = viewModel::requestScrollToTop"))
+        assertTrue(screen.contains("if (selected) viewModel.requestScrollToTop() else select()"))
         assertTrue(appTopBar.contains("combinedClickable"))
         assertTrue(appTopBar.contains("onDoubleClick = onTitleDoubleClick"))
         assertTrue(summary.contains("LaunchedEffect(state.scrollToTopRequestKey)"))
@@ -62,6 +62,6 @@ class UnifiedNewsSearchDesignTest {
         assertTrue(screen.contains("scrollToTopRequestKey = state.scrollToTopRequestKey"))
         assertTrue(articleList.contains("scrollToTopRequestKey: Int = 0"))
         assertTrue(articleList.contains("LaunchedEffect(scrollToTopRequestKey, state.articles.isNotEmpty())"))
-        assertTrue(articleList.contains("viewModel.search(embeddedSearchQuery)"))
+        assertTrue(articleList.contains("viewModel.search(embeddedSearchQuery.orEmpty())"))
     }
 }

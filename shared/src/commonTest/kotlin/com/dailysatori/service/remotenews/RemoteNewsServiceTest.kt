@@ -1,11 +1,121 @@
 package com.dailysatori.service.remotenews
 
 import kotlinx.serialization.json.Json
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 class RemoteNewsServiceTest {
+    @Test
+    fun topArticlesRequestMatchesDocumentedContract(): Unit = runBlocking {
+        val service = RemoteNewsService(HttpClient(MockEngine { request ->
+            assertEquals("/api/v1/external/top_articles_today", request.url.encodedPath)
+            assertEquals("2", request.url.parameters["page"])
+            assertEquals("25", request.url.parameters["per_page"])
+            assertEquals("25", request.url.parameters["limit"])
+            assertEquals("Bearer contract-token", request.headers[HttpHeaders.Authorization])
+            assertEquals("contract-token", request.headers["X-Api-Token"])
+            respond(
+                content = """{"articles":[{"id":123,"title":"Contract article","url":"https://example.com/a","summary":"摘要","content":"# 正文"}],"pagination":{"page":2,"per_page":25,"next":3}}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }))
+
+        val result = service.fetchTopArticlesToday(
+            RemoteNewsConfigValues("https://news.example.com", "contract-token"),
+            page = 2,
+            limit = 25,
+        )
+
+        assertTrue(result is RemoteNewsResult.Success)
+        assertEquals(123, result.value.articles.single().id)
+        assertEquals(3, result.value.pagination.next)
+    }
+
+    @Test
+    fun documentedHttpErrorsPreserveServerMessage(): Unit = runBlocking {
+        val cases = listOf(
+            HttpStatusCode.Unauthorized to "Invalid token",
+            HttpStatusCode.TooManyRequests to "Rate limit reached",
+            HttpStatusCode.ServiceUnavailable to "Service temporarily unavailable",
+        )
+        cases.forEach { (status, message) ->
+            val service = RemoteNewsService(HttpClient(MockEngine {
+                respond(
+                    content = """{"error":{"code":"failed","message":"$message"}}""",
+                    status = status,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }))
+
+            assertEquals(
+                RemoteNewsResult.Failure(message),
+                service.fetchTopArticlesToday(RemoteNewsConfigValues("https://news.example.com", "token")),
+            )
+        }
+    }
+
+    @Test
+    fun emptySuccessfulResponseDoesNotPoisonTheNextRefresh(): Unit = runBlocking {
+        var requestCount = 0
+        val service = RemoteNewsService(HttpClient(MockEngine {
+            requestCount += 1
+            val body = if (requestCount == 1) {
+                """{"articles":[],"pagination":{"page":1,"per_page":50,"total":0,"total_pages":0,"next":null}}"""
+            } else {
+                """{"articles":[{"id":321,"title":"Recovered","url":"https://example.com/recovered","summary":"摘要","content":"正文"}]}"""
+            }
+            respond(
+                content = body,
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }))
+        val config = RemoteNewsConfigValues("https://news.example.com", "token")
+
+        val empty = service.fetchTopArticlesToday(config)
+        val recovered = service.fetchTopArticlesToday(config)
+
+        assertTrue(empty is RemoteNewsResult.Success)
+        assertEquals(emptyList(), empty.value.articles)
+        assertTrue(recovered is RemoteNewsResult.Success)
+        assertEquals(321, recovered.value.articles.single().id)
+    }
+
+    @Test
+    fun requestDoesNotSwallowCoroutineCancellation(): Unit = runBlocking {
+        val service = RemoteNewsService(HttpClient(MockEngine { throw CancellationException("cancelled") }))
+        assertFailsWith<CancellationException> {
+            service.fetchTopArticlesToday(RemoteNewsConfigValues("https://example.com", "token"))
+        }
+        Unit
+    }
+
+    @Test
+    fun rejectsUnrecognizedSuccessfulEnvelopeInsteadOfTreatingItAsEmpty() {
+        assertFailsWith<IllegalArgumentException> {
+            parseTopArticlesTodayResponse("""{"ok":true,"message":"ready"}""")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            parseTopArticlesTodayResponse("""{"data":{"ok":true}}""")
+        }
+    }
+
+    @Test
+    fun acceptsRecognizedEmptyArticlesEnvelope() {
+        assertEquals(emptyList(), parseTopArticlesTodayResponse("""{"articles":[]}""").articles)
+    }
+
     @Test
     fun parsesTopArticlesTodayWhenApiReturnsDataArray() {
         val response = parseTopArticlesTodayResponse(

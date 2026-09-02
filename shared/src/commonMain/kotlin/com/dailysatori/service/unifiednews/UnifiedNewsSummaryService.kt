@@ -44,9 +44,7 @@ class UnifiedNewsSummaryService(
             log.w(e) { "Unified news source collection failed" }
             return saveFailure(window, emptyList(), warnings, "新闻来源收集失败，请稍后重试")
         }
-        if (sources.isEmpty() && warnings.isNotEmpty()) {
-            return saveFailure(window, emptyList(), warnings, "新闻来源暂时不可用，请稍后重试")
-        }
+        if (sources.isEmpty()) return persistEmpty(window, warnings)
         val preparedSources = prepareUnifiedNewsSources(sources)
         if (preparedSources.isEmpty()) return persistEmpty(window, warnings)
 
@@ -114,16 +112,26 @@ class UnifiedNewsSummaryService(
     ): List<UnifiedNewsSourceItem> {
         val articles = mutableListOf<UnifiedNewsSourceItem>()
         remoteNewsSourceRepo.getEnabled().forEach { source ->
-            val mappings = remoteArticleSyncRepo.getMappingsBySourceDate(source.id, window.summaryDate)
+            val currentMappings = remoteArticleSyncRepo.getMappingsBySourceDate(source.id, window.summaryDate)
+            val usingFallback = currentMappings.isEmpty()
+            val mappings = if (usingFallback) {
+                remoteArticleSyncRepo.getLatestMappingsBySource(source.id)
+                    .filter { isRecentUnifiedNewsSnapshot(it.last_seen_at, window.startMs) }
+            } else {
+                currentMappings
+            }
             if (mappings.isEmpty()) {
                 warnRemoteSourceFailure(warnings, source.name, "当前时间窗口无本地同步快照")
                 return@forEach
             }
+            if (usingFallback) warnRemoteSourceFailure(warnings, source.name, "正在使用最近一次本地同步快照")
             articles += mappings.mapNotNull { mapping ->
                 articleRepo.getById(mapping.article_id)?.toUnifiedRemoteSource(
                     mapping = mapping,
                     window = window,
-                    ignoreSourceTimeFilter = ignoreSourceTimeFilter,
+                    // The snapshot date records when an article ranked for this daily feed;
+                    // its original publication time can legitimately be older.
+                    ignoreSourceTimeFilter = true,
                     sourceFilename = remoteNewsSourceRouteKey(source.id),
                 )
             }
@@ -239,6 +247,12 @@ class UnifiedNewsSummaryService(
         }
     }
 }
+
+fun isRecentUnifiedNewsSnapshot(
+    lastSeenAt: Long,
+    windowStartMs: Long,
+    maxAgeMs: Long = 3 * 24 * 60 * 60 * 1000L,
+): Boolean = lastSeenAt in (windowStartMs - maxAgeMs)..windowStartMs
 
 fun parseSourceTimeMillis(value: String): Long? = try {
     Instant.parse(value).toEpochMilliseconds()

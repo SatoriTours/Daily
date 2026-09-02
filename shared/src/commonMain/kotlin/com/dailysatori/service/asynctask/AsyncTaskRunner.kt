@@ -7,6 +7,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.datetime.Clock
 
 interface AsyncTaskLogger {
@@ -31,6 +33,7 @@ class AsyncTaskRunner(
     private val leaseOwnerProvider: () -> String = { "async-task-runner-${Clock.System.now().toEpochMilliseconds()}" },
     private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val leaseMs: Long = DEFAULT_LEASE_MS,
+    private val executionTimeoutMs: (String) -> Long = ::asyncTaskExecutionTimeoutMs,
 ) {
     suspend fun run(taskId: Long): AsyncTaskRunOutcome {
         if (taskId <= 0L) return AsyncTaskRunOutcome.Failed
@@ -64,8 +67,10 @@ class AsyncTaskRunner(
         }
 
         return try {
-            val result = executeWithLeaseHeartbeat(taskId, leaseOwner) {
-                handler.execute(taskId, task.payload_json, task.checkpoint_json, reporter)
+            val result = withTimeout(executionTimeoutMs(task.type).coerceAtLeast(1L)) {
+                executeWithLeaseHeartbeat(taskId, leaseOwner) {
+                    handler.execute(taskId, task.payload_json, task.checkpoint_json, reporter)
+                }
             }
             if (!repository.isRunning(taskId)) {
                 log(taskId, "TASK cancelled")
@@ -89,6 +94,13 @@ class AsyncTaskRunner(
         } catch (_: AsyncTaskCancelledException) {
             log(taskId, "TASK cancelled")
             AsyncTaskRunOutcome.Skipped
+        } catch (_: TimeoutCancellationException) {
+            when (val timeoutResult = handler.onExecutionTimeout(taskId, task.payload_json, task.checkpoint_json, reporter)) {
+                is AsyncTaskExecutionResult.Success -> { repository.finishSuccess(taskId, timeoutResult.resultJson); AsyncTaskRunOutcome.Succeeded }
+                is AsyncTaskExecutionResult.PermanentFailure -> { repository.finishFailure(taskId, timeoutResult.code, timeoutResult.message); AsyncTaskRunOutcome.Failed }
+                is AsyncTaskExecutionResult.RetryableFailure -> handleRetryableFailure(taskId, task, timeoutResult.code, timeoutResult.message, timeoutResult.retryAfterMs)
+                null -> handleRetryableFailure(taskId, task, "timeout", "任务执行超时，已停止并等待重试", null)
+            }
         } catch (error: CancellationException) {
             if (repository.isRunning(taskId)) {
                 handleRetryableFailure(
@@ -160,6 +172,15 @@ class AsyncTaskRunner(
         const val MIN_HEARTBEAT_MS = 30_000L
         val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name)
     }
+}
+
+fun asyncTaskExecutionTimeoutMs(type: String): Long = when (type) {
+    "remote_article_sync" -> 5 * 60_000L
+    "remote_news_fetch" -> 4 * 60_000L
+    "external_favorite_sync" -> 15 * 60_000L
+    "diary_attachment_transcribe" -> 20 * 60_000L
+    "reminder_ai_parse" -> 3 * 60_000L
+    else -> 10 * 60_000L
 }
 
 private class AsyncTaskCancelledException : CancellationException("任务已取消")

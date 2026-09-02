@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -95,7 +94,7 @@ private fun BatchReminderCard(
             } else {
                 if (item.requiresConfirmation) {
                     Text(stringResource(R.string.reminder_batch_confirmation_required), style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = { onConfirmItem(item.id) }, enabled = item.parseError == null && item.draft.canConfirm) {
+                    TextButton(onClick = { onConfirmItem(item.id) }, enabled = item.parseError == null && item.draft.canConfirm) {
                         Text(stringResource(R.string.reminder_batch_confirm_item))
                     }
                 }

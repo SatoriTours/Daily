@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.ui.component.news.MagazineNewsCard
+import com.dailysatori.ui.component.news.cleanNewsIntroText
 
 @Composable
 fun RemoteArticleSummaryCard(article: RemoteArticle, onClick: () -> Unit) {
@@ -19,16 +20,12 @@ fun RemoteArticleSummaryCard(article: RemoteArticle, onClick: () -> Unit) {
 }
 
 private fun remoteArticleIntroText(article: RemoteArticle): String? = listOfNotNull(
-    article.summary?.cleanIntroText(),
-    article.viewpoints.firstOrNull { it.isNotBlank() }?.cleanIntroText(),
-    article.content?.cleanIntroText(),
-    article.feedName?.cleanIntroText(),
-    article.domain?.cleanIntroText(),
+    article.summary?.cleanNewsIntroText(),
+    article.viewpoints.firstOrNull { it.isNotBlank() }?.cleanNewsIntroText(),
+    article.content?.cleanNewsIntroText(),
+    article.feedName?.cleanNewsIntroText(),
+    article.domain?.cleanNewsIntroText(),
 ).firstOrNull { it.isNotBlank() }
-
-private fun String.cleanIntroText(): String = trim()
-    .replace(Regex("\\s+"), " ")
-    .take(160)
 
 private fun remoteArticleMetaText(article: RemoteArticle): String? = listOfNotNull(
     remoteArticleTimeText(article),

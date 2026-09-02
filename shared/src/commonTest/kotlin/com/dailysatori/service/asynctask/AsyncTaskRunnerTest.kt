@@ -8,8 +8,26 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.awaitCancellation
 
 class AsyncTaskRunnerTest {
+    @Test
+    fun handlerThatNeverCompletesTimesOutIntoControlledRetry() = runBlocking {
+        withRunner(
+            handlers = listOf(FakeHandler { _, _, _ -> awaitCancellation() }),
+            executionTimeoutMs = { 10L },
+        ) { repository, runner, logger ->
+            val taskId = repository.enqueue(type = FakeHandler.TYPE, payloadJson = "{}")
+
+            val outcome = runner.run(taskId)
+
+            assertIs<AsyncTaskRunOutcome.RetryScheduled>(outcome)
+            assertEquals(AsyncTaskStatus.retrying.name, repository.getById(taskId)!!.status)
+            assertEquals("timeout", repository.getById(taskId)!!.last_error_code)
+            assertTrue(logger.lines.any { it.contains("TASK retry code=timeout") })
+        }
+    }
+
     @Test
     fun successfulHandlerFinishesTaskAndWritesLifecycleLogs() = runBlocking {
         withRunner(
@@ -183,6 +201,7 @@ class AsyncTaskRunnerTest {
     private suspend fun withRunner(
         handlers: List<AsyncTaskHandler>,
         nowMs: () -> Long = { 1_000 },
+        executionTimeoutMs: (String) -> Long = { 60_000L },
         block: suspend (AsyncTaskRepository, AsyncTaskRunner, RecordingTaskLogger) -> Unit,
     ) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
@@ -195,6 +214,7 @@ class AsyncTaskRunnerTest {
             logger = logger,
             leaseOwnerProvider = { "test-worker" },
             nowMs = nowMs,
+            executionTimeoutMs = executionTimeoutMs,
         )
         block(repository, runner, logger)
         driver.close()

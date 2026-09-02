@@ -1,8 +1,12 @@
 package com.dailysatori.data.repository
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOne
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Remote_article_sync_item
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.Clock
 
 class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
@@ -20,6 +24,9 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
     fun getMappingsBySourceDate(remoteSourceId: Long, sourceDate: String): List<Remote_article_sync_item> =
         q.selectRemoteArticleSyncMappingsBySourceDate(remoteSourceId, sourceDate).executeAsList()
 
+    fun getLatestMappingsBySource(remoteSourceId: Long, limit: Long = 50): List<Remote_article_sync_item> =
+        q.selectLatestRemoteArticleSyncMappingsBySource(remoteSourceId, limit).executeAsList()
+
     fun getArticlesBySourceDate(remoteSourceId: Long, sourceDate: String): List<Article> =
         q.selectRemoteArticleSyncItemsBySourceDate(remoteSourceId, sourceDate).executeAsList()
 
@@ -27,6 +34,9 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
         q.selectRemoteArticleSyncItemsBySource(remoteSourceId, limit, offset).executeAsList()
 
     fun count(): Long = q.countRemoteArticleSyncItems().executeAsOne()
+
+    fun observeCount(): Flow<Long> =
+        q.countRemoteArticleSyncItems().asFlow().mapToOne(Dispatchers.IO)
 
     fun countBySource(remoteSourceId: Long): Long =
         q.countRemoteArticleSyncItemsBySource(remoteSourceId).executeAsOne()

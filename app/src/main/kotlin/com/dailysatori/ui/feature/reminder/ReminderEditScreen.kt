@@ -44,6 +44,7 @@ fun ReminderEditScreen(
     reminderId: String?,
     onBack: () -> Unit,
     onSaved: (String) -> Unit,
+    onBatchSubmitted: (String) -> Unit,
     viewModel: ReminderViewModel = koinViewModel(),
 ) {
     val reminders by viewModel.reminders.collectAsState()
@@ -101,8 +102,11 @@ fun ReminderEditScreen(
                             minLines = 2,
                         )
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = viewModel::interpretAiPrompt, enabled = ui.aiParse.prompt.isNotBlank() && !ui.aiParse.isInterpreting) {
-                                Text(if (ui.aiParse.isInterpreting) "解析中…" else "AI 解析")
+                            TextButton(
+                                onClick = { viewModel.submitReminderAiBatch(ui.aiParse.prompt)?.let(onBatchSubmitted) },
+                                enabled = ui.aiParse.prompt.isNotBlank() && !ui.aiParse.isInterpreting,
+                            ) {
+                                Text(if (ui.aiParse.isInterpreting) "提交中…" else "AI 解析")
                             }
                         }
                         ui.aiParse.error?.let { Text(stringResource(R.string.reminder_batch_parse_incomplete, batchErrorText(it)), color = MaterialTheme.colorScheme.error) }
@@ -124,10 +128,10 @@ fun ReminderEditScreen(
             item { Text("详细配置", style = MaterialTheme.typography.titleMedium) }
             item { OutlinedTextField(editor.content, { editor = editor.copy(content = it, notice = null) }, label = { Text("提醒内容") }, modifier = Modifier.fillMaxWidth()) }
             item {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                TextButton(onClick = { picker = EditorPicker.START }) { Text("开始 ${editor.startDate}") }
-                TextButton(onClick = { picker = EditorPicker.END }) { Text("结束 ${editor.endDate}") }
-                TextButton(onClick = { picker = EditorPicker.TIME }) { Text("时间 ${editor.firstReminderTime}") }
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                ReminderSettingRow(stringResource(R.string.reminder_start_date), editor.startDate.toString()) { picker = EditorPicker.START }
+                ReminderSettingRow(stringResource(R.string.reminder_end_date), editor.endDate.toString()) { picker = EditorPicker.END }
+                ReminderSettingRow(stringResource(R.string.reminder_first_time), editor.firstReminderTime.toString()) { picker = EditorPicker.TIME }
             }
             }
             item { Text("重复方式", style = MaterialTheme.typography.titleSmall) }

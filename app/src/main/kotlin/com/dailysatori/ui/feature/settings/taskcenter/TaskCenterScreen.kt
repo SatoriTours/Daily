@@ -84,6 +84,7 @@ fun TaskCenterScreen(onBack: () -> Unit) {
             TaskCenterTaskDetail(
                 task = task,
                 taskLog = state.taskLog,
+                failureSuperseded = state.selectedFailureSuperseded,
                 modifier = modifier,
             )
             return@AppScaffold
@@ -341,6 +342,7 @@ private fun taskCenterStatusColor(status: String): androidx.compose.ui.graphics.
 private fun TaskCenterTaskDetail(
     task: Async_task,
     taskLog: String,
+    failureSuperseded: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var pageIndex by remember(taskLog) { mutableStateOf(0) }
@@ -369,6 +371,11 @@ private fun TaskCenterTaskDetail(
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(asyncTaskTypeDisplayName(task.type), style = MaterialTheme.typography.titleMedium)
                 Text("#${task.id} · ${asyncTaskStatusDisplayName(task.status)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (failureSuperseded) {
+            item(key = "task-superseded") {
+                TaskCenterDetailSection("状态说明", "这是历史失败记录，后续同类任务已经成功完成。")
             }
         }
         item(key = "task-time") {

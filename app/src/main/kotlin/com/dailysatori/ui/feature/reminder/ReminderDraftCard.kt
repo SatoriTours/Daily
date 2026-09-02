@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -63,6 +64,7 @@ fun ReminderDraftCard(
 ) {
     if (state.cancelled) return
     var picker by remember { mutableStateOf<DraftPicker?>(null) }
+    var showAdvanced by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l),
@@ -78,12 +80,10 @@ fun ReminderDraftCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(stringResource(R.string.reminder_absolute_time, state.absoluteDateTimeText.ifBlank { stringResource(R.string.reminder_select_date_time) }), style = MaterialTheme.typography.bodyMedium)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                val missing = stringResource(R.string.reminder_not_selected)
-                TextButton(onClick = { picker = DraftPicker.START_DATE }) { Text(stringResource(R.string.reminder_start_value, state.startDate ?: missing)) }
-                TextButton(onClick = { picker = DraftPicker.END_DATE }) { Text(stringResource(R.string.reminder_end_value, state.endDate ?: missing)) }
-                TextButton(onClick = { picker = DraftPicker.FIRST_TIME }) { Text(stringResource(R.string.reminder_first_value, state.firstReminderTime ?: missing)) }
-            }
+            val missing = stringResource(R.string.reminder_not_selected)
+            ReminderSettingRow(stringResource(R.string.reminder_start_date), state.startDate?.toString() ?: missing) { picker = DraftPicker.START_DATE }
+            ReminderSettingRow(stringResource(R.string.reminder_end_date), state.endDate?.toString() ?: missing) { picker = DraftPicker.END_DATE }
+            ReminderSettingRow(stringResource(R.string.reminder_first_time), state.firstReminderTime?.toString() ?: missing) { picker = DraftPicker.FIRST_TIME }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 listOf(
                     stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily,
@@ -130,41 +130,33 @@ fun ReminderDraftCard(
             state.profile?.let { profile ->
                 ToggleRow(stringResource(R.string.reminder_sound), profile.soundEnabled) { onChange(state.updateProfile(profile.copy(soundEnabled = it))) }
                 ToggleRow(stringResource(R.string.reminder_vibration), profile.vibrationEnabled) { onChange(state.updateProfile(profile.copy(vibrationEnabled = it))) }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    ReminderImportance.entries.forEach { value -> FilterChip(selected = profile.importance == value, onClick = { onChange(state.updateProfile(profile.copy(importance = value))) }, label = { Text(value.label()) }) }
-                }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = profile.lockScreenVisibility == value, onClick = { onChange(state.updateProfile(profile.copy(lockScreenVisibility = value))) }, label = { Text(value.label()) }) }
-                }
-                OutlinedTextField(
-                    value = state.daytimeBackoffInput,
-                    onValueChange = { input -> onChange(state.editBackoffInput(input)) },
-                    label = { Text(stringResource(R.string.reminder_backoff_minutes)) },
-                    isError = ReminderDraftField.ADVANCED_PROFILE in state.validationErrors,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = state.eveningIntervalInput,
-                    onValueChange = { input -> onChange(state.editEveningIntervalInput(input)) },
-                    label = { Text(stringResource(R.string.reminder_evening_interval_optional)) },
-                    isError = ReminderDraftField.ADVANCED_PROFILE in state.validationErrors,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (ReminderDraftField.ADVANCED_PROFILE in state.validationErrors) {
-                    Text(stringResource(R.string.reminder_profile_invalid), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    kotlinx.datetime.DayOfWeek.entries.forEach { day ->
-                        FilterChip(selected = day in profile.workDays, onClick = { onChange(state.updateProfile(profile.copy(workDays = if (day in profile.workDays) profile.workDays - day else profile.workDays + day))) }, label = { Text(day.shortLabel()) })
+                ReminderSettingRow(
+                    stringResource(R.string.reminder_settings_advanced),
+                    stringResource(if (showAdvanced) R.string.reminder_advanced_collapse else R.string.reminder_advanced_expand),
+                ) { showAdvanced = !showAdvanced }
+                AnimatedVisibility(visible = showAdvanced) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            ReminderImportance.entries.forEach { value -> FilterChip(selected = profile.importance == value, onClick = { onChange(state.updateProfile(profile.copy(importance = value))) }, label = { Text(value.label()) }) }
+                        }
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            ReminderLockScreenVisibility.entries.forEach { value -> FilterChip(selected = profile.lockScreenVisibility == value, onClick = { onChange(state.updateProfile(profile.copy(lockScreenVisibility = value))) }, label = { Text(value.label()) }) }
+                        }
+                        OutlinedTextField(value = state.daytimeBackoffInput, onValueChange = { onChange(state.editBackoffInput(it)) }, label = { Text(stringResource(R.string.reminder_backoff_minutes)) }, isError = ReminderDraftField.ADVANCED_PROFILE in state.validationErrors, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = state.eveningIntervalInput, onValueChange = { onChange(state.editEveningIntervalInput(it)) }, label = { Text(stringResource(R.string.reminder_evening_interval_optional)) }, isError = ReminderDraftField.ADVANCED_PROFILE in state.validationErrors, modifier = Modifier.fillMaxWidth())
+                        if (ReminderDraftField.ADVANCED_PROFILE in state.validationErrors) Text(stringResource(R.string.reminder_profile_invalid), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            kotlinx.datetime.DayOfWeek.entries.forEach { day ->
+                                FilterChip(selected = day in profile.workDays, onClick = { onChange(state.updateProfile(profile.copy(workDays = if (day in profile.workDays) profile.workDays - day else profile.workDays + day))) }, label = { Text(day.shortLabel()) })
+                            }
+                        }
+                        ReminderSettingRow(stringResource(R.string.reminder_sleep_start_label), profile.sleepStart.toString()) { picker = DraftPicker.SLEEP_START }
+                        ReminderSettingRow(stringResource(R.string.reminder_sleep_end_label), profile.sleepEnd.toString()) { picker = DraftPicker.SLEEP_END }
+                        ReminderSettingRow(stringResource(R.string.reminder_work_start_label), profile.workStart.toString()) { picker = DraftPicker.WORK_START }
+                        ReminderSettingRow(stringResource(R.string.reminder_work_end_label), profile.workEnd.toString()) { picker = DraftPicker.WORK_END }
+                        ReminderSettingRow(stringResource(R.string.reminder_evening_start_label), profile.eveningStart.toString()) { picker = DraftPicker.EVENING_START }
+                        ReminderSettingRow(stringResource(R.string.reminder_cutoff_label), profile.dailyCutoff.toString()) { picker = DraftPicker.CUTOFF }
                     }
-                }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    TextButton(onClick = { picker = DraftPicker.SLEEP_START }) { Text(stringResource(R.string.reminder_sleep_start, profile.sleepStart)) }
-                    TextButton(onClick = { picker = DraftPicker.SLEEP_END }) { Text(stringResource(R.string.reminder_sleep_end, profile.sleepEnd)) }
-                    TextButton(onClick = { picker = DraftPicker.WORK_START }) { Text(stringResource(R.string.reminder_work_start, profile.workStart)) }
-                    TextButton(onClick = { picker = DraftPicker.WORK_END }) { Text(stringResource(R.string.reminder_work_end, profile.workEnd)) }
-                    TextButton(onClick = { picker = DraftPicker.EVENING_START }) { Text(stringResource(R.string.reminder_evening_start, profile.eveningStart)) }
-                    TextButton(onClick = { picker = DraftPicker.CUTOFF }) { Text(stringResource(R.string.reminder_cutoff, profile.dailyCutoff)) }
                 }
             }
             state.notice?.let { Text(it.label(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -211,6 +203,21 @@ fun ReminderDraftCard(
             }
         }
         null -> Unit
+    }
+}
+
+@Composable
+internal fun ReminderSettingRow(label: String, value: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Row(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+            Text("›", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

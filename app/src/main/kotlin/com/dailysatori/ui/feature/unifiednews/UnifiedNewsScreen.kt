@@ -251,10 +251,17 @@ private fun UnifiedNewsTopBar(
 }
 
 private fun unifiedNewsHeaderTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): List<HomeCompactTab> = buildList {
-    add(HomeCompactTab("汇总", viewModel::selectSummarySource))
-    state.remoteSources.forEach { source -> add(HomeCompactTab(source.name) { viewModel.selectRemoteSource(source) }) }
-    state.externalFavoriteSources.forEach { source -> add(HomeCompactTab(source.name) { viewModel.selectExternalFavoriteSource(source) }) }
-    add(HomeCompactTab("本地新闻", viewModel::selectLocalArticlesSource))
+    fun selectOrScrollTop(selected: Boolean, select: () -> Unit) {
+        if (selected) viewModel.requestScrollToTop() else select()
+    }
+    add(HomeCompactTab("汇总") { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.Summary, viewModel::selectSummarySource) })
+    state.remoteSources.forEach { source ->
+        add(HomeCompactTab(source.name) { selectOrScrollTop((state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id) { viewModel.selectRemoteSource(source) } })
+    }
+    state.externalFavoriteSources.forEach { source ->
+        add(HomeCompactTab(source.name) { selectOrScrollTop((state.sourceSelection as? UnifiedNewsSourceSelection.ExternalFavoriteSource)?.id == source.id) { viewModel.selectExternalFavoriteSource(source) } })
+    }
+    add(HomeCompactTab("本地新闻") { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.LocalArticles, viewModel::selectLocalArticlesSource) })
 }
 
 private fun unifiedNewsSelectedTab(state: UnifiedNewsState): String = when (val selection = state.sourceSelection) {

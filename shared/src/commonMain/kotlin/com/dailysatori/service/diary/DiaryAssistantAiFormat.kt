@@ -15,7 +15,20 @@ data class DiaryAssistantParsedAi(
 
 private const val DIARY_ASSISTANT_CONTEXT_LIMIT = 240
 private const val DIARY_ASSISTANT_SOURCE_LIMIT = 3
-private val diaryAssistantJson = Json { ignoreUnknownKeys = true; isLenient = true }
+private val diaryAssistantJson = Json { ignoreUnknownKeys = true }
+private val diaryAssistantInlineAutoLink = Regex(
+    "<(?:[A-Za-z][A-Za-z0-9+.-]*:[^>\\s]*|[^<>\\s@]+@[^<>\\s@]+)>",
+)
+private val diaryAssistantInlineAddress = Regex(
+    "(?:(?:https?|ftp|file)://|www\\.)[^\\s<>\"'\\]\\[{}]+|" +
+        "mailto:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}|" +
+        "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+    RegexOption.IGNORE_CASE,
+)
+private val diaryAssistantTrailingPunctuation = setOf(
+    '.', ',', '!', '?', ';', ':', '。', '，', '！', '？', '；', '：', '、',
+    ')', ']', '}', '）', '】', '》', '」', '』',
+)
 
 fun buildDiaryKnowledgePrompt(
     selectedText: String,
@@ -38,6 +51,7 @@ fun parseDiaryAssistantAiResponse(
     response: String,
     fallbackSources: List<DiaryAssistantSource>,
 ): DiaryAssistantParsedAi {
+    if (response.length > 12_000) throw DiaryAssistantInvalidResponseException("AI 返回内容过长")
     val cleaned = response.trim().removeCodeFence().trim()
     val parsed = runCatching {
         val objectValue = diaryAssistantJson.parseToJsonElement(cleaned).jsonObject
@@ -51,19 +65,97 @@ fun parseDiaryAssistantAiResponse(
             DiaryAssistantSource(title.ifBlank { parsedUrl.value }, parsedUrl.value)
         }
         DiaryAssistantParsedAi(content, compactDiaryAssistantSources(sources))
-    }.getOrNull()
-    return parsed?.let { it.copy(sources = it.sources.ifEmpty { compactDiaryAssistantSources(fallbackSources) }) }
-        ?: DiaryAssistantParsedAi(cleaned, compactDiaryAssistantSources(fallbackSources))
+    }.getOrElse { throw DiaryAssistantInvalidResponseException("AI 返回格式异常") }
+    return parsed.copy(sources = parsed.sources.ifEmpty { compactDiaryAssistantSources(fallbackSources) })
 }
 
 fun renderDiaryAssistantMarkdown(content: String, sources: List<DiaryAssistantSource>): String {
-    val body = content.trim()
+    val body = content.removeDiaryAssistantInlineUrls().trim()
     val compact = compactDiaryAssistantSources(sources)
     if (compact.isEmpty()) return body
     val links = compact.joinToString("、") {
         "[${it.title.ifBlank { it.url }.escapeDiaryAssistantMarkdownText()}](<${it.url}>)"
     }
     return if (body.isEmpty()) "来源：$links" else "$body\n\n来源：$links"
+}
+
+private fun String.removeDiaryAssistantInlineUrls(): String =
+    removeDiaryAssistantReferenceDefinitions()
+        .removeDiaryAssistantInlineMarkdownDestinations()
+        .replace(diaryAssistantInlineAutoLink, "")
+        .replace(diaryAssistantInlineAddress) { match ->
+            match.value.takeLastWhile { it in diaryAssistantTrailingPunctuation }
+        }
+
+private fun String.removeDiaryAssistantInlineMarkdownDestinations(): String {
+    val output = StringBuilder(length)
+    var cursor = 0
+    while (cursor < length) {
+        val labelStart = indexOf('[', cursor)
+        if (labelStart < 0) {
+            output.append(substring(cursor))
+            break
+        }
+        val labelEnd = matchingDiaryAssistantDelimiter(labelStart, '[', ']')
+        val destinationOpening = getOrNull(labelEnd + 1)
+        val destinationClosing = when (destinationOpening) {
+            '(' -> ')'
+            '[' -> ']'
+            else -> null
+        }
+        if (labelEnd < 0 || destinationClosing == null) {
+            output.append(substring(cursor, labelStart + 1))
+            cursor = labelStart + 1
+            continue
+        }
+        val destinationEnd = matchingDiaryAssistantDelimiter(labelEnd + 1, destinationOpening!!, destinationClosing)
+        if (destinationEnd < 0) {
+            output.append(substring(cursor, labelStart + 1))
+            cursor = labelStart + 1
+            continue
+        }
+        val replacementStart = if (labelStart > cursor && this[labelStart - 1] == '!') labelStart - 1 else labelStart
+        output.append(substring(cursor, replacementStart))
+        output.append(substring(labelStart + 1, labelEnd))
+        cursor = destinationEnd + 1
+    }
+    return output.toString()
+}
+
+private fun String.removeDiaryAssistantReferenceDefinitions(): String = lineSequence()
+    .filterNot { line ->
+        val candidate = line.trimStart()
+        val labelEnd = candidate.matchingDiaryAssistantDelimiter(0, '[', ']')
+        labelEnd >= 0 && candidate.getOrNull(labelEnd + 1) == ':'
+    }
+    .joinToString("\n")
+
+private fun String.matchingDiaryAssistantDelimiter(start: Int, opening: Char, closing: Char): Int {
+    if (start !in indices || this[start] != opening) return -1
+    var depth = 1
+    var index = start + 1
+    var quote: Char? = null
+    while (index < length) {
+        if (this[index] == '\\') {
+            index += 2
+            continue
+        }
+        if (opening == '(' && (this[index] == '\'' || this[index] == '"')) {
+            quote = if (quote == this[index]) null else quote ?: this[index]
+            index++
+            continue
+        }
+        if (quote != null) {
+            index++
+            continue
+        }
+        when (this[index]) {
+            opening -> depth++
+            closing -> if (--depth == 0) return index
+        }
+        index++
+    }
+    return -1
 }
 
 private fun String.removeCodeFence(): String =

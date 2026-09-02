@@ -54,6 +54,11 @@ import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
 
+private val RemoteImagePlaceholderRegex = Regex(
+    """[!！](?:\[[^]]*]|图片|配图|插图|图像|image|photo|figure)""",
+    RegexOption.IGNORE_CASE,
+)
+
 @Composable
 fun RemoteArticleDetailScreen(
     article: RemoteArticle,
@@ -322,4 +327,4 @@ private fun remoteArticleDisplayTitle(article: RemoteArticle): String = listOfNo
 ).firstOrNull() ?: "未命名远程文章"
 
 private fun String.hasRemoteImagePlaceholder(): Boolean =
-    Regex("""[!！](?:\[[^]]*]|图片|配图|插图|图像|image|photo|figure)""", RegexOption.IGNORE_CASE).containsMatchIn(this)
+    RemoteImagePlaceholderRegex.containsMatchIn(this)

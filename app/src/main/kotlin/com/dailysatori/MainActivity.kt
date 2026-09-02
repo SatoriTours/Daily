@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.dailysatori.core.reminder.ReminderRecoveryController
 import com.dailysatori.core.reminder.handleReminderViewIntent
+import com.dailysatori.core.reminder.handleReminderAiBatchViewIntent
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.AsyncTaskRepository
@@ -31,6 +32,7 @@ class MainActivity : ComponentActivity() {
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)
+        handleReminderAiBatchViewIntent(intent)
         pruneOldAsyncTasks()
         enableEdgeToEdge()
         setContent {
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)
+        handleReminderAiBatchViewIntent(intent)
     }
 
     private fun handleOAuthIntent(intent: Intent?) {

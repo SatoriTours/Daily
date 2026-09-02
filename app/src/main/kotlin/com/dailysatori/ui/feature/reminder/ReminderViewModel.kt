@@ -13,6 +13,8 @@ import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.data.repository.ReminderRepository
+import com.dailysatori.data.repository.ReminderAiBatchRepository
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.reminder.Reminder
@@ -26,6 +28,10 @@ import com.dailysatori.service.reminder.ReminderLockScreenVisibility
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderTextInterpreter
+import com.dailysatori.core.task.ReminderAiParseTaskHandler
+import com.dailysatori.core.task.reminderAiParseTaskPayloadJson
+import com.dailysatori.core.worker.AsyncTaskScheduler
+import com.dailysatori.core.worker.wakeReminderAiTask
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -376,7 +382,9 @@ class ReminderViewModel(
     private val repository: ReminderRepository,
     private val coordinator: ReminderCoordinator,
     private val settingRepository: SettingRepository,
-    private val textInterpreter: ReminderTextInterpreter,
+    private val batchRepository: ReminderAiBatchRepository,
+    private val asyncTaskRepository: AsyncTaskRepository,
+    private val taskScheduler: AsyncTaskScheduler,
     private val context: Context,
 ) : ViewModel() {
     private val _state = MutableStateFlow(
@@ -423,20 +431,27 @@ class ReminderViewModel(
         cancelActiveBatchSave()
     }
 
-    fun interpretAiPrompt() {
+    fun submitReminderAiBatch(text: String): String? {
+        if (text != _state.value.aiParse.prompt) onAiPromptChanged(text)
         cancelActiveBatchSave()
         val request = batchStateTransitions.beginInterpretation()
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val interpretation = textInterpreter.interpretBatch(request.prompt, Clock.System.now(), TimeZone.currentSystemDefault())
-                val default = defaultProfile()
-                val batch = ReminderBatchUiState.from(interpretation, default.snapshot, default.id)
-                batchStateTransitions.completeInterpretation(request.token, batch)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                batchStateTransitions.failInterpretation(request.token, ReminderBatchErrorCode.PARSE_FAILED)
+        return try {
+            val submission = batchRepository.submitOrReuseWithTask(
+                input = request.prompt,
+                timeZone = TimeZone.currentSystemDefault(),
+                localDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
+                taskType = ReminderAiParseTaskHandler.TYPE,
+                payloadForBatch = ::reminderAiParseTaskPayloadJson,
+                uniqueKeyForBatch = { "reminder_ai_parse:$it" },
+            )
+            viewModelScope.launch(Dispatchers.IO) {
+                wakeReminderAiTask(submission.taskId, taskScheduler::enqueue)
             }
+            batchStateTransitions.reset()
+            submission.batch.id
+        } catch (_: Exception) {
+            batchStateTransitions.failInterpretation(request.token, ReminderBatchErrorCode.PARSE_FAILED)
+            null
         }
     }
 

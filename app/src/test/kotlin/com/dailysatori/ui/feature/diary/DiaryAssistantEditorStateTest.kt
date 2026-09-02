@@ -51,19 +51,19 @@ class DiaryAssistantEditorStateTest {
     @Test fun invalidSelectionFallsBackToCurrentCursorForInsertion() {
         val snapshot = DiaryAssistantSelectionSnapshot("hello world", TextRange(6, 11), "world")
         val current = TextFieldValue("hello changed", TextRange(5))
-        assertEquals("hello\n\nbackground changed", insertDiaryAssistantResult(current, snapshot, "background").text)
+        assertEquals("hello\n\nbackground\n\n changed", insertDiaryAssistantResult(current, snapshot, "background").text)
     }
 
     @Test fun reversedCurrentSelectionUsesItsActiveCursorAfterConflict() {
         val snapshot = DiaryAssistantSelectionSnapshot("hello world", TextRange(6, 11), "world")
         val current = TextFieldValue("hello changed", TextRange(13, 5))
-        assertEquals("hello\n\nbackground changed", insertDiaryAssistantResult(current, snapshot, "background").text)
+        assertEquals("hello\n\nbackground\n\n changed", insertDiaryAssistantResult(current, snapshot, "background").text)
     }
 
     @Test fun whitespaceIsNotDuplicatedAroundInsertion() {
         val snapshot = DiaryAssistantSelectionSnapshot("hello  ", TextRange(7), "")
         val current = TextFieldValue("hello  ", TextRange(7))
-        assertEquals("hello  \n\nbackground", insertDiaryAssistantResult(current, snapshot, "  background ").text)
+        assertEquals("hello  \n\n  background ", insertDiaryAssistantResult(current, snapshot, "  background ").text)
     }
 
     @Test fun insertionPreservesTrailingIndentationExactly() {
@@ -71,6 +71,30 @@ class DiaryAssistantEditorStateTest {
         val snapshot = DiaryAssistantSelectionSnapshot(current.text, current.selection, "")
 
         assertEquals("paragraph\n    \n\nbackground", insertDiaryAssistantResult(current, snapshot, "background").text)
+    }
+
+    @Test fun insertionAddsOnlyMissingBoundaryNewlines() {
+        val empty = TextFieldValue("", TextRange(0))
+        val emptySnapshot = DiaryAssistantSelectionSnapshot("", TextRange(0), "")
+        assertEquals("result", insertDiaryAssistantResult(empty, emptySnapshot, "result").text)
+
+        val middle = TextFieldValue("before\nafter", TextRange(7))
+        val middleSnapshot = DiaryAssistantSelectionSnapshot(middle.text, middle.selection, "")
+        assertEquals("before\n\nresult\n\nafter", insertDiaryAssistantResult(middle, middleSnapshot, "result").text)
+    }
+
+    @Test fun replacementPreservesEditedDraftWhitespace() {
+        val current = TextFieldValue("hello world", TextRange(6, 11))
+        val snapshot = DiaryAssistantSelectionSnapshot(current.text, current.selection, "world")
+
+        assertEquals("hello   replacement \n", replaceDiaryAssistantSelection(current, snapshot, "  replacement \n").text)
+    }
+
+    @Test fun insertionCountsCrLfAsExistingBoundaryNewline() {
+        val current = TextFieldValue("before", TextRange(6))
+        val snapshot = DiaryAssistantSelectionSnapshot(current.text, current.selection, "")
+
+        assertEquals("before\n\r\nresult", insertDiaryAssistantResult(current, snapshot, "\r\nresult").text)
     }
 
     @Test fun collapsedPastedUrlSnapshotCannotReplaceExistingText() {

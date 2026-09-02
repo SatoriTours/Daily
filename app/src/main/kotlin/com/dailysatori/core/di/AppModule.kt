@@ -3,12 +3,14 @@ package com.dailysatori.core.di
 import android.app.AlarmManager
 import android.os.Build
 import com.dailysatori.core.reminder.AndroidReminderNotification
+import com.dailysatori.core.reminder.AndroidReminderAiParseNotification
 import com.dailysatori.core.reminder.ExactAlarmReminderScheduler
 import com.dailysatori.core.reminder.HybridReminderScheduler
 import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.core.reminder.ReminderCapabilitySnapshot
 import com.dailysatori.core.reminder.ReminderDeliveryStore
 import com.dailysatori.core.reminder.ReminderNotifier
+import com.dailysatori.core.reminder.ReminderAiParseNotifier
 import com.dailysatori.core.reminder.ReminderScheduler
 import com.dailysatori.core.reminder.ReminderRecoveryController
 import com.dailysatori.core.reminder.RepositoryReminderDeliveryStore
@@ -25,6 +27,7 @@ import com.dailysatori.core.task.ExternalFavoriteSyncTaskHandler
 import com.dailysatori.core.task.RemoteArticleReprocessTaskHandler
 import com.dailysatori.core.task.SaveArticleTaskHandler
 import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
+import com.dailysatori.core.task.ReminderAiParseTaskHandler
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.AsyncTaskScheduler
@@ -38,6 +41,8 @@ import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
 import com.dailysatori.service.reminder.ReminderScheduleEngine
+import com.dailysatori.service.reminder.ReminderAiInterpretationRemote
+import com.dailysatori.service.reminder.ReminderBatchCodec
 import com.dailysatori.ui.feature.settings.reminder.AndroidReminderDeliveryAccessChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +67,7 @@ val appModule: Module = module {
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
     single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }
     single { UnifiedNewsGenerateTaskHandler(get()) }
+    single { ReminderAiParseTaskHandler(get(), get<ReminderAiInterpretationRemote>(), get<ReminderBatchCodec>(), get(), get()) }
     single {
         AsyncTaskHandlerRegistry(
             listOf(
@@ -72,6 +78,7 @@ val appModule: Module = module {
                 get<BookViewpointGenerateTaskHandler>(),
                 get<RemoteArticleSyncTaskHandler>(),
                 get<UnifiedNewsGenerateTaskHandler>(),
+                get<ReminderAiParseTaskHandler>(),
                 get<DiaryTranscriptionCoordinator>(),
                 get<DiaryKnowledgeCoordinator>(),
             ),
@@ -108,6 +115,7 @@ val appModule: Module = module {
         )
     }
     single<ReminderNotifier> { AndroidReminderNotification(androidContext()) }
+    single<ReminderAiParseNotifier> { AndroidReminderAiParseNotification(androidContext()) }
     single { ReminderCoordinator(get(), get(), get(), get(), get(), androidContext()) }
     single { AndroidReminderDeliveryAccessChecker(androidContext()) }
     single {

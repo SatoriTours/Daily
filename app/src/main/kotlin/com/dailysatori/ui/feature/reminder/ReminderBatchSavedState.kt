@@ -67,6 +67,23 @@ private fun ReminderBatchUiItem.toSaved() = SavedBatchItem(
     createdReminderId, saveError,
 )
 
+internal fun encodeReminderBatchItem(item: ReminderBatchUiItem): String =
+    reminderBatchJson.encodeToString(item.toSaved())
+
+internal fun decodeReminderBatchItem(value: String): ReminderBatchUiItem? =
+    runCatching { reminderBatchJson.decodeFromString<SavedBatchItem>(value).toUiItem() }.getOrNull()
+
+private fun SavedBatchItem.toUiItem(): ReminderBatchUiItem {
+    val interrupted = status == BatchSaveStatus.SAVING.name
+    return ReminderBatchUiItem(
+        id = id, sourceText = sourceText, draft = draft.toUi(), parseError = parseError,
+        requiresConfirmation = requiresConfirmation, selected = if (interrupted) true else selected,
+        saveStatus = if (interrupted) BatchSaveStatus.FAILED else enumValueOf(status),
+        createdReminderId = createdReminderId,
+        saveError = if (interrupted) ReminderBatchErrorCode.SAVE_FAILED else saveError,
+    )
+}
+
 private fun ReminderDraftUiState.toSaved(): SavedDraft {
     val rule = activeDayRule
     val repeat = recurrence

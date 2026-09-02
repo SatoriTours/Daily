@@ -125,7 +125,5 @@ private fun unifiedNewsDisplayBlocks(content: String): List<UnifiedNewsBlock> {
 }
 
 private fun plainUnifiedNewsListText(text: String): String = text
-    .replace(Regex("""\*\*(.*?)\*\*"""), "$1")
-    .replace(Regex("""__(.*?)__"""), "$1")
-    .replace(Regex("""`([^`]*)`"""), "$1")
+    .withoutUnifiedNewsBasicMarkdown()
     .trim()

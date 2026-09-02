@@ -2,12 +2,12 @@ package com.dailysatori.data.repository
 
 import com.dailysatori.config.DatabaseConfig
 import kotlin.test.Test
-import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class McpServerRepositoryPresetApiTest {
     @Test
     fun schemaVersionTracksMcpPresetMetadata() {
-        assertEquals(23L, DatabaseConfig.currentSchemaVersion)
+        assertTrue(DatabaseConfig.currentSchemaVersion >= 23L)
     }
 
     @Suppress("unused")

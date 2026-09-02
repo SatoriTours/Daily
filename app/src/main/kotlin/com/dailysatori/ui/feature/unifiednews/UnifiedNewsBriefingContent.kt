@@ -15,6 +15,8 @@ private val BriefingCitationRegex = Regex("""\[([RCDF]\d+)]""")
 private val BriefingListItemRegex = Regex("""^\s*[-*+]\s+(.+)""")
 private val BriefingDailyCoverHeadingRegex = Regex("""^\s*#{1,6}\s*(?:🗞️\s*)?每日封面\s*$""")
 private val BriefingHeadingRegex = Regex("""^\s*#{1,6}\s+.+""")
+private val BriefingItalicAsteriskRegex = Regex("""\*(.*?)\*""")
+private val BriefingItalicUnderscoreRegex = Regex("""_(.*?)_""")
 
 fun unifiedNewsBriefingContent(content: String): UnifiedNewsBriefingContent {
     val coverLead = briefingDailyCoverLeadFrom(content)
@@ -62,10 +64,8 @@ private fun briefingLeadFrom(content: String): String? = content.lines()
     }
 
 private fun String.withoutBriefingMarkdown(): String = replace(BriefingCitationRegex, "")
-    .replace(Regex("""\*\*(.*?)\*\*"""), "$1")
-    .replace(Regex("""__(.*?)__"""), "$1")
-    .replace(Regex("""`([^`]*)`"""), "$1")
-    .replace(Regex("""\*(.*?)\*"""), "$1")
-    .replace(Regex("""_(.*?)_"""), "$1")
-    .replace(Regex("""\s+([。！？；：，,.!?;:])"""), "$1")
+    .withoutUnifiedNewsBasicMarkdown()
+    .replace(BriefingItalicAsteriskRegex, "$1")
+    .replace(BriefingItalicUnderscoreRegex, "$1")
+    .normalizeUnifiedNewsPunctuationSpacing()
     .trim()

@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ServerResponseException
+import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -18,6 +19,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
+import kotlinx.coroutines.CancellationException
 
 class RemoteNewsService(private val client: HttpClient) {
     suspend fun fetchDigests(config: RemoteNewsConfigValues, page: Int, perPage: Int): RemoteNewsResult<RemoteDigestsResponse> =
@@ -35,6 +37,7 @@ class RemoteNewsService(private val client: HttpClient) {
         limit: Int = 50,
     ): RemoteNewsResult<RemoteArticlesResponse> = request {
         client.get(buildTopArticlesTodayUrl(config.baseUrl, page, limit)) {
+            expectSuccess = true
             bearerAuth(config.token)
             header("X-Api-Token", config.token)
         }.bodyAsText().let(::parseTopArticlesTodayResponse)
@@ -77,6 +80,8 @@ class RemoteNewsService(private val client: HttpClient) {
         RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(e.response.bodyAsText()) ?: "Token 无效，请检查远程新闻设置")
     } catch (e: ServerResponseException) {
         RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(e.response.bodyAsText()) ?: "远程新闻服务暂时不可用")
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Exception) {
         RemoteNewsResult.Failure("无法连接远程新闻服务")
     }
@@ -93,10 +98,7 @@ internal fun parseTopArticlesTodayResponse(body: String): RemoteArticlesResponse
         ?.let { runCatching { remoteNewsJson.decodeFromJsonElement<RemoteNewsPagination>(it) }.getOrNull() }
         ?: RemoteNewsPagination()
     if (articlesElement != null) return RemoteArticlesResponse(articles = articles, pagination = pagination)
-
-    val direct = runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticlesResponse>(root) }.getOrNull()
-    if (direct != null) return direct
-    return RemoteArticlesResponse(articles = articles, pagination = pagination)
+    throw IllegalArgumentException("Remote news response does not contain an articles collection")
 }
 
 internal fun parseRemoteNewsErrorMessage(body: String): String? {
@@ -112,7 +114,7 @@ private fun topArticlesElement(root: JsonElement): JsonElement? {
     if (root is JsonArray) return root
     val obj = root as? JsonObject ?: return null
     return obj["articles"]
-        ?: obj["data"]?.let { data -> (data as? JsonObject)?.get("articles") ?: data }
+        ?: obj["data"]?.let { data -> if (data is JsonObject) data["articles"] else data }
         ?: obj["top_articles"]
         ?: obj["items"]
         ?: obj["results"]

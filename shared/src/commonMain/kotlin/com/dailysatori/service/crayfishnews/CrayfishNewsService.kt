@@ -20,6 +20,10 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 
 private const val CrayfishUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+private val crayfishJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+}
 
 class CrayfishNewsService(private val client: HttpClient) {
 
@@ -75,7 +79,7 @@ class CrayfishNewsService(private val client: HttpClient) {
     private suspend inline fun <reified T> request(crossinline block: suspend () -> HttpResponse): CrayfishNewsResult<T> = try {
         val response = block()
         when {
-            response.status.isSuccess() -> CrayfishNewsResult.Success(Json { ignoreUnknownKeys = true; isLenient = true }.decodeFromString(response.bodyAsText()))
+            response.status.isSuccess() -> CrayfishNewsResult.Success(crayfishJson.decodeFromString(response.bodyAsText()))
             response.status.value == 401 -> CrayfishNewsResult.Failure("Token 无效，请检查小龙虾新闻设置")
             response.status.value == 404 -> CrayfishNewsResult.Failure("小龙虾新闻文件不存在")
             response.status.value >= 500 -> CrayfishNewsResult.Failure("小龙虾新闻服务暂时不可用 (${response.status.value})")
@@ -110,12 +114,11 @@ private fun HttpRequestBuilder.crayfishAuth(token: String) {
 }
 
 fun decodeCrayfishNewsListResponse(body: String, category: String?): CrayfishNewsListResponse {
-    val json = Json { ignoreUnknownKeys = true; isLenient = true }
-    val element = json.parseToJsonElement(body)
-    if (element is JsonArray) return categoryListResponse(category, json.decodeFromJsonElement(element))
+    val element = crayfishJson.parseToJsonElement(body)
+    if (element is JsonArray) return categoryListResponse(category, crayfishJson.decodeFromJsonElement(element))
     val obj = element.jsonObject
-    val direct = json.decodeFromJsonElement<CrayfishNewsListResponse>(element)
-    val fallback = firstList(obj, json, category, "items", "news", "files", "data")
+    val direct = crayfishJson.decodeFromJsonElement<CrayfishNewsListResponse>(element)
+    val fallback = firstList(obj, crayfishJson, category, "items", "news", "files", "data")
     return when (category) {
         "dji" -> direct.copy(dji = direct.dji.ifEmpty { fallback })
         "general" -> direct.copy(general = direct.general.ifEmpty { fallback })

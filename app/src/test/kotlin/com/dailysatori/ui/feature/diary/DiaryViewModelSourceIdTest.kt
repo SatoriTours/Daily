@@ -4,6 +4,9 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import androidx.lifecycle.ViewModelStore
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
+import com.dailysatori.data.repository.DiaryAttachmentDraft
+import com.dailysatori.data.repository.DiaryAttachmentKind
+import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
@@ -13,11 +16,15 @@ import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import java.io.File
@@ -131,11 +138,50 @@ class DiaryViewModelSourceIdTest {
         assertTrue(viewModelSource.contains("suspend fun saveDiaryAndGetId("))
     }
 
+    @Test
+    fun attachmentsStayReactiveAndFollowTheVisibleDiaryFilter() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val firstId = fixture.diaryRepository.create(content = "first diary")
+            val secondId = fixture.diaryRepository.create(content = "second diary")
+            fixture.attachmentRepository.create(
+                firstId,
+                DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/first.m4a"),
+            )
+            fixture.attachmentRepository.create(
+                secondId,
+                DiaryAttachmentDraft(DiaryAttachmentKind.image, "/second.jpg"),
+            )
+
+            val all = withTimeout(5_000) {
+                fixture.viewModel.state.first {
+                    it.attachmentsByDiary[firstId]?.singleOrNull()?.local_path == "/first.m4a" &&
+                        it.attachmentsByDiary[secondId]?.singleOrNull()?.local_path == "/second.jpg"
+                }
+            }
+            assertEquals("/first.m4a", all.attachmentsByDiary.getValue(firstId).single().local_path)
+            assertEquals("/second.jpg", all.attachmentsByDiary.getValue(secondId).single().local_path)
+
+            fixture.viewModel.search("first diary")
+            val filtered = withTimeout(5_000) {
+                fixture.viewModel.state.first {
+                    it.diaries.map { diary -> diary.id } == listOf(firstId) &&
+                        it.attachmentsByDiary.keys == setOf(firstId) &&
+                        it.attachmentsByDiary[firstId]?.singleOrNull()?.local_path == "/first.m4a"
+                }
+            }
+            assertEquals("/first.m4a", filtered.attachmentsByDiary.getValue(firstId).single().local_path)
+        } finally {
+            fixture.close()
+        }
+    }
+
     private fun diaryFixture(extractorFailure: Throwable? = null): DiaryFixture {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
         val database = DailySatoriDatabase(driver)
         val diaryRepository = DiaryRepository(database, driver)
+        val attachmentRepository = DiaryAttachmentRepository(database, driver)
         val monthSummaryRepository = DiaryMonthSummaryRepository(database)
         val httpClient = HttpClient()
         val extractor = RecordingMemoryExtractor(extractorFailure)
@@ -151,13 +197,15 @@ class DiaryViewModelSourceIdTest {
                 ),
                 aiService = AiService(httpClient),
             ),
+            attachmentRepo = attachmentRepository,
         )
-        return DiaryFixture(driver, diaryRepository, viewModel, extractor, httpClient)
+        return DiaryFixture(driver, diaryRepository, attachmentRepository, viewModel, extractor, httpClient)
     }
 
     private data class DiaryFixture(
         val driver: JdbcSqliteDriver,
         val diaryRepository: DiaryRepository,
+        val attachmentRepository: DiaryAttachmentRepository,
         val viewModel: DiaryViewModel,
         val extractor: RecordingMemoryExtractor,
         val httpClient: HttpClient,
@@ -167,6 +215,7 @@ class DiaryViewModelSourceIdTest {
                 put("test", viewModel)
                 clear()
             }
+            runBlocking { delay(50) }
             httpClient.close()
             driver.close()
         }

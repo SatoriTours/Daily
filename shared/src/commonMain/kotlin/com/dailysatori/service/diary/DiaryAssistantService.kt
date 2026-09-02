@@ -6,6 +6,8 @@ import com.dailysatori.shared.db.Ai_config
 
 class DiaryAssistantInvalidUrlException : IllegalArgumentException("Invalid HTTP(S) URL")
 class DiaryAssistantMissingConfigurationException : IllegalStateException("AI configuration is missing")
+class DiaryAssistantInputTooLongException : IllegalArgumentException("选中内容不能超过 8,000 字")
+class DiaryAssistantInvalidResponseException(message: String) : IllegalStateException(message)
 
 internal fun requireDiaryAssistantAiConfiguration(config: Ai_config?): Ai_config {
     if (config == null || config.api_address.isBlank() || config.api_token.isBlank() || config.model_name.isBlank()) {
@@ -67,9 +69,9 @@ private const val diaryLinkSystemPrompt =
 private fun buildDiaryLinkPrompt(url: String, material: DiaryLinkMaterial): String = buildString {
     appendLine("已确认网页地址：$url")
     appendLine("--- BEGIN UNTRUSTED WEBPAGE EVIDENCE ---")
-    append("网页标题：${material.title}")
-    material.author?.takeIf(String::isNotBlank)?.let { append("\n作者：$it") }
-    append("\n网页材料：\n${material.text}")
+    append("网页标题：${material.title.take(300)}")
+    material.author?.takeIf(String::isNotBlank)?.let { append("\n作者：${it.take(100)}") }
+    append("\n网页材料：\n${material.text.take(16_000)}")
     append("\n--- END UNTRUSTED WEBPAGE EVIDENCE ---")
 }
 

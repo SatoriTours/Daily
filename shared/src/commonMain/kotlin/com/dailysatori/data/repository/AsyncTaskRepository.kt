@@ -169,6 +169,9 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             .asFlow()
             .mapToOneOrNull(Dispatchers.IO)
 
+    fun getLatestByUniqueKey(uniqueKey: String): Async_task? =
+        q.selectAsyncTaskByUniqueKey(uniqueKey).executeAsOneOrNull()
+
     fun observeTaskById(id: Long): Flow<Async_task?> =
         q.selectAsyncTaskById(id)
             .asFlow()
@@ -185,6 +188,9 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
 
     fun nextRunAfterByType(type: String, afterMs: Long): Long? =
         q.selectNextAsyncTaskRunAfterByType(type, afterMs).executeAsOne().MIN
+
+    fun futureRetryingTasks(afterMs: Long): List<Async_task> =
+        q.selectFutureRetryingAsyncTasks(afterMs, ::Async_task).executeAsList()
 
     fun claimForRun(id: Long, leaseOwner: String, leaseUntilMs: Long): Boolean {
         val now = Clock.System.now().toEpochMilliseconds()

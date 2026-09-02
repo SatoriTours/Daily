@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.news.MagazineNewsCard
+import com.dailysatori.ui.component.news.cleanNewsIntroText
 import com.dailysatori.ui.feature.article.articleProcessingCardMessage
 
 @Composable
@@ -55,15 +56,11 @@ fun ArticleCard(
 }
 
 private fun articleIntroText(article: Article, domain: String): String? = listOfNotNull(
-    article.ai_content?.cleanIntroText(),
-    article.ai_markdown_content?.cleanIntroText(),
+    article.ai_content?.cleanNewsIntroText(),
+    article.ai_markdown_content?.cleanNewsIntroText(),
     domain.takeIf { it.isNotBlank() },
     article.status?.takeIf { it.isNotBlank() },
 ).firstOrNull { it.isNotBlank() }
-
-private fun String.cleanIntroText(): String = trim()
-    .replace(Regex("\\s+"), " ")
-    .take(160)
 
 @Composable
 private fun ArticleCardActions(

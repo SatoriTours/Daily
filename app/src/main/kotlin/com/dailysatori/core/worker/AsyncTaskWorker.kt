@@ -18,12 +18,17 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.data.repository.ReminderAiBatchRepository
+import com.dailysatori.core.task.ReminderAiParseTaskHandler
+import com.dailysatori.core.task.reminderAiParseTaskPayloadJson
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
 import com.dailysatori.service.asynctask.AsyncTaskRunner
 import com.dailysatori.service.asynctask.NoopAsyncTaskLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
 import org.koin.core.context.GlobalContext
+import java.util.concurrent.TimeUnit
 
 class AsyncTaskScheduler(private val context: Context) {
     fun enqueue(taskId: Long) {
@@ -32,6 +37,20 @@ class AsyncTaskScheduler(private val context: Context) {
             asyncTaskWorkName(taskId),
             ExistingWorkPolicy.KEEP,
             buildAsyncTaskWorkRequest(taskId, taskType),
+        )
+    }
+
+    fun enqueueRetry(taskId: Long, runAfterMs: Long) {
+        val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val now = Clock.System.now().toEpochMilliseconds()
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            asyncTaskRetryWorkName(taskId, runAfterMs),
+            ExistingWorkPolicy.KEEP,
+            buildAsyncTaskWorkRequest(
+                taskId = taskId,
+                taskType = repo.getById(taskId)?.type,
+                initialDelayMs = asyncTaskRetryDelayMs(runAfterMs, now),
+            ),
         )
     }
 
@@ -52,14 +71,22 @@ class AsyncTaskScheduler(private val context: Context) {
     }
 
     fun cancel(taskId: Long) {
-        WorkManager.getInstance(context).cancelUniqueWork(asyncTaskWorkName(taskId))
+        WorkManager.getInstance(context).cancelAllWorkByTag(asyncTaskWorkTag(taskId))
     }
 
     fun recoverAfterProcessStart() {
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        GlobalContext.get().get<ReminderAiBatchRepository>().reconcileOrphanedActiveBatches(
+            taskType = ReminderAiParseTaskHandler.TYPE,
+            payloadForBatch = ::reminderAiParseTaskPayloadJson,
+            uniqueKeyForBatch = { "reminder_ai_parse:$it" },
+        )
         val now = Clock.System.now().toEpochMilliseconds()
         repo.markRunningForRetryAfterProcessRestart(now)
         enqueueRunnable(repo, now)
+        repo.futureRetryingTasks(now).forEach { task ->
+            task.run_after_ms?.let { enqueueRetry(task.id, it) }
+        }
     }
 
     fun recoverAndEnqueueRunnable() {
@@ -87,7 +114,7 @@ class GenericAsyncTaskWorker(
             GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
             return Result.success()
         }
-        if (taskType in LONG_RUNNING_TASK_TYPES) {
+        if (isLongRunningAsyncTask(taskType)) {
             setForeground(createAsyncTaskForegroundInfo(applicationContext, taskId, taskType.orEmpty()))
         }
         val registry = GlobalContext.get().get<AsyncTaskHandlerRegistry>()
@@ -97,7 +124,15 @@ class GenericAsyncTaskWorker(
             registry = registry,
             logger = logStore ?: NoopAsyncTaskLogger,
         )
-        return when (runner.run(taskId)) {
+        val outcome = try {
+            runner.run(taskId)
+        } catch (error: CancellationException) {
+            repo.getById(taskId)?.run_after_ms?.let {
+                AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it)
+            }
+            throw error
+        }
+        return when (outcome) {
             AsyncTaskRunOutcome.Succeeded -> {
                 AsyncTaskScheduler(applicationContext).recoverAndEnqueueRunnable()
                 Result.success()
@@ -106,7 +141,10 @@ class GenericAsyncTaskWorker(
             AsyncTaskRunOutcome.Failed -> {
                 if (inputData.getBoolean(KEY_CONTINUE_CHAIN_ON_FAILURE, false)) Result.success() else Result.failure()
             }
-            AsyncTaskRunOutcome.RetryScheduled -> Result.retry()
+            AsyncTaskRunOutcome.RetryScheduled -> {
+                repo.getById(taskId)?.run_after_ms?.let { AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it) }
+                Result.success()
+            }
         }
     }
 
@@ -118,13 +156,18 @@ class GenericAsyncTaskWorker(
 }
 
 internal fun asyncTaskWorkName(taskId: Long): String = "async-task-$taskId"
+internal fun asyncTaskWorkTag(taskId: Long): String = "async-task-id-$taskId"
+internal fun asyncTaskRetryWorkName(taskId: Long, runAfterMs: Long): String = "async-task-retry-$taskId-$runAfterMs"
+internal fun asyncTaskRetryDelayMs(runAfterMs: Long, nowMs: Long): Long = (runAfterMs - nowMs).coerceAtLeast(0L)
 
 internal fun buildAsyncTaskWorkRequest(
     taskId: Long,
     taskType: String? = null,
     continueChainOnFailure: Boolean = false,
+    initialDelayMs: Long = 0L,
 ): OneTimeWorkRequest {
     val builder = OneTimeWorkRequestBuilder<GenericAsyncTaskWorker>()
+        .addTag(asyncTaskWorkTag(taskId))
         .setInputData(
             workDataOf(
                 GenericAsyncTaskWorker.KEY_TASK_ID to taskId,
@@ -139,6 +182,7 @@ internal fun buildAsyncTaskWorkRequest(
                 .build(),
         )
     }
+    if (initialDelayMs > 0L) builder.setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
     return builder.build()
 }
 
@@ -181,13 +225,19 @@ private val NETWORK_TASK_TYPES = setOf(
     "book_viewpoint_generate",
     "diary_attachment_transcribe",
     "diary_knowledge_extract",
+    "reminder_ai_parse",
 )
 
 private val LONG_RUNNING_TASK_TYPES = setOf(
     "save_article",
     "external_favorite_sync",
     "remote_article_reprocess",
+    "remote_article_sync",
+    "remote_news_fetch",
+    "reminder_ai_parse",
 )
+
+internal fun isLongRunningAsyncTask(type: String?): Boolean = type in LONG_RUNNING_TASK_TYPES
 
 private const val ASYNC_TASK_CHANNEL_ID = "async_tasks"
 private const val ASYNC_TASK_NOTIFICATION_BASE = 2000

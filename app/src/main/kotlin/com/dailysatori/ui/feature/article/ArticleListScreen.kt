@@ -148,10 +148,11 @@ private fun ArticleListEffects(
 ) {
     fun firstVisibleArticleId(): Long? = state.articles.getOrNull(listState.firstVisibleItemIndex)?.id
     fun isAtTop(): Boolean = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+    val articleIds = remember(state.articles) { state.articles.map { it.id } }
     LaunchedEffect(effectiveShowFavoritesOnly) { viewModel.setFavoritesOnly(effectiveShowFavoritesOnly) }
     LaunchedEffect(externalFavoriteSourceId, embeddedSearchQuery) {
         viewModel.setExternalFavoriteSource(externalFavoriteSourceId)
-        if (embeddedSearchQuery != null) viewModel.search(embeddedSearchQuery)
+        viewModel.search(embeddedSearchQuery.orEmpty())
     }
     LaunchedEffect(refreshRequestKey) { if (refreshRequestKey > 0) viewModel.refreshArticles() }
     LaunchedEffect(scrollToTopRequestKey, state.articles.isNotEmpty()) {
@@ -167,7 +168,7 @@ private fun ArticleListEffects(
         }
     }
     LaunchedEffect(isAtTop()) { if (isAtTop()) viewModel.clearNewArticlesIndicator() }
-    LaunchedEffect(state.articles.map { it.id }, listState.firstVisibleItemIndex) {
+    LaunchedEffect(articleIds, listState.firstVisibleItemIndex) {
         viewModel.checkNewArticlesAbove(firstVisibleArticleId(), isAtTop())
     }
     DisposableEffect(lifecycleOwner, state.articles, listState.firstVisibleItemIndex) {

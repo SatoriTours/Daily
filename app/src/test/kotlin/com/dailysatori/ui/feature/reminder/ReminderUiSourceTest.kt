@@ -20,6 +20,25 @@ class ReminderUiSourceTest {
     }
 
     @Test
+    fun recoveredReadyBatchOpensByBatchIdPostsOnceAndConfirmsOneStableReminder() {
+        val handler = source("core/task/ReminderAiParseTaskHandler.kt")
+        val navigation = source("core/navigation/NavHost.kt")
+        val batchViewModel = source("ui/feature/reminder/ReminderAiBatchViewModel.kt")
+
+        assertTrue(handler.contains("claimTerminalNotification(batchId)"))
+        assertTrue(handler.contains("notifier.notifyReady(batchId)"))
+        assertTrue(navigation.contains("composable<ReminderAiBatchRoute>"))
+        assertTrue(navigation.contains("batchId = route.batchId"))
+
+        val confirmation = batchViewModel.substringAfter("fun confirmSelected()")
+            .substringBefore("fun retryBatch()")
+        assertTrue(confirmation.contains("val reminder = reminderRepository.get(id)"))
+        assertTrue(confirmation.contains("?: reminderRepository.createConfirmed"))
+        assertTrue(confirmation.contains("batchRepository.markDraftConfirmed(batchId, id.sourceIndex(), reminder.id)"))
+        assertTrue(confirmation.contains("coordinator.recompute(reminder.id)"))
+    }
+
+    @Test
     fun batchReminderResourcesStayInLocaleParity() {
         val zh = resourceNames("src/main/res/values/strings.xml").filter { it.startsWith("reminder_batch_") }.toSet()
         val en = resourceNames("src/main/res/values-en/strings.xml").filter { it.startsWith("reminder_batch_") }.toSet()
@@ -40,6 +59,22 @@ class ReminderUiSourceTest {
         assertTrue(list.contains("LazyColumn"))
         assertTrue(list.contains("maxLines = 1"))
         assertTrue(list.contains("TextOverflow.Ellipsis"))
+    }
+
+    @Test
+    fun reminderEditorUsesOneConsistentControlLanguage() {
+        val editor = source("ui/feature/reminder/ReminderEditScreen.kt")
+        val draft = source("ui/feature/reminder/ReminderDraftCard.kt")
+        val preview = source("ui/feature/reminder/ReminderBatchPreview.kt")
+
+        assertTrue(editor.contains("ReminderSettingRow("))
+        assertTrue(draft.contains("ReminderSettingRow("))
+        assertTrue(draft.contains("showAdvanced"))
+        assertTrue(draft.contains("AnimatedVisibility(visible = showAdvanced)"))
+        assertFalse(editor.contains("TextButton(onClick = { picker = EditorPicker.START"))
+        assertFalse(draft.contains("TextButton(onClick = { picker = DraftPicker.START_DATE"))
+        assertFalse(Regex("(?m)^\\s+Button\\(onClick = \\{ onConfirmItem").containsMatchIn(preview))
+        assertTrue(preview.contains("TextButton(onClick = { onConfirmItem"))
     }
 
     @Test

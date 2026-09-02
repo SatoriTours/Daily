@@ -120,8 +120,10 @@ class ReminderTextInterpreterTest {
     }
 
     @Test
-    fun fullyLocalBatchMakesZeroRemoteCalls() = runBlocking {
-        val remote = FakeRemote()
+    fun batchAlwaysUsesOneRemoteCallEvenForLocallyRecognizableFragments() = runBlocking {
+        val remote = BatchRemote("""
+            [{"source_index":0,"content":"还信用卡","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"续订域名","start_date":"2026-12-20","end_date":"2026-12-20","first_reminder_time":"","active_day_rule":"daily","recurrence_rule":"yearly:12:20:FEBRUARY_28"}]
+        """.trimIndent())
 
         val result = interpreter(remote).interpretBatch(
             "9月2日晚上8点提醒我还信用卡；每年12月20日提醒我续订域名",
@@ -130,7 +132,7 @@ class ReminderTextInterpreterTest {
         )
 
         assertEquals(listOf("还信用卡", "续订域名"), result.items.map { it.interpretation.draft.content })
-        assertEquals(0, remote.calls)
+        assertEquals(1, remote.calls)
     }
 
     @Test
@@ -147,9 +149,9 @@ class ReminderTextInterpreterTest {
     }
 
     @Test
-    fun mixedLocalAndRemoteResultsMergeInSourceOrder() = runBlocking {
+    fun recognizableAndNaturalLanguageFragmentsShareOneRemoteRequestInSourceOrder() = runBlocking {
         val remote = BatchRemote("""
-            [{"source_index":1,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
+            [{"source_index":0,"content":"还信用卡","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"充值","start_date":"2026-09-01","end_date":"2026-09-01","first_reminder_time":"20:00","active_day_rule":"daily","recurrence_rule":"once"}]
         """.trimIndent())
 
         val result = interpreter(remote).interpretBatch("9月2日提醒我还信用卡；明晚提醒我充值", now, zone)

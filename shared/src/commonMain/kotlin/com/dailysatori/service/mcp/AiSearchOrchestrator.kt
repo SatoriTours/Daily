@@ -7,6 +7,14 @@ import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.shared.db.Memory_entry
 
+private val AiSearchFillers = listOf(
+    "帮我", "找一下", "我之前", "有没有", "之前", "相关", "内容", "什么", "哪些",
+    "一下", "写过", "日记", "文章", "读书", "吗", "的", "对", "里",
+)
+private val AiSearchTokenRegex = Regex("[A-Za-z0-9][A-Za-z0-9_-]*|[\\u4e00-\\u9fff]{2,}")
+private val AiSearchDateRegex = Regex("\\d{4}-\\d{2}-\\d{2}")
+private val AiSearchMonthRegex = Regex("\\d{4}-\\d{2}")
+
 data class AiSearchPlan(
     val searchMemory: Boolean = true,
     val searchDiaries: Boolean = false,
@@ -61,10 +69,9 @@ fun analyzeAiSearchQuery(query: String): AiSearchPlan {
 }
 
 fun extractAiSearchKeywords(query: String): List<String> {
-    val fillers = listOf("帮我", "找一下", "我之前", "有没有", "之前", "相关", "内容", "什么", "哪些", "一下", "写过", "日记", "文章", "读书", "吗", "的", "对", "里")
     var cleaned = query.trim()
-    fillers.forEach { cleaned = cleaned.replace(it, " ") }
-    val tokens = Regex("[A-Za-z0-9][A-Za-z0-9_-]*|[\\u4e00-\\u9fff]{2,}")
+    AiSearchFillers.forEach { cleaned = cleaned.replace(it, " ") }
+    val tokens = AiSearchTokenRegex
         .findAll(cleaned)
         .map { it.value.trim() }
         .filter { it.isNotBlank() }
@@ -77,7 +84,7 @@ fun extractAiSearchKeywords(query: String): List<String> {
         }
     }
     return expanded
-        .filterNot { it in fillers || it.length < 2 }
+        .filterNot { it in AiSearchFillers || it.length < 2 }
         .distinct()
         .take(5)
         .ifEmpty { listOf(query.trim()).filter { it.isNotBlank() } }
@@ -90,17 +97,15 @@ fun aiSearchDatabaseKeywords(query: String): List<String> =
         .distinct()
         .take(8)
 
-fun detectAiSearchTimeIntent(query: String): AiSearchTimeIntent? = when {
-    Regex("\\d{4}-\\d{2}-\\d{2}").containsMatchIn(query) -> {
-        AiSearchTimeIntent.Date(Regex("\\d{4}-\\d{2}-\\d{2}").find(query)!!.value)
+fun detectAiSearchTimeIntent(query: String): AiSearchTimeIntent? {
+    AiSearchDateRegex.find(query)?.value?.let { return AiSearchTimeIntent.Date(it) }
+    AiSearchMonthRegex.find(query)?.value?.let { return AiSearchTimeIntent.Month(it) }
+    return when {
+        query.contains("最近一周") -> AiSearchTimeIntent.RecentDays(7)
+        query.contains("最近一个月") -> AiSearchTimeIntent.RecentDays(30)
+        query.contains("最近") || query.contains("最近几天") -> AiSearchTimeIntent.RecentDays(7)
+        else -> null
     }
-    Regex("\\d{4}-\\d{2}").containsMatchIn(query) -> {
-        AiSearchTimeIntent.Month(Regex("\\d{4}-\\d{2}").find(query)!!.value)
-    }
-    query.contains("最近一周") -> AiSearchTimeIntent.RecentDays(7)
-    query.contains("最近一个月") -> AiSearchTimeIntent.RecentDays(30)
-    query.contains("最近") || query.contains("最近几天") -> AiSearchTimeIntent.RecentDays(7)
-    else -> null
 }
 
 fun rankAiSearchEvidence(

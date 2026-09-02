@@ -55,6 +55,7 @@ import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
 import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
+import com.dailysatori.ui.feature.reminder.ReminderAiBatchViewModel
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsViewModel
@@ -180,8 +181,28 @@ val viewModelModule: Module = module {
             chatConversationRepo = get<ChatConversationRepository>(),
         )
     }
-    viewModel { ReminderViewModel(savedStateHandle = get(), repository = get(), coordinator = get(), settingRepository = get(), textInterpreter = get(), context = androidContext()) }
-    viewModel { ProfileViewModel(reminders = get(), articles = get(), externalSources = get(), tasks = get()) }
+    viewModel {
+        ReminderViewModel(
+            savedStateHandle = get(), repository = get(), coordinator = get(), settingRepository = get(),
+            batchRepository = get(), asyncTaskRepository = get(), taskScheduler = get(), context = androidContext(),
+        )
+    }
+    viewModel { params ->
+        ReminderAiBatchViewModel(
+            batchId = params.get(), batchRepository = get(), asyncTaskRepository = get(), taskScheduler = get(),
+            reminderRepository = get(), coordinator = get(), draftCodec = get(),
+        )
+    }
+    viewModel {
+        ProfileViewModel(
+            reminders = get(),
+            articles = get(),
+            externalSources = get(),
+            remoteNewsSources = get(),
+            remoteArticleSync = get(),
+            tasks = get(),
+        )
+    }
     viewModel {
         val context = androidContext()
         ReminderSettingsViewModel(

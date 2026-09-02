@@ -63,13 +63,13 @@ fun insertDiaryAssistantResult(
     } else {
         TextRange(current.selection.end.coerceIn(0, current.text.length))
     }
-    val cleanResult = result.trim()
-    if (cleanResult.isEmpty()) return current
+    if (result.isBlank()) return current
     val before = current.text.substring(0, range.end)
     val after = current.text.substring(range.end)
-    val separator = "\n\n"
-    val text = before + separator + cleanResult + after
-    val cursor = (before.length + separator.length + cleanResult.length).coerceIn(0, text.length)
+    val prefix = diaryAssistantBoundarySeparator(before, result)
+    val suffix = diaryAssistantBoundarySeparator(result, after)
+    val text = before + prefix + result + suffix + after
+    val cursor = (before.length + prefix.length + result.length).coerceIn(0, text.length)
     return TextFieldValue(text = text, selection = TextRange(cursor))
 }
 
@@ -80,9 +80,49 @@ fun replaceDiaryAssistantSelection(
 ): TextFieldValue {
     if (!canReplaceDiaryAssistantSelection(current, snapshot)) return current
     val range = snapshot.normalizedSelection
-    val replacement = result.trim()
-    val text = current.text.replaceRange(range.start, range.end, replacement)
-    return TextFieldValue(text = text, selection = TextRange(range.start + replacement.length))
+    if (result.isBlank()) return current
+    val text = current.text.replaceRange(range.start, range.end, result)
+    return TextFieldValue(text = text, selection = TextRange(range.start + result.length))
+}
+
+private fun diaryAssistantBoundarySeparator(left: String, right: String): String {
+    if (left.isEmpty() || right.isEmpty()) return ""
+    val existingNewlines = left.trailingDiaryAssistantLineBreaks() + right.leadingDiaryAssistantLineBreaks()
+    return "\n".repeat((2 - existingNewlines).coerceAtLeast(0))
+}
+
+private fun String.trailingDiaryAssistantLineBreaks(): Int {
+    var index = length
+    var count = 0
+    while (index > 0 && count < 2) {
+        when (this[index - 1]) {
+            '\n' -> {
+                index--
+                if (index > 0 && this[index - 1] == '\r') index--
+            }
+            '\r' -> index--
+            else -> return count
+        }
+        count++
+    }
+    return count
+}
+
+private fun String.leadingDiaryAssistantLineBreaks(): Int {
+    var index = 0
+    var count = 0
+    while (index < length && count < 2) {
+        when (this[index]) {
+            '\r' -> {
+                index++
+                if (index < length && this[index] == '\n') index++
+            }
+            '\n' -> index++
+            else -> return count
+        }
+        count++
+    }
+    return count
 }
 
 /** A sheet-scoped, bounded cache. Call [clear] when the sheet leaves composition. */

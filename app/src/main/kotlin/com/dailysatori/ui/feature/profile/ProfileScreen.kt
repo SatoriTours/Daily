@@ -38,6 +38,7 @@ fun ProfileScreen(
     onAddReminder: () -> Unit,
     onFavorites: () -> Unit,
     onExternalFavorites: () -> Unit,
+    onRemoteNews: () -> Unit,
     onTasks: () -> Unit,
     onSettings: () -> Unit,
     onPrivacy: () -> Unit,
@@ -65,6 +66,7 @@ fun ProfileScreen(
             item { ProfileSection("我的内容") {
                 SettingsRow(Icons.Default.Bookmark, "收藏库", "${state.favoriteCount} 项", onFavorites)
                 SettingsRow(Icons.Default.CloudSync, "外部收藏", "${state.externalFavoriteCount} 项 · ${state.enabledExternalSourceCount} 个来源", onExternalFavorites)
+                SettingsRow(Icons.Default.CloudSync, "远程新闻", remoteNewsProfileSubtitle(state.remoteNewsArticleCount, state.enabledRemoteNewsSourceCount), onRemoteNews)
             } }
             item { ProfileSection("运行状态") {
                 val progress = state.taskProgressLabel?.let { " · 进度 $it" }.orEmpty()

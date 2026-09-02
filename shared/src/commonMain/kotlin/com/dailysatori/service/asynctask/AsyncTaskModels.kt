@@ -113,6 +113,33 @@ sealed interface AsyncTaskExecutionResult {
     data class PermanentFailure(val code: String, val message: String) : AsyncTaskExecutionResult
 }
 
+data class ReminderAiRetryDecision(
+    val code: String,
+    val message: String,
+    val retryDelayMs: Long? = null,
+    val permanent: Boolean,
+)
+
+fun reminderAiRetryDecision(error: Throwable, attempt: Long): ReminderAiRetryDecision {
+    val message = error.message.orEmpty().ifBlank { "提醒 AI 解析失败" }
+    val lower = message.lowercase()
+    val permanent = error is com.dailysatori.service.reminder.ReminderAiBatchResponseException ||
+        lower.contains("not configured") || lower.contains("unauthorized") || lower.contains("forbidden") ||
+        lower.contains("invalid token") || lower.contains("authentication") || lower.contains("401") || lower.contains("403") ||
+        lower.contains("reminder text is empty") || attempt >= 3
+    val retryAfter = when (attempt) {
+        1L -> 30_000L
+        2L -> 120_000L
+        else -> null
+    }
+    return ReminderAiRetryDecision(
+        code = if (permanent) "reminder_ai_parse_permanent" else "reminder_ai_parse_transient",
+        message = message,
+        retryDelayMs = retryAfter,
+        permanent = permanent,
+    )
+}
+
 interface AsyncTaskProgressReporter {
     suspend fun report(
         current: Long,
@@ -131,6 +158,13 @@ interface AsyncTaskHandler {
         checkpointJson: String,
         reporter: AsyncTaskProgressReporter,
     ): AsyncTaskExecutionResult
+
+    suspend fun onExecutionTimeout(
+        taskId: Long,
+        payloadJson: String,
+        checkpointJson: String,
+        reporter: AsyncTaskProgressReporter,
+    ): AsyncTaskExecutionResult? = null
 }
 
 class AsyncTaskHandlerRegistry(handlers: List<AsyncTaskHandler>) {
