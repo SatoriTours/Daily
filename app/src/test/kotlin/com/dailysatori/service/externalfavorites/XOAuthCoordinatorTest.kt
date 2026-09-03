@@ -137,6 +137,27 @@ class XOAuthCoordinatorTest {
         assertEquals("runtime-client", store.load()?.clientId)
     }
 
+    @Test
+    fun beginAuthorizationKeepsTheSourceBeingEdited() {
+        val store = FakeSessionStore()
+        XOAuthCoordinator(
+            clientId = "client",
+            redirectUri = "dailysatori://oauth/x",
+            sessionStore = store,
+        ).beginAuthorization(sourceId = 42L)
+
+        assertEquals(42L, store.load()?.sourceId)
+    }
+
+    @Test
+    fun missingRememberedEditSourceIsRejected() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            requireXEditedSource(sourceId = 42L, source = null, authorizedAccountId = "account")
+        }
+
+        assertTrue(error.message.orEmpty().contains("不存在"))
+    }
+
     private class FakeSessionStore : XOAuthSessionStore {
         private var session: XOAuthPendingSession? = null
         override fun save(session: XOAuthPendingSession) {

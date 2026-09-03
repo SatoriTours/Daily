@@ -109,6 +109,67 @@ class GitHubStarsConnectorTest {
         Unit
     }
 
+    @Test
+    fun validatesReplacementTokenForTheExistingAccount() = runBlocking {
+        val client = HttpClient(MockEngine) {
+            engine { addHandler { respond("""{"id":42,"login":"daily-new","name":"Daily User"}""", headers = jsonHeaders()) } }
+        }
+
+        val replacement = GitHubStarsConnector(client).validatedReplacementAuth(gitHubSource(), "new-token")
+
+        assertEquals(githubAuthJson("new-token"), replacement.authJson)
+        assertEquals("daily-new", replacement.accountName)
+    }
+
+    @Test
+    fun rejectsReplacementTokenForAnotherAccount() = runBlocking {
+        val client = HttpClient(MockEngine) {
+            engine { addHandler { respond("""{"id":99,"login":"other","name":"Other"}""", headers = jsonHeaders()) } }
+        }
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            GitHubStarsConnector(client).validatedReplacementAuth(gitHubSource(), "new-token")
+        }
+
+        assertTrue(error.message.orEmpty().contains("当前账号"))
+    }
+
+    @Test
+    fun rejectsReminderBatchIdWithoutMakingARequest() = runBlocking {
+        val client = HttpClient(MockEngine) {
+            engine { addHandler { error("Network must not be called for an invalid credential") } }
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            GitHubStarsConnector(client).validatedReplacementAuth(gitHubSource(), "reminder_ai_123_deadbeef")
+        }
+        Unit
+    }
+
+    @Test
+    fun rejectsTaskFieldNameWithoutMakingARequest() = runBlocking {
+        val client = HttpClient(MockEngine) {
+            engine { addHandler { error("Network must not be called for an invalid credential") } }
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            GitHubStarsConnector(client).validatedReplacementAuth(gitHubSource(), "task_id")
+        }
+        Unit
+    }
+
+    @Test
+    fun rejectsNumericTaskIdWithoutMakingARequest() = runBlocking {
+        val client = HttpClient(MockEngine) {
+            engine { addHandler { error("Network must not be called for an invalid credential") } }
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            GitHubStarsConnector(client).validatedReplacementAuth(gitHubSource(), "12345")
+        }
+        Unit
+    }
+
     private fun gitHubSource() = External_favorite_source(
         id = 1,
         provider = ExternalFavoriteProvider.GITHUB.id,

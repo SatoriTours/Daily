@@ -43,6 +43,7 @@ data class ExternalFavoritesSettingsState(
     val xOAuthClientId: String = "",
     val gitHubToken: String = "",
     val connectingGitHub: Boolean = false,
+    val editingSourceId: Long? = null,
 )
 
 data class ExternalFavoriteSourceUi(
@@ -132,7 +133,8 @@ class ExternalFavoritesSettingsViewModel(
     }
 
     fun createXAuthorizationUrl(): String? = runCatching {
-        xOAuthCoordinator.beginAuthorization()
+        val editing = _state.value.editingSourceId?.let(sourceRepo::getById)
+        xOAuthCoordinator.beginAuthorization(editing?.takeIf { it.provider == ExternalFavoriteProvider.X.id }?.id)
     }.onFailure {
         _state.update { state -> state.copy(message = "请先配置 X OAuth Client ID") }
     }.getOrNull()
@@ -140,35 +142,62 @@ class ExternalFavoritesSettingsViewModel(
     fun updateGitHubToken(value: String) =
         _state.update { it.copy(gitHubToken = value, message = null) }
 
+    fun beginEdit(sourceId: Long) {
+        val source = sourceRepo.getById(sourceId) ?: return
+        _state.update { it.copy(editingSourceId = source.id, gitHubToken = "", message = null) }
+    }
+
+    fun finishEditing() = _state.update { it.copy(editingSourceId = null, gitHubToken = "", message = null) }
+
     fun connectGitHub(onConnected: () -> Unit) {
-        val token = _state.value.gitHubToken.trim()
+        val snapshot = _state.value
+        val token = snapshot.gitHubToken.trim()
         if (token.isBlank()) {
             _state.update { it.copy(message = "请先填写 GitHub Personal Access Token") }
+            return
+        }
+        val editing = snapshot.editingSourceId?.let(sourceRepo::getById)
+        if (snapshot.editingSourceId != null && editing?.provider != ExternalFavoriteProvider.GITHUB.id) {
+            _state.update { it.copy(message = "正在编辑的 GitHub 来源不存在") }
             return
         }
         _state.update { it.copy(connectingGitHub = true, message = null) }
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val account = gitHubConnector.resolveAccount(token)
+                    val account = if (editing == null) gitHubConnector.resolveAccount(token) else null
+                    val replacement = editing?.let { gitHubConnector.validatedReplacementAuth(it, token) }
                     val sourceId = sourceRepo.save(
+                        id = editing?.id,
                         provider = ExternalFavoriteProvider.GITHUB.id,
-                        displayName = "GitHub Stars",
-                        accountId = account.id,
-                        accountName = account.login,
-                        authJson = githubAuthJson(token),
-                        syncIntervalMinutes = 720,
+                        displayName = editing?.display_name ?: "GitHub Stars",
+                        accountId = editing?.account_id ?: requireNotNull(account).id,
+                        accountName = replacement?.accountName ?: requireNotNull(account).login,
+                        authJson = replacement?.authJson ?: githubAuthJson(token),
+                        enabled = editing?.enabled != 0L,
+                        syncIntervalMinutes = editing?.sync_interval_minutes ?: 720,
+                        status = editing?.status?.takeIf { editing.enabled == 0L } ?: ExternalSourceStatus.idle.name,
+                        configJson = editing?.config_json.orEmpty(),
+                        capabilitiesJson = editing?.capabilities_json.orEmpty(),
                     )
-                    scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)
-                    scheduler.enqueuePeriodic(sourceId, 720)
+                    val savedSource = requireNotNull(sourceRepo.getById(sourceId))
+                    if (savedSource.enabled == 1L) {
+                        scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)
+                        scheduler.enqueuePeriodic(savedSource)
+                        true
+                    } else {
+                        scheduler.cancelPeriodic(sourceId)
+                        false
+                    }
                 }
-            }.onSuccess {
+            }.onSuccess { syncing ->
                 _state.update {
                     it.copy(
                         sources = loadUiSources(),
                         gitHubToken = "",
                         connectingGitHub = false,
-                        message = "GitHub 已连接，正在同步 Stars",
+                        editingSourceId = null,
+                        message = if (syncing) "GitHub 凭据验证成功，正在同步 Stars" else "GitHub 凭据验证成功，来源仍保持暂停",
                     )
                 }
                 onConnected()
@@ -500,6 +529,7 @@ fun externalFavoriteAddServiceActionLabel(hasSources: Boolean = false): String =
     if (hasSources) "连接新来源" else "连接外部收藏"
 
 fun externalFavoriteAddPageTitle(): String = "新增外部收藏"
+fun externalFavoriteFormPageTitle(editing: Boolean): String = if (editing) "编辑外部收藏" else externalFavoriteAddPageTitle()
 
 fun externalFavoriteAddPageHelperTitle(): String = "选择要连接的平台"
 

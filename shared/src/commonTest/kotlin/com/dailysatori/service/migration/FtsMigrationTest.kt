@@ -3,10 +3,20 @@ package com.dailysatori.service.migration
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.cash.sqldelight.db.QueryResult
 import com.dailysatori.shared.db.DailySatoriDatabase
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class FtsMigrationTest {
+    @Test
+    fun dynamicMigrationQueriesDoNotReuseAStatementIdentifier() {
+        val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
+
+        assertFalse(migration.contains("executeQuery<Long>(0, sql"))
+        assertFalse(migration.contains("executeQuery<Unit>(0, \"PRAGMA table_info"))
+    }
+
     @Test
     fun v21RepairsMissingFtsTablesBeforeDiaryTriggersCanRun() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)

@@ -17,7 +17,13 @@ class DatabaseMigration(
     private val log = Logger.withTag("DBMigration")
 
     fun runMigrations() {
-        val currentVersion = getCurrentVersion()
+        val storedVersion = settingRepo.get(SettingKeys.schemaVersion)
+        if (storedVersion == null) {
+            settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
+            log.i { "Fresh database already uses schema version ${DatabaseConfig.currentSchemaVersion}" }
+            return
+        }
+        val currentVersion = storedVersion.toLongOrNull() ?: 0L
         log.i { "Current schema version: $currentVersion, target: ${DatabaseConfig.currentSchemaVersion}" }
 
         if (currentVersion >= DatabaseConfig.currentSchemaVersion) {
@@ -998,15 +1004,11 @@ class DatabaseMigration(
 
     private fun addColumnIfMissing(table: String, column: String, definition: String) {
         var exists = false
-        driver.executeQuery<Unit>(0, "PRAGMA table_info($table)", { cursor ->
+        driver.executeQuery<Unit>(null, "PRAGMA table_info($table)", { cursor ->
             while (cursor.next().value) if (cursor.getString(1) == column) exists = true
             QueryResult.Value(Unit)
         }, 0)
         if (!exists) runSql("ALTER TABLE $table ADD COLUMN $column $definition")
-    }
-
-    private fun getCurrentVersion(): Long {
-        return settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0L
     }
 
     private fun migratedWeReadTokenValue(legacyToken: String): String = when {
@@ -1019,7 +1021,7 @@ class DatabaseMigration(
 
     private fun queryLong(sql: String): Long {
         var result = 0L
-        driver.executeQuery<Long>(0, sql, { cursor ->
+        driver.executeQuery<Long>(null, sql, { cursor ->
             if (cursor.next().value) {
                 result = cursor.getLong(0) ?: 0L
             }

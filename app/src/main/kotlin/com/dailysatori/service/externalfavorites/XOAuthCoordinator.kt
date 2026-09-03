@@ -3,6 +3,7 @@ package com.dailysatori.service.externalfavorites
 import android.content.Context
 import android.net.Uri
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import com.dailysatori.shared.db.External_favorite_source
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.forms.submitForm
@@ -41,6 +42,7 @@ data class XOAuthPendingSession(
     val state: String,
     val codeVerifier: String,
     val clientId: String = "",
+    val sourceId: Long? = null,
 )
 
 interface XOAuthSessionStore {
@@ -57,6 +59,7 @@ class SharedPreferencesXOAuthSessionStore(context: Context) : XOAuthSessionStore
             .putString(KEY_STATE, session.state)
             .putString(KEY_CODE_VERIFIER, session.codeVerifier)
             .putString(KEY_CLIENT_ID, session.clientId)
+            .putLong(KEY_SOURCE_ID, session.sourceId ?: NO_SOURCE_ID)
             .apply()
     }
 
@@ -64,7 +67,8 @@ class SharedPreferencesXOAuthSessionStore(context: Context) : XOAuthSessionStore
         val state = prefs.getString(KEY_STATE, null)?.takeIf { it.isNotBlank() } ?: return null
         val verifier = prefs.getString(KEY_CODE_VERIFIER, null)?.takeIf { it.isNotBlank() } ?: return null
         val clientId = prefs.getString(KEY_CLIENT_ID, null).orEmpty()
-        return XOAuthPendingSession(state, verifier, clientId)
+        val sourceId = prefs.getLong(KEY_SOURCE_ID, NO_SOURCE_ID).takeIf { it != NO_SOURCE_ID }
+        return XOAuthPendingSession(state, verifier, clientId, sourceId)
     }
 
     override fun clear() {
@@ -75,6 +79,8 @@ class SharedPreferencesXOAuthSessionStore(context: Context) : XOAuthSessionStore
         const val KEY_STATE = "state"
         const val KEY_CODE_VERIFIER = "code_verifier"
         const val KEY_CLIENT_ID = "client_id"
+        const val KEY_SOURCE_ID = "source_id"
+        const val NO_SOURCE_ID = -1L
     }
 }
 
@@ -87,7 +93,7 @@ class XOAuthCoordinator(
     private val config: XOAuthProviderConfig = XOAuthProviderConfig(clientId, redirectUri),
     private val clientIdProvider: () -> String = { clientId },
 ) {
-    fun beginAuthorization(): String {
+    fun beginAuthorization(sourceId: Long? = null): String {
         val resolvedClientId = currentClientId()
         return runCatching {
             val request = appAuthAuthorizationRequest(resolvedClientId)
@@ -96,13 +102,14 @@ class XOAuthCoordinator(
                     state = request.state.orEmpty(),
                     codeVerifier = request.codeVerifier.orEmpty(),
                     clientId = resolvedClientId,
+                    sourceId = sourceId,
                 ),
             )
             request.toUri().toString()
         }.getOrElse {
             val verifier = xOAuthCodeVerifier()
             val state = xOAuthState()
-            sessionStore?.save(XOAuthPendingSession(state = state, codeVerifier = verifier, clientId = resolvedClientId))
+            sessionStore?.save(XOAuthPendingSession(state = state, codeVerifier = verifier, clientId = resolvedClientId, sourceId = sourceId))
             authorizationUrl(state = state, codeChallenge = xOAuthCodeChallenge(verifier), clientId = resolvedClientId)
         }
     }
@@ -131,14 +138,19 @@ class XOAuthCoordinator(
             val token = exchangeCodeForToken(callback.code, pending.codeVerifier, clientId)
             val user = fetchCurrentUser(token.accessToken)
             val repo = sourceRepo ?: error("X OAuth source repository is not configured")
+            val editedSource = requireXEditedSource(pending.sourceId, pending.sourceId?.let(repo::getById), user.id)
             val sourceId = repo.save(
+                id = editedSource?.id,
                 provider = ExternalFavoriteProvider.X.id,
                 displayName = "X @${user.username.ifBlank { user.id }}",
                 accountId = user.id,
                 accountName = user.username.ifBlank { user.name },
                 authJson = xOAuthAuthJson(token, clientId),
-                enabled = true,
-                syncIntervalMinutes = 24L * 60L,
+                enabled = editedSource?.enabled != 0L,
+                syncIntervalMinutes = editedSource?.sync_interval_minutes ?: 24L * 60L,
+                status = editedSource?.status?.takeIf { editedSource.enabled == 0L } ?: ExternalSourceStatus.idle.name,
+                configJson = editedSource?.config_json.orEmpty(),
+                capabilitiesJson = editedSource?.capabilities_json.orEmpty(),
             )
             sessionStore?.clear()
             return sourceId
@@ -206,6 +218,18 @@ class XOAuthCoordinator(
             .setScope(X_OAUTH_SCOPES.joinToString(" "))
             .build()
     }
+}
+
+internal fun requireXEditedSource(
+    sourceId: Long?,
+    source: External_favorite_source?,
+    authorizedAccountId: String,
+): External_favorite_source? {
+    if (sourceId == null) return null
+    require(source != null) { "正在编辑的 X 来源不存在" }
+    require(source.provider == ExternalFavoriteProvider.X.id) { "正在编辑的来源不是 X" }
+    require(source.account_id == authorizedAccountId) { "该授权账号与当前 X 来源不一致" }
+    return source
 }
 
 data class XOAuthTokenPayload(

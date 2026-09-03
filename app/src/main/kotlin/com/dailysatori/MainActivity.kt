@@ -63,9 +63,13 @@ class MainActivity : ComponentActivity() {
                 val koin = GlobalContext.get()
                 val sourceId = koin.get<XOAuthCoordinator>().handleCallbackUrl(uri)
                 val scheduler = koin.get<ExternalFavoriteSyncScheduler>()
-                scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)
                 koin.get<ExternalFavoriteSourceRepository>().getById(sourceId)?.let { source ->
-                    scheduler.enqueuePeriodic(source.id, source.sync_interval_minutes)
+                    if (source.enabled == 1L) {
+                        scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)
+                        scheduler.enqueuePeriodic(source)
+                    } else {
+                        scheduler.cancelPeriodic(sourceId)
+                    }
                 }
             }.onFailure { error ->
                 Log.e(TAG, "X OAuth callback handling failed", error)

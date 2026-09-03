@@ -14,6 +14,21 @@ import com.dailysatori.shared.db.DailySatoriDatabase
 
 class ReminderMigrationTest {
     @Test
+    fun freshLatestSchemaIsMarkedCurrentWithoutReplayingLegacyMigrations() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val settings = SettingRepository(DailySatoriDatabase(driver))
+
+            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
     fun reminderMigrationDoesNotHideSchemaFailures() {
         assertFailsWith<IllegalStateException> {
             DatabaseMigration.migrateReminderSchema(runSql = { throw IllegalStateException("disk failure") })

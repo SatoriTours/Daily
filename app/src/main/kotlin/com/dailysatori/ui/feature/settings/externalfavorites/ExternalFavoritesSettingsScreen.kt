@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
@@ -67,6 +68,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
+import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
@@ -89,10 +91,11 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
             }.isSuccess
         } ?: false
     }
-    val openAddPage = { showAddPage = true }
+    val openAddPage = { viewModel.finishEditing(); showAddPage = true }
+    val closeFormPage = { viewModel.finishEditing(); showAddPage = false }
 
     BackHandler(enabled = showAddPage) {
-        showAddPage = false
+        closeFormPage()
     }
 
     DisposableEffect(lifecycleOwner, viewModel) {
@@ -111,7 +114,7 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
         ExternalFavoriteAddServicePage(
             state = state,
             viewModel = viewModel,
-            onBack = { showAddPage = false },
+            onBack = closeFormPage,
             onConnectX = {
                 val clientIdSaved = viewModel.saveXOAuthClientIdForConnect()
                 val authorizationLaunched = if (clientIdSaved) connectX() else false
@@ -127,6 +130,7 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
             viewModel = viewModel,
             onBack = onBack,
             openAddPage = openAddPage,
+            openEditPage = { sourceId -> viewModel.beginEdit(sourceId); showAddPage = true },
         )
     }
 }
@@ -137,6 +141,7 @@ private fun ExternalFavoriteSourceListPage(
     viewModel: ExternalFavoritesSettingsViewModel,
     onBack: () -> Unit,
     openAddPage: () -> Unit,
+    openEditPage: (Long) -> Unit,
 ) {
     AppScaffold(
         title = "外部收藏同步",
@@ -173,6 +178,7 @@ private fun ExternalFavoriteSourceListPage(
                 state = state,
                 viewModel = viewModel,
                 openAddPage = openAddPage,
+                openEditPage = openEditPage,
                 modifier = modifier,
             )
         }
@@ -187,8 +193,11 @@ private fun ExternalFavoriteAddServicePage(
     onConnectX: () -> Unit,
     onConnectGitHub: () -> Unit,
 ) {
+    val editingSource = state.editingSourceId?.let { id -> state.sources.firstOrNull { it.id == id }?.source }
+    val showGitHub = editingSource == null || editingSource.provider == ExternalFavoriteProvider.GITHUB.id
+    val showX = editingSource == null || editingSource.provider == ExternalFavoriteProvider.X.id
     AppScaffold(
-        title = externalFavoriteAddPageTitle(),
+        title = externalFavoriteFormPageTitle(editingSource != null),
         onBack = onBack,
     ) { modifier ->
         Column(
@@ -200,39 +209,34 @@ private fun ExternalFavoriteAddServicePage(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
-            ExternalFavoriteAddHelperCard()
-            Text("GitHub Stars", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = state.gitHubToken,
-                onValueChange = viewModel::updateGitHubToken,
-                label = { Text("GitHub Personal Access Token") },
-                supportingText = { Text("只需读取账号与仓库内容；Token 会加密保存在本机") },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
-                onClick = onConnectGitHub,
-                enabled = !state.connectingGitHub,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Default.Bookmark, contentDescription = null)
-                Text(if (state.connectingGitHub) "正在验证…" else "连接 GitHub 并同步 Stars")
+            ExternalFavoriteAddHelperCard(editing = editingSource != null)
+            if (showGitHub) {
+                Text("GitHub Stars", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = state.gitHubToken,
+                    onValueChange = viewModel::updateGitHubToken,
+                    label = { Text("GitHub Personal Access Token") },
+                    supportingText = { Text("验证成功后才会替换原 Token；已有收藏不会删除") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(onClick = onConnectGitHub, enabled = !state.connectingGitHub, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Bookmark, contentDescription = null)
+                    Text(if (state.connectingGitHub) "正在验证…" else if (editingSource != null) "验证并保存" else "连接 GitHub 并同步 Stars")
+                }
             }
-            Text("X 收藏", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = state.xOAuthClientId,
-                onValueChange = viewModel::updateXOAuthClientId,
-                label = { Text(externalFavoriteXClientIdLabel()) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ExternalFavoriteAddNotes()
+            if (showX) {
+                Text("X 收藏", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(value = state.xOAuthClientId, onValueChange = viewModel::updateXOAuthClientId,
+                    label = { Text(externalFavoriteXClientIdLabel()) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                ExternalFavoriteAddNotes()
+                Button(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Bookmark, contentDescription = null)
+                    Text(if (editingSource != null) "重新授权并保存" else externalFavoriteConnectXActionLabel())
+                }
+            }
             state.message?.takeIf { it.isNotBlank() }?.let { ExternalFavoriteMessage(it) }
-            Button(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Bookmark, contentDescription = null)
-                Text(externalFavoriteConnectXActionLabel())
-            }
             TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                 Text("取消")
             }
@@ -241,7 +245,7 @@ private fun ExternalFavoriteAddServicePage(
 }
 
 @Composable
-private fun ExternalFavoriteAddHelperCard() {
+private fun ExternalFavoriteAddHelperCard(editing: Boolean = false) {
     Surface(
         shape = RoundedCornerShape(Radius.xl),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
@@ -257,13 +261,13 @@ private fun ExternalFavoriteAddHelperCard() {
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(
-                    externalFavoriteAddPageHelperTitle(),
+                    if (editing) "更新连接凭据" else externalFavoriteAddPageHelperTitle(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    externalFavoriteAddPageHelperText(),
+                    if (editing) "验证成功后替换当前凭据，已有收藏和同步记录都会保留。" else externalFavoriteAddPageHelperText(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -370,6 +374,7 @@ private fun ExternalFavoriteSourceList(
     state: ExternalFavoritesSettingsState,
     viewModel: ExternalFavoritesSettingsViewModel,
     openAddPage: () -> Unit,
+    openEditPage: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var pendingDeleteSourceId by remember { mutableStateOf<Long?>(null) }
@@ -401,7 +406,8 @@ private fun ExternalFavoriteSourceList(
                 onFullSync = { viewModel.fullSyncNow(source.id) },
                 onCancelSync = { viewModel.cancelSync(source.id) },
                 onToggleEnabled = { viewModel.toggleEnabled(source.id, it) },
-                onReconnect = openAddPage,
+                onReconnect = { openEditPage(source.id) },
+                onEdit = { openEditPage(source.id) },
                 onDelete = { pendingDeleteSourceId = source.id },
             )
         }
@@ -460,6 +466,7 @@ private fun ExternalFavoriteSourceCard(
     onCancelSync: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onReconnect: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val source = item.source
@@ -557,6 +564,12 @@ private fun ExternalFavoriteSourceCard(
                         Icon(Icons.Default.MoreVert, contentDescription = "更多")
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text("编辑连接") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                            enabled = !syncing,
+                            onClick = { menuExpanded = false; onEdit() },
+                        )
                         DropdownMenuItem(
                             text = { Text(externalFavoriteFullSyncMenuLabel()) },
                             leadingIcon = {

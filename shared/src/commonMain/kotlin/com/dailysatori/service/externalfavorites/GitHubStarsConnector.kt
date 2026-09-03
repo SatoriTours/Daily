@@ -22,6 +22,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
 data class GitHubAccount(val id: String, val login: String, val name: String)
+data class GitHubReplacementAuth(val authJson: String, val accountName: String)
 
 class GitHubStarsConnector(
     private val client: HttpClient? = null,
@@ -51,6 +52,17 @@ class GitHubStarsConnector(
             login = root.string("login") ?: error("GitHub 用户响应缺少 login"),
             name = root.string("name").orEmpty(),
         )
+    }
+
+    suspend fun validatedReplacementAuth(
+        source: External_favorite_source,
+        accessToken: String,
+    ): GitHubReplacementAuth {
+        val token = accessToken.trim()
+        require(!token.looksLikeInternalTaskValue()) { "Token 格式无效，请重新填写 GitHub Token" }
+        val account = resolveAccount(token)
+        require(account.id == source.account_id) { "该 Token 不属于当前账号 ${source.account_name}" }
+        return GitHubReplacementAuth(githubAuthJson(token), account.login)
     }
 
     override suspend fun fetchPage(
@@ -171,6 +183,13 @@ class GitHubStarsConnector(
 
     private fun httpClient(): HttpClient = client ?: error("GitHubStarsConnector requires an HttpClient")
 }
+
+private fun String.looksLikeInternalTaskValue(): Boolean =
+    equals("batch_id", ignoreCase = true) ||
+        equals("task_id", ignoreCase = true) ||
+        all(Char::isDigit) ||
+        startsWith("reminder_ai_", ignoreCase = true) ||
+        startsWith("{") || startsWith("[")
 
 internal fun hasEnoughGitHubMetadata(text: String): Boolean =
     text.filterNot(Char::isWhitespace).length >= MIN_GITHUB_METADATA_CHARS

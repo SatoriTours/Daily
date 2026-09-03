@@ -166,8 +166,9 @@ class ExternalFavoriteSyncWorkerTest {
         assertEquals(false, connect.contains("FavoriteSyncMode.history.name"))
         assertTrue(
             connect.indexOf("scheduler.enqueue(sourceId, FavoriteSyncMode.sync.name)") <
-                connect.indexOf("scheduler.enqueuePeriodic(sourceId, 720)"),
+                connect.indexOf("scheduler.enqueuePeriodic(savedSource)"),
         )
+        assertTrue(connect.contains("if (savedSource.enabled == 1L)"))
     }
 
     @Test
@@ -187,6 +188,7 @@ class ExternalFavoriteSyncWorkerTest {
 
         assertTrue(application.contains("get<ExternalFavoriteSourceRepository>"))
         assertTrue(application.contains(".getEnabled()"))
-        assertTrue(activity.contains("enqueuePeriodic(source.id, source.sync_interval_minutes)"))
+        assertTrue(activity.contains("if (source.enabled == 1L)"))
+        assertTrue(activity.contains("scheduler.enqueuePeriodic(source)"))
     }
 }
