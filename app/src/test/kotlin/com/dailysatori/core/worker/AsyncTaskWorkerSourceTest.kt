@@ -73,6 +73,9 @@ class AsyncTaskWorkerSourceTest {
     fun reminderAiRecoveryReconcilesOrphansBeforeResumingDurableQueuedWork() {
         val worker = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
         val batches = File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ReminderAiBatchRepository.kt").readText()
+        val sharedModule = File("../shared/src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
+
+        assertTrue(sharedModule.contains("single { ReminderAiBatchRepository(get()) }"))
 
         val recovery = worker.substringAfter("fun recoverAfterProcessStart()")
             .substringBefore("fun recoverAndEnqueueRunnable()")

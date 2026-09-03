@@ -18,6 +18,7 @@ import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.ReminderRepository
+import com.dailysatori.data.repository.ReminderAiBatchRepository
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.SkillConfigDataSource
@@ -114,6 +115,7 @@ val sharedModule: Module = module {
     single { MemoryRepository(get()) }
     single { RemoteArticleSyncRepository(get()) }
     single { ReminderRepository(get()) }
+    single { ReminderAiBatchRepository(get()) }
     single { RemoteNewsSourceRepository(get(), get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }

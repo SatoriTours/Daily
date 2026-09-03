@@ -45,7 +45,7 @@ class ReminderAiParseTaskHandlerTest {
             val handler = ReminderAiParseTaskHandler(
                 batches,
                 RecordingRemote("""[{"source_index":0,"content":"pay card","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"09:00","active_day_rule":"daily","recurrence_rule":"once"}]"""),
-                ReminderBatchCodec(ReminderDraftCodec()), FixedClock, notifier,
+                fixedBatchCodec(), FixedClock, notifier,
             )
             val runner = AsyncTaskRunner(tasks, AsyncTaskHandlerRegistry(listOf(handler)), nowMs = { FixedClock.now().toEpochMilliseconds() })
 
@@ -77,7 +77,7 @@ class ReminderAiParseTaskHandlerTest {
             """.trimIndent())
             val reporter = RecordingReporter()
             val notifier = RecordingNotifier()
-            val handler = ReminderAiParseTaskHandler(repository, remote, ReminderBatchCodec(ReminderDraftCodec()), FixedClock, notifier)
+            val handler = ReminderAiParseTaskHandler(repository, remote, fixedBatchCodec(), FixedClock, notifier)
 
             val result = handler.execute(91, reminderAiParseTaskPayloadJson(batch.id), "", reporter)
 
@@ -99,7 +99,7 @@ class ReminderAiParseTaskHandlerTest {
             val handler = ReminderAiParseTaskHandler(
                 repository,
                 RecordingRemote(IllegalStateException("AI is not configured")),
-                ReminderBatchCodec(ReminderDraftCodec()),
+                fixedBatchCodec(),
                 FixedClock,
                 notifier,
             )
@@ -119,7 +119,7 @@ class ReminderAiParseTaskHandlerTest {
             repository.markRunning(batch.id, 92, 1)
             repository.markReady(batch.id, listOf(com.dailysatori.service.reminder.ReminderAiBatchDraft(0, "persisted before crash", "{}")))
             val notifier = RecordingNotifier()
-            val handler = ReminderAiParseTaskHandler(repository, RecordingRemote("[]"), ReminderBatchCodec(ReminderDraftCodec()), FixedClock, notifier)
+            val handler = ReminderAiParseTaskHandler(repository, RecordingRemote("[]"), fixedBatchCodec(), FixedClock, notifier)
 
             handler.execute(92, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
             handler.execute(92, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
@@ -136,7 +136,7 @@ class ReminderAiParseTaskHandlerTest {
             repository.markRunning(batch.id, 92, 1)
             repository.markFailed(batch.id, "AI is not configured")
             val notifier = RecordingNotifier()
-            val handler = ReminderAiParseTaskHandler(repository, RecordingRemote("[]"), ReminderBatchCodec(ReminderDraftCodec()), FixedClock, notifier)
+            val handler = ReminderAiParseTaskHandler(repository, RecordingRemote("[]"), fixedBatchCodec(), FixedClock, notifier)
 
             handler.execute(92, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
             handler.execute(92, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
@@ -150,7 +150,7 @@ class ReminderAiParseTaskHandlerTest {
     fun retriesTransientFailuresAtThirtySecondsThenTwoMinutesAndPersistsFinalOriginalInputFailure() = runBlocking {
         withRepository { repository ->
             val batch = repository.enqueueOrReuse("do not lose this", TimeZone.UTC, LocalDate(2026, 9, 2))
-            val handler = ReminderAiParseTaskHandler(repository, RecordingRemote(IllegalStateException("timeout")), ReminderBatchCodec(ReminderDraftCodec()), FixedClock)
+            val handler = ReminderAiParseTaskHandler(repository, RecordingRemote(IllegalStateException("timeout")), fixedBatchCodec(), FixedClock)
 
             val first = handler.execute(92, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
             val second = handler.execute(92, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
@@ -177,7 +177,7 @@ class ReminderAiParseTaskHandlerTest {
                 val result = ReminderAiParseTaskHandler(
                     repository,
                     RecordingRemote(response),
-                    ReminderBatchCodec(ReminderDraftCodec()),
+                    fixedBatchCodec(),
                     FixedClock,
                 ).execute(index.toLong() + 100, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
 
@@ -194,7 +194,7 @@ class ReminderAiParseTaskHandlerTest {
             val batches = ReminderAiBatchRepository(database)
             val tasks = AsyncTaskRepository(database)
             val batch = batches.enqueueOrReuse("keep this input", TimeZone.UTC, LocalDate(2026, 9, 2))
-            val handler = ReminderAiParseTaskHandler(batches, RecordingRemote("[]", delayMillis = 50), ReminderBatchCodec(ReminderDraftCodec()), FixedClock)
+            val handler = ReminderAiParseTaskHandler(batches, RecordingRemote("[]", delayMillis = 50), fixedBatchCodec(), FixedClock)
             val taskId = tasks.enqueue(ReminderAiParseTaskHandler.TYPE, reminderAiParseTaskPayloadJson(batch.id), maxAttempts = 5)
             val runner = AsyncTaskRunner(tasks, AsyncTaskHandlerRegistry(listOf(handler)), nowMs = { FixedClock.now().toEpochMilliseconds() }, executionTimeoutMs = { 1 })
 
@@ -257,4 +257,8 @@ class ReminderAiParseTaskHandlerTest {
     }
 
     private object FixedClock : Clock { override fun now(): Instant = Instant.parse("2026-09-02T00:00:00Z") }
+
+    private fun fixedBatchCodec() = ReminderBatchCodec(
+        ReminderDraftCodec(now = { FixedClock.now() }, currentTimeZone = { TimeZone.UTC }),
+    )
 }
