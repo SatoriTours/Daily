@@ -246,6 +246,7 @@ private fun UnifiedNewsTopBar(
             selectedTab = unifiedNewsSelectedTab(state),
             onAvatar = onMyClick,
             onSearch = viewModel::toggleSearch,
+            onRefresh = viewModel::refreshSelectedSource,
         )
     }
 }

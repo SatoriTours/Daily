@@ -1721,6 +1721,16 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedNewsCompactHeaderKeepsRefreshActionVisible() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val header = java.io.File("src/main/kotlin/com/dailysatori/ui/component/appbar/HomeCompactHeader.kt").readText()
+
+        assertTrue(screen.contains("onRefresh = viewModel::refreshSelectedSource"))
+        assertTrue(header.contains("onRefresh: (() -> Unit)? = null"))
+        assertTrue(header.contains("contentDescription = \"刷新\""))
+    }
+
+    @Test
     fun unifiedNewsPromptRequestsDailyCoverLeadForMagazineSummary() {
         val prompt = buildUnifiedNewsPrompt(
             window = UnifiedNewsWindow(UnifiedNewsWindowKey.DAILY, "2026-05-27", 0L, 1L),

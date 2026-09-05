@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
@@ -45,6 +46,7 @@ fun HomeCompactHeader(
     selectedTab: String,
     onAvatar: () -> Unit,
     onSearch: () -> Unit,
+    onRefresh: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars),
@@ -71,6 +73,11 @@ fun HomeCompactHeader(
                         Box(Modifier.height(2.dp).fillMaxWidth().background(if (selected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent))
                     }
                 }
+            }
+        }
+        onRefresh?.let { refresh ->
+            IconButton(onClick = refresh, modifier = Modifier.size(Height.appBar)) {
+                Icon(Icons.Default.Refresh, contentDescription = "刷新")
             }
         }
         IconButton(onClick = onSearch, modifier = Modifier.size(Height.appBar)) {
