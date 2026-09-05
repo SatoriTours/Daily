@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日记优先版 V3：底部输入栏语音入口</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page:#07080a; --phone:#0b0d10; --surface:#14171b; --surface2:#1a1e24;
+      --ink:#f2efe7; --text:rgba(242,239,231,.9); --muted:#9aa0a9; --faint:#68707b;
+      --line:rgba(255,255,255,.075); --line2:rgba(255,255,255,.12);
+      --accent:#d7ed72; --accentInk:#151807; --red:#ff7167; --blue:#82c7da; --gold:#d8ba6a; --violet:#b7a5ff;
+      --greenSoft:rgba(215,237,114,.11); --redSoft:rgba(255,113,103,.12); --blueSoft:rgba(130,199,218,.13);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--page);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45}
+    main{max-width:1180px;margin:0 auto;padding:28px 20px 54px}
+    header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:22px}
+    h1{margin:0 0 8px;font-size:29px;line-height:1.16;letter-spacing:0}
+    .subtitle{margin:0;max-width:760px;color:var(--muted);font-size:15px}
+    .tagline{border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);border-radius:999px;padding:8px 12px;font-size:13px;white-space:nowrap}
+    .screens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+    .screen-card{background:#0d0f12;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .screen-card h2{margin:14px 16px 5px;font-size:16px;letter-spacing:0}
+    .screen-card p{margin:0 16px 17px;color:var(--muted);font-size:13px}
+    .phone-stage{padding:18px 14px;background:#111419}
+    .phone{height:660px;max-width:304px;margin:auto;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.13);border-radius:34px;padding:14px;background:var(--phone);box-shadow:0 26px 70px rgba(0,0,0,.42)}
+    .phone:before{content:"";position:absolute;top:8px;left:50%;width:68px;height:5px;border-radius:999px;transform:translateX(-50%);background:rgba(255,255,255,.14)}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin:18px 2px 14px}
+    .title{font-size:20px;font-weight:740;letter-spacing:0}
+    .actions{display:flex;gap:8px}.round{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:13px}
+    .day-summary{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px;padding:0 2px}
+    .day-main{color:var(--text);font-size:13px}.day-sub{margin-top:2px;color:var(--faint);font-size:11px}.month-mark{color:var(--faint);font-size:11px;text-align:right}
+    .timeline{padding-bottom:126px}.date-divider{display:flex;align-items:center;gap:8px;margin:12px 2px 8px;color:var(--faint);font-size:11px}.date-divider:after{content:"";height:1px;background:var(--line);flex:1}
+    .entry{position:relative;border-radius:20px;background:var(--surface);border:1px solid var(--line);padding:13px 13px 13px 14px;margin-bottom:10px}
+    .entry:before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:999px;background:transparent}.entry.live:before{background:var(--accent)}.entry.media:before{background:var(--gold)}
+    .entry-header{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11px;margin-bottom:8px}.content{color:var(--text);font-size:14px}.content.strong{font-weight:650}
+    .draft-title{font-size:15px;font-weight:720;color:var(--ink);margin-bottom:6px}.wave{height:30px;margin:8px 0 9px;border-radius:12px;background:linear-gradient(90deg,transparent,rgba(215,237,114,.14),transparent),repeating-linear-gradient(90deg,rgba(242,239,231,.68) 0 3px,transparent 3px 10px);opacity:.42}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.chip{padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.045);color:var(--muted);font-size:11px}.chip.ok{color:var(--accent);background:var(--greenSoft);border-color:rgba(215,237,114,.15)}.chip.warn{color:var(--gold);background:rgba(216,186,106,.13);border-color:rgba(216,186,106,.14)}
+    .composer{position:absolute;left:14px;right:14px;bottom:76px;border-radius:20px;padding:8px;background:rgba(20,23,27,.94);border:1px solid var(--line2);backdrop-filter:blur(18px)}
+    .input-row{height:44px;display:flex;align-items:center;gap:8px}
+    .small-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.05);color:var(--muted);font-size:14px;flex:none}
+    .input-box{height:36px;flex:1;border-radius:999px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.045);display:flex;align-items:center;padding:0 12px;color:var(--faint);font-size:13px;min-width:0}
+    .mic-btn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--greenSoft);border:1px solid rgba(215,237,114,.18);color:var(--accent);font-size:14px;flex:none}
+    .live-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:17px;padding:9px 10px;margin-bottom:12px;background:var(--greenSoft);border:1px solid rgba(215,237,114,.18);font-size:12px}.live-left{display:flex;align-items:center;gap:8px;min-width:0}.dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 5px var(--redSoft);flex:none}
+    .recording-composer{position:absolute;left:14px;right:14px;bottom:76px;border-radius:20px;padding:10px;background:rgba(20,23,27,.96);border:1px solid rgba(215,237,114,.18);backdrop-filter:blur(18px)}
+    .rec-row{display:flex;align-items:center;gap:10px}.rec-time{font-size:18px;font-weight:760;color:var(--ink);min-width:58px}.rec-wave{height:32px;flex:1;border-radius:12px;background:repeating-linear-gradient(90deg,rgba(215,237,114,.76) 0 3px,transparent 3px 10px);opacity:.58}.stop-btn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--redSoft);border:1px solid rgba(255,113,103,.18);color:#ffd8d4;font-size:13px}
+    .editor-card{border-radius:22px;background:var(--surface);border:1px solid var(--line);padding:14px;margin-bottom:12px}.editor-text{color:var(--text);font-size:14px;min-height:126px}
+    .attach-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.attach{min-height:46px;border-radius:15px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.045);text-align:center;padding:7px 2px;color:var(--muted);font-size:10px}.attach b{display:block;color:var(--text);font-size:15px;line-height:1;margin-bottom:5px}
+    .transcript{height:150px;border-radius:21px;padding:14px;background:var(--surface);border:1px solid var(--line);overflow:hidden}.transcript-head{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:9px}
+    .review-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.review{border-radius:14px;padding:9px 6px;text-align:center;font-size:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}.review.primary{color:var(--accentInk);border-color:transparent;background:var(--accent);font-weight:650}
+    .bottom-bar{position:absolute;left:14px;right:14px;bottom:14px;height:52px;border-radius:20px;background:rgba(20,23,27,.92);border:1px solid var(--line2);display:grid;grid-template-columns:repeat(4,1fr);align-items:center;backdrop-filter:blur(18px)}.nav{color:var(--muted);text-align:center;font-size:10px}.nav b{display:block;color:var(--faint);font-size:15px;line-height:1;margin-bottom:4px}.nav.active{color:var(--ink)}.nav.active b{color:var(--accent)}
+    .notes{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{border-radius:12px;padding:16px;background:#0d0f12;border:1px solid var(--line)}.panel h3{margin:0 0 10px;font-size:17px}.panel ul,.panel ol{margin:0;padding-left:20px;color:var(--muted)}.panel li+li{margin-top:6px}
+    @media(max-width:980px){.screens{grid-template-columns:1fr}.notes{grid-template-columns:1fr}}@media(max-width:720px){main{padding:20px 12px 40px}header{display:block}.tagline{display:inline-block;margin-top:14px}h1{font-size:24px}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>日记优先版 V3：底部输入栏语音入口</h1>
+      <p class="subtitle">彻底去掉顶部语音按钮。日记流是主角，底部输入栏负责文字、附件和语音。点麦克风后仍然立即创建一篇日记。</p>
+    </div>
+    <div class="tagline">No big CTA · composer first</div>
+  </header>
+
+  <section class="screens">
+    <article class="screen-card">
+      <div class="phone-stage"><div class="phone">
+        <div class="topbar"><div class="title">我的日记</div><div class="actions"><div class="round">⌕</div><div class="round">☰</div></div></div>
+        <div class="day-summary"><div><div class="day-main">今天</div><div class="day-sub">7 月 6 日 · 3 篇日记</div></div><div class="month-mark">July<br>2026</div></div>
+        <div class="timeline">
+          <div class="date-divider">今天</div>
+          <div class="entry media"><div class="entry-header"><span>08:12</span><span>附件</span></div><div class="content strong">AI 产品思考.pdf</div><div class="chips"><span class="chip ok">已加入知识库</span><span class="chip">产品</span></div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 23:18</span><span>日记</span></div><div class="content">这篇文章和《原则》里的决策章节很像。</div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 18:40</span><span>日记</span></div><div class="content">今天的状态比较平，适合把几个悬着的小任务收尾。</div></div>
+        </div>
+        <div class="composer">
+          <div class="input-row"><div class="small-icon">＋</div><div class="input-box">写点什么...</div><div class="mic-btn">●</div></div>
+        </div>
+        <div class="bottom-bar"><div class="nav active"><b>◆</b>日记</div><div class="nav"><b>◌</b>文章</div><div class="nav"><b>□</b>书</div><div class="nav"><b>☷</b>我的</div></div>
+      </div></div>
+      <h2>1. 正常日记首页</h2>
+      <p>没有大按钮。底部输入栏承担新增入口，麦克风只是一个小而明确的动作。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage"><div class="phone">
+        <div class="topbar"><div class="title">我的日记</div><div class="actions"><div class="round">⌕</div><div class="round">☰</div></div></div>
+        <div class="live-strip"><div class="live-left"><span class="dot"></span><span>正在录音 · 已创建日记</span></div><strong>打开</strong></div>
+        <div class="timeline">
+          <div class="date-divider">今天</div>
+          <div class="entry live"><div class="entry-header"><span>09:24 · 语音日记</span><span>后台继续</span></div><div class="draft-title">未命名语音日记</div><div class="wave"></div><div class="content">这篇日记正在自动保存。转写内容会先进入草稿区，不会直接覆盖正文。</div><div class="chips"><span class="chip ok">音频已保存</span><span class="chip">转写中</span></div></div>
+          <div class="entry"><div class="entry-header"><span>08:12</span><span>附件</span></div><div class="content strong">AI 产品思考.pdf</div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 23:18</span><span>日记</span></div><div class="content">这篇文章和《原则》里的决策章节很像。</div></div>
+        </div>
+        <div class="recording-composer"><div class="rec-row"><div class="rec-time">09:24</div><div class="rec-wave"></div><div class="stop-btn">■</div></div></div>
+        <div class="bottom-bar"><div class="nav active"><b>◆</b>日记</div><div class="nav"><b>◌</b>文章</div><div class="nav"><b>□</b>书</div><div class="nav"><b>☷</b>我的</div></div>
+      </div></div>
+      <h2>2. 录音进行中</h2>
+      <p>录音状态也在底部输入栏位置表达，顶部只保留轻量状态条。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage"><div class="phone">
+        <div class="topbar"><div class="title">未命名语音日记</div><div class="actions"><div class="round">✓</div></div></div>
+        <div class="editor-card"><div class="entry-header"><span>正文</span><span>自动保存</span></div><div class="editor-text">今天早上想到，语音日记应该像正常写日记一样轻。录音只是输入方式，不应该占据整个首页。</div></div>
+        <div class="attach-row"><div class="attach"><b>●</b>录音</div><div class="attach"><b>▣</b>视频</div><div class="attach"><b>◎</b>图片</div><div class="attach"><b>＋</b>文件</div></div>
+        <div class="transcript"><div class="transcript-head"><span>转写草稿</span><span>停止后生成</span></div><div class="content">转写先放在这里。你确认后可以追加到正文，也可以只作为音频备注保留。</div><div class="review-actions"><div class="review primary">追加到正文</div><div class="review">保留草稿</div></div></div>
+        <div class="composer">
+          <div class="input-row"><div class="small-icon">＋</div><div class="input-box">继续补充...</div><div class="mic-btn">●</div></div>
+        </div>
+        <div class="bottom-bar"><div class="nav active"><b>◆</b>日记</div><div class="nav"><b>◌</b>文章</div><div class="nav"><b>□</b>书</div><div class="nav"><b>☷</b>我的</div></div>
+      </div></div>
+      <h2>3. 编辑页延续同一模式</h2>
+      <p>编辑日记时也用底部输入栏继续补充文字或语音，录音不再是大模块。</p>
+    </article>
+  </section>
+
+  <section class="notes">
+    <div class="panel">
+      <h3>这版解决的问题</h3>
+      <ol>
+        <li>彻底取消顶部大按钮，第一屏优先展示日记内容。</li>
+        <li>语音入口缩成 36px 小按钮，和文字输入、附件入口在同一层级。</li>
+        <li>点击麦克风仍然立即创建一篇日记，产品逻辑不变。</li>
+        <li>录音中状态用底部迷你录音条表示，不再占用大面积空间。</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>建议定稿方向</h3>
+      <ul>
+        <li>首页不放任何“开始一篇语音日记”的文字按钮。</li>
+        <li>底部输入栏：左侧附件，中间文字输入，右侧语音。</li>
+        <li>点语音后创建日记草稿并开始前台服务录音。</li>
+        <li>停止录音后进入同一篇日记的编辑页确认转写。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>

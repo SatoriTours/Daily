@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>方案 A：快速记录优先详细原型</title>
+  <style>
+    :root {
+      --bg: #f6f5f1;
+      --surface: #fff;
+      --ink: #161616;
+      --muted: #6b6b66;
+      --line: #dedbd2;
+      --soft: #ece9df;
+      --accent: #111;
+      --green: #dfe9dc;
+      --blue: #dde6ee;
+      --rose: #efe0dd;
+      --gold: #eee4c9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    main { max-width: 1220px; margin: 0 auto; padding: 28px 20px 56px; }
+    h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+    .subtitle { margin: 0 0 24px; color: var(--muted); }
+    .screens {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    .screen-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .screen-card h2 { margin: 14px 14px 4px; font-size: 16px; }
+    .screen-card p { margin: 0 14px 16px; color: var(--muted); font-size: 13px; }
+    .phone-shell { padding: 14px; background: #e7e4dc; }
+    .phone {
+      height: 620px;
+      max-width: 300px;
+      margin: auto;
+      border: 1px solid #d5d2c8;
+      border-radius: 28px;
+      padding: 14px;
+      background: #fbfaf7;
+      overflow: hidden;
+      position: relative;
+    }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .title { font-weight: 700; font-size: 18px; }
+    .icons { color: var(--muted); font-size: 12px; }
+    .capture-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .capture {
+      min-height: 58px;
+      border-radius: 16px;
+      background: var(--soft);
+      padding: 9px 5px;
+      text-align: center;
+      font-size: 12px;
+      color: #333;
+    }
+    .capture strong { display: block; font-size: 18px; line-height: 1; margin-bottom: 6px; }
+    .capture.primary { background: var(--accent); color: #fff; }
+    .capture.video { background: var(--rose); }
+    .capture.file { background: var(--blue); }
+    .capture.text { background: var(--green); }
+    .live-bar {
+      border-radius: 18px;
+      background: #111;
+      color: #fff;
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff6b5f;
+      margin-right: 6px;
+    }
+    .entry {
+      background: #fff;
+      border: 1px solid #eeeae1;
+      border-radius: 16px;
+      padding: 13px;
+      margin-bottom: 10px;
+    }
+    .meta { font-size: 12px; color: var(--muted); margin-bottom: 7px; }
+    .content { font-size: 14px; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .chip { border-radius: 999px; background: #f0eee7; padding: 5px 8px; color: #555; font-size: 11px; }
+    .wave {
+      height: 34px;
+      margin: 9px 0;
+      border-radius: 8px;
+      background: repeating-linear-gradient(90deg, #222 0 3px, transparent 3px 9px);
+      opacity: .24;
+    }
+    .fab {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #111;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.16);
+    }
+    .fab-menu {
+      position: absolute;
+      right: 18px;
+      bottom: 84px;
+      display: grid;
+      gap: 8px;
+    }
+    .fab-item {
+      width: 132px;
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid #e6e2d8;
+      font-size: 13px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.08);
+    }
+    .recorder {
+      height: 150px;
+      border-radius: 20px;
+      background: #111;
+      color: white;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .timer { font-size: 34px; font-weight: 700; margin: 8px 0 10px; }
+    .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .control { border-radius: 14px; padding: 10px 4px; background: rgba(255,255,255,.14); text-align: center; font-size: 12px; }
+    .transcript {
+      height: 230px;
+      background: #fff;
+      border: 1px solid #eeeae1;
+      border-radius: 18px;
+      padding: 14px;
+      font-size: 14px;
+      overflow: hidden;
+    }
+    .toolbar {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background: rgba(251,250,247,.92);
+      backdrop-filter: blur(10px);
+      padding: 8px;
+      border: 1px solid #e7e3da;
+      border-radius: 18px;
+    }
+    .tool { text-align: center; font-size: 11px; color: #444; }
+    .tool b { display: block; font-size: 17px; line-height: 1; margin-bottom: 4px; }
+    .attachment {
+      height: 72px;
+      border: 1px solid #eeeae1;
+      border-radius: 16px;
+      background: #fff;
+      padding: 12px;
+      margin-bottom: 9px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .grow { flex: 1; min-width: 0; }
+    .name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status { font-size: 11px; color: var(--muted); }
+    .knowledge {
+      background: #f0eee7;
+      border-radius: 18px;
+      padding: 13px;
+      margin-top: 10px;
+    }
+    .section {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h3 { margin: 0 0 10px; font-size: 17px; }
+    .panel ul, .panel ol { margin: 0; padding-left: 20px; color: var(--muted); }
+    @media (max-width: 1120px) {
+      .screens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      main { padding: 18px 12px 36px; }
+      .screens, .section { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>方案 A：快速记录优先</h1>
+  <p class="subtitle">核心目标：用户打开日记页后，1 秒内开始记录；录音、文字、拍摄、文件都直接进入日记流，并异步进入个人知识库。</p>
+
+  <section class="screens">
+    <article class="screen-card">
+      <div class="phone-shell">
+        <div class="phone">
+          <div class="topbar"><div class="title">我的日记</div><div class="icons">搜索 · 筛选</div></div>
+          <div class="capture-grid">
+            <div class="capture primary"><strong>●</strong>录音</div>
+            <div class="capture text"><strong>✎</strong>文字</div>
+            <div class="capture video"><strong>▣</strong>拍摄</div>
+            <div class="capture file"><strong>＋</strong>文件</div>
+          </div>
+          <div class="entry">
+            <div class="meta">今天 21:42 · 录音转写中</div>
+            <div class="wave"></div>
+            <div class="content">散步时想到，最近的阅读笔记可以和日记一起回顾...</div>
+            <div class="chips"><span class="chip">转写草稿</span><span class="chip">待入库</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta">今天 18:10 · 文件</div>
+            <div class="content">AI 产品思考.pdf</div>
+            <div class="chips"><span class="chip">已加入知识库</span><span class="chip">产品</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta">昨天 · 日记</div>
+            <div class="content">这篇文章和《原则》里的决策章节很像。</div>
+          </div>
+          <div class="fab">＋</div>
+        </div>
+      </div>
+      <h2>1. 首页就是采集台</h2>
+      <p>快捷入口固定在日记流顶部，FAB 仍保留，用于滚动后快速新增。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-shell">
+        <div class="phone">
+          <div class="topbar"><div class="title">我的日记</div><div class="icons">搜索 · 筛选</div></div>
+          <div class="live-bar"><span><span class="dot"></span>后台录音 · 12:08</span><span>回到录音</span></div>
+          <div class="entry">
+            <div class="meta">今天 21:42 · 实时草稿</div>
+            <div class="content">我现在在路上，想到个人知识库不应该只存摘要，还要能回到原始录音...</div>
+            <div class="chips"><span class="chip">自动保存</span><span class="chip">通知栏可暂停</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta">通知栏状态</div>
+            <div class="content">录音中 · 12:08 · 暂停 · 停止并保存</div>
+          </div>
+          <div class="fab-menu">
+            <div class="fab-item">● 开始录音</div>
+            <div class="fab-item">▣ 拍视频</div>
+            <div class="fab-item">＋ 添加文件</div>
+          </div>
+          <div class="fab">×</div>
+        </div>
+      </div>
+      <h2>2. 后台录音可见</h2>
+      <p>切后台后通过前台服务通知继续录音；回到 App 后顶部显示黑色状态条。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-shell">
+        <div class="phone">
+          <div class="topbar"><div class="title">录音记录</div><div class="icons">完成</div></div>
+          <div class="recorder">
+            <div class="meta" style="color:#d9d9d9;">正在录音 · 自动保存</div>
+            <div class="timer">12:08</div>
+            <div class="controls"><div class="control">暂停</div><div class="control">标记</div><div class="control">停止</div></div>
+          </div>
+          <div class="transcript">
+            <div class="meta">转写草稿</div>
+            <div>我现在在路上，想到个人知识库不应该只存摘要，还要能回到原始录音。转写可以先作为草稿卡片，等我确认后再合并到正文...</div>
+          </div>
+          <div class="knowledge">
+            <div class="meta">保存后</div>
+            <div class="content">生成日记正文、保留音频、抽取知识摘要、建立来源引用。</div>
+          </div>
+          <div class="toolbar">
+            <div class="tool"><b>▣</b>视频</div>
+            <div class="tool"><b>◎</b>图片</div>
+            <div class="tool"><b>＋</b>文件</div>
+            <div class="tool"><b>#</b>标签</div>
+          </div>
+        </div>
+      </div>
+      <h2>3. 录音详情</h2>
+      <p>录音中可看实时草稿；停止后进入审核，用户决定追加正文或保留为附件。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-shell">
+        <div class="phone">
+          <div class="topbar"><div class="title">附件与入库</div><div class="icons">保存</div></div>
+          <div class="attachment">
+            <div class="thumb">●</div>
+            <div class="grow"><div class="name">voice_20260705_2142.m4a</div><div class="status">已转写 · 原始音频保留</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb">▣</div>
+            <div class="grow"><div class="name">书架灵感片段.mp4</div><div class="status">已保存 · 可生成视频备注</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb">PDF</div>
+            <div class="grow"><div class="name">AI 产品思考.pdf</div><div class="status">排队解析 · 入知识库</div></div>
+          </div>
+          <div class="entry">
+            <div class="meta">知识库预览</div>
+            <div class="content">这条记录会生成 1 条内容记忆，并和原始日记、音频、文件保持引用关系。</div>
+            <div class="chips"><span class="chip">日记</span><span class="chip">录音</span><span class="chip">产品</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta">关联建议</div>
+            <div class="content">可能关联：《纳瓦尔宝典》、AI 搜索文章、最近的产品复盘。</div>
+          </div>
+        </div>
+      </div>
+      <h2>4. 附件与知识库</h2>
+      <p>附件不是简单文件路径，而是可处理、可搜索、可追溯的知识来源。</p>
+    </article>
+  </section>
+
+  <section class="section">
+    <div class="panel">
+      <h3>推荐交互流程</h3>
+      <ol>
+        <li>日记页顶部四入口：录音、文字、拍摄、文件。点击录音立即开始，不先弹复杂表单。</li>
+        <li>录音开始后生成临时日记草稿，并显示顶部状态条；切后台后用 Android 前台服务通知保持录音。</li>
+        <li>转写走异步：实时显示可选，默认允许先录音、后转写，失败可重试。</li>
+        <li>停止录音后进入审核：转写文本可追加到正文，也可只作为附件说明。</li>
+        <li>保存后进入个人知识库：原始日记/音频/视频/文件保留，AI 摘要写入记忆层，搜索结果能回到原始来源。</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>需要你确认的产品取舍</h3>
+      <ul>
+        <li>录音入口是否“一点即开始”，还是先弹出录音面板再点开始。</li>
+        <li>转写是否必须实时显示；实时更有反馈，但耗电、网络和失败状态更复杂。</li>
+        <li>文件是否第一版只做保存和知识库索引，还是同时做 PDF/文档文本解析。</li>
+        <li>视频第一版建议只做拍摄/保存/备注，不做自动视频转写，避免范围过大。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>

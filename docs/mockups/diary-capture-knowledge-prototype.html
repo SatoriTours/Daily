@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日记采集与知识库原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f2;
+      --surface: #ffffff;
+      --ink: #171717;
+      --muted: #666;
+      --line: #deded8;
+      --soft: #eeeeea;
+      --accent: #111;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+    .subtitle { margin: 0 0 24px; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card h2 { margin: 16px 16px 6px; font-size: 18px; }
+    .card p { margin: 0 16px 18px; color: var(--muted); font-size: 14px; }
+    .phone-wrap { padding: 16px; background: #e9e9e3; }
+    .phone {
+      height: 560px;
+      max-width: 320px;
+      margin: auto;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 14px;
+      background: #fbfbf8;
+      overflow: hidden;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .small { font-size: 12px; color: #777; }
+    .quick {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .quick div, .pill {
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: var(--soft);
+      text-align: center;
+      font-size: 12px;
+    }
+    .quick div:first-child, .dark {
+      background: var(--accent);
+      color: #fff;
+    }
+    .entry {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .wave {
+      height: 36px;
+      margin: 12px 0;
+      background: repeating-linear-gradient(90deg, #222 0 3px, transparent 3px 10px);
+      opacity: .25;
+      border-radius: 8px;
+    }
+    .fab {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #111;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-left: auto;
+      margin-top: 120px;
+    }
+    .recording {
+      height: 46px;
+      border-radius: 16px;
+      background: #111;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .editor {
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 190px;
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+    .attachments {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .attachments div {
+      height: 64px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .note {
+      background: #f0f0ee;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 12px;
+      color: #555;
+    }
+    .summary {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h3 { margin: 0 0 8px; font-size: 16px; }
+    .panel ul { margin: 0; padding-left: 20px; color: var(--muted); }
+    @media (max-width: 980px) {
+      .grid, .summary { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>日记采集与知识库入口：3 个方向</h1>
+  <p class="subtitle">先选主体验方向。后续再细化录音后台、转写审核、视频/文件附件和知识库索引。</p>
+
+  <section class="grid">
+    <article class="card">
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="top"><strong>我的日记</strong><span class="small">搜索 · 筛选</span></div>
+          <div class="quick"><div>录音</div><div>文字</div><div>拍摄</div><div>文件</div></div>
+          <div class="entry">
+            <div class="small">今天 21:42 · 录音转写中</div>
+            <div class="wave"></div>
+            <div>散步时想到，最近的阅读笔记可以和日记一起回顾...</div>
+          </div>
+          <div class="entry">
+            <div class="small">昨天 · 文章联想</div>
+            <div>这篇文章和《原则》里的决策章节很像。</div>
+          </div>
+          <div class="fab">＋</div>
+        </div>
+      </div>
+      <h2>A. 快速记录优先</h2>
+      <p>日记页顶部直接放“录音/文字/拍摄/文件”四个入口。适合高频捕捉，减少打开编辑器前的决策。</p>
+    </article>
+
+    <article class="card">
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="top"><strong>新日记</strong><span class="small">保存</span></div>
+          <div class="recording"><span>正在录音 · 08:31</span><span>暂停</span></div>
+          <div class="pills"><span class="pill">转写实时追加</span><span class="pill">后台可继续</span></div>
+          <div class="editor">今天复盘了三个输入来源：日记、文章和书。录音转文字不应该直接变成最终正文，应该先作为草稿片段...</div>
+          <div class="attachments"><div>视频</div><div>图片</div><div>文件</div></div>
+          <div class="note">知识库：保存后抽取摘要、标签、关联文章/书籍。</div>
+        </div>
+      </div>
+      <h2>B. 记录工作台</h2>
+      <p>打开编辑器后提供录音状态、转写草稿、附件区和知识库预览。适合认真整理，控制感最好。</p>
+    </article>
+
+    <article class="card">
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="top"><strong>知识库</strong><span class="small">日记 · 文章 · 书</span></div>
+          <div class="pills"><span class="pill dark">全部</span><span class="pill">待整理</span><span class="pill">已入库</span></div>
+          <div class="entry">
+            <div class="small">录音 · 待确认转写</div>
+            <div style="margin-top:8px;">关于年度目标的 12 分钟语音...</div>
+            <div class="small" style="margin-top:10px;">建议关联：日记 / 《纳瓦尔宝典》 / 决策文章</div>
+          </div>
+          <div class="entry">
+            <div class="small">PDF · 已入库</div>
+            <div style="margin-top:8px;">AI 产品思考.pdf</div>
+          </div>
+          <div class="entry">
+            <div class="small">视频 · 处理中</div>
+            <div style="margin-top:8px;">书架灵感片段.mp4</div>
+          </div>
+          <div class="fab">＋</div>
+        </div>
+      </div>
+      <h2>C. 知识收集箱优先</h2>
+      <p>把录音、视频、文件先进入统一 Inbox，再选择是否生成日记或知识条目。适合资料很多，但日记感会弱一些。</p>
+    </article>
+  </section>
+
+  <section class="summary">
+    <div class="panel">
+      <h3>推荐方案</h3>
+      <ul>
+        <li>选 B 作为核心：最适合“日记增强”，也能容纳后台录音和附件。</li>
+        <li>保留 A 的快速入口：长按或 FAB 展开录音、文字、拍摄、文件。</li>
+        <li>C 的 Inbox 放到第二阶段：等附件和转写稳定后再统一知识库待整理流。</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>关键约束</h3>
+      <ul>
+        <li>Android 后台录音需要前台服务通知和 microphone service type。</li>
+        <li>转写不要阻塞保存，应该走异步任务队列并可重试。</li>
+        <li>个人知识库需要保留“原文/媒体”和“AI 摘要/索引”的边界。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>

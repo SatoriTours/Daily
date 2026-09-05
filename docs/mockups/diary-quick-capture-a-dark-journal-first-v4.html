@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日记优先版 V4：小悬浮入口</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page:#07080a; --phone:#0b0d10; --surface:#14171b; --ink:#f2efe7; --text:rgba(242,239,231,.9);
+      --muted:#9aa0a9; --faint:#68707b; --line:rgba(255,255,255,.075); --line2:rgba(255,255,255,.12);
+      --accent:#d7ed72; --accentInk:#151807; --red:#ff7167; --blue:#82c7da; --gold:#d8ba6a; --violet:#b7a5ff;
+      --greenSoft:rgba(215,237,114,.11); --redSoft:rgba(255,113,103,.12);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--page);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.45}
+    main{max-width:1180px;margin:0 auto;padding:28px 20px 54px}
+    header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:22px}
+    h1{margin:0 0 8px;font-size:29px;line-height:1.16;letter-spacing:0}.subtitle{margin:0;max-width:760px;color:var(--muted);font-size:15px}.tagline{border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);border-radius:999px;padding:8px 12px;font-size:13px;white-space:nowrap}
+    .screens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}.screen-card{background:#0d0f12;border:1px solid var(--line);border-radius:12px;overflow:hidden}.screen-card h2{margin:14px 16px 5px;font-size:16px;letter-spacing:0}.screen-card p{margin:0 16px 17px;color:var(--muted);font-size:13px}
+    .phone-stage{padding:18px 14px;background:#111419}.phone{height:660px;max-width:304px;margin:auto;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.13);border-radius:34px;padding:14px;background:var(--phone);box-shadow:0 26px 70px rgba(0,0,0,.42)}.phone:before{content:"";position:absolute;top:8px;left:50%;width:68px;height:5px;border-radius:999px;transform:translateX(-50%);background:rgba(255,255,255,.14)}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin:18px 2px 14px}.title{font-size:20px;font-weight:740;letter-spacing:0}.actions{display:flex;gap:8px}.round{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:13px}
+    .day-summary{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px;padding:0 2px}.day-main{color:var(--text);font-size:13px}.day-sub{margin-top:2px;color:var(--faint);font-size:11px}.month-mark{color:var(--faint);font-size:11px;text-align:right}
+    .timeline{padding-bottom:74px}.date-divider{display:flex;align-items:center;gap:8px;margin:12px 2px 8px;color:var(--faint);font-size:11px}.date-divider:after{content:"";height:1px;background:var(--line);flex:1}
+    .entry{position:relative;border-radius:20px;background:var(--surface);border:1px solid var(--line);padding:13px 13px 13px 14px;margin-bottom:10px}.entry:before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:999px;background:transparent}.entry.live:before{background:var(--accent)}.entry.media:before{background:var(--gold)}
+    .entry-header{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11px;margin-bottom:8px}.content{color:var(--text);font-size:14px}.content.strong{font-weight:650}.draft-title{font-size:15px;font-weight:720;color:var(--ink);margin-bottom:6px}
+    .wave{height:30px;margin:8px 0 9px;border-radius:12px;background:linear-gradient(90deg,transparent,rgba(215,237,114,.14),transparent),repeating-linear-gradient(90deg,rgba(242,239,231,.68) 0 3px,transparent 3px 10px);opacity:.42}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.chip{padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.045);color:var(--muted);font-size:11px}.chip.ok{color:var(--accent);background:var(--greenSoft);border-color:rgba(215,237,114,.15)}
+    .bottom-bar{position:absolute;left:14px;right:14px;bottom:14px;height:52px;border-radius:20px;background:rgba(20,23,27,.92);border:1px solid var(--line2);display:grid;grid-template-columns:repeat(4,1fr);align-items:center;backdrop-filter:blur(18px)}.nav{color:var(--muted);text-align:center;font-size:10px}.nav b{display:block;color:var(--faint);font-size:15px;line-height:1;margin-bottom:4px}.nav.active{color:var(--ink)}.nav.active b{color:var(--accent)}
+    .mini-fab{position:absolute;right:22px;bottom:80px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line2);color:var(--ink);font-size:22px;box-shadow:0 14px 32px rgba(0,0,0,.32)}
+    .fab-menu{position:absolute;right:18px;bottom:130px;display:grid;gap:8px}.menu-item{height:40px;min-width:118px;border-radius:16px;background:rgba(20,23,27,.96);border:1px solid var(--line2);display:flex;align-items:center;gap:9px;padding:0 11px;color:var(--text);font-size:13px;box-shadow:0 14px 30px rgba(0,0,0,.28)}.menu-icon{width:24px;height:24px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:12px}.menu-icon.voice{color:var(--accent);background:var(--greenSoft)}.menu-icon.video{color:var(--violet)}.menu-icon.file{color:var(--gold)}.menu-icon.text{color:var(--blue)}
+    .live-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;border-radius:17px;padding:9px 10px;margin-bottom:12px;background:var(--greenSoft);border:1px solid rgba(215,237,114,.18);font-size:12px}.live-left{display:flex;align-items:center;gap:8px;min-width:0}.dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 5px var(--redSoft);flex:none}
+    .recording-bar{position:absolute;left:14px;right:14px;bottom:76px;border-radius:18px;padding:9px 10px;background:rgba(20,23,27,.96);border:1px solid rgba(215,237,114,.18);backdrop-filter:blur(18px)}.rec-row{display:flex;align-items:center;gap:10px}.rec-time{font-size:17px;font-weight:760;color:var(--ink);min-width:54px}.rec-wave{height:30px;flex:1;border-radius:12px;background:repeating-linear-gradient(90deg,rgba(215,237,114,.76) 0 3px,transparent 3px 10px);opacity:.58}.stop-btn{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--redSoft);border:1px solid rgba(255,113,103,.18);color:#ffd8d4;font-size:12px}
+    .editor-card{border-radius:22px;background:var(--surface);border:1px solid var(--line);padding:14px;margin-bottom:12px}.editor-text{color:var(--text);font-size:14px;min-height:126px}.attach-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.attach{min-height:46px;border-radius:15px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.045);text-align:center;padding:7px 2px;color:var(--muted);font-size:10px}.attach b{display:block;color:var(--text);font-size:15px;line-height:1;margin-bottom:5px}
+    .transcript{height:150px;border-radius:21px;padding:14px;background:var(--surface);border:1px solid var(--line);overflow:hidden}.transcript-head{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:9px}.review-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.review{border-radius:14px;padding:9px 6px;text-align:center;font-size:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}.review.primary{color:var(--accentInk);border-color:transparent;background:var(--accent);font-weight:650}
+    .notes{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{border-radius:12px;padding:16px;background:#0d0f12;border:1px solid var(--line)}.panel h3{margin:0 0 10px;font-size:17px}.panel ul,.panel ol{margin:0;padding-left:20px;color:var(--muted)}.panel li+li{margin-top:6px}
+    @media(max-width:980px){.screens{grid-template-columns:1fr}.notes{grid-template-columns:1fr}}@media(max-width:720px){main{padding:20px 12px 40px}header{display:block}.tagline{display:inline-block;margin-top:14px}h1{font-size:24px}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>日记优先版 V4：小悬浮入口</h1>
+      <p class="subtitle">去掉常驻输入框。日记页平时只展示内容，右下角保留一个很小的“＋”。点开后才出现文字、语音、拍摄、文件。</p>
+    </div>
+    <div class="tagline">Content first · tiny launcher</div>
+  </header>
+
+  <section class="screens">
+    <article class="screen-card">
+      <div class="phone-stage"><div class="phone">
+        <div class="topbar"><div class="title">我的日记</div><div class="actions"><div class="round">⌕</div><div class="round">☰</div></div></div>
+        <div class="day-summary"><div><div class="day-main">今天</div><div class="day-sub">7 月 6 日 · 3 篇日记</div></div><div class="month-mark">July<br>2026</div></div>
+        <div class="timeline">
+          <div class="date-divider">今天</div>
+          <div class="entry media"><div class="entry-header"><span>08:12</span><span>附件</span></div><div class="content strong">AI 产品思考.pdf</div><div class="chips"><span class="chip ok">已加入知识库</span><span class="chip">产品</span></div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 23:18</span><span>日记</span></div><div class="content">这篇文章和《原则》里的决策章节很像。</div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 18:40</span><span>日记</span></div><div class="content">今天的状态比较平，适合把几个悬着的小任务收尾。</div></div>
+          <div class="entry"><div class="entry-header"><span>周六</span><span>读书</span></div><div class="content">判断一个系统是否可持续，要看它如何处理失败状态。</div></div>
+        </div>
+        <div class="mini-fab">＋</div>
+        <div class="bottom-bar"><div class="nav active"><b>◆</b>日记</div><div class="nav"><b>◌</b>文章</div><div class="nav"><b>□</b>书</div><div class="nav"><b>☷</b>我的</div></div>
+      </div></div>
+      <h2>1. 平时只看日记</h2>
+      <p>没有输入框，没有大按钮。只有一个小悬浮入口，不持续占用阅读空间。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage"><div class="phone">
+        <div class="topbar"><div class="title">我的日记</div><div class="actions"><div class="round">⌕</div><div class="round">☰</div></div></div>
+        <div class="day-summary"><div><div class="day-main">今天</div><div class="day-sub">7 月 6 日 · 3 篇日记</div></div><div class="month-mark">July<br>2026</div></div>
+        <div class="timeline">
+          <div class="date-divider">今天</div>
+          <div class="entry media"><div class="entry-header"><span>08:12</span><span>附件</span></div><div class="content strong">AI 产品思考.pdf</div><div class="chips"><span class="chip ok">已加入知识库</span><span class="chip">产品</span></div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 23:18</span><span>日记</span></div><div class="content">这篇文章和《原则》里的决策章节很像。</div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 18:40</span><span>日记</span></div><div class="content">今天的状态比较平，适合把几个悬着的小任务收尾。</div></div>
+        </div>
+        <div class="fab-menu">
+          <div class="menu-item"><span class="menu-icon voice">●</span><span>语音日记</span></div>
+          <div class="menu-item"><span class="menu-icon text">✎</span><span>文字日记</span></div>
+          <div class="menu-item"><span class="menu-icon video">▣</span><span>拍摄</span></div>
+          <div class="menu-item"><span class="menu-icon file">＋</span><span>添加文件</span></div>
+        </div>
+        <div class="mini-fab">×</div>
+        <div class="bottom-bar"><div class="nav active"><b>◆</b>日记</div><div class="nav"><b>◌</b>文章</div><div class="nav"><b>□</b>书</div><div class="nav"><b>☷</b>我的</div></div>
+      </div></div>
+      <h2>2. 点开才显示动作</h2>
+      <p>语音日记藏在轻量展开菜单里。点击后立即创建日记并开始录音。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage"><div class="phone">
+        <div class="topbar"><div class="title">我的日记</div><div class="actions"><div class="round">⌕</div><div class="round">☰</div></div></div>
+        <div class="live-strip"><div class="live-left"><span class="dot"></span><span>正在录音 · 已创建日记</span></div><strong>打开</strong></div>
+        <div class="timeline">
+          <div class="date-divider">今天</div>
+          <div class="entry live"><div class="entry-header"><span>09:24 · 语音日记</span><span>后台继续</span></div><div class="draft-title">未命名语音日记</div><div class="wave"></div><div class="content">这篇日记正在自动保存。转写内容会先进入草稿区。</div><div class="chips"><span class="chip ok">音频已保存</span><span class="chip">转写中</span></div></div>
+          <div class="entry media"><div class="entry-header"><span>08:12</span><span>附件</span></div><div class="content strong">AI 产品思考.pdf</div></div>
+          <div class="entry"><div class="entry-header"><span>昨天 23:18</span><span>日记</span></div><div class="content">这篇文章和《原则》里的决策章节很像。</div></div>
+        </div>
+        <div class="recording-bar"><div class="rec-row"><div class="rec-time">09:24</div><div class="rec-wave"></div><div class="stop-btn">■</div></div></div>
+        <div class="bottom-bar"><div class="nav active"><b>◆</b>日记</div><div class="nav"><b>◌</b>文章</div><div class="nav"><b>□</b>书</div><div class="nav"><b>☷</b>我的</div></div>
+      </div></div>
+      <h2>3. 录音中才占一点空间</h2>
+      <p>只有录音进行中才出现迷你录音条，平时不压缩日记列表。</p>
+    </article>
+  </section>
+
+  <section class="notes">
+    <div class="panel">
+      <h3>这版的核心修正</h3>
+      <ol>
+        <li>去掉常驻“写点什么”输入框。</li>
+        <li>新增入口缩成右下角 42px 小悬浮按钮。</li>
+        <li>点开后显示四个动作：语音日记、文字日记、拍摄、文件。</li>
+        <li>录音中才显示底部迷你录音条。</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>产品逻辑不变</h3>
+      <ul>
+        <li>点“语音日记”立即创建一篇日记。</li>
+        <li>录音、转写、附件都绑定这篇日记。</li>
+        <li>后台录音仍然通过前台服务和通知栏保持可见。</li>
+        <li>保存后异步加入知识库。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>

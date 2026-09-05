@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>方案 A 深色精修版 V2：快速日记采集</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #07080a;
+      --phone: #0b0d10;
+      --surface: #14171b;
+      --surface-2: #191d23;
+      --surface-3: #20252c;
+      --ink: #f2efe7;
+      --text: rgba(242,239,231,.9);
+      --muted: #9aa0a9;
+      --faint: #686f7a;
+      --line: rgba(255,255,255,.075);
+      --line-strong: rgba(255,255,255,.12);
+      --accent: #d7ed72;
+      --accent-ink: #151807;
+      --red: #ff7167;
+      --blue: #82c7da;
+      --violet: #b7a5ff;
+      --gold: #d8ba6a;
+      --green-soft: rgba(215,237,114,.12);
+      --red-soft: rgba(255,113,103,.12);
+      --blue-soft: rgba(130,199,218,.13);
+      --violet-soft: rgba(183,165,255,.13);
+      --gold-soft: rgba(216,186,106,.13);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    main { max-width: 1240px; margin: 0 auto; padding: 28px 20px 54px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    h1 { margin: 0 0 8px; font-size: 29px; line-height: 1.16; letter-spacing: 0; }
+    .subtitle { margin: 0; max-width: 740px; color: var(--muted); font-size: 15px; }
+    .tagline {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.035);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .screens {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+    .screen-card {
+      background: #0d0f12;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .screen-card h2 { margin: 14px 16px 5px; font-size: 16px; letter-spacing: 0; }
+    .screen-card p { margin: 0 16px 17px; color: var(--muted); font-size: 13px; }
+    .phone-stage {
+      padding: 18px 14px;
+      background: #111419;
+    }
+    .phone {
+      height: 660px;
+      max-width: 304px;
+      margin: auto;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 34px;
+      padding: 14px;
+      background: var(--phone);
+      box-shadow: 0 26px 70px rgba(0,0,0,.42);
+    }
+    .phone:before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 68px;
+      height: 5px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,.14);
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 18px 2px 14px;
+    }
+    .title { font-size: 20px; font-weight: 740; letter-spacing: 0; }
+    .actions { display: flex; gap: 8px; }
+    .round {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .day-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+    .day-main { color: var(--text); font-size: 13px; }
+    .day-sub { margin-top: 2px; color: var(--faint); font-size: 11px; }
+    .month-mark { color: var(--faint); font-size: 11px; text-align: right; }
+    .capture-panel {
+      border-radius: 23px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 11px;
+      margin-bottom: 12px;
+    }
+    .capture-main {
+      min-height: 74px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: linear-gradient(135deg, rgba(215,237,114,.96), rgba(193,222,91,.92));
+      color: var(--accent-ink);
+      margin-bottom: 9px;
+    }
+    .mic {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(0,0,0,.16);
+      font-size: 18px;
+      flex: none;
+    }
+    .capture-title { font-weight: 760; font-size: 16px; }
+    .capture-sub { margin-top: 2px; font-size: 12px; opacity: .72; }
+    .capture-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .mini-action {
+      border-radius: 15px;
+      min-height: 47px;
+      padding: 8px 6px;
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.045);
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+    .mini-action b {
+      display: block;
+      font-size: 15px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+    .mini-action.text b { color: var(--blue); }
+    .mini-action.video b { color: var(--violet); }
+    .mini-action.file b { color: var(--gold); }
+    .filter-row {
+      display: flex;
+      gap: 7px;
+      margin: 0 0 11px;
+      overflow: hidden;
+    }
+    .filter {
+      border-radius: 999px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.035);
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .filter.active {
+      color: var(--accent);
+      border-color: rgba(215,237,114,.22);
+      background: var(--green-soft);
+    }
+    .timeline { padding-bottom: 76px; }
+    .entry {
+      position: relative;
+      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 13px 13px 13px 14px;
+      margin-bottom: 10px;
+    }
+    .entry:before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 18px;
+      bottom: 18px;
+      width: 3px;
+      border-radius: 999px;
+      background: transparent;
+    }
+    .entry.recording:before { background: var(--accent); }
+    .entry.file:before { background: var(--gold); }
+    .entry.video:before { background: var(--violet); }
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+    .content { color: var(--text); font-size: 14px; }
+    .content.strong { font-weight: 650; }
+    .wave {
+      height: 34px;
+      margin: 8px 0 9px;
+      border-radius: 12px;
+      background:
+        linear-gradient(90deg, transparent, rgba(215,237,114,.14), transparent),
+        repeating-linear-gradient(90deg, rgba(242,239,231,.68) 0 3px, transparent 3px 10px);
+      opacity: .42;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip {
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.045);
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .chip.ok { color: var(--accent); background: var(--green-soft); border-color: rgba(215,237,114,.15); }
+    .chip.warn { color: var(--gold); background: var(--gold-soft); border-color: rgba(216,186,106,.14); }
+    .live-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-radius: 18px;
+      padding: 10px 11px;
+      margin-bottom: 12px;
+      background: var(--green-soft);
+      border: 1px solid rgba(215,237,114,.18);
+      font-size: 12px;
+    }
+    .live-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 0 5px var(--red-soft);
+      flex: none;
+    }
+    .bottom-bar {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      height: 58px;
+      border-radius: 22px;
+      background: rgba(20,23,27,.92);
+      border: 1px solid var(--line-strong);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+      backdrop-filter: blur(18px);
+    }
+    .nav {
+      color: var(--muted);
+      text-align: center;
+      font-size: 10px;
+    }
+    .nav b { display: block; color: var(--faint); font-size: 15px; line-height: 1; margin-bottom: 4px; }
+    .nav.active { color: var(--ink); }
+    .nav.active b { color: var(--accent); }
+    .recorder {
+      border-radius: 24px;
+      padding: 15px;
+      background: linear-gradient(180deg, var(--green-soft), rgba(255,255,255,.025)), var(--surface);
+      border: 1px solid rgba(215,237,114,.17);
+      margin-bottom: 12px;
+    }
+    .rec-meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .timer { margin: 7px 0 10px; font-size: 39px; font-weight: 760; letter-spacing: 0; }
+    .meter {
+      height: 48px;
+      border-radius: 15px;
+      margin-bottom: 12px;
+      background:
+        linear-gradient(90deg, transparent, rgba(215,237,114,.18), transparent),
+        repeating-linear-gradient(90deg, rgba(215,237,114,.82) 0 4px, transparent 4px 12px);
+      opacity: .68;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .control {
+      border-radius: 15px;
+      padding: 10px 4px;
+      text-align: center;
+      background: rgba(255,255,255,.055);
+      border: 1px solid rgba(255,255,255,.055);
+      color: var(--text);
+      font-size: 12px;
+    }
+    .control.stop {
+      color: #ffd8d4;
+      background: var(--red-soft);
+      border-color: rgba(255,113,103,.18);
+    }
+    .transcript {
+      height: 224px;
+      border-radius: 21px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .transcript-head {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 9px;
+    }
+    .review-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .review {
+      border-radius: 14px;
+      padding: 9px 6px;
+      text-align: center;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+    }
+    .review.primary {
+      color: var(--accent-ink);
+      border-color: transparent;
+      background: var(--accent);
+      font-weight: 650;
+    }
+    .composer {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      border-radius: 23px;
+      padding: 9px;
+      background: rgba(20,23,27,.94);
+      border: 1px solid var(--line-strong);
+      backdrop-filter: blur(18px);
+    }
+    .composer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .tool {
+      min-height: 46px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.045);
+      text-align: center;
+      padding: 7px 2px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .tool b { display: block; color: var(--text); font-size: 15px; line-height: 1; margin-bottom: 5px; }
+    .attachment {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      border-radius: 18px;
+      padding: 11px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      margin-bottom: 9px;
+    }
+    .thumb {
+      width: 46px;
+      height: 46px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      font-size: 14px;
+      font-weight: 750;
+      background: rgba(255,255,255,.045);
+    }
+    .thumb.audio { color: var(--accent); background: var(--green-soft); }
+    .thumb.video { color: var(--violet); background: var(--violet-soft); }
+    .thumb.file { color: var(--gold); background: var(--gold-soft); }
+    .grow { flex: 1; min-width: 0; }
+    .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--text); }
+    .status { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .knowledge {
+      margin-top: 12px;
+      border-radius: 21px;
+      padding: 14px;
+      background: linear-gradient(180deg, var(--blue-soft), rgba(255,255,255,.025)), var(--surface);
+      border: 1px solid rgba(130,199,218,.16);
+    }
+    .k-head {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+    .relation {
+      display: grid;
+      gap: 7px;
+      margin-top: 10px;
+    }
+    .rel {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-radius: 13px;
+      padding: 8px 9px;
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .floating-save {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      border-radius: 20px;
+      padding: 13px 14px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      text-align: center;
+      font-size: 14px;
+      font-weight: 720;
+    }
+    .notes {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+    }
+    .panel {
+      border-radius: 12px;
+      padding: 16px;
+      background: #0d0f12;
+      border: 1px solid var(--line);
+    }
+    .panel h3 { margin: 0 0 10px; font-size: 17px; }
+    .panel ul, .panel ol { margin: 0; padding-left: 20px; color: var(--muted); }
+    .panel li + li { margin-top: 6px; }
+    @media (max-width: 1160px) {
+      .screens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      main { padding: 20px 12px 40px; }
+      header { display: block; }
+      .tagline { display: inline-block; margin-top: 14px; }
+      .screens, .notes { grid-template-columns: 1fr; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>方案 A 深色精修版 V2：快速日记采集</h1>
+      <p class="subtitle">这一版把重点收回到真实移动端体验：少一点演示感，多一点日记产品的沉稳、可扫读和可长期使用。</p>
+    </div>
+    <div class="tagline">Dark · quieter · production UI</div>
+  </header>
+
+  <section class="screens">
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">我的日记</div>
+            <div class="actions"><div class="round">⌕</div><div class="round">☰</div></div>
+          </div>
+          <div class="day-summary">
+            <div><div class="day-main">今天</div><div class="day-sub">7 月 5 日 · 已记录 3 条</div></div>
+            <div class="month-mark">July<br>2026</div>
+          </div>
+          <div class="capture-panel">
+            <div class="capture-main">
+              <div class="mic">●</div>
+              <div><div class="capture-title">开始录音</div><div class="capture-sub">后台继续，停止后自动转写</div></div>
+            </div>
+            <div class="capture-row">
+              <div class="mini-action text"><b>✎</b>文字</div>
+              <div class="mini-action video"><b>▣</b>拍摄</div>
+              <div class="mini-action file"><b>＋</b>文件</div>
+            </div>
+          </div>
+          <div class="filter-row">
+            <div class="filter active">全部</div><div class="filter">录音</div><div class="filter">待整理</div><div class="filter">已入库</div>
+          </div>
+          <div class="timeline">
+            <div class="entry recording">
+              <div class="entry-header"><span>21:42 · 录音转写中</span><span>12:08</span></div>
+              <div class="wave"></div>
+              <div class="content">散步时想到，阅读笔记可以和日记一起回顾，尤其是最近几篇产品文章...</div>
+              <div class="chips"><span class="chip ok">转写草稿</span><span class="chip warn">待确认</span></div>
+            </div>
+            <div class="entry file">
+              <div class="entry-header"><span>18:10 · 文件</span><span>PDF</span></div>
+              <div class="content strong">AI 产品思考.pdf</div>
+              <div class="chips"><span class="chip ok">已入库</span><span class="chip">产品</span></div>
+            </div>
+            <div class="entry">
+              <div class="entry-header"><span>昨天 · 日记</span><span>3 tags</span></div>
+              <div class="content">这篇文章和《原则》里的决策章节很像。</div>
+            </div>
+          </div>
+          <div class="bottom-bar">
+            <div class="nav active"><b>◆</b>日记</div>
+            <div class="nav"><b>◌</b>文章</div>
+            <div class="nav"><b>□</b>书</div>
+            <div class="nav"><b>☷</b>我的</div>
+          </div>
+        </div>
+      </div>
+      <h2>1. 首页第一屏</h2>
+      <p>把四宫格改成一个采集面板：录音是主动作，文字/拍摄/文件是辅助动作。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">我的日记</div>
+            <div class="actions"><div class="round">⌕</div><div class="round">☰</div></div>
+          </div>
+          <div class="live-strip">
+            <div class="live-left"><span class="dot"></span><span>后台录音 · 12:08</span></div>
+            <strong>返回</strong>
+          </div>
+          <div class="filter-row">
+            <div class="filter active">进行中</div><div class="filter">草稿</div><div class="filter">附件</div>
+          </div>
+          <div class="entry recording">
+            <div class="entry-header"><span>实时草稿</span><span>自动保存</span></div>
+            <div class="content">我现在在路上，想到个人知识库不应该只存摘要，还要能回到原始录音...</div>
+            <div class="chips"><span class="chip ok">通知栏可暂停</span><span class="chip">断网后补转写</span></div>
+          </div>
+          <div class="entry">
+            <div class="entry-header"><span>通知栏动作</span><span>系统可见</span></div>
+            <div class="content">录音中 · 暂停 · 停止并保存 · 丢弃</div>
+          </div>
+          <div class="entry">
+            <div class="entry-header"><span>隐私提示</span><span>必需</span></div>
+            <div class="content">后台录音始终有前台服务通知，回到 App 后有顶部状态条。</div>
+          </div>
+          <div class="bottom-bar">
+            <div class="nav active"><b>◆</b>日记</div>
+            <div class="nav"><b>◌</b>文章</div>
+            <div class="nav"><b>□</b>书</div>
+            <div class="nav"><b>☷</b>我的</div>
+          </div>
+        </div>
+      </div>
+      <h2>2. 后台录音中</h2>
+      <p>状态条更轻，不和日记卡片争抢；用户仍然能一眼看到录音正在继续。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">录音记录</div>
+            <div class="actions"><div class="round">✓</div></div>
+          </div>
+          <div class="recorder">
+            <div class="rec-meta"><span>正在录音 · 自动保存</span><span>m4a</span></div>
+            <div class="timer">12:08</div>
+            <div class="meter"></div>
+            <div class="controls">
+              <div class="control">暂停</div><div class="control">标记</div><div class="control stop">停止</div>
+            </div>
+          </div>
+          <div class="transcript">
+            <div class="transcript-head"><span>转写草稿</span><span>实时</span></div>
+            <div class="content">我现在在路上，想到个人知识库不应该只存摘要，还要能回到原始录音。转写可以先作为草稿卡片，等我确认后再合并到正文...</div>
+            <div class="review-actions">
+              <div class="review primary">追加到正文</div>
+              <div class="review">只保留附件</div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer-grid">
+              <div class="tool"><b>▣</b>视频</div><div class="tool"><b>◎</b>图片</div><div class="tool"><b>＋</b>文件</div><div class="tool"><b>#</b>标签</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h2>3. 录音详情</h2>
+      <p>停止前是录音控制，停止后保留同一页面做转写审核，不跳到另一个复杂流程。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">附件与入库</div>
+            <div class="actions"><div class="round">⋯</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb audio">●</div>
+            <div class="grow"><div class="name">voice_20260705_2142.m4a</div><div class="status">已转写 · 原始音频保留</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb video">▣</div>
+            <div class="grow"><div class="name">书架灵感片段.mp4</div><div class="status">已保存 · 可补充视频备注</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb file">PDF</div>
+            <div class="grow"><div class="name">AI 产品思考.pdf</div><div class="status">排队解析 · 入知识库</div></div>
+          </div>
+          <div class="knowledge">
+            <div class="k-head"><span>知识库预览</span><span>3 sources</span></div>
+            <div class="content">这条日记会生成内容记忆，并保留到原始日记、音频和文件的可追溯引用。</div>
+            <div class="relation">
+              <div class="rel"><span>关联文章</span><span>AI 搜索反思</span></div>
+              <div class="rel"><span>关联书籍</span><span>纳瓦尔宝典</span></div>
+              <div class="rel"><span>标签建议</span><span>产品 · 决策</span></div>
+            </div>
+          </div>
+          <div class="floating-save">保存并加入知识库</div>
+        </div>
+      </div>
+      <h2>4. 附件与入库</h2>
+      <p>知识库不是黑盒，保存前给出将要生成的来源、关联和标签建议。</p>
+    </article>
+  </section>
+
+  <section class="notes">
+    <div class="panel">
+      <h3>相比上一版的细节变化</h3>
+      <ol>
+        <li>去掉大面积装饰背景，页面更沉稳，更接近日常工具。</li>
+        <li>首页采集区从分散按钮改成单一面板，录音主动作和辅助动作关系更清楚。</li>
+        <li>卡片增加左侧状态线，比彩色大块更克制，也更容易扫读。</li>
+        <li>底部导航降低视觉权重，避免和采集入口竞争。</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>我建议定稿的产品取舍</h3>
+      <ul>
+        <li>录音按钮一点即开始，权限弹窗是唯一阻断。</li>
+        <li>实时转写可配置，但 UI 默认支持“先录后转”。</li>
+        <li>视频先做附件和备注，不做视频内容识别。</li>
+        <li>文件先入库并排队解析，解析失败不影响日记保存。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>

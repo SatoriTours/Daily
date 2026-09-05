@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>方案 A 深色精修版：快速日记采集</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #08090b;
+      --phone: #0d0f12;
+      --surface: #15181d;
+      --surface-2: #1b1f25;
+      --surface-3: #22272f;
+      --ink: #f4f1ea;
+      --muted: #9a9fa8;
+      --soft: #737982;
+      --line: rgba(255,255,255,.08);
+      --line-strong: rgba(255,255,255,.14);
+      --accent: #d8f06a;
+      --accent-ink: #161a08;
+      --red: #ff6b5f;
+      --cyan: #7bc7d8;
+      --violet: #bba7ff;
+      --gold: #e0bf68;
+      --green-soft: rgba(216,240,106,.14);
+      --cyan-soft: rgba(123,199,216,.16);
+      --violet-soft: rgba(187,167,255,.16);
+      --gold-soft: rgba(224,191,104,.16);
+      --shadow: 0 28px 80px rgba(0,0,0,.45);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(216,240,106,.08), transparent 32%),
+        radial-gradient(circle at 92% 20%, rgba(123,199,216,.07), transparent 30%),
+        var(--page);
+      color: var(--ink);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 30px 22px 58px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      margin-bottom: 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      letter-spacing: 0;
+      line-height: 1.15;
+    }
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      max-width: 740px;
+      font-size: 15px;
+    }
+    .badge {
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: var(--muted);
+      font-size: 13px;
+      background: rgba(255,255,255,.03);
+      white-space: nowrap;
+    }
+    .screens {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+    .screen-card {
+      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 42px rgba(0,0,0,.2);
+    }
+    .screen-card h2 {
+      margin: 15px 16px 5px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+    .screen-card p {
+      margin: 0 16px 17px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .phone-stage {
+      padding: 18px 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.01)),
+        #101216;
+    }
+    .phone {
+      height: 650px;
+      max-width: 304px;
+      margin: auto;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 34px;
+      padding: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.035), transparent 22%),
+        var(--phone);
+      overflow: hidden;
+      position: relative;
+      box-shadow: var(--shadow);
+    }
+    .phone::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 8px;
+      width: 74px;
+      height: 5px;
+      transform: translateX(-50%);
+      border-radius: 99px;
+      background: rgba(255,255,255,.16);
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 18px 2px 16px;
+    }
+    .title {
+      font-weight: 760;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+    .icon-row {
+      display: flex;
+      gap: 8px;
+    }
+    .icon-button {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .date-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 13px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .capture-rail {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .record-tile {
+      min-height: 96px;
+      border-radius: 22px;
+      padding: 14px;
+      background:
+        linear-gradient(135deg, rgba(216,240,106,.96), rgba(179,218,86,.84));
+      color: var(--accent-ink);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 15px 34px rgba(151,184,61,.18);
+    }
+    .record-tile .mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.16);
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+    }
+    .record-tile strong { font-size: 16px; }
+    .quick-stack {
+      display: grid;
+      gap: 8px;
+    }
+    .quick {
+      border-radius: 17px;
+      padding: 10px 11px;
+      min-height: 44px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .glyph {
+      width: 24px;
+      height: 24px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .g-text { background: var(--cyan-soft); color: var(--cyan); }
+    .g-camera { background: var(--violet-soft); color: var(--violet); }
+    .g-file { background: var(--gold-soft); color: var(--gold); }
+    .live-pill {
+      border-radius: 19px;
+      border: 1px solid rgba(216,240,106,.22);
+      background: rgba(216,240,106,.10);
+      padding: 11px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      color: var(--ink);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .live-left { display: flex; gap: 8px; align-items: center; min-width: 0; }
+    .pulse {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 0 5px rgba(255,107,95,.13);
+      flex: none;
+    }
+    .entry {
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.025));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .entry.featured {
+      border-color: rgba(216,240,106,.18);
+      background:
+        linear-gradient(180deg, rgba(216,240,106,.08), rgba(255,255,255,.025));
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+    .content {
+      color: rgba(244,241,234,.92);
+      font-size: 14px;
+    }
+    .wave {
+      height: 38px;
+      border-radius: 13px;
+      margin: 10px 0;
+      background:
+        linear-gradient(90deg, transparent, rgba(216,240,106,.16), transparent),
+        repeating-linear-gradient(90deg, rgba(244,241,234,.72) 0 3px, transparent 3px 10px);
+      opacity: .45;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 11px;
+    }
+    .chip {
+      border-radius: 999px;
+      padding: 5px 8px;
+      color: var(--muted);
+      background: rgba(255,255,255,.055);
+      border: 1px solid rgba(255,255,255,.06);
+      font-size: 11px;
+    }
+    .chip.accent {
+      color: var(--accent);
+      background: var(--green-soft);
+      border-color: rgba(216,240,106,.16);
+    }
+    .bottom-nav {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      height: 58px;
+      border-radius: 22px;
+      background: rgba(21,24,29,.88);
+      border: 1px solid var(--line-strong);
+      backdrop-filter: blur(18px);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: center;
+    }
+    .nav-item {
+      text-align: center;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .nav-item b {
+      display: block;
+      font-size: 15px;
+      line-height: 1;
+      margin-bottom: 4px;
+      color: var(--soft);
+    }
+    .nav-item.active { color: var(--ink); }
+    .nav-item.active b { color: var(--accent); }
+    .mini-fab {
+      position: absolute;
+      right: 24px;
+      bottom: 82px;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-size: 23px;
+      box-shadow: 0 14px 36px rgba(216,240,106,.2);
+    }
+    .recorder-panel {
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(216,240,106,.16), rgba(255,255,255,.03)),
+        var(--surface);
+      border: 1px solid rgba(216,240,106,.18);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .timer {
+      font-size: 40px;
+      font-weight: 760;
+      letter-spacing: 0;
+      margin: 8px 0 12px;
+    }
+    .meter {
+      height: 54px;
+      border-radius: 16px;
+      margin-bottom: 13px;
+      background:
+        linear-gradient(90deg, transparent, rgba(216,240,106,.17), transparent),
+        repeating-linear-gradient(90deg, rgba(216,240,106,.82) 0 4px, transparent 4px 12px);
+      opacity: .72;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .control {
+      border-radius: 15px;
+      padding: 10px 4px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.07);
+      text-align: center;
+      color: var(--ink);
+      font-size: 12px;
+    }
+    .control.stop {
+      color: #ffd4d0;
+      background: rgba(255,107,95,.12);
+      border-color: rgba(255,107,95,.2);
+    }
+    .transcript {
+      height: 248px;
+      border-radius: 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 15px;
+      overflow: hidden;
+    }
+    .transcript-title {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 15px;
+      background: var(--accent);
+      vertical-align: -2px;
+      margin-left: 3px;
+    }
+    .composer {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      border-radius: 24px;
+      background: rgba(21,24,29,.94);
+      border: 1px solid var(--line-strong);
+      padding: 10px;
+      backdrop-filter: blur(18px);
+    }
+    .composer-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .composer-tool {
+      min-height: 47px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.05);
+      text-align: center;
+      padding: 7px 2px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .composer-tool b {
+      display: block;
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+    .attachment {
+      border-radius: 19px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      padding: 12px;
+      display: flex;
+      gap: 11px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.055);
+      color: var(--ink);
+      flex: none;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .thumb.audio { color: var(--accent); background: var(--green-soft); }
+    .thumb.video { color: var(--violet); background: var(--violet-soft); }
+    .thumb.file { color: var(--gold); background: var(--gold-soft); }
+    .grow { min-width: 0; flex: 1; }
+    .name {
+      color: var(--ink);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .knowledge-card {
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(123,199,216,.10), rgba(255,255,255,.025)),
+        var(--surface);
+      border: 1px solid rgba(123,199,216,.18);
+      padding: 15px;
+      margin-top: 12px;
+    }
+    .link-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 11px;
+    }
+    .link-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-radius: 14px;
+      padding: 9px 10px;
+      background: rgba(255,255,255,.045);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .flow {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+    }
+    .panel {
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      border: 1px solid var(--line);
+      padding: 17px;
+    }
+    .panel h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+    .panel ul, .panel ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+    .panel li + li { margin-top: 6px; }
+    @media (max-width: 1160px) {
+      .screens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      main { padding: 20px 12px 42px; }
+      header { display: block; }
+      .badge { display: inline-block; margin-top: 14px; }
+      .screens, .flow { grid-template-columns: 1fr; }
+      h1 { font-size: 25px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>方案 A 深色精修版：快速日记采集</h1>
+      <p class="subtitle">入口更轻，层级更稳，所有采集动作都能在日记首页直接发生。录音是主入口，文字、拍摄、文件作为低干扰辅助入口。</p>
+    </div>
+    <div class="badge">Dark · Quick Capture · Knowledge Ready</div>
+  </header>
+
+  <section class="screens">
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">我的日记</div>
+            <div class="icon-row">
+              <div class="icon-button">⌕</div>
+              <div class="icon-button">≡</div>
+            </div>
+          </div>
+          <div class="date-strip"><span>2026.07.05 · Sunday</span><span>18 entries</span></div>
+          <div class="capture-rail">
+            <div class="record-tile">
+              <div class="mark">●</div>
+              <div><strong>开始录音</strong><br><span>后台继续 · 自动转写</span></div>
+            </div>
+            <div class="quick-stack">
+              <div class="quick"><span class="glyph g-text">✎</span><span>文字</span></div>
+              <div class="quick"><span class="glyph g-camera">▣</span><span>拍摄</span></div>
+              <div class="quick"><span class="glyph g-file">＋</span><span>文件</span></div>
+            </div>
+          </div>
+          <div class="entry featured">
+            <div class="meta"><span>今天 21:42 · 录音转写中</span><span>12:08</span></div>
+            <div class="wave"></div>
+            <div class="content">散步时想到，阅读笔记可以和日记一起回顾，尤其是最近几篇产品文章...</div>
+            <div class="chips"><span class="chip accent">转写草稿</span><span class="chip">待确认入库</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta"><span>今天 18:10 · 文件</span><span>PDF</span></div>
+            <div class="content">AI 产品思考.pdf</div>
+            <div class="chips"><span class="chip accent">已入库</span><span class="chip">产品</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta"><span>昨天 · 日记</span><span>3 tags</span></div>
+            <div class="content">这篇文章和《原则》里的决策章节很像。</div>
+          </div>
+          <div class="mini-fab">＋</div>
+          <div class="bottom-nav">
+            <div class="nav-item active"><b>◆</b>日记</div>
+            <div class="nav-item"><b>◌</b>文章</div>
+            <div class="nav-item"><b>□</b>书</div>
+            <div class="nav-item"><b>☷</b>我的</div>
+          </div>
+        </div>
+      </div>
+      <h2>1. 首页采集台</h2>
+      <p>录音作为最大主按钮，其余入口收进右侧竖列，视觉焦点更明确。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">我的日记</div>
+            <div class="icon-row">
+              <div class="icon-button">⌕</div>
+              <div class="icon-button">≡</div>
+            </div>
+          </div>
+          <div class="live-pill">
+            <div class="live-left"><span class="pulse"></span><span>后台录音 · 12:08</span></div>
+            <strong>返回</strong>
+          </div>
+          <div class="entry featured">
+            <div class="meta"><span>实时草稿</span><span>自动保存</span></div>
+            <div class="content">我现在在路上，想到个人知识库不应该只存摘要，还要能回到原始录音...</div>
+            <div class="chips"><span class="chip accent">通知栏可暂停</span><span class="chip">断网后补转写</span></div>
+          </div>
+          <div class="entry">
+            <div class="meta"><span>通知栏动作</span><span>系统可见</span></div>
+            <div class="content">录音中 · 暂停 · 停止并保存 · 丢弃</div>
+          </div>
+          <div class="entry">
+            <div class="meta"><span>隐私提示</span><span>必需</span></div>
+            <div class="content">后台录音始终有前台服务通知，回到 App 后有顶部状态条。</div>
+          </div>
+          <div class="mini-fab">●</div>
+          <div class="bottom-nav">
+            <div class="nav-item active"><b>◆</b>日记</div>
+            <div class="nav-item"><b>◌</b>文章</div>
+            <div class="nav-item"><b>□</b>书</div>
+            <div class="nav-item"><b>☷</b>我的</div>
+          </div>
+        </div>
+      </div>
+      <h2>2. 后台录音状态</h2>
+      <p>状态条不抢内容，但足够明确；所有后台采集都必须可见、可返回、可停止。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">录音记录</div>
+            <div class="icon-row">
+              <div class="icon-button">✓</div>
+            </div>
+          </div>
+          <div class="recorder-panel">
+            <div class="meta"><span>正在录音 · 自动保存</span><span>m4a</span></div>
+            <div class="timer">12:08</div>
+            <div class="meter"></div>
+            <div class="controls">
+              <div class="control">暂停</div>
+              <div class="control">标记</div>
+              <div class="control stop">停止</div>
+            </div>
+          </div>
+          <div class="transcript">
+            <div class="transcript-title"><span>转写草稿</span><span>实时</span></div>
+            <div class="content">我现在在路上，想到个人知识库不应该只存摘要，还要能回到原始录音。转写可以先作为草稿卡片，等我确认后再合并到正文<span class="cursor"></span></div>
+            <div class="chips"><span class="chip accent">追加到正文</span><span class="chip">只保留附件</span></div>
+          </div>
+          <div class="composer">
+            <div class="composer-row">
+              <div class="composer-tool"><b>▣</b>视频</div>
+              <div class="composer-tool"><b>◎</b>图片</div>
+              <div class="composer-tool"><b>＋</b>文件</div>
+              <div class="composer-tool"><b>#</b>标签</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h2>3. 录音详情</h2>
+      <p>把录音控制、音量反馈、转写草稿、附件工具放在同一工作面，避免多层弹窗。</p>
+    </article>
+
+    <article class="screen-card">
+      <div class="phone-stage">
+        <div class="phone">
+          <div class="topbar">
+            <div class="title">附件与入库</div>
+            <div class="icon-row">
+              <div class="icon-button">✓</div>
+            </div>
+          </div>
+          <div class="attachment">
+            <div class="thumb audio">●</div>
+            <div class="grow"><div class="name">voice_20260705_2142.m4a</div><div class="status">已转写 · 原始音频保留</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb video">▣</div>
+            <div class="grow"><div class="name">书架灵感片段.mp4</div><div class="status">已保存 · 可补充视频备注</div></div>
+          </div>
+          <div class="attachment">
+            <div class="thumb file">PDF</div>
+            <div class="grow"><div class="name">AI 产品思考.pdf</div><div class="status">排队解析 · 入知识库</div></div>
+          </div>
+          <div class="knowledge-card">
+            <div class="meta"><span>知识库预览</span><span>3 sources</span></div>
+            <div class="content">这条日记会生成内容记忆，并保留到原始日记、音频和文件的可追溯引用。</div>
+            <div class="link-list">
+              <div class="link-item"><span>关联文章</span><span>AI 搜索反思</span></div>
+              <div class="link-item"><span>关联书籍</span><span>纳瓦尔宝典</span></div>
+              <div class="link-item"><span>标签建议</span><span>产品 · 决策</span></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer-row">
+              <div class="composer-tool"><b>✎</b>编辑</div>
+              <div class="composer-tool"><b>↻</b>重试</div>
+              <div class="composer-tool"><b>⌕</b>关联</div>
+              <div class="composer-tool"><b>✓</b>保存</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h2>4. 附件与知识库</h2>
+      <p>附件卡片强调状态和可追溯来源；知识库预览让用户知道“会被怎样记住”。</p>
+    </article>
+  </section>
+
+  <section class="flow">
+    <div class="panel">
+      <h3>这版的设计原则</h3>
+      <ol>
+        <li>录音是默认主行为，所以按钮最大、颜色最亮；其他采集动作降低视觉权重。</li>
+        <li>深色模式不使用大面积纯黑卡片堆叠，靠透明边线、局部高亮和状态色建立层级。</li>
+        <li>日记流优先展示“内容状态”：转写中、待确认、已入库，而不是堆按钮。</li>
+        <li>后台录音必须持续可见，状态条和通知栏动作是产品体验的一部分。</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h3>下一步可定稿的交互</h3>
+      <ul>
+        <li>点击“开始录音”是否立即开始，建议立即开始，并用系统权限弹窗作为唯一阻断。</li>
+        <li>停止录音后默认生成草稿日记，用户再决定转写文本是否合并正文。</li>
+        <li>视频第一版只保存附件和备注，不做视频内容识别。</li>
+        <li>文件第一版先支持保存和入库任务，PDF/文档解析可以作为同一任务队列扩展。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>
