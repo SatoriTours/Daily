@@ -147,7 +147,7 @@ Daily Satori 想做的是一个更安静的个人知识入口：先把内容收�
 
 发布版本时，tag 必须匹配 `app/build.gradle.kts` 的 `versionName`，例如 `versionName = "5.1.26"` 对应 tag `v5.1.26`。推送 `main` 和对应 tag 后，GitHub Actions 会构建 Release APK。
 
-更详细的开发约束可以查看仓库里的 `CLAUDE.md`、`AGENTS.md` 和 `docs/`。
+Codex 的项目规则统一维护在 [AGENTS.md](./AGENTS.md)，详细工程规范见 [docs/](./docs/README.md)。
 
 ## 愿景
 
@@ -156,6 +156,10 @@ Daily Satori 的目标不是做另一个“信息入口”，而是做一个长�
 它应该能接住你每天看到的内容，也能接住你每天想到的东西；既能帮你快速整理，也能在很久以后帮你重新找到某个想法的来处。
 
 短期看，它是文章、日记、读书、新闻和 AI 助手。长期看，它希望成为一个由你自己拥有、自己控制、自己慢慢训练出来的个人记忆系统。
+
+## 致谢
+
+感谢 OpenAI Codex 在项目代码编写、测试和维护中提供的帮助。
 
 ## 开源协议
 

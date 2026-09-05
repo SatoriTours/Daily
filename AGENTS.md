@@ -1,6 +1,6 @@
-# Daily Satori Agent Rules
+# Daily Satori Codex 项目规则
 
-本文件是本项目 AI 编码代理的最高优先级项目规则。还需遵守 `CLAUDE.md` 和 `docs/` 中的工程规范；如执行方式冲突，以本文件的 token 效率规则为准，但不得降低最终正确性、安全性或必要验证。
+本文件是本项目 Codex 的统一规则入口，包含工作流程与工程约束。还需遵守 `docs/` 中的工程规范；如执行方式冲突，以本文件的 token 效率规则为准，但不得降低最终正确性、安全性或必要验证。
 
 ## Token 效率优先
 
@@ -48,7 +48,9 @@
 - 最终交付前只运行一次必要的完整验证，不重复 `--rerun-tasks`，除非怀疑缓存导致错误结果。
 - 不同时运行覆盖范围重复的 Gradle 命令；优先组合为一次调用。
 - 不轮询长任务；使用长等待并在完成后读取一次结果。
-- 不自动安装和启动 App，除非用户要求、功能必须真机验证，或已到最终设备验收阶段。
+- 日常验证只执行代码级测试（如单元测试）及必要的编译检查，不启动 Android 模拟器，不安装或启动 App，不执行 UI 测试。
+- 仅在发布代码前，或用户明确要求真机测试／UI 测试时，启动 Android 模拟器、安装并运行 App，执行 UI 测试；用户说“真机测试”时默认使用该模拟器，明确指定物理设备时遵从用户指定。
+- UI 测试结束后必须关闭 Android 模拟器，测试失败或中断时也要清理，不得保持后台运行。
 - 不重复查询已确认的文档。Context7 查询每个问题最多执行 `library` 和 `docs` 各一次。
 
 ### 实现范围
@@ -89,3 +91,96 @@
 - 尚未验证的真实风险。
 
 不要重复过程，不罗列无关细节，不以可选式追问结尾。
+
+## 文档索引
+
+| 文档 | 用途 |
+|------|------|
+| [01-coding-standards](./docs/01-coding-standards.md) | 架构约束、代码质量规范 |
+| [02-testing](./docs/02-testing.md) | 测试指南 |
+| [03-app-features](./docs/03-app-features.md) | 功能模块说明 |
+| [04-style-guide](./docs/04-style-guide.md) | 样式系统参考 |
+| [05-i18n-guide](./docs/05-i18n-guide.md) | 国际化指南 |
+| [06-koin-viewmodel-guide](./docs/06-koin-viewmodel-guide.md) | Koin + ViewModel 最佳实践 |
+| [08-remote-news-api](./docs/08-remote-news-api.md) | 远程新闻接口标准 |
+
+## 核心约束
+
+1. **KMP 架构**：Kotlin Multiplatform，共享模块 `shared/` + Android 模块 `app/`
+2. **代码质量**：函数 ≤50 行，缩进 ≤3 层，无重复代码
+3. **样式系统**：`import com.dailysatori.ui.theme.*`，禁止硬编码颜色/间距/字体
+4. **质量检查**：修改后执行 `./gradlew :app:compileDebugKotlin`，确保无编译错误
+
+## 项目结构
+
+```
+shared/                     # KMP 共享模块
+├── commonMain/kotlin/
+│   ├── config/             # 配置常量
+│   ├── data/repository/    # 数据仓库
+│   └── service/            # 共享服务
+└── commonMain/sqldelight/  # 数据库 Schema
+
+app/                        # Android 应用
+└── src/main/kotlin/
+    └── com/dailysatori/
+        ├── core/di/        # 依赖注入 (Koin)
+        ├── core/navigation/# 导航
+        └── ui/
+            ├── feature/    # 功能页面模块
+            ├── component/  # 可复用组件
+            └── theme/      # 样式系统 (Color, Spacing, Typography)
+```
+
+## 禁止事项
+
+- 禁止硬编码颜色/间距/字体
+- 禁止日志输出敏感信息
+- 禁止修改数据库 Schema 不编写迁移脚本
+- 禁止使用 git worktree；后续开发直接在当前工作区进行
+
+## 发版版本号规则
+
+- 发布新版本时，版本号任意段都禁止包含数字 `4`。
+- 如果按常规递增得到的版本号包含 `4`，必须继续递增并跳过，直到版本号所有段都不包含 `4`。
+- 示例：当前版本 `5.0.3`，用户要求发版时，下一个版本必须是 `5.0.5`，不能使用 `5.0.4`。
+- 打 tag、生成 changelog、提交 release 前必须确认 `app/build.gradle.kts` 的 `versionName` 和 tag 都符合该规则。
+
+## 代码校验（每次修改后必须执行）
+
+```bash
+# 编译检查 - 检查语法错误和代码问题
+./gradlew :app:compileDebugKotlin
+
+# 完整构建
+./gradlew :app:assembleDebug
+```
+
+**必须确保编译无错误后才能提交代码。**
+
+## 数据库迁移规则
+
+**每次修改 `DailySatori.sq`（新增/修改表或列）时必须同步编写迁移脚本：**
+
+1. 在 `shared/src/commonMain/kotlin/com/dailysatori/config/Config.kt` 中递增 `currentSchemaVersion`
+2. 在 `shared/src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt` 中：
+   - 在 `runMigrations()` 中添加 `if (currentVersion < N) migrateV(N-1)ToV(N)()`
+   - 实现对应的私有方法，使用 `CREATE TABLE IF NOT EXISTS` 或 `ALTER TABLE ... ADD COLUMN`
+   - 每个迁移用 try/catch 包裹，通过 logger 记录，不因单条失败中断整体流程
+3. 验证迁移：重新安装 App 后不应崩溃
+
+## Android 构建与部署（仅发布前或用户明确要求真机／UI 测试时）
+
+日常只执行代码级测试（如单元测试）及必要的编译检查，不启动模拟器或 App。
+发布代码前，或用户明确要求真机／UI 测试时，才启动 Android 模拟器并执行以下部署和 UI 验证。
+用户说“真机测试”时默认使用模拟器；明确指定物理设备时使用指定设备。
+
+```bash
+# 编译并安装到已连接的设备
+./gradlew :app:installDebug
+
+# 启动 App
+adb shell am start -n com.dailysatori/.MainActivity
+```
+
+**UI 测试结束后必须关闭模拟器；失败或中断时也必须清理，不得保持后台运行。**

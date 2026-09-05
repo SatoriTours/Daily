@@ -16,10 +16,10 @@
 
 ## 🔗 入口文件
 
-- **CLAUDE.md** - Claude Code 入口
+- [AGENTS.md](../AGENTS.md) - Codex 项目规则统一入口
 - **.github/copilot-instructions.md** - GitHub Copilot 入口
 
-两个入口文件内容相同，都指向本目录下的详细文档。
+Codex 以 `AGENTS.md` 为项目规则入口，并按需查阅本目录下的详细文档。
 
 ## 📖 文档职责
 
