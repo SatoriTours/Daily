@@ -15,7 +15,7 @@ class AsyncTaskWorkerSourceTest {
         assertTrue(source.contains("enqueueRetry(taskId"))
         val retryBranch = source.substringAfter("AsyncTaskRunOutcome.RetryScheduled ->").substringBefore("\n        }")
         assertTrue(retryBranch.contains("Result.success()"))
-        assertTrue(!retryBranch.contains("Result.retry()"))
+        assertTrue(retryBranch.contains("waitingForPredecessor(taskId)"))
     }
 
     @Test

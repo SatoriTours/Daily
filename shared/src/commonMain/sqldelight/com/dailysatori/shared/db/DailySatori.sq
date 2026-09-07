@@ -938,7 +938,7 @@ LIMIT ?;
 
 selectAsyncTasksForTaskCenterFilteredPage:
 SELECT id, type, status, progress_current, progress_total, progress_message, checkpoint_json,
-       created_at, started_at, finished_at, updated_at, last_error_message
+       created_at, started_at, finished_at, updated_at, last_error_message, run_after_ms, attempt_count, payload_json
 FROM async_task
 WHERE (:includeAllTypes = 1 OR type IN :types)
   AND (:includeAllStatuses = 1 OR status IN :statuses)
@@ -948,8 +948,9 @@ LIMIT :limit;
 
 selectAsyncTaskIdsBeyondRetention:
 SELECT id FROM async_task
-WHERE id NOT IN (
+WHERE status IN ('succeeded', 'failed', 'cancelled') AND id NOT IN (
     SELECT id FROM async_task
+    WHERE status IN ('succeeded', 'failed', 'cancelled')
     ORDER BY updated_at DESC, id DESC
     LIMIT ?
 )
@@ -1004,6 +1005,9 @@ INSERT INTO async_task (
 
 selectLastInsertedAsyncTaskId:
 SELECT id FROM async_task ORDER BY id DESC LIMIT 1;
+
+updateAsyncTaskDependencyPayload:
+UPDATE async_task SET payload_json = ? WHERE id = ? AND status = 'queued';
 
 refreshActiveAsyncTaskEnqueue:
 UPDATE async_task

@@ -51,8 +51,7 @@ import com.dailysatori.service.asynctask.asyncTaskStatusDisplayName
 import com.dailysatori.service.asynctask.asyncTaskTypeDisplayName
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -61,6 +60,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.koin.androidx.compose.koinViewModel
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -289,6 +290,9 @@ private fun TaskCenterTaskCard(task: AsyncTaskListItem, onOpen: () -> Unit, onCa
                     }
                 }
                 val message = taskCenterListSummary(task)
+                taskCenterSubject(task.payloadJson).takeIf { it.isNotBlank() }?.let { subject ->
+                    Text(subject, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 if (message.isNotBlank()) {
                     Text(
                         message,
@@ -302,12 +306,12 @@ private fun TaskCenterTaskCard(task: AsyncTaskListItem, onOpen: () -> Unit, onCa
                     Text("#${task.id}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.size(Spacing.xs))
                     Text(
-                        "执行时间 ${taskCenterTimestampText(task.startedAt ?: task.createdAt)}",
+                        "${if (task.startedAt == null) "创建时间" else "执行时间"} ${taskCenterTimestampText(task.startedAt ?: task.createdAt)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "耗时 ${taskCenterDurationText(task.startedAt, task.finishedAt ?: task.updatedAt)}",
+                        if (task.startedAt == null) "尚未开始" else "历时（截至更新） ${taskCenterDurationText(task.startedAt, task.finishedAt ?: task.updatedAt)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -346,6 +350,7 @@ private fun TaskCenterTaskDetail(
     modifier: Modifier = Modifier,
 ) {
     var pageIndex by remember(taskLog) { mutableStateOf(0) }
+    var showDiagnostics by remember(task.id) { mutableStateOf(false) }
     var logEntries by remember(taskLog) { mutableStateOf(emptyList<TaskCenterHttpLogEntry>()) }
     var logHasNext by remember(taskLog) { mutableStateOf(false) }
     var logLoading by remember(taskLog) { mutableStateOf(false) }
@@ -386,13 +391,22 @@ private fun TaskCenterTaskDetail(
                     "开始：${taskCenterTimestampText(task.started_at)}",
                     "完成：${taskCenterTimestampText(task.finished_at)}",
                     "更新：${taskCenterTimestampText(task.updated_at)}",
-                    "耗时：${taskCenterDurationText(task.started_at, task.finished_at ?: task.updated_at)}",
+                    "历时（含等待，截至最近更新）：${taskCenterDurationText(task.started_at, task.finished_at ?: task.updated_at)}",
                 ).joinToString("\n"),
             )
         }
         item(key = "task-progress") {
-            TaskCenterDetailSection("进度", "${task.progress_current} / ${task.progress_total}\n${task.progress_message}")
+            TaskCenterDetailSection("执行概览", taskCenterExecutionSummary(task))
         }
+        item(key = "task-events") {
+            TaskCenterDetailSection("最近执行记录", taskCenterLifecycleText(taskLog))
+        }
+        item(key = "diagnostics-toggle") {
+            TextButton(onClick = { showDiagnostics = !showDiagnostics }) {
+                Text(if (showDiagnostics) "收起诊断信息" else "展开诊断信息")
+            }
+        }
+        if (showDiagnostics) {
         item(key = "task-payload") { TaskCenterJsonSection("Payload", task.payload_json) }
         item(key = "task-checkpoint") { TaskCenterJsonSection("Checkpoint", task.checkpoint_json) }
         item(key = "task-result") { TaskCenterJsonSection("Result", task.result_json) }
@@ -423,6 +437,7 @@ private fun TaskCenterTaskDetail(
                     },
                 )
             }
+        }
         }
     }
 }
@@ -944,14 +959,58 @@ private fun taskCenterFormatJson(body: String): String =
     }.getOrDefault(body)
 
 private fun taskCenterListSummary(task: AsyncTaskListItem): String {
+    if (task.status == AsyncTaskStatus.queued.name) return "等待系统调度 · 尚未开始"
+    if (task.status == AsyncTaskStatus.retrying.name) return listOfNotNull(
+        task.lastErrorMessage.takeIf { it.isNotBlank() } ?: "上次执行中断，等待恢复",
+        task.runAfterMs?.let { "预计最早重试 ${taskCenterTimestampText(it)}" },
+    ).joinToString(" · ")
     task.lastErrorMessage.takeIf { task.status == AsyncTaskStatus.failed.name && it.isNotBlank() }?.let { return it }
     val base = task.progressMessage.ifBlank { asyncTaskStatusDisplayName(task.status) }
     val itemsSeen = taskCenterCheckpointLong(task.checkpointJson, "itemsSeen")
     if (task.type == AsyncTaskType.external_favorite_sync.name && itemsSeen != null && base.contains("完成")) {
         return "$base，读取到 ${itemsSeen} 条"
     }
-    return base
+    return if (task.progressTotal > 0) "$base · ${task.progressCurrent}/${task.progressTotal}" else base
 }
+
+internal fun taskCenterExecutionSummary(task: Async_task): String = buildList {
+    taskCenterSubject(task.payload_json).takeIf { it.isNotBlank() }?.let { add(it) }
+    add(when (task.status) {
+        "queued" -> "任务尚未开始，等待系统调度或前置任务完成"
+        "retrying" -> "等待重试；已安排重试 ${task.attempt_count} 次"
+        "running" -> task.progress_message.ifBlank { "正在执行" }
+        else -> asyncTaskStatusDisplayName(task.status)
+    })
+    if (task.progress_total > 0) add("已处理 ${task.progress_current} / ${task.progress_total}")
+    if (task.status == "retrying") task.run_after_ms?.let {
+        add("预计最早重试：${taskCenterTimestampText(it)}，实际开始受系统调度影响")
+    }
+    if (task.last_error_message.isNotBlank()) add("最近原因：${task.last_error_message}")
+}.joinToString("\n")
+
+internal fun taskCenterSubject(payload: String): String = runCatching {
+    val values = Json.parseToJsonElement(payload).jsonObject
+    val labels = listOf("articleId" to "文章", "sourceId" to "收藏来源", "diaryId" to "日记", "attachmentId" to "附件", "batchId" to "提醒批次")
+    labels.firstNotNullOfOrNull { (key, label) ->
+        values[key]?.jsonPrimitive?.content?.let { "$label #$it" }
+    } ?: values["url"]?.jsonPrimitive?.content?.substringBefore('?')?.substringBefore('#').orEmpty()
+}.getOrDefault("")
+
+internal fun taskCenterLifecycleText(log: String): String = log.lineSequence()
+    .filter { it.substringAfter(' ').startsWith("TASK ") }
+    .map { line ->
+        val event = line.substringAfter("TASK ")
+        val summary = when {
+            event.startsWith("started") -> "开始执行"
+            event.startsWith("progress") -> event.substringAfter("message=", "进度更新").substringBefore(" checkpoint=")
+            event.startsWith("succeeded") -> "执行完成"
+            event.startsWith("failed") -> "执行失败"
+            event.startsWith("retry") -> "安排重试"
+            event.startsWith("cancelled") -> "执行取消"
+            else -> "状态更新"
+        }
+        "${line.substringBefore(' ')} · $summary"
+    }.toList().takeLast(40).joinToString("\n").ifBlank { "暂无执行记录；旧日志可能已清理" }
 
 private fun taskCenterCheckpointLong(json: String, key: String): Long? =
     Regex(""""${Regex.escape(key)}"\s*:\s*(\d+)""")

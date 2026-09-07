@@ -12,6 +12,26 @@ import kotlinx.coroutines.awaitCancellation
 
 class AsyncTaskRunnerTest {
     @Test
+    fun dependentTaskWaitsWithoutExecutingOrConsumingAttempts() = runBlocking {
+        var calls = 0
+        withRunner(handlers = listOf(FakeHandler { payload, _, _ ->
+            assertEquals("{}", payload)
+            calls++
+            AsyncTaskExecutionResult.Success()
+        })) { repository, runner, _ ->
+            val first = repository.enqueue(FakeHandler.TYPE, "{}")
+            val second = repository.enqueue(FakeHandler.TYPE, "{}")
+            repository.linkSequentialTasks(listOf(first, second))
+            assertIs<AsyncTaskRunOutcome.RetryScheduled>(runner.run(second))
+            assertEquals(0, calls)
+            assertEquals(0L, repository.getById(second)!!.attempt_count)
+            assertIs<AsyncTaskRunOutcome.Succeeded>(runner.run(first))
+            assertIs<AsyncTaskRunOutcome.Succeeded>(runner.run(second))
+            assertEquals(2, calls)
+        }
+    }
+
+    @Test
     fun handlerThatNeverCompletesTimesOutIntoControlledRetry() = runBlocking {
         withRunner(
             handlers = listOf(FakeHandler { _, _, _ -> awaitCancellation() }),

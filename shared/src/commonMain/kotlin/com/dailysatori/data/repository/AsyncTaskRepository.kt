@@ -13,6 +13,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.*
 
 data class AsyncTaskEnqueueRequest(
     val type: String,
@@ -37,6 +38,27 @@ data class AsyncTaskCenterPage(
 
 class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
+
+    fun linkSequentialTasks(taskIds: List<Long>) = q.transaction {
+        require(taskIds.distinct().size == taskIds.size) { "Sequential tasks must be distinct" }
+        taskIds.zipWithNext().forEach { (previous, next) ->
+            val task = getById(next) ?: return@forEach
+            val payload = Json.parseToJsonElement(task.payload_json).jsonObject
+            // A reused task retains its original predecessor.
+            if ("_afterTaskId" in payload) return@forEach
+            q.updateAsyncTaskDependencyPayload(
+                JsonObject(payload + ("_afterTaskId" to JsonPrimitive(previous))).toString(), next,
+            )
+        }
+    }
+
+    fun waitingForPredecessor(taskId: Long): Boolean {
+        val payload = getById(taskId)?.payload_json ?: return false
+        val predecessor = runCatching {
+            Json.parseToJsonElement(payload).jsonObject["_afterTaskId"]?.jsonPrimitive?.longOrNull
+        }.getOrNull() ?: return false
+        return getById(predecessor)?.status in activeStatuses
+    }
 
     fun enqueue(
         type: String,

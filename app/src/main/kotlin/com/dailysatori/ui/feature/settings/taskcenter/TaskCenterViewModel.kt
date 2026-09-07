@@ -17,6 +17,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import com.dailysatori.core.worker.AsyncTaskScheduler
+import com.dailysatori.core.worker.ExternalFavoriteTaskCancellationRegistry
 
 data class TaskCenterState(
     val types: Set<String> = emptySet(),
@@ -48,6 +52,7 @@ internal fun taskFailureIsSuperseded(
 class TaskCenterViewModel(
     private val repository: AsyncTaskRepository,
     private val logStore: AsyncTaskLogStore,
+    private val scheduler: AsyncTaskScheduler,
 ) : ViewModel() {
     private val filter = MutableStateFlow(AsyncTaskFilter())
     private val pageLimit = MutableStateFlow(DEFAULT_TASK_CENTER_PAGE_SIZE)
@@ -126,7 +131,12 @@ class TaskCenterViewModel(
     }
 
     fun cancel(taskId: Long) {
-        repository.cancel(taskId)
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.cancel(taskId)
+            ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
+            scheduler.cancel(taskId)
+            scheduler.recoverAndEnqueueRunnable()
+        }
     }
 
     fun openTask(taskId: Long) {

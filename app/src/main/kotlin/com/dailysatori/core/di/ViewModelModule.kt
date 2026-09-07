@@ -340,6 +340,7 @@ val viewModelModule: Module = module {
         TaskCenterViewModel(
             repository = get(),
             logStore = get(),
+            scheduler = get(),
         )
     }
     viewModel {

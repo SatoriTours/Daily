@@ -344,7 +344,7 @@ class AsyncTaskRepositoryTest {
     }
 
     @Test
-    fun pruneOldTasksKeepsOnlyMostRecentlyUpdatedRowsAndReturnsDeletedIds() {
+    fun pruneOldTasksNeverDeletesQueuedTasks() {
         withRepository { repository ->
             val ids = (0 until 25).map { index ->
                 repository.enqueue(
@@ -355,18 +355,41 @@ class AsyncTaskRepositoryTest {
 
             val deletedIds = repository.pruneOldTasks(keepLatest = 20)
 
-            assertEquals(ids.take(5), deletedIds.sorted())
-            assertEquals(null, repository.getById(ids.first()))
+            assertEquals(emptyList(), deletedIds)
+            assertTrue(repository.getById(ids.first()) != null)
             assertTrue(repository.getById(ids.last()) != null)
             val page = runBlocking {
                 repository.observeTaskCenter(AsyncTaskFilter(showTerminal = true), limit = 30).first()
             }
-            assertEquals(20, page.tasks.size)
+            assertEquals(25, page.tasks.size)
         }
     }
 
     private fun withRepository(block: (AsyncTaskRepository) -> Unit) {
         withDatabase { db -> block(AsyncTaskRepository(db)) }
+    }
+
+    @Test
+    fun sequentialDependencySurvivesRetryAndReleasesAfterTerminalResult() = withRepository { repository ->
+        val first = repository.enqueue("save_article", "{}")
+        val second = repository.enqueue("article_memory_extract", "{}")
+        repository.linkSequentialTasks(listOf(first, second))
+        assertTrue(repository.waitingForPredecessor(second))
+        repository.claimForRun(first, "test", Long.MAX_VALUE)
+        repository.markRetry(first, "network", "offline", Long.MAX_VALUE)
+        assertTrue(repository.waitingForPredecessor(second))
+        repository.cancel(first)
+        assertEquals(false, repository.waitingForPredecessor(second))
+    }
+
+    @Test
+    fun retentionOnlyCountsTerminalHistory() = withRepository { repository ->
+        val active = repository.enqueue("save_article", "{}")
+        val terminal = (1..25).map {
+            repository.enqueue("save_article", "{}").also(repository::cancel)
+        }
+        assertEquals(terminal.take(5), repository.pruneOldTasks(20).sorted())
+        assertTrue(repository.getById(active) != null)
     }
 
     private fun withDatabase(block: (DailySatoriDatabase) -> Unit) {

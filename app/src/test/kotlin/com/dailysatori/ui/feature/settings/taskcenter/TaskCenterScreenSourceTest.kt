@@ -9,6 +9,22 @@ import kotlin.test.assertTrue
 
 class TaskCenterScreenSourceTest {
     @Test
+    fun lifecycleSummarySeparatesEventsFromHttpAndCheckpointData() {
+        val log = """
+            2026-09-06T00:00:00Z TASK started type=save_article
+            2026-09-06T00:00:01Z HTTP request [api] GET https://example.com
+            2026-09-06T00:00:02Z TASK progress current=1 total=2 message=正在整理 checkpoint={"private":"data"}
+            2026-09-06T00:00:03Z TASK retry code=network
+        """.trimIndent()
+        val summary = taskCenterLifecycleText(log)
+        assertTrue(summary.contains("开始执行"))
+        assertTrue(summary.contains("正在整理"))
+        assertTrue(summary.contains("安排重试"))
+        assertFalse(summary.contains("example.com"))
+        assertFalse(summary.contains("private"))
+    }
+
+    @Test
     fun settingsPageExposesTaskCenterEntry() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
 

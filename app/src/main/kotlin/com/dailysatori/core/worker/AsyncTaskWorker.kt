@@ -57,17 +57,10 @@ class AsyncTaskScheduler(private val context: Context) {
     fun enqueueSequential(chainName: String, taskIds: List<Long>) {
         if (taskIds.isEmpty()) return
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
-        val requests = taskIds.map { taskId ->
-            buildAsyncTaskWorkRequest(
-                taskId = taskId,
-                taskType = repo.getById(taskId)?.type,
-                continueChainOnFailure = taskId != taskIds.last(),
-            )
-        }
-        var continuation = WorkManager.getInstance(context)
-            .beginUniqueWork(chainName, ExistingWorkPolicy.KEEP, requests.first())
-        requests.drop(1).forEach { request -> continuation = continuation.then(request) }
-        continuation.enqueue()
+        // Durable predecessors govern ordering across restarts and retries.
+        // Each task has its own unique work, so KEEP cannot discard a new chain tail.
+        repo.linkSequentialTasks(taskIds)
+        taskIds.forEach(::enqueue)
     }
 
     fun cancel(taskId: Long) {
@@ -97,7 +90,7 @@ class AsyncTaskScheduler(private val context: Context) {
     }
 
     private fun enqueueRunnable(repo: AsyncTaskRepository, now: Long) =
-        repo.runnableTasks(now).forEach { task -> enqueue(task.id) }
+        repo.runnableTasks(now, Long.MAX_VALUE).forEach { task -> enqueue(task.id) }
 }
 
 class GenericAsyncTaskWorker(
@@ -142,6 +135,7 @@ class GenericAsyncTaskWorker(
                 if (inputData.getBoolean(KEY_CONTINUE_CHAIN_ON_FAILURE, false)) Result.success() else Result.failure()
             }
             AsyncTaskRunOutcome.RetryScheduled -> {
+                if (repo.getById(taskId)?.status == "queued" || repo.waitingForPredecessor(taskId)) return Result.retry()
                 repo.getById(taskId)?.run_after_ms?.let { AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it) }
                 Result.success()
             }

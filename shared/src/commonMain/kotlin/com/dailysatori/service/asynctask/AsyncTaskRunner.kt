@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.*
 
 interface AsyncTaskLogger {
     fun append(taskId: Long, message: String)
@@ -39,6 +40,10 @@ class AsyncTaskRunner(
         if (taskId <= 0L) return AsyncTaskRunOutcome.Failed
         repository.markExpiredRunningForRetry(nowMs())
         val task = repository.getById(taskId) ?: return AsyncTaskRunOutcome.Skipped
+        if (repository.waitingForPredecessor(taskId)) return AsyncTaskRunOutcome.RetryScheduled
+        val executionPayload = runCatching {
+            JsonObject(Json.parseToJsonElement(task.payload_json).jsonObject - "_afterTaskId").toString()
+        }.getOrDefault(task.payload_json)
         val leaseOwner = leaseOwnerProvider()
         val claimed = if (task.type in SERIAL_TASK_TYPES) {
             repository.claimForSerialRun(taskId, task.type, leaseOwner, nowMs() + leaseMs)
@@ -69,7 +74,7 @@ class AsyncTaskRunner(
         return try {
             val result = withTimeout(executionTimeoutMs(task.type).coerceAtLeast(1L)) {
                 executeWithLeaseHeartbeat(taskId, leaseOwner) {
-                    handler.execute(taskId, task.payload_json, task.checkpoint_json, reporter)
+                    handler.execute(taskId, executionPayload, task.checkpoint_json, reporter)
                 }
             }
             if (!repository.isRunning(taskId)) {
@@ -95,7 +100,7 @@ class AsyncTaskRunner(
             log(taskId, "TASK cancelled")
             AsyncTaskRunOutcome.Skipped
         } catch (_: TimeoutCancellationException) {
-            when (val timeoutResult = handler.onExecutionTimeout(taskId, task.payload_json, task.checkpoint_json, reporter)) {
+            when (val timeoutResult = handler.onExecutionTimeout(taskId, executionPayload, task.checkpoint_json, reporter)) {
                 is AsyncTaskExecutionResult.Success -> { repository.finishSuccess(taskId, timeoutResult.resultJson); AsyncTaskRunOutcome.Succeeded }
                 is AsyncTaskExecutionResult.PermanentFailure -> { repository.finishFailure(taskId, timeoutResult.code, timeoutResult.message); AsyncTaskRunOutcome.Failed }
                 is AsyncTaskExecutionResult.RetryableFailure -> handleRetryableFailure(taskId, task, timeoutResult.code, timeoutResult.message, timeoutResult.retryAfterMs)

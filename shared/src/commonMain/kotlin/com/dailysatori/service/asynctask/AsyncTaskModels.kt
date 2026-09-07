@@ -24,6 +24,7 @@ enum class AsyncTaskType(val displayName: String) {
     book_viewpoint_generate("书籍观点生成"),
     diary_attachment_transcribe("日记附件转写"),
     diary_knowledge_extract("日记知识提取"),
+    reminder_ai_parse("提醒智能解析"),
 }
 
 data class AsyncTaskFilter(
@@ -45,6 +46,9 @@ data class AsyncTaskListItem(
     val finishedAt: Long?,
     val updatedAt: Long,
     val lastErrorMessage: String,
+    val runAfterMs: Long? = null,
+    val attemptCount: Long = 0,
+    val payloadJson: String = "",
 )
 
 data class AsyncTaskBatchProgress(
