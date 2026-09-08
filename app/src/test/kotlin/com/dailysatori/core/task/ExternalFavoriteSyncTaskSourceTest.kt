@@ -50,7 +50,7 @@ class ExternalFavoriteSyncTaskSourceTest {
     fun appModuleRegistersExternalFavoriteSyncHandler() {
         val source = File("src/main/kotlin/com/dailysatori/core/di/AppModule.kt").readText()
 
-        assertTrue(source.contains("single { ExternalFavoriteSyncTaskHandler(get(), get()) }"))
+        assertTrue(source.contains("single { ExternalFavoriteSyncTaskHandler(get(), get(), get()) }"))
         assertTrue(source.contains("get<ExternalFavoriteSyncTaskHandler>()"))
     }
 

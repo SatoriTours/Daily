@@ -23,6 +23,7 @@ import com.dailysatori.service.externalfavorites.sourceHealth
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.External_favorite_source
 import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.json.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,6 +81,10 @@ data class ExternalFavoriteSyncWorkUi(
     val phase: String,
     val historyComplete: Boolean = false,
     val taskStatus: AsyncTaskStatus? = null,
+    val addedItems: Int = 0,
+    val existingItems: Int = 0,
+    val latestComplete: Boolean = false,
+    val resultMessage: String = "",
 ) {
     val active: Boolean get() = state == WorkInfo.State.ENQUEUED || state == WorkInfo.State.RUNNING
 }
@@ -311,6 +316,7 @@ class ExternalFavoritesSettingsViewModel(
         observeSyncWork(sourceId, mode)
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                if (mode == FavoriteSyncMode.full_rescan) resetSyncCursors(sourceId)
                 val taskId = scheduler.enqueue(sourceId, mode.name)
                 if (taskId != null) observeExactSyncTask(sourceId, taskId)
                 _state.update {
@@ -349,6 +355,13 @@ class ExternalFavoritesSettingsViewModel(
                 if (workUi?.state in finishedWorkStates) load()
             }
         }
+    }
+
+    private fun resetSyncCursors(sourceId: Long) {
+        val source = sourceRepo.getById(sourceId) ?: return
+        val config = runCatching { Json.parseToJsonElement(source.config_json).jsonObject }.getOrDefault(JsonObject(emptyMap()))
+        val retained = config.filterKeys { !it.startsWith("x_latest_") && !it.startsWith("history_") }
+        sourceRepo.updateConfigJson(sourceId, JsonObject(retained + ("history_complete" to JsonPrimitive(false))).toString())
     }
 
     private fun observeExactSyncTask(sourceId: Long, taskId: Long) {
@@ -454,6 +467,10 @@ fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyn
         phase = externalFavoriteTaskCheckpointString(task.checkpoint_json, "phase").orEmpty(),
         historyComplete = externalFavoriteTaskCheckpointBoolean(task.checkpoint_json, "historyComplete") ?: false,
         taskStatus = status,
+        addedItems = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "addedItems")?.toInt() ?: 0,
+        existingItems = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "existingItems")?.toInt() ?: 0,
+        latestComplete = externalFavoriteTaskCheckpointBoolean(task.checkpoint_json, "latestComplete") ?: false,
+        resultMessage = task.progress_message,
     )
 }
 
@@ -569,7 +586,7 @@ fun externalFavoritePrimaryActionLabel(health: ExternalSourceHealth): String = w
 fun externalFavoriteSyncActionLabel(
     health: ExternalSourceHealth,
     work: ExternalFavoriteSyncWorkUi?,
-): String = if (work?.active == true) "取消同步" else externalFavoritePrimaryActionLabel(health)
+): String = if (work?.active == true) "查看进度" else externalFavoritePrimaryActionLabel(health)
 
 fun externalFavoriteSyncActionEnabled(
     health: ExternalSourceHealth,
@@ -605,7 +622,7 @@ fun externalFavoriteSyncProgressPageText(work: ExternalFavoriteSyncWorkUi): Stri
     "import", "repair", "organize" ->
         "已读取 ${work.pagesSeen.coerceAtLeast(0)} 页 · ${work.itemsSeen.coerceAtLeast(0)} 条"
     "complete" -> "读取完成"
-    else -> "第 ${work.pagesSeen.coerceAtLeast(0)} / ${work.maxPages.coerceAtLeast(1)} 页"
+    else -> "本次已读取 ${work.pagesSeen.coerceAtLeast(0)} 页，上限 ${work.maxPages.coerceAtLeast(1)} 页"
 }
 
 fun externalFavoriteSyncProgressFraction(work: ExternalFavoriteSyncWorkUi): Float = when (work.phase) {
@@ -622,24 +639,20 @@ fun externalFavoriteProgressMetrics(
 ): List<ExternalFavoriteProgressMetric> = listOf(
     ExternalFavoriteProgressMetric("${work.pagesSeen.coerceAtLeast(0)} 页", "本次已读取"),
     ExternalFavoriteProgressMetric("${work.itemsSeen.coerceAtLeast(0)} 条", "本次看到"),
+    ExternalFavoriteProgressMetric("${work.addedItems} 条", "新增收藏"),
     ExternalFavoriteProgressMetric(if (historyComplete || work.historyComplete) "已完成" else "未完成", "历史补全"),
 )
 
 fun externalFavoriteRunningDetailLines(work: ExternalFavoriteSyncWorkUi): List<ExternalFavoriteDetailLine> = listOf(
     ExternalFavoriteDetailLine("当前阶段", externalFavoriteRunningPhaseLabel(work.phase)),
-    ExternalFavoriteDetailLine("同步策略", "每页 ${externalFavoritePageSizeForMaxPages(work.maxPages)} 条 · 本次最多 ${work.maxPages.coerceAtLeast(1) * externalFavoritePageSizeForMaxPages(work.maxPages)} 条"),
+    ExternalFavoriteDetailLine("同步策略", "本批次上限 ${work.maxPages.coerceAtLeast(1)} 页 · 不是收藏总页数"),
     ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
 )
 
 private fun externalFavoriteDefaultMaxPages(mode: FavoriteSyncMode): Int =
     if (mode == FavoriteSyncMode.full_rescan) FULL_X_BOOKMARK_SYNC_MAX_PAGES else DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES
 
-private fun externalFavoritePageSizeForMaxPages(maxPages: Int): Int =
-    if (maxPages.coerceAtLeast(1) <= FULL_X_BOOKMARK_SYNC_MAX_PAGES) FULL_X_BOOKMARK_SYNC_PAGE_SIZE else DEFAULT_X_BOOKMARK_SYNC_PAGE_SIZE
-
-private const val DEFAULT_X_BOOKMARK_SYNC_PAGE_SIZE = 20
-private const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250
-private const val FULL_X_BOOKMARK_SYNC_PAGE_SIZE = 100
+private const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 3
 private const val FULL_X_BOOKMARK_SYNC_MAX_PAGES = 50
 
 private fun externalFavoriteRunningPhaseLabel(phase: String): String = when (phase) {
@@ -652,10 +665,18 @@ private fun externalFavoriteRunningPhaseLabel(phase: String): String = when (pha
 }
 
 fun externalFavoriteIdleDetailLines(item: ExternalFavoriteSourceUi): List<ExternalFavoriteDetailLine> = listOf(
-    ExternalFavoriteDetailLine("上次结果", externalFavoriteLastResultText(item.source.last_items_seen_count, item.source.last_pages_seen_count)),
+    ExternalFavoriteDetailLine("上次结果", externalFavoriteSavedResult(item)),
     ExternalFavoriteDetailLine("历史状态", externalFavoriteHistoryStatusText(item.source.config_json)),
     ExternalFavoriteDetailLine("一共同步", "${item.syncedItemCount.coerceAtLeast(0)} 条"),
 )
+
+private fun externalFavoriteSavedResult(item: ExternalFavoriteSourceUi): String {
+    val config = runCatching { Json.parseToJsonElement(item.source.config_json).jsonObject }.getOrNull()
+    val added = config?.get("last_added_items")?.jsonPrimitive?.intOrNull
+        ?: return externalFavoriteLastResultText(item.source.last_items_seen_count, item.source.last_pages_seen_count)
+    val existing = config["last_existing_items"]?.jsonPrimitive?.intOrNull ?: 0
+    return "新增 $added 条 · 已存在 $existing 条 · 读取 ${item.source.last_pages_seen_count} 页"
+}
 
 fun externalFavoriteSourceSubtitle(
     identity: String,
@@ -722,7 +743,7 @@ fun externalFavoriteProviderBadge(provider: String): String = when (provider.low
 
 fun externalFavoriteDeleteMenuLabel(): String = "删除"
 
-fun externalFavoriteFullSyncMenuLabel(): String = "全量同步"
+fun externalFavoriteFullSyncMenuLabel(): String = "修复同步（重新扫描）"
 
 fun externalFavoriteToggleSyncMenuLabel(enabled: Boolean): String =
     if (enabled) "停用同步" else "启用同步"

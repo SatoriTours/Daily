@@ -96,6 +96,18 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
     fun getBySourceExternalId(sourceId: Long, externalId: String): External_favorite_item? =
         q.selectExternalFavoriteItemBySourceExternalId(sourceId, externalId).executeAsOneOrNull()
 
+    fun saveAiResultIfUnchanged(item: External_favorite_item, save: () -> Boolean): Boolean = q.transactionWithResult {
+        val current = getBySourceExternalId(item.source_id, item.external_id)
+        if (current?.ai_input_hash != item.ai_input_hash || current?.article_id != item.article_id ||
+            current?.import_status != item.import_status
+        ) false else save()
+    }
+
+    fun requeueFailedAiBySource(sourceId: Long) = q.transaction {
+        retryableAiBySource(sourceId, Long.MAX_VALUE).filter { it.ai_status == ExternalItemAiStatus.failed.name }
+            .forEach { markAiState(it.id, ExternalItemAiStatus.pending.name) }
+    }
+
     fun count(): Long = q.countExternalFavoriteItems().executeAsOne()
 
     fun countBySource(sourceId: Long): Long =

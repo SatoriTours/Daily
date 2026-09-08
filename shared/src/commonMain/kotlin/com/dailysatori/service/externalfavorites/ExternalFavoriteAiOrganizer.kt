@@ -16,6 +16,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.datetime.Instant
@@ -45,6 +48,8 @@ data class ExternalFavoriteAiAnalysis(
     val markdown: String,
 )
 
+data class ExternalFavoriteAiProgress(val processed: Int, val total: Int, val failed: Int, val itemId: Long)
+
 class ExternalFavoriteAiOrganizer(
     private val itemRepo: ExternalFavoriteItemRepository,
     private val articleRepo: ArticleRepository,
@@ -54,6 +59,7 @@ class ExternalFavoriteAiOrganizer(
     private val generateAnalysis: (suspend (ExternalFavoriteAiInput) -> ExternalFavoriteAiAnalysis)? = null,
     private val maxConcurrentAnalysis: Int = DEFAULT_MAX_CONCURRENT_ANALYSIS,
     private val retryDelayMs: Long = DEFAULT_AI_RETRY_DELAY_MS,
+    private val itemTimeoutMs: Long = 90_000L,
 ) {
     suspend fun organizePending(limit: Long = 10, includeFailed: Boolean = false): Int {
         return organizeItems(if (includeFailed) itemRepo.retryableAi(limit) else itemRepo.pendingAi(limit))
@@ -69,110 +75,119 @@ class ExternalFavoriteAiOrganizer(
         includeFailed: Boolean = false,
         httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
         taskId: Long? = null,
+        onProgress: suspend (ExternalFavoriteAiProgress) -> Unit = {},
     ): Int {
         val items = if (includeFailed) itemRepo.retryableAiBySource(sourceId, limit) else itemRepo.pendingAiBySource(sourceId, limit)
-        return organizeItems(items, httpLogger, taskId)
+        return organizeItems(items, httpLogger, taskId, onProgress)
     }
 
     private suspend fun organizeItems(
         items: List<External_favorite_item>,
         httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
         taskId: Long? = null,
+        onProgress: suspend (ExternalFavoriteAiProgress) -> Unit = {},
     ): Int {
         var processed = 0
+        var failed = 0
+        val progressLock = Mutex()
         val work = items.mapNotNull { item ->
             val article = item.article_id?.let(articleRepo::getById)
             if (article == null) {
                 itemRepo.markAiState(item.id, ExternalItemAiStatus.failed.name, "missing_article", "Linked article was not found.")
                 processed += 1
+                failed += 1
+                onProgress(ExternalFavoriteAiProgress(processed, items.size, failed, item.id))
                 null
             } else {
                 ExternalFavoriteAiWork(item, article)
             }
         }
 
-        val results = analyzeWorkItems(work, httpLogger, taskId)
-        results.forEach { result ->
-            val item = result.item
-            val article = result.article
-            val input = result.input
-            val analysis = result.analysis
-            val error = result.error
-            if (error != null || input == null || analysis == null) {
-                itemRepo.markAiState(
-                    item.id,
-                    ExternalItemAiStatus.failed.name,
-                    "ai_failed",
-                    error?.message.orEmpty().ifBlank { "External favorite AI organization failed." },
-                )
+        analyzeWorkItems(work, httpLogger, taskId) { result ->
+            progressLock.withLock {
+                if (!itemRepo.saveAiResultIfUnchanged(result.item) { saveResult(result) }) failed += 1
                 processed += 1
-                return@forEach
+                onProgress(ExternalFavoriteAiProgress(processed, items.size, failed, result.item.id))
             }
-
-            val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "外部收藏" } }
-            val summary = analysis.summary.trim().ifBlank { input.text }
-            val markdown = input.toArticleMarkdown(aiTitle, analysis.markdown)
-
-            articleRepo.updateAiTitle(article.id, aiTitle)
-            articleRepo.updateAiContent(article.id, summary, aiTitle, article.cover_image_url)
-            articleRepo.updateAiMarkdownContent(article.id, markdown)
-            articleRepo.updateStatus(article.id, "completed")
-            itemRepo.markAiState(item.id, ExternalItemAiStatus.completed.name)
-            processed += 1
         }
         return processed
+    }
+
+    private fun saveResult(result: ExternalFavoriteAiResult): Boolean {
+        val item = result.item
+        val article = result.article
+        val input = result.input
+        val analysis = result.analysis
+        if (result.error != null || input == null || analysis == null) {
+            itemRepo.markAiState(item.id, ExternalItemAiStatus.failed.name, "ai_failed",
+                result.error?.message.orEmpty().ifBlank { "External favorite AI organization failed." })
+            return false
+        }
+        val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "外部收藏" } }
+        val summary = analysis.summary.trim().ifBlank { input.text }
+        val markdown = input.toArticleMarkdown(aiTitle, analysis.markdown)
+        articleRepo.updateAiTitle(article.id, aiTitle)
+        articleRepo.updateAiContent(article.id, summary, aiTitle, article.cover_image_url)
+        articleRepo.updateAiMarkdownContent(article.id, markdown)
+        articleRepo.updateStatus(article.id, "completed")
+        itemRepo.markAiState(item.id, ExternalItemAiStatus.completed.name)
+        return true
     }
 
     private suspend fun analyzeWorkItems(
         work: List<ExternalFavoriteAiWork>,
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
-    ): List<ExternalFavoriteAiResult> = coroutineScope {
+        onResult: suspend (ExternalFavoriteAiResult) -> Unit,
+    ): Unit = coroutineScope {
         val concurrency = maxConcurrentAnalysis.coerceAtLeast(1)
         val semaphore = Semaphore(concurrency)
         work.map { entry ->
             async {
                 semaphore.withPermit {
-                    val item = entry.item
-                    val input = item.toAiInput()
-                        .withSupplementIfNeeded(item, httpLogger, taskId)
-                    val logConfig = aiRequestLogConfig()
-                    logAiRequest(httpLogger, taskId, item, input, logConfig)
-                    val analysis = try {
-                        retryTransientFailure(
-                            maxAttempts = AI_MAX_ATTEMPTS,
-                            initialDelayMs = retryDelayMs,
-                            shouldRetry = ::isRetryableExternalFavoriteAiFailure,
-                        ) {
-                            val generated = generateAnalysis?.invoke(input) ?: generateWithAi(input)
-                            if (githubAnalysisNeedsChineseRetry(input, generated)) {
-                                throw IllegalStateException("GitHub 收藏整理未生成有效中文内容")
-                            }
-                            generated
-                        }
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        logAiFailure(httpLogger, taskId, item, error)
-                        return@withPermit ExternalFavoriteAiResult(
-                            item = item,
-                            article = entry.article,
-                            input = input,
-                            analysis = null,
-                            error = error,
-                        )
-                    }
-                    logAiResponse(httpLogger, taskId, item, analysis)
-                    ExternalFavoriteAiResult(
-                        item = item,
-                        article = entry.article,
-                        input = input,
-                        analysis = analysis,
-                        error = null,
-                    )
+                    onResult(analyzeItemWithTimeout(entry, httpLogger, taskId))
                 }
             }
         }.awaitAll()
+        Unit
+    }
+
+    private suspend fun analyzeItemWithTimeout(
+        entry: ExternalFavoriteAiWork,
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+    ): ExternalFavoriteAiResult = try {
+        withTimeoutOrNull(itemTimeoutMs.coerceAtLeast(1)) {
+            analyzeItem(entry, httpLogger, taskId)
+        } ?: ExternalFavoriteAiResult(entry.item, entry.article, null, null, IllegalStateException("单条收藏整理超时，已跳过，可稍后重试"))
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        logAiFailure(httpLogger, taskId, entry.item, error)
+        ExternalFavoriteAiResult(entry.item, entry.article, null, null, error)
+    }
+
+    private suspend fun analyzeItem(
+        entry: ExternalFavoriteAiWork,
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+    ): ExternalFavoriteAiResult {
+        val item = entry.item
+        val input = item.toAiInput().withSupplementIfNeeded(item, httpLogger, taskId)
+        logAiRequest(httpLogger, taskId, item, input, aiRequestLogConfig())
+        val analysis = retryTransientFailure(
+            maxAttempts = AI_MAX_ATTEMPTS,
+            initialDelayMs = retryDelayMs,
+            shouldRetry = ::isRetryableExternalFavoriteAiFailure,
+        ) {
+            val generated = generateAnalysis?.invoke(input) ?: generateWithAi(input)
+            if (githubAnalysisNeedsChineseRetry(input, generated)) {
+                throw IllegalStateException("GitHub 收藏整理未生成有效中文内容")
+            }
+            generated
+        }
+        logAiResponse(httpLogger, taskId, item, analysis)
+        return ExternalFavoriteAiResult(item, entry.article, input, analysis, null)
     }
 
     private suspend fun generateWithAi(input: ExternalFavoriteAiInput): ExternalFavoriteAiAnalysis {

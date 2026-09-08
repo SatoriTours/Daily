@@ -970,6 +970,9 @@ private fun taskCenterListSummary(task: AsyncTaskListItem): String {
     if (task.type == AsyncTaskType.external_favorite_sync.name && itemsSeen != null && base.contains("完成")) {
         return "$base，读取到 ${itemsSeen} 条"
     }
+    if (task.type == AsyncTaskType.external_favorite_sync.name) {
+        return "$base · 已读取 ${task.progressCurrent} 页（本批上限 ${task.progressTotal} 页）"
+    }
     return if (task.progressTotal > 0) "$base · ${task.progressCurrent}/${task.progressTotal}" else base
 }
 
@@ -981,7 +984,13 @@ internal fun taskCenterExecutionSummary(task: Async_task): String = buildList {
         "running" -> task.progress_message.ifBlank { "正在执行" }
         else -> asyncTaskStatusDisplayName(task.status)
     })
-    if (task.progress_total > 0) add("已处理 ${task.progress_current} / ${task.progress_total}")
+    if (task.type == AsyncTaskType.external_favorite_sync.name) {
+        add("已读取 ${task.progress_current} 页 · 本批上限 ${task.progress_total} 页（不是总页数）")
+        taskCenterCheckpointLong(task.checkpoint_json, "itemsSeen")?.let { add("已读取收藏 $it 条；AI 整理单独执行") }
+    } else if (task.progress_total > 0) add("已处理 ${task.progress_current} / ${task.progress_total}")
+    if (task.type == AsyncTaskType.external_favorite_organize.name && task.status != "running" && task.progress_message.isNotBlank()) {
+        add(task.progress_message)
+    }
     if (task.status == "retrying") task.run_after_ms?.let {
         add("预计最早重试：${taskCenterTimestampText(it)}，实际开始受系统调度影响")
     }

@@ -170,7 +170,7 @@ class ExternalFavoritesSettingsTextTest {
     fun sourceCardUsesProviderBadgeAndOverflowDeleteCopy() {
         assertEquals("X", externalFavoriteProviderBadge("x"))
         assertEquals("删除", externalFavoriteDeleteMenuLabel())
-        assertEquals("全量同步", externalFavoriteFullSyncMenuLabel())
+        assertEquals("修复同步（重新扫描）", externalFavoriteFullSyncMenuLabel())
         assertEquals("只读", externalFavoriteReadOnlyStepLabel())
         assertTrue(externalFavoriteAddPageOrganizeNoteText().contains("本地文章库"))
         assertFalse(externalFavoriteAddPageOrganizeNoteText().contains("本地收藏"))
@@ -204,22 +204,23 @@ class ExternalFavoritesSettingsTextTest {
 
         assertEquals("同步中", externalFavoriteEffectiveHealthLabel(ExternalSourceHealth.healthy, running))
         assertEquals("正在补全较早收藏", externalFavoriteSyncProgressTitle(running))
-        assertEquals("第 2 / 250 页", externalFavoriteSyncProgressPageText(running))
+        assertEquals("本次已读取 2 页，上限 250 页", externalFavoriteSyncProgressPageText(running))
         assertEquals(0.04f, externalFavoriteSyncProgressFraction(running))
         assertEquals(
             listOf(
                 ExternalFavoriteProgressMetric("2 页", "本次已读取"),
                 ExternalFavoriteProgressMetric("168 条", "本次看到"),
+                ExternalFavoriteProgressMetric("0 条", "新增收藏"),
                 ExternalFavoriteProgressMetric("未完成", "历史补全"),
             ),
             externalFavoriteProgressMetrics(running, historyComplete = false),
         )
-        assertEquals("取消同步", externalFavoriteSyncActionLabel(ExternalSourceHealth.healthy, running))
+        assertEquals("查看进度", externalFavoriteSyncActionLabel(ExternalSourceHealth.healthy, running))
         assertTrue(externalFavoriteSyncActionEnabled(ExternalSourceHealth.limited, enabled = true, running))
         assertEquals(
             listOf(
                 ExternalFavoriteDetailLine("当前阶段", "补全历史收藏"),
-                ExternalFavoriteDetailLine("同步策略", "每页 20 条 · 本次最多 5000 条"),
+                ExternalFavoriteDetailLine("同步策略", "本批次上限 250 页 · 不是收藏总页数"),
                 ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
             ),
             externalFavoriteRunningDetailLines(running),
@@ -237,7 +238,7 @@ class ExternalFavoritesSettingsTextTest {
         )
 
         assertEquals("等待同步", externalFavoriteSyncProgressTitle(queued))
-        assertEquals("第 0 / 250 页", externalFavoriteSyncProgressPageText(queued))
+        assertEquals("本次已读取 0 页，上限 250 页", externalFavoriteSyncProgressPageText(queued))
         assertEquals(0.04f, externalFavoriteSyncProgressFraction(queued))
     }
 
@@ -261,7 +262,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(
             listOf(
                 ExternalFavoriteDetailLine("当前阶段", "导入本地文章"),
-                ExternalFavoriteDetailLine("同步策略", "每页 20 条 · 本次最多 5000 条"),
+                ExternalFavoriteDetailLine("同步策略", "本批次上限 250 页 · 不是收藏总页数"),
                 ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
             ),
             externalFavoriteRunningDetailLines(importing),
@@ -305,7 +306,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(WorkInfo.State.ENQUEUED, work?.state)
         assertEquals(true, work?.active)
         assertEquals("等待同步", externalFavoriteSyncProgressTitle(work!!))
-        assertEquals("第 0 / 250 页", externalFavoriteSyncProgressPageText(work))
+        assertEquals("本次已读取 0 页，上限 250 页", externalFavoriteSyncProgressPageText(work))
     }
 
     @Test

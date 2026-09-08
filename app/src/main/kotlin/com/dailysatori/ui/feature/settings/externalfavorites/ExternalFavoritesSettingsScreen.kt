@@ -471,7 +471,28 @@ private fun ExternalFavoriteSourceCard(
 ) {
     val source = item.source
     var menuExpanded by remember { mutableStateOf(false) }
+    var showProgress by remember { mutableStateOf(false) }
+    var confirmRescan by remember { mutableStateOf(false) }
     val syncing = syncWork?.active == true
+
+    if (showProgress && syncWork != null) {
+        AlertDialog(
+            onDismissRequest = { showProgress = false },
+            title = { Text("同步进度") },
+            text = { Text("${externalFavoriteSyncProgressTitle(syncWork)}\n${syncWork.resultMessage}\n${externalFavoriteSyncProgressPageText(syncWork)}\n历史补全与本次检查分别记录") },
+            confirmButton = { TextButton(onClick = { showProgress = false }) { Text("关闭") } },
+            dismissButton = { if (syncing) TextButton(onClick = { showProgress = false; onCancelSync() }) { Text("取消同步") } },
+        )
+    }
+    if (confirmRescan) {
+        AlertDialog(
+            onDismissRequest = { confirmRescan = false },
+            title = { Text("重新扫描收藏？") },
+            text = { Text("这会重置扫描进度并重新检查全部收藏，增加接口请求。已保存内容会保留，日常更新只需点击同步。") },
+            confirmButton = { TextButton(onClick = { confirmRescan = false; onFullSync() }) { Text("重新扫描") } },
+            dismissButton = { TextButton(onClick = { confirmRescan = false }) { Text("取消") } },
+        )
+    }
 
     Card(
         shape = RoundedCornerShape(Radius.xl),
@@ -517,10 +538,13 @@ private fun ExternalFavoriteSourceCard(
                 )
             }
             ExternalFavoriteSourceDetails(item, syncWork)
+            if (!syncing && syncWork?.resultMessage?.isNotBlank() == true) {
+                Text(syncWork.resultMessage, style = MaterialTheme.typography.bodySmall)
+            }
 
             if (item.health == ExternalSourceHealth.limited) {
                 ExternalFavoriteInlineNotice(
-                    text = externalFavoriteRateLimitText(source.rate_limit_reset_at),
+                    text = "进度已保存，${externalFavoriteRateLimitText(source.rate_limit_reset_at)}",
                     warning = true,
                 )
             }
@@ -534,7 +558,7 @@ private fun ExternalFavoriteSourceCard(
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 Button(
                     onClick = if (syncing) {
-                        onCancelSync
+                        { showProgress = true }
                     } else when (item.health) {
                         ExternalSourceHealth.paused -> {
                             { onToggleEnabled(true) }
@@ -578,7 +602,7 @@ private fun ExternalFavoriteSourceCard(
                             enabled = externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing,
                             onClick = {
                                 menuExpanded = false
-                                onFullSync()
+                                confirmRescan = true
                             },
                         )
                         DropdownMenuItem(
@@ -681,7 +705,6 @@ private fun ExternalFavoriteSyncProgressBox(work: ExternalFavoriteSyncWorkUi, hi
                 )
             }
             LinearProgressIndicator(
-                progress = { externalFavoriteSyncProgressFraction(work) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {

@@ -87,6 +87,9 @@ class AsyncTaskScheduler(private val context: Context) {
         val now = Clock.System.now().toEpochMilliseconds()
         repo.markExpiredRunningForRetry(now)
         enqueueRunnable(repo, now)
+        repo.futureRetryingTasks(now).forEach { task ->
+            task.run_after_ms?.let { enqueueRetry(task.id, it) }
+        }
     }
 
     private fun enqueueRunnable(repo: AsyncTaskRepository, now: Long) =
@@ -210,6 +213,7 @@ private fun asyncTaskNotificationText(taskType: String): String = when (taskType
 }
 
 private val NETWORK_TASK_TYPES = setOf(
+    "external_favorite_organize",
     "save_article",
     "remote_article_sync",
     "remote_news_fetch",
@@ -223,6 +227,7 @@ private val NETWORK_TASK_TYPES = setOf(
 )
 
 private val LONG_RUNNING_TASK_TYPES = setOf(
+    "external_favorite_organize",
     "save_article",
     "external_favorite_sync",
     "remote_article_reprocess",

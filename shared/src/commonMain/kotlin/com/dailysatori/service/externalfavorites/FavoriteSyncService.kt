@@ -46,15 +46,19 @@ class FavoriteSyncService(
     private val guards = mutableMapOf<Long, Mutex>()
     private val guardsMutex = Mutex()
 
+    fun hasPendingOrganization(sourceId: Long): Boolean = itemRepo.pendingAiBySource(sourceId, 1).isNotEmpty()
+
     suspend fun syncSource(
         sourceId: Long,
         mode: FavoriteSyncMode,
         taskId: Long? = null,
         automatic: Boolean = false,
+        historyBatch: Boolean = false,
+        deferOrganization: Boolean = false,
         onProgress: suspend (FavoriteSyncProgress) -> Unit = {},
     ) {
         sourceGuard(sourceId).withLock {
-            syncSourceGuarded(sourceId, mode, taskId, automatic, onProgress)
+            syncSourceGuarded(sourceId, mode, taskId, automatic, historyBatch, deferOrganization, onProgress)
         }
     }
 
@@ -63,6 +67,8 @@ class FavoriteSyncService(
         mode: FavoriteSyncMode,
         taskId: Long?,
         automatic: Boolean,
+        historyBatch: Boolean,
+        deferOrganization: Boolean,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
     ) {
         val source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
@@ -70,13 +76,19 @@ class FavoriteSyncService(
             sourceRepo.markPaused(sourceId)
             return
         }
-        if (automatic && source.provider == ExternalFavoriteProvider.X.id &&
+        if (automatic && source.sync_interval_minutes <= 0L) return
+        if (automatic && mode != FavoriteSyncMode.history && source.provider == ExternalFavoriteProvider.X.id &&
             automaticXSyncUtcDay(source.config_json) == currentUtcDay()
         ) return
 
         val connector = registry.get(source.provider)
             ?: error("No external favorite connector registered for provider ${source.provider}")
-        val policy = syncPolicy(mode, connector.capabilities, source.config_json)
+        val basePolicy = syncPolicy(mode, connector.capabilities, source.config_json)
+        val policy = if (historyBatch && mode == FavoriteSyncMode.history) {
+            basePolicy.copy(maxPages = minOf(2, basePolicy.maxPages), maxItems = minOf(200, basePolicy.maxItems))
+        } else if (connector.provider == ExternalFavoriteProvider.X.id && mode in setOf(FavoriteSyncMode.sync, FavoriteSyncMode.recent)) {
+            basePolicy.copy(maxPages = minOf(3, basePolicy.maxPages), maxItems = minOf(60, basePolicy.maxItems))
+        } else basePolicy
         var result = SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0, historyComplete = false)
 
         sourceRepo.markSyncStarted(sourceId, mode.name)
@@ -86,13 +98,19 @@ class FavoriteSyncService(
             }
 
             if (policy.shouldFetch) {
-                val isAutomaticX = automatic && connector.provider == ExternalFavoriteProvider.X.id
-                val knownProbeItems = if (isAutomaticX) {
-                    markAutomaticXSyncDay(sourceId)
+                val isXLatest = connector.provider == ExternalFavoriteProvider.X.id &&
+                    mode in setOf(FavoriteSyncMode.sync, FavoriteSyncMode.recent)
+                val isAutomaticX = automatic && isXLatest
+                if (isAutomaticX) markAutomaticXSyncDay(sourceId)
+                val knownProbeItems = if (isAutomaticX && !source.config_json.contains("\"x_latest_cursor\"")) {
                     automaticXKnownProbeItemCount(sourceId, connector, taskId, onProgress)
                 } else null
                 if (knownProbeItems != null) {
-                    result = SyncRunResult(knownProbeItems, 1, 0, false)
+                    result = SyncRunResult(knownProbeItems, 1, 0, readSyncProgress(source.config_json).historyComplete, existingItems = knownProbeItems, latestComplete = true)
+                } else if (isXLatest) {
+                    val latest = XLatestBookmarkSync(sourceRepo, itemRepo, connector, httpLogger, ::shouldFetchRemoteDetail, isAutomaticX)
+                        .run(sourceId, taskId, minOf(3, policy.maxPages), policy.maxItems, onProgress)
+                    result = SyncRunResult(latest.seen, latest.pages, latest.changed, latest.historyComplete, latest.added, latest.seen - latest.added, latest.latestComplete)
                 } else {
                     result = fetchAndUpsert(
                         sourceId,
@@ -108,7 +126,8 @@ class FavoriteSyncService(
                 }
             }
 
-            runLocalWork(sourceId, policy, result, taskId, onProgress)
+            runLocalWork(sourceId, policy, result, taskId, deferOrganization, onProgress)
+            persistLastResult(sourceId, result, mode)
             sourceRepo.markSyncSucceeded(
                 id = sourceId,
                 itemsSeen = result.itemsSeen.toLong(),
@@ -143,11 +162,26 @@ class FavoriteSyncService(
         return page.items.size.takeIf { allKnown }
     }
 
+    private fun persistLastResult(sourceId: Long, result: SyncRunResult, mode: FavoriteSyncMode) {
+        val config = sourceRepo.getById(sourceId)?.config_json.orEmpty()
+        val root = runCatching { Json.parseToJsonElement(config).jsonObject }.getOrNull()
+        sourceRepo.updateConfigJson(sourceId, buildJsonObject {
+            root?.forEach { (key, value) -> put(key, value) }
+            put("last_added_items", result.addedItems)
+            put("last_existing_items", result.existingItems)
+            if (mode in setOf(FavoriteSyncMode.sync, FavoriteSyncMode.recent)) {
+                put("latest_check_complete", result.latestComplete)
+                put("last_latest_added_items", result.addedItems)
+            }
+        }.toString())
+    }
+
     private suspend fun runLocalWork(
         sourceId: Long,
         policy: SyncPolicy,
         result: SyncRunResult,
         taskId: Long?,
+        deferOrganization: Boolean,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
     ) {
         suspend fun reportLocalProgress(phase: String) {
@@ -157,7 +191,10 @@ class FavoriteSyncService(
                     pagesSeen = result.pagesSeen,
                     maxPages = policy.maxPages.coerceAtLeast(1),
                     itemsSeen = result.itemsSeen,
-                    historyComplete = false,
+                    historyComplete = result.historyComplete,
+                    addedItems = result.addedItems,
+                    existingItems = result.existingItems,
+                    latestComplete = result.latestComplete,
                 ),
             )
         }
@@ -168,6 +205,11 @@ class FavoriteSyncService(
                 reportLocalProgress("import")
                 localWorkItems += importPendingForSource(sourceId, importLimit)
             }
+        }
+        if (deferOrganization) {
+            if (policy.includeFailedAi) itemRepo.requeueFailedAiBySource(sourceId)
+            reportLocalProgress("complete")
+            return
         }
         runLocalWorkStep {
             reportLocalProgress("repair")
@@ -211,6 +253,9 @@ class FavoriteSyncService(
                 maxPages = policy.maxPages.coerceAtLeast(1),
                 itemsSeen = result.itemsSeen,
                 historyComplete = result.historyComplete,
+                addedItems = result.addedItems,
+                existingItems = result.existingItems,
+                latestComplete = result.latestComplete,
             ),
         )
     }
@@ -239,7 +284,7 @@ class FavoriteSyncService(
         val repairsXRemoteOrder = connector is XBookmarksConnector &&
             initialOrderState.hasMissingFavoriteTime
         var progress = readSyncProgress(initialSource.config_json)
-        if (repairsXRemoteOrder || policy.resetHistory && progress.historyComplete) {
+        if (policy.resetHistory && progress.historyComplete) {
             progress = ExternalFavoriteSyncProgress(
                 historyCursor = null,
                 historyComplete = false,
@@ -249,6 +294,7 @@ class FavoriteSyncService(
         var pagesSeen = 0
         var itemsSeen = 0
         var changedItems = 0
+        var addedItems = 0
         var historyCursor = progress.historyCursor
         var historyComplete = progress.historyComplete
         var historyCompleteAnchorCursor = progress.historyCompleteAnchorCursor
@@ -280,6 +326,8 @@ class FavoriteSyncService(
                     maxPages = policy.maxPages,
                     itemsSeen = itemsSeen,
                     historyComplete = verifiedHistoryComplete(),
+                    addedItems = addedItems,
+                    existingItems = itemsSeen - addedItems,
                 ),
             )
         }
@@ -310,6 +358,9 @@ class FavoriteSyncService(
                 shouldFetchDetail = { draft -> shouldFetchRemoteDetail(sourceId, draft) },
                 sinceExternalId = sinceExternalId,
             )
+            require(page.nextCursor == null || page.nextCursor != cursor) {
+                "分页位置未前进，已保留进度，请稍后重试或使用修复同步"
+            }
             pagesSeen += 1
 
             var changedOnPage = 0
@@ -331,6 +382,7 @@ class FavoriteSyncService(
             }
             pageItems.forEach { draft ->
                 val existing = itemRepo.getBySourceExternalId(sourceId, draft.externalId)
+                if (existing == null) addedItems++
                 if (existing != null && !existing.shouldFetchRemoteDetail()) {
                     itemRepo.markSeen(existing.id, draft.favoritedAt)
                     itemsSeen += 1
@@ -347,7 +399,12 @@ class FavoriteSyncService(
         }
 
         if (hasBudget()) {
-            val latest = fetchOne(cursor = null, placement = RemoteFavoriteOrderPlacement.latest)
+            val resumeHistory = connector.provider == ExternalFavoriteProvider.X.id && policy.scanHistory && historyCursor != null
+            val latest = fetchOne(
+                cursor = if (resumeHistory) historyCursor else null,
+                placement = if (resumeHistory) RemoteFavoriteOrderPlacement.history else RemoteFavoriteOrderPlacement.latest,
+            )
+            if (resumeHistory) historyCursor = latest.page.nextCursor
             val latestAnchorCursor = latest.page.nextCursor
             latestPageAnchorCursor = latestAnchorCursor
             reportProgress("latest")
@@ -459,6 +516,8 @@ class FavoriteSyncService(
             pagesSeen = pagesSeen,
             changedItems = changedItems,
             historyComplete = verifiedHistoryComplete(),
+            addedItems = addedItems,
+            existingItems = itemsSeen - addedItems,
         )
     }
 
@@ -590,6 +649,9 @@ class FavoriteSyncService(
         val pagesSeen: Int,
         val changedItems: Int,
         val historyComplete: Boolean,
+        val addedItems: Int = 0,
+        val existingItems: Int = 0,
+        val latestComplete: Boolean = false,
     )
 
     private data class FavoriteFetchPageResult(

@@ -45,6 +45,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         reminderRecovery.resume()
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                GlobalContext.get().get<com.dailysatori.core.worker.AsyncTaskScheduler>().recoverAndEnqueueRunnable()
+                GlobalContext.get().get<ExternalFavoriteSyncScheduler>().recover()
+            }.onFailure { Log.w(TAG, "Async task resume recovery failed", it) }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

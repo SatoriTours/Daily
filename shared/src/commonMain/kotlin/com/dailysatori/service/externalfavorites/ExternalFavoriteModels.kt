@@ -48,6 +48,9 @@ data class FavoriteSyncProgress(
     val maxPages: Int,
     val itemsSeen: Int,
     val historyComplete: Boolean,
+    val addedItems: Int = 0,
+    val existingItems: Int = 0,
+    val latestComplete: Boolean = false,
 )
 
 open class FavoriteProviderException(

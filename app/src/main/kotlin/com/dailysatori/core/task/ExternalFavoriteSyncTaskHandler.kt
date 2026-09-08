@@ -13,17 +13,21 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CancellationException
+import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
+import com.dailysatori.service.externalfavorites.FavoriteSyncProgress
 
 @Serializable
 data class ExternalFavoriteSyncTaskPayload(
     val sourceId: Long,
     val mode: String,
     val automatic: Boolean = false,
+    val historyBatch: Boolean = false,
 )
 
 class ExternalFavoriteSyncTaskHandler(
     private val syncService: FavoriteSyncService,
     private val articleProcessingScheduler: ArticleProcessingScheduler,
+    private val syncScheduler: ExternalFavoriteSyncScheduler,
 ) : AsyncTaskHandler {
     override val type: String = TYPE
 
@@ -44,16 +48,24 @@ class ExternalFavoriteSyncTaskHandler(
         }
 
         return try {
+            var finalProgress: FavoriteSyncProgress? = null
             reporter.report(0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, "准备同步外部收藏", checkpointJson = """{"phase":"queued"}""")
-            syncService.syncSource(payload.sourceId, mode, taskId = taskId, automatic = payload.automatic) { progress ->
+            syncService.syncSource(payload.sourceId, mode, taskId = taskId, automatic = payload.automatic, historyBatch = payload.historyBatch, deferOrganization = true) { progress ->
+                finalProgress = progress
                 reporter.report(
                     current = progress.pagesSeen.toLong(),
                     total = progress.maxPages.toLong().coerceAtLeast(1),
-                    message = externalFavoriteTaskProgressMessage(progress.phase, progress.itemsSeen),
-                    checkpointJson = """{"phase":"${progress.phase}","pagesSeen":${progress.pagesSeen},"itemsSeen":${progress.itemsSeen},"historyComplete":${progress.historyComplete}}""",
+                    message = if (progress.phase == "complete") externalFavoriteCompletionMessage(progress) else externalFavoriteTaskProgressMessage(progress.phase, progress.itemsSeen),
+                    checkpointJson = """{"phase":"${progress.phase}","pagesSeen":${progress.pagesSeen},"itemsSeen":${progress.itemsSeen},"historyComplete":${progress.historyComplete},"addedItems":${progress.addedItems},"existingItems":${progress.existingItems},"latestComplete":${progress.latestComplete}}""",
                 )
             }
             articleProcessingScheduler.enqueueResume()
+            if (finalProgress != null && syncService.hasPendingOrganization(payload.sourceId)) {
+                syncScheduler.enqueueOrganization(payload.sourceId)
+            }
+            if (mode == FavoriteSyncMode.sync && finalProgress?.latestComplete == true && finalProgress?.historyComplete == false) {
+                syncScheduler.enqueueHistoryBatch(payload.sourceId, payload.automatic)
+            }
             AsyncTaskExecutionResult.Success()
         } catch (error: CancellationException) {
             throw error
@@ -74,8 +86,14 @@ class ExternalFavoriteSyncTaskHandler(
 
     companion object {
         const val TYPE = "external_favorite_sync"
-        const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 250L
+        const val DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES = 3L
     }
+}
+
+internal fun externalFavoriteCompletionMessage(progress: FavoriteSyncProgress): String {
+    val result = if (progress.addedItems == 0) "没有新增收藏" else "新增 ${progress.addedItems} 条"
+    val state = if (progress.latestComplete) "最新收藏已检查" else if (progress.historyComplete) "历史补全完成" else "本批次完成，进度已保存"
+    return "$state · $result · 已存在 ${progress.existingItems} 条"
 }
 
 fun externalFavoriteSyncTaskPayloadJson(sourceId: Long, mode: String, automatic: Boolean = false): String =

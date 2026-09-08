@@ -71,6 +71,35 @@ class ExternalFavoriteSyncScheduler(
     private val asyncTaskRepo: AsyncTaskRepository? = null,
     private val asyncTaskScheduler: AsyncTaskScheduler? = null,
 ) {
+    fun enqueueOrganization(sourceId: Long, afterTaskId: Long? = null): Long? {
+        val repo = asyncTaskRepo ?: return null
+        val prefix = "external_favorite_organize:$sourceId:"
+        val dependency = afterTaskId?.let { ",\"_afterTaskId\":$it" }.orEmpty()
+        val payload = """{"sourceId":$sourceId$dependency}"""
+        val id = if (afterTaskId == null) {
+            repo.enqueueUniqueFamily("external_favorite_organize", payload, "${prefix}latest", prefix)
+        } else {
+            repo.enqueue("external_favorite_organize", payload, "${prefix}after:$afterTaskId")
+        }
+        // A running batch may already have taken its final pending-items snapshot.
+        // Keep one successor so newly imported items cannot miss that handoff.
+        if (afterTaskId == null && repo.getById(id)?.status !in setOf("queued", "retrying")) {
+            return enqueueOrganization(sourceId, afterTaskId = id)
+        }
+        asyncTaskScheduler?.enqueue(id)
+        return id
+    }
+
+    fun enqueueHistoryBatch(sourceId: Long, automatic: Boolean) {
+        val repo = asyncTaskRepo ?: return
+        repo.enqueue(
+            type = AsyncTaskType.external_favorite_sync.name,
+            payloadJson = """{"sourceId":$sourceId,"mode":"history","automatic":$automatic,"historyBatch":true}""",
+            uniqueKey = externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.history.name, automatic),
+        )
+        wake()
+    }
+
     fun enqueue(
         sourceId: Long,
         mode: String = FavoriteSyncMode.sync.name,

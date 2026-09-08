@@ -24,6 +24,7 @@ import com.dailysatori.core.task.BookViewpointGenerateTaskHandler
 import com.dailysatori.core.task.ArticleMemoryExtractTaskHandler
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.core.task.ExternalFavoriteSyncTaskHandler
+import com.dailysatori.core.task.ExternalFavoriteOrganizeTaskHandler
 import com.dailysatori.core.task.RemoteArticleReprocessTaskHandler
 import com.dailysatori.core.task.SaveArticleTaskHandler
 import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
@@ -63,7 +64,8 @@ val appModule: Module = module {
     single { ArticleMemoryExtractTaskHandler(get(), get()) }
     single { RemoteArticleReprocessTaskHandler(get(), get()) }
     single { ArticlePostProcessingScheduler(androidContext(), get()) }
-    single { ExternalFavoriteSyncTaskHandler(get(), get()) }
+    single { ExternalFavoriteSyncTaskHandler(get(), get(), get()) }
+    single { ExternalFavoriteOrganizeTaskHandler(get(), get(), get(), get(), get()) }
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
     single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }
     single { UnifiedNewsGenerateTaskHandler(get()) }
@@ -75,6 +77,7 @@ val appModule: Module = module {
                 get<ArticleMemoryExtractTaskHandler>(),
                 get<RemoteArticleReprocessTaskHandler>(),
                 get<ExternalFavoriteSyncTaskHandler>(),
+                get<ExternalFavoriteOrganizeTaskHandler>(),
                 get<BookViewpointGenerateTaskHandler>(),
                 get<RemoteArticleSyncTaskHandler>(),
                 get<UnifiedNewsGenerateTaskHandler>(),
