@@ -92,6 +92,9 @@ import java.util.TimeZone
 fun DiaryScreen(onMyClick: () -> Unit = {}) {
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val thoughtViewModel: DiaryThoughtViewModel = koinViewModel()
+    val thoughtState by thoughtViewModel.state.collectAsState()
+    var showThoughts by remember { mutableStateOf(false) }
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
@@ -167,8 +170,18 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             return@LaunchedEffect
         }
         editingDiary = requestedDiary
+        showThoughts = false
         showEditor = true
         DiaryRecordingOpenRequest.consume(diaryId)
+    }
+
+    if (showThoughts) {
+        DiaryThoughtScreen(
+            thoughtViewModel,
+            onBack = { showThoughts = false },
+            onDiaryClick = DiaryRecordingOpenRequest::open,
+        )
+        return
     }
 
     AppScaffold(
@@ -214,6 +227,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 .fillMaxSize()
                 .padding(horizontal = Spacing.m),
         ) {
+            DiaryThoughtEntry(thoughtState, onClick = { showThoughts = true })
             if (state.recordingState !is DiaryRecordingState.Idle) {
                 DiaryRecordingControls(
                     state = state.recordingState,

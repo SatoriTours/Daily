@@ -200,7 +200,7 @@ private fun UpgradeDialog(
         title = { Text(if (state.isDownloadingUpdate) "正在下载更新" else "发现新版本") },
         text = {
             if (state.isDownloadingUpdate) UpdateDownloadProgress(state)
-            else Text("当前版本 v${state.currentVersion}\n最新版本 ${release.version}\n是否立即更新？")
+            else Text("当前：${state.installedChannel.label} ${state.currentVersion}\n可安装：${release.channel.label} ${release.version}\n是否立即更新？")
         },
         dismissButton = {
             if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.dismissUpdateDialog() }) { Text("稍后") }

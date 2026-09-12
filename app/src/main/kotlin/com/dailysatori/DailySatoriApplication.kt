@@ -20,6 +20,9 @@ import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import com.dailysatori.service.diary.DiaryThoughtService
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
@@ -28,6 +31,8 @@ import org.koin.core.context.startKoin
 import org.koin.java.KoinJavaComponent.get
 
 class DailySatoriApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         startKoin {
@@ -37,6 +42,7 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         encryptStoredSecrets()
+        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope)
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()

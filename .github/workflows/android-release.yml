@@ -12,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    concurrency:
+      group: stable-release-publication
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -33,11 +36,15 @@ jobs:
             exit 1
           fi
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          GRADLE_VERSION=$(grep "versionName" app/build.gradle.kts | sed -E 's/.*versionName = "([^"]+)".*/\1/' | tr -d ' ')
+          GRADLE_VERSION=$(grep -E '^[[:space:]]*versionName = "' app/build.gradle.kts | sed -E 's/.*versionName = "([^"]+)".*/\1/' | tr -d ' ')
           if [ "$TAG_VERSION" != "$GRADLE_VERSION" ]; then
             echo "Version mismatch: tag $TAG_VERSION does not match app/build.gradle.kts versionName $GRADLE_VERSION."
             exit 1
           fi
+
+      - name: Allocate stable build version
+        id: version
+        run: python3 scripts/ci_release.py prepare --channel stable
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4.5.0
@@ -69,41 +76,17 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
           printf '%s' "$KEY_JKS" | base64 --decode > "$KEYSTORE_FILE"
-          ./gradlew :app:assembleRelease
+          ./gradlew :app:assembleRelease \
+            -PciVersionCode=${{ steps.version.outputs.versionCode }} \
+            -PciVersionName=${{ steps.version.outputs.versionName }} \
+            -PciUpdateChannel=stable
+          python3 scripts/ci_release.py package --apk app/build/outputs/apk/release/app-release.apk
 
-      - name: Get current version
-        id: version
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "${{ runner.temp }}/release-key.jks"
 
-      - name: Read changelog
-        id: changelog
-        run: |
-          VERSION=${{ steps.version.outputs.version }}
-          CHANGELOG_PATH="docs/versions/changelog_${VERSION}.md"
-          if [ -f "$CHANGELOG_PATH" ]; then
-            {
-              echo "body<<EOF"
-              cat "$CHANGELOG_PATH"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "body=Release ${{ steps.version.outputs.tag }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create or update GitHub Release
+      - name: Publish signed release and update metadata
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-          RELEASE_NAME: Release ${{ steps.version.outputs.tag }}
-          RELEASE_BODY: ${{ steps.changelog.outputs.body }}
-          APK_PATH: app/build/outputs/apk/release/app-release.apk
-        run: |
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY" --draft=false
-          else
-            gh release create "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY"
-          fi
-          gh release upload "$RELEASE_TAG" "$APK_PATH#daily-satori-${RELEASE_TAG}.apk" --clobber
+        run: python3 scripts/ci_release.py publish

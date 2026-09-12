@@ -45,6 +45,7 @@ import com.dailysatori.ui.feature.book.BookContentSearchViewModel
 import com.dailysatori.ui.feature.book.BookReflectionViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
+import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsViewModel
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewModel
@@ -136,6 +137,7 @@ val viewModelModule: Module = module {
             webpageParserService = get<WebpageParserService>(),
         )
     }
+    viewModel { DiaryThoughtViewModel(get()) }
     viewModel {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),

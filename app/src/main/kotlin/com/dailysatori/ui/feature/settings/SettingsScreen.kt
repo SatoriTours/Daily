@@ -203,6 +203,7 @@ private fun SettingsList(
         Spacer(modifier = Modifier.height(Spacing.s))
         AiServicesSection(onNavigate)
         NetworkSection(state, viewModel, onNavigate)
+        UpdateSettingsSection(state, viewModel)
         DataSection(onNavigate)
         Spacer(modifier = Modifier.height(Spacing.xl))
     }
@@ -240,12 +241,6 @@ private fun NetworkSection(
         )
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
-        SettingsRow(
-            icon = Icons.Default.Refresh,
-            title = "检查更新",
-            subtitle = if (state.isCheckingUpdate) "检查中..." else "当前 v${state.currentVersion}",
-            onClick = { viewModel.checkUpdate() },
-        )
     }
 }
 

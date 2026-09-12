@@ -5,6 +5,7 @@ import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.book.BookSearchResult
 import com.dailysatori.service.reminder.ReminderDraft
+import com.dailysatori.service.diary.DiaryThoughtChatContextProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 
@@ -34,6 +35,7 @@ class McpAgentService(
     private val aiConfigService: AiConfigService,
     private val toolRegistry: McpToolRegistry,
     private val aiSearchOrchestrator: AiSearchOrchestrator,
+    private val thoughtContextProvider: DiaryThoughtChatContextProvider? = null,
 ) {
     private val log = Logger.withTag("MCPAgent")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -105,19 +107,9 @@ class McpAgentService(
 
             updateStep("正在理解您的问题...", "processing")
 
-            val messages = mutableListOf<JsonObject>()
-            messages.add(buildJsonObject {
-                put("role", "system")
-                put("content", buildSystemPrompt())
-            })
-
-            messages.add(buildJsonObject {
-                put("role", "user")
-                put("content", aiSearchUserContentForQuery(query, localSearch))
-            })
-
-            val tools = toolRegistry.buildToolDefinitions()
             val privacyMasker = PrivacyMasker()
+            val messages = conversationMessages(query, localSearch, collectedResults, privacyMasker)
+            val tools = toolRegistry.buildToolDefinitions()
             val apiUrl = config.api_address.trimEnd('/')
             val apiToken = config.api_token
             val modelName = config.model_name
@@ -219,19 +211,9 @@ class McpAgentService(
 
         updateStep("正在理解您的问题...", "processing")
 
-        val messages = mutableListOf<JsonObject>()
-        messages.add(buildJsonObject {
-            put("role", "system")
-            put("content", buildSystemPrompt())
-        })
-
-        messages.add(buildJsonObject {
-            put("role", "user")
-            put("content", aiSearchUserContentForQuery(query, localSearch))
-        })
-
-        val tools = toolRegistry.buildToolDefinitions()
         val privacyMasker = PrivacyMasker()
+        val messages = conversationMessages(query, localSearch, collectedResults, privacyMasker)
+        val tools = toolRegistry.buildToolDefinitions()
         val apiUrl = config.api_address.trimEnd('/')
         val apiToken = config.api_token
         val modelName = config.model_name
@@ -296,6 +278,20 @@ class McpAgentService(
         val referenceBase = preciseResults.ifEmpty { localSearch.references }
         val searchResults = referencesForAnswer(answerForRefs, referenceBase, collectedResults)
         return McpAgentResult(answer = cleanAnswer, searchResults = searchResults, reminderDrafts = reminderDrafts)
+    }
+
+    private fun conversationMessages(
+        query: String,
+        localSearch: AiSearchResult,
+        collectedResults: MutableList<McpSearchResult>,
+        privacyMasker: PrivacyMasker,
+    ): MutableList<JsonObject> {
+        val thoughts = if (localSearch.plan.useSqlStatsPath) null else runCatching { thoughtContextProvider?.getContext() }.getOrNull()
+        collectedResults.addAll(thoughts?.references.orEmpty())
+        return mutableListOf(
+            buildJsonObject { put("role", "system"); put("content", buildSystemPrompt()) },
+            buildMcpConversationUserMessage(query, localSearch, thoughts, privacyMasker),
+        )
     }
 
     private suspend fun executeToolCalls(

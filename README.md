@@ -130,6 +130,8 @@ Daily Satori 想做的是一个更安静的个人知识入口：先把内容收�
 
 你可以从 [Releases](https://github.com/SatoriTours/Daily/releases) 下载 APK 安装。
 
+“设置 → 应用更新”支持选择**正式版**或**提交构建版**。App 启动时自动检查所选渠道，下载安装后由 Android 确认安装；提交构建版入口是 [提交构建版下载页](https://github.com/SatoriTours/Daily/releases/tag/commit-build)。切换渠道会立即检查更新。若目标包版本较旧或不支持当前数据库版本，会等待兼容版本，不执行降级。
+
 第一次使用建议先做三件事：
 
 1. 在设置里配置 AI 服务。
@@ -146,6 +148,12 @@ Daily Satori 想做的是一个更安静的个人知识入口：先把内容收�
 ```
 
 发布版本时，tag 必须匹配 `app/build.gradle.kts` 的 `versionName`，例如 `versionName = "5.1.26"` 对应 tag `v5.1.26`。推送 `main` 和对应 tag 后，GitHub Actions 会构建 Release APK。
+
+每次 push 到 `main`（包括只修改文档）会在单元测试通过后构建签名的提交构建 APK；一次 push 构建其最新 commit。PR 只运行检查，不使用发布签名。Actions 安装包保留 7 天，发布任务更新提交构建渠道；排队中被后续发布任务替代的构建仍可从 Actions 下载。
+
+两条发布流程复用 `KEY_JKS`、`KEY_ALIAS`、`KEY_PASSWORD`、`STORE_PASSWORD` Secrets。`KEY_JKS` 是 Base64 编码的正式签名 keystore；发布 job 需要 `contents: write`。临时 keystore 会在构建后清理。
+
+`scripts/ci_release.py` 按 `main` 的完整 first-parent 提交历史统一分配内部版本号，同一提交的两种渠道具有相同版本号，并使用不含数字 `4` 的编码。CI 通过 Gradle 属性注入版本和渠道，不回写源码；主分支历史不得重写，正式 tag 必须落在该主线上。APK 和 SHA-256 更新清单先上传 draft，再完成发布；提交构建使用独立 tag，固定的 `commit-build` 页面只作为更新入口，重跑不覆盖已发布 APK。
 
 Codex 的项目规则统一维护在 [AGENTS.md](./AGENTS.md)，详细工程规范见 [docs/](./docs/README.md)。
 

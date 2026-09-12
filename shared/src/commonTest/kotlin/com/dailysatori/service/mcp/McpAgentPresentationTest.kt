@@ -158,7 +158,7 @@ class McpAgentPresentationTest {
         assertTrue(service.contains("val localSearch = aiSearchOrchestrator.search(query)"))
         assertTrue(service.contains("referencesForAnswer(answerForRefs, referenceBase, collectedResults)"))
         assertTrue(di.contains("single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }"))
-        assertTrue(di.contains("McpAgentService(get(), get(), get(), get())"))
+        assertTrue(di.contains("McpAgentService(get(), get(), get(), get(), get())"))
     }
 
     @Test

@@ -14,11 +14,17 @@ import io.ktor.client.statement.*
 import kotlinx.serialization.json.*
 import java.io.File
 import java.net.URI
+import kotlinx.coroutines.CancellationException
 
 data class AppRelease(
     val version: String,
     val releaseUrl: String,
     val apkAsset: ReleaseAsset?,
+    val versionCode: Int? = null,
+    val channel: UpdateChannel = UpdateChannel.STABLE,
+    val schemaVersion: Long? = null,
+    val sha256: String? = null,
+    val size: Long? = null,
 )
 
 data class ReleaseAsset(
@@ -71,11 +77,31 @@ class AppUpgradeService(private val client: HttpClient) {
             val response = client.get("https://api.github.com/repos/SatoriTours/Daily/releases/latest")
             val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
             parseRelease(json)?.takeIf { isNewerVersion(it.version, currentVersion) }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.e(e) { "Failed to check for updates" }
             if (!suppressErrors) throw e
             null
         }
+    }
+
+    suspend fun checkChannelUpdate(channel: UpdateChannel, installed: InstalledBuild): UpdateCheck {
+        val path = if (channel == UpdateChannel.STABLE) "latest" else "tags/commit-build"
+        val response = client.get("https://api.github.com/repos/SatoriTours/Daily/releases/$path")
+        if (response.status.value == 404) return UpdateCheck(message = "${channel.label}暂未发布安装包")
+        check(response.status.value == 200) { "检查更新失败（HTTP ${response.status.value}）" }
+        val release = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val metadataUrl = release["assets"]?.jsonArray.orEmpty().mapNotNull { parseAsset(it) }
+            .firstOrNull { it.name == "update.json" }?.downloadUrl
+            ?: return UpdateCheck(message = "已选择${channel.label}，等待提供渠道更新信息的新版本")
+        require(isRepositoryReleaseUrl(metadataUrl)) { "更新信息下载地址不可信" }
+        val metadata = client.get(metadataUrl)
+        check(metadata.status.value == 200) { "获取更新信息失败" }
+        val text = metadata.bodyAsText()
+        require(text.length <= 65_536) { "更新信息格式异常" }
+        val target = parseUpdateManifest(text, release["html_url"]?.jsonPrimitive?.content.orEmpty())
+        return evaluateChannelUpdate(installed, target, channel)
     }
 
     suspend fun downloadApk(
@@ -90,6 +116,8 @@ class AppUpgradeService(private val client: HttpClient) {
                 onProgress(bytesSentTotal, contentLength ?: -1L)
             }
         }.bodyAsBytes()
+        require(release.size == null || release.size == bytes.size.toLong()) { "安装包大小不匹配，请重新检查更新" }
+        verifyApkChecksum(bytes, release.sha256)
         file.parentFile?.mkdirs()
         file.writeBytes(bytes)
         return ApkDownload(id = 0L, filePath = file.absolutePath).also { pendingDownload = it }

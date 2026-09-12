@@ -3,14 +3,15 @@ name: Unit Tests
 on:
   push:
     branches: [main, master]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   pull_request:
     branches: [main, master]
     paths-ignore:
       - 'docs/**'
       - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -33,10 +34,10 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Compile debug Kotlin
-        run: ./gradlew :app:compileDebugKotlin --no-configuration-cache
+        run: ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
 
-      - name: Run debug unit tests
-        run: ./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
+      - name: Test release metadata
+        run: python3 -m unittest discover -s scripts -p 'test_ci_release.py'
 
       - name: Upload test results
         if: always()
@@ -49,3 +50,63 @@ jobs:
             shared/build/reports/tests/
             shared/build/test-results/
           retention-days: 7
+
+  build-commit:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4.5.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Allocate commit build version
+        id: version
+        run: python3 scripts/ci_release.py prepare --channel commit
+      - name: Build signed commit APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release-key.jks
+          KEY_JKS: ${{ secrets.KEY_JKS }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          test -n "$KEY_JKS" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" && test -n "$STORE_PASSWORD"
+          printf '%s' "$KEY_JKS" | base64 --decode > "$KEYSTORE_FILE"
+          ./gradlew :app:assembleRelease \
+            -PciVersionCode=${{ steps.version.outputs.versionCode }} \
+            -PciVersionName=${{ steps.version.outputs.versionName }} \
+            -PciUpdateChannel=commit
+          python3 scripts/ci_release.py package --apk app/build/outputs/apk/release/app-release.apk
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "${{ runner.temp }}/release-key.jks"
+      - uses: actions/upload-artifact@v4.4.3
+        with:
+          name: commit-apk-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-commit:
+    needs: build-commit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: commit-build-publication
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/download-artifact@v4
+        with:
+          name: commit-apk-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+      - name: Publish commit build and update channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci_release.py publish

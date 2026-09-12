@@ -10,6 +10,10 @@ import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
+import com.dailysatori.data.repository.DiaryThoughtRepository
+import com.dailysatori.service.diary.DiaryThoughtGenerator
+import com.dailysatori.service.diary.DiaryThoughtService
+import com.dailysatori.service.diary.DiaryThoughtChatContextProvider
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.ImageRepository
@@ -109,6 +113,10 @@ val sharedModule: Module = module {
     single { DiaryAttachmentRepository(get(), get(), get()) }
     single { DiaryRepository(get(), get(), get()) }
     single { DiaryMonthSummaryRepository(get()) }
+    single { DiaryThoughtRepository(get()) }
+    single { DiaryThoughtGenerator(diaryAssistantCompletion(get(), get())) }
+    single { DiaryThoughtService(get(), get(), get()) }
+    single { DiaryThoughtChatContextProvider(get(), get()) }
     single { ExternalFavoriteSourceRepository(get(), get()) }
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
@@ -231,5 +239,5 @@ val sharedModule: Module = module {
 
     // MCP Agent service
     single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }
-    single { McpAgentService(get(), get(), get(), get()) }
+    single { McpAgentService(get(), get(), get(), get(), get()) }
 }

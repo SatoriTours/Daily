@@ -8,9 +8,16 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.BuildConfig
 import com.dailysatori.core.service.AppRelease
 import com.dailysatori.core.service.AppUpgradeService
+import com.dailysatori.core.service.UpdateChannel
+import com.dailysatori.core.service.InstalledBuild
+import com.dailysatori.config.DatabaseConfig
+import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.data.repository.SettingRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +45,10 @@ data class SettingsState(
     val pendingInstallFilePath: String? = null,
     val installReadyFilePath: String? = null,
     val currentVersion: String = BuildConfig.VERSION_NAME,
+    val installedChannel: UpdateChannel = UpdateChannel.fromId(BuildConfig.UPDATE_CHANNEL),
+    val updateChannel: UpdateChannel = UpdateChannel.fromId(BuildConfig.UPDATE_CHANNEL),
+    val updateChannelLoaded: Boolean = false,
+    val updateStatus: String? = null,
     val isExporting: Boolean = false,
     val exportProgress: Float = 0f,
     val error: String? = null,
@@ -50,6 +61,10 @@ class SettingsViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()
+    private val updatePreferences = viewModelScope.async(Dispatchers.IO) {
+        val channel = UpdateChannel.fromId(settingRepo.get("update_channel") ?: BuildConfig.UPDATE_CHANNEL)
+        _state.update { it.copy(updateChannel = channel, updateChannelLoaded = true) }
+    }
 
     init {
         loadWebServiceInfo()
@@ -123,40 +138,49 @@ class SettingsViewModel(
         } catch (_: Exception) { null }
     }
 
-    fun checkUpdate() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isCheckingUpdate = true, error = null) }
+    fun checkUpdate() = launchUpdateCheck(manual = true)
+
+    fun selectUpdateChannel(channel: UpdateChannel) = launchUpdateCheck(manual = true, selectedChannel = channel)
+
+    fun checkUpdateAutomatically() {
+        if (_state.value.availableRelease == null) launchUpdateCheck(manual = false)
+    }
+
+    private fun launchUpdateCheck(manual: Boolean, selectedChannel: UpdateChannel? = null) {
+        if (_state.value.isCheckingUpdate || _state.value.isDownloadingUpdate) return
+        _state.update { it.copy(isCheckingUpdate = true, updateMessage = null) }
+        viewModelScope.launch {
             try {
-                val release = appUpgradeService.checkForUpdate(
-                    currentVersion = _state.value.currentVersion,
-                    suppressErrors = false,
-                )
-                _state.update { current ->
-                    current.copy(
-                        isCheckingUpdate = false,
-                        availableRelease = release,
-                        showUpdateDialog = release != null,
-                        updateMessage = if (release == null) "已经是最新版" else null,
-                    )
+                updatePreferences.await()
+                if (selectedChannel != null) saveUpdateChannel(selectedChannel)
+                val channel = _state.value.updateChannel
+                val result = withContext(Dispatchers.IO) {
+                    val schema = maxOf(DatabaseConfig.currentSchemaVersion, settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0)
+                    appUpgradeService.checkChannelUpdate(channel, InstalledBuild(BuildConfig.VERSION_CODE, _state.value.installedChannel, schema))
                 }
-            } catch (e: Exception) {
-                _state.update { it.copy(isCheckingUpdate = false, updateMessage = e.message ?: "检查更新失败") }
+                _state.update { it.copy(isCheckingUpdate = false, availableRelease = result.release,
+                    showUpdateDialog = result.release != null, updateStatus = result.message,
+                    updateMessage = result.message.takeIf { manual && result.release == null }) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _state.update { it.copy(isCheckingUpdate = false, updateStatus = "检查更新失败，请稍后重试",
+                    updateMessage = if (manual) error.message ?: "检查更新失败" else null) }
             }
         }
     }
 
-    fun checkUpdateAutomatically() {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (_state.value.isCheckingUpdate || _state.value.availableRelease != null) return@launch
-            val release = appUpgradeService.checkForUpdate(_state.value.currentVersion)
-            if (release != null) {
-                _state.update { it.copy(availableRelease = release, showUpdateDialog = true) }
-            }
-        }
+    private suspend fun saveUpdateChannel(channel: UpdateChannel) {
+        withContext(Dispatchers.IO) { settingRepo.upsert("update_channel", channel.id) }
+        appUpgradeService.clearPendingDownload()
+        _state.update { it.copy(updateChannel = channel, availableRelease = null, showUpdateDialog = false,
+            updateStatus = null, pendingInstallFilePath = null, installReadyFilePath = null, downloadId = null) }
     }
 
     fun startUpdateDownload(context: Context) {
+        if (_state.value.isCheckingUpdate || _state.value.isDownloadingUpdate) return
         val release = _state.value.availableRelease ?: return
+        _state.update { it.copy(isDownloadingUpdate = true) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 _state.update {
@@ -188,6 +212,8 @@ class SettingsViewModel(
                         installReadyFilePath = installReadyFilePathAfterDownload(download.filePath),
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update {
                     it.copy(

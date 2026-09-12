@@ -25,6 +25,17 @@ android {
         targetSdk = 36
         versionCode = 50163
         versionName = "5.1.63"
+        providers.gradleProperty("ciVersionCode").orNull?.let { value ->
+            require(value.all { it.isDigit() && it != '4' })
+            versionCode = value.toInt().also { require(it in 1..2100000000) }
+        }
+        providers.gradleProperty("ciVersionName").orNull?.let { value ->
+            require(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(-commit\\.[0-9]+)?").matches(value) && '4' !in value)
+            versionName = value
+        }
+        val updateChannel = providers.gradleProperty("ciUpdateChannel").getOrElse("stable")
+        require(updateChannel in listOf("stable", "commit"))
+        buildConfigField("String", "UPDATE_CHANNEL", "\"$updateChannel\"")
         buildConfigField("String", "X_OAUTH_CLIENT_ID", "\"$xOAuthClientId\"")
         manifestPlaceholders["appAuthRedirectScheme"] = "dailysatoriappauth"
     }
@@ -105,4 +116,5 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.sqldelight.sqlite.driver)
+    testImplementation(libs.ktor.client.mock)
 }

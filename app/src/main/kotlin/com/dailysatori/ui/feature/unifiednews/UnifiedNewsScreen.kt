@@ -9,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,11 +49,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -74,6 +77,7 @@ import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
+import kotlin.math.abs
 
 @Composable
 fun UnifiedNewsScreen(
@@ -195,7 +199,7 @@ private fun UnifiedNewsSummaryPage(
         },
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize().unifiedNewsSourceSwipe(state, viewModel)) {
             if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
             val refreshMessage = state.manualRefreshMessage ?: state.error
             if (!state.isRegenerating && !refreshMessage.isNullOrBlank()) {
@@ -263,6 +267,45 @@ private fun unifiedNewsHeaderTabs(state: UnifiedNewsState, viewModel: UnifiedNew
         add(HomeCompactTab(source.name) { selectOrScrollTop((state.sourceSelection as? UnifiedNewsSourceSelection.ExternalFavoriteSource)?.id == source.id) { viewModel.selectExternalFavoriteSource(source) } })
     }
     add(HomeCompactTab("本地新闻") { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.LocalArticles, viewModel::selectLocalArticlesSource) })
+}
+
+@Composable
+private fun Modifier.unifiedNewsSourceSwipe(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Modifier {
+    val currentState by rememberUpdatedState(state)
+    return pointerInput(state.sourceSelection, state.remoteSources, state.externalFavoriteSources) {
+        var distance = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { distance = 0f },
+            onDragCancel = { distance = 0f },
+            onDragEnd = {
+                val latest = currentState
+                val target = unifiedNewsSwipeTarget(latest, distance, viewConfiguration.touchSlop * 4)
+                if (target != null) unifiedNewsHeaderTabs(latest, viewModel)[target].onClick()
+                distance = 0f
+            },
+            onHorizontalDrag = { _, amount -> distance += amount },
+        )
+    }
+}
+
+internal fun unifiedNewsSwipeTarget(state: UnifiedNewsState, distance: Float, threshold: Float): Int? {
+    if (abs(distance) < threshold || distance == 0f) return null
+    val current = when (val selection = state.sourceSelection) {
+        UnifiedNewsSourceSelection.Summary -> 0
+        is UnifiedNewsSourceSelection.RemoteSource -> {
+            val index = state.remoteSources.indexOfFirst { it.id == selection.id }
+            if (index < 0) return null
+            index + 1
+        }
+        is UnifiedNewsSourceSelection.ExternalFavoriteSource -> {
+            val index = state.externalFavoriteSources.indexOfFirst { it.id == selection.id }
+            if (index < 0) return null
+            state.remoteSources.size + index + 1
+        }
+        UnifiedNewsSourceSelection.LocalArticles -> state.remoteSources.size + state.externalFavoriteSources.size + 1
+    }
+    val target = current + if (distance < 0) 1 else -1
+    return target.takeIf { it in 0..(state.remoteSources.size + state.externalFavoriteSources.size + 1) }
 }
 
 private fun unifiedNewsSelectedTab(state: UnifiedNewsState): String = when (val selection = state.sourceSelection) {
