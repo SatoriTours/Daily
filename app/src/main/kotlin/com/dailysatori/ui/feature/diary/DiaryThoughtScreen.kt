@@ -41,7 +41,8 @@ internal fun DiaryThoughtEntry(state: DiaryThoughtState, onClick: () -> Unit) {
             Text("我的思想", style = MaterialTheme.typography.titleSmall)
             Text(
                 text = when {
-                    state.isUpdating -> "正在从日记中整理思想与做事准则…"
+                    state.isUpdating || state.isPaused -> state.progress.ifBlank { "准备更新…" }
+                    state.error != null -> state.error.orEmpty()
                     state.isStale -> "日记已变化，思想档案待更新"
                     else -> state.archive.thoughts.firstOrNull()?.statement ?: "从日记中，看见自己的价值观与做事准则"
                 },
@@ -115,8 +116,9 @@ private fun DiaryThoughtIntroduction(state: DiaryThoughtState) {
             }
             Text("上次整理 ${state.archive.diaryCount} 篇日记 · $date", style = MaterialTheme.typography.bodySmall)
         }
-        if (state.isUpdating) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.isUpdating) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.isUpdating) Text("后台或锁屏时暂停，回到前台自动继续。", style = MaterialTheme.typography.bodySmall)
+        if (state.isUpdating || state.isPaused || state.error != null) {
             Text(state.progress.ifBlank { "准备更新…" }, style = MaterialTheme.typography.bodySmall)
         }
         if (state.isStale && !state.isUpdating) Text("待更新：当前展示仍有日记依据的已有内容。", style = MaterialTheme.typography.bodySmall)

@@ -42,7 +42,7 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         encryptStoredSecrets()
-        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope)
+        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope, initiallyForeground = false)
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()

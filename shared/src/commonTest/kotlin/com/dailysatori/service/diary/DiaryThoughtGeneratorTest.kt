@@ -129,6 +129,40 @@ class DiaryThoughtGeneratorTest {
     }
 
     @Test
+    fun retryResumesCompletedMergeBatchesAndReportsBatchProgress() = runBlocking {
+        val sources = (1L..7L).map { source.copy(id = it, createdAt = it) }
+        var checkpoint = DiaryThoughtArchive()
+        var merges = 0
+        val failing = DiaryThoughtGenerator { prompt, _ ->
+            if (prompt.contains("新增证据：")) {
+                merges++
+                if (merges == 2) error("连接中断")
+                response
+            } else {
+                val diary = sources.first { prompt.contains("\"diaryId\":${it.id},") }
+                Json.encodeToString(DiaryThoughtBatch(listOf(thought.copy(
+                    evidence = listOf(DiaryThoughtEvidence(diary.id, "先把重要的事情做好")),
+                ))))
+            }
+        }
+        assertFailsWith<IllegalStateException> {
+            failing.generate(sources, "", checkpoint, onCheckpoint = { checkpoint = it })
+        }
+        assertTrue(checkpoint.thoughts.isEmpty(), "中间归纳不能作为完整档案发布")
+        val restored = Json.decodeFromString<DiaryThoughtArchive>(Json.encodeToString(checkpoint))
+        var retryCalls = 0
+        val progress = mutableListOf<String>()
+        val retry = DiaryThoughtGenerator { _, _ -> retryCalls++; response }
+        val result = retry.generate(sources, "", restored, onProgress = { progress += it })
+        assertEquals(1, retryCalls, "恢复时只重做失败的合并批次")
+        assertTrue(progress.any { it.contains("2/2") && it.contains("整理") })
+        assertEquals(listOf(thought), result.thoughts)
+        retryCalls = 0
+        retry.generate(sources, "修正后的理解", restored)
+        assertEquals(2, retryCalls, "修正变化必须重新合并，不能复用旧理解")
+    }
+
+    @Test
     fun cancelledGenerationCannotCheckpointEvenIfAiReturnsLate() = runBlocking {
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()

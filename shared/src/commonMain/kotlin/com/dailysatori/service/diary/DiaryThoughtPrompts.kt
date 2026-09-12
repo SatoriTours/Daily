@@ -43,14 +43,16 @@ internal fun diaryThoughtMergePrompt(
 """.trimIndent()
 
 internal fun parseDiaryThoughts(response: String, sources: List<DiaryThoughtSource>): List<DiaryThought> {
-    require(response.length <= 24_000) { "思想整理结果过长，请重试" }
+    if (response.length > 24_000) throw DiaryThoughtResponseException("思想整理结果过长，请重试")
     val cleaned = response.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
     val thoughts = try {
         diaryThoughtJson.decodeFromString<DiaryThoughtBatch>(cleaned).thoughts
     } catch (_: Exception) {
-        throw IllegalArgumentException("思想整理返回格式异常，请重试")
+        throw DiaryThoughtResponseException("思想整理返回格式异常，请重试")
     }
-    require(thoughts.size <= 12 && thoughts.all { it.isSupportedBy(sources) }) { "思想整理的日记依据不完整，请重试" }
+    if (thoughts.size > 12 || thoughts.any { !it.isSupportedBy(sources) }) {
+        throw DiaryThoughtResponseException("思想整理的日记依据不完整，请重试")
+    }
     return thoughts.distinctBy { it.category to it.statement }
 }
 
