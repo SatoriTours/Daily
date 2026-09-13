@@ -445,3 +445,11 @@ weekly_summary:
   diary_not_found: 未找到该日记
   viewpoint_detail: 读书笔记
   viewpoint_not_found: 未找到该读书笔记
+
+reminder_editor:
+  details: 详细配置
+  profile: 提醒配置
+  behavior: 实际提醒行为
+  leap_policy: 非闰年时使用：
+  feb_28: 2 月 28 日
+  mar_1: 3 月 1 日

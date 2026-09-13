@@ -173,4 +173,10 @@
     <string name="reminder_month_name">%1$d</string>
     <string name="reminder_month_count">%1$d reminders</string>
     <string name="reminder_month_none">None</string>
+    <string name="reminder_editor_details">Details</string>
+    <string name="reminder_editor_profile">Reminder profile</string>
+    <string name="reminder_editor_behavior">Reminder behavior</string>
+    <string name="reminder_editor_leap_policy">In non-leap years, use:</string>
+    <string name="reminder_editor_feb_28">February 28</string>
+    <string name="reminder_editor_mar_1">March 1</string>
 </resources>

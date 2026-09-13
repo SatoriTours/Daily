@@ -66,6 +66,8 @@ data class ReminderEditorState(
     val leapDayFallbackChosen: Boolean = true,
     val saving: Boolean = false,
     val notice: String? = null,
+    val daytimeBackoffInput: String = profile.daytimeDismissalBackoffMinutes.joinToString(","),
+    val eveningIntervalInput: String = profile.eveningIntervalMinutes?.toString().orEmpty(),
 ) {
     fun applyParsedDraft(draft: ReminderDraft): ReminderEditorState {
         val parsedRecurrence = draft.recurrence
@@ -77,6 +79,8 @@ data class ReminderEditorState(
         activeDayRule = draft.activeDayRule,
         recurrence = draft.recurrence,
         profile = draft.profile ?: profile,
+        daytimeBackoffInput = (draft.profile ?: profile).daytimeDismissalBackoffMinutes.joinToString(","),
+        eveningIntervalInput = (draft.profile ?: profile).eveningIntervalMinutes?.toString().orEmpty(),
         leapDayFallbackChosen = parsedRecurrence !is ReminderRecurrence.Yearly ||
             parsedRecurrence.month != 2 || parsedRecurrence.dayOfMonth != 29,
         notice = null,
@@ -105,7 +109,8 @@ data class ReminderEditorState(
             recurrence is ReminderRecurrence.Yearly && (recurrence as ReminderRecurrence.Yearly).month == 2 && (recurrence as ReminderRecurrence.Yearly).dayOfMonth == 29 && !leapDayFallbackChosen -> "\u8bf7\u6307\u5b9a\u975e\u95f0\u5e74\u7684 2 \u6708 29 \u65e5\u5904\u7406\u65b9\u5f0f\u3002"
             else -> null
         }
-    val canSave: Boolean get() = validationMessage == null && !saving
+    val canSave: Boolean get() = validationMessage == null && !saving && content.length <= 2_000 &&
+        parseDraftBackoff(daytimeBackoffInput) != null && parseDraftEveningInterval(eveningIntervalInput).valid
 
     fun actualBehaviorSummary(): String {
         val date = if (activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange) {

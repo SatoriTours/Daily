@@ -17,7 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderProfile
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 
 @Composable
 fun ReminderBatchPreview(
@@ -98,13 +98,10 @@ private fun BatchReminderCard(
                         Text(stringResource(R.string.reminder_batch_confirm_item))
                     }
                 }
-                ReminderDraftCard(
+                ReminderEditorForm(
                     state = item.draft,
                     onChange = { draft -> onUpdateItem(item.id) { current -> current.copy(draft = draft) } },
-                    onConfirm = {},
-                    onCancel = {},
                     profiles = profiles,
-                    showActions = false,
                 )
             }
         }

@@ -445,3 +445,11 @@ weekly_summary:
   diary_not_found: Diary not found
   viewpoint_detail: Reading Note
   viewpoint_not_found: Reading note not found
+
+reminder_editor:
+  details: Details
+  profile: Reminder profile
+  behavior: Reminder behavior
+  leap_policy: "In non-leap years, use:"
+  feb_28: February 28
+  mar_1: March 1

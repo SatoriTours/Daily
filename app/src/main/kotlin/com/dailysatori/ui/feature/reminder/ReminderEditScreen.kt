@@ -1,21 +1,15 @@
 package com.dailysatori.ui.feature.reminder
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -31,13 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
-import com.dailysatori.service.reminder.LeapDayPolicy
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
-
-private enum class EditorPicker { START, END, TIME }
 
 @Composable
 fun ReminderEditScreen(
@@ -52,7 +43,6 @@ fun ReminderEditScreen(
     val ui by viewModel.state.collectAsState()
     val existing = reminders.firstOrNull { it.id == reminderId }
     var editor by remember(existing?.id) { mutableStateOf(existing?.let(ReminderEditorState::from) ?: ReminderEditorState.createDefault()) }
-    var picker by remember { mutableStateOf<EditorPicker?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     val batch = ui.aiParse.batch
     val hasUnsavedBatch = batch?.items?.values?.any { it.saveStatus != BatchSaveStatus.SAVED } == true
@@ -125,61 +115,21 @@ fun ReminderEditScreen(
                     )
                 }
             }
-            item { Text("详细配置", style = MaterialTheme.typography.titleMedium) }
-            item { OutlinedTextField(editor.content, { editor = editor.copy(content = it, notice = null) }, label = { Text("提醒内容") }, modifier = Modifier.fillMaxWidth()) }
             item {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ReminderSettingRow(stringResource(R.string.reminder_start_date), editor.startDate.toString()) { picker = EditorPicker.START }
-                ReminderSettingRow(stringResource(R.string.reminder_end_date), editor.endDate.toString()) { picker = EditorPicker.END }
-                ReminderSettingRow(stringResource(R.string.reminder_first_time), editor.firstReminderTime.toString()) { picker = EditorPicker.TIME }
-            }
-            }
-            item { Text("重复方式", style = MaterialTheme.typography.titleSmall) }
-            item {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf("一次" to ReminderEditorMode.ONCE, "每月" to ReminderEditorMode.MONTHLY, "每年" to ReminderEditorMode.YEARLY, "连续" to ReminderEditorMode.CONSECUTIVE).forEach { (label, mode) ->
-                    FilterChip(selected = when (mode) {
-                        ReminderEditorMode.CONSECUTIVE -> editor.activeDayRule is com.dailysatori.service.reminder.ReminderActiveDayRule.ConsecutiveDateRange
-                        ReminderEditorMode.ONCE -> editor.recurrence == ReminderRecurrence.Once && editor.activeDayRule !is com.dailysatori.service.reminder.ReminderActiveDayRule.ConsecutiveDateRange
-                        ReminderEditorMode.MONTHLY -> editor.recurrence is ReminderRecurrence.Monthly
-                        ReminderEditorMode.YEARLY -> editor.recurrence is ReminderRecurrence.Yearly
-                    }, onClick = { editor = editor.selectMode(mode) }, label = { Text(label) })
-                }
-            }
-            }
-            if (editor.recurrence is ReminderRecurrence.Yearly && editor.startDate.monthNumber == 2 && editor.startDate.dayOfMonth == 29) {
-                item { Text("非闰年时使用：") }
-                item {
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    LeapDayPolicy.entries.forEach { policy ->
-                        FilterChip(selected = (editor.recurrence as ReminderRecurrence.Yearly).leapDayPolicy == policy && editor.leapDayFallbackChosen, onClick = { editor = editor.copy(recurrence = ReminderRecurrence.Yearly(2, 29, policy), leapDayFallbackChosen = true) }, label = { Text(if (policy == LeapDayPolicy.FEBRUARY_28) "2 月 28 日" else "3 月 1 日") })
-                    }
-                }
-                }
-            }
-            item { Text("提醒配置", style = MaterialTheme.typography.titleSmall) }
-            item {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                profiles.forEach { profile -> FilterChip(selected = editor.profile.kind == profile.kind, onClick = { editor = editor.copy(profile = profile.snapshot, notice = null) }, label = { Text(profile.name) }) }
-            }
-            }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text("实际提醒行为", style = MaterialTheme.typography.titleSmall)
-                        Text(editor.actualBehaviorSummary(), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
+                ReminderEditorForm(
+                    state = editor.toFormState(existing?.id ?: "new-reminder"),
+                    profiles = profiles,
+                    onChange = { updated -> editor = editor.applyFormState(updated) },
+                    leapDayFallbackChosen = editor.leapDayFallbackChosen,
+                    onLeapDayPolicySelected = { policy ->
+                        val yearly = editor.recurrence as? ReminderRecurrence.Yearly
+                        if (yearly != null) editor = editor.copy(recurrence = yearly.copy(leapDayPolicy = policy), leapDayFallbackChosen = true)
+                    },
+                )
             }
             editor.validationMessage?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
             editor.notice?.let { notice -> item { Text(notice, color = MaterialTheme.colorScheme.error) } }
         }
-    }
-    when (picker) {
-        EditorPicker.START -> DateDialog(editor.startDate, { picker = null }) { selected -> editor = editor.copy(startDate = selected, endDate = if (editor.endDate < selected) selected else editor.endDate); picker = null }
-        EditorPicker.END -> DateDialog(editor.endDate, { picker = null }) { editor = editor.copy(endDate = it); picker = null }
-        EditorPicker.TIME -> TimeDialog(editor.firstReminderTime, { picker = null }) { editor = editor.copy(firstReminderTime = it); picker = null }
-        null -> Unit
     }
     if (showDiscardDialog) {
         AlertDialog(

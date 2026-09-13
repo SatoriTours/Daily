@@ -13,6 +13,9 @@ class ReminderUiSourceTest {
         val preview = source("ui/feature/reminder/ReminderBatchPreview.kt")
 
         assertTrue(editor.contains("ReminderBatchPreview("))
+        assertTrue(editor.contains("ReminderEditorForm("))
+        assertTrue(preview.contains("ReminderEditorForm("))
+        assertFalse(preview.contains("ReminderDraftCard("))
         assertTrue(preview.contains("onToggleItem"))
         assertTrue(preview.contains("onRemoveItem"))
         assertTrue(preview.contains("onUpdateItem"))
@@ -67,7 +70,8 @@ class ReminderUiSourceTest {
         val draft = source("ui/feature/reminder/ReminderDraftCard.kt")
         val preview = source("ui/feature/reminder/ReminderBatchPreview.kt")
 
-        assertTrue(editor.contains("ReminderSettingRow("))
+        assertTrue(editor.contains("ReminderEditorForm("))
+        assertTrue(source("ui/feature/reminder/ReminderEditorForm.kt").contains("ReminderSettingRow("))
         assertTrue(draft.contains("ReminderSettingRow("))
         assertTrue(draft.contains("showAdvanced"))
         assertTrue(draft.contains("AnimatedVisibility(visible = showAdvanced)"))
