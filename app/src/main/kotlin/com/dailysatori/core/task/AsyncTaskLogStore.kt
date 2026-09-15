@@ -1,6 +1,7 @@
 package com.dailysatori.core.task
 
 import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
+import com.dailysatori.service.diagnostics.DiagnosticRedactor
 import com.dailysatori.service.asynctask.AsyncTaskLogger
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -88,21 +89,8 @@ class AsyncTaskHttpLogWriter(
         parameters: Map<String, String>,
     ) {
         val id = taskId ?: return
-        store.append(
-            id,
-            buildString {
-                append("HTTP request [")
-                append(label)
-                append("] ")
-                append(method)
-                append(' ')
-                append(url)
-                if (parameters.isNotEmpty()) {
-                    append(" params=")
-                    append(parameters.entries.joinToString("&") { "${it.key}=${it.value.toTaskLogSnippet()}" })
-                }
-            },
-        )
+        val safe = DiagnosticRedactor.fields(mapOf("method" to method, "url" to url))
+        store.append(id, "HTTP request $safe params=[omitted]")
     }
 
     override fun logResponse(
@@ -113,28 +101,6 @@ class AsyncTaskHttpLogWriter(
         body: String,
     ) {
         val id = taskId ?: return
-        store.append(
-            id,
-            buildString {
-                append("HTTP response [")
-                append(label)
-                append("] status=")
-                append(statusCode)
-                if (headers.isNotEmpty()) {
-                    append(" headers=")
-                    append(headers.entries.joinToString(",") { "${it.key}=${it.value}" })
-                }
-                append(" body=")
-                append(body.toTaskLogSnippet())
-            },
-        )
+        store.append(id, "HTTP response status=$statusCode headers=[omitted] body=[omitted]")
     }
 }
-
-private fun String.toTaskLogSnippet(maxChars: Int = MAX_TASK_LOG_VALUE_CHARS): String {
-    val cleaned = filterNot { it == '\u0000' }
-    if (cleaned.length <= maxChars) return cleaned
-    return cleaned.take(maxChars) + "\n...[truncated ${cleaned.length - maxChars} chars]"
-}
-
-private const val MAX_TASK_LOG_VALUE_CHARS = 4_000

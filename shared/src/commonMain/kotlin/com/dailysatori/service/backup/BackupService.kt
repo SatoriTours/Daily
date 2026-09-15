@@ -1,6 +1,7 @@
 package com.dailysatori.service.backup
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.config.BackupConfig
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
@@ -57,7 +58,11 @@ class BackupService internal constructor(
     private val _lastMessage = MutableStateFlow("")
     val lastMessage: StateFlow<String> = _lastMessage
 
-    suspend fun backupNow(): Boolean {
+    suspend fun backupNow(): Boolean = DiagnosticLog.diagnostics.operation(
+        DiagnosticSource.BACKUP, isFailure = { !it },
+    ) { backupRecorded() }
+
+    private suspend fun backupRecorded(): Boolean {
         if (_isBackingUp.value) return false
         _isBackingUp.value = true
         _progress.value = 0.0
@@ -163,7 +168,11 @@ class BackupService internal constructor(
         }
     }
 
-    suspend fun restore(name: String, password: String): Boolean {
+    suspend fun restore(name: String, password: String): Boolean = DiagnosticLog.diagnostics.operation(
+        DiagnosticSource.BACKUP, isFailure = { !it },
+    ) { restoreRecorded(name, password) }
+
+    private suspend fun restoreRecorded(name: String, password: String): Boolean {
         _isBackingUp.value = true
         _progress.value = 0.0
         return try {

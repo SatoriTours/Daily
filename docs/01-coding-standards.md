@@ -69,9 +69,11 @@ fontSize = 14.sp     // 禁止（使用 AppTypography）
 
 | 约束 | 限制 |
 |------|------|
-| 函数长度 | ≤ 50 行 |
-| 缩进层数 | ≤ 3 层 |
-| 编译检查 | `./gradlew :app:compileDebugKotlin` 无错误 |
+| 函数长度 | 默认 ≤ 50 行；清晰的声明式 UI 可例外 |
+| 缩进层数 | 默认 ≤ 3 层；清晰的声明式 UI 可例外 |
+| 编译检查 | 按 `AGENTS.md` 的“代码校验”执行 |
+
+只检查本次修改，不为满足行数而机械拆分，不据此扩大重构。
 
 ### 命名约定
 
@@ -135,8 +137,8 @@ val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
 - [ ] UI 通过 `collectAsState()` 订阅
 - [ ] 导入 `com.dailysatori.ui.theme.*`
 - [ ] 无硬编码颜色/间距/字体
-- [ ] 函数 ≤ 50 行，缩进 ≤ 3 层
-- [ ] `./gradlew :app:compileDebugKotlin` 无错误
+- [ ] 本次修改符合函数长度和嵌套深度的默认目标，声明式 UI 例外保持清晰
+- [ ] 按 `AGENTS.md` 的“代码校验”完成相关验证
 - [ ] 修改数据库 Schema 编写了迁移脚本
 - [ ] 无重复代码
 - [ ] 无日志输出敏感信息

@@ -49,7 +49,7 @@ class ArticlesViewModel(
     private var rememberedWasAtTop = true
 
     init {
-        android.util.Log.d("ArticlesVM", "ViewModel initializing, loading articles...")
+        com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "ViewModel initializing, loading articles...")
         loadArticles()
         viewModelScope.launch(Dispatchers.IO) {
             tagRepo.getAll().collect { tags ->
@@ -67,9 +67,9 @@ class ArticlesViewModel(
         loadJob?.cancel()
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
-            android.util.Log.d("ArticlesVM", "Loading articles with flow")
+            com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Loading articles with flow")
             articlesFlowFor(_state.value).collect { articles ->
-                android.util.Log.d("ArticlesVM", "Got ${articles.size} articles")
+                com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Got ${articles.size} articles")
                 _state.update { it.copy(articles = articles, isLoading = false) }
             }
         }
@@ -82,7 +82,7 @@ class ArticlesViewModel(
                 val articles = articlesSnapshotFor(_state.value)
                 _state.update { it.copy(articles = articles, isRefreshing = false, isLoading = false) }
             } catch (e: Exception) {
-                android.util.Log.w("ArticlesVM", "Failed to refresh articles", e)
+                com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Failed to refresh articles", e)
                 _state.update { it.copy(isRefreshing = false, isLoading = false) }
             }
         }

@@ -1,6 +1,7 @@
 package com.dailysatori.service.migration
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
@@ -17,6 +18,18 @@ class DatabaseMigration(
     private val log = Logger.withTag("DBMigration")
 
     fun runMigrations() {
+        DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_START, DiagnosticSource.MIGRATION)
+        try {
+            runMigrationsRecorded()
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_END, DiagnosticSource.MIGRATION)
+        } catch (failure: Exception) {
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.MIGRATION,
+                DiagnosticLevel.ERROR, error = failure)
+            throw failure
+        }
+    }
+
+    private fun runMigrationsRecorded() {
         val storedVersion = settingRepo.get(SettingKeys.schemaVersion)
         if (storedVersion == null) {
             settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())

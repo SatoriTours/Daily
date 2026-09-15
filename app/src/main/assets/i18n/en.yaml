@@ -1,3 +1,30 @@
+diagnostics:
+  title: Diagnostics and logs
+  subtitle: Export recent logs and the last crash
+  description: Records safe request metadata, business operations and errors. Export one AI-readable text file for the 30 minutes before you tap export.
+  privacy: Credentials, diary entries, conversations and full bodies are excluded. Unknown free text is omitted. Logs stay local and are never uploaded automatically.
+  coverage: WebView and system downloads expose limited lifecycle events. Forced termination or low memory may lose the tail. The report explains coverage and gaps.
+  storage: Local diagnostic storage
+  gaps: History was pruned, dropped or truncated, or a write failed. Check report health information.
+  exportRecent: Export last 30 minutes
+  exportCrash: Export last crash
+  lastCrash: Last crash
+  noCrash: No crash snapshot available
+  destination: Choose Downloads or another location next. A cloud provider may upload the file. Keep exported logs safe.
+  chooseDestination: Choose a destination in the system file picker
+  preparing: Preparing log snapshot…
+  saving: Saving, please keep this screen open…
+  saved: Saved to the selected location
+  failed: Export failed. Check free space and directory permissions, then retry.
+  failedResidual: Saving failed. An incomplete file may remain at the destination; check and remove it.
+  clear: Clear diagnostic logs
+  clearConfirm: Clear local diagnostics, crash snapshots and temporary exports? Previously exported files and old task-center logs will not be deleted.
+  confirm: Confirm clear
+  cancel: Cancel
+  unavailable: Local diagnostic storage is unavailable
+  expired: This export expired. Export again; an empty file may remain at the selected destination.
+  pickerFailed: Unable to open the system save dialog. Please try again later.
+
 # Common error messages
 error:
   network: Network connection error, please check your network and try again

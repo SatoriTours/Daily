@@ -31,12 +31,23 @@ internal fun UpdateSettingsSection(state: SettingsState, viewModel: SettingsView
     var choosing by remember { mutableStateOf(false) }
     val busy = state.isCheckingUpdate || state.isDownloadingUpdate || !state.updateChannelLoaded
     SettingsSectionCard("应用更新") {
-        Text("当前安装：${state.installedChannel.label} · ${state.currentVersion}", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = "当前安装：${state.installedChannel.label} · ${state.currentVersion}",
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            style = MaterialTheme.typography.bodyMedium,
+        )
         SettingsRow(Icons.Default.Settings, "更新渠道", state.updateChannel.label,
             onClick = { if (!busy) choosing = true })
         SettingsRow(Icons.Default.Refresh, "检查更新", if (state.isCheckingUpdate) "检查中…" else "启动时自动检查所选渠道",
             onClick = { if (!busy) viewModel.checkUpdate() })
-        state.updateStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        state.updateStatus?.let {
+            Text(
+                text = it,
+                modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
     if (choosing) UpdateChannelDialog(state.updateChannel, { choosing = false }) {
         choosing = false

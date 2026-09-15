@@ -3,7 +3,9 @@ package com.dailysatori.service.diary
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryThoughtRepository
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
@@ -15,9 +17,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.coroutineContext
 
 class DiaryThoughtService(
@@ -28,30 +35,54 @@ class DiaryThoughtService(
     private val _state = MutableStateFlow(DiaryThoughtState())
     val state = _state.asStateFlow()
     private val requests = MutableStateFlow(0L)
-    private val foreground = MutableStateFlow(true)
+    private val pending = MutableStateFlow<RefreshRequest?>(null)
+    private val execution = Mutex()
+    private var handledRevision = 0L
+    private var completedRequest: RefreshRequest? = null
     private val log = Logger.withTag("DiaryThought")
     private var job: Job? = null
 
-    /** Application 是唯一启动者；collectLatest 保证旧日记快照不会在新快照之后发布。 */
-    fun start(scope: CoroutineScope, initiallyForeground: Boolean = true) {
+    /** Application 只观察变更并调度持久任务；后台执行者独占生成和断点写入。 */
+    fun start(scope: CoroutineScope, scheduleRefresh: () -> Unit) {
         if (job?.isActive == true) return
-        foreground.value = initiallyForeground
         job = scope.launch(Dispatchers.IO) {
-            var handledRevision = 0L
             _state.value = DiaryThoughtState(corrections = repository.corrections(), useInChat = repository.useInChat())
             diaryRepository.getAll().map { diaries ->
                 diaries.filter { it.content.isNotBlank() }.map { DiaryThoughtSource(it.id, it.content, it.created_at) }
             }.distinctUntilChanged().combine(requests) { sources, revision -> sources to revision }
-                .combine(foreground) { snapshot, active -> Triple(snapshot.first, snapshot.second, active) }
-                .collectLatest { (sources, revision, active) ->
-                    val force = revision > handledRevision
-                    if (active) handledRevision = revision
-                    refresh(sources, force, active)
+                .collectLatest { (sources, revision) ->
+                    val corrections = repository.corrections()
+                    val archive = repository.load().supportedBy(sources)
+                    val stale = archive.fingerprint != diaryThoughtFingerprint(sources, corrections)
+                    val needsWork = stale || revision > (pending.value?.revision ?: 0L)
+                    _state.update { it.copy(
+                        archive = archive, corrections = corrections, isStale = stale,
+                        isUpdating = needsWork, error = null,
+                        progress = if (needsWork) "等待后台整理…" else "",
+                    ) }
+                    pending.value = RefreshRequest(sources, corrections, revision)
+                    if (needsWork) scheduleRefresh()
                 }
         }
     }
 
-    fun setForeground(active: Boolean) { foreground.value = active }
+    /** Worker 生命周期拥有执行权；日记变更取消旧快照，系统中断后从持久断点续作。 */
+    suspend fun runPendingRefresh() = DiagnosticLog.diagnostics.operation(DiagnosticSource.DIARY) {
+        runPendingRefreshRecorded()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun runPendingRefreshRecorded() = execution.withLock {
+        pending.filterNotNull().transformLatest { request ->
+            if (request != completedRequest) {
+                val force = request.revision > handledRevision
+                handledRevision = request.revision
+                refresh(request.sources, request.corrections, force)
+                completedRequest = request
+            }
+            emit(Unit)
+        }.first()
+    }
 
     fun requestRefresh() = requests.update { it + 1 }
 
@@ -66,20 +97,19 @@ class DiaryThoughtService(
         requestRefresh()
     }
 
-    private suspend fun refresh(sources: List<DiaryThoughtSource>, force: Boolean, active: Boolean) {
+    private suspend fun refresh(sources: List<DiaryThoughtSource>, corrections: String, force: Boolean) {
         val stored = repository.load().supportedBy(sources)
-        val corrections = repository.corrections()
         val fingerprint = diaryThoughtFingerprint(sources, corrections)
         val rebuild = force && stored.fingerprint == fingerprint
         val previous = if (rebuild) stored.copy(fingerprint = "", mergeCheckpoint = null) else stored
         val stale = previous.fingerprint != fingerprint
         _state.update { it.copy(
             archive = previous, corrections = corrections, isStale = stale, error = null,
-            isUpdating = stale && active, isPaused = stale && !active,
-            progress = if (stale && !active) "整理已暂停，回到前台后自动继续" else "准备更新…",
+            isUpdating = stale, isPaused = false,
+            progress = if (stale) "准备更新…" else "",
         ) }
         if (stale) repository.save(previous)
-        if (!active || !stale) return
+        if (!stale) return
         try {
             delay(2_000)
             for (attempt in 0..2) {
@@ -91,7 +121,7 @@ class DiaryThoughtService(
         }
     }
 
-    /** collectLatest 是唯一执行者；每次重试重新读取已持久化的读取和合并断点。 */
+    /** 每次重试重新读取已持久化的读取和合并断点。 */
     private suspend fun generateArchive(sources: List<DiaryThoughtSource>, corrections: String, attempt: Int): Boolean {
         try {
             _state.update { it.copy(error = null) }
@@ -104,7 +134,7 @@ class DiaryThoughtService(
             _state.update { it.copy(archive = archive, isUpdating = false, isStale = false, progress = "", error = null) }
             return true
         } catch (error: Exception) {
-            // AI 请求自身的超时不代表整理监听被取消；真正的后台切换/新快照取消仍须立即传播。
+            // AI 超时不代表任务被取消；系统停止任务/新快照取消仍须立即传播。
             coroutineContext.ensureActive()
             val failure = diaryThoughtFailure(error)
             val retry = failure.retryable && attempt < 2
@@ -118,6 +148,8 @@ class DiaryThoughtService(
             return !retry
         }
     }
+
+    private data class RefreshRequest(val sources: List<DiaryThoughtSource>, val corrections: String, val revision: Long)
 }
 
 internal class DiaryThoughtResponseException(message: String) : IllegalArgumentException(message)

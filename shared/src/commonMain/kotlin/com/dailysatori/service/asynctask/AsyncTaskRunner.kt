@@ -1,6 +1,7 @@
 package com.dailysatori.service.asynctask
 
 import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancelAndJoin
@@ -36,7 +37,11 @@ class AsyncTaskRunner(
     private val leaseMs: Long = DEFAULT_LEASE_MS,
     private val executionTimeoutMs: (String) -> Long = ::asyncTaskExecutionTimeoutMs,
 ) {
-    suspend fun run(taskId: Long): AsyncTaskRunOutcome {
+    suspend fun run(taskId: Long): AsyncTaskRunOutcome = DiagnosticLog.diagnostics.operation(
+        DiagnosticSource.TASK, taskId = taskId, isFailure = { it == AsyncTaskRunOutcome.Failed },
+    ) { runRecorded(taskId) }
+
+    private suspend fun runRecorded(taskId: Long): AsyncTaskRunOutcome {
         if (taskId <= 0L) return AsyncTaskRunOutcome.Failed
         repository.markExpiredRunningForRetry(nowMs())
         val task = repository.getById(taskId) ?: return AsyncTaskRunOutcome.Skipped
@@ -66,6 +71,8 @@ class AsyncTaskRunner(
             override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) {
                 if (!repository.isRunning(taskId)) throw AsyncTaskCancelledException()
                 repository.updateProgress(taskId, current, total, message, checkpointJson)
+                DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.TASK,
+                    fields = mapOf("count" to current.toString()))
                 repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
                 log(taskId, "TASK progress current=$current total=$total message=$message checkpoint=$checkpointJson")
             }

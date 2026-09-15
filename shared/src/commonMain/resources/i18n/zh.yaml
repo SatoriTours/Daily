@@ -1,3 +1,30 @@
+diagnostics:
+  title: 诊断与日志
+  subtitle: 导出最近半小时日志与崩溃现场
+  description: 持续记录脱敏的请求、业务过程和异常。导出窗口固定为点击时刻之前的 30 分钟，保存为一个 AI 可读的文本文件。
+  privacy: 不记录凭据、日记、对话或完整正文；未知自由文本会省略。日志只保存在本机，不会自动上传。
+  coverage: WebView 和系统下载仅记录可观测事件；强杀或内存不足可能丢失末尾记录。具体覆盖范围和缺口会写入报告。
+  storage: 本地诊断占用
+  gaps: 存在历史清理、丢弃、截断或写入异常，请查看导出报告中的健康信息。
+  exportRecent: 导出最近 30 分钟日志
+  exportCrash: 导出上次崩溃现场
+  lastCrash: 上次崩溃
+  noCrash: 暂无可导出的崩溃现场
+  destination: 下一步可选择 Downloads 或其他目录；选择云存储可能上传文件，导出后请妥善保管。
+  chooseDestination: 请在系统文件选择器中选择保存位置
+  preparing: 正在生成日志快照…
+  saving: 正在保存，请勿退出…
+  saved: 已保存到所选位置
+  failed: 导出失败，请检查可用空间和目录权限后重试。
+  failedResidual: 保存失败，所选目录可能残留不完整文件，请检查并删除。
+  clear: 清理诊断日志
+  clearConfirm: 清理本地诊断、崩溃现场和临时快照？不会删除已导出的文件或旧任务中心日志。
+  confirm: 确认清理
+  cancel: 取消
+  unavailable: 本地诊断存储暂不可用
+  expired: 本次导出已失效，请重新导出；所选目录可能留有空文件。
+  pickerFailed: 无法打开系统保存界面，请稍后重试。
+
 # 通用错误信息
 error:
   network: 网络连接错误，请检查网络后重试

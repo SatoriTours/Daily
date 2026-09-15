@@ -1,6 +1,7 @@
 package com.dailysatori.service.ai
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.bearerAuth
@@ -36,9 +37,10 @@ class AiService(private val client: HttpClient) {
         provider: String = "openai",
         systemPrompt: String? = null,
         temperature: Double = 0.5,
-    ): String {
+    ): String = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
+        fields = mapOf("provider" to provider, "model" to modelName)) {
         if (usesOpenAiCompatibleChatApi(provider)) {
-            return rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, temperature)
+            return@operation rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, temperature)
         }
         val response = try {
             withTimeout(aiCompletionRequestTimeoutMillis()) {
@@ -57,7 +59,7 @@ class AiService(private val client: HttpClient) {
             throw e
         }
         if (response.isBlank()) throw IllegalStateException("AI returned empty response")
-        return response
+        response
     }
 
     private suspend fun rawOpenAiTextCompletion(
@@ -105,8 +107,9 @@ class AiService(private val client: HttpClient) {
         provider: String = "openai",
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
-    ): JsonObject? {
-        return try {
+    ): JsonObject? = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
+        fields = mapOf("provider" to provider, "model" to modelName), isFailure = { it == null }) {
+        try {
             if (usesOpenAiCompatibleChatApi(provider)) {
                 rawOpenAiChatCompletion(apiAddress, apiToken, modelName, messages, tools, temperature)
             } else {
@@ -135,8 +138,9 @@ class AiService(private val client: HttpClient) {
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
         onChunk: suspend (String) -> Unit,
-    ): JsonObject? {
-        return try {
+    ): JsonObject? = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
+        fields = mapOf("provider" to provider, "model" to modelName), isFailure = { it == null }) {
+        try {
             if (usesOpenAiCompatibleChatApi(provider)) {
                 rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk)
             } else {
@@ -169,7 +173,15 @@ class AiService(private val client: HttpClient) {
         if (response.status.value !in 200..299) {
             throw IllegalStateException(body.ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
         }
-        return json.parseToJsonElement(body) as JsonObject
+        val parsed = json.parseToJsonElement(body) as JsonObject
+        val usage = parsed["usage"] as? JsonObject
+        if (usage != null) {
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.AI, fields = mapOf(
+                "inputTokens" to ((usage["prompt_tokens"] as? JsonPrimitive)?.contentOrNull ?: ""),
+                "outputTokens" to ((usage["completion_tokens"] as? JsonPrimitive)?.contentOrNull ?: ""),
+            ))
+        }
+        return parsed
     }
 
     private suspend fun rawOpenAiChatCompletionStreaming(
@@ -182,6 +194,8 @@ class AiService(private val client: HttpClient) {
         onChunk: suspend (String) -> Unit,
     ): JsonObject? {
         val fullText = StringBuilder()
+        val started = DiagnosticLog.elapsed()
+        var firstChunk = true
         client.preparePost(openAiChatCompletionEndpoint(apiAddress.trim())) {
             timeout {
                 requestTimeoutMillis = aiChatRequestTimeoutMillis()
@@ -197,6 +211,11 @@ class AiService(private val client: HttpClient) {
             val channel = response.bodyAsChannel()
             while (!channel.isClosedForRead) {
                 val chunk = parseOpenAiStreamingContentChunk(channel.readUTF8Line() ?: break) ?: continue
+                if (firstChunk) {
+                    firstChunk = false
+                    DiagnosticLog.diagnostics.emit(DiagnosticCode.AI_FIRST_CHUNK, DiagnosticSource.AI,
+                        fields = mapOf("firstChunkMs" to (DiagnosticLog.elapsed() - started).toString()))
+                }
                 fullText.append(chunk)
                 onChunk(chunk)
             }

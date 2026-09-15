@@ -2,6 +2,7 @@ package com.dailysatori.service.import
 
 import app.cash.sqldelight.db.QueryResult
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.platform.FileManager
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +55,11 @@ class ImportService(
         val legacyImagesMigrated: Int = 0,
     )
 
-    suspend fun importFromZip(zipPath: String): ImportResult = withContext(Dispatchers.IO) {
+    suspend fun importFromZip(zipPath: String): ImportResult = DiagnosticLog.diagnostics.operation(
+        DiagnosticSource.IMPORT,
+    ) { importRecorded(zipPath) }
+
+    private suspend fun importRecorded(zipPath: String): ImportResult = withContext(Dispatchers.IO) {
         _isImporting.value = true
         _progress.value = 0.0
         idMaps.clear()

@@ -1,5 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
+import com.dailysatori.service.diagnostics.*
+
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import kotlinx.serialization.json.Json
@@ -57,8 +59,10 @@ class FavoriteSyncService(
         deferOrganization: Boolean = false,
         onProgress: suspend (FavoriteSyncProgress) -> Unit = {},
     ) {
-        sourceGuard(sourceId).withLock {
-            syncSourceGuarded(sourceId, mode, taskId, automatic, historyBatch, deferOrganization, onProgress)
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.TASK, taskId) {
+            sourceGuard(sourceId).withLock {
+                syncSourceGuarded(sourceId, mode, taskId, automatic, historyBatch, deferOrganization, onProgress)
+            }
         }
     }
 

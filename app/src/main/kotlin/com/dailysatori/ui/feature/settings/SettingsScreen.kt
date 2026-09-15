@@ -79,6 +79,7 @@ private enum class SettingsPage {
     EXTERNAL_FAVORITES,
     SKILLS,
     TASK_CENTER,
+    DIAGNOSTICS,
     REMINDERS,
 }
 
@@ -89,7 +90,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
+    var currentPage by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
     val rootBack = onBack
 
@@ -120,6 +121,7 @@ fun SettingsScreen(
         SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.TASK_CENTER -> TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.REMINDERS -> ReminderSettingsScreen(
             onBack = { currentPage = SettingsPage.MAIN },
         )
@@ -277,7 +279,10 @@ private fun ApiTokenRow(state: SettingsState, viewModel: SettingsViewModel) {
 
 @Composable
 private fun DataSection(onNavigate: (SettingsPage) -> Unit) {
+    val i18n = org.koin.compose.koinInject<com.dailysatori.service.i18n.I18nService>()
     SettingsSectionCard("数据管理") {
+        SettingsRow(Icons.Default.FileDownload, i18n.t("diagnostics.title"), i18n.t("diagnostics.subtitle"),
+            onClick = { onNavigate(SettingsPage.DIAGNOSTICS) })
         SettingsRow(Icons.Default.Save, "备份与恢复", "管理数据备份与还原", onClick = { onNavigate(SettingsPage.BACKUP_SETTINGS) })
         SettingsRow(Icons.Default.FileDownload, "导入数据", "从 Flutter 版本迁移数据", onClick = { onNavigate(SettingsPage.DATA_IMPORT) })
         SettingsRow(icon = Icons.Default.Refresh, title = "任务", subtitle = "查看异步任务进度和状态", onClick = { onNavigate(SettingsPage.TASK_CENTER) })

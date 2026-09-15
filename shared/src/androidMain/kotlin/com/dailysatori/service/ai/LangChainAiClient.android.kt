@@ -1,5 +1,7 @@
 package com.dailysatori.service.ai
 
+import com.dailysatori.service.diagnostics.DiagnosticSource
+import com.dailysatori.service.diagnostics.diagnosticEventListenerFactory
 import dev.langchain4j.agent.tool.ToolExecutionRequest
 import dev.langchain4j.agent.tool.ToolSpecification
 import dev.langchain4j.data.message.AiMessage
@@ -96,6 +98,7 @@ internal actual class LangChainAiClient actual constructor() {
                 .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
                 .build()
             "gemini" -> GoogleAiGeminiChatModel.builder()
+                .httpClientBuilder(langChainHttpClientBuilder())
                 .baseUrl(apiAddress)
                 .apiKey(apiToken)
                 .modelName(modelName)
@@ -207,4 +210,7 @@ internal actual class LangChainAiClient actual constructor() {
     }
 }
 
+// LangChain4j 1.14's public builder preserves timeout configuration on this client.
 internal fun langChainHttpClientBuilder(): HttpClientBuilder = OkHttpClient.builder()
+    .okHttpClientBuilder(okhttp3.OkHttpClient.Builder()
+        .eventListenerFactory(diagnosticEventListenerFactory(DiagnosticSource.AI)))

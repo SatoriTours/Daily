@@ -1,6 +1,7 @@
 package com.dailysatori.service.parser
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.config.AIConfig
 import com.dailysatori.config.WebViewConfig
 import com.dailysatori.data.repository.ArticleRepository
@@ -849,7 +850,10 @@ class WebpageParserService(
         drainProcessingQueue()
     }
 
-    suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null) {
+    suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null) =
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { processAiTasksRecorded(articleId, extracted) }
+
+    private suspend fun processAiTasksRecorded(articleId: Long, extracted: ExtractedContent?) {
         val article = articleRepo.getById(articleId) ?: return
         log.i { "processAiTasks: articleId=$articleId" }
 
@@ -1102,7 +1106,10 @@ class WebpageParserService(
         articleRepo.updateAiMarkdownContent(articleId, markdown)
     }
 
-    suspend fun extractContent(url: String): ExtractedContent {
+    suspend fun extractContent(url: String): ExtractedContent =
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { extractContentRecorded(url) }
+
+    private suspend fun extractContentRecorded(url: String): ExtractedContent {
         return withContext(Dispatchers.Default) {
             try {
                 retryTransientFailure(

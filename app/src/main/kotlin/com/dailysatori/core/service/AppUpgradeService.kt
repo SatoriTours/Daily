@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Environment
 import androidx.core.content.FileProvider
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
@@ -33,6 +34,9 @@ data class ReleaseAsset(
 )
 
 class AppUpgradeService(private val client: HttpClient) {
+    private var reportedDownloadId: Long? = null
+    private var downloadTrace: DiagnosticTrace? = null
+    private var downloadRequestId: String? = null
     private val log = Logger.withTag("Upgrade")
     private var pendingDownload: ApkDownload? = null
 
@@ -133,6 +137,13 @@ class AppUpgradeService(private val client: HttpClient) {
             .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
         val manager = context.getSystemService(DownloadManager::class.java)
         val id = manager.enqueue(request)
+        downloadTrace = DiagnosticLog.currentTrace()
+        downloadRequestId = DiagnosticLog.newId()
+        reportedDownloadId = null
+        DiagnosticLog.registerCoverage(DiagnosticSource.DOWNLOAD, DiagnosticCoverage.LIFECYCLE_ONLY)
+        DiagnosticLog.diagnostics.emit(
+            DiagnosticCode.OPERATION_START, DiagnosticSource.DOWNLOAD,
+            fields = mapOf("url" to asset.downloadUrl), trace = downloadTrace, requestId = downloadRequestId)
         val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
         return ApkDownload(id, file.absolutePath).also { pendingDownload = it }
     }
@@ -165,7 +176,17 @@ class AppUpgradeService(private val client: HttpClient) {
                 status = cursor.longValue(DownloadManager.COLUMN_STATUS).toInt(),
                 downloadedBytes = cursor.longValue(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR),
                 totalBytes = cursor.longValue(DownloadManager.COLUMN_TOTAL_SIZE_BYTES),
-            )
+            ).also { progress ->
+                if (progress.status in setOf(DownloadManager.STATUS_SUCCESSFUL, DownloadManager.STATUS_FAILED) && reportedDownloadId != downloadId) {
+                    reportedDownloadId = downloadId
+                    DiagnosticLog.diagnostics.emit(
+                        if (progress.status == DownloadManager.STATUS_SUCCESSFUL) DiagnosticCode.OPERATION_END
+                        else DiagnosticCode.OPERATION_FAILED, DiagnosticSource.DOWNLOAD,
+                        if (progress.status == DownloadManager.STATUS_SUCCESSFUL) DiagnosticLevel.INFO else DiagnosticLevel.ERROR,
+                        fields = mapOf("bytes" to progress.downloadedBytes.toString(), "reason" to cursor.longValue(DownloadManager.COLUMN_REASON).toString()),
+                        trace = downloadTrace, requestId = downloadRequestId)
+                }
+            }
         }
         return null
     }

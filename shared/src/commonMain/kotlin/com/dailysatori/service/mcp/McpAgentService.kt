@@ -1,6 +1,7 @@
 package com.dailysatori.service.mcp
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.book.BookSearchResult
@@ -48,23 +49,23 @@ class McpAgentService(
         query: String,
         onStep: (String, String) -> Unit,
         onChunk: suspend (String) -> Unit,
-    ): McpAgentResult {
+    ): McpAgentResult = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
         val reminderDrafts = mutableListOf<ReminderDraft>()
-        return try {
+        try {
             processQueryWithStreamingFinalAnswer(query, onStep, onChunk, reminderDrafts)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.w(e) { "Streaming AI chat failed, falling back to non-streaming path" }
-            return processQuery(query, onStep, reminderDrafts)
+            processQuery(query, onStep, reminderDrafts)
         }
     }
 
     suspend fun processQuery(
         query: String,
         onStep: (String, String) -> Unit,
-    ): McpAgentResult {
-        return processQuery(query, onStep, mutableListOf())
+    ): McpAgentResult = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
+        processQuery(query, onStep, mutableListOf())
     }
 
     private suspend fun processQuery(
@@ -308,7 +309,10 @@ class McpAgentService(
             val arguments = function["arguments"]?.jsonPrimitive?.contentOrNull ?: "{}"
             val toolCallId = tc["id"]?.jsonPrimitive?.contentOrNull ?: ""
 
-            val toolResult = toolRegistry.executeTool(toolName, arguments)
+            val toolResult = DiagnosticLog.diagnostics.operation(DiagnosticSource.TOOL,
+                fields = mapOf("tool" to toolName), isFailure = { !it.success }) {
+                toolRegistry.executeTool(toolName, arguments)
+            }
             toolResult.reminderDraft?.let { addReminderDraftIfNew(reminderDrafts, it) }
             collectedResults.addAll(extractMcpSearchResults(toolName, toolResult))
 

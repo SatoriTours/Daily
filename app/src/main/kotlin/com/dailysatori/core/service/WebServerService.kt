@@ -109,6 +109,7 @@ class WebServerService(private val ctx: Context) {
                 java.net.ServerSocket(port).use { }
                 val svc = this
                 server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+            install(com.dailysatori.core.diagnostics.DiagnosticServerPlugin)
             install(ContentNegotiation) { registerJson(svc.json) }
             install(createApplicationPlugin(name = "ApiAuth") {
                 val log = Logger.withTag("ApiAuth")

@@ -11,7 +11,7 @@ object I18nInitializer {
                 val content = context.assets.open("i18n/$lang.yaml").bufferedReader().readText()
                 i18nService.loadTranslation(lang, content)
             } catch (e: Exception) {
-                android.util.Log.e("I18nInitializer", "Failed to load $lang translations", e)
+                com.dailysatori.core.diagnostics.SafeAndroidLog.e("I18nInitializer", "Failed to load $lang translations", e)
             }
         }
         val savedLang = i18nService.getCurrentLanguage()

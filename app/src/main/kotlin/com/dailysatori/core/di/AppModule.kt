@@ -55,6 +55,7 @@ import org.koin.dsl.module
 import java.io.File
 
 val appModule: Module = module {
+    single { com.dailysatori.core.diagnostics.DiagnosticRuntime.store }
     single<Clock> { Clock.System }
     single { AsyncTaskLogStore(File(androidContext().cacheDir, "async-task-logs")) }
     single<FavoriteSyncHttpLogger> { AsyncTaskHttpLogWriter(get()) }

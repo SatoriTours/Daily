@@ -7,10 +7,10 @@
 ### 日常开发验证
 
 日常仅执行代码级测试（如单元测试）及必要的编译检查，不启动模拟器、不安装或启动 App，也不执行 UI 测试。
-按改动范围选择聚焦测试；功能阶段结束时运行相关模块测试和编译。
+按改动范围选择聚焦测试；代码改动完成后运行相关测试和必要的编译检查，纯文档修改无需构建。验证频率和完整构建的触发条件统一遵守 `AGENTS.md` 的“代码校验”；同一代码和环境已有有效结果时不重复运行。
 
 ```bash
-# 编译检查（推荐，每次修改后运行）
+# 代码改动完成后的编译检查
 ./gradlew :app:compileDebugKotlin
 
 # 两个模块的单元测试（聚焦改动可用 --tests 限定测试类）
@@ -30,7 +30,7 @@ Arch Linux 可运行 `bash scripts/init-dev-env.sh --skip-gradle-check` 安装�
 然后重新打开 Bash 终端。脚本默认安装 SDK 到 `~/Android/Sdk`，并配置 `~/.bashrc`。
 脚本安装的 Build Tools 36.0.0 可与 Gradle 自动安装的 35.0.0 共存。
 
-一次执行编译、APK 构建和两个模块的单元测试：
+需要完整构建且改动涉及两个模块时，可一次执行编译、APK 构建和两个模块的单元测试：
 
 ```bash
 ./gradlew :app:compileDebugKotlin :app:assembleDebug \
@@ -106,13 +106,12 @@ adb devices
 
 ## 推荐工作流程
 
-### 开发阶段
+### 代码改动完成
 ```bash
-./gradlew :app:compileDebugKotlin  # 每次修改后运行
+./gradlew :app:compileDebugKotlin
 ```
 
-### 功能完成
-- 运行相关模块的单元测试和必要的编译检查，不启动模拟器。
+同时按改动范围运行相关模块的单元测试，不启动模拟器；不重复执行上述已通过的编译检查。
 
 ### 发布前或用户明确要求真机／UI 测试时
 
@@ -131,6 +130,16 @@ adb logcat -s "DBMigration:D" "MCPAgent:D" "MemoryExtract:D"
 # UI 测试结束后（先退出日志查看）
 adb -e emu kill
 ```
+
+## 本地诊断导出验证
+
+入口：设置 → 诊断与日志。默认导出点击时刻之前 30 分钟的安全事件；崩溃现场单独导出。
+
+- 代码级聚焦测试：`:app:testDebugUnitTest --tests 'com.dailysatori.core.diagnostics.*'`、`:shared:testDebugUnitTest --tests 'com.dailysatori.service.diagnostics.*'`。
+- 覆盖安全投影、业务失败、真实本地 HTTP/重定向/断流/取消、Ktor trace、滚动容量、时间窗口、损坏尾行、磁盘错误、崩溃隔夜恢复、导出取消和流关闭失败。
+- Ktor 引擎包装使用当前 3.1.3 的 InternalAPI 来传递请求属性；升级 Ktor 时必须重跑 trace 和流式测试。
+- 仅发布前或用户明确要求时验证 Android 保存选择器、跨配置变化、系统退出信息与实际强杀。日志末尾及严重 OOM 不保证完整。
+- 旧任务中心历史日志不会自动脱敏或并入报告；新 HTTP 任务日志只写安全摘要。Kermit 的未知自由文本不再输出到 Logcat，改为安全诊断事件。
 
 ## 日志调试
 

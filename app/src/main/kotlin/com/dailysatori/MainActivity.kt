@@ -2,7 +2,7 @@ package com.dailysatori
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
+import com.dailysatori.core.diagnostics.SafeAndroidLog as Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,7 +16,6 @@ import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
-import com.dailysatori.service.diary.DiaryThoughtService
 import com.dailysatori.core.recording.DiaryRecordingOpenRequest
 import com.dailysatori.core.recording.DiaryRecordingService
 import com.dailysatori.ui.theme.DailySatoriTheme
@@ -41,16 +40,6 @@ class MainActivity : ComponentActivity() {
                 DailySatoriApp()
             }
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        GlobalContext.get().get<DiaryThoughtService>().setForeground(true)
-    }
-
-    override fun onStop() {
-        GlobalContext.get().get<DiaryThoughtService>().setForeground(false)
-        super.onStop()
     }
 
     override fun onResume() {

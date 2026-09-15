@@ -39,7 +39,7 @@ class AsyncTaskLogStoreTest {
     }
 
     @Test
-    fun httpLoggerTruncatesLargeResponseBodyBeforeTaskLogCap() {
+    fun httpLoggerOmitsPrivateResponseBodyBeforeTaskLogCap() {
         val root = createTempDir(prefix = "daily-task-logs")
         val store = AsyncTaskLogStore(root, maxBytesPerTask = 120_000)
         val logger = AsyncTaskHttpLogWriter(store)
@@ -55,12 +55,12 @@ class AsyncTaskLogStoreTest {
 
         val log = store.read(9)
         assertFalse(log.contains(body))
-        assertTrue(log.contains("...[truncated "))
+        assertTrue(log.contains("body=[omitted]"))
         assertTrue(log.length < 8_000)
     }
 
     @Test
-    fun defaultTaskLogCapKeepsLargeHttpBodySummaryForDiagnostics() {
+    fun taskLoggerNeverWritesLargeHttpBodies() {
         val root = createTempDir(prefix = "daily-task-logs")
         val store = AsyncTaskLogStore(root)
         val logger = AsyncTaskHttpLogWriter(store)
@@ -77,8 +77,23 @@ class AsyncTaskLogStoreTest {
         val log = store.read(10)
         assertFalse(log.contains(""""tail":"complete""""))
         assertFalse(log.contains(body))
-        assertTrue(log.contains("...[truncated "))
+        assertTrue(log.contains("body=[omitted]"))
         assertTrue(log.length < 8_000)
+    }
+
+    @Test
+    fun httpLoggerOmitsCredentialsInHeadersUrlsAndLabels() {
+        val root = createTempDir(prefix = "daily-safe-task-logs")
+        val store = AsyncTaskLogStore(root)
+        val logger = AsyncTaskHttpLogWriter(store)
+        logger.logRequest(9, "private-label", "GET", "https://user:password-canary@example.com/private-path?key=canary",
+            mapOf("access_token" to "canary"))
+        logger.logResponse(9, "private-label", 401, mapOf("Set-Cookie" to "canary"), "private-body")
+        val log = store.read(9)
+        assertFalse(log.contains("canary"))
+        assertFalse(log.contains("private-"))
+        assertTrue(log.contains("401"))
+        root.deleteRecursively()
     }
 
     @Test

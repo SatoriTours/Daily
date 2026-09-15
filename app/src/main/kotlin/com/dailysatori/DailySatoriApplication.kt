@@ -1,6 +1,7 @@
 package com.dailysatori
 
 import android.app.Application
+import com.dailysatori.core.diagnostics.DiagnosticRuntime
 import com.dailysatori.core.di.appModule
 import com.dailysatori.core.di.platformModule
 import com.dailysatori.core.di.viewModelModule
@@ -10,6 +11,7 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.core.worker.BackupScheduler
+import com.dailysatori.core.worker.DiaryThoughtScheduler
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
 import com.dailysatori.core.worker.WeeklySummaryScheduler
@@ -35,6 +37,7 @@ class DailySatoriApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        DiagnosticRuntime.initialize(this)
         startKoin {
             androidLogger()
             androidContext(this@DailySatoriApplication)
@@ -42,7 +45,9 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         encryptStoredSecrets()
-        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope, initiallyForeground = false)
+        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope) {
+            DiaryThoughtScheduler(this).enqueue()
+        }
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()

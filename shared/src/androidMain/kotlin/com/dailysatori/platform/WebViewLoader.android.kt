@@ -1,6 +1,8 @@
 package com.dailysatori.platform
 
 import android.content.Context
+import com.dailysatori.service.diagnostics.*
+import java.util.concurrent.atomic.AtomicBoolean
 import android.os.Handler
 import android.os.Looper
 import android.webkit.WebResourceError
@@ -36,12 +38,33 @@ actual class WebViewLoader actual constructor() {
         timeoutMs: Long,
         callback: (Result<WebViewPageContent>) -> Unit,
     ): WebViewLoadHandle {
-        val load = QueuedWebViewLoad(url, timeoutMs, callback)
+        DiagnosticLog.registerCoverage(DiagnosticSource.WEBVIEW, DiagnosticCoverage.LIFECYCLE_ONLY)
+        val trace = DiagnosticLog.currentTrace()
+        val requestId = DiagnosticLog.newId()
+        val completed = AtomicBoolean()
+        val started = DiagnosticLog.elapsed()
+        DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_START, DiagnosticSource.WEBVIEW,
+            fields = mapOf("url" to url), trace = trace, requestId = requestId)
+        fun record(result: Result<WebViewPageContent>) {
+            if (!completed.compareAndSet(false, true)) return
+            val error = result.exceptionOrNull()
+            val code = when (error) {
+                null -> DiagnosticCode.OPERATION_END
+                is CancellationException -> DiagnosticCode.OPERATION_CANCELLED
+                else -> DiagnosticCode.OPERATION_FAILED
+            }
+            DiagnosticLog.diagnostics.emit(code, DiagnosticSource.WEBVIEW,
+                if (error == null) DiagnosticLevel.INFO else DiagnosticLevel.WARNING,
+                fields = mapOf("durationMs" to (DiagnosticLog.elapsed() - started).toString()),
+                error = error, trace = trace, requestId = requestId)
+        }
+        val load = QueuedWebViewLoad(url, timeoutMs, { result -> record(result); callback(result) }, trace)
         synchronized(loadLock) {
             pendingLoads.addLast(load)
         }
         startNextLoad()
         return WebViewLoadHandle {
+            record(Result.failure(CancellationException("WebView cancelled")))
             var notifyCancelled = false
             val runningHandle = synchronized(loadLock) {
                 if (load.completed) return@synchronized null
@@ -70,7 +93,7 @@ actual class WebViewLoader actual constructor() {
             finishLoad(load)
             return
         }
-        val handle = startWebViewLoad(load.url, load.timeoutMs) { result ->
+        val handle = startWebViewLoad(load.url, load.timeoutMs, load.trace) { result ->
             try {
                 if (!load.cancelled) load.callback(result)
             } finally {
@@ -97,6 +120,7 @@ actual class WebViewLoader actual constructor() {
     private fun startWebViewLoad(
         url: String,
         timeoutMs: Long,
+        trace: DiagnosticTrace?,
         callback: (Result<WebViewPageContent>) -> Unit,
     ): WebViewLoadHandle {
         val handler = Handler(Looper.getMainLooper())
@@ -187,6 +211,10 @@ actual class WebViewLoader actual constructor() {
                         view: WebView?,
                         request: WebResourceRequest?,
                     ): WebResourceResponse? {
+                        request?.let {
+                            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.WEBVIEW,
+                                fields = mapOf("url" to it.url.toString(), "method" to it.method), trace = trace)
+                        }
                         val host = request?.url?.host?.lowercase().orEmpty()
                         if (host.isNotBlank() && AD_DOMAINS.any { host.contains(it) }) {
                             return WebResourceResponse(
@@ -221,6 +249,10 @@ actual class WebViewLoader actual constructor() {
                         request: WebResourceRequest?,
                         errorResponse: WebResourceResponse?,
                     ) {
+                        errorResponse?.let {
+                            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.WEBVIEW,
+                                DiagnosticLevel.WARNING, fields = mapOf("status" to it.statusCode.toString()), trace = trace)
+                        }
                         if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 0) >= 400) {
                             complete(Result.failure(Exception("WebView HTTP error: ${errorResponse?.statusCode}")))
                             return
@@ -269,6 +301,7 @@ actual class WebViewLoader actual constructor() {
         val url: String,
         val timeoutMs: Long,
         val callback: (Result<WebViewPageContent>) -> Unit,
+        val trace: DiagnosticTrace?,
         var cancelled: Boolean = false,
         var completed: Boolean = false,
         var runningHandle: WebViewLoadHandle? = null,
