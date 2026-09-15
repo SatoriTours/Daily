@@ -576,11 +576,28 @@ class ReminderViewModel(
     }
 
     fun setListMode(mode: ReminderListMode) {
-        _state.update { it.copy(listMode = mode) }
+        _state.update { current ->
+            val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+            val year = current.listFilter.displayYear ?: today.year
+            val filters = if (mode == ReminderListMode.MONTHS && current.listFilter.expandedMonth == null) {
+                current.listFilter.copy(expandedMonth = today.monthNumber.takeIf { year == today.year })
+            } else {
+                current.listFilter
+            }
+            current.copy(listMode = mode, listFilter = filters)
+        }
     }
 
     fun updateListFilter(transform: (ReminderListFilter) -> ReminderListFilter) {
         _state.update { it.copy(listFilter = transform(it.listFilter)) }
+    }
+
+    /** Year navigation keeps the month rail collapsed so the new year starts clean. */
+    fun shiftListYear(delta: Int) {
+        val currentYear = Clock.System.todayIn(TimeZone.currentSystemDefault()).year
+        updateListFilter { current ->
+            current.copy(displayYear = (current.displayYear ?: currentYear) + delta, expandedMonth = null)
+        }
     }
 
     fun toggleListSearch() {

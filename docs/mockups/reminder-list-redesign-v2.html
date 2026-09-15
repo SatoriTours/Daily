@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Satori 提醒列表重设计 v2</title>
+<style>
+  :root {
+    --bg: #F5F5F7; --surface: #FFFFFF; --surface-high: #EFEFF4; --surface-highest: #E5E5EA;
+    --text: #1D1D1F; --muted: #6E6E73; --line: rgba(60,60,67,0.12);
+    --primary: #006EDB; --primary-container: #D8ECFF; --on-primary-container: #003A66;
+    --error: #C9342A; --error-container: #FFE3E0; --warn: #9A6A00; --warn-container: #FCEDCB;
+    --green: #256B43; --green-container: #DDF2E4;
+    --scrim: rgba(0,0,0,0.4); --shadow: 0 24px 70px rgba(20,24,32,0.22);
+  }
+  .dark {
+    --bg: #000000; --surface: #1C1C1E; --surface-high: #2C2C2E; --surface-highest: #3A3A3C;
+    --text: #F5F5F7; --muted: #A1A1A6; --line: rgba(255,255,255,0.14);
+    --primary: #0A84FF; --primary-container: #073A5C; --on-primary-container: #D8ECFF;
+    --error: #FF6B5E; --error-container: #4A1714; --warn: #E0B04F; --warn-container: #3F2E10;
+    --green: #6FD08C; --green-container: #143A22; --scrim: rgba(0,0,0,0.55);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: #d8dde3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+    color: var(--text); min-height: 100vh; padding: 34px 20px 60px;
+  }
+  .page { max-width: 1060px; margin: 0 auto; }
+  .page-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 6px; flex-wrap: wrap; }
+  .page-header h1 { font-size: 21px; font-weight: 700; color: #17202b; }
+  .page-header p { font-size: 13px; color: #4d5a68; }
+  .theme-toggle {
+    background: #fff; border: 1px solid #c9d2dc; color: #17202b; border-radius: 999px;
+    padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .phones { display: flex; gap: 34px; margin-top: 24px; flex-wrap: wrap; }
+  .phone-wrap { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .phone-label { font-size: 13px; font-weight: 600; color: #33404e; background: #ffffffcc; padding: 4px 14px; border-radius: 999px; }
+  .phone {
+    width: 390px; height: 844px; background: var(--bg); border-radius: 44px; overflow: hidden;
+    position: relative; box-shadow: var(--shadow); display: flex; flex-direction: column;
+  }
+  .statusbar { height: 54px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 30px 0; font-size: 14px; font-weight: 600; }
+  .content { flex: 1; overflow-y: auto; padding: 4px 0 120px; scrollbar-width: none; }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* 顶栏 */
+  .toolbar { height: 52px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; }
+  .toolbar h2 { font-size: 20px; font-weight: 700; padding-left: 6px; letter-spacing: 0.2px; }
+  .toolbar .icons { display: flex; gap: 2px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 17px; color: var(--primary); cursor: pointer; user-select: none;
+  }
+
+  /* 编辑性导语：替代统计胶囊 */
+  .hero { padding: 10px 22px 4px; }
+  .hero .kicker { font-size: 11px; font-weight: 700; letter-spacing: 2.4px; color: var(--primary); text-transform: uppercase; }
+  .hero .headline { font-size: 24px; font-weight: 800; line-height: 1.32; margin-top: 6px; letter-spacing: 0.2px; }
+  .hero .headline .time { color: var(--primary); }
+  .hero .support { font-size: 13px; color: var(--muted); margin-top: 7px; }
+
+  /* 文本式模式切换 */
+  .mode-tabs { display: flex; gap: 26px; padding: 18px 22px 0; border-bottom: 1px solid var(--line); }
+  .mode-tab { font-size: 15px; font-weight: 600; color: var(--muted); padding-bottom: 12px; cursor: pointer; position: relative; }
+  .mode-tab.active { color: var(--text); font-weight: 700; }
+  .mode-tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; border-radius: 3px; background: var(--primary); }
+  .mode-tab .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); margin-left: 5px; vertical-align: 2px; }
+
+  /* 分组标题 */
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; padding: 24px 22px 8px; }
+  .section-head .name { font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+  .section-head .name em { font-style: normal; color: var(--primary); }
+  .section-head .count { font-size: 12px; color: var(--muted); }
+
+  /* 杂志式条目：日期前置 + 发丝线 */
+  .story { display: flex; gap: 16px; padding: 12px 22px; cursor: pointer; align-items: flex-start; }
+  .story + .story { border-top: 1px solid var(--line); }
+  .story:active { background: var(--surface-high); }
+  .date-block { flex: none; width: 52px; text-align: center; padding-top: 1px; }
+  .date-block .day { font-size: 24px; font-weight: 800; line-height: 1.05; letter-spacing: -0.5px; }
+  .date-block .unit { font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+  .date-block.today .day { color: var(--primary); }
+  .story-body { flex: 1; min-width: 0; }
+  .story-title { font-size: 15px; font-weight: 650; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .story-meta { font-size: 12.5px; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .story-meta .sep { opacity: 0.5; }
+  .mini-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .chip-paused { background: var(--warn-container); color: var(--warn); }
+  .chip-once { background: var(--surface-highest); color: var(--muted); }
+  .chip-yearly { background: var(--green-container); color: var(--green); }
+  .chev { color: var(--muted); opacity: 0.55; font-size: 15px; align-self: center; flex: none; }
+
+  /* 月份模式：年份紧凑行 + rail 同排 */
+  .year-bar { display: flex; align-items: center; gap: 4px; padding: 12px 22px 0; }
+  .year-bar .year { font-size: 15px; font-weight: 800; letter-spacing: 0.3px; }
+  .year-nav { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--muted); background: var(--surface-high); font-size: 13px; cursor: pointer; }
+  .year-bar .spacer { flex: 1; }
+  .month-rail { display: flex; gap: 8px; padding: 8px 22px 12px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); }
+  .month-rail::-webkit-scrollbar { display: none; }
+  .month-chip { flex: none; padding: 7px 14px 8px; border-radius: 14px; background: var(--surface-high); font-size: 13px; font-weight: 650; color: var(--muted); position: relative; cursor: pointer; text-align: center; }
+  .month-chip .n { display: block; font-size: 10.5px; font-weight: 700; color: var(--muted); opacity: 0.85; margin-top: 2px; letter-spacing: 0.3px; }
+  .month-chip.has { color: var(--text); }
+  .month-chip.current::before { content: ""; position: absolute; top: 5px; right: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+  .month-chip.selected { background: var(--primary-container); color: var(--on-primary-container); }
+  .month-chip.selected .n { color: var(--on-primary-container); opacity: 0.8; }
+  .month-empty { padding: 40px 22px; text-align: center; font-size: 13.5px; color: var(--muted); line-height: 1.8; }
+
+  /* 已结束模式 */
+  .story.done .story-title { color: var(--muted); }
+  .story.done .date-block .day { color: var(--muted); opacity: 0.6; }
+  .chip-completed { background: var(--green-container); color: var(--green); }
+  .chip-expired { background: var(--error-container); color: var(--error); }
+
+  /* FAB */
+  .fab {
+    position: absolute; right: 22px; bottom: 34px; width: 56px; height: 56px; border-radius: 19px;
+    background: var(--primary); color: #fff; font-size: 27px; display: grid; place-items: center;
+    box-shadow: 0 10px 26px rgba(0,80,180,0.34); cursor: pointer;
+  }
+
+  /* 底部弹层：详情编辑 */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg);
+    border-radius: 26px 26px 0 0; padding: 8px 22px 30px; box-shadow: 0 -12px 40px rgba(0,0,0,0.18);
+  }
+  .grabber { width: 38px; height: 5px; border-radius: 3px; background: var(--line); margin: 4px auto 14px; }
+  .sheet .kicker { font-size: 11px; font-weight: 700; letter-spacing: 2.2px; color: var(--muted); text-transform: uppercase; }
+  .sheet-title { font-size: 19px; font-weight: 750; margin-top: 4px; }
+  .field-label { font-size: 11px; font-weight: 800; letter-spacing: 1.6px; color: var(--muted); text-transform: uppercase; margin: 18px 0 8px; }
+  .content-input {
+    width: 100%; background: var(--surface); border: none; border-radius: 14px; padding: 13px 15px;
+    font-size: 15px; font-family: inherit; color: var(--text); line-height: 1.5; resize: none;
+  }
+  .attr-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .attr-row::-webkit-scrollbar { display: none; }
+  .attr-chip { flex: none; background: var(--surface); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+  .attr-chip em { font-style: normal; color: var(--muted); font-size: 11px; margin-right: 5px; }
+  .attr-chip.sel { background: var(--primary); color: #fff; }
+  .attr-chip.sel em { color: rgba(255,255,255,0.72); }
+  .hairline { height: 1px; background: var(--line); margin: 18px 0 0; }
+  .actions { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-top: 14px; }
+  .actions::-webkit-scrollbar { display: none; }
+  .act { flex: none; background: var(--surface); border: none; border-radius: 12px; padding: 10px 16px; font-size: 13.5px; font-weight: 650; color: var(--primary); cursor: pointer; }
+  .act.warn { color: var(--warn); }
+  .act.danger { color: var(--error); }
+  .issue { background: var(--error-container); color: var(--error); font-size: 12.5px; border-radius: 10px; padding: 8px 12px; margin-top: 12px; }
+
+  /* 筛选弹层 */
+  .filter-sheet .group-label { font-size: 11px; font-weight: 800; letter-spacing: 1.6px; color: var(--muted); text-transform: uppercase; margin: 16px 0 8px; }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .f-chip { background: var(--surface); border-radius: 999px; padding: 8px 15px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .f-chip.sel { background: var(--primary-container); color: var(--on-primary-container); font-weight: 700; }
+  .apply { width: 100%; margin-top: 22px; background: var(--primary); color: #fff; border: none; border-radius: 15px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+  /* 空状态 */
+  .empty { padding: 72px 30px; text-align: center; }
+  .empty .glyph { font-size: 38px; opacity: 0.35; }
+  .empty h3 { font-size: 16px; font-weight: 700; margin-top: 14px; }
+  .empty p { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.7; }
+  .empty .link { color: var(--primary); font-weight: 700; font-size: 13.5px; margin-top: 14px; display: inline-block; cursor: pointer; }
+
+  /* 设计说明 */
+  .notes { margin-top: 44px; background: #ffffff; border-radius: 18px; padding: 26px 30px; color: #22303e; box-shadow: 0 10px 30px rgba(20,30,45,0.08); }
+  .notes h2 { font-size: 16px; font-weight: 800; margin-bottom: 14px; }
+  .notes table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.65; }
+  .notes th { text-align: left; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #6a7889; padding-bottom: 8px; border-bottom: 1px solid #e3e9f0; }
+  .notes td { padding: 9px 14px 9px 0; vertical-align: top; border-bottom: 1px solid #eef2f7; }
+  .notes td:first-child { font-weight: 700; white-space: nowrap; color: #101a26; }
+  .notes td:nth-child(2) { color: #43536a; }
+  .notes td:nth-child(3) { color: #7c8aa0; font-size: 12.5px; }
+  .open-q { margin-top: 18px; font-size: 13px; color: #43536a; background: #f2f6fb; border-radius: 12px; padding: 14px 16px; line-height: 1.8; }
+  .open-q b { color: #101a26; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>提醒列表重设计 · 设计稿 v1</h1>
+      <p>杂志风（docs/07 标准）· v2：年份行紧凑化、月份数量改为「N 项」；左侧可切换模式，右上角切换深浅色</p>
+    </div>
+    <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">切换 深色 / 浅色</button>
+  </div>
+
+  <div class="phones">
+    <!-- 手机 1：主列表（可交互切换模式） -->
+    <div class="phone-wrap">
+      <div class="phone-label">① 列表主界面（最近 / 月份 / 已结束）</div>
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>●●● ⌁ ▉</span></div>
+        <div class="toolbar">
+          <h2>提醒</h2>
+          <div class="icons">
+            <div class="icon-btn">⌕</div>
+            <div class="icon-btn">☰</div>
+            <div class="icon-btn">⚙</div>
+          </div>
+        </div>
+
+        <div class="hero">
+          <div class="kicker">下一次提醒</div>
+          <div class="headline">明天 <span class="time">08:30</span><br>提交本周工作周报</div>
+          <div class="support">未来 30 天共 12 项 · 2 项已暂停</div>
+        </div>
+
+        <div class="mode-tabs">
+          <div class="mode-tab active" data-mode="recent" onclick="switchMode('recent')">最近</div>
+          <div class="mode-tab" data-mode="months" onclick="switchMode('months')">月份</div>
+          <div class="mode-tab" data-mode="done" onclick="switchMode('done')">已结束<span class="dot"></span></div>
+        </div>
+
+        <div class="content" id="pane-recent">
+          <div class="section-head"><div class="name"><em>今天</em> · 9月14日</div><div class="count">2 项</div></div>
+          <div class="story">
+            <div class="date-block today"><div class="day">14</div><div class="unit">周一</div></div>
+            <div class="story-body">
+              <div class="story-title">晨间日记：记录昨天的三个瞬间</div>
+              <div class="story-meta">09:30 <span class="sep">·</span> 每天</div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="story">
+            <div class="date-block today"><div class="day">14</div><div class="unit">周一</div></div>
+            <div class="story-body">
+              <div class="story-title">阅读《禅与摩托车维修艺术》20 分钟</div>
+              <div class="story-meta">14:00 <span class="sep">·</span> 工作日</div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+
+          <div class="section-head"><div class="name"><em>明天</em> · 9月15日</div><div class="count">2 项</div></div>
+          <div class="story">
+            <div class="date-block"><div class="day">15</div><div class="unit">周二</div></div>
+            <div class="story-body">
+              <div class="story-title">提交本周工作周报</div>
+              <div class="story-meta">08:30 <span class="sep">·</span> <span class="mini-chip chip-once">单次</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="story">
+            <div class="date-block"><div class="day">15</div><div class="unit">周二</div></div>
+            <div class="story-body">
+              <div class="story-title">牙医复诊 · 带上病历本</div>
+              <div class="story-meta">19:00 <span class="sep">·</span> <span class="mini-chip chip-once">单次</span> <span class="mini-chip chip-paused">已暂停</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+
+          <div class="section-head"><div class="name">未来 7 天</div><div class="count">3 项</div></div>
+          <div class="story">
+            <div class="date-block"><div class="day">17</div><div class="unit">周四</div></div>
+            <div class="story-body">
+              <div class="story-title">确认国庆出行清单：机票、酒店、签证复印件</div>
+              <div class="story-meta">10:00 <span class="sep">·</span> <span class="mini-chip chip-once">单次</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="story">
+            <div class="date-block"><div class="day">20</div><div class="unit">周日</div></div>
+            <div class="story-body">
+              <div class="story-title">给外婆打电话</div>
+              <div class="story-meta">20:00 <span class="sep">·</span> 每周</div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+
+          <div class="section-head"><div class="name">本月稍后</div><div class="count">1 项</div></div>
+          <div class="story">
+            <div class="date-block"><div class="day">28</div><div class="unit">9月</div></div>
+            <div class="story-body">
+              <div class="story-title">续订 satori.dev 域名</div>
+              <div class="story-meta">09:00 <span class="sep">·</span> <span class="mini-chip chip-yearly">每年</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+
+          <div class="section-head"><div class="name">之后</div><div class="count">2 项</div></div>
+          <div class="story">
+            <div class="date-block"><div class="day">05</div><div class="unit">10月</div></div>
+            <div class="story-body">
+              <div class="story-title">读书会分享准备：《如何阅读一本书》第 6 章</div>
+              <div class="story-meta">15:30 <span class="sep">·</span> <span class="mini-chip chip-once">单次</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="story">
+            <div class="date-block"><div class="day">11</div><div class="unit">11月</div></div>
+            <div class="story-body">
+              <div class="story-title">妈妈生日 · 提前订花</div>
+              <div class="story-meta">09:00 <span class="sep">·</span> <span class="mini-chip chip-yearly">每年</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+        </div>
+
+        <div class="content" id="pane-months" style="display:none">
+          <div class="year-bar">
+            <div class="year-nav">‹</div>
+            <div class="year">2026 年</div>
+            <div class="year-nav">›</div>
+            <div class="spacer"></div>
+            <div style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:var(--muted);">按月查看</div>
+          </div>
+          <div class="month-rail">
+            <div class="month-chip">1月<span class="n">&nbsp;</span></div>
+            <div class="month-chip has">3月<span class="n">1 项</span></div>
+            <div class="month-chip">4月<span class="n">&nbsp;</span></div>
+            <div class="month-chip has">5月<span class="n">2 项</span></div>
+            <div class="month-chip">6月<span class="n">&nbsp;</span></div>
+            <div class="month-chip">7月<span class="n">&nbsp;</span></div>
+            <div class="month-chip">8月<span class="n">&nbsp;</span></div>
+            <div class="month-chip has current selected">9月<span class="n">5 项</span></div>
+            <div class="month-chip has">10月<span class="n">2 项</span></div>
+            <div class="month-chip has">11月<span class="n">1 项</span></div>
+            <div class="month-chip">12月<span class="n">&nbsp;</span></div>
+          </div>
+          <div class="section-head"><div class="name"><em>9月</em> · 2026</div><div class="count">5 项</div></div>
+          <div class="story">
+            <div class="date-block"><div class="day">14</div><div class="unit">周一</div></div>
+            <div class="story-body">
+              <div class="story-title">晨间日记：记录昨天的三个瞬间</div>
+              <div class="story-meta">09:30 <span class="sep">·</span> 每天</div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="story">
+            <div class="date-block"><div class="day">15</div><div class="unit">周二</div></div>
+            <div class="story-body">
+              <div class="story-title">提交本周工作周报</div>
+              <div class="story-meta">08:30 <span class="sep">·</span> <span class="mini-chip chip-once">单次</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="story">
+            <div class="date-block"><div class="day">28</div><div class="unit">周一</div></div>
+            <div class="story-body">
+              <div class="story-title">续订 satori.dev 域名</div>
+              <div class="story-meta">09:00 <span class="sep">·</span> <span class="mini-chip chip-yearly">每年</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+        </div>
+
+        <div class="content" id="pane-done" style="display:none">
+          <div class="section-head"><div class="name">已完成</div><div class="count">1 项</div></div>
+          <div class="story done">
+            <div class="date-block"><div class="day">12</div><div class="unit">8月</div></div>
+            <div class="story-body">
+              <div class="story-title">预约年度体检</div>
+              <div class="story-meta"><span class="mini-chip chip-completed">已完成</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+          <div class="section-head"><div class="name">已过期</div><div class="count">1 项</div></div>
+          <div class="story done">
+            <div class="date-block"><div class="day">30</div><div class="unit">7月</div></div>
+            <div class="story-body">
+              <div class="story-title">极客时间课程报名截止</div>
+              <div class="story-meta"><span class="mini-chip chip-expired">已过期</span></div>
+            </div>
+            <div class="chev">›</div>
+          </div>
+        </div>
+
+        <div class="fab">＋</div>
+      </div>
+    </div>
+
+    <!-- 手机 2：详情编辑底部弹层 -->
+    <div class="phone-wrap">
+      <div class="phone-label">② 条目详情 · 底部弹层（替代列表内嵌编辑）</div>
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>●●● ⌁ ▉</span></div>
+        <div class="toolbar">
+          <h2>提醒</h2>
+          <div class="icons"><div class="icon-btn">⌕</div><div class="icon-btn">☰</div><div class="icon-btn">⚙</div></div>
+        </div>
+        <div class="hero">
+          <div class="kicker">下一次提醒</div>
+          <div class="headline">明天 <span class="time">08:30</span><br>提交本周工作周报</div>
+          <div class="support">未来 30 天共 12 项</div>
+        </div>
+        <div class="mode-tabs">
+          <div class="mode-tab active">最近</div>
+          <div class="mode-tab">月份</div>
+          <div class="mode-tab">已结束</div>
+        </div>
+        <div style="flex:1; overflow:hidden; position:relative;">
+          <div class="scrim"></div>
+          <div style="padding-top:130px;">
+            <div class="story" style="background:var(--surface-high); border-radius:14px; margin:0 12px;">
+              <div class="date-block"><div class="day">15</div><div class="unit">周二</div></div>
+              <div class="story-body">
+                <div class="story-title">提交本周工作周报</div>
+                <div class="story-meta">08:30 <span class="sep">·</span> <span class="mini-chip chip-once">单次</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="sheet">
+            <div class="grabber"></div>
+            <div class="kicker">编辑提醒</div>
+            <div class="sheet-title">提交本周工作周报</div>
+            <div class="field-label">内容</div>
+            <textarea class="content-input" rows="2">提交本周工作周报</textarea>
+            <div class="field-label">日期与时间</div>
+            <div class="attr-row">
+              <div class="attr-chip"><em>开始</em>2026-09-15</div>
+              <div class="attr-chip"><em>结束</em>2026-09-15</div>
+              <div class="attr-chip"><em>提醒</em>08:30</div>
+            </div>
+            <div class="field-label">重复规则</div>
+            <div class="attr-row">
+              <div class="attr-chip sel">单次</div>
+              <div class="attr-chip">每天</div>
+              <div class="attr-chip">工作日</div>
+              <div class="attr-chip">指定星期</div>
+              <div class="attr-chip">日期区间</div>
+            </div>
+            <div class="hairline"></div>
+            <div class="actions">
+              <button class="act">保存修改</button>
+              <button class="act">完成</button>
+              <button class="act warn">暂停</button>
+              <button class="act danger">删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 手机 3：筛选弹层 + 空状态 -->
+    <div class="phone-wrap">
+      <div class="phone-label">③ 筛选底部弹层 / 空状态</div>
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>●●● ⌁ ▉</span></div>
+        <div class="toolbar">
+          <h2>提醒</h2>
+          <div class="icons"><div class="icon-btn">⌕</div><div class="icon-btn">☰</div><div class="icon-btn">⚙</div></div>
+        </div>
+        <div style="flex:1; position:relative; overflow:hidden;">
+          <div class="scrim"></div>
+          <div class="sheet filter-sheet">
+            <div class="grabber"></div>
+            <div class="kicker">筛选提醒</div>
+            <div class="sheet-title">只看我想看的</div>
+            <div class="group-label">状态</div>
+            <div class="filter-row">
+              <div class="f-chip sel">进行中</div>
+              <div class="f-chip">已暂停</div>
+            </div>
+            <div class="group-label">重复方式</div>
+            <div class="filter-row">
+              <div class="f-chip sel">单次</div>
+              <div class="f-chip sel">每月</div>
+              <div class="f-chip">每年</div>
+            </div>
+            <div class="group-label">当前结果</div>
+            <div style="font-size:13px; color:var(--muted);">符合条件 8 项 · 已启用 2 个筛选条件</div>
+            <button class="apply">显示 8 项结果</button>
+          </div>
+          <div class="empty" style="position:absolute; inset:0; display:none;">
+            <div class="glyph">◷</div>
+            <h3>还没有提醒</h3>
+            <p>把重要的事交给 Daily Satori，<br>到时间它会轻声告诉你。</p>
+            <div class="link">＋ 新建第一个提醒</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>设计说明（对照 docs/07 杂志风标准）</h2>
+    <table>
+      <tr><th>改动</th><th>设计决策</th><th>现状问题</th></tr>
+      <tr><td>编辑性导语</td><td>下一次提醒作为封面标题（kicker + 大字 + 时间用主色），30 天统计降为小字辅助；替换现在的统计胶囊</td><td>「未来 30 天 · N 个」统计胶囊，信息弱、仪表盘感</td></tr>
+      <tr><td>文本式模式切换</td><td>最近 / 月份 / 已结束 用文字 + 下划线指示；「已结束」带小圆点提示</td><td>FilterChip 药丸排一排，控制感重</td></tr>
+      <tr><td>分组标题</td><td>小型大写 + 字距，今天/明天 用主色强调；右侧安静计数</td><td>纯 labelLarge 一行小字</td></tr>
+      <tr><td>杂志式条目</td><td>日期前置为「大日号 + 星期」块（今天的主色强调），标题两行、元信息一行，行间发丝线分隔；状态/重复是小徽章</td><td>灰底圆角卡片堆叠，标题+meta 两行文字，无层级</td></tr>
+      <tr><td>月份模式</td><td>年份压缩为一行紧凑切换（小号年份数字 + 方形小箭头），与月 rail 上下紧贴；月份两行式：月名 + 「N 项」数量行，无提醒留空行；当前月圆点、选中主色容器，下方展开当月条目</td><td>3×4 格子 + Badge，统计看板感强；v1 大年份行过高、裸数字含义不清（v2 已按反馈修正）</td></tr>
+      <tr><td>详情编辑</td><td>移入底部弹层（grabber + 分组标签 + 属性 chips + 文字按钮），列表保持纯阅读；危险操作「删除」独立红色</td><td>编辑表单内嵌在列表中间，TextButton 横排拥挤</td></tr>
+      <tr><td>筛选</td><td>筛选同样移入底部弹层，chips 分组，底部主按钮显示结果数</td><td>顶部下拉 Surface 面板，遮挡列表</td></tr>
+      <tr><td>颜色边界</td><td>主色只用于：下划线、今天、时间、选中态、FAB；大面积保持纸面</td><td>—</td></tr>
+    </table>
+    <div class="open-q">
+      <b>默认采纳（如无异议按此实施）：</b>详情编辑用底部弹层；月份模式用「紧凑年份 + 月 rail + 展开」；已结束暂不加重新启用。<br><b>v2 变更：</b>年份行高度减半并入 rail 上方；月份数量统一「N 项」两行式显示。
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchMode(mode) {
+    document.querySelectorAll('.mode-tab[data-mode]').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+    document.getElementById('pane-recent').style.display = mode === 'recent' ? '' : 'none';
+    document.getElementById('pane-months').style.display = mode === 'months' ? '' : 'none';
+    document.getElementById('pane-done').style.display = mode === 'done' ? '' : 'none';
+  }
+</script>
+</body>
+</html>

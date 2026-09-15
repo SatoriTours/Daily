@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
 import com.dailysatori.service.reminder.Reminder
+import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.service.reminder.nextOccurrenceOnOrAfter
@@ -12,6 +13,9 @@ enum class ReminderListMode { RECENT, MONTHS, FINISHED }
 fun ReminderListMode.showsYearSwitcher(): Boolean = this == ReminderListMode.MONTHS
 
 enum class ReminderRecurrenceKind { ONCE, MONTHLY, YEARLY }
+
+/** 列表元信息展示的重复文案：重复周期与生效日规则共同决定。 */
+enum class ReminderRepeatLabel { ONCE, DAILY, WEEKDAYS, WEEKLY, MONTHLY, YEARLY }
 
 data class ReminderListFilter(
     val statuses: Set<ReminderStatus> = emptySet(),
@@ -30,29 +34,28 @@ data class ReminderListItemUi(
     val daysUntil: Int,
     val recurrence: ReminderRecurrenceKind,
     val status: ReminderStatus,
+    val activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
 )
+
+fun ReminderListItemUi.repeatLabel(): ReminderRepeatLabel = when {
+    recurrence == ReminderRecurrenceKind.YEARLY -> ReminderRepeatLabel.YEARLY
+    recurrence == ReminderRecurrenceKind.MONTHLY -> ReminderRepeatLabel.MONTHLY
+    activeDayRule == ReminderActiveDayRule.Daily -> ReminderRepeatLabel.DAILY
+    activeDayRule == ReminderActiveDayRule.Weekdays -> ReminderRepeatLabel.WEEKDAYS
+    activeDayRule is ReminderActiveDayRule.SelectedWeekdays -> ReminderRepeatLabel.WEEKLY
+    else -> ReminderRepeatLabel.ONCE
+}
 
 data class ReminderListSectionUi(val key: String, val items: List<ReminderListItemUi>)
 
 data class ReminderMonthUi(val month: Int, val count: Int, val items: List<ReminderListItemUi>)
 
-data class ReminderMonthCardUi(
-    val month: Int,
-    val count: Int,
-    val isCurrent: Boolean,
-    val isExpanded: Boolean,
-) {
-    val hasReminders: Boolean get() = count > 0
-}
-
-fun ReminderMonthUi.toCardUi(currentMonth: Int?, expandedMonth: Int?): ReminderMonthCardUi = ReminderMonthCardUi(
-    month = month,
-    count = count,
-    isCurrent = month == currentMonth,
-    isExpanded = month == expandedMonth,
+data class ReminderListSummaryUi(
+    val upcomingInThirtyDays: Int,
+    val nextOccurrence: LocalDate?,
+    val nextItem: ReminderListItemUi? = null,
+    val pausedUpcoming: Int = 0,
 )
-
-data class ReminderListSummaryUi(val upcomingInThirtyDays: Int, val nextOccurrence: LocalDate?)
 
 data class ReminderListState(
     val sections: List<ReminderListSectionUi>,
@@ -68,11 +71,15 @@ fun buildReminderListState(
     filter: ReminderListFilter,
 ): ReminderListState {
     val filtered = reminders.filter { it.matchesFilters(filter) }
+    // Hero 摘要始终基于“即将到来”，不随模式（含已结束）变化。
+    val upcoming = filtered.upcomingItems(now)
+        .filter { it.matchesQuery(filter.query, now) }
+        .sortedWith(ReminderItemOrder)
     val items = (when (mode) {
         ReminderListMode.FINISHED -> filtered.finishedItems(now)
-        else -> filtered.upcomingItems(now)
+        else -> upcoming
     }).filter { it.matchesQuery(filter.query, now) }
-    val sorted = items.sortedWith(compareBy<ReminderListItemUi> { it.occurrenceDate }.thenBy { it.firstReminderTime }.thenBy { it.id })
+    val sorted = if (mode == ReminderListMode.FINISHED) items.sortedWith(ReminderItemOrder) else upcoming
     val year = filter.displayYear ?: now.year
     val months = if (mode == ReminderListMode.MONTHS) filtered.monthsFor(year, now, filter.query) else emptyList()
     return ReminderListState(
@@ -82,16 +89,23 @@ fun buildReminderListState(
                 months.firstOrNull { it.month == month }?.items?.takeIf { it.isNotEmpty() }
                     ?.let { listOf(ReminderListSectionUi("month_$month", it)) }
             }.orEmpty()
-            ReminderListMode.FINISHED -> listOfNotNull(ReminderListSectionUi("finished", sorted).takeIf { sorted.isNotEmpty() })
+            ReminderListMode.FINISHED -> listOfNotNull(
+                ReminderListSectionUi("completed", sorted.filter { it.status == ReminderStatus.COMPLETED }).takeIf { it.items.isNotEmpty() },
+                ReminderListSectionUi("expired", sorted.filter { it.status == ReminderStatus.EXPIRED }).takeIf { it.items.isNotEmpty() },
+            )
         },
         months = months,
         summary = ReminderListSummaryUi(
-            upcomingInThirtyDays = sorted.count { it.daysUntil in 0..30 },
-            nextOccurrence = sorted.firstOrNull()?.occurrenceDate,
+            upcomingInThirtyDays = upcoming.count { it.daysUntil in 0..30 },
+            nextOccurrence = upcoming.firstOrNull()?.occurrenceDate,
+            nextItem = upcoming.firstOrNull(),
+            pausedUpcoming = upcoming.count { it.daysUntil in 0..30 && it.status == ReminderStatus.PAUSED },
         ),
         listIdentity = "$mode|${filter.statuses.sortedBy { it.name }}|${filter.recurrences.sortedBy { it.name }}|${filter.query.trim().lowercase()}|$year|${filter.expandedMonth}",
     )
 }
+
+private val ReminderItemOrder = compareBy<ReminderListItemUi> { it.occurrenceDate }.thenBy { it.firstReminderTime }.thenBy { it.id }
 
 private fun Reminder.matchesFilters(filter: ReminderListFilter): Boolean =
     (filter.statuses.isEmpty() || status in filter.statuses) &&
@@ -119,7 +133,9 @@ private fun List<Reminder>.monthsFor(year: Int, now: LocalDate, query: String): 
 }
 
 private fun List<ReminderListItemUi>.groupForRecent(now: LocalDate): List<ReminderListSectionUi> = listOfNotNull(
-    ReminderListSectionUi("next_week", filter { it.daysUntil in 0..7 }).takeIf { it.items.isNotEmpty() },
+    ReminderListSectionUi("today", filter { it.daysUntil == 0 }).takeIf { it.items.isNotEmpty() },
+    ReminderListSectionUi("tomorrow", filter { it.daysUntil == 1 }).takeIf { it.items.isNotEmpty() },
+    ReminderListSectionUi("next_week", filter { it.daysUntil in 2..7 }).takeIf { it.items.isNotEmpty() },
     ReminderListSectionUi("later_this_month", filter { it.occurrenceDate.year == now.year && it.occurrenceDate.monthNumber == now.monthNumber && it.daysUntil > 7 }).takeIf { it.items.isNotEmpty() },
     ReminderListSectionUi("later", filter { it.daysUntil > 7 && (it.occurrenceDate.year != now.year || it.occurrenceDate.monthNumber != now.monthNumber) }).takeIf { it.items.isNotEmpty() },
 )
@@ -138,6 +154,7 @@ private fun Reminder.toItem(date: LocalDate, now: LocalDate) = ReminderListItemU
     daysUntil = now.daysUntil(date),
     recurrence = recurrence.kind(),
     status = status,
+    activeDayRule = activeDayRule,
 )
 
 private fun ReminderListItemUi.matchesQuery(query: String, now: LocalDate): Boolean {

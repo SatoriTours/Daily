@@ -1,69 +1,96 @@
 package com.dailysatori.ui.feature.reminder
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Badge
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderStatus
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.AppColors
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
-import kotlinx.datetime.DayOfWeek
+import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.Spacing
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
 
 private enum class DetailPicker { START, END, TIME }
+
+private val DateBlockWidth = 50.dp
+private const val WEEK_DAYS = 7
 
 @Composable
 fun ReminderListScreen(
@@ -72,7 +99,6 @@ fun ReminderListScreen(
     viewModel: ReminderViewModel = koinViewModel(),
     initialReminderId: String? = null,
     onAddReminder: () -> Unit = {},
-    onOpenReminder: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     showSettings: Boolean = true,
     onBack: (() -> Unit)? = null,
@@ -81,239 +107,588 @@ fun ReminderListScreen(
     val all by viewModel.reminders.collectAsState()
     val listState by viewModel.listState.collectAsState()
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
-    val currentYear = Clock.System.todayIn(TimeZone.currentSystemDefault()).year
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val displayYear = ui.listFilter.displayYear ?: today.year
     val scrollState = rememberLazyListState()
+
     LaunchedEffect(initialReminderId) {
         if (initialReminderId != null) viewModel.selectReminder(initialReminderId)
     }
+
     Box(modifier.fillMaxSize().statusBarsPadding()) {
         Column(Modifier.fillMaxSize()) {
-            ReminderListToolbar(
+            ReminderTopBar(
                 onBack = onBack,
                 onToggleSearch = viewModel::toggleListSearch,
                 onOpenFilter = { viewModel.updateListFilter { it.copy(isPanelOpen = true) } },
                 onOpenSettings = onOpenSettings,
                 showSettings = showSettings,
             )
-            if (ui.isListSearchVisible) {
-                OutlinedTextField(
-                    value = ui.listFilter.query,
-                    onValueChange = { query -> viewModel.updateListFilter { it.copy(query = query) } },
-                    label = { Text(stringResource(R.string.reminder_list_search)) },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
-                    singleLine = true,
-                )
+            if (ui.isListSearchVisible) ReminderSearchField(ui.listFilter.query) { query ->
+                viewModel.updateListFilter { it.copy(query = query) }
             }
-            ReminderListModeTabs(
-                selected = ui.listMode,
-                year = ui.listFilter.displayYear ?: currentYear,
-                onSelected = viewModel::setListMode,
-                onPreviousYear = { viewModel.updateListFilter { current -> current.copy(displayYear = (current.displayYear ?: currentYear) - 1, expandedMonth = null) } },
-                onNextYear = { viewModel.updateListFilter { current -> current.copy(displayYear = (current.displayYear ?: currentYear) + 1, expandedMonth = null) } },
-            )
-            LazyColumn(
-                state = scrollState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s),
-            ) {
-                item(key = "summary") { ReminderListSummary(listState.summary) }
-                if (selected != null) item(key = "detail_${selected.id}") { ReminderDetail(selected, latestProfile, viewModel) }
-                if (ui.listMode == ReminderListMode.MONTHS) item(key = "months") {
-                    ReminderMonthGrid(
-                        months = listState.months,
-                        currentMonth = Clock.System.todayIn(TimeZone.currentSystemDefault()).let { if ((ui.listFilter.displayYear ?: currentYear) == it.year) it.monthNumber else null },
-                        expandedMonth = ui.listFilter.expandedMonth,
-                        onMonth = { month -> viewModel.updateListFilter { current -> current.copy(expandedMonth = month.takeUnless { it == current.expandedMonth }) } },
-                    )
+            ReminderHero(listState.summary, today)
+            ReminderModeTabs(ui.listMode, viewModel::setListMode)
+            LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize()) {
+                if (ui.listMode == ReminderListMode.MONTHS) {
+                    item(key = "year_nav") {
+                        ReminderYearNavBar(
+                            year = displayYear,
+                            onPrevious = { viewModel.shiftListYear(-1) },
+                            onNext = { viewModel.shiftListYear(1) },
+                        )
+                    }
+                    item(key = "month_rail") {
+                        ReminderMonthRail(
+                            months = listState.months,
+                            currentMonth = today.monthNumber.takeIf { displayYear == today.year },
+                            selectedMonth = ui.listFilter.expandedMonth,
+                            onSelect = { month ->
+                                viewModel.updateListFilter { current ->
+                                    current.copy(expandedMonth = month.takeUnless { it == current.expandedMonth })
+                                }
+                            },
+                        )
+                    }
                 }
                 listState.sections.forEach { section ->
-                    item(key = "header_${section.key}") { Text(section.key.sectionLabel(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = Spacing.m)) }
-                    items(section.items.size, key = { section.items[it].id }) { index ->
-                        ReminderListCard(section.items[index]) { onOpenReminder(section.items[index].id) }
+                    item(key = "header_${section.key}") {
+                        ReminderSectionHeader(section, today, displayYear)
+                    }
+                    itemsIndexed(section.items, key = { _, item -> item.id }) { index, item ->
+                        ReminderStoryRow(
+                            item = item,
+                            today = today,
+                            isFinished = ui.listMode == ReminderListMode.FINISHED,
+                            showDivider = index > 0,
+                            onClick = { viewModel.selectReminder(item.id) },
+                        )
                     }
                 }
-                if (listState.sections.isEmpty() && ui.listMode != ReminderListMode.MONTHS) {
-                    item(key = "empty") { ReminderEmptyState(hasFilters = ui.listFilter.query.isNotBlank() || ui.listFilter.statuses.isNotEmpty() || ui.listFilter.recurrences.isNotEmpty(), onAdd = onAddReminder, onClear = { viewModel.updateListFilter { ReminderListFilter(displayYear = it.displayYear) } }) }
+                if (listState.sections.isEmpty()) {
+                    item(key = "empty") { ReminderEmptyBlock(ui, listState.months, today, onAddReminder) }
                 }
             }
         }
-        if (ui.listFilter.isPanelOpen) {
-            Surface(
-                modifier = Modifier.fillMaxSize().padding(top = Height.appBar).background(MaterialTheme.colorScheme.scrim.copy(alpha = .42f)).clickable { viewModel.updateListFilter { it.copy(isPanelOpen = false) } },
-                color = androidx.compose.ui.graphics.Color.Transparent,
-            ) {}
-            ReminderFilterPanel(
-                filter = ui.listFilter,
-                onFilterChange = { change -> viewModel.updateListFilter(change) },
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = Height.appBar),
+        FloatingActionButton(
+            onClick = onAddReminder,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.l),
+        ) { Icon(Icons.Default.Add, stringResource(R.string.reminder_list_add), Modifier.size(IconSize.l)) }
+    }
+
+    if (selected != null) {
+        ReminderEditorSheet(
+            reminder = selected,
+            latestProfile = latestProfile,
+            viewModel = viewModel,
+            onDismiss = { viewModel.selectReminder(null) },
+        )
+    }
+    if (ui.listFilter.isPanelOpen) {
+        ReminderFilterSheet(
+            filter = ui.listFilter,
+            resultCount = listState.sections.sumOf { it.items.size },
+            onFilterChange = { change -> viewModel.updateListFilter(change) },
+            onDismiss = { viewModel.updateListFilter { it.copy(isPanelOpen = false) } },
+        )
+    }
+}
+
+@Composable
+private fun ReminderTopBar(
+    onBack: (() -> Unit)?,
+    onToggleSearch: () -> Unit,
+    onOpenFilter: () -> Unit,
+    onOpenSettings: () -> Unit,
+    showSettings: Boolean,
+) {
+    Box(Modifier.fillMaxWidth().height(Height.appBar)) {
+        Text(
+            stringResource(R.string.reminder_list_title),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = Spacing.l),
+        )
+        if (onBack != null) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back), tint = MaterialTheme.colorScheme.primary) }
+        }
+        Row(Modifier.align(Alignment.CenterEnd).padding(end = Spacing.xs)) {
+            IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search), tint = MaterialTheme.colorScheme.primary) }
+            IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter), tint = MaterialTheme.colorScheme.primary) }
+            if (showSettings) {
+                IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title), tint = MaterialTheme.colorScheme.primary) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReminderSearchField(query: String, onQueryChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        label = { Text(stringResource(R.string.reminder_list_search)) },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+        singleLine = true,
+    )
+}
+
+@Composable
+private fun ReminderHero(summary: ReminderListSummaryUi, today: LocalDate) {
+    val next = summary.nextItem ?: return
+    val headline = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+    ) {
+        Text(
+            stringResource(R.string.reminder_list_next_kicker),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(heroDayLabel(next, today), style = headline)
+            Text(next.firstReminderTime, style = headline, color = MaterialTheme.colorScheme.primary)
+        }
+        Text(next.content, style = headline, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(
+            buildString {
+                append(stringResource(R.string.reminder_list_hero_soon, summary.upcomingInThirtyDays))
+                if (summary.pausedUpcoming > 0) append(" · ").append(stringResource(R.string.reminder_list_hero_paused, summary.pausedUpcoming))
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun heroDayLabel(item: ReminderListItemUi, today: LocalDate): String = when (item.daysUntil) {
+    0 -> stringResource(R.string.reminder_list_today)
+    1 -> stringResource(R.string.reminder_list_tomorrow)
+    else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
+}
+
+@Composable
+private fun ReminderModeTabs(selected: ReminderListMode, onSelected: (ReminderListMode) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.l),
+        ) {
+            ReminderListMode.entries.forEach { mode ->
+                ReminderModeTab(mode, mode == selected) { onSelected(mode) }
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+    }
+}
+
+@Composable
+private fun ReminderModeTab(mode: ReminderListMode, isSelected: Boolean, onClick: () -> Unit) {
+    // IntrinsicSize keeps the indicator as wide as the label; fillMaxWidth here would stretch the first tab across the row.
+    Column(
+        Modifier.width(IntrinsicSize.Max).clickable(onClick = onClick).padding(top = Spacing.m),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            mode.label(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(Spacing.s))
+        Box(
+            Modifier
+                .height(2.dp)
+                .fillMaxWidth()
+                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(Radius.xxs)),
+        )
+    }
+}
+
+@Composable
+private fun ReminderYearNavBar(year: Int, onPrevious: () -> Unit, onNext: () -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().height(Height.appBarCompact)) {
+            IconButton(onClick = onPrevious, modifier = Modifier.align(Alignment.CenterStart).padding(start = Spacing.xs)) {
+                Icon(Icons.Default.ChevronLeft, stringResource(R.string.reminder_previous_year), tint = MaterialTheme.colorScheme.primary)
+            }
+            Text(
+                stringResource(R.string.reminder_year_value, year),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center),
             )
-        } else {
-            FloatingActionButton(
-                onClick = onAddReminder,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.l),
-            ) { Icon(Icons.Default.Add, stringResource(R.string.reminder_list_add), Modifier.size(IconSize.l)) }
-        }
-    }
-}
-
-@Composable
-private fun ReminderListToolbar(onBack: (() -> Unit)?, onToggleSearch: () -> Unit, onOpenFilter: () -> Unit, onOpenSettings: () -> Unit, showSettings: Boolean) {
-    Box(Modifier.fillMaxWidth().height(Height.appBar), contentAlignment = Alignment.Center) {
-        Text(stringResource(R.string.reminder_list_title), style = MaterialTheme.typography.titleMedium)
-        if (onBack != null) IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back)) }
-        Row(Modifier.align(Alignment.CenterEnd)) {
-            IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search)) }
-            IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter)) }
-            if (showSettings) IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title)) }
-        }
-    }
-}
-
-@Composable
-private fun ReminderListModeTabs(selected: ReminderListMode, year: Int, onSelected: (ReminderListMode) -> Unit, onPreviousYear: () -> Unit, onNextYear: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            ReminderListMode.entries.forEach { mode -> FilterChip(selected = selected == mode, onClick = { onSelected(mode) }, label = { Text(mode.label()) }) }
-        }
-        if (selected.showsYearSwitcher()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPreviousYear, modifier = Modifier.size(40.dp)) { Icon(Icons.Default.ChevronLeft, stringResource(R.string.reminder_previous_year)) }
-                Text(year.toString(), style = MaterialTheme.typography.labelLarge)
-                IconButton(onClick = onNextYear, modifier = Modifier.size(40.dp)) { Icon(Icons.Default.ChevronRight, stringResource(R.string.reminder_next_year)) }
+            IconButton(onClick = onNext, modifier = Modifier.align(Alignment.CenterEnd).padding(end = Spacing.xs)) {
+                Icon(Icons.Default.ChevronRight, stringResource(R.string.reminder_next_year), tint = MaterialTheme.colorScheme.primary)
             }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
     }
 }
 
 @Composable
-private fun ReminderListSummary(summary: ReminderListSummaryUi) {
-    val next = summary.nextOccurrence?.toString() ?: stringResource(R.string.reminder_list_none)
-    Surface(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.secondaryContainer) {
-        Text(stringResource(R.string.reminder_list_summary, summary.upcomingInThirtyDays, next), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs), maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun ReminderMonthRail(months: List<ReminderMonthUi>, currentMonth: Int?, selectedMonth: Int?, onSelect: (Int) -> Unit) {
+    val railState = rememberLazyListState()
+    // Keep the current/selected month visible when entering the mode or switching year.
+    LaunchedEffect(months, currentMonth, selectedMonth) {
+        val target = months.indexOfFirst { it.month == (selectedMonth ?: currentMonth) }
+        if (target > 0) railState.animateScrollToItem(target)
+    }
+    LazyRow(
+        state = railState,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        items(months, key = { it.month }) { month ->
+            ReminderMonthChip(
+                month = month,
+                isCurrent = month.month == currentMonth,
+                isSelected = month.month == selectedMonth,
+                onClick = { onSelect(month.month) },
+            )
+        }
     }
 }
 
 @Composable
-private fun ReminderMonthGrid(months: List<ReminderMonthUi>, currentMonth: Int?, expandedMonth: Int?, onMonth: (Int) -> Unit) {
-    Column(Modifier.padding(horizontal = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        months.chunked(3).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                row.forEach { month ->
-                    val card = month.toCardUi(currentMonth, expandedMonth)
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(76.dp)
-                            .then(if (card.isCurrent && !card.isExpanded) Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .55f), androidx.compose.foundation.shape.RoundedCornerShape(Radius.m)) else Modifier)
-                            .clickable { onMonth(card.month) },
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
-                        color = if (card.isExpanded) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                    ) {
-                        Column(Modifier.fillMaxSize().padding(Spacing.s), verticalArrangement = Arrangement.SpaceBetween) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.reminder_month_name, card.month), style = MaterialTheme.typography.titleSmall, color = if (card.hasReminders) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                                if (card.hasReminders) Badge { Text(card.count.toString()) }
-                            }
-                            Text(
-                                text = if (card.hasReminders) stringResource(R.string.reminder_month_count, card.count) else stringResource(R.string.reminder_month_none),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+private fun ReminderMonthChip(month: ReminderMonthUi, isCurrent: Boolean, isSelected: Boolean, onClick: () -> Unit) {
+    val contentColor = when {
+        isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+        month.count > 0 -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Box {
+        Surface(
+            shape = RoundedCornerShape(Radius.m),
+            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.clickable(onClick = onClick),
+        ) {
+            Column(
+                Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    stringResource(R.string.reminder_month_name, month.month),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor,
+                )
+                Text(
+                    if (month.count > 0) stringResource(R.string.reminder_count_items, month.count) else " ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor.copy(alpha = 0.8f),
+                )
+            }
+        }
+        if (isCurrent) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 5.dp, end = 6.dp)
+                    .size(5.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReminderSectionHeader(section: ReminderListSectionUi, today: LocalDate, displayYear: Int) {
+    val isToday = section.key == "today" || section.key == "tomorrow"
+    Row(
+        Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.l, bottom = Spacing.s),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            sectionHeadLabel(section, today, displayYear),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.6.sp,
+            color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            stringResource(R.string.reminder_count_items, section.items.size),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun sectionHeadLabel(section: ReminderListSectionUi, today: LocalDate, displayYear: Int): String {
+    val date = section.items.firstOrNull()?.occurrenceDate
+    return when (section.key) {
+        "today" -> stringResource(R.string.reminder_list_today) + dateSuffix(date)
+        "tomorrow" -> stringResource(R.string.reminder_list_tomorrow) + dateSuffix(date)
+        "next_week" -> stringResource(R.string.reminder_list_next_week)
+        "later_this_month" -> stringResource(R.string.reminder_list_later_this_month)
+        "later" -> stringResource(R.string.reminder_list_later)
+        "completed" -> stringResource(R.string.reminder_status_completed)
+        "expired" -> stringResource(R.string.reminder_status_expired)
+        else -> {
+            val month = section.key.removePrefix("month_").toIntOrNull()
+            if (month != null) stringResource(R.string.reminder_month_year_title, month, displayYear)
+            else stringResource(R.string.reminder_list_month)
+        }
+    }
+}
+
+@Composable
+private fun dateSuffix(date: LocalDate?): String =
+    date?.let { " · " + stringResource(R.string.reminder_date_month_day, it.monthNumber, it.dayOfMonth) }.orEmpty()
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReminderStoryRow(
+    item: ReminderListItemUi,
+    today: LocalDate,
+    isFinished: Boolean,
+    showDivider: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        if (showDivider) {
+            HorizontalDivider(
+                Modifier.padding(start = Spacing.m + DateBlockWidth + Spacing.m),
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            ReminderDateBlock(item, today, isFinished)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(
+                    item.content,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isFinished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                ) {
+                    ReminderStoryMeta(item, isFinished)
                 }
             }
-        }
-        if (expandedMonth != null && months.firstOrNull { it.month == expandedMonth }?.count == 0) Text(stringResource(R.string.reminder_month_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun ReminderEmptyState(hasFilters: Boolean, onAdd: () -> Unit, onClear: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(Spacing.l), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(stringResource(if (hasFilters) R.string.reminder_filter_empty else R.string.reminder_empty), style = MaterialTheme.typography.titleMedium)
-        TextButton(onClick = if (hasFilters) onClear else onAdd) { Text(stringResource(if (hasFilters) R.string.reminder_clear_filters else R.string.reminder_list_add)) }
-    }
-}
-
-@Composable
-private fun ReminderListCard(item: ReminderListItemUi, onClick: () -> Unit) {
-    Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m).clickable(onClick = onClick), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(item.content, style = MaterialTheme.typography.titleSmall)
-            Text(stringResource(R.string.reminder_list_item_meta, item.occurrenceDate, item.firstReminderTime, item.daysUntil, item.recurrence.label()), style = MaterialTheme.typography.bodySmall)
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(IconSize.s).align(Alignment.CenterVertically),
+            )
         }
     }
 }
 
 @Composable
-private fun ReminderFilterPanel(filter: ReminderListFilter, onFilterChange: ((ReminderListFilter) -> ReminderListFilter) -> Unit, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.m), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(stringResource(R.string.reminder_list_filter), style = MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf(ReminderStatus.ACTIVE, ReminderStatus.PAUSED).forEach { status -> FilterChip(selected = status in filter.statuses, onClick = { onFilterChange { current -> current.copy(statuses = current.statuses.toggle(status)) } }, label = { Text(status.label()) }) }
-            }
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ReminderRecurrenceKind.entries.forEach { recurrence -> FilterChip(selected = recurrence in filter.recurrences, onClick = { onFilterChange { current -> current.copy(recurrences = current.recurrences.toggle(recurrence)) } }, label = { Text(recurrence.label()) }) }
-            }
-            TextButton(onClick = { onFilterChange { it.copy(isPanelOpen = false) } }) { Text(stringResource(R.string.reminder_list_show_results)) }
-        }
+private fun ReminderDateBlock(item: ReminderListItemUi, today: LocalDate, isFinished: Boolean) {
+    val dayColor = when {
+        isFinished -> MaterialTheme.colorScheme.onSurfaceVariant
+        item.daysUntil == 0 -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    Column(Modifier.width(DateBlockWidth), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            item.occurrenceDate.dayOfMonth.toString(),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = dayColor,
+        )
+        Text(
+            dateBlockUnit(item, isFinished),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
-private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value
+@Composable
+private fun dateBlockUnit(item: ReminderListItemUi, isFinished: Boolean): String = when {
+    isFinished -> stringResource(R.string.reminder_date_month, item.occurrenceDate.monthNumber)
+    item.daysUntil in 0..WEEK_DAYS -> item.occurrenceDate.dayOfWeek.weekdayLabel()
+    else -> stringResource(R.string.reminder_date_month, item.occurrenceDate.monthNumber)
+}
 
 @Composable
-private fun ReminderListMode.label() = stringResource(when (this) {
-    ReminderListMode.RECENT -> R.string.reminder_list_recent
-    ReminderListMode.MONTHS -> R.string.reminder_list_months
-    ReminderListMode.FINISHED -> R.string.reminder_list_finished
-})
+private fun DayOfWeek.weekdayLabel(): String = stringResource(
+    when (this) {
+        DayOfWeek.MONDAY -> R.string.reminder_list_weekday_mon
+        DayOfWeek.TUESDAY -> R.string.reminder_list_weekday_tue
+        DayOfWeek.WEDNESDAY -> R.string.reminder_list_weekday_wed
+        DayOfWeek.THURSDAY -> R.string.reminder_list_weekday_thu
+        DayOfWeek.FRIDAY -> R.string.reminder_list_weekday_fri
+        DayOfWeek.SATURDAY -> R.string.reminder_list_weekday_sat
+        DayOfWeek.SUNDAY -> R.string.reminder_list_weekday_sun
+    },
+)
 
 @Composable
-private fun ReminderRecurrenceKind.label() = stringResource(when (this) {
-    ReminderRecurrenceKind.ONCE -> R.string.reminder_list_repeat_once
-    ReminderRecurrenceKind.MONTHLY -> R.string.reminder_list_repeat_monthly
-    ReminderRecurrenceKind.YEARLY -> R.string.reminder_list_repeat_yearly
-})
+private fun ReminderStoryMeta(item: ReminderListItemUi, isFinished: Boolean) {
+    Text(item.firstReminderTime, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (isFinished) {
+        val completed = item.status == ReminderStatus.COMPLETED
+        ReminderMetaChip(
+            text = stringResource(if (completed) R.string.reminder_status_completed else R.string.reminder_status_expired),
+            container = if (completed) AppColors.success.copy(alpha = 0.15f) else MaterialTheme.colorScheme.errorContainer,
+            contentColor = if (completed) AppColors.success else MaterialTheme.colorScheme.error,
+        )
+        return
+    }
+    val recurrenceChip = item.repeatLabel() == ReminderRepeatLabel.ONCE || item.repeatLabel() == ReminderRepeatLabel.YEARLY
+    if (recurrenceChip) {
+        ReminderMetaChip(
+            text = item.repeatLabel().label(),
+            container = if (item.repeatLabel() == ReminderRepeatLabel.YEARLY) AppColors.success.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = if (item.repeatLabel() == ReminderRepeatLabel.YEARLY) AppColors.success else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        Text("·", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(item.repeatLabel().label(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    if (item.status == ReminderStatus.PAUSED) {
+        ReminderMetaChip(
+            text = stringResource(R.string.reminder_status_paused),
+            container = AppColors.warning.copy(alpha = 0.16f),
+            contentColor = AppColors.warning,
+        )
+    }
+}
 
 @Composable
-private fun String.sectionLabel() = stringResource(when (this) {
-    "next_week" -> R.string.reminder_list_next_week
-    "later_this_month" -> R.string.reminder_list_later_this_month
-    "later" -> R.string.reminder_list_later
-    "finished" -> R.string.reminder_list_finished
-    else -> R.string.reminder_list_month
-})
+private fun ReminderMetaChip(text: String, container: Color, contentColor: Color) {
+    Surface(shape = RoundedCornerShape(Radius.circular), color = container) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = Spacing.s, vertical = 2.dp),
+        )
+    }
+}
 
 @Composable
-private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSnapshot, viewModel: ReminderViewModel) {
+private fun ReminderEmptyBlock(ui: ReminderUiState, months: List<ReminderMonthUi>, today: LocalDate, onAdd: () -> Unit) {
+    if (ui.listMode == ReminderListMode.MONTHS) {
+        if (ui.listFilter.expandedMonth == null) return
+        val month = months.firstOrNull { it.month == ui.listFilter.expandedMonth }
+        if (month?.count == 0) {
+            Text(
+                stringResource(R.string.reminder_month_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(Spacing.xl),
+            )
+        }
+        return
+    }
+    val hasFilters = ui.listFilter.query.isNotBlank() || ui.listFilter.statuses.isNotEmpty() || ui.listFilter.recurrences.isNotEmpty()
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.xxl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        Icon(
+            Icons.Default.Notifications,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+            modifier = Modifier.size(IconSize.xxl),
+        )
+        Text(
+            stringResource(if (hasFilters) R.string.reminder_filter_empty else R.string.reminder_empty),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        if (!hasFilters) {
+            Text(
+                stringResource(R.string.reminder_list_empty_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        TextButton(onClick = onAdd) { Text("＋ " + stringResource(R.string.reminder_list_add)) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderEditorSheet(
+    reminder: Reminder,
+    latestProfile: ReminderProfileSnapshot,
+    viewModel: ReminderViewModel,
+    onDismiss: () -> Unit,
+) {
     var content by remember(reminder.id, reminder.version) { mutableStateOf(reminder.content) }
     var startDate by remember(reminder.id, reminder.version) { mutableStateOf(reminder.startDate) }
     var endDate by remember(reminder.id, reminder.version) { mutableStateOf(reminder.endDate) }
     var firstTime by remember(reminder.id, reminder.version) { mutableStateOf(reminder.firstReminderTime) }
     var rule by remember(reminder.id, reminder.version) { mutableStateOf(reminder.activeDayRule) }
     var picker by remember { mutableStateOf<DetailPicker?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
     val validEdit = isValidReminderDetailEdit(content, startDate, endDate, rule)
-    Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .35f)) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    // Fully expanded so content and the action row are visible without clipping.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.l)
+                .padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(
+                stringResource(R.string.reminder_detail_edit_kicker),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(content.ifBlank { reminder.content }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (reminder.dataIssue != null) {
-                Text(stringResource(R.string.reminder_corrupt_profile_warning), color = MaterialTheme.colorScheme.error)
+                Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.errorContainer) {
+                    Text(
+                        stringResource(R.string.reminder_corrupt_profile_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(Spacing.s),
+                    )
+                }
             }
+            ReminderEditorFieldLabel(stringResource(R.string.reminder_content_label))
             OutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
-                label = { Text(stringResource(R.string.reminder_content_label)) },
                 isError = !validEdit,
                 supportingText = if (validEdit) null else { { Text(stringResource(R.string.reminder_detail_invalid)) } },
+                shape = RoundedCornerShape(Radius.m),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
+            ReminderEditorFieldLabel(stringResource(R.string.reminder_detail_date_label))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                TextButton(onClick = { picker = DetailPicker.START }) { Text(stringResource(R.string.reminder_start_value, startDate)) }
-                TextButton(onClick = { picker = DetailPicker.END }) { Text(stringResource(R.string.reminder_end_value, endDate)) }
-                TextButton(onClick = { picker = DetailPicker.TIME }) { Text(stringResource(R.string.reminder_first_value, firstTime)) }
+                ReminderAttrChip(stringResource(R.string.reminder_start_value, startDate.toString())) { picker = DetailPicker.START }
+                ReminderAttrChip(stringResource(R.string.reminder_end_value, endDate.toString())) { picker = DetailPicker.END }
+                ReminderAttrChip(stringResource(R.string.reminder_first_value, firstTime.toString())) { picker = DetailPicker.TIME }
             }
+            ReminderEditorFieldLabel(stringResource(R.string.reminder_detail_rule_label))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 listOf(
                     stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily,
@@ -321,33 +696,42 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
                     stringResource(R.string.reminder_rule_selected) to ReminderActiveDayRule.SelectedWeekdays((rule as? ReminderActiveDayRule.SelectedWeekdays)?.days ?: DayOfWeek.entries.toSet()),
                     stringResource(R.string.reminder_rule_range) to ReminderActiveDayRule.ConsecutiveDateRange,
                 ).forEach { (label, value) ->
-                    FilterChip(selected = rule::class == value::class, onClick = { rule = value }, label = { Text(label) })
+                    ReminderRuleChip(label, rule::class == value::class) { rule = value }
                 }
             }
-            (rule as? ReminderActiveDayRule.SelectedWeekdays)?.let { selected ->
+            (rule as? ReminderActiveDayRule.SelectedWeekdays)?.let { selectedDays ->
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     DayOfWeek.entries.forEach { day ->
-                        FilterChip(
-                            selected = day in selected.days,
-                            onClick = { rule = toggleReminderDetailWeekday(selected, day) },
-                            label = { Text(day.shortLabel()) },
-                        )
+                        ReminderRuleChip(day.weekdayLabel(), day in selectedDays.days) {
+                            rule = toggleReminderDetailWeekday(selectedDays, day)
+                        }
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            HorizontalDivider(Modifier.padding(top = Spacing.m), color = MaterialTheme.colorScheme.outline)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+            ) {
                 reminderActions(reminder).forEach { action ->
-                    TextButton(onClick = {
+                    ReminderActionButton(
+                        action = action,
+                        enabled = (action != ReminderAction.EDIT || validEdit) &&
+                            !(action == ReminderAction.RESUME && reminder.dataIssue != null),
+                    ) {
                         when (action) {
                             ReminderAction.PAUSE -> viewModel.pause(reminder.id)
                             ReminderAction.RESUME -> viewModel.resume(reminder.id)
-                            ReminderAction.EDIT -> viewModel.edit(reminder.id, ReminderEdit(reminder.version, content = content, startDate = startDate, endDate = endDate, firstReminderTime = firstTime, activeDayRule = rule))
-                            ReminderAction.COMPLETE -> viewModel.complete(reminder.id)
-                            ReminderAction.DELETE -> viewModel.delete(reminder.id)
+                            ReminderAction.EDIT -> viewModel.edit(
+                                reminder.id,
+                                ReminderEdit(reminder.version, content = content, startDate = startDate, endDate = endDate, firstReminderTime = firstTime, activeDayRule = rule),
+                            )
+                            ReminderAction.COMPLETE -> { viewModel.complete(reminder.id); onDismiss() }
+                            ReminderAction.DELETE -> confirmDelete = true
                             ReminderAction.APPLY_LATEST_PROFILE -> viewModel.applyLatestProfile(reminder.id, latestProfile)
                         }
-                    }, enabled = (action != ReminderAction.EDIT || validEdit) &&
-                        !(action == ReminderAction.RESUME && reminder.dataIssue != null)) { Text(action.label()) }
+                    }
                 }
             }
         }
@@ -358,40 +742,193 @@ private fun ReminderDetail(reminder: Reminder, latestProfile: ReminderProfileSna
         DetailPicker.TIME -> TimeDialog(firstTime, { picker = null }) { firstTime = it; picker = null }
         null -> Unit
     }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.reminder_delete_title)) },
+            text = { Text(stringResource(R.string.reminder_delete_message)) },
+            confirmButton = { TextButton(onClick = { confirmDelete = false; viewModel.delete(reminder.id); onDismiss() }) { Text(stringResource(R.string.reminder_action_delete)) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.reminder_cancel)) } },
+        )
+    }
 }
 
-internal fun isValidReminderDetailEdit(content: String, startDate: kotlinx.datetime.LocalDate, endDate: kotlinx.datetime.LocalDate, rule: ReminderActiveDayRule): Boolean =
-    content.isNotBlank() && content.length <= 2_000 && endDate >= startDate &&
-        (rule !is ReminderActiveDayRule.SelectedWeekdays || rule.days.isNotEmpty())
+@Composable
+private fun ReminderEditorFieldLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.6.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = Spacing.s),
+    )
+}
+
+@Composable
+private fun ReminderAttrChip(text: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(Radius.circular),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+        )
+    }
+}
+
+@Composable
+private fun ReminderRuleChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(text) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    )
+}
+
+@Composable
+private fun ReminderActionButton(action: ReminderAction, enabled: Boolean, onClick: () -> Unit) {
+    val color = when (action) {
+        ReminderAction.DELETE -> MaterialTheme.colorScheme.error
+        ReminderAction.PAUSE -> AppColors.warning
+        else -> MaterialTheme.colorScheme.primary
+    }
+    TextButton(onClick = onClick, enabled = enabled) { Text(action.label(), color = if (enabled) color else MaterialTheme.colorScheme.onSurfaceVariant) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReminderFilterSheet(
+    filter: ReminderListFilter,
+    resultCount: Int,
+    onFilterChange: ((ReminderListFilter) -> ReminderListFilter) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.l).padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(
+                stringResource(R.string.reminder_filter_kicker),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(stringResource(R.string.reminder_filter_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            ReminderEditorFieldLabel(stringResource(R.string.reminder_filter_status_label))
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                listOf(ReminderStatus.ACTIVE, ReminderStatus.PAUSED).forEach { status ->
+                    ReminderRuleChip(status.label(), status in filter.statuses) {
+                        onFilterChange { current -> current.copy(statuses = current.statuses.toggle(status)) }
+                    }
+                }
+            }
+            ReminderEditorFieldLabel(stringResource(R.string.reminder_filter_repeat_label))
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                ReminderRecurrenceKind.entries.forEach { recurrence ->
+                    ReminderRuleChip(recurrence.label(), recurrence in filter.recurrences) {
+                        onFilterChange { current -> current.copy(recurrences = current.recurrences.toggle(recurrence)) }
+                    }
+                }
+            }
+            Text(
+                stringResource(R.string.reminder_filter_active_count, filter.statuses.size + filter.recurrences.size),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacing.s),
+            )
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(Height.button)) {
+                Text(stringResource(R.string.reminder_list_show_results_count, resultCount))
+            }
+        }
+    }
+}
+
+private fun <T> Set<T>.toggle(value: T): Set<T> = if (value in this) this - value else this + value
+
+@Composable
+private fun ReminderListMode.label() = stringResource(
+    when (this) {
+        ReminderListMode.RECENT -> R.string.reminder_list_recent
+        ReminderListMode.MONTHS -> R.string.reminder_list_months
+        ReminderListMode.FINISHED -> R.string.reminder_list_finished
+    },
+)
+
+@Composable
+private fun ReminderRepeatLabel.label() = stringResource(
+    when (this) {
+        ReminderRepeatLabel.ONCE -> R.string.reminder_list_repeat_once
+        ReminderRepeatLabel.DAILY -> R.string.reminder_rule_daily
+        ReminderRepeatLabel.WEEKDAYS -> R.string.reminder_rule_weekdays
+        ReminderRepeatLabel.WEEKLY -> R.string.reminder_list_repeat_weekly
+        ReminderRepeatLabel.MONTHLY -> R.string.reminder_list_repeat_monthly
+        ReminderRepeatLabel.YEARLY -> R.string.reminder_list_repeat_yearly
+    },
+)
+
+@Composable
+private fun ReminderRecurrenceKind.label() = stringResource(
+    when (this) {
+        ReminderRecurrenceKind.ONCE -> R.string.reminder_list_repeat_once
+        ReminderRecurrenceKind.MONTHLY -> R.string.reminder_list_repeat_monthly
+        ReminderRecurrenceKind.YEARLY -> R.string.reminder_list_repeat_yearly
+    },
+)
+
+internal fun isValidReminderDetailEdit(
+    content: String,
+    startDate: LocalDate,
+    endDate: LocalDate,
+    rule: ReminderActiveDayRule,
+): Boolean = content.isNotBlank() && content.length <= 2_000 && endDate >= startDate &&
+    (rule !is ReminderActiveDayRule.SelectedWeekdays || rule.days.isNotEmpty())
 
 internal fun toggleReminderDetailWeekday(rule: ReminderActiveDayRule.SelectedWeekdays, day: DayOfWeek) =
     ReminderActiveDayRule.SelectedWeekdays(if (day in rule.days) rule.days - day else rule.days + day)
 
 @Composable
-private fun ReminderFilter.label() = stringResource(when (this) {
-    ReminderFilter.ACTIVE -> R.string.reminder_filter_active
-    ReminderFilter.PAUSED -> R.string.reminder_filter_paused
-    ReminderFilter.COMPLETED -> R.string.reminder_filter_completed
-    ReminderFilter.EXPIRED -> R.string.reminder_filter_expired
-})
+private fun ReminderFilter.label() = stringResource(
+    when (this) {
+        ReminderFilter.ACTIVE -> R.string.reminder_filter_active
+        ReminderFilter.PAUSED -> R.string.reminder_filter_paused
+        ReminderFilter.COMPLETED -> R.string.reminder_filter_completed
+        ReminderFilter.EXPIRED -> R.string.reminder_filter_expired
+    },
+)
 
 @Composable
-private fun ReminderAction.label() = stringResource(when (this) {
-    ReminderAction.PAUSE -> R.string.reminder_action_pause
-    ReminderAction.RESUME -> R.string.reminder_action_resume
-    ReminderAction.EDIT -> R.string.reminder_action_save_edit
-    ReminderAction.COMPLETE -> R.string.reminder_action_complete
-    ReminderAction.DELETE -> R.string.reminder_action_delete
-    ReminderAction.APPLY_LATEST_PROFILE -> R.string.reminder_action_apply_latest
-})
+private fun ReminderAction.label() = stringResource(
+    when (this) {
+        ReminderAction.PAUSE -> R.string.reminder_action_pause
+        ReminderAction.RESUME -> R.string.reminder_action_resume
+        ReminderAction.EDIT -> R.string.reminder_action_save_edit
+        ReminderAction.COMPLETE -> R.string.reminder_action_complete
+        ReminderAction.DELETE -> R.string.reminder_action_delete
+        ReminderAction.APPLY_LATEST_PROFILE -> R.string.reminder_action_apply_latest
+    },
+)
 
 @Composable
-private fun com.dailysatori.service.reminder.ReminderStatus.label() = stringResource(when (this) {
-    com.dailysatori.service.reminder.ReminderStatus.ACTIVE,
-    com.dailysatori.service.reminder.ReminderStatus.NOTIFIED,
-    com.dailysatori.service.reminder.ReminderStatus.DISMISSED -> R.string.reminder_status_active
-    com.dailysatori.service.reminder.ReminderStatus.PAUSED -> R.string.reminder_status_paused
-    com.dailysatori.service.reminder.ReminderStatus.COMPLETED -> R.string.reminder_status_completed
-    com.dailysatori.service.reminder.ReminderStatus.EXPIRED -> R.string.reminder_status_expired
-    com.dailysatori.service.reminder.ReminderStatus.DRAFT -> R.string.reminder_draft_title
-})
+private fun ReminderStatus.label() = stringResource(
+    when (this) {
+        ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED -> R.string.reminder_status_active
+        ReminderStatus.PAUSED -> R.string.reminder_status_paused
+        ReminderStatus.COMPLETED -> R.string.reminder_status_completed
+        ReminderStatus.EXPIRED -> R.string.reminder_status_expired
+        ReminderStatus.DRAFT -> R.string.reminder_draft_title
+    },
+)

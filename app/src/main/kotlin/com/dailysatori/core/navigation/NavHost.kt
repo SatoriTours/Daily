@@ -245,7 +245,6 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             ReminderListScreen(
                 onBack = { navController.popBackStack() },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
-                onOpenReminder = { id -> navController.navigate(ReminderDetailRoute(id)) },
                 onOpenSettings = { navController.navigate(ReminderSettingsRoute) },
             )
         }

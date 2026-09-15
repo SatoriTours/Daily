@@ -60,8 +60,10 @@ class ReminderUiSourceTest {
         assertTrue(settings.contains("verticalScroll(rememberScrollState())"))
         assertFalse(settings.contains("Modifier.weight(1f)"))
         assertTrue(list.contains("LazyColumn"))
-        assertTrue(list.contains("maxLines = 1"))
+        // v2 杂志式列表：标题与导语最多两行，超出省略；月份 rail 横向滚动。
+        assertTrue(list.contains("maxLines = 2"))
         assertTrue(list.contains("TextOverflow.Ellipsis"))
+        assertTrue(list.contains("LazyRow"))
     }
 
     @Test
@@ -79,6 +81,15 @@ class ReminderUiSourceTest {
         assertFalse(draft.contains("TextButton(onClick = { picker = DraftPicker.START_DATE"))
         assertFalse(Regex("(?m)^\\s+Button\\(onClick = \\{ onConfirmItem").containsMatchIn(preview))
         assertTrue(preview.contains("TextButton(onClick = { onConfirmItem"))
+    }
+
+    @Test
+    fun listSheetDeleteRequiresConfirmation() {
+        val list = source("ui/feature/reminder/ReminderListScreen.kt")
+
+        assertTrue(list.contains("confirmDelete"))
+        assertTrue(list.contains("AlertDialog("))
+        assertFalse(Regex("ReminderAction.DELETE -> \\{?\\s*viewModel.delete").containsMatchIn(list))
     }
 
     @Test
