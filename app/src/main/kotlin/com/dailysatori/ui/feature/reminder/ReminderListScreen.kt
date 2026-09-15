@@ -202,22 +202,24 @@ private fun ReminderTopBar(
     onOpenSettings: () -> Unit,
     showSettings: Boolean,
 ) {
-    Box(Modifier.fillMaxWidth().height(Height.appBar)) {
+    // Flow layout: the title always sits after the back button, never overlapping at any density.
+    Row(
+        Modifier.fillMaxWidth().height(Height.appBar).padding(end = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onBack != null) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back), tint = MaterialTheme.colorScheme.primary) }
+        }
         Text(
             stringResource(R.string.reminder_list_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.CenterStart).padding(start = Spacing.l),
+            modifier = Modifier.weight(1f).padding(start = if (onBack != null) Spacing.xs else Spacing.l),
         )
-        if (onBack != null) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back), tint = MaterialTheme.colorScheme.primary) }
-        }
-        Row(Modifier.align(Alignment.CenterEnd).padding(end = Spacing.xs)) {
-            IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search), tint = MaterialTheme.colorScheme.primary) }
-            IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter), tint = MaterialTheme.colorScheme.primary) }
-            if (showSettings) {
-                IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title), tint = MaterialTheme.colorScheme.primary) }
-            }
+        IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search), tint = MaterialTheme.colorScheme.primary) }
+        IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter), tint = MaterialTheme.colorScheme.primary) }
+        if (showSettings) {
+            IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title), tint = MaterialTheme.colorScheme.primary) }
         }
     }
 }
