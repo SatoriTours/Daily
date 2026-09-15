@@ -3,7 +3,10 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from ci_release import build_version_code, build_info, make_manifest, should_update_pointer, publish_build, should_mark_latest
+from ci_release import (
+    COMMIT_BUILD_ASSET, COMMIT_BUILD_TAG, build_version_code, build_info, make_manifest,
+    should_update_pointer, publish_build, should_mark_latest,
+)
 
 
 class ReleaseMetadataTest(unittest.TestCase):
@@ -21,14 +24,33 @@ class ReleaseMetadataTest(unittest.TestCase):
             self.assertEqual(published, publish_build("SatoriTours/Daily", Path("dist"), candidate))
             command.assert_not_called()
 
-    def test_published_tag_cannot_be_reused_for_another_commit(self):
-        candidate = build_info("5.1.63", 300, "commit", "a" * 40, 27)
-        previous = dict(candidate, commitSha="b" * 40)
+    def test_rolling_channel_replaces_single_commit_build_release(self):
+        candidate = build_info("5.1.63", 301, "commit", "b" * 40, 27)
+        previous = dict(candidate, versionCode=300, commitSha="a" * 40, versionName="5.1.63-commit.173933")
         with patch("ci_release.release_by_tag", return_value={"draft": False}), \
              patch("ci_release.download_manifest", return_value=previous), patch("ci_release.run") as command:
-            with self.assertRaises(ValueError):
-                publish_build("SatoriTours/Daily", Path("dist"), candidate)
-            command.assert_not_called()
+            published = publish_build("SatoriTours/Daily", Path("dist"), candidate)
+            self.assertEqual(candidate, published)
+            calls = [call.args for call in command.call_args_list]
+            self.assertIn("PATCH", calls[0])
+            self.assertTrue(any(f"refs/tags/{COMMIT_BUILD_TAG}" in part for part in calls[0]))
+            self.assertEqual("upload", calls[1][2])
+            self.assertIn(str(Path("dist") / COMMIT_BUILD_ASSET), calls[1])
+            self.assertIn("--clobber", calls[1])
+            self.assertTrue(any("--title" in call and candidate["versionName"] in call for call in calls))
+
+    def test_rolling_channel_keeps_constant_tag_and_asset_name(self):
+        commit = build_info("5.1.63", 300, "commit", "a" * 40, 27)
+        self.assertEqual(COMMIT_BUILD_TAG, commit["tag"])
+        self.assertEqual(COMMIT_BUILD_ASSET, commit["apkName"])
+        manifest = make_manifest(commit, Path("assets/app.apk") and self.apk_file(), "SatoriTours/Daily")
+        self.assertIn(f"/releases/download/{COMMIT_BUILD_TAG}/{COMMIT_BUILD_ASSET}", manifest["apkUrl"])
+
+    def apk_file(self):
+        folder = Path(tempfile.mkdtemp())
+        apk = folder / "app.apk"
+        apk.write_bytes(b"abc")
+        return apk
 
     def test_new_release_stays_draft_until_both_apk_and_metadata_are_uploaded(self):
         candidate = build_info("5.1.63", 300, "commit", "a" * 40, 27)

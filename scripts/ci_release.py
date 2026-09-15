@@ -7,6 +7,10 @@ import re
 import subprocess
 import os
 
+# 滚动更新渠道：所有 commit 构建都替换同一个 release 上的同一组资产。
+COMMIT_BUILD_TAG = "commit-build"
+COMMIT_BUILD_ASSET = "daily-satori-commit-latest.apk"
+
 
 def build_version_code(commit_count):
     if commit_count < 1:
@@ -35,8 +39,8 @@ def build_info(base_version, commit_count, channel, commit_sha, schema_version):
         "channel": channel,
         "commitSha": commit_sha,
         "schemaVersion": schema_version,
-        "tag": f"v{base_version}" if channel == "stable" else f"commit-{code}",
-        "apkName": f"daily-satori-{channel}-{code}.apk",
+        "tag": f"v{base_version}" if channel == "stable" else COMMIT_BUILD_TAG,
+        "apkName": f"daily-satori-{channel}-{code}.apk" if channel == "stable" else COMMIT_BUILD_ASSET,
     }
 
 
@@ -90,6 +94,8 @@ def download_manifest(tag, folder):
 
 
 def publish_build(repository, folder, manifest):
+    if manifest["channel"] == "commit":
+        return publish_commit_build(repository, folder, manifest)
     tag = manifest["tag"]
     existing = release_by_tag(repository, tag)
     if existing and not existing["draft"]:
@@ -100,13 +106,36 @@ def publish_build(repository, folder, manifest):
     if not existing:
         command = ["gh", "release", "create", tag, "--target", manifest["commitSha"], "--draft",
                    "--title", manifest["versionName"], "--notes-file", str(folder / "notes.md")]
-        if manifest["channel"] == "commit":
-            command += ["--prerelease"]
         run(*command)
     run("gh", "release", "upload", tag, str(folder / manifest["apkName"]), str(folder / "update.json"), "--clobber")
     latest = github_release(repository, "latest") if manifest["channel"] == "stable" else None
     mark_latest = manifest["channel"] == "stable" and should_mark_latest(latest and latest["tag_name"], manifest["versionName"])
     run("gh", "release", "edit", tag, "--draft=false", "--latest=" + str(mark_latest).lower())
+    return manifest
+
+
+def publish_commit_build(repository, folder, manifest):
+    """Rolling channel: every build replaces the assets of the single commit-build release."""
+    tag = manifest["tag"]
+    existing = release_by_tag(repository, tag)
+    previous = download_manifest(tag, folder) if existing and not existing["draft"] else None
+    if not should_update_pointer(previous, manifest):
+        return previous or manifest
+    if existing:
+        # Keep the rolling tag on the latest build so the source links match the APK.
+        run("gh", "api", "-X", "PATCH", f"repos/{repository}/git/refs/tags/{tag}",
+            "-f", f"sha={manifest['commitSha']}", "-F", "force=true")
+    else:
+        run("gh", "release", "create", tag, "--target", manifest["commitSha"], "--draft", "--prerelease",
+            "--title", manifest["versionName"], "--notes", "提交构建版更新渠道")
+    notes = (f"[下载最新 APK]({manifest.get('apkUrl') or f'https://github.com/{repository}/releases/download/{tag}/{manifest['apkName']}'})\n\n"
+             f"版本：{manifest['versionName']}\n\n提交：`{manifest['commitSha']}`\n\n"
+             f"此页面持续替换为最新提交构建，不保留历史版本。\n")
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "channel-notes.md").write_text(notes)
+    run("gh", "release", "upload", tag, str(folder / manifest["apkName"]), str(folder / "update.json"), "--clobber")
+    run("gh", "release", "edit", tag, "--draft=false", "--prerelease", "--latest=false",
+        "--title", manifest["versionName"], "--notes-file", str(folder / "channel-notes.md"))
     return manifest
 
 
@@ -121,25 +150,6 @@ def should_mark_latest(latest_tag, candidate_version):
 
 def should_update_pointer(previous, candidate):
     return previous is None or candidate["versionCode"] > previous["versionCode"]
-
-
-def publish_pointer(repository, folder, manifest):
-    tag = "commit-build"
-    existing = release_by_tag(repository, tag)
-    previous = download_manifest(tag, folder) if existing and not existing["draft"] else None
-    if not should_update_pointer(previous, manifest):
-        return
-    if not existing:
-        run("gh", "release", "create", tag, "--target", manifest["commitSha"], "--draft", "--prerelease",
-            "--title", "提交构建版", "--notes", "提交构建版更新渠道")
-    (folder / "update.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    (folder / "channel-notes.md").write_text(
-        f"[下载最新 APK]({manifest['apkUrl']})\n\n版本：{manifest['versionName']}\n\n"
-        f"[对应源代码与构建](https://github.com/{repository}/releases/tag/{manifest['tag']})\n\n"
-        f"提交：`{manifest['commitSha']}`\n\n此页面是更新渠道入口，源代码以对应构建的 tag 为准。\n")
-    run("gh", "release", "upload", tag, str(folder / "update.json"), "--clobber")
-    run("gh", "release", "edit", tag, "--draft=false", "--prerelease", "--latest=false",
-        "--notes-file", str(folder / "channel-notes.md"))
 
 
 def main():
@@ -164,9 +174,7 @@ def main():
         (args.folder / "notes.md").write_text(notes)
         return
     manifest = json.loads((args.folder / "update.json").read_text())
-    manifest = publish_build(repository, args.folder, manifest)
-    if manifest["channel"] == "commit":
-        publish_pointer(repository, args.folder, manifest)
+    publish_build(repository, args.folder, manifest)
 
 
 if __name__ == "__main__":
