@@ -40,12 +40,14 @@ class DiaryThoughtGenerator(private val complete: suspend (String, String) -> St
         val cache = previous.chunks.filter { it.key in keys }.associateBy { it.key }.toMutableMap()
         return parts.mapIndexed { index, part ->
             coroutineContext.ensureActive()
-            onProgress("正在阅读日记 ${index + 1}/${parts.size}")
+            onProgress("已阅读 $index/${parts.size} 段 · 正在阅读第 ${index + 1} 段")
             val key = keys[index]
-            cache[key] ?: extractChunk(part, key).also { chunk ->
+            val chunk = cache[key] ?: extractChunk(part, key).also { chunk ->
                 cache[key] = chunk
                 onCheckpoint(previous.supportedBy(diaries).copy(chunks = cache.values.toList()))
             }
+            onProgress("已阅读 ${index + 1}/${parts.size} 段 · 接下来归纳思想")
+            chunk
         }
     }
 
@@ -70,16 +72,14 @@ class DiaryThoughtGenerator(private val complete: suspend (String, String) -> St
         // 每批有固定上限，所有证据都会参与归纳，不截断整个日记库。
         for (index in (saved?.completedBatches ?: 0) until batches.size) {
             coroutineContext.ensureActive()
-            onProgress("正在整理我的思想 ${index + 1}/${batches.size} 批 · 等待 AI 响应")
+            onProgress("已整理 $index/${batches.size} 批 · 第 ${index + 1} 批等待 AI 响应")
             val batch = batches[index]
-            val allowedEvidence = (merged + batch).flatMap { it.evidence }.toSet()
-            val response = complete(diaryThoughtMergePrompt(merged, batch, corrections), diaryThoughtSystemPrompt)
+            val allowedEvidence = (merged + batch).flatMap { it.evidence }.distinct()
+            val response = complete(diaryThoughtMergePrompt(merged, batch, corrections), diaryThoughtMergeSystemPrompt)
             coroutineContext.ensureActive()
-            merged = parseDiaryThoughts(response, diaries)
-            if (merged.any { thought -> thought.evidence.any { it !in allowedEvidence } }) {
-                throw DiaryThoughtResponseException("思想整理引用了未经提取的依据，请重试")
-            }
+            merged = parseDiaryThoughtMerge(response, diaries, allowedEvidence)
             onCheckpoint(DiaryThoughtMergeCheckpoint(fingerprint, index + 1, merged))
+            onProgress("已整理 ${index + 1}/${batches.size} 批 · ${if (index == batches.lastIndex) "正在保存思想档案" else "准备下一批"}")
         }
         return merged
     }

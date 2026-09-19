@@ -209,6 +209,11 @@ private fun ArticleListContent(
         if (state.isSearchVisible) {
             SearchBar(state.searchQuery, onQueryChange = onSearch, onSearch = onSearch, onClose = onSearchClick)
         }
+        state.loadError?.let { message ->
+            TextButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+                Text(message, color = MaterialTheme.colorScheme.error)
+            }
+        }
         PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = onRefresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
             ArticleListBody(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick)
         }

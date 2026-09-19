@@ -1,7 +1,16 @@
 package com.dailysatori.service.diary
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 internal val diaryThoughtJson = Json { ignoreUnknownKeys = true }
@@ -19,6 +28,13 @@ internal val diaryThoughtSystemPrompt = """
     材料不足时返回 {"thoughts":[]}。
 """.trimIndent()
 
+internal val diaryThoughtMergeSystemPrompt = diaryThoughtSystemPrompt + """
+
+    合并阶段使用以下输出格式，替代上面的 evidence 格式：
+    {"thoughts":[{"category":"做事准则","statement":"简洁的观点","basis":"明确表达","evidence":[{"evidenceId":1}]}]}。
+    evidenceId 必须选择本次提供的证据编号。不要输出 diaryId 或 quote，不要重新抄写、缩写或改写引文。
+""".trimIndent()
+
 internal fun diaryThoughtExtractPrompt(source: DiaryThoughtSource): String {
     val data = buildJsonObject {
         put("diaryId", source.id)
@@ -32,15 +48,76 @@ internal fun diaryThoughtMergePrompt(
     existing: List<DiaryThought>,
     incoming: List<DiaryThought>,
     corrections: String,
-): String = """
+): String {
+    val evidence = (existing + incoming).flatMap { it.evidence }.distinct()
+    val catalog = evidence.mapIndexed { index, item ->
+        buildJsonObject {
+            put("evidenceId", index + 1)
+            put("diaryId", item.diaryId)
+            put("quote", item.quote)
+        }
+    }
+    return """
     将已有归纳与新增证据合并为一份精简思想档案，去重，兼顾价值观、做事准则、思维方式和变化。
     这是按日记时间从早到晚整理的证据；不要把仅出现一次的倾向当成稳定特征。保留矛盾与变化。
-    evidence 只能从下面提供的证据中原样选取，不可创造新的引文或来源。
+    evidence 只输出证据编号 evidenceId，由程序填回原始引文，不可创造新的引文或来源。
     用户修正用于约束你的理解，不是日记证据；无日记依据的自述不加入生成条目。
     用户修正：${Json.encodeToString(corrections)}
-    已有归纳：${Json.encodeToString(DiaryThoughtBatch(existing))}
-    新增证据：${Json.encodeToString(DiaryThoughtBatch(incoming))}
+    证据编号表：${JsonArray(catalog)}
+    已有归纳：${diaryThoughtMergeInput(existing, evidence)}
+    新增证据：${diaryThoughtMergeInput(incoming, evidence)}
 """.trimIndent()
+}
+
+private fun diaryThoughtMergeInput(thoughts: List<DiaryThought>, evidence: List<DiaryThoughtEvidence>) =
+    buildJsonArray {
+        thoughts.forEach { thought ->
+            val data = diaryThoughtJson.encodeToJsonElement(thought).jsonObject
+            val references = thought.evidence.map { item ->
+                buildJsonObject { put("evidenceId", evidence.indexOf(item) + 1) }
+            }
+            add(JsonObject(data + ("evidence" to JsonArray(references))))
+        }
+    }
+
+internal fun parseDiaryThoughtMerge(
+    response: String,
+    sources: List<DiaryThoughtSource>,
+    evidence: List<DiaryThoughtEvidence>,
+): List<DiaryThought> {
+    if (response.length > 24_000) throw DiaryThoughtResponseException("思想整理结果过长，请重试")
+    val normalized = try {
+        val cleaned = response.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+        val root = diaryThoughtJson.parseToJsonElement(cleaned).jsonObject
+        val thoughts = root.getValue("thoughts").jsonArray.map { element ->
+            val thought = element.jsonObject
+            val resolved = thought.getValue("evidence").jsonArray.map { item ->
+                resolveDiaryThoughtEvidence(item, evidence)
+            }
+            JsonObject(thought + ("evidence" to JsonArray(resolved)))
+        }
+        JsonObject(root + ("thoughts" to JsonArray(thoughts))).toString()
+    } catch (error: DiaryThoughtResponseException) {
+        throw error
+    } catch (_: Exception) {
+        throw DiaryThoughtResponseException("思想整理返回格式异常，请重试")
+    }
+    return parseDiaryThoughts(normalized, sources).also { thoughts ->
+        if (thoughts.any { thought -> thought.evidence.any { it !in evidence } }) {
+            throw DiaryThoughtResponseException("思想整理引用了未经提取的依据，请重试")
+        }
+    }
+}
+
+private fun resolveDiaryThoughtEvidence(item: JsonElement, evidence: List<DiaryThoughtEvidence>): JsonElement {
+    val reference = item.jsonObject
+    // 兼容仍返回原始引文的模型，后面同样校验来源。
+    if ("evidenceId" !in reference) return item
+    val id = reference.getValue("evidenceId").jsonPrimitive.intOrNull
+    val original = id?.takeIf { it in 1..evidence.size }?.let { evidence[it - 1] }
+        ?: throw DiaryThoughtResponseException("思想整理引用了未知证据编号，请重试")
+    return diaryThoughtJson.encodeToJsonElement(original)
+}
 
 internal fun parseDiaryThoughts(response: String, sources: List<DiaryThoughtSource>): List<DiaryThought> {
     if (response.length > 24_000) throw DiaryThoughtResponseException("思想整理结果过长，请重试")

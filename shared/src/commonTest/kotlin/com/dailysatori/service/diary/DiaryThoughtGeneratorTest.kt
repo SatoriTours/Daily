@@ -22,6 +22,79 @@ class DiaryThoughtGeneratorTest {
     private val response get() = Json.encodeToString(DiaryThoughtBatch(listOf(thought)))
 
     @Test
+    fun mergerResolvesEvidenceReferencesWithoutAskingAiToCopyQuotes() = runBlocking {
+        val generator = DiaryThoughtGenerator { prompt, system ->
+            if (prompt.contains("新增证据：")) {
+                assertTrue(prompt.contains("\"evidenceId\":1"))
+                assertTrue(system.contains("evidenceId"))
+                """{"thoughts":[{"category":"做事准则","statement":"先完成重要的事情","basis":"明确表达","evidence":[{"evidenceId":1}]}]}"""
+            } else response
+        }
+        val result = generator.generate(listOf(source), "", DiaryThoughtArchive())
+        assertEquals(listOf(thought), result.thoughts)
+    }
+
+    @Test
+    fun mergerRejectsUnknownEvidenceReferencesWithoutSavingInvalidBatch() = runBlocking {
+        var checkpoint = DiaryThoughtArchive()
+        val generator = DiaryThoughtGenerator { prompt, _ ->
+            if (prompt.contains("新增证据：")) {
+                """{"thoughts":[{"category":"做事准则","statement":"先完成重要的事情","basis":"明确表达","evidence":[{"evidenceId":99}]}]}"""
+            } else response
+        }
+        assertFailsWith<DiaryThoughtResponseException> {
+            generator.generate(listOf(source), "", checkpoint, onCheckpoint = { checkpoint = it })
+        }
+        assertEquals(1, checkpoint.chunks.size)
+        assertEquals(null, checkpoint.mergeCheckpoint)
+    }
+
+    @Test
+    fun finalFortiethBatchResumesOldCheckpointUsingEvidenceReferences() = runBlocking {
+        val sources = (1L..40L).map { source.copy(id = it, createdAt = it) }
+        val fingerprint = diaryThoughtFingerprint(sources, "")
+        val chunks = sources.map { diary ->
+            val extracted = (1..6).map { index -> thought.copy(
+                statement = "观点 $index", evidence = listOf(DiaryThoughtEvidence(diary.id, "先把重要的事情做好")),
+            ) }
+            DiaryThoughtChunk(diaryThoughtFingerprint(listOf(diary), ""), extracted)
+        }
+        val checkpoint = DiaryThoughtArchive(
+            chunks = chunks,
+            mergeCheckpoint = DiaryThoughtMergeCheckpoint(fingerprint, 39, listOf(thought)),
+        )
+        var calls = 0
+        var progress = ""
+        val generator = DiaryThoughtGenerator { _, _ ->
+            calls++
+            assertTrue(progress.contains("已整理 39/40"), progress)
+            """{"thoughts":[{"category":"做事准则","statement":"先完成重要的事情","basis":"明确表达","evidence":[{"evidenceId":2}]}]}"""
+        }
+        val result = generator.generate(sources, "", checkpoint, onProgress = { progress = it })
+        assertEquals(1, calls, "不能重做前 39 批或重复提取日记")
+        assertEquals(40, result.diaryCount)
+        assertEquals(40L, result.thoughts.single().evidence.single().diaryId)
+        assertEquals(fingerprint, result.fingerprint)
+        assertEquals(null, result.mergeCheckpoint)
+    }
+
+    @Test
+    fun progressCountsCompletedWorkWhileLastRequestIsStillPending() = runBlocking {
+        var progress = ""
+        val generator = DiaryThoughtGenerator { prompt, _ ->
+            if (prompt.contains("新增证据：")) {
+                assertTrue(progress.contains("已整理 0/1"), progress)
+                assertTrue(progress.contains("第 1 批"), progress)
+            } else {
+                assertTrue(progress.contains("已阅读 0/1"), progress)
+            }
+            response
+        }
+        generator.generate(listOf(source), "", DiaryThoughtArchive(), onProgress = { progress = it })
+        assertTrue(progress.contains("已整理 1/1"), progress)
+    }
+
+    @Test
     fun generatesGroundedArchiveAndReusesUnchangedEvidence() = runBlocking {
         var calls = 0
         val generator = DiaryThoughtGenerator { _, _ -> calls++; response }

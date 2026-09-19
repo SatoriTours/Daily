@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,7 @@ data class ArticlesState(
     val isRefreshing: Boolean = false,
     val scrollToTopRequest: Long = 0,
     val newArticlesAboveCount: Int = 0,
+    val loadError: String? = null,
 )
 
 class ArticlesViewModel(
@@ -66,16 +68,23 @@ class ArticlesViewModel(
     fun loadArticles() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, loadError = null) }
             com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Loading articles with flow")
-            articlesFlowFor(_state.value).collect { articles ->
+            articlesFlowFor(_state.value).catch { error ->
+                com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Article observation failed", error)
+                _state.update { it.copy(isLoading = false, isRefreshing = false, loadError = "文章读取失败，点击重试") }
+            }.collect { articles ->
                 com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Got ${articles.size} articles")
-                _state.update { it.copy(articles = articles, isLoading = false) }
+                _state.update { it.copy(articles = articles, isLoading = false, loadError = null) }
             }
         }
     }
 
     fun refreshArticles() {
+        if (_state.value.loadError != null || loadJob?.isActive != true) {
+            loadArticles()
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isRefreshing = true) }
             try {
