@@ -75,8 +75,7 @@ import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.input.SearchBar
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -190,6 +189,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         myNavigationLabel = "设置",
         onMyNavigationClick = onMyClick,
         actions = {
+            DiaryThoughtEntry(thoughtState, onClick = { showThoughts = true })
             IconButton(onClick = { viewModel.toggleSearch() }) {
                 Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
@@ -227,7 +227,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 .fillMaxSize()
                 .padding(horizontal = Spacing.m),
         ) {
-            DiaryThoughtEntry(thoughtState, onClick = { showThoughts = true })
             if (state.recordingState !is DiaryRecordingState.Idle) {
                 DiaryRecordingControls(
                     state = state.recordingState,
