@@ -74,6 +74,10 @@ class ReminderUiSourceTest {
 
         assertTrue(editor.contains("ReminderEditorForm("))
         assertTrue(source("ui/feature/reminder/ReminderEditorForm.kt").contains("ReminderSettingRow("))
+        val sheet = source("ui/feature/reminder/ReminderEditorSheet.kt")
+        assertTrue(sheet.contains("ReminderEditorState.from(original)"))
+        assertTrue(sheet.contains("ReminderEditorForm("))
+        assertTrue(sheet.contains("viewModel.saveEditor(original, snapshot)"))
         assertTrue(draft.contains("ReminderSettingRow("))
         assertTrue(draft.contains("showAdvanced"))
         assertTrue(draft.contains("AnimatedVisibility(visible = showAdvanced)"))
@@ -85,7 +89,7 @@ class ReminderUiSourceTest {
 
     @Test
     fun listSheetDeleteRequiresConfirmation() {
-        val list = source("ui/feature/reminder/ReminderListScreen.kt")
+        val list = source("ui/feature/reminder/ReminderEditorSheet.kt")
 
         assertTrue(list.contains("confirmDelete"))
         assertTrue(list.contains("AlertDialog("))
@@ -105,6 +109,7 @@ class ReminderUiSourceTest {
         val sources = listOf(
             source("ui/feature/reminder/ReminderDraftCard.kt"),
             source("ui/feature/reminder/ReminderListScreen.kt"),
+            source("ui/feature/reminder/ReminderEditorSheet.kt"),
             source("ui/feature/reminder/ReminderViewModel.kt"),
             source("ui/feature/settings/reminder/ReminderSettingsScreen.kt"),
             source("ui/feature/settings/reminder/ReminderSettingsViewModel.kt"),

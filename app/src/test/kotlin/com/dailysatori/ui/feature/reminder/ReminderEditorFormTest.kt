@@ -14,6 +14,35 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReminderEditorFormTest {
+    @Test
+    fun yearlyStartDateEditUpdatesAnnualAnchorAndPreservesPolicyAndProfile() {
+        val original = editor()
+        val changed = original.applyFormState(original.toFormState("id").editDates(
+            LocalDate(2028, 3, 14), LocalDate(2028, 3, 15),
+        ))
+        assertEquals(ReminderRecurrence.Yearly(3, 14, LeapDayPolicy.MARCH_1), changed.recurrence)
+        assertEquals(original.profile, changed.profile)
+        assertEquals(original.activeDayRule, changed.activeDayRule)
+    }
+
+    @Test
+    fun monthlyStartDateEditUpdatesMonthlyAnchor() {
+        val original = editor().copy(recurrence = ReminderRecurrence.Monthly(29))
+        val changed = original.applyFormState(original.toFormState("id").editDates(
+            LocalDate(2028, 3, 14), LocalDate(2028, 3, 15),
+        ))
+        assertEquals(ReminderRecurrence.Monthly(14), changed.recurrence)
+    }
+
+    @Test
+    fun changingOnlyEndDateDoesNotOverwriteLeapDayAnchorWithFallbackDate() {
+        val original = editor().copy(startDate = LocalDate(2027, 3, 1), endDate = LocalDate(2027, 3, 1))
+        val changed = original.applyFormState(original.toFormState("id").editDates(
+            original.startDate, LocalDate(2027, 3, 2),
+        ))
+        assertEquals(original.recurrence, changed.recurrence)
+    }
+
     private fun editor() = ReminderEditorState(
         content = "提醒内容",
         startDate = LocalDate(2028, 2, 29),

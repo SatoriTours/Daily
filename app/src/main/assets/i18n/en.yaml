@@ -474,6 +474,8 @@ weekly_summary:
   viewpoint_not_found: Reading note not found
 
 reminder_editor:
+  more_actions: More actions
+  active_days: Active days within each occurrence
   details: Details
   profile: Reminder profile
   behavior: Reminder behavior

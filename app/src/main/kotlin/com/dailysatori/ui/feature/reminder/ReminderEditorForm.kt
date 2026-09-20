@@ -1,12 +1,13 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.dailysatori.ui.feature.reminder
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -43,31 +44,35 @@ internal fun ReminderEditorForm(
     var picker by remember(state.id) { mutableStateOf<EditorPicker?>(null) }
     val missing = stringResource(R.string.reminder_not_selected)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Text(stringResource(R.string.reminder_editor_details), style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = state.content,
             onValueChange = { onChange(state.editContent(it)) },
             label = { Text(stringResource(R.string.reminder_content_label)) },
             modifier = Modifier.fillMaxWidth(),
         )
+        ReminderEditorRecurrence(state, onChange, leapDayFallbackChosen, onLeapDayPolicySelected)
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             ReminderSettingRow(stringResource(R.string.reminder_start_date), state.startDate?.toString() ?: missing) { picker = EditorPicker.START }
             ReminderSettingRow(stringResource(R.string.reminder_end_date), state.endDate?.toString() ?: missing) { picker = EditorPicker.END }
             ReminderSettingRow(stringResource(R.string.reminder_first_time), state.firstReminderTime?.toString() ?: missing) { picker = EditorPicker.TIME }
         }
-        ReminderEditorRecurrence(state, onChange, leapDayFallbackChosen, onLeapDayPolicySelected)
-        Text(stringResource(R.string.reminder_editor_profile), style = MaterialTheme.typography.titleSmall)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            profiles.forEach { profile ->
-                FilterChip(
-                    selected = state.profileId == profile.id || state.profileId == null &&
-                        (state.profile == profile.snapshot || profile.kind != com.dailysatori.service.reminder.ReminderProfileKind.CUSTOM && state.profile?.kind == profile.kind),
-                    onClick = { onChange(state.selectProfile(profile)) },
-                    label = { Text(profile.name) },
-                )
+        ReminderAdvancedProfileEditor(state, onChange) {
+            if (state.activeDayRule !is ReminderActiveDayRule.ConsecutiveDateRange) {
+                Text(stringResource(R.string.reminder_editor_active_days), style = MaterialTheme.typography.titleSmall)
+                ReminderEditorDayRules(state, onChange)
+            }
+            Text(stringResource(R.string.reminder_editor_profile), style = MaterialTheme.typography.titleSmall)
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                profiles.forEach { profile ->
+                    FilterChip(
+                        selected = state.profileId == profile.id || state.profileId == null &&
+                            (state.profile == profile.snapshot || profile.kind != com.dailysatori.service.reminder.ReminderProfileKind.CUSTOM && state.profile?.kind == profile.kind),
+                        onClick = { onChange(state.selectProfile(profile)) },
+                        label = { Text(profile.name) },
+                    )
+                }
             }
         }
-        ReminderAdvancedProfileEditor(state, onChange) { ReminderEditorDayRules(state, onChange) }
         state.toEditorStateOrNull()?.let { editor ->
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -99,7 +104,7 @@ private fun ReminderEditorRecurrence(
     onLeapDayPolicySelected: (LeapDayPolicy) -> Unit,
 ) {
     Text(stringResource(R.string.reminder_recurrence_title), style = MaterialTheme.typography.titleSmall)
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         val date = state.startDate
         listOf(
             R.string.reminder_list_repeat_once to ReminderRecurrence.Once,
@@ -108,10 +113,12 @@ private fun ReminderEditorRecurrence(
             R.string.reminder_recurrence_consecutive to ReminderRecurrence.Once,
         ).forEach { (label, recurrence) ->
             val consecutive = label == R.string.reminder_recurrence_consecutive
+            val selected = (state.activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange) == consecutive &&
+                state.recurrence::class == recurrence?.let { it::class }
             FilterChip(
-                selected = (state.activeDayRule is ReminderActiveDayRule.ConsecutiveDateRange) == consecutive && state.recurrence::class == recurrence?.let { it::class },
+                selected = selected,
                 enabled = recurrence != null,
-                onClick = { recurrence?.let { onChange(state.selectRecurrenceMode(it, consecutive)) } },
+                onClick = { if (!selected) recurrence?.let { onChange(state.selectRecurrenceMode(it, consecutive)) } },
                 label = { Text(stringResource(label)) },
             )
         }
@@ -129,18 +136,19 @@ private fun ReminderEditorRecurrence(
 
 @Composable
 private fun ReminderEditorDayRules(state: ReminderDraftUiState, onChange: (ReminderDraftUiState) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         listOf(
             R.string.reminder_rule_daily to ReminderActiveDayRule.Daily,
             R.string.reminder_rule_weekdays to ReminderActiveDayRule.Weekdays,
-            R.string.reminder_rule_range to ReminderActiveDayRule.ConsecutiveDateRange,
-            R.string.reminder_rule_selected to ReminderActiveDayRule.SelectedWeekdays(DayOfWeek.entries.toSet()),
+            R.string.reminder_rule_selected to ReminderActiveDayRule.SelectedWeekdays(
+                (state.activeDayRule as? ReminderActiveDayRule.SelectedWeekdays)?.days ?: DayOfWeek.entries.toSet(),
+            ),
         ).forEach { (label, rule) ->
             FilterChip(selected = state.activeDayRule::class == rule::class, onClick = { onChange(state.editActiveDayRule(rule)) }, label = { Text(stringResource(label)) })
         }
     }
     if (state.activeDayRule is ReminderActiveDayRule.SelectedWeekdays) {
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             DayOfWeek.entries.forEach { day ->
                 val days = state.activeDayRule.days
                 FilterChip(selected = day in days, onClick = { onChange(state.editActiveDayRule(ReminderActiveDayRule.SelectedWeekdays(if (day in days) days - day else days + day))) }, label = { Text(day.shortLabel()) })

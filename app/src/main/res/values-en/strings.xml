@@ -204,6 +204,8 @@
     <string name="reminder_month_count">%1$d reminders</string>
     <string name="reminder_month_none">None</string>
     <string name="reminder_editor_details">Details</string>
+    <string name="reminder_editor_more_actions">More actions</string>
+    <string name="reminder_editor_active_days">Active days within each occurrence</string>
     <string name="reminder_editor_profile">Reminder profile</string>
     <string name="reminder_editor_behavior">Reminder behavior</string>
     <string name="reminder_editor_leap_policy">In non-leap years, use:</string>

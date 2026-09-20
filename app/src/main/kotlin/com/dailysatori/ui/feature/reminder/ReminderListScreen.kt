@@ -2,7 +2,6 @@ package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,10 +23,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -37,7 +34,6 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -49,7 +45,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,9 +53,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,24 +62,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailysatori.R
-import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderStatus
-import com.dailysatori.ui.theme.AppColors
-import com.dailysatori.ui.theme.Height
-import com.dailysatori.ui.theme.IconSize
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
-
-private enum class DetailPicker { START, END, TIME }
 
 private val DateBlockWidth = 50.dp
 private const val WEEK_DAYS = 7
@@ -623,138 +608,6 @@ private fun ReminderEmptyBlock(ui: ReminderUiState, months: List<ReminderMonthUi
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ReminderEditorSheet(
-    reminder: Reminder,
-    latestProfile: ReminderProfileSnapshot,
-    viewModel: ReminderViewModel,
-    onDismiss: () -> Unit,
-) {
-    var content by remember(reminder.id, reminder.version) { mutableStateOf(reminder.content) }
-    var startDate by remember(reminder.id, reminder.version) { mutableStateOf(reminder.startDate) }
-    var endDate by remember(reminder.id, reminder.version) { mutableStateOf(reminder.endDate) }
-    var firstTime by remember(reminder.id, reminder.version) { mutableStateOf(reminder.firstReminderTime) }
-    var rule by remember(reminder.id, reminder.version) { mutableStateOf(reminder.activeDayRule) }
-    var picker by remember { mutableStateOf<DetailPicker?>(null) }
-    var confirmDelete by remember { mutableStateOf(false) }
-    val validEdit = isValidReminderDetailEdit(content, startDate, endDate, rule)
-    // Fully expanded so content and the action row are visible without clipping.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.l)
-                .padding(bottom = Spacing.xl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-        ) {
-            Text(
-                stringResource(R.string.reminder_detail_edit_kicker),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(content.ifBlank { reminder.content }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            if (reminder.dataIssue != null) {
-                Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.errorContainer) {
-                    Text(
-                        stringResource(R.string.reminder_corrupt_profile_warning),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(Spacing.s),
-                    )
-                }
-            }
-            ReminderEditorFieldLabel(stringResource(R.string.reminder_content_label))
-            OutlinedTextField(
-                value = content,
-                onValueChange = { content = it },
-                isError = !validEdit,
-                supportingText = if (validEdit) null else { { Text(stringResource(R.string.reminder_detail_invalid)) } },
-                shape = RoundedCornerShape(Radius.m),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ReminderEditorFieldLabel(stringResource(R.string.reminder_detail_date_label))
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ReminderAttrChip(stringResource(R.string.reminder_start_value, startDate.toString())) { picker = DetailPicker.START }
-                ReminderAttrChip(stringResource(R.string.reminder_end_value, endDate.toString())) { picker = DetailPicker.END }
-                ReminderAttrChip(stringResource(R.string.reminder_first_value, firstTime.toString())) { picker = DetailPicker.TIME }
-            }
-            ReminderEditorFieldLabel(stringResource(R.string.reminder_detail_rule_label))
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                listOf(
-                    stringResource(R.string.reminder_rule_daily) to ReminderActiveDayRule.Daily,
-                    stringResource(R.string.reminder_rule_weekdays) to ReminderActiveDayRule.Weekdays,
-                    stringResource(R.string.reminder_rule_selected) to ReminderActiveDayRule.SelectedWeekdays((rule as? ReminderActiveDayRule.SelectedWeekdays)?.days ?: DayOfWeek.entries.toSet()),
-                    stringResource(R.string.reminder_rule_range) to ReminderActiveDayRule.ConsecutiveDateRange,
-                ).forEach { (label, value) ->
-                    ReminderRuleChip(label, rule::class == value::class) { rule = value }
-                }
-            }
-            (rule as? ReminderActiveDayRule.SelectedWeekdays)?.let { selectedDays ->
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    DayOfWeek.entries.forEach { day ->
-                        ReminderRuleChip(day.weekdayLabel(), day in selectedDays.days) {
-                            rule = toggleReminderDetailWeekday(selectedDays, day)
-                        }
-                    }
-                }
-            }
-            HorizontalDivider(Modifier.padding(top = Spacing.m), color = MaterialTheme.colorScheme.outline)
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-            ) {
-                reminderActions(reminder).forEach { action ->
-                    ReminderActionButton(
-                        action = action,
-                        enabled = (action != ReminderAction.EDIT || validEdit) &&
-                            !(action == ReminderAction.RESUME && reminder.dataIssue != null),
-                    ) {
-                        when (action) {
-                            ReminderAction.PAUSE -> viewModel.pause(reminder.id)
-                            ReminderAction.RESUME -> viewModel.resume(reminder.id)
-                            ReminderAction.EDIT -> viewModel.edit(
-                                reminder.id,
-                                ReminderEdit(reminder.version, content = content, startDate = startDate, endDate = endDate, firstReminderTime = firstTime, activeDayRule = rule),
-                            )
-                            ReminderAction.COMPLETE -> { viewModel.complete(reminder.id); onDismiss() }
-                            ReminderAction.DELETE -> confirmDelete = true
-                            ReminderAction.APPLY_LATEST_PROFILE -> viewModel.applyLatestProfile(reminder.id, latestProfile)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    when (picker) {
-        DetailPicker.START -> DateDialog(startDate, { picker = null }) { startDate = it; if (endDate < it) endDate = it; picker = null }
-        DetailPicker.END -> DateDialog(endDate, { picker = null }) { endDate = it; picker = null }
-        DetailPicker.TIME -> TimeDialog(firstTime, { picker = null }) { firstTime = it; picker = null }
-        null -> Unit
-    }
-    if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.reminder_delete_title)) },
-            text = { Text(stringResource(R.string.reminder_delete_message)) },
-            confirmButton = { TextButton(onClick = { confirmDelete = false; viewModel.delete(reminder.id); onDismiss() }) { Text(stringResource(R.string.reminder_action_delete)) } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.reminder_cancel)) } },
-        )
-    }
-}
-
 @Composable
 private fun ReminderEditorFieldLabel(text: String) {
     Text(
@@ -768,22 +621,6 @@ private fun ReminderEditorFieldLabel(text: String) {
 }
 
 @Composable
-private fun ReminderAttrChip(text: String, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(Radius.circular),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
-        )
-    }
-}
-
-@Composable
 private fun ReminderRuleChip(text: String, selected: Boolean, onClick: () -> Unit) {
     FilterChip(
         selected = selected,
@@ -794,16 +631,6 @@ private fun ReminderRuleChip(text: String, selected: Boolean, onClick: () -> Uni
             selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
         ),
     )
-}
-
-@Composable
-private fun ReminderActionButton(action: ReminderAction, enabled: Boolean, onClick: () -> Unit) {
-    val color = when (action) {
-        ReminderAction.DELETE -> MaterialTheme.colorScheme.error
-        ReminderAction.PAUSE -> AppColors.warning
-        else -> MaterialTheme.colorScheme.primary
-    }
-    TextButton(onClick = onClick, enabled = enabled) { Text(action.label(), color = if (enabled) color else MaterialTheme.colorScheme.onSurfaceVariant) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -913,7 +740,7 @@ private fun ReminderFilter.label() = stringResource(
 )
 
 @Composable
-private fun ReminderAction.label() = stringResource(
+internal fun ReminderAction.label() = stringResource(
     when (this) {
         ReminderAction.PAUSE -> R.string.reminder_action_pause
         ReminderAction.RESUME -> R.string.reminder_action_resume

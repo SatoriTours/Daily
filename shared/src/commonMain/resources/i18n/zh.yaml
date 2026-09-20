@@ -474,6 +474,8 @@ weekly_summary:
   viewpoint_not_found: 未找到该读书笔记
 
 reminder_editor:
+  more_actions: 更多操作
+  active_days: 周期内提醒日期
   details: 详细配置
   profile: 提醒配置
   behavior: 实际提醒行为

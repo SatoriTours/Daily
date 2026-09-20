@@ -228,7 +228,14 @@ data class ReminderDraftUiState(
         ).joinToString(" — ")
 
     fun editContent(value: String) = copy(content = value, notice = null)
-    fun editDates(start: LocalDate?, end: LocalDate?) = copy(startDate = start, endDate = end, notice = null)
+    fun editDates(start: LocalDate?, end: LocalDate?): ReminderDraftUiState {
+        val updatedRecurrence = if (start == null || start == startDate) recurrence else when (val rule = recurrence) {
+            ReminderRecurrence.Once -> rule
+            is ReminderRecurrence.Monthly -> rule.copy(dayOfMonth = start.dayOfMonth)
+            is ReminderRecurrence.Yearly -> rule.copy(month = start.monthNumber, dayOfMonth = start.dayOfMonth)
+        }
+        return copy(startDate = start, endDate = end, recurrence = updatedRecurrence, notice = null)
+    }
     fun editFirstTime(value: LocalTime?) = copy(firstReminderTime = value, notice = null)
     fun editActiveDayRule(value: ReminderActiveDayRule) = copy(activeDayRule = value, notice = null)
     fun editRecurrence(value: ReminderRecurrence) = copy(recurrence = value, notice = null)

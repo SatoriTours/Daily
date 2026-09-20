@@ -226,6 +226,8 @@
     <string name="reminder_month_count">%1$d 个提醒</string>
     <string name="reminder_month_none">暂无</string>
     <string name="reminder_editor_details">详细配置</string>
+    <string name="reminder_editor_more_actions">更多操作</string>
+    <string name="reminder_editor_active_days">周期内提醒日期</string>
     <string name="reminder_editor_profile">提醒配置</string>
     <string name="reminder_editor_behavior">实际提醒行为</string>
     <string name="reminder_editor_leap_policy">非闰年时使用：</string>
