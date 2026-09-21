@@ -64,6 +64,11 @@ class ReminderRepository(
 ) {
     private val q get() = db.dailySatoriQueries
 
+    /** A stable draft ID makes confirmation safe to resume after scheduling or UI interruption. */
+    fun createConfirmedOnce(draft: ReminderDraft, profileSnapshot: ReminderProfileSnapshot): Reminder = q.transactionWithResult {
+        get(draft.id) ?: createConfirmed(draft, profileSnapshot)
+    }
+
     fun createConfirmed(draft: ReminderDraft, profileSnapshot: ReminderProfileSnapshot): Reminder {
         val startDate = requireNotNull(draft.startDate) { "Confirmed reminder requires a start date" }
         val endDate = requireNotNull(draft.endDate) { "Confirmed reminder requires an end date" }

@@ -76,7 +76,7 @@ internal fun DiaryThoughtEntry(state: DiaryThoughtState, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun DiaryThoughtScreen(viewModel: DiaryThoughtViewModel, onBack: () -> Unit, onDiaryClick: (Long) -> Unit) {
+internal fun DiaryThoughtScreen(viewModel: DiaryThoughtViewModel, onBack: () -> Unit, onDiaryClick: (Long) -> Unit, onDiscuss: ((DiaryThought) -> Unit)? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val saveError by viewModel.saveError.collectAsStateWithLifecycle()
     val presentation = remember(state.archive.thoughts) { diaryThoughtPresentation(state.archive.thoughts) }
@@ -108,6 +108,9 @@ internal fun DiaryThoughtScreen(viewModel: DiaryThoughtViewModel, onBack: () -> 
                 item(key = "section:${section.category}") { DiaryThoughtSectionHeading(section) }
                 items(section.thoughts, key = { "thought:${it.category}:${it.statement}" }) { thought ->
                     DiaryThoughtParagraph(thought, onDiaryClick)
+                    if (onDiscuss != null) TextButton(onClick = { onDiscuss(thought) }, enabled = state.useInChat && !state.isStale) {
+                        Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_discuss))
+                    }
                 }
             }
             item(key = "preferences") { DiaryThoughtPreferences(state, viewModel::setUseInChat) { editing = true } }

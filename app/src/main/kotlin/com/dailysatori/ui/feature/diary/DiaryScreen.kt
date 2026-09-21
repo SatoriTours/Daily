@@ -88,7 +88,7 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun DiaryScreen(onMyClick: () -> Unit = {}) {
+fun DiaryScreen(onMyClick: () -> Unit = {}, onThoughtsClick: (() -> Unit)? = null) {
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val thoughtViewModel: DiaryThoughtViewModel = koinViewModel()
@@ -189,7 +189,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         myNavigationLabel = "设置",
         onMyNavigationClick = onMyClick,
         actions = {
-            DiaryThoughtEntry(thoughtState, onClick = { showThoughts = true })
+            DiaryThoughtEntry(thoughtState, onClick = onThoughtsClick ?: { showThoughts = true })
             IconButton(onClick = { viewModel.toggleSearch() }) {
                 Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }

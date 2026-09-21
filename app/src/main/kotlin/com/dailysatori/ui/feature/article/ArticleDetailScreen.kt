@@ -58,6 +58,8 @@ import com.dailysatori.ui.component.card.articleDisplayDomain
 import com.dailysatori.ui.component.card.articleDisplayTitle
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
+import com.dailysatori.ui.feature.myspace.toReadNewsArticle
+import com.dailysatori.ui.feature.myspace.MarkNewsReadButton
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
@@ -92,6 +94,7 @@ fun ArticleDetailScreen(
         title = title,
         onBack = onBack,
         actions = {
+            state.article?.let { MarkNewsReadButton(it.toReadNewsArticle()) }
             ArticleDetailActions(
                 state = state,
                 expanded = showMenu,

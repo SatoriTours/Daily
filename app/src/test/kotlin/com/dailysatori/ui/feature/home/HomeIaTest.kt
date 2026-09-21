@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class HomeIaTest {
     @Test
     fun homeTabsUseWeChatStyleInformationArchitecture() {
-        assertEquals(listOf("今日", "日记", "读书", "AI"), tabs.map { it.label })
+        assertEquals(listOf("今日", "日记", "读书", "我的"), tabs.map { it.label })
         assertEquals(0, TODAY_TAB_INDEX)
         assertEquals(1, DIARY_TAB_INDEX)
         assertEquals(2, READING_TAB_INDEX)
@@ -24,7 +24,7 @@ class HomeIaTest {
         assertTrue(source.contains("TODAY_TAB_INDEX -> UnifiedNewsScreen"))
         assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryScreen"))
         assertTrue(source.contains("READING_TAB_INDEX -> BooksScreen"))
-        assertTrue(source.contains("AI_CHAT_TAB_INDEX -> AiChatScreen"))
+        assertTrue(source.contains("MY_TAB_INDEX -> MySpaceScreen"))
         assertFalse(source.contains("RECORDS_TAB_INDEX"))
         assertFalse(source.contains("RecordsScreen"))
         assertFalse(source.contains("TabItem(\"记录\""))
@@ -49,10 +49,10 @@ class HomeIaTest {
         assertFalse(source.contains("border ="))
         assertTrue(source.contains(".navigationBarsPadding()"))
         assertFalse(source.contains("label = { Text(tab.label"))
-        assertTrue(source.contains("label = null"))
+        assertTrue(source.contains("R.string.my_space_title"))
         assertTrue(source.contains("indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
         assertTrue(source.contains("consumeWindowInsets(innerPadding)"))
-        assertTrue(source.contains("alwaysShowLabel = false"))
+        assertTrue(source.contains("alwaysShowLabel = true"))
         assertTrue(source.contains("contentDescription = tab.label"))
     }
 

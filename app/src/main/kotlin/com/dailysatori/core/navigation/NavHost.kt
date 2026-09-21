@@ -30,6 +30,10 @@ import com.dailysatori.ui.feature.share.ShareDialogScreen
 import com.dailysatori.ui.feature.reminder.ReminderDetailScreen
 import com.dailysatori.ui.feature.reminder.ReminderEditScreen
 import com.dailysatori.ui.feature.reminder.ReminderListScreen
+import com.dailysatori.ui.feature.myspace.*
+import com.dailysatori.ui.feature.diary.DiaryThoughtScreen
+import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
+import org.koin.androidx.compose.koinViewModel
 
 private const val ANIM_DURATION = 350
 private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
@@ -72,10 +76,37 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onProfileClick = { navController.navigate(ProfileRoute) },
+                onThoughts = { navController.navigate(MyThoughtsRoute) },
+                onReminders = { navController.navigate(ReminderListRoute) },
+                onReminder = { navController.navigate(ReminderDetailRoute(it)) },
+                onAddReminder = { navController.navigate(ReminderEditRoute()) },
+                onOpportunities = { navController.navigate(MyOpportunitiesRoute) },
+                onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
+                onChat = { navController.navigate(PersonalChatRoute()) },
                 settingsViewModel = settingsViewModel,
             )
         }
 
+        composable<MyThoughtsRoute> {
+            val viewModel: DiaryThoughtViewModel = koinViewModel()
+            DiaryThoughtScreen(viewModel, onBack = { navController.popBackStack() }, onDiaryClick = {
+                com.dailysatori.core.recording.DiaryRecordingOpenRequest.open(it)
+                navController.popBackStack(HomeRoute, inclusive = false)
+            }, onDiscuss = { navController.navigate(PersonalChatRoute("thought", thoughtChatKey(it))) })
+        }
+        composable<MyOpportunitiesRoute> {
+            NewsOpportunityListScreen(onBack = { navController.popBackStack() }, onOpen = { navController.navigate(MyOpportunityRoute(it)) })
+        }
+        composable<MyOpportunityRoute> { entry ->
+            val route = entry.toRoute<MyOpportunityRoute>()
+            NewsOpportunityDetailScreen(route.id, onBack = { navController.popBackStack() },
+                onChat = { navController.navigate(PersonalChatRoute("opportunity", route.id)) },
+                onArticle = { navController.navigate(ArticleDetailRoute(it)) })
+        }
+        composable<PersonalChatRoute> { entry ->
+            val route = entry.toRoute<PersonalChatRoute>()
+            PersonalChatScreen(route.kind, route.key, onBack = { navController.popBackStack() }, onArticle = { navController.navigate(ArticleDetailRoute(it)) })
+        }
         composable<ProfileRoute> {
             ProfileScreen(
                 onBack = { navController.popBackStack() },

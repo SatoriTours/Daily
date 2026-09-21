@@ -367,8 +367,8 @@ class AiChatUiStateTest {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
 
         assertTrue(source.contains("AiChatWelcomeBrief("))
-        assertTrue(source.contains("text = \"Assistant Note\""))
-        assertTrue(source.contains("text = \"把今天的阅读和想法整理成一条线索\""))
+        assertTrue(source.contains("R.string.my_space_ai"))
+        assertTrue(source.contains("R.string.my_space_chat_hint"))
         assertFalse(source.contains("EmptyState("))
     }
 
@@ -621,7 +621,7 @@ class AiChatUiStateTest {
         val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
 
         assertTrue(home.contains("homeBottomBarVisibleForTab(selectedIndex)"))
-        assertTrue(home.contains("val isAiMode = selectedIndex == AI_CHAT_TAB_INDEX"))
+        assertTrue(home.contains("val isAiMode = aiInputController != null"))
         assertTrue(home.contains("visible = isAiMode"))
         assertTrue(home.contains("HomeBottomBarSurface("))
         assertTrue(home.contains("Icons.Filled.Language"))

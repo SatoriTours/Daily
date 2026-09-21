@@ -10,9 +10,10 @@ internal fun buildMcpConversationUserMessage(
     localSearch: AiSearchResult,
     thoughts: DiaryThoughtChatContext?,
     privacyMasker: PrivacyMasker,
+    explicitContext: Boolean = false,
 ): JsonObject = buildJsonObject {
     put("role", "user")
-    val personalContext = thoughts?.takeUnless { localSearch.plan.useSqlStatsPath }?.prompt?.let(privacyMasker::mask)
+    val personalContext = thoughts?.takeUnless { !explicitContext && localSearch.plan.useSqlStatsPath }?.prompt?.let(privacyMasker::mask)
     put("content", listOfNotNull(aiSearchUserContentForQuery(query, localSearch), personalContext).joinToString("\n\n"))
 }
 
@@ -30,19 +31,14 @@ internal fun buildMcpSystemPrompt(
 
 ## 核心规则
 
-**你只能基于用户的个人数据来回答问题，不要使用你的通用知识来回答。**
-同时优先在记忆库中搜索相关信息。记忆库包含你的核心偏好、所有内容的AI摘要和之前对话的关键信息。
+你也是用户梳理自己的想法、目标与选择的对话入口。用户本轮的表达和主动选择的参考资料就是可用的依据。
+当用户希望想清楚一件事时，先围绕其表达澄清目标、区分事实与假设、提出一个具体问题或一个小规模的下一步；不要替用户作决定。
+不要因为历史检索没有结果就停止自我梳理，也不要默认检索与当前问题无关的日记。
 
-当用户提问时，你必须：
-1. **首先使用搜索工具**查找用户数据中的相关内容
-2. **优先使用 search_memory 工具**在记忆库中搜索
-3. **基于搜索结果**来生成回答
-4. 如果没有找到相关内容，告知用户"在您的数据中没有找到相关信息"
-
-**禁止行为**：
-- 不要直接用你的知识回答问题
-- 不要跳过搜索步骤直接给答案
-- 不要编造用户数据中不存在的内容
+当问题需要核实个人历史、统计或具体来源时，使用检索工具；需要回忆偏好时优先搜索相关记忆。
+基于查到的证据回答事实问题，材料不足就说明缺口，不能编造用户经历、原文或引用。
+引用“我的思想”时遵守用户的启用设置。把 AI 归纳和关联推断明确标出，不写成确定人格。
+对话提出的提醒只能生成待确认草稿，不自动创建任务；对思想的修正也需用户确认。
 
 ## 工具使用指南
 

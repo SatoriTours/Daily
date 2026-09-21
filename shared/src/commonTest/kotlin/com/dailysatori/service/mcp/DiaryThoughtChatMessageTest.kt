@@ -8,6 +8,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DiaryThoughtChatMessageTest {
+    @Test
+    fun explicitlySelectedContextIsRetainedEvenForAStatisticalQuestion() {
+        val stats = localSearch.copy(plan = AiSearchPlan(useSqlStatsPath = true))
+        val content = buildMcpConversationUserMessage("该如何衡量这件事", stats, thoughts, PrivacyMasker(), explicitContext = true)
+            .getValue("content").jsonPrimitive.content
+        assertTrue(content.contains("先做重要的事情"))
+        assertTrue(content.startsWith("该如何衡量这件事"))
+    }
     private val localSearch = AiSearchResult(AiSearchPlan(), emptyList(), emptyList(), "用户问题及原有检索证据")
     private val reference = McpSearchResult(7, "diary", "日记", "先做重要的事情", "2026-09-11")
     private val thoughts = DiaryThoughtChatContext("准则：先做重要的事情 [diary_7]；用户修正：联系号码13912345678", listOf(reference))

@@ -70,6 +70,7 @@ val appModule: Module = module {
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
     single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }
     single { UnifiedNewsGenerateTaskHandler(get()) }
+    single { com.dailysatori.core.task.NewsOpportunityTaskHandler(get()) }
     single { ReminderAiParseTaskHandler(get(), get<ReminderAiInterpretationRemote>(), get<ReminderBatchCodec>(), get(), get()) }
     single {
         AsyncTaskHandlerRegistry(
@@ -82,6 +83,7 @@ val appModule: Module = module {
                 get<BookViewpointGenerateTaskHandler>(),
                 get<RemoteArticleSyncTaskHandler>(),
                 get<UnifiedNewsGenerateTaskHandler>(),
+                get<com.dailysatori.core.task.NewsOpportunityTaskHandler>(),
                 get<ReminderAiParseTaskHandler>(),
                 get<DiaryTranscriptionCoordinator>(),
                 get<DiaryKnowledgeCoordinator>(),

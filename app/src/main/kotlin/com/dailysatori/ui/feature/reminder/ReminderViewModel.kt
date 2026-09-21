@@ -630,18 +630,18 @@ class ReminderViewModel(
 
     fun delete(id: String) = mutateAndRecompute(id) { repository.delete(id) }
 
-    fun saveEditor(existing: Reminder?, editor: ReminderEditorState, onResult: (String?, ReminderEditorState) -> Unit) {
+    fun saveEditor(existing: Reminder?, editor: ReminderEditorState, creationId: String? = null, onResult: (String?, ReminderEditorState) -> Unit) {
         if (!editor.canSave) return
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val id = existing?.id ?: UUID.randomUUID().toString()
+                    val id = existing?.id ?: creationId ?: UUID.randomUUID().toString()
                     if (existing == null) {
-                        repository.createConfirmed(
+                        repository.createConfirmedOnce(
                             ReminderDraft(id, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.profile, recurrence = editor.recurrence),
                             editor.profile,
                         )
-                    } else {
+                    } else if (existing != null) {
                         check(repository.update(id, ReminderEdit(existing.version, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.recurrence, editor.profile)))
                     }
                     coordinator.recompute(id)

@@ -73,6 +73,11 @@ fun AiChatScreen(
     onArticleClick: (Long) -> Unit = {},
     onMyClick: () -> Unit = {},
     onInputControllerChange: (AiChatInputController?) -> Unit = {},
+    onBack: (() -> Unit)? = null,
+    explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null,
+    contextLabel: String = "",
+    includeThoughts: Boolean = true,
+    onRemoveContext: () -> Unit = {},
 ) {
     val viewModel: AiChatViewModel = koinViewModel()
     val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
@@ -81,7 +86,7 @@ fun AiChatScreen(
     val referenceDetailState by referenceDetailViewModel.state.collectAsState()
     val reminderState by reminderViewModel.state.collectAsState()
     val reminderProfiles by reminderViewModel.profiles.collectAsState()
-    var inputText by remember { mutableStateOf("") }
+    var inputText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showReferenceSheet by remember { mutableStateOf(false) }
     val loadOlderMessages = viewModel::loadOlderMessages
@@ -159,7 +164,7 @@ fun AiChatScreen(
 
     val sendCurrentInput = {
         if (inputText.isNotBlank()) {
-            viewModel.sendMessage(inputText)
+            viewModel.sendMessage(inputText, explicitContext, includeThoughts)
             inputText = ""
         }
     }
@@ -183,12 +188,16 @@ fun AiChatScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
+            Column {
             AppTopBar(
-                title = "AI 助手",
-                showBack = false,
+                title = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_chat),
+                showBack = onBack != null,
+                onBack = onBack,
                 myNavigationLabel = "我的",
                 onMyNavigationClick = onMyClick,
             )
+            com.dailysatori.ui.feature.myspace.PersonalChatContextBanner(contextLabel, explicitContext != null, includeThoughts, onRemoveContext)
+            }
         },
     ) { padding ->
         if (state.messages.isEmpty()) {
@@ -210,7 +219,7 @@ fun AiChatScreen(
                             message = message,
                             onReferenceClick = ::openReference,
                             onDelete = viewModel::deleteMessage,
-                            onReAsk = viewModel::reAsk,
+                            onReAsk = { viewModel.reAsk(it, explicitContext, includeThoughts) },
                         )
                         message.reminderDrafts.forEach { draft ->
                             LaunchedEffect(draft.id) { reminderViewModel.registerDraft(draft) }
@@ -271,13 +280,13 @@ private fun AiChatWelcomeBrief(modifier: Modifier = Modifier) {
             ) {}
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(
-                    text = "Assistant Note",
+                    text = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_ai),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "把今天的阅读和想法整理成一条线索",
+                    text = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_chat_hint),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,

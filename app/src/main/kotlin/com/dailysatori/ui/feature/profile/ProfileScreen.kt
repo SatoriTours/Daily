@@ -45,7 +45,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    AppScaffold(title = "个人中心", onBack = onBack) { modifier ->
+    AppScaffold(title = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_settings), onBack = onBack) { modifier ->
         LazyColumn(
             modifier = modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),

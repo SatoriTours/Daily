@@ -16,6 +16,15 @@ import kotlinx.datetime.TimeZone
 
 class ReminderRepositoryBehaviorTest {
     @Test
+    fun confirmingTheSameOpportunityTwiceKeepsOneOriginalReminder() = withRepository { _, repository ->
+        val draft = ReminderDraft("news-opportunity:one", "先做一次小实验", LocalDate(2026, 10, 1), LocalDate(2026, 10, 1), LocalTime(9, 0), ReminderActiveDayRule.Daily)
+        val profile = ReminderProfileSnapshot.standard()
+        val first = repository.createConfirmedOnce(draft, profile)
+        val repeated = repository.createConfirmedOnce(draft.copy(content = "重复点击不应覆盖"), profile)
+        assertEquals(first, repeated)
+        assertEquals("先做一次小实验", repository.get(draft.id)?.content)
+    }
+    @Test
     fun updateAcceptsSheetStyleEditOnAppCreatedRow() = withRepository { _, repository ->
         val created = repository.createConfirmed(
             draft = ReminderDraft(

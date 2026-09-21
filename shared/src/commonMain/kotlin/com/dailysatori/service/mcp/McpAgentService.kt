@@ -7,6 +7,7 @@ import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.book.BookSearchResult
 import com.dailysatori.service.reminder.ReminderDraft
 import com.dailysatori.service.diary.DiaryThoughtChatContextProvider
+import com.dailysatori.service.diary.DiaryThoughtChatContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 
@@ -49,15 +50,17 @@ class McpAgentService(
         query: String,
         onStep: (String, String) -> Unit,
         onChunk: suspend (String) -> Unit,
+        explicitContext: DiaryThoughtChatContext? = null,
+        includeThoughts: Boolean = true,
     ): McpAgentResult = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
         val reminderDrafts = mutableListOf<ReminderDraft>()
         try {
-            processQueryWithStreamingFinalAnswer(query, onStep, onChunk, reminderDrafts)
+            processQueryWithStreamingFinalAnswer(query, onStep, onChunk, reminderDrafts, explicitContext, includeThoughts)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.w(e) { "Streaming AI chat failed, falling back to non-streaming path" }
-            processQuery(query, onStep, reminderDrafts)
+            processQuery(query, onStep, reminderDrafts, explicitContext, includeThoughts)
         }
     }
 
@@ -72,6 +75,8 @@ class McpAgentService(
         query: String,
         onStep: (String, String) -> Unit,
         reminderDrafts: MutableList<ReminderDraft>,
+        explicitContext: DiaryThoughtChatContext? = null,
+        includeThoughts: Boolean = true,
     ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
         val localSearch = aiSearchOrchestrator.search(query)
@@ -109,7 +114,7 @@ class McpAgentService(
             updateStep("正在理解您的问题...", "processing")
 
             val privacyMasker = PrivacyMasker()
-            val messages = conversationMessages(query, localSearch, collectedResults, privacyMasker)
+            val messages = conversationMessages(query, localSearch, collectedResults, privacyMasker, explicitContext, includeThoughts)
             val tools = toolRegistry.buildToolDefinitions()
             val apiUrl = config.api_address.trimEnd('/')
             val apiToken = config.api_token
@@ -186,6 +191,8 @@ class McpAgentService(
         onStep: (String, String) -> Unit,
         onChunk: suspend (String) -> Unit,
         reminderDrafts: MutableList<ReminderDraft>,
+        explicitContext: DiaryThoughtChatContext?,
+        includeThoughts: Boolean,
     ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
         val localSearch = aiSearchOrchestrator.search(query)
@@ -213,7 +220,7 @@ class McpAgentService(
         updateStep("正在理解您的问题...", "processing")
 
         val privacyMasker = PrivacyMasker()
-        val messages = conversationMessages(query, localSearch, collectedResults, privacyMasker)
+        val messages = conversationMessages(query, localSearch, collectedResults, privacyMasker, explicitContext, includeThoughts)
         val tools = toolRegistry.buildToolDefinitions()
         val apiUrl = config.api_address.trimEnd('/')
         val apiToken = config.api_token
@@ -286,12 +293,14 @@ class McpAgentService(
         localSearch: AiSearchResult,
         collectedResults: MutableList<McpSearchResult>,
         privacyMasker: PrivacyMasker,
+        explicitContext: DiaryThoughtChatContext?,
+        includeThoughts: Boolean,
     ): MutableList<JsonObject> {
-        val thoughts = if (localSearch.plan.useSqlStatsPath) null else runCatching { thoughtContextProvider?.getContext() }.getOrNull()
+        val thoughts = explicitContext ?: if (!includeThoughts || localSearch.plan.useSqlStatsPath) null else runCatching { thoughtContextProvider?.getContext() }.getOrNull()
         collectedResults.addAll(thoughts?.references.orEmpty())
         return mutableListOf(
             buildJsonObject { put("role", "system"); put("content", buildSystemPrompt()) },
-            buildMcpConversationUserMessage(query, localSearch, thoughts, privacyMasker),
+            buildMcpConversationUserMessage(query, localSearch, thoughts, privacyMasker, explicitContext != null),
         )
     }
 

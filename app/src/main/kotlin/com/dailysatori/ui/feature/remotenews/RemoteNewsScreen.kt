@@ -73,6 +73,7 @@ fun RemoteNewsScreen(onArticleClick: (Long) -> Unit = {}) {
         state.mode == RemoteNewsMode.CRAYFISH -> CrayfishNewsScreen(onBackToRemoteNews = { viewModel.switchMode(RemoteNewsMode.DIGESTS) })
         state.selectedArticle != null -> RemoteArticleDetailScreen(
             article = state.selectedArticle!!,
+            localArticleId = state.selectedArticleLocalId,
             onBack = viewModel::closeArticle,
             isFavorite = state.selectedArticleIsFavorite,
             showFavoriteAction = true,

@@ -233,7 +233,7 @@ class AiChatViewModel(
         }
     }
 
-    fun sendMessage(content: String) {
+    fun sendMessage(content: String, explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null, includeThoughts: Boolean = true) {
         if (_state.value.isProcessing) return
         val userMessage = ChatMessageUi(
             id = generateId(),
@@ -255,6 +255,8 @@ class AiChatViewModel(
                 val steps = mutableListOf<String>()
                 val result = mcpAgentService.processQueryStreaming(
                     query = content,
+                    explicitContext = explicitContext,
+                    includeThoughts = includeThoughts,
                     onStep = { step, status ->
                         if (activeAssistantMessageId == assistantMessageId) {
                             _state.update { it.copy(currentStep = step) }
@@ -322,9 +324,9 @@ class AiChatViewModel(
         }
     }
 
-    fun reAsk(message: ChatMessageUi) {
+    fun reAsk(message: ChatMessageUi, explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null, includeThoughts: Boolean = true) {
         val content = reAskContentForMessage(_state.value.messages, message) ?: return
-        sendMessage(content)
+        sendMessage(content, explicitContext, includeThoughts)
     }
 
     fun clearMessages() {

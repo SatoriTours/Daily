@@ -115,6 +115,10 @@ private fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNe
         BackHandler(onBack = viewModel::closeSourceDetail)
         RemoteArticleDetailScreen(
             article = remoteArticle,
+            sourceIdentity = ((state.navigationTarget as? UnifiedNewsNavigationTarget.RemoteArticle)?.remoteSourceId
+                ?: (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id)?.toString()
+                ?: remoteArticle.domain ?: remoteArticle.feedName.orEmpty(),
+            localArticleId = state.selectedRemoteArticleLocalId,
             onBack = viewModel::closeSourceDetail,
             isFavorite = state.selectedRemoteArticleIsFavorite,
             showFavoriteAction = true,

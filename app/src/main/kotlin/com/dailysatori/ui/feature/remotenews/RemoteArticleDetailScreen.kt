@@ -53,6 +53,8 @@ import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
 import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.feature.myspace.toReadNewsArticle
+import com.dailysatori.ui.feature.myspace.MarkNewsReadButton
 
 private val RemoteImagePlaceholderRegex = Regex(
     """[!！](?:\[[^]]*]|图片|配图|插图|图像|image|photo|figure)""",
@@ -66,6 +68,8 @@ fun RemoteArticleDetailScreen(
     isFavorite: Boolean = false,
     onFavoriteClick: () -> Unit = {},
     showFavoriteAction: Boolean = false,
+    sourceIdentity: String = article.domain ?: article.feedName.orEmpty(),
+    localArticleId: Long? = null,
 ) {
     val density = LocalDensity.current
     var showMenu by remember { mutableStateOf(false) }
@@ -78,6 +82,7 @@ fun RemoteArticleDetailScreen(
         title = article.domain ?: article.feedName ?: "文章",
         onBack = onBack,
         actions = {
+            MarkNewsReadButton(article.toReadNewsArticle(sourceIdentity, localArticleId))
             RemoteArticleDetailActions(
                 article = article,
                 isFavorite = isFavorite,

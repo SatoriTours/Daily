@@ -30,6 +30,9 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Book
@@ -61,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.feature.aichat.AiChatInputController
 import com.dailysatori.ui.feature.aichat.AiChatScreen
 import com.dailysatori.ui.feature.aichat.ChatInputField
+import com.dailysatori.ui.feature.myspace.MySpaceScreen
 import com.dailysatori.ui.feature.book.BooksScreen
 import com.dailysatori.ui.feature.diary.DiaryScreen
 import com.dailysatori.core.recording.DiaryRecordingOpenRequest
@@ -96,10 +100,10 @@ val tabs = listOf(
     TabItem("今日", Icons.Filled.Language, Icons.Outlined.Language),
     TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    TabItem("AI", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome),
+    TabItem("我的", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
-private val HomeBottomBarHeight = Height.navBar
+private val HomeBottomBarHeight = Height.navBar + Spacing.m
 private val HomeBottomBarIconSize = IconSize.xl
 private val HomeBottomBarHazeBlurRadius = 10.dp
 private const val HomeBottomBarSlideDurationMillis = 480
@@ -112,6 +116,8 @@ private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f
 
 fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
+const val MY_TAB_INDEX = AI_CHAT_TAB_INDEX
+
 @Composable
 fun HomeScreen(
     selectedBookId: Long? = null,
@@ -122,10 +128,16 @@ fun HomeScreen(
     onArticleClick: (Long) -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onThoughts: () -> Unit = {},
+    onReminders: () -> Unit = {},
+    onReminder: (String) -> Unit = {},
+    onAddReminder: () -> Unit = {},
+    onOpportunities: () -> Unit = {},
+    onOpportunity: (String) -> Unit = {},
+    onChat: () -> Unit = {},
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
-    var aiInputController by remember { mutableStateOf<AiChatInputController?>(null) }
     val reminderViewModel: ReminderViewModel = koinViewModel()
     val reminders by reminderViewModel.reminders.collectAsState()
     val today by remember { localDayTicker() }.collectAsState(initial = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
@@ -160,7 +172,7 @@ fun HomeScreen(
                 ) { index ->
                     when (index) {
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today))
-                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick)
+                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick, onThoughtsClick = onThoughts)
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,
@@ -169,10 +181,15 @@ fun HomeScreen(
                             onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
                             onMyClick = onProfileClick,
                         )
-                        AI_CHAT_TAB_INDEX -> AiChatScreen(
-                            onArticleClick = onAiArticleClick,
-                            onMyClick = onProfileClick,
-                            onInputControllerChange = { aiInputController = it },
+                        MY_TAB_INDEX -> MySpaceScreen(
+                            onThoughts = onThoughts,
+                            onReminders = onReminders,
+                            onReminder = onReminder,
+                            onAddReminder = onAddReminder,
+                            onOpportunities = onOpportunities,
+                            onOpportunity = onOpportunity,
+                            onChat = onChat,
+                            onManagement = onProfileClick,
                         )
                         else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick)
                     }
@@ -185,7 +202,7 @@ fun HomeScreen(
                 ) {
                     HomeBottomBarSurface(
                         selectedIndex = selectedIndex,
-                        aiInputController = aiInputController,
+                        aiInputController = null,
                         hazeState = hazeState,
                         onTabSelected = { selectedIndex = it },
                         onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
@@ -204,7 +221,7 @@ private fun HomeBottomBarSurface(
     onTabSelected: (Int) -> Unit,
     onHomeClick: () -> Unit,
 ) {
-    val isAiMode = selectedIndex == AI_CHAT_TAB_INDEX
+    val isAiMode = aiInputController != null
     Box(
         modifier = Modifier
             .navigationBarsPadding()
@@ -250,6 +267,11 @@ private fun HomeBottomBarSurface(
 private fun homeBottomBarEnterTransition(): EnterTransition =
     slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis)) + fadeIn()
 
+@Composable
+internal fun PersonalChatBottomBar(controller: AiChatInputController?, hazeState: HazeState, onBack: () -> Unit) {
+    HomeBottomBarSurface(MY_TAB_INDEX, controller, hazeState, {}, onBack)
+}
+
 private fun homeBottomBarExitTransition(): ExitTransition =
     slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis)) + fadeOut(
         animationSpec = tween(HomeBottomBarSlideDurationMillis),
@@ -274,8 +296,8 @@ private fun AiCompactInputRow(
         ) {
             IconButton(onClick = onHomeClick, modifier = Modifier.size(HomeBottomBarHeight - Spacing.s)) {
                 Icon(
-                    Icons.Filled.Language,
-                    contentDescription = "回到今日",
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回",
                     modifier = Modifier.size(HomeBottomBarIconSize),
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -359,8 +381,8 @@ private fun HomeTabNavigationBar(
                         modifier = Modifier.size(HomeBottomBarIconSize),
                     )
                 },
-                label = null,
-                alwaysShowLabel = false,
+                label = { androidx.compose.material3.Text(if (index == MY_TAB_INDEX) androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_title) else tab.label, style = MaterialTheme.typography.labelSmall) },
+                alwaysShowLabel = true,
                 selected = selectedIndex == index,
                 onClick = { onTabSelected(index) },
                 colors = NavigationBarItemDefaults.colors(

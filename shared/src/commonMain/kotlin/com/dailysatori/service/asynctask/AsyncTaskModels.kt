@@ -26,6 +26,7 @@ enum class AsyncTaskType(val displayName: String) {
     diary_attachment_transcribe("日记附件转写"),
     diary_knowledge_extract("日记知识提取"),
     reminder_ai_parse("提醒智能解析"),
+    news_opportunity_analysis("新闻机会点分析"),
 }
 
 data class AsyncTaskFilter(

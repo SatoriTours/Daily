@@ -48,6 +48,12 @@ import com.dailysatori.service.book.DoubanSuggestSearchEngine
 import com.dailysatori.service.book.WeReadSkillService
 import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
+import com.dailysatori.service.opportunity.AiNewsOpportunityAnalyzer
+import com.dailysatori.service.opportunity.DiaryThoughtOpportunityContext
+import com.dailysatori.service.opportunity.NewsOpportunityContext
+import com.dailysatori.service.opportunity.NewsOpportunityService
+import com.dailysatori.service.opportunity.NewsOpportunityStore
+import com.dailysatori.service.opportunity.OpportunityAnalyzer
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.AiSearchOrchestrator
 import com.dailysatori.service.mcp.McpAgentService
@@ -127,6 +133,7 @@ val sharedModule: Module = module {
     single { RemoteNewsSourceRepository(get(), get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
+    single { NewsOpportunityStore(get()) }
     single { SkillConfigRepository(get(), get()) }
     single<SkillConfigDataSource> { get<SkillConfigRepository>() }
     single { TagRepository(get()) }
@@ -138,6 +145,9 @@ val sharedModule: Module = module {
     single { I18nService(get()) }
     single { AiConfigService(get()) }
     single { AiService(get()) }
+    single<OpportunityAnalyzer> { AiNewsOpportunityAnalyzer(get(), get()) }
+    single<NewsOpportunityContext> { DiaryThoughtOpportunityContext(get(), get()) }
+    single { NewsOpportunityService(get(), get(), get()) }
     single { AiModelCatalogService(get(), get()) }
     single { BackupPasswordStore(get()) }
     single { SecretCipher(get()) }
