@@ -95,7 +95,9 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             }, onDiscuss = { navController.navigate(PersonalChatRoute("thought", thoughtChatKey(it))) })
         }
         composable<MyOpportunitiesRoute> {
-            NewsOpportunityListScreen(onBack = { navController.popBackStack() }, onOpen = { navController.navigate(MyOpportunityRoute(it)) })
+            NewsOpportunityListScreen(onBack = { navController.popBackStack() },
+                onOpen = { navController.navigate(MyOpportunityRoute(it)) },
+                onArticle = { navController.navigate(ArticleDetailRoute(it)) })
         }
         composable<MyOpportunityRoute> { entry ->
             val route = entry.toRoute<MyOpportunityRoute>()

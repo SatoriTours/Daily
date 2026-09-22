@@ -5,13 +5,18 @@ import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.opportunity.NewsOpportunityService
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : AsyncTaskHandler {
     override val type = TYPE
 
     override suspend fun execute(taskId: Long, payloadJson: String, checkpointJson: String, reporter: AsyncTaskProgressReporter): AsyncTaskExecutionResult {
         return try {
-            service.analyze { current, total, message ->
+            val automatic = Json.parseToJsonElement(payloadJson).jsonObject["automatic"]?.jsonPrimitive?.booleanOrNull == true
+            service.analyze(automatic = automatic) { current, total, message ->
                 reporter.report(current.toLong(), total.toLong(), message)
             }
             AsyncTaskExecutionResult.Success()

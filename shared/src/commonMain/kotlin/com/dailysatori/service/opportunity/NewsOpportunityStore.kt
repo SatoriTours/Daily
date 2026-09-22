@@ -26,6 +26,10 @@ internal data class OpportunityArchive(
     val items: List<NewsOpportunity> = emptyList(),
     val checkpoints: List<OpportunityCheckpoint> = emptyList(),
     val focus: String = "",
+    val candidates: List<ReadNewsArticle> = emptyList(),
+    val lastAttemptAt: Long = 0,
+    val lastAttemptContext: String = "",
+    val lastError: String? = null,
 )
 
 @Serializable

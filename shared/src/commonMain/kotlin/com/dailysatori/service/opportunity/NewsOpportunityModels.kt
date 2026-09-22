@@ -36,6 +36,7 @@ data class OpportunityState(
     val items: List<NewsOpportunity> = emptyList(),
     val focus: String = "",
     val readCount: Int = 0,
+    val candidateCount: Int = 0,
     val pendingCount: Int = 0,
     val isUpdating: Boolean = false,
     val progress: String = "",
@@ -59,6 +60,10 @@ data class OpportunityAnalysisInput(
     val focus: String,
     val thoughtContext: String?,
 )
+
+fun interface OpportunityCandidateSource {
+    suspend fun load(): List<ReadNewsArticle>
+}
 
 fun interface OpportunityAnalyzer {
     suspend fun analyze(input: OpportunityAnalysisInput): OpportunityDraft?

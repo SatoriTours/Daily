@@ -52,8 +52,8 @@ class HomeIaTest {
         assertTrue(source.contains("R.string.my_space_title"))
         assertTrue(source.contains("indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
         assertTrue(source.contains("consumeWindowInsets(innerPadding)"))
-        assertTrue(source.contains("alwaysShowLabel = true"))
-        assertTrue(source.contains("contentDescription = tab.label"))
+        assertFalse(source.contains("alwaysShowLabel = true"))
+        assertTrue(source.contains("else tab.label"))
     }
 
     @Test

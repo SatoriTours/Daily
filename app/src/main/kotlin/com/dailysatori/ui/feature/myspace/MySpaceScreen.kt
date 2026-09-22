@@ -12,13 +12,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import com.dailysatori.ui.feature.article.openArticleUrl
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
-import com.dailysatori.ui.feature.diary.diaryThoughtPresentation
 import com.dailysatori.ui.feature.reminder.ReminderListItemUi
 import com.dailysatori.ui.feature.reminder.ReminderRepeatLabel
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
@@ -37,6 +38,7 @@ fun MySpaceScreen(
     onAddReminder: () -> Unit,
     onOpportunities: () -> Unit,
     onOpportunity: (String) -> Unit,
+    onArticle: (Long) -> Unit,
     onChat: () -> Unit,
     onManagement: () -> Unit,
 ) {
@@ -47,8 +49,10 @@ fun MySpaceScreen(
     val allReminders by reminders.reminders.collectAsStateWithLifecycle()
     val opportunities by viewModel.state.collectAsStateWithLifecycle()
     val failure by viewModel.operationFailed.collectAsStateWithLifecycle()
+    val task by viewModel.task.collectAsStateWithLifecycle()
+    val busy = opportunities.isUpdating || task?.status in listOf("queued", "running", "retrying")
     val upcoming = myUpcomingReminders(allReminders, Clock.System.todayIn(TimeZone.currentSystemDefault()))
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(thoughtState.archive.generatedAt, thoughtState.useInChat) { viewModel.recommend() }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
@@ -79,11 +83,19 @@ fun MySpaceScreen(
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 MySectionHeading(stringResource(R.string.my_space_useful), onOpportunities)
-                if (opportunities.isUpdating || opportunities.error != null) Text(opportunities.error ?: opportunities.progress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (failure) Text(stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
-                val pending = opportunityItems(opportunities.items, OpportunityFilter.PENDING).take(2)
-                if (pending.isEmpty()) MyEmptyBlock(stringResource(R.string.my_space_opportunity_empty), stringResource(R.string.my_space_opportunity_hint), stringResource(R.string.my_space_expand), onOpportunities)
-                else pending.forEach { entry -> OpportunitySummary(entry) { onOpportunity(entry.id) } }
+                if (busy) Text(opportunities.progress.ifBlank { stringResource(R.string.my_space_queued) }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val error = opportunities.error ?: task?.last_error_message?.takeIf { task?.status == "failed" }
+                if (failure || error != null) {
+                    Text(error ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { viewModel.analyze() }, enabled = !busy) { Text(stringResource(R.string.my_space_retry)) }
+                }
+                val entries = recommendedArticles(opportunities.items)
+                if (entries.isEmpty() && !busy) MyEmptyBlock(stringResource(R.string.my_space_opportunity_empty), stringResource(when {
+                    !opportunities.hasAnalysisContext -> R.string.my_space_analyze_missing
+                    opportunities.candidateCount == 0 -> R.string.my_space_opportunity_hint
+                    else -> R.string.my_space_no_relation
+                }), stringResource(R.string.my_space_expand), onOpportunities)
+                entries.forEach { entry -> OpportunitySummary(entry, onArticle) { onOpportunity(entry.id) } }
             }
         }
     }
@@ -99,17 +111,36 @@ internal fun MySectionHeading(title: String, onAll: () -> Unit) {
 
 @Composable
 private fun MyThoughtSummary(state: DiaryThoughtState, onClick: () -> Unit) {
-    val highlights = diaryThoughtPresentation(state.archive.thoughts).highlights
+    val previews = myThoughtPreviews(state.archive.thoughts)
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        if (highlights.isEmpty()) {
+        if (previews.isEmpty()) {
             MyEmptyBlock(stringResource(R.string.my_space_thought_empty), stringResource(R.string.my_space_thought_empty_hint), stringResource(R.string.my_space_organize), onClick)
         } else {
-            Text(highlights.first().statement, style = MaterialTheme.typography.titleLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
-            highlights.drop(1).forEach { Text(it.statement, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            previews.forEachIndexed { index, preview ->
+                if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.s), color = MaterialTheme.colorScheme.outlineVariant)
+                MyThoughtPreviewBlock(preview)
+            }
+            TextButton(onClick = onClick) { Text(stringResource(R.string.my_space_thought_more)) }
             val updated = state.archive.generatedAt.takeIf { it > 0 }?.let { java.text.DateFormat.getDateInstance().format(java.util.Date(it)) }
             Text(listOfNotNull(stringResource(R.string.my_space_thought_meta, state.archive.diaryCount), updated).joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.isUpdating || state.error != null || state.isPaused) Text(state.error ?: state.progress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun MyThoughtPreviewBlock(preview: MyThoughtPreview) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(
+            stringResource(if (preview.isInference) R.string.my_space_thought_inferred else R.string.my_space_thought_explicit),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(preview.statement, style = MaterialTheme.typography.bodyLarge)
+        Column(Modifier.padding(start = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(stringResource(R.string.my_space_thought_quote), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(preview.quote, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -148,10 +179,20 @@ private fun reminderRepeatText(label: ReminderRepeatLabel): String = stringResou
 })
 
 @Composable
-internal fun OpportunitySummary(item: NewsOpportunity, onClick: () -> Unit) {
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+internal fun OpportunitySummary(item: NewsOpportunity, onArticle: (Long) -> Unit, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val localArticleId = item.article.localArticleId
+    Column(Modifier.fillMaxWidth().clickable {
+        when {
+            localArticleId != null -> onArticle(localArticleId)
+            item.article.url?.startsWith("https://") == true || item.article.url?.startsWith("http://") == true -> openArticleUrl(context, item.article.url)
+            else -> onClick()
+        }
+    }.padding(vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(item.article.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(item.fact, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
         Text(item.relevance, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text("${item.category} · ${item.article.source}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextButton(onClick = onClick) { Text(stringResource(R.string.my_space_relevance)) }
     }
 }

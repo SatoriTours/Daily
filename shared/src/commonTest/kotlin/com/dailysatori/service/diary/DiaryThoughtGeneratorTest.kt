@@ -1,5 +1,6 @@
 package com.dailysatori.service.diary
 
+import com.dailysatori.service.externalfavorites.sha256Hex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -20,6 +21,32 @@ class DiaryThoughtGeneratorTest {
         listOf(DiaryThoughtEvidence(1, "先把重要的事情做好")),
     )
     private val response get() = Json.encodeToString(DiaryThoughtBatch(listOf(thought)))
+
+    @Test
+    fun oldAbstractStyleArchiveIsRegeneratedInsteadOfReusingItsChunks() = runBlocking {
+        val legacyFingerprint = sha256Hex("diary-thought-v1:\n1:100:${sha256Hex(source.content)}")
+        val old = thought.copy(statement = "以价值排序实现行动聚焦")
+        val previous = DiaryThoughtArchive(
+            fingerprint = legacyFingerprint, thoughts = listOf(old),
+            chunks = listOf(DiaryThoughtChunk(legacyFingerprint, listOf(old))), diaryCount = 1,
+            mergeCheckpoint = DiaryThoughtMergeCheckpoint(legacyFingerprint, 1, listOf(old)),
+        )
+        val clearer = thought.copy(statement = "你今天决定先把重要的事做好，再处理琐事。这是这次安排事情的选择，不代表你一直如此。")
+        var calls = 0
+        val generator = DiaryThoughtGenerator { _, _ ->
+            calls++
+            Json.encodeToString(DiaryThoughtBatch(listOf(clearer)))
+        }
+
+        val result = generator.generate(listOf(source), "", previous)
+
+        assertEquals(listOf(clearer), result.thoughts)
+        assertEquals(thought.evidence, result.thoughts.single().evidence)
+        assertEquals(2, calls, "旧版本的抽取和合并缓存都需要更新")
+        assertEquals(null, result.mergeCheckpoint)
+        assertEquals(result, generator.generate(listOf(source), "", result))
+        assertEquals(2, calls, "更新后的档案不应重复生成")
+    }
 
     @Test
     fun mergerResolvesEvidenceReferencesWithoutAskingAiToCopyQuotes() = runBlocking {

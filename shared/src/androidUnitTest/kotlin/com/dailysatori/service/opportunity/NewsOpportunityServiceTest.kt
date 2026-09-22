@@ -5,6 +5,7 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -13,6 +14,102 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NewsOpportunityServiceTest {
+    @Test
+    fun unreadCandidatesProduceSummariesWithoutMarkingThemRead() = withFixture(candidates = listOf(article(readAt = 0))) { fixture ->
+        fixture.service.analyze()
+        val result = fixture.service.state.value.items.single()
+        assertEquals("标题", result.article.title)
+        assertEquals("原文事实", result.fact)
+        assertEquals("关联推断", result.relevance)
+        assertEquals(1L, result.article.localArticleId)
+        assertEquals(0, fixture.service.state.value.readCount)
+        assertEquals("已验证思想", fixture.analyzer.inputs.single().thoughtContext)
+        fixture.newService().analyze()
+        assertEquals(1, fixture.analyzer.inputs.size)
+    }
+
+    @Test
+    fun sameCandidateAndReadArticleAreAnalyzedOnlyOnce() = withFixture(candidates = listOf(article(readAt = 0))) { fixture ->
+        fixture.service.markRead(article())
+        fixture.service.analyze()
+        assertEquals(1, fixture.analyzer.inputs.size)
+        assertEquals(1, fixture.service.state.value.items.size)
+    }
+
+    @Test
+    fun unrelatedUnreadCandidatesDoNotCreateFakeRecommendations() = withFixture(
+        candidates = listOf(article(readAt = 0)), results = mutableListOf(null),
+    ) { fixture ->
+        fixture.service.analyze()
+        assertEquals(1, fixture.analyzer.inputs.size)
+        assertTrue(fixture.service.state.value.items.isEmpty())
+        fixture.service.analyze()
+        assertEquals(1, fixture.analyzer.inputs.size)
+    }
+
+    @Test
+    fun automaticDiscoveryFetchesUnreadNewsOnceAcrossReopening() {
+        var loads = 0
+        withFixture(candidateSource = OpportunityCandidateSource { loads++; listOf(article(readAt = 0)) }) { fixture ->
+            fixture.service.analyze(automatic = true)
+            assertEquals(1, fixture.service.state.value.items.size)
+            fixture.newService().analyze(automatic = true)
+            assertEquals(1, loads)
+            assertEquals(1, fixture.analyzer.inputs.size)
+            fixture.service.saveFocus("新项目")
+            fixture.service.analyze(automatic = true)
+            assertEquals(2, loads)
+            assertEquals(2, fixture.analyzer.inputs.size)
+        }
+    }
+
+    @Test
+    fun discoveryBoundsAiWorkAndSkipsUnreadableCandidates() = withFixture(
+        candidateSource = OpportunityCandidateSource {
+            listOf(article(content = "")) + (1..30).map { article(key = "news-$it", readAt = 0) }
+        },
+    ) { fixture ->
+        fixture.service.analyze(automatic = true)
+        assertEquals(20, fixture.analyzer.inputs.size)
+        assertEquals(20, fixture.service.state.value.candidateCount)
+        assertEquals(0, fixture.service.state.value.readCount)
+    }
+
+    @Test
+    fun automaticDiscoveryWithoutPersonalContextDoesNotFetchOrAnalyze() = withFixture(
+        context = TrackingContext(false, "私密思想"),
+        candidateSource = OpportunityCandidateSource { error("Must not fetch without personal context") },
+    ) { fixture ->
+        fixture.service.analyze(automatic = true)
+        assertEquals(0, fixture.context.reads)
+        assertTrue(fixture.analyzer.inputs.isEmpty())
+        assertNull(fixture.service.state.value.error)
+    }
+
+    @Test
+    fun failedAutomaticDiscoveryPreservesResultsAndManualRetryBypassesCooldown() {
+        var loads = 0
+        withFixture(candidateSource = OpportunityCandidateSource {
+            loads++
+            if (loads == 2) error("network secret")
+            listOf(article(readAt = 0))
+        }) { fixture ->
+            fixture.service.analyze(automatic = true)
+            val previous = fixture.service.state.value.items.single()
+            fixture.service.saveFocus("新关注")
+            assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze(automatic = true) }
+            assertEquals(previous, fixture.service.state.value.items.single())
+            val reopened = fixture.newService()
+            reopened.analyze(automatic = true)
+            assertEquals(2, loads)
+            assertEquals("分析失败，请稍后重试", reopened.state.value.error)
+            fixture.service.analyze()
+            assertEquals(3, loads)
+            assertEquals(0, fixture.service.state.value.pendingCount)
+            assertNull(fixture.service.state.value.error)
+        }
+    }
+
     @Test
     fun failedDiskWriteDoesNotAdvanceInMemoryCheckpoint() = withFixture { fixture ->
         fixture.service.markRead(article())
@@ -165,16 +262,19 @@ class NewsOpportunityServiceTest {
     private fun withFixture(
         results: MutableList<OpportunityDraft?> = mutableListOf(draft()),
         context: TrackingContext = TrackingContext(enabled = true, value = "已验证思想"),
+        candidates: List<ReadNewsArticle> = emptyList(),
+        candidateSource: OpportunityCandidateSource? = null,
         block: suspend (Fixture) -> Unit,
     ) = runBlocking {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
             val settings = SettingRepository(DailySatoriDatabase(driver))
+            settings.upsert("news_opportunity_archive_v1", "{\"candidates\":${Json.encodeToString(candidates)}}")
             val analyzer = FakeAnalyzer(results)
             val store = NewsOpportunityStore(settings)
-            val service = NewsOpportunityService(store, analyzer, context)
-            block(Fixture(service, analyzer, context, driver) { NewsOpportunityService(NewsOpportunityStore(settings), analyzer, context) })
+            val service = NewsOpportunityService(store, analyzer, context, candidateSource)
+            block(Fixture(service, analyzer, context, driver) { NewsOpportunityService(NewsOpportunityStore(settings), analyzer, context, candidateSource) })
         } finally {
             driver.close()
         }

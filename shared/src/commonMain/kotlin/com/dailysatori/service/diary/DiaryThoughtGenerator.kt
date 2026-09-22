@@ -93,7 +93,7 @@ fun DiaryThoughtArchive.supportedBy(sources: List<DiaryThoughtSource>): DiaryTho
     )
 
 internal fun diaryThoughtFingerprint(sources: List<DiaryThoughtSource>, corrections: String): String = sha256Hex(
-    "diary-thought-v1:$corrections\n" + sources.sortedBy { it.id }.joinToString("\n") {
+    "diary-thought-v2:$corrections\n" + sources.sortedBy { it.id }.joinToString("\n") {
         "${it.id}:${it.createdAt}:${sha256Hex(it.content)}"
     },
 )

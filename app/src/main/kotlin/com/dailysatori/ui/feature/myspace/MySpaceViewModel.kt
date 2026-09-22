@@ -37,6 +37,7 @@ class MySpaceViewModel(
     fun refresh() = mutate { service.refresh() }
     fun saveFocus(text: String, onSaved: () -> Unit) = mutate {
         service.saveFocus(text)
+        enqueueAnalysis(automatic = true)
         withContext(Dispatchers.Main) { onSaved() }
     }
     fun setSaved(id: String, value: Boolean) = mutate { service.setSaved(id, value) }
@@ -49,8 +50,11 @@ class MySpaceViewModel(
         service.linkReminder(id, reminderId)
         withContext(Dispatchers.Main) { onSaved() }
     }
-    fun analyze() = mutate {
-        val id = tasks.enqueue(NewsOpportunityTaskHandler.TYPE, "{}", uniqueKey = NewsOpportunityTaskHandler.TYPE, maxAttempts = 1)
+    fun analyze() = mutate { enqueueAnalysis(automatic = false) }
+    fun recommend() = mutate { enqueueAnalysis(automatic = true) }
+
+    private fun enqueueAnalysis(automatic: Boolean) {
+        val id = tasks.enqueue(NewsOpportunityTaskHandler.TYPE, "{\"automatic\":$automatic}", uniqueKey = NewsOpportunityTaskHandler.TYPE, maxAttempts = 1)
         scheduler.enqueue(id)
     }
     fun clearError() { _operationFailed.value = false }

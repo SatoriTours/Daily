@@ -147,7 +147,10 @@ val sharedModule: Module = module {
     single { AiService(get()) }
     single<OpportunityAnalyzer> { AiNewsOpportunityAnalyzer(get(), get()) }
     single<NewsOpportunityContext> { DiaryThoughtOpportunityContext(get(), get()) }
-    single { NewsOpportunityService(get(), get(), get()) }
+    single<com.dailysatori.service.opportunity.OpportunityCandidateSource> {
+        com.dailysatori.service.opportunity.NewsOpportunityCandidateSource(get(), get<RemoteNewsSourceRepository>()::getEnabled, get(), get(), get())
+    }
+    single { NewsOpportunityService(get(), get(), get(), get()) }
     single { AiModelCatalogService(get(), get()) }
     single { BackupPasswordStore(get()) }
     single { SecretCipher(get()) }

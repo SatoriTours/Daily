@@ -188,6 +188,7 @@ fun HomeScreen(
                             onAddReminder = onAddReminder,
                             onOpportunities = onOpportunities,
                             onOpportunity = onOpportunity,
+                            onArticle = onArticleClick,
                             onChat = onChat,
                             onManagement = onProfileClick,
                         )
@@ -377,12 +378,10 @@ private fun HomeTabNavigationBar(
                 icon = {
                     Icon(
                         if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                        contentDescription = tab.label,
+                        contentDescription = if (index == MY_TAB_INDEX) androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_title) else tab.label,
                         modifier = Modifier.size(HomeBottomBarIconSize),
                     )
                 },
-                label = { androidx.compose.material3.Text(if (index == MY_TAB_INDEX) androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_title) else tab.label, style = MaterialTheme.typography.labelSmall) },
-                alwaysShowLabel = true,
                 selected = selectedIndex == index,
                 onClick = { onTabSelected(index) },
                 colors = NavigationBarItemDefaults.colors(
