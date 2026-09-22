@@ -23,8 +23,8 @@ android {
         applicationId = "com.dailysatori"
         minSdk = 26
         targetSdk = 36
-        versionCode = 50163
-        versionName = "5.1.63"
+        versionCode = 50165
+        versionName = "5.1.65"
         providers.gradleProperty("ciVersionCode").orNull?.let { value ->
             require(value.all { it.isDigit() && it != '4' })
             versionCode = value.toInt().also { require(it in 1..2100000000) }
