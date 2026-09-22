@@ -18,6 +18,14 @@ internal fun myThoughtPreviews(thoughts: List<DiaryThought>): List<MyThoughtPrev
     }
 }
 
+internal enum class RecommendationAction { WAIT, SET_UP_CONTEXT, UPDATE }
+
+internal fun recommendationAction(hasAnalysisContext: Boolean, isUpdating: Boolean, taskStatus: String?): RecommendationAction = when {
+    isUpdating || taskStatus in listOf("queued", "running", "retrying") -> RecommendationAction.WAIT
+    !hasAnalysisContext -> RecommendationAction.SET_UP_CONTEXT
+    else -> RecommendationAction.UPDATE
+}
+
 enum class OpportunityFilter { PENDING, SAVED, ACTED, IGNORED }
 
 fun opportunityItems(items: List<NewsOpportunity>, filter: OpportunityFilter): List<NewsOpportunity> =

@@ -4,21 +4,35 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.Spacing
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
+import com.dailysatori.ui.component.settings.SettingsScaffold
+import com.dailysatori.ui.component.settings.SettingsSectionCard
+import com.dailysatori.ui.theme.*
 
 @Composable
 fun DataPrivacyScreen(onBack: () -> Unit) {
-    AppScaffold(title = "数据与隐私", onBack = onBack) { modifier ->
-        Column(modifier = modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text("数据存储", style = MaterialTheme.typography.titleMedium)
-            Text("日记、提醒、收藏和同步任务保存在此设备上。")
-            Text("外部收藏同步仅在你连接的来源启用时访问对应服务。")
-            Text("管理备份、导入和网络服务，请前往设置。")
+    SettingsScaffold(title = stringResource(R.string.management_privacy), onBack = onBack) { modifier ->
+        Column(
+            modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.l),
+        ) {
+            PrivacySection(R.string.management_storage, R.string.management_storage_hint)
+            PrivacySection(R.string.management_external_data, R.string.management_external_data_hint)
+            PrivacySection(R.string.management_data, R.string.management_backup_hint)
         }
+    }
+}
+
+@Composable
+private fun PrivacySection(title: Int, body: Int) {
+    SettingsSectionCard(stringResource(title)) {
+        Text(stringResource(body), Modifier.padding(Spacing.m), style = MaterialTheme.typography.bodyMedium)
     }
 }

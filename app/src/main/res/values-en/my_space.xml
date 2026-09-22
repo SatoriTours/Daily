@@ -73,6 +73,10 @@
     <string name="my_space_context_opportunity">Selected reading insight</string>
     <string name="my_space_created">Reminder saved</string>
     <string name="my_space_analyze_missing">Set your interests or enable your thought summary first</string>
+    <string name="my_space_recommendation_context_title">Understand you before recommending</string>
+    <string name="my_space_recommendation_context_hint">No personal context is available yet. Organize thoughts from your diary or enter your current interests. Recommendations will start automatically when ready.</string>
+    <string name="my_space_waiting_for_thoughts">Your thoughts are being organized. Useful articles will be selected automatically when ready.</string>
+    <string name="my_space_updating_recommendations">Updating recommendations…</string>
     <string name="my_space_source_unavailable">Source link unavailable; the saved excerpt is still available</string>
     <string name="my_space_use_thoughts">Also uses enabled, supported thought summaries. Disabling AI use of thoughts leaves only these interests.</string>
     <string name="my_space_focus_change">Changing interests automatically updates recommendations. Saved and acted-on items remain.</string>

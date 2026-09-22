@@ -53,7 +53,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.shared.db.Remote_news_source
 import com.dailysatori.ui.component.indicator.EmptyState
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing

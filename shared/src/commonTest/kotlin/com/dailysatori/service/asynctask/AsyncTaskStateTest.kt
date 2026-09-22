@@ -7,6 +7,22 @@ import kotlin.test.assertTrue
 
 class AsyncTaskStateTest {
     @Test
+    fun recentFailureFilterUsesTheInclusiveTwentyFourHourBoundary() {
+        val now = 2 * RECENT_TASK_FAILURE_WINDOW_MS
+        val since = now - RECENT_TASK_FAILURE_WINDOW_MS
+        val failed = asyncTaskListItem(id = 1, type = "save_article", status = "failed")
+        val tasks = listOf(
+            failed.copy(id = 1, updatedAt = since - 1),
+            failed.copy(id = 2, updatedAt = since),
+            failed.copy(id = 3, updatedAt = since + 1),
+            failed.copy(id = 4, status = "succeeded", updatedAt = now),
+        )
+        assertEquals(listOf(2L, 3L), filterAsyncTasks(tasks, recentFailedTaskFilter(now)).map { it.id })
+        assertEquals(listOf(3L), filterAsyncTasks(tasks, recentFailedTaskFilter(now + 1)).map { it.id })
+        assertEquals(4, filterAsyncTasks(tasks, AsyncTaskFilter()).size)
+    }
+
+    @Test
     fun defaultTaskFilterIncludesTerminalTasks() {
         assertTrue(AsyncTaskStatus.queued.visibleByDefault)
         assertTrue(AsyncTaskStatus.running.visibleByDefault)

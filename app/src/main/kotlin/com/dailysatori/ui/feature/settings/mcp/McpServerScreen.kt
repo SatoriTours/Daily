@@ -52,7 +52,7 @@ import com.dailysatori.config.mcpProviders
 import com.dailysatori.shared.db.Mcp_server
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -131,7 +131,7 @@ fun McpServerScreen(
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 items(state.servers, key = { it.id }) { server ->
                     Card(

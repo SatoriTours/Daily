@@ -15,13 +15,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
@@ -47,7 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
 import com.dailysatori.ui.component.settings.SettingsSectionCard
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
@@ -56,18 +54,13 @@ import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
 import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
-import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
-import com.dailysatori.ui.feature.settings.externalfavorites.externalFavoriteSettingsRowSubtitle
-import com.dailysatori.ui.feature.settings.externalfavorites.externalFavoriteSettingsRowTitle
-import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.SkillSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowSubtitle
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowTitle
-import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterScreen
 import com.dailysatori.ui.theme.*
 
-private enum class SettingsPage {
+internal enum class SettingsPage {
     MAIN,
     AI_CONFIG,
     MCP_SERVER,
@@ -75,13 +68,13 @@ private enum class SettingsPage {
     BACKUP_SETTINGS,
     BACKUP_RESTORE,
     DATA_IMPORT,
-    REMOTE_NEWS_SETTINGS,
-    EXTERNAL_FAVORITES,
     SKILLS,
-    TASK_CENTER,
     DIAGNOSTICS,
     REMINDERS,
 }
+
+internal fun SettingsPage.parent(): SettingsPage =
+    if (this == SettingsPage.BACKUP_RESTORE) SettingsPage.BACKUP_SETTINGS else SettingsPage.MAIN
 
 @Composable
 fun SettingsScreen(
@@ -94,9 +87,8 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     val rootBack = onBack
 
-    BackHandler(enabled = currentPage != SettingsPage.MAIN) {
-        currentPage = SettingsPage.MAIN
-    }
+    val childBack = { currentPage = currentPage.parent() }
+    BackHandler(enabled = currentPage != SettingsPage.MAIN, onBack = childBack)
     BackHandler(enabled = currentPage == SettingsPage.MAIN && rootBack != null) {
         rootBack?.invoke()
     }
@@ -111,20 +103,15 @@ fun SettingsScreen(
             viewModel = viewModel,
             onBack = onBack,
         )
-        SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.MCP_SERVER -> McpServerScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.PLUGIN_CENTER -> PluginCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.BACKUP_SETTINGS -> BackupSettingsScreen(onBack = { currentPage = SettingsPage.MAIN }, onRestore = { currentPage = SettingsPage.BACKUP_RESTORE })
-        SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
-        SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.REMOTE_NEWS_SETTINGS -> RemoteNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.TASK_CENTER -> TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.REMINDERS -> ReminderSettingsScreen(
-            onBack = { currentPage = SettingsPage.MAIN },
-        )
+        SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = childBack)
+        SettingsPage.MCP_SERVER -> McpServerScreen(onBack = childBack)
+        SettingsPage.PLUGIN_CENTER -> PluginCenterScreen(onBack = childBack)
+        SettingsPage.BACKUP_SETTINGS -> BackupSettingsScreen(onBack = childBack, onRestore = { currentPage = SettingsPage.BACKUP_RESTORE })
+        SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = childBack)
+        SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = childBack)
+        SettingsPage.SKILLS -> SkillSettingsScreen(onBack = childBack)
+        SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = childBack)
+        SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack)
     }
 }
 
@@ -140,7 +127,7 @@ private fun SettingsMainPage(
 ) {
     AboutDialog(showAboutDialog, state.currentVersion, onDismissAbout)
     AppScaffold(
-        title = "设置",
+        title = stringResource(R.string.management_general),
         onBack = onBack,
         showBack = onBack != null,
         actions = {
@@ -203,18 +190,20 @@ private fun SettingsList(
         verticalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
         Spacer(modifier = Modifier.height(Spacing.s))
+        SettingsSectionCard(stringResource(R.string.management_preferences)) {
+            SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title), stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
+        }
         AiServicesSection(onNavigate)
-        NetworkSection(state, viewModel, onNavigate)
-        UpdateSettingsSection(state, viewModel)
+        NetworkSection(state, viewModel)
         DataSection(onNavigate)
+        UpdateSettingsSection(state, viewModel)
         Spacer(modifier = Modifier.height(Spacing.xl))
     }
 }
 
 @Composable
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
-    SettingsSectionCard("AI 与服务") {
-        SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title), stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
+    SettingsSectionCard(stringResource(R.string.management_ai)) {
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
         SettingsRow(Icons.AutoMirrored.Filled.MenuBook, skillSettingsRowTitle(), skillSettingsRowSubtitle(), onClick = { onNavigate(SettingsPage.SKILLS) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })
@@ -223,24 +212,8 @@ private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
 }
 
 @Composable
-private fun NetworkSection(
-    state: SettingsState,
-    viewModel: SettingsViewModel,
-    onNavigate: (SettingsPage) -> Unit,
-) {
-    SettingsSectionCard("网络与同步") {
-        SettingsRow(
-            icon = Icons.Default.Language,
-            title = "远程新闻设置",
-            subtitle = "配置服务地址和 API Token",
-            onClick = { onNavigate(SettingsPage.REMOTE_NEWS_SETTINGS) },
-        )
-        SettingsRow(
-            icon = Icons.Default.Bookmark,
-            title = externalFavoriteSettingsRowTitle(),
-            subtitle = externalFavoriteSettingsRowSubtitle(),
-            onClick = { onNavigate(SettingsPage.EXTERNAL_FAVORITES) },
-        )
+private fun NetworkSection(state: SettingsState, viewModel: SettingsViewModel) {
+    SettingsSectionCard(stringResource(R.string.management_network)) {
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
     }
@@ -280,13 +253,11 @@ private fun ApiTokenRow(state: SettingsState, viewModel: SettingsViewModel) {
 @Composable
 private fun DataSection(onNavigate: (SettingsPage) -> Unit) {
     val i18n = org.koin.compose.koinInject<com.dailysatori.service.i18n.I18nService>()
-    SettingsSectionCard("数据管理") {
+    SettingsSectionCard(stringResource(R.string.management_data)) {
         SettingsRow(Icons.Default.FileDownload, i18n.t("diagnostics.title"), i18n.t("diagnostics.subtitle"),
             onClick = { onNavigate(SettingsPage.DIAGNOSTICS) })
         SettingsRow(Icons.Default.Save, "备份与恢复", "管理数据备份与还原", onClick = { onNavigate(SettingsPage.BACKUP_SETTINGS) })
         SettingsRow(Icons.Default.FileDownload, "导入数据", "从 Flutter 版本迁移数据", onClick = { onNavigate(SettingsPage.DATA_IMPORT) })
-        SettingsRow(icon = Icons.Default.Refresh, title = "任务", subtitle = "查看异步任务进度和状态", onClick = { onNavigate(SettingsPage.TASK_CENTER) })
-        SettingsRow(Icons.Default.CloudDownload, "下载图片", "下载文章图片到本地", onClick = {})
     }
 }
 

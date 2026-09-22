@@ -22,18 +22,30 @@ import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun NewsOpportunityListScreen(onBack: () -> Unit, onOpen: (String) -> Unit, onArticle: (Long) -> Unit, viewModel: MySpaceViewModel = koinViewModel()) {
+fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen: (String) -> Unit, onArticle: (Long) -> Unit, viewModel: MySpaceViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val thoughts by viewModel.thoughtState.collectAsStateWithLifecycle()
     val task by viewModel.task.collectAsStateWithLifecycle()
     val failed by viewModel.operationFailed.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf(OpportunityFilter.PENDING) }
     var editingFocus by rememberSaveable { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
-    val busy = state.isUpdating || task?.status in listOf("queued", "running", "retrying")
-    LaunchedEffect(Unit) { viewModel.recommend() }
+    var choosingContext by rememberSaveable { mutableStateOf(false) }
+    val action = recommendationAction(state.hasAnalysisContext, state.isUpdating, task?.status)
+    val busy = action == RecommendationAction.WAIT
+    val requestUpdate = {
+        when (action) {
+            RecommendationAction.UPDATE -> confirming = true
+            RecommendationAction.SET_UP_CONTEXT -> choosingContext = true
+            RecommendationAction.WAIT -> Unit
+        }
+    }
+    val organizeThoughts = { viewModel.organizeThoughts(); onThoughts() }
+    LaunchedEffect(viewModel) { viewModel.observeRecommendations() }
+    LaunchedEffect(state.hasAnalysisContext) { if (state.hasAnalysisContext) choosingContext = false }
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_useful), onBack = onBack, actions = {
-        TextButton(onClick = { confirming = true }, enabled = !busy && state.hasAnalysisContext) { Text(stringResource(R.string.my_space_analyze)) }
+        TextButton(onClick = requestUpdate, enabled = !busy) { Text(stringResource(if (busy) R.string.my_space_updating_recommendations else R.string.my_space_analyze)) }
     }) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item { Text(stringResource(R.string.my_space_news_intro), style = MaterialTheme.typography.headlineSmall) }
@@ -42,7 +54,13 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onOpen: (String) -> Unit, onAr
                 TextButton(onClick = { editingFocus = true }, enabled = !busy) { Text(stringResource(R.string.my_space_focus)) }
                 if (state.focus.isNotBlank()) Text(state.focus, style = MaterialTheme.typography.bodyMedium)
                 Text(stringResource(R.string.my_space_analysis_scope, state.candidateCount, state.pendingCount), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (!state.hasAnalysisContext) Text(stringResource(R.string.my_space_analyze_missing), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!state.hasAnalysisContext) {
+                    Text(stringResource(R.string.my_space_recommendation_context_hint), style = MaterialTheme.typography.bodyMedium)
+                    if (!thoughts.useInChat) Text(stringResource(R.string.my_space_permission), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (thoughts.isUpdating) Text(stringResource(R.string.my_space_waiting_for_thoughts), color = MaterialTheme.colorScheme.primary)
+                    thoughts.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = organizeThoughts) { Text(stringResource(R.string.my_space_organize)) }
+                }
             }
             if (busy) item {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -52,7 +70,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onOpen: (String) -> Unit, onAr
             val error = state.error ?: task?.last_error_message?.takeIf { task?.status == "failed" }
             if (error != null || failed) item {
                 Text(error ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { confirming = true }, enabled = !busy && state.hasAnalysisContext) { Text(stringResource(R.string.my_space_retry)) }
+                TextButton(onClick = requestUpdate, enabled = !busy) { Text(stringResource(R.string.my_space_retry)) }
             }
             item { FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 OpportunityFilter.entries.forEach { value -> FilterChip(selected = filter == value, onClick = { filter = value }, label = { Text(opportunityFilterLabel(value)) }) }
@@ -68,6 +86,13 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onOpen: (String) -> Unit, onAr
             items(entries, key = { it.id }) { entry -> OpportunitySummary(entry, onArticle) { onOpen(entry.id) }; HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
         }
     }
+    if (choosingContext) AlertDialog(
+        onDismissRequest = { choosingContext = false },
+        title = { Text(stringResource(R.string.my_space_recommendation_context_title)) },
+        text = { Text(stringResource(if (thoughts.isUpdating) R.string.my_space_waiting_for_thoughts else R.string.my_space_recommendation_context_hint)) },
+        confirmButton = { TextButton(onClick = { choosingContext = false; organizeThoughts() }) { Text(stringResource(R.string.my_space_organize)) } },
+        dismissButton = { TextButton(onClick = { choosingContext = false; editingFocus = true }) { Text(stringResource(R.string.my_space_focus)) } },
+    )
     if (editingFocus) FocusDialog(state.focus, failed, { editingFocus = false }) { value -> viewModel.saveFocus(value) { editingFocus = false } }
     if (confirming) AlertDialog(onDismissRequest = { confirming = false }, title = { Text(stringResource(R.string.my_space_analyze)) },
         text = { Text(stringResource(R.string.my_space_analysis_confirm)) },

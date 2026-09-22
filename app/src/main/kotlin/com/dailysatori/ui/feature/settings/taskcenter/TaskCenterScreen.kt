@@ -50,7 +50,7 @@ import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.asynctask.asyncTaskStatusDisplayName
 import com.dailysatori.service.asynctask.asyncTaskTypeDisplayName
 import com.dailysatori.ui.component.indicator.EmptyState
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.*
 import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.Dispatchers
@@ -73,8 +73,9 @@ private val taskCenterPrettyJson = Json {
 }
 
 @Composable
-fun TaskCenterScreen(onBack: () -> Unit) {
+fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
     val viewModel: TaskCenterViewModel = koinViewModel()
+    LaunchedEffect(viewModel, recentFailures) { viewModel.applyEntryFilter(recentFailures) }
     val state = viewModel.state.collectAsStateWithLifecycle().value
     BackHandler(enabled = state.selectedTask != null) {
         viewModel.closeTask()
@@ -94,6 +95,12 @@ fun TaskCenterScreen(onBack: () -> Unit) {
             modifier = modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
+            if (state.updatedSince != null) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+                    Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.management_recent_tasks), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = viewModel::showAllTasks) { Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.management_all_tasks)) }
+                }
+            }
             TaskCenterFilters(state = state, viewModel = viewModel)
             if (state.tasks.isNotEmpty()) {
                 TaskCenterSummaryBand(tasks = state.tasks)
@@ -108,8 +115,8 @@ fun TaskCenterScreen(onBack: () -> Unit) {
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    contentPadding = PaddingValues(Spacing.m),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
                 ) {
                     items(state.tasks, key = { it.id }) { task ->
                         TaskCenterTaskCard(

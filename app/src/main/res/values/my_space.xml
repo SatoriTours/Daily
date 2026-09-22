@@ -73,6 +73,10 @@
     <string name="my_space_context_opportunity">所选新闻机会点</string>
     <string name="my_space_created">提醒已保存</string>
     <string name="my_space_analyze_missing">请先设置关注点，或启用已有思想总结</string>
+    <string name="my_space_recommendation_context_title">先了解你，再推荐文章</string>
+    <string name="my_space_recommendation_context_hint">还没有可用于推荐的个人分析。可以先从日记整理“我的思想”，或填写最近关心的事；准备好后会自动推荐。</string>
+    <string name="my_space_waiting_for_thoughts">正在整理你的思想，完成后会自动查找有用的文章。</string>
+    <string name="my_space_updating_recommendations">推荐更新中…</string>
     <string name="my_space_source_unavailable">原文链接不可用，仍可查看已保存摘录</string>
     <string name="my_space_use_thoughts">同时参考已启用且有依据的思想总结；关闭思想的 AI 开关后仅使用这些关注点。</string>
     <string name="my_space_focus_change">修改关注点后，会自动更新推荐；收藏和已行动的内容保留。</string>

@@ -15,6 +15,52 @@ import kotlin.test.assertTrue
 
 class AsyncTaskRepositoryTest {
     @Test
+    fun overviewOfEmptyDatabaseHasZeroCountsAndNoProgress() = withRepository { repository ->
+        val overview = runBlocking { repository.observeTaskOverview(1_000).first() }
+        assertEquals(0, overview.activeCount)
+        assertEquals(0, overview.failedCount)
+        assertEquals(0, overview.progressCurrent)
+        assertEquals(0, overview.progressTotal)
+    }
+
+    @Test
+    fun overviewAndRecentFailureEntryAreNotLimitedByUnrelatedTaskPages() = withDatabase { db ->
+        val repository = AsyncTaskRepository(db)
+        repeat(60) { repository.enqueue("save_article", "{}") }
+        val running = repository.enqueue("save_article", "{}")
+        repository.claimForRun(running, "test", Long.MAX_VALUE)
+        repository.updateProgress(running, 2, 5, "", "")
+        val retrying = repository.enqueue("save_article", "{}")
+        repository.claimForRun(retrying, "test", Long.MAX_VALUE)
+        repository.markRetry(retrying, "retry", "", Long.MAX_VALUE)
+        val failures = listOf(999L, 1_000L, 1_001L).map { timestamp ->
+            repository.enqueue("save_article", "{}").also { id ->
+                repository.claimForRun(id, "test", Long.MAX_VALUE)
+                db.dailySatoriQueries.finishAsyncTask("failed", "", timestamp, "", "", timestamp, id)
+            }
+        }
+        repeat(60) {
+            val id = repository.enqueue("save_article", "{}")
+            repository.claimForRun(id, "test", Long.MAX_VALUE)
+            repository.finishSuccess(id, "{}")
+        }
+        runBlocking {
+            val overview = repository.observeTaskOverview(1_000).first()
+            assertEquals(62, overview.activeCount)
+            assertEquals(2, overview.failedCount)
+            assertEquals(2, overview.progressCurrent)
+            assertEquals(5, overview.progressTotal)
+            val filter = AsyncTaskFilter(statuses = setOf("failed"), updatedSince = 1_000)
+            val firstPage = repository.observeTaskCenter(filter, limit = 1).first()
+            val allFailures = repository.observeTaskCenter(filter).first()
+            assertEquals(listOf(failures.last()), firstPage.tasks.map { it.id })
+            assertEquals(failures.drop(1).reversed(), allFailures.tasks.map { it.id })
+            assertEquals(overview.failedCount, allFailures.tasks.size.toLong())
+            assertEquals(50, repository.observeTaskCenter(AsyncTaskFilter()).first().tasks.size)
+        }
+    }
+
+    @Test
     fun externalFavoriteUniqueFamilyDeduplicatesModesForSameSource() {
         withRepository { repository ->
             val firstId = repository.enqueueUniqueFamily(

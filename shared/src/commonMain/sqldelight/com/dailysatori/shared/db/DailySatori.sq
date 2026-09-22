@@ -936,6 +936,17 @@ FROM async_task
 ORDER BY updated_at DESC
 LIMIT ?;
 
+selectAsyncTaskOverview:
+SELECT COUNT(CASE WHEN status IN ('queued', 'running', 'retrying') THEN 1 END) AS active_count,
+       COUNT(CASE WHEN status = 'failed' AND updated_at >= :failedSince THEN 1 END) AS failed_count,
+       COALESCE((SELECT progress_current FROM async_task
+        WHERE status IN ('queued', 'running', 'retrying') AND progress_total > 0
+        ORDER BY updated_at DESC, id DESC LIMIT 1), 0) AS progress_current,
+       COALESCE((SELECT progress_total FROM async_task
+        WHERE status IN ('queued', 'running', 'retrying') AND progress_total > 0
+        ORDER BY updated_at DESC, id DESC LIMIT 1), 0) AS progress_total
+FROM async_task;
+
 selectAsyncTasksForTaskCenterFilteredPage:
 SELECT id, type, status, progress_current, progress_total, progress_message, checkpoint_json,
        created_at, started_at, finished_at, updated_at, last_error_message, run_after_ms, attempt_count, payload_json
@@ -943,7 +954,8 @@ FROM async_task
 WHERE (:includeAllTypes = 1 OR type IN :types)
   AND (:includeAllStatuses = 1 OR status IN :statuses)
   AND (:showTerminal = 1 OR :includeAllStatuses = 0 OR status IN ('queued', 'running', 'retrying'))
-ORDER BY updated_at DESC
+  AND updated_at >= :updatedSince
+ORDER BY updated_at DESC, id DESC
 LIMIT :limit;
 
 selectAsyncTaskIdsBeyondRetention:

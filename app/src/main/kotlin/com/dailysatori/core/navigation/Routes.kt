@@ -12,14 +12,14 @@ import kotlinx.serialization.Serializable
 @Serializable data object ProfileFavoritesRoute
 @Serializable data object ProfileExternalFavoritesRoute
 @Serializable data object RemoteNewsSettingsRoute
-@Serializable data object TaskCenterRoute
+@Serializable data class TaskCenterRoute(val recentFailures: Boolean = false)
 @Serializable data class ArticleDetailRoute(val articleId: Long)
 @Serializable data object BookSearchRoute
 @Serializable data object BookContentSearchRoute
 @Serializable data object AiConfigRoute
 @Serializable data class AiConfigEditRoute(val configId: Long? = null)
 @Serializable data object SettingsRoute
-@Serializable data object ReminderListRoute
+@Serializable data class ReminderListRoute(val todayOnly: Boolean = false)
 @Serializable data object ReminderSettingsRoute
 @Serializable data class ReminderDetailRoute(val reminderId: String)
 @Serializable data class ReminderEditRoute(val reminderId: String? = null)

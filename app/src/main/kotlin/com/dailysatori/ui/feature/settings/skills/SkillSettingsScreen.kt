@@ -40,7 +40,7 @@ import com.dailysatori.service.skill.skillBuiltinBadge
 import com.dailysatori.service.skill.skillEnabledStatus
 import com.dailysatori.service.skill.skillTokenStatus
 import com.dailysatori.shared.db.Skill_config
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.theme.*
@@ -110,7 +110,7 @@ private fun SkillListScreen(
         LazyColumn(
             modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(Spacing.m),
-            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             item { SkillCountText(skills.size) }
             items(skills, key = { it.id }) { skill ->

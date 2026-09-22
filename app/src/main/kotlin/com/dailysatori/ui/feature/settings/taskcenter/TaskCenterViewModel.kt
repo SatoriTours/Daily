@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.service.asynctask.AsyncTaskFilter
+import com.dailysatori.service.asynctask.recentFailedTaskFilter
+import com.dailysatori.service.asynctask.recentTaskFailureCutoffs
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.datetime.Clock
 import com.dailysatori.service.asynctask.AsyncTaskListItem
 import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +29,8 @@ import com.dailysatori.core.worker.ExternalFavoriteTaskCancellationRegistry
 data class TaskCenterState(
     val types: Set<String> = emptySet(),
     val statuses: Set<String> = emptySet(),
-    val showTerminal: Boolean = false,
+    val showTerminal: Boolean = true,
+    val updatedSince: Long? = null,
     val tasks: List<AsyncTaskListItem> = emptyList(),
     val hasMore: Boolean = false,
     val loadedCount: Int = 0,
@@ -55,6 +60,7 @@ class TaskCenterViewModel(
     private val scheduler: AsyncTaskScheduler,
 ) : ViewModel() {
     private val filter = MutableStateFlow(AsyncTaskFilter())
+    private var entryFilterApplied = false
     private val pageLimit = MutableStateFlow(DEFAULT_TASK_CENTER_PAGE_SIZE)
     private val selectedTaskId = MutableStateFlow<Long?>(null)
     private val selected = selectedTaskId.flatMapLatest { id ->
@@ -75,16 +81,20 @@ class TaskCenterViewModel(
         }
     }
 
-    val state: StateFlow<TaskCenterState> = filter
+    private val effectiveFilter = combine(filter, recentTaskFailureCutoffs()) { current, cutoff ->
+        if (current.updatedSince == null) current else current.copy(updatedSince = cutoff)
+    }.distinctUntilChanged()
+
+    val state: StateFlow<TaskCenterState> = effectiveFilter
         .combine(pageLimit) { taskFilter, limit -> taskFilter to limit }
         .flatMapLatest { (taskFilter, limit) ->
             repository.observeTaskCenter(taskFilter, limit)
-                .combine(filter) { page, latestFilter -> page to latestFilter }
-                .combine(selected) { (page, latestFilter), selectedTask ->
+                .combine(selected) { page, selectedTask ->
                 TaskCenterState(
-                    types = latestFilter.types,
-                    statuses = latestFilter.statuses,
-                    showTerminal = latestFilter.showTerminal,
+                    types = taskFilter.types,
+                    statuses = taskFilter.statuses,
+                    showTerminal = taskFilter.showTerminal,
+                    updatedSince = taskFilter.updatedSince,
                     tasks = page.tasks,
                     hasMore = page.hasMore,
                     loadedCount = page.loadedCount,
@@ -96,6 +106,17 @@ class TaskCenterViewModel(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskCenterState())
+
+    fun applyEntryFilter(recentFailures: Boolean) {
+        if (entryFilterApplied) return
+        entryFilterApplied = true
+        if (recentFailures) filter.value = recentFailedTaskFilter(Clock.System.now().toEpochMilliseconds())
+    }
+
+    fun showAllTasks() {
+        resetPaging()
+        filter.value = AsyncTaskFilter()
+    }
 
     fun toggleType(type: String) {
         resetPaging()

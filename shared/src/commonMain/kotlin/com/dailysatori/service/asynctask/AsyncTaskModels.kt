@@ -1,5 +1,10 @@
 package com.dailysatori.service.asynctask
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.datetime.Clock
+
 enum class AsyncTaskStatus {
     queued,
     running,
@@ -33,6 +38,28 @@ data class AsyncTaskFilter(
     val types: Set<String> = emptySet(),
     val statuses: Set<String> = emptySet(),
     val showTerminal: Boolean = true,
+    val updatedSince: Long? = null,
+)
+
+const val RECENT_TASK_FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000L
+
+fun recentTaskFailureCutoffs(): Flow<Long> = flow {
+    while (true) {
+        emit(Clock.System.now().toEpochMilliseconds() - RECENT_TASK_FAILURE_WINDOW_MS)
+        delay(60_000)
+    }
+}
+
+fun recentFailedTaskFilter(nowMs: Long): AsyncTaskFilter = AsyncTaskFilter(
+    statuses = setOf(AsyncTaskStatus.failed.name),
+    updatedSince = nowMs - RECENT_TASK_FAILURE_WINDOW_MS,
+)
+
+data class AsyncTaskOverview(
+    val activeCount: Long,
+    val failedCount: Long,
+    val progressCurrent: Long,
+    val progressTotal: Long,
 )
 
 data class AsyncTaskListItem(
@@ -66,7 +93,8 @@ fun filterAsyncTasks(tasks: List<AsyncTaskListItem>, filter: AsyncTaskFilter): L
         val defaultVisible = filter.showTerminal || filter.statuses.isNotEmpty() || status?.visibleByDefault == true
         defaultVisible &&
             (filter.types.isEmpty() || task.type in filter.types) &&
-            (filter.statuses.isEmpty() || task.status in filter.statuses)
+            (filter.statuses.isEmpty() || task.status in filter.statuses) &&
+            (filter.updatedSince == null || task.updatedAt >= filter.updatedSince)
     }
 
 fun asyncTaskStatus(value: String): AsyncTaskStatus? =

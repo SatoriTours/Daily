@@ -42,14 +42,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.misc.FeatureIcon
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
-private val HomeBottomBarAvoidancePadding = 96.dp
 
 @Composable
 fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
@@ -128,7 +127,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                 Spacer(modifier = Modifier.width(Spacing.xs))
                 Text("恢复备份")
             }
-            Spacer(modifier = Modifier.height(HomeBottomBarAvoidancePadding))
+            Spacer(modifier = Modifier.height(Spacing.l))
         }
     }
 }
@@ -137,13 +136,13 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
 private fun BackupDirectoryCard(state: BackupSettingsState) {
     Card(
         shape = RoundedCornerShape(Radius.m),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(modifier = Modifier.padding(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
             FeatureIcon(
                 icon = Icons.Default.Folder,
-                containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                iconTint = MaterialTheme.colorScheme.secondary,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                iconTint = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.width(Spacing.m))
             Column(modifier = Modifier.weight(1f)) {

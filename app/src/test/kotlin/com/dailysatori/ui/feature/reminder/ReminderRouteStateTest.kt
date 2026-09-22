@@ -123,6 +123,17 @@ class ReminderRouteStateTest {
     }
 
     @Test
+    fun todayReminderEntryIsSeparateFromAllRemindersAndReachesTheListFilter() {
+        val navigation = source("core/navigation/NavHost.kt")
+        assertTrue(navigation.contains("onReminders = { navController.navigate(ReminderListRoute()) }"))
+        assertTrue(navigation.contains("onTodayReminders = { navController.navigate(ReminderListRoute(todayOnly = true)) }"))
+        assertTrue(navigation.contains("initialTodayOnly = entry.toRoute<ReminderListRoute>().todayOnly"))
+        assertTrue(source("ui/feature/home/HomeScreen.kt").contains("onTodayReminders = onTodayReminders"))
+        assertTrue(source("ui/feature/myspace/MySpaceScreen.kt").contains("TextButton(onClick = onTodayReminders)"))
+        assertTrue(source("ui/feature/reminder/ReminderListScreen.kt").contains("viewModel.applyListEntryFilter(initialTodayOnly)"))
+    }
+
+    @Test
     fun reminderSettingsEntryDoesNotCarryRemovedListCallbacks() {
         val navHost = source("core/navigation/NavHost.kt")
         val settingsRoute = navHost
@@ -133,7 +144,7 @@ class ReminderRouteStateTest {
 
         assertTrue(navHost.contains("SettingsScreen(\n                viewModel = settingsViewModel,"))
         assertTrue(settingsHost.contains("SettingsPage.REMINDERS -> ReminderSettingsScreen("))
-        assertTrue(settingsHost.contains("onBack = { currentPage = SettingsPage.MAIN }"))
+        assertTrue(settingsHost.contains("ReminderSettingsScreen(onBack = childBack)"))
         assertTrue(!settings.contains("ReminderListScreen("))
         listOf(settingsRoute, settingsHost, settings).forEach { source ->
             assertFalse(source.contains("onAddReminder"))

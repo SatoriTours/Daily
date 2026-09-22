@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.core.diagnostics.DiagnosticExportPhase
 import com.dailysatori.service.i18n.I18nService
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.*
 import java.text.DateFormat
 import java.util.Date

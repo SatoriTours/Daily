@@ -14,8 +14,8 @@ import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.service.reminder.ReminderProfileKind
-import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -23,9 +23,9 @@ fun ReminderProfileManagementScreen(onBack: () -> Unit, viewModel: ReminderSetti
     val state by viewModel.state.collectAsState()
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.reminder_profiles_section), onBack = onBack) { modifier ->
-        Column(modifier.fillMaxSize().padding(horizontal = Spacing.m).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             state.profiles.forEach { ProfileCard(it, viewModel) }
-            Button(onClick = { viewModel.editProfile() }) { Text(stringResource(R.string.reminder_new_custom_profile)) }
+            Button(onClick = { viewModel.editProfile() }, modifier = Modifier.fillMaxWidth().heightIn(min = Height.button)) { Text(stringResource(R.string.reminder_new_custom_profile)) }
         }
     }
     state.editor?.let { ProfileEditorDialog(it, state, viewModel) }
@@ -34,7 +34,7 @@ fun ReminderProfileManagementScreen(onBack: () -> Unit, viewModel: ReminderSetti
 @Composable
 private fun ProfileCard(profile: ReminderProfile, viewModel: ReminderSettingsViewModel) {
     val displayName = profile.localizedName()
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(displayName, style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.reminder_profile_summary, displayName, profile.snapshot.daytimeDismissalBackoffMinutes.joinToString(" / ")))

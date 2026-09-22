@@ -28,7 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.component.indicator.EmptyState
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Spacing
 import androidx.compose.ui.unit.dp

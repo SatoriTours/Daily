@@ -45,14 +45,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
-private val HomeBottomBarAvoidancePadding = 96.dp
 
 @Composable
 fun BackupRestoreScreen(onBack: () -> Unit = {}) {
@@ -85,7 +84,7 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                             start = Spacing.m,
                             top = Spacing.m,
                             end = Spacing.m,
-                            bottom = HomeBottomBarAvoidancePadding,
+                            bottom = Spacing.m,
                         )
                         .height(Height.button),
                     enabled = state.selectedBackupIndex >= 0 && !state.isRestoring,
@@ -148,7 +147,7 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                 RestoreFeedback(state)
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(Spacing.s),
-                    contentPadding = PaddingValues(bottom = HomeBottomBarAvoidancePadding),
+                    contentPadding = PaddingValues(bottom = Spacing.l),
                 ) {
                     itemsIndexed(state.backupList) { index, path ->
                         BackupFileCard(

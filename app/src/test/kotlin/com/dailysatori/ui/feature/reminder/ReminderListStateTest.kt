@@ -16,6 +16,23 @@ import kotlin.test.assertTrue
 
 class ReminderListStateTest {
     @Test
+    fun todayEntryMatchesThePendingCountAndExcludesFuturePausedAndCompletedItems() {
+        val today = LocalDate(2026, 9, 14)
+        val due = reminder("today", ReminderRecurrence.Once).copy(startDate = today, endDate = today)
+        val input = listOf(due, due.copy(id = "notified", status = ReminderStatus.NOTIFIED),
+            due.copy(id = "tomorrow", startDate = LocalDate(2026, 9, 15), endDate = LocalDate(2026, 9, 15)),
+            due.copy(id = "paused", status = ReminderStatus.PAUSED), due.copy(id = "done", status = ReminderStatus.COMPLETED),
+            due.copy(id = "corrupt", dataIssue = com.dailysatori.service.reminder.ReminderDataIssue.CORRUPT_PROFILE))
+        val state = buildReminderListState(input, today, ReminderListMode.RECENT, ReminderListFilter(todayOnly = true))
+        assertEquals(setOf("today", "notified"), state.sections.flatMap { it.items }.map { it.id }.toSet())
+        assertEquals(listOf("today"), state.sections.map { it.key })
+        assertEquals(com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(input, today), state.sections.sumOf { it.items.size })
+        val all = buildReminderListState(input, today, ReminderListMode.RECENT, ReminderListFilter())
+        assertTrue(all.sections.flatMap { it.items }.any { it.id == "tomorrow" })
+        assertTrue(state.listIdentity != all.listIdentity)
+    }
+
+    @Test
     fun yearSwitcherOnlyAppearsForMonthsMode() {
         assertTrue(ReminderListMode.MONTHS.showsYearSwitcher())
         assertFalse(ReminderListMode.RECENT.showsYearSwitcher())

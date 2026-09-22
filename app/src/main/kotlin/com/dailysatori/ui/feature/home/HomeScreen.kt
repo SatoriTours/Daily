@@ -130,6 +130,7 @@ fun HomeScreen(
     onProfileClick: () -> Unit = {},
     onThoughts: () -> Unit = {},
     onReminders: () -> Unit = {},
+    onTodayReminders: () -> Unit = {},
     onReminder: (String) -> Unit = {},
     onAddReminder: () -> Unit = {},
     onOpportunities: () -> Unit = {},
@@ -165,7 +166,8 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).hazeSource(state = hazeState)) {
+            // Include the base background in the captured layer, even for tabs without their own Scaffold.
+            Box(modifier = Modifier.fillMaxSize().hazeSource(state = hazeState).background(MaterialTheme.colorScheme.background)) {
                 Crossfade(
                     targetState = selectedIndex,
                     modifier = Modifier.fillMaxSize(),
@@ -184,6 +186,7 @@ fun HomeScreen(
                         MY_TAB_INDEX -> MySpaceScreen(
                             onThoughts = onThoughts,
                             onReminders = onReminders,
+                            onTodayReminders = onTodayReminders,
                             onReminder = onReminder,
                             onAddReminder = onAddReminder,
                             onOpportunities = onOpportunities,
@@ -316,6 +319,14 @@ private fun AiCompactInputRow(
     }
 }
 
+internal fun homeBottomBarHazeStyle(surfaceColor: Color) = HazeDefaults.style(
+    // This sits behind the blurred layer; transparency would expose the original, unblurred text.
+    backgroundColor = surfaceColor.copy(alpha = 1f),
+    tint = HazeDefaults.tint(surfaceColor.copy(alpha = HomeBottomBarHazeTintAlpha)),
+    blurRadius = HomeBottomBarHazeBlurRadius,
+    noiseFactor = HomeBottomBarHazeNoiseFactor,
+)
+
 @Composable
 private fun HomeGlassSurface(
     modifier: Modifier = Modifier,
@@ -327,12 +338,7 @@ private fun HomeGlassSurface(
     Box(
         modifier = modifier.clip(shape).hazeEffect(
             state = hazeState,
-            style = HazeDefaults.style(
-                backgroundColor = Color.Transparent,
-                tint = HazeDefaults.tint(MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarHazeTintAlpha)),
-                blurRadius = HomeBottomBarHazeBlurRadius,
-                noiseFactor = HomeBottomBarHazeNoiseFactor,
-            ),
+            style = homeBottomBarHazeStyle(MaterialTheme.colorScheme.surface),
         ).background(color),
     ) {
         Box(

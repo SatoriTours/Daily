@@ -46,7 +46,7 @@ import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.indicator.EmptyState
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -115,8 +115,9 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
             }
         } else {
             LazyColumn(
-                modifier = modifier.fillMaxSize().padding(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                modifier = modifier.fillMaxSize(),
+                contentPadding = PaddingValues(Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 items(state.plugins, key = { it.fileName }) { plugin ->
                     val isUpdating = state.updatingPluginId == plugin.fileName

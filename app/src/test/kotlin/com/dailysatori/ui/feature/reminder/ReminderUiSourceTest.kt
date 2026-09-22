@@ -58,7 +58,8 @@ class ReminderUiSourceTest {
 
         assertTrue(draft.contains("horizontalScroll(rememberScrollState())"))
         assertTrue(settings.contains("verticalScroll(rememberScrollState())"))
-        assertFalse(settings.contains("Modifier.weight(1f)"))
+        // A label may use horizontal Row weight; the vertically scrolling content must not use it.
+        assertFalse(settings.contains("Column(Modifier.weight(1f)"))
         assertTrue(list.contains("LazyColumn"))
         // v2 杂志式列表：标题与导语最多两行，超出省略；月份 rail 横向滚动。
         assertTrue(list.contains("maxLines = 2"))

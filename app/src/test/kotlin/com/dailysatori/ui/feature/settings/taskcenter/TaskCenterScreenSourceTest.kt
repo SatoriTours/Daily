@@ -25,13 +25,13 @@ class TaskCenterScreenSourceTest {
     }
 
     @Test
-    fun settingsPageExposesTaskCenterEntry() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
-
-        assertTrue(source.contains("TASK_CENTER"))
-        assertTrue(source.contains("TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })"))
-        assertTrue(source.contains("title = \"任务\""))
-        assertTrue(source.contains("subtitle = \"查看异步任务进度和状态\""))
+    fun managementExposesSeparateAllTasksAndRecentFailureEntries() {
+        val profile = File("src/main/kotlin/com/dailysatori/ui/feature/profile/ProfileScreen.kt").readText()
+        val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
+        assertTrue(profile.contains("TextButton(onClick = onFailedTasks)"))
+        assertTrue(navigation.contains("onTasks = { navController.navigate(TaskCenterRoute()) }"))
+        assertTrue(navigation.contains("onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) }"))
+        assertTrue(navigation.contains("recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures"))
     }
 
     @Test

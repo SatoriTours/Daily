@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
-import com.dailysatori.service.asynctask.AsyncTaskListItem
+import com.dailysatori.service.asynctask.AsyncTaskOverview
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderProfileSnapshot
@@ -22,7 +22,7 @@ class ProfileStateTest {
         val state = ProfileUiState()
 
         assertEquals(
-            listOf("reminders", "favorites", "external_favorites", "remote_news", "tasks", "settings", "privacy"),
+            listOf("favorites", "external_favorites", "remote_news", "tasks", "settings", "privacy"),
             state.destinations.map { it.id },
         )
         assertFalse(state.destinations.any { it.id in setOf("read_later", "history") })
@@ -43,11 +43,7 @@ class ProfileStateTest {
 
     @Test
     fun taskProjectionExposesProgressAndFailureForTheProfile() {
-        val now = 2 * 24 * 60 * 60 * 1000L
-        val summary = profileTaskSummary(listOf(
-            profileTask(status = "running", current = 2, total = 5, updatedAt = now),
-            profileTask(status = "failed", current = 1, total = 5, updatedAt = now),
-        ), nowMs = now)
+        val summary = profileTaskSummary(AsyncTaskOverview(1, 1, 2, 5))
 
         assertEquals(1, summary.activeCount)
         assertEquals(1, summary.failedCount)
@@ -56,16 +52,9 @@ class ProfileStateTest {
     }
 
     @Test
-    fun profileDoesNotPresentOldFailuresAsCurrentFailures() {
-        val day = 24 * 60 * 60 * 1000L
-        val now = 10 * day
-        val summary = profileTaskSummary(
-            tasks = listOf(
-                profileTask(status = "failed", current = 0, total = 0, updatedAt = now - day - 1),
-                profileTask(status = "succeeded", current = 2, total = 2, updatedAt = now),
-            ),
-            nowMs = now,
-        )
+    fun emptyOverviewHidesFailureActionAndProgress() {
+        val summary = profileTaskSummary(AsyncTaskOverview(0, 0, 0, 0))
+        assertEquals(null, summary.progressLabel)
 
         assertEquals(0, summary.failedCount)
         assertFalse(summary.canOpenFailedTasks)
@@ -89,11 +78,6 @@ class ProfileStateTest {
         assertEquals("selected", profileReminderSummary(listOf(weekday, selected, corrupt, monthly), LocalDate(2026, 9, 5)).nextContent)
     }
 }
-
-private fun profileTask(status: String, current: Long, total: Long, updatedAt: Long = 0) = AsyncTaskListItem(
-    id = 1, type = "remote_article_sync", status = status, progressCurrent = current, progressTotal = total,
-    progressMessage = "", checkpointJson = "", createdAt = 0, startedAt = null, finishedAt = null, updatedAt = updatedAt, lastErrorMessage = "",
-)
 
 private fun profileReminder(date: LocalDate, content: String, hour: Int, rule: ReminderActiveDayRule = ReminderActiveDayRule.Daily, dataIssue: ReminderDataIssue? = null, recurrence: ReminderRecurrence = ReminderRecurrence.Once) = Reminder(
     id = content, content = content, startDate = date, endDate = date, firstReminderTime = LocalTime(hour, 0),

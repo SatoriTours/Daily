@@ -5,14 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
-import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
-import com.dailysatori.service.asynctask.AsyncTaskFilter
-import com.dailysatori.service.asynctask.AsyncTaskStatus
+import com.dailysatori.service.asynctask.AsyncTaskOverview
+import com.dailysatori.service.asynctask.recentTaskFailureCutoffs
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.service.reminder.Reminder
-import com.dailysatori.service.asynctask.AsyncTaskListItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -32,22 +32,19 @@ import kotlinx.datetime.atStartOfDayIn
 data class ProfileDestination(val id: String, val title: String, val subtitle: String = "")
 
 data class ProfileUiState(
-    val todayReminderCount: Int = 0,
     val favoriteCount: Int = 0,
     val externalFavoriteCount: Int = 0,
     val enabledExternalSourceCount: Int = 0,
     val remoteNewsArticleCount: Long = 0,
     val enabledRemoteNewsSourceCount: Long = 0,
-    val activeTaskCount: Int = 0,
-    val failedTaskCount: Int = 0,
-    val nextReminderContent: String? = null,
-    val nextReminderTime: String? = null,
+    val activeTaskCount: Long = 0,
+    val failedTaskCount: Long = 0,
     val taskProgressLabel: String? = null,
     val destinations: List<ProfileDestination> = profileDestinations,
 )
 
 data class ProfileReminderSummary(val count: Int, val nextContent: String?, val nextTime: String?)
-data class ProfileTaskSummary(val activeCount: Int, val failedCount: Int, val progressLabel: String?, val canOpenFailedTasks: Boolean)
+data class ProfileTaskSummary(val activeCount: Long, val failedCount: Long, val progressLabel: String?, val canOpenFailedTasks: Boolean)
 private data class ProfileExternalFavorites(val itemCount: Int, val enabledSourceCount: Int)
 private data class ProfileRemoteNews(val articleCount: Long, val enabledSourceCount: Long)
 
@@ -60,22 +57,12 @@ fun profileReminderSummary(reminders: List<Reminder>, today: LocalDate): Profile
     return ProfileReminderSummary(pending.size, next?.content, next?.firstReminderTime?.toString())
 }
 
-fun profileTaskSummary(
-    tasks: List<AsyncTaskListItem>,
-    nowMs: Long = Clock.System.now().toEpochMilliseconds(),
-): ProfileTaskSummary {
-    val active = tasks.filter { it.status in activeTaskStatuses }
-    val recentFailures = tasks.filter {
-        it.status == AsyncTaskStatus.failed.name && it.updatedAt >= nowMs - PROFILE_FAILURE_WINDOW_MS
-    }
-    val progress = active.firstOrNull { it.progressTotal > 0 }
-    return ProfileTaskSummary(
-        activeCount = active.size,
-        failedCount = recentFailures.size,
-        progressLabel = progress?.let { "${it.progressCurrent}/${it.progressTotal}" },
-        canOpenFailedTasks = recentFailures.isNotEmpty(),
-    )
-}
+fun profileTaskSummary(overview: AsyncTaskOverview): ProfileTaskSummary = ProfileTaskSummary(
+    activeCount = overview.activeCount,
+    failedCount = overview.failedCount,
+    progressLabel = overview.progressTotal.takeIf { it > 0 }?.let { "${overview.progressCurrent}/$it" },
+    canOpenFailedTasks = overview.failedCount > 0,
+)
 
 fun localDayTicker(): Flow<LocalDate> = flow {
     while (true) {
@@ -89,7 +76,6 @@ fun localDayTicker(): Flow<LocalDate> = flow {
 }
 
 val profileDestinations = listOf(
-    ProfileDestination("reminders", "今日提醒"),
     ProfileDestination("favorites", "收藏库"),
     ProfileDestination("external_favorites", "外部收藏"),
     ProfileDestination("remote_news", "远程新闻"),
@@ -98,8 +84,8 @@ val profileDestinations = listOf(
     ProfileDestination("privacy", "数据与隐私"),
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModel(
-    reminders: ReminderRepository,
     articles: ArticleRepository,
     externalSources: ExternalFavoriteSourceRepository,
     remoteNewsSources: RemoteNewsSourceRepository,
@@ -107,7 +93,6 @@ class ProfileViewModel(
     tasks: AsyncTaskRepository,
 ) : ViewModel() {
 
-    private val remindersForToday = combine(reminders.observeAll(), localDayTicker()) { items, today -> items to today }
     private val externalFavorites = combine(articles.getExternalFavorites(), externalSources.observeEnabled()) { items, sources ->
         ProfileExternalFavorites(items.size, sources.size)
     }
@@ -115,19 +100,16 @@ class ProfileViewModel(
         ProfileRemoteNews(articleCount, sourceCount)
     }
 
+    private val taskOverview = recentTaskFailureCutoffs().flatMapLatest(tasks::observeTaskOverview)
+
     val state = combine(
-        remindersForToday,
         articles.getFavorites(),
         externalFavorites,
         remoteNews,
-        tasks.observeTaskCenter(AsyncTaskFilter(showTerminal = true)),
-    ) { reminderInput, favoriteItems, externalFavoriteItems, remoteNews, taskPage ->
-        val (reminderItems, today) = reminderInput
-        val taskItems = taskPage.tasks
-        val reminders = profileReminderSummary(reminderItems, today)
-        val tasks = profileTaskSummary(taskItems)
+        taskOverview,
+    ) { favoriteItems, externalFavoriteItems, remoteNews, overview ->
+        val tasks = profileTaskSummary(overview)
         ProfileUiState(
-            todayReminderCount = reminders.count,
             favoriteCount = favoriteItems.size,
             externalFavoriteCount = externalFavoriteItems.itemCount,
             enabledExternalSourceCount = externalFavoriteItems.enabledSourceCount,
@@ -135,12 +117,7 @@ class ProfileViewModel(
             enabledRemoteNewsSourceCount = remoteNews.enabledSourceCount,
             activeTaskCount = tasks.activeCount,
             failedTaskCount = tasks.failedCount,
-            nextReminderContent = reminders.nextContent,
-            nextReminderTime = reminders.nextTime,
             taskProgressLabel = tasks.progressLabel,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileUiState())
 }
-
-private val activeTaskStatuses = setOf(AsyncTaskStatus.queued.name, AsyncTaskStatus.running.name, AsyncTaskStatus.retrying.name)
-private const val PROFILE_FAILURE_WINDOW_MS = 24 * 60 * 60 * 1000L

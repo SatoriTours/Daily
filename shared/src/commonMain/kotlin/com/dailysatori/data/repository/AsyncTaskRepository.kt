@@ -2,6 +2,8 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOne
+import com.dailysatori.service.asynctask.AsyncTaskOverview
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.AsyncTaskListItem
@@ -162,6 +164,10 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         return q.selectLastInsertedAsyncTaskBatchId().executeAsOne()
     }
 
+    fun observeTaskOverview(failedSince: Long): Flow<AsyncTaskOverview> =
+        q.selectAsyncTaskOverview(failedSince, mapper = ::AsyncTaskOverview)
+            .asFlow().mapToOne(Dispatchers.IO)
+
     fun observeTaskCenter(filter: AsyncTaskFilter, limit: Int = DEFAULT_TASK_CENTER_LIMIT): Flow<AsyncTaskCenterPage> {
         val requestedLimit = limit.coerceAtLeast(1)
         val types = filter.types.ifEmpty { setOf("") }
@@ -172,6 +178,7 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             includeAllStatuses = if (filter.statuses.isEmpty()) 1 else 0,
             statuses = statuses,
             showTerminal = if (filter.showTerminal) 1 else 0,
+            updatedSince = filter.updatedSince ?: Long.MIN_VALUE,
             limit = requestedLimit.toLong(),
             mapper = ::AsyncTaskListItem,
         )

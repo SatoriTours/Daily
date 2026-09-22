@@ -77,7 +77,8 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onProfileClick = { navController.navigate(ProfileRoute) },
                 onThoughts = { navController.navigate(MyThoughtsRoute) },
-                onReminders = { navController.navigate(ReminderListRoute) },
+                onReminders = { navController.navigate(ReminderListRoute()) },
+                onTodayReminders = { navController.navigate(ReminderListRoute(todayOnly = true)) },
                 onReminder = { navController.navigate(ReminderDetailRoute(it)) },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpportunities = { navController.navigate(MyOpportunitiesRoute) },
@@ -96,6 +97,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         }
         composable<MyOpportunitiesRoute> {
             NewsOpportunityListScreen(onBack = { navController.popBackStack() },
+                onThoughts = { navController.navigate(MyThoughtsRoute) },
                 onOpen = { navController.navigate(MyOpportunityRoute(it)) },
                 onArticle = { navController.navigate(ArticleDetailRoute(it)) })
         }
@@ -112,12 +114,11 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         composable<ProfileRoute> {
             ProfileScreen(
                 onBack = { navController.popBackStack() },
-                onReminders = { navController.navigate(ReminderListRoute) },
-                onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onFavorites = { navController.navigate(ProfileFavoritesRoute) },
                 onExternalFavorites = { navController.navigate(ProfileExternalFavoritesRoute) },
                 onRemoteNews = { navController.navigate(RemoteNewsSettingsRoute) },
-                onTasks = { navController.navigate(TaskCenterRoute) },
+                onTasks = { navController.navigate(TaskCenterRoute()) },
+                onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) },
                 onSettings = { navController.navigate(SettingsRoute) },
                 onPrivacy = { navController.navigate(DataPrivacyRoute) },
             )
@@ -133,7 +134,9 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         }
         composable<ProfileExternalFavoritesRoute> { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<RemoteNewsSettingsRoute> { RemoteNewsSettingsScreen(onBack = { navController.popBackStack() }) }
-        composable<TaskCenterRoute> { TaskCenterScreen(onBack = { navController.popBackStack() }) }
+        composable<TaskCenterRoute> { entry ->
+            TaskCenterScreen(onBack = { navController.popBackStack() }, recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures)
+        }
 
         composable<ArticleDetailRoute>(
             enterTransition = {
@@ -271,11 +274,13 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         ) {
             SettingsScreen(
                 viewModel = settingsViewModel,
+                onBack = { navController.popBackStack() },
             )
         }
 
-        composable<ReminderListRoute> {
+        composable<ReminderListRoute> { entry ->
             ReminderListScreen(
+                initialTodayOnly = entry.toRoute<ReminderListRoute>().todayOnly,
                 onBack = { navController.popBackStack() },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpenSettings = { navController.navigate(ReminderSettingsRoute) },

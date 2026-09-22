@@ -24,6 +24,7 @@ data class ReminderListFilter(
     val isPanelOpen: Boolean = false,
     val displayYear: Int? = null,
     val expandedMonth: Int? = null,
+    val todayOnly: Boolean = false,
 )
 
 data class ReminderListItemUi(
@@ -70,7 +71,8 @@ fun buildReminderListState(
     mode: ReminderListMode,
     filter: ReminderListFilter,
 ): ReminderListState {
-    val filtered = reminders.filter { it.matchesFilters(filter) }
+    val eligible = if (filter.todayOnly) com.dailysatori.service.reminder.ReminderSummary.todayPendingReminders(reminders, now) else reminders
+    val filtered = eligible.filter { it.matchesFilters(filter) }
     // Hero 摘要始终基于“即将到来”，不随模式（含已结束）变化。
     val upcoming = filtered.upcomingItems(now)
         .filter { it.matchesQuery(filter.query, now) }
@@ -101,7 +103,7 @@ fun buildReminderListState(
             nextItem = upcoming.firstOrNull(),
             pausedUpcoming = upcoming.count { it.daysUntil in 0..30 && it.status == ReminderStatus.PAUSED },
         ),
-        listIdentity = "$mode|${filter.statuses.sortedBy { it.name }}|${filter.recurrences.sortedBy { it.name }}|${filter.query.trim().lowercase()}|$year|${filter.expandedMonth}",
+        listIdentity = "$mode|${filter.statuses.sortedBy { it.name }}|${filter.recurrences.sortedBy { it.name }}|${filter.query.trim().lowercase()}|$year|${filter.expandedMonth}|${filter.todayOnly}",
     )
 }
 

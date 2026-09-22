@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="management_content">内容与来源</string>
+    <string name="management_running">运行状态</string>
+    <string name="management_app">应用设置</string>
+    <string name="management_favorites">收藏库</string>
+    <string name="management_count">%1$d 项</string>
+    <string name="management_external">外部收藏</string>
+    <string name="management_external_count">%1$d 项 · %2$d 个来源</string>
+    <string name="management_news">新闻源</string>
+    <string name="management_news_count">已同步 %1$d 篇 · %2$d 个来源</string>
+    <string name="management_no_sources">尚未配置来源</string>
+    <string name="management_tasks">同步与任务</string>
+    <string name="management_task_status">进行中 %1$d · 近24小时失败 %2$d</string>
+    <string name="management_failed_tasks">查看失败任务</string>
+    <string name="management_general">通用设置</string>
+    <string name="management_general_hint">AI、提醒、网络与备份</string>
+    <string name="management_privacy">数据与隐私</string>
+    <string name="management_privacy_hint">数据存储与使用说明</string>
+    <string name="management_today_reminders">今日提醒 · %1$d 项待完成</string>
+    <string name="management_preferences">使用偏好</string>
+    <string name="management_ai">AI 与扩展</string>
+    <string name="management_network">网络服务</string>
+    <string name="management_data">数据与维护</string>
+    <string name="management_storage">本地存储</string>
+    <string name="management_storage_hint">日记、提醒、收藏和同步任务保存在此设备上。</string>
+    <string name="management_external_data">外部服务</string>
+    <string name="management_external_data_hint">外部收藏同步仅在你连接的来源启用时访问对应服务。使用 AI 功能时，相关内容会发送到你配置的模型服务。</string>
+    <string name="management_backup_hint">备份、恢复、导入和网络服务可在通用设置中管理。恢复或导入前，请确认所选文件。</string>
+    <string name="management_all_reminders">全部提醒</string>
+    <string name="management_recent_tasks">近24小时</string>
+    <string name="management_all_tasks">全部任务</string>
+</resources>

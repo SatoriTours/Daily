@@ -15,10 +15,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.service.reminder.*
-import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
+import com.dailysatori.ui.component.settings.SettingsSectionCard
 import com.dailysatori.ui.feature.reminder.label
 import com.dailysatori.ui.feature.reminder.shortLabel
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import org.koin.androidx.compose.koinViewModel
@@ -46,7 +47,7 @@ fun ReminderSettingsScreen(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     AppScaffold(title = stringResource(R.string.reminder_settings_title), onBack = onBack) { modifier ->
-        Column(modifier.fillMaxSize().padding(horizontal = Spacing.m).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
             state.primarySections.forEach { section ->
                 when (section.id) {
                     "default-rhythm" -> DefaultRhythmCard(state, viewModel)
@@ -112,19 +113,13 @@ fun ReminderSettingsScreen(
 }
 
 @Composable private fun SettingsCard(title: Int, content: @Composable ColumnScope.() -> Unit) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(stringResource(title), style = MaterialTheme.typography.titleMedium)
-            content()
-        }
+    SettingsSectionCard(stringResource(title)) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m), content = content)
     }
 }
 
 @Composable private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(label); Switch(checked, onChange) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(label, Modifier.weight(1f)); Switch(checked, onChange) }
 }
 
 @Composable private fun <T> ChoiceRow(values: Iterable<T>, isSelected: (T) -> Boolean, label: @Composable (T) -> String, onSelected: (T) -> Unit) {

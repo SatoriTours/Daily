@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="management_content">Content &amp; sources</string>
+    <string name="management_running">Activity</string>
+    <string name="management_app">App settings</string>
+    <string name="management_favorites">Favorites</string>
+    <string name="management_count">%1$d items</string>
+    <string name="management_external">External favorites</string>
+    <string name="management_external_count">%1$d items · %2$d sources</string>
+    <string name="management_news">News sources</string>
+    <string name="management_news_count">%1$d articles synced · %2$d sources</string>
+    <string name="management_no_sources">No sources configured</string>
+    <string name="management_tasks">Sync &amp; tasks</string>
+    <string name="management_task_status">%1$d active · %2$d failed in 24h</string>
+    <string name="management_failed_tasks">View failed tasks</string>
+    <string name="management_general">General settings</string>
+    <string name="management_general_hint">AI, reminders, network and backups</string>
+    <string name="management_privacy">Data &amp; privacy</string>
+    <string name="management_privacy_hint">How your data is stored and used</string>
+    <string name="management_today_reminders">Today · %1$d reminders pending</string>
+    <string name="management_preferences">Preferences</string>
+    <string name="management_ai">AI &amp; extensions</string>
+    <string name="management_network">Network services</string>
+    <string name="management_data">Data &amp; maintenance</string>
+    <string name="management_storage">Local storage</string>
+    <string name="management_storage_hint">Diaries, reminders, favorites and sync tasks are stored on this device.</string>
+    <string name="management_external_data">External services</string>
+    <string name="management_external_data_hint">External favorites access connected services only when their sources are enabled. AI features send relevant content to your configured model service.</string>
+    <string name="management_backup_hint">Manage backups, restores, imports and network services in General settings. Check the selected file before restoring or importing.</string>
+    <string name="management_all_reminders">All reminders</string>
+    <string name="management_recent_tasks">Last 24 hours</string>
+    <string name="management_all_tasks">All tasks</string>
+</resources>

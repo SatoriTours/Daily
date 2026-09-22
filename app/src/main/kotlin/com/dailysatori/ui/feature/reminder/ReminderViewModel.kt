@@ -412,8 +412,8 @@ class ReminderViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInProfiles() + repository.profiles())
     val visibleReminders: StateFlow<List<Reminder>> = combine(reminders, state) { items, ui -> filterReminders(items, ui.filter) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val listState: StateFlow<ReminderListState> = combine(reminders, state) { items, ui ->
-        buildReminderListState(items, Clock.System.todayIn(TimeZone.currentSystemDefault()), ui.listMode, ui.listFilter)
+    val listState: StateFlow<ReminderListState> = combine(reminders, state, com.dailysatori.ui.feature.profile.localDayTicker()) { items, ui, today ->
+        buildReminderListState(items, today, ui.listMode, ui.listFilter)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), buildReminderListState(emptyList(), Clock.System.todayIn(TimeZone.currentSystemDefault()), ReminderListMode.RECENT, ReminderListFilter()))
 
     init {
@@ -582,6 +582,15 @@ class ReminderViewModel(
         _state.update { it.copy(filter = filter) }
     }
 
+    private var listEntryFilterApplied = false
+
+    fun applyListEntryFilter(todayOnly: Boolean) {
+        if (listEntryFilterApplied) return
+        listEntryFilterApplied = true
+        if (todayOnly) setListMode(ReminderListMode.RECENT)
+        updateListFilter { it.copy(todayOnly = todayOnly) }
+    }
+
     fun setListMode(mode: ReminderListMode) {
         _state.update { current ->
             val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -591,7 +600,7 @@ class ReminderViewModel(
             } else {
                 current.listFilter
             }
-            current.copy(listMode = mode, listFilter = filters)
+            current.copy(listMode = mode, listFilter = filters.copy(todayOnly = false))
         }
     }
 

@@ -83,6 +83,7 @@ fun ReminderListScreen(
     latestProfile: ReminderProfileSnapshot = ReminderProfileSnapshot.standard(),
     viewModel: ReminderViewModel = koinViewModel(),
     initialReminderId: String? = null,
+    initialTodayOnly: Boolean = false,
     onAddReminder: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     showSettings: Boolean = true,
@@ -96,6 +97,7 @@ fun ReminderListScreen(
     val displayYear = ui.listFilter.displayYear ?: today.year
     val scrollState = rememberLazyListState()
 
+    LaunchedEffect(viewModel, initialTodayOnly) { viewModel.applyListEntryFilter(initialTodayOnly) }
     LaunchedEffect(initialReminderId) {
         if (initialReminderId != null) viewModel.selectReminder(initialReminderId)
     }
@@ -112,8 +114,15 @@ fun ReminderListScreen(
             if (ui.isListSearchVisible) ReminderSearchField(ui.listFilter.query) { query ->
                 viewModel.updateListFilter { it.copy(query = query) }
             }
-            ReminderHero(listState.summary, today)
-            ReminderModeTabs(ui.listMode, viewModel::setListMode)
+            if (ui.listFilter.todayOnly) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.management_today_reminders, listState.sections.sumOf { it.items.size }), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                    TextButton(onClick = { viewModel.updateListFilter { it.copy(todayOnly = false) } }) { Text(stringResource(R.string.management_all_reminders)) }
+                }
+            } else {
+                ReminderHero(listState.summary, today)
+                ReminderModeTabs(ui.listMode, viewModel::setListMode)
+            }
             LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize()) {
                 if (ui.listMode == ReminderListMode.MONTHS) {
                     item(key = "year_nav") {

@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Add
+import com.dailysatori.ui.feature.profile.localDayTicker
+import com.dailysatori.ui.feature.profile.profileReminderSummary
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
@@ -34,6 +37,7 @@ import org.koin.androidx.compose.koinViewModel
 fun MySpaceScreen(
     onThoughts: () -> Unit,
     onReminders: () -> Unit,
+    onTodayReminders: () -> Unit,
     onReminder: (String) -> Unit,
     onAddReminder: () -> Unit,
     onOpportunities: () -> Unit,
@@ -51,8 +55,10 @@ fun MySpaceScreen(
     val failure by viewModel.operationFailed.collectAsStateWithLifecycle()
     val task by viewModel.task.collectAsStateWithLifecycle()
     val busy = opportunities.isUpdating || task?.status in listOf("queued", "running", "retrying")
-    val upcoming = myUpcomingReminders(allReminders, Clock.System.todayIn(TimeZone.currentSystemDefault()))
-    LaunchedEffect(thoughtState.archive.generatedAt, thoughtState.useInChat) { viewModel.recommend() }
+    val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
+    val upcoming = myUpcomingReminders(allReminders, today)
+    val todayCount = profileReminderSummary(allReminders, today).count
+    LaunchedEffect(viewModel) { viewModel.observeRecommendations() }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
@@ -74,8 +80,17 @@ fun MySpaceScreen(
         item(key = "reminders") {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                MySectionHeading(stringResource(R.string.my_space_next), onReminders)
-                if (upcoming.isEmpty()) MyEmptyBlock(stringResource(R.string.my_space_reminder_empty), "", stringResource(R.string.my_space_add_reminder), onAddReminder)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.my_space_next), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = onAddReminder) {
+                        Icon(Icons.Default.Add, null, Modifier.size(IconSize.s))
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text(stringResource(R.string.my_space_add_reminder))
+                    }
+                    IconButton(onClick = onReminders) { Icon(Icons.Default.ChevronRight, stringResource(R.string.my_space_all), Modifier.size(IconSize.s)) }
+                }
+                TextButton(onClick = onTodayReminders) { Text(stringResource(R.string.management_today_reminders, todayCount)) }
+                if (upcoming.isEmpty()) MyEmptyBlock(stringResource(R.string.my_space_reminder_empty), "", "", onAddReminder)
                 else upcoming.forEach { item -> MyReminderRow(item) { onReminder(item.id) } }
             }
         }
