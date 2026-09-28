@@ -147,6 +147,8 @@ hint:
 
 # Article module
 article:
+  source: Source
+  source_unknown: Unknown source
   all_articles: All Articles
   favorite_articles: Favorite Articles
   search_result: 'Search: "{query}"'

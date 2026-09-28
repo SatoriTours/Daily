@@ -50,6 +50,7 @@ class RemoteArticleSyncRepositoryTest {
         val articles = syncRepo.getArticlesBySourceDate(sourceId, "2026-06-22")
         assertEquals(listOf(articleId), articles.map { it.id })
         assertEquals("# Remote original", articles.single().ai_markdown_content)
+        assertEquals(listOf("Tech"), articleRepo.getSourceNames(articleId))
     }
 
     @Test

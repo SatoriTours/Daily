@@ -10,6 +10,30 @@ import kotlin.test.assertTrue
 
 class RemoteArticleFavoriteMapperTest {
     @Test
+    fun originalReaderExtractsBodyFromRemoteSnapshot() {
+        val article = RemoteArticle(id = 1, summary = "Summary", viewpoints = listOf("Point"), content = "# Body\n\nFull text")
+        assertEquals("# Body\n\nFull text", articleOriginalMarkdown(article.canonicalOriginalMarkdown(), "AI body", true))
+        assertEquals("# Body\n\nFull text", articleOriginalMarkdown("## 原文\n\n# Body\n\nFull text", null, true))
+    }
+
+    @Test
+    fun summaryOnlySnapshotDoesNotBecomeOriginalText() {
+        val article = RemoteArticle(id = 1, summary = "Summary", viewpoints = listOf("Point"))
+        assertNull(articleOriginalMarkdown(article.canonicalOriginalMarkdown(), null, true))
+        assertNull(articleOriginalMarkdown("## 关键观点\n\n- Point", " ", true))
+        assertEquals("Fetched full text", articleOriginalMarkdown(article.canonicalOriginalMarkdown(), "Fetched full text", true))
+    }
+
+    @Test
+    fun originalReaderPreservesOrdinaryDocumentsAndFullBodyHeadings() {
+        val body = "## 摘要\n\nDocument introduction\n\n## 正文\n\nBody"
+        assertEquals(body, articleOriginalMarkdown(body, null))
+        assertEquals(body, articleOriginalMarkdown("## 原文\n\n$body", null, true))
+        assertEquals(body, articleOriginalMarkdown(null, body, true))
+        assertEquals("Legacy body", articleOriginalMarkdown("Legacy body", null, true))
+    }
+
+    @Test
     fun mapsRemoteArticleIntoLocalFavoriteFields() {
         val article = RemoteArticle(
             id = 42,

@@ -60,6 +60,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getById(id: Long) = q.selectArticleById(id).executeAsOneOrNull()
 
+    fun getSourceNames(id: Long): List<String> =
+        q.selectArticleSourceNames(id).executeAsList().filter { it.isNotBlank() }
+
     fun getByUrl(url: String): Article? = q.selectArticleByUrlNullable(url).executeAsOneOrNull()
 
     fun insert(

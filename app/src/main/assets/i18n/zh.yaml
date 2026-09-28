@@ -147,6 +147,8 @@ hint:
 
 # 文章模块
 article:
+  source: 来源
+  source_unknown: 来源未知
   all_articles: 全部文章
   favorite_articles: 收藏文章
   search_result: '搜索: "{query}"'

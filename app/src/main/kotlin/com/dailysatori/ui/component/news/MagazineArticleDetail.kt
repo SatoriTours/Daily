@@ -18,9 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import com.dailysatori.ui.theme.MarkdownStyles
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.mikepenz.markdown.model.MarkdownPadding
 import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.m3.Markdown
@@ -30,7 +30,9 @@ fun ArticleReaderHeader(
     title: String,
     metaChips: List<String>,
     modifier: Modifier = Modifier,
+    sourceName: String? = null,
 ) {
+    val i18n = koinInject<I18nService>()
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
@@ -42,6 +44,12 @@ fun ArticleReaderHeader(
             color = MaterialTheme.colorScheme.onSurface,
         )
         val meta = metaChips.map { it.trim() }.filter { it.isNotBlank() }.joinToString(" · ")
+        Text(
+            text = i18n.t("article.source") + ": " +
+                (sourceName?.takeIf { it.isNotBlank() } ?: i18n.t("article.source_unknown")),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         if (meta.isNotBlank()) {
             Text(
                 text = meta,

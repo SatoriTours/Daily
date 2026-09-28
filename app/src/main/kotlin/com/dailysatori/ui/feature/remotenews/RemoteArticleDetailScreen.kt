@@ -70,6 +70,7 @@ fun RemoteArticleDetailScreen(
     showFavoriteAction: Boolean = false,
     sourceIdentity: String = article.domain ?: article.feedName.orEmpty(),
     localArticleId: Long? = null,
+    sourceName: String? = null,
 ) {
     val density = LocalDensity.current
     var showMenu by remember { mutableStateOf(false) }
@@ -100,6 +101,7 @@ fun RemoteArticleDetailScreen(
                 coverHeightDp = coverHeightDp,
                 onCoverHeightChange = { coverHeightDp = it },
                 density = density,
+                sourceName = sourceName,
             )
         }
     }
@@ -186,10 +188,11 @@ private fun RemoteArticleDetailPager(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
+    sourceName: String?,
 ) {
     val coverImage = article.coverUrl
     val hasCover = !coverImage.isNullOrBlank()
-    RemoteArticleDetailPage(article, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density)
+    RemoteArticleDetailPage(article, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density, sourceName)
 }
 
 @Composable
@@ -200,6 +203,7 @@ private fun RemoteArticleDetailPage(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
+    sourceName: String?,
 ) {
     val listState = rememberLazyListState()
     val nestedScrollConnection = rememberRemoteArticleDetailNestedScrollConnection(
@@ -209,7 +213,13 @@ private fun RemoteArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             RemoteArticleCoverImage(imageUrl = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        ArticleReaderHeader(remoteArticleDisplayTitle(article), remoteArticleMetaChips(article))
+        ArticleReaderHeader(
+            remoteArticleDisplayTitle(article), remoteArticleMetaChips(article),
+            sourceName = sourceName?.takeIf { it.isNotBlank() }
+                ?: article.feedName?.takeIf { it.isNotBlank() }
+                ?: article.domain?.takeIf { it.isNotBlank() }
+                ?: com.dailysatori.ui.component.card.articleDisplayDomain(article.url).takeIf { it != "文章详情" },
+        )
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "remote-summary-content") { RemoteArticleDetailBody(article) }
         }

@@ -338,7 +338,7 @@ private fun ArticleDetailLoadedContent(
         if (state.isRefreshing) {
             ArticleRefreshingContent(article, state, coverImage)
         } else {
-            ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density)
+            ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density, state.sourceNames)
         }
     }
 }
@@ -362,7 +362,7 @@ private fun ArticleRefreshingContent(
     if (!coverImage.isNullOrBlank()) {
         ArticleCoverImage(imagePath = coverImage, modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp))
     }
-    ArticleMagazineHeader(article)
+    ArticleMagazineHeader(article, state.sourceNames)
     ArticleProcessingStepper(state.processingStage, state.processingProgress, modifier = Modifier.padding(Spacing.m))
 }
 
@@ -373,6 +373,7 @@ private fun ArticleDetailPage(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
+    sourceNames: List<String>,
 ) {
     val hasCover = !coverImage.isNullOrBlank()
     val listState = rememberLazyListState()
@@ -383,7 +384,7 @@ private fun ArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             ArticleCoverImage(imagePath = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        ArticleMagazineHeader(article)
+        ArticleMagazineHeader(article, sourceNames)
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "summary-content") { ArticleDetailBody(article) }
         }
@@ -422,6 +423,7 @@ private fun ArticleOriginalBottomSheet(article: Article, onDismiss: () -> Unit) 
                     summary = article.ai_content,
                     original = article.ai_markdown_content,
                     storedOriginal = article.original_markdown_content,
+                    isRemoteSnapshot = article.source_type == "remote_news",
                     originalImageUrls = listOfNotNull(article.cover_image_url),
                 ),
                 typography = MarkdownStyles.readingTypography(),
@@ -453,10 +455,13 @@ private fun rememberArticleDetailNestedScrollConnection(
 }
 
 @Composable
-private fun ArticleMagazineHeader(article: Article) {
+private fun ArticleMagazineHeader(article: Article, sourceNames: List<String>) {
     ArticleReaderHeader(
         title = articleMagazineTitle(article),
         metaChips = articleMagazineMetaChips(article),
+        sourceName = sourceNames.joinToString(" · ").ifBlank {
+            extractDomain(article.url).takeIf { it != "文章详情" }.orEmpty()
+        },
     )
 }
 

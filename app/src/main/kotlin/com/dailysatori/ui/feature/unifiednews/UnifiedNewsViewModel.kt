@@ -620,7 +620,9 @@ class UnifiedNewsViewModel(
         title = ai_title ?: title,
         url = url,
         summary = ai_content,
-        content = original_markdown_content ?: ai_markdown_content,
+        content = com.dailysatori.data.repository.articleOriginalMarkdown(
+            original_markdown_content, ai_markdown_content, source_type == "remote_news",
+        ),
         coverUrl = cover_image_url,
         publishedAt = pub_date?.let { kotlinx.datetime.Instant.fromEpochMilliseconds(it).toString() },
         createdAt = kotlinx.datetime.Instant.fromEpochMilliseconds(created_at).toString(),

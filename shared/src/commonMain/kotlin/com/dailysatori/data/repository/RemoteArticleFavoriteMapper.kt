@@ -37,6 +37,22 @@ internal fun RemoteArticle.canonicalOriginalMarkdown(): String? = buildList {
     cleanRemoteArticleText(content)?.let { add("## 原文\n\n$it") }
 }.joinToString("\n\n").takeIf(String::isNotBlank)
 
+/** Unwrap the saved remote snapshot without presenting its generated summary as original text. */
+fun articleOriginalMarkdown(
+    storedOriginal: String?,
+    processedOriginal: String?,
+    isRemoteSnapshot: Boolean = false,
+): String? = (if (isRemoteSnapshot) originalBodyFromSnapshot(storedOriginal) else cleanRemoteArticleText(storedOriginal))
+    ?: cleanRemoteArticleText(processedOriginal)
+
+private fun originalBodyFromSnapshot(value: String?): String? {
+    val content = cleanRemoteArticleText(value) ?: return null
+    val headings = listOf("## 摘要", "## 关键观点", "## 原文")
+    if (content.lineSequence().first() !in headings) return content
+    val originalHeading = Regex("(?m)^## 原文\\s*$").find(content) ?: return null
+    return cleanRemoteArticleText(content.substring(originalHeading.range.last + 1))
+}
+
 internal fun RemoteArticle.sourceContentHash(): String = sha256Hex(
     listOf(
         cleanRemoteArticleText(title).orEmpty(),

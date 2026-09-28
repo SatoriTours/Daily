@@ -6,6 +6,20 @@ import kotlin.test.assertTrue
 
 class ArticleDetailContentTest {
     @Test
+    fun remoteOriginalShowsBodyWithoutSnapshotSummaryAndViewpoints() {
+        assertEquals("Full original", articleDetailPageContent(
+            page = 1, summary = "Summary", original = null,
+            storedOriginal = "## 摘要\n\nSummary\n\n## 关键观点\n\n- Point\n\n## 原文\n\nFull original",
+            isRemoteSnapshot = true,
+        ))
+        assertEquals("暂无原文内容", articleDetailPageContent(
+            page = 1, summary = "Summary", original = null,
+            storedOriginal = "## 摘要\n\nSummary\n\n## 关键观点\n\n- Point",
+            isRemoteSnapshot = true,
+        ))
+    }
+
+    @Test
     fun selectsSummaryAndOriginalContentForPagerPages() {
         assertEquals("summary", articleDetailPageContent(0, "summary", "original"))
         assertEquals("original", articleDetailPageContent(1, "summary", "original"))

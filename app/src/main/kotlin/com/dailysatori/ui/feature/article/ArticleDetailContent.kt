@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.article
 
 import com.dailysatori.service.parser.normalizeArticleMarkdownImages
+import com.dailysatori.data.repository.articleOriginalMarkdown
 
 private val MarkdownHeadingRegex = Regex("""#{1,6}\s+.+""")
 private val ExcessiveMarkdownNewlinesRegex = Regex("\n{3,}")
@@ -15,9 +16,10 @@ internal fun articleDetailPageContent(
     original: String?,
     storedOriginal: String? = null,
     originalImageUrls: List<String> = emptyList(),
+    isRemoteSnapshot: Boolean = false,
 ): String = when (page) {
     0 -> summary.normalizedSummaryMarkdownOrFallback("暂无摘要内容")
-    else -> (storedOriginal?.takeIf { it.isNotBlank() } ?: original)
+    else -> articleOriginalMarkdown(storedOriginal, original, isRemoteSnapshot)
         .normalizedOriginalMarkdownOrFallback("暂无原文内容", originalImageUrls)
 }
 

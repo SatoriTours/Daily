@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 data class ArticleDetailState(
     val article: Article? = null,
     val tags: List<Tag> = emptyList(),
+    val sourceNames: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val selectedTabIndex: Int = 0,
     val isRefreshing: Boolean = false,
@@ -68,12 +69,14 @@ class ArticleDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             val article = articleRepo.getById(articleId)
+            val sourceNames = articleRepo.getSourceNames(articleId)
             val processing = webpageParserService.processingStates.value[articleId]
             val stage = processing?.status ?: article?.status.orEmpty()
             val progress = processing?.progress.orEmpty()
             _state.update {
                 it.copy(
                     article = article,
+                    sourceNames = sourceNames,
                     isLoading = false,
                     isRefreshing = isArticleProcessing(stage),
                     processingStatus = articleProcessingMessage(stage, progress).orEmpty(),

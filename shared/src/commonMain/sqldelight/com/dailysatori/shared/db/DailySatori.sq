@@ -608,6 +608,16 @@ SELECT * FROM article WHERE source_type != 'remote_news' ORDER BY created_at DES
 selectArticleById:
 SELECT * FROM article WHERE id = ?;
 
+selectArticleSourceNames:
+SELECT source.name AS name FROM remote_article_sync_item AS item
+JOIN remote_news_source AS source ON source.id = item.remote_source_id
+WHERE item.article_id = :articleId
+UNION
+SELECT source.display_name AS name FROM external_favorite_item AS item
+JOIN external_favorite_source AS source ON source.id = item.source_id
+WHERE item.article_id = :articleId
+ORDER BY name;
+
 selectArticleByUrl:
 SELECT * FROM article WHERE url = ?;
 
