@@ -187,7 +187,6 @@ fun HomeScreen(
                             bookAnalysisMessage = bookAnalysisMessage,
                             onSelectedBookConsumed = onSelectedBookConsumed,
                             onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
-                            onMyClick = onProfileClick,
                         )
                         MY_TAB_INDEX -> MySpaceScreen(
                             onThoughts = onThoughts,

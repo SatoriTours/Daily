@@ -186,8 +186,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onThoughtsClick: (() -> Unit)? = nul
     AppScaffold(
         title = "我的日记",
         showBack = false,
-        myNavigationLabel = "设置",
-        onMyNavigationClick = onMyClick,
+        isMainPage = true,
         actions = {
             DiaryThoughtEntry(thoughtState, onClick = onThoughtsClick ?: { showThoughts = true })
             IconButton(onClick = { viewModel.toggleSearch() }) {

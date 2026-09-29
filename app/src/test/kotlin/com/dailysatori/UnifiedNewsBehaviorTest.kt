@@ -1630,19 +1630,22 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun mainPagesExposeProfileEntryFromTopBar() {
-        val topBar = java.io.File("src/main/kotlin/com/dailysatori/ui/component/appbar/AppTopBar.kt").readText()
+    fun mainPagesUseConsistentHeadersWithoutDuplicateProfileEntry() {
         val scaffold = java.io.File("src/main/kotlin/com/dailysatori/ui/component/scaffold/AppScaffold.kt").readText()
-        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val unified = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val diary = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryScreen.kt").readText()
+        val books = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val news = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
+        val mySpace = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/myspace/MySpaceScreen.kt").readText()
 
-        assertTrue(topBar.contains("Icons.Default.AccountCircle"))
-        assertTrue(topBar.contains("contentDescription = myNavigationLabel"))
-        assertFalse(topBar.contains("TextButton"))
-        assertTrue(scaffold.contains("onMyNavigationClick"))
-        assertTrue(home.contains("onProfileClick"))
-        assertTrue(unified.contains("NewsFocusHeader("))
-        assertTrue(unified.contains("avatarBadgeCount"))
+        assertTrue(diary.contains("isMainPage = true"))
+        assertTrue(books.contains("isMainPage = true"))
+        listOf(diary, books).forEach {
+            assertFalse(it.contains("onMyNavigationClick ="))
+            assertFalse(it.contains("myNavigationLabel ="))
+        }
+        listOf(scaffold, news, mySpace).forEach { assertTrue(it.contains("MainPageHeader(")) }
+        assertTrue(diary.contains("onOpenTranscriptionSettings = onMyClick"))
+        assertTrue(mySpace.contains("IconButton(onClick = onSettings)"))
     }
 
     @Test
@@ -1676,7 +1679,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(refreshBody.contains("UnifiedNewsSourceSelection.RemoteSource"))
         assertTrue(refreshBody.contains("refreshSelectedRemoteSource()"))
         assertTrue(refreshBody.contains("incrementLocalArticleRefreshRequest()"))
-        assertTrue(screen.contains("refreshRequestKey = state.localArticleRefreshRequestKey"))
+        assertTrue(screen.contains("refreshRequestKey = pageState.localArticleRefreshRequestKey"))
         assertFalse(screen.contains("今日文章"))
         assertFalse(screen.contains("共 ${'$'}{articles.size} 篇"))
     }
@@ -1690,7 +1693,8 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(viewModel.contains("localArticleRefreshRequestKey"))
         assertTrue(refreshBody.contains("UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()"))
-        assertTrue(screen.contains("refreshRequestKey = state.localArticleRefreshRequestKey"))
+        assertTrue(screen.contains("refreshRequests[selectedKey] = state.localArticleRefreshRequestKey"))
+        assertTrue(screen.contains("refreshRequestKey = pageState.localArticleRefreshRequestKey"))
         assertTrue(articleList.contains("refreshRequestKey: Int = 0"))
         assertTrue(articleList.contains("LaunchedEffect(refreshRequestKey)"))
         assertTrue(articleList.contains("if (refreshRequestKey > 0) viewModel.refreshArticles()"))

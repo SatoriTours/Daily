@@ -3,45 +3,65 @@ package com.dailysatori.ui.feature.unifiednews
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class UnifiedNewsSourceSwipeTest {
+    @Test
+    fun sourceSwitchingUsesPagerInsteadOfReleaseOnlyGestures() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        assertTrue(screen.contains("HorizontalPager("))
+        assertTrue(screen.contains("animateScrollToPage("))
+        assertFalse(screen.contains("detectHorizontalDragGestures"))
+    }
+
     private val state = UnifiedNewsState(
         remoteSources = listOf(UnifiedNewsRemoteSourceOption(1, "来源")),
         externalFavoriteSources = listOf(UnifiedNewsExternalFavoriteSourceOption(1, "来源")),
     )
 
     @Test
-    fun swipeFollowsHeaderOrderEvenWithDuplicateNamesAndIds() {
-        assertEquals(1, unifiedNewsSwipeTarget(state, -100f, 50f))
-        val remote = state.copy(sourceSelection = UnifiedNewsSourceSelection.RemoteSource(1, "旧名称"))
-        assertEquals(2, unifiedNewsSwipeTarget(remote, -100f, 50f))
-        assertEquals(0, unifiedNewsSwipeTarget(remote, 100f, 50f))
-        val favorite = state.copy(sourceSelection = UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源"))
-        assertEquals(3, unifiedNewsSwipeTarget(favorite, -100f, 50f))
-        assertEquals(1, unifiedNewsSwipeTarget(favorite, 100f, 50f))
+    fun pagesFollowHeaderOrderEvenWithDuplicateNamesAndIds() {
+        val pages = unifiedNewsSourcePages(state)
+        assertEquals(listOf("news-summary", "news-remote-1", "news-favorite-1", "news-local"), pages.map(::unifiedNewsSourcePageKey))
+        assertEquals(1, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "旧名称")))
+        assertEquals(2, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")))
     }
 
     @Test
-    fun shortSwipesAndOutwardSwipesDoNotSwitch() {
-        assertNull(unifiedNewsSwipeTarget(state, -49f, 50f))
-        assertNull(unifiedNewsSwipeTarget(state, 0f, 50f))
-        assertNull(unifiedNewsSwipeTarget(state, 100f, 50f))
-        val local = state.copy(sourceSelection = UnifiedNewsSourceSelection.LocalArticles)
-        assertNull(unifiedNewsSwipeTarget(local, -100f, 50f))
-        assertEquals(2, unifiedNewsSwipeTarget(local, 50f, 50f))
+    fun sourceInsertionPreservesSelectionByIdentity() {
+        val selection = UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")
+        val updated = state.copy(remoteSources = listOf(UnifiedNewsRemoteSourceOption(2, "新增")) + state.remoteSources)
+        val pages = unifiedNewsSourcePages(updated)
+        assertEquals(3, unifiedNewsSourcePageIndex(pages, selection))
+        assertEquals(unifiedNewsSourcePageKey(selection), unifiedNewsSourcePageKey(pages[3]))
     }
 
     @Test
     fun emptySourcesStillAllowSwitchingBetweenSummaryAndLocal() {
-        assertEquals(1, unifiedNewsSwipeTarget(UnifiedNewsState(), -50f, 50f))
-        assertEquals(0, unifiedNewsSwipeTarget(
-            UnifiedNewsState(sourceSelection = UnifiedNewsSourceSelection.LocalArticles), 50f, 50f,
-        ))
+        assertEquals(listOf(UnifiedNewsSourceSelection.Summary, UnifiedNewsSourceSelection.LocalArticles), unifiedNewsSourcePages(UnifiedNewsState()))
     }
 
     @Test
-    fun removedSourceDoesNotSwitchToAnUnrelatedTab() {
-        val removed = state.copy(sourceSelection = UnifiedNewsSourceSelection.RemoteSource(99, "已移除"))
-        assertNull(unifiedNewsSwipeTarget(removed, -100f, 50f))
+    fun removedSourceFallsBackToSummary() {
+        val removed = UnifiedNewsSourceSelection.RemoteSource(99, "已移除")
+        assertEquals(0, unifiedNewsSourcePageIndex(unifiedNewsSourcePages(state), removed))
+    }
+
+    @Test
+    fun adjacentPagesDoNotInheritSelectedSourceSearchErrorsOrRequests() {
+        val remote = UnifiedNewsSourceSelection.RemoteSource(1, "来源")
+        val selected = state.copy(sourceSelection = remote, searchQuery = "AI", sourceArticlesError = "离线",
+            scrollToTopRequestKey = 5, localArticleRefreshRequestKey = 3)
+        val adjacent = unifiedNewsSourcePageState(selected, UnifiedNewsSourceSelection.LocalArticles, 0, 0)
+        assertEquals("", adjacent.searchQuery)
+        assertNull(adjacent.sourceArticlesError)
+        assertEquals(0, adjacent.scrollToTopRequestKey)
+        assertEquals(0, adjacent.localArticleRefreshRequestKey)
+        val active = unifiedNewsSourcePageState(selected, remote, 5, 3)
+        assertEquals("AI", active.searchQuery)
+        assertEquals("离线", active.sourceArticlesError)
+        assertEquals(5, active.scrollToTopRequestKey)
+        assertEquals(3, active.localArticleRefreshRequestKey)
     }
 }

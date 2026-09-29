@@ -73,8 +73,9 @@ fun ArticleListScreen(
     externalFavoriteSourceId: Long? = null,
     embeddedSearchQuery: String? = null,
     scrollToTopRequestKey: Int = 0,
+    viewModelKey: String? = null,
 ) {
-    val viewModel: ArticlesViewModel = koinViewModel()
+    val viewModel: ArticlesViewModel = koinViewModel(key = viewModelKey)
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }

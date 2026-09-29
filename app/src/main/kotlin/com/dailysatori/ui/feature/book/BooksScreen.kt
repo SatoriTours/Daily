@@ -79,7 +79,6 @@ fun BooksScreen(
     bookAnalysisMessage: String? = null,
     onSelectedBookConsumed: () -> Unit = {},
     onBookAnalysisMessageConsumed: () -> Unit = {},
-    onMyClick: () -> Unit = {},
 ) {
     val viewModel: BooksViewModel = koinViewModel()
     val addBookViewModel: BookSearchViewModel = koinViewModel()
@@ -181,8 +180,7 @@ fun BooksScreen(
     AppScaffold(
         title = booksReaderTitle(currentBook?.title, currentBook?.author),
         showBack = false,
-        myNavigationLabel = "我的",
-        onMyNavigationClick = onMyClick,
+        isMainPage = true,
         actions = {
             var showMenu by remember { mutableStateOf(false) }
             Box {

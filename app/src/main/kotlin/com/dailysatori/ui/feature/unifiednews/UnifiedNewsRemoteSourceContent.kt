@@ -34,7 +34,12 @@ internal fun UnifiedNewsSourceArticleContent(
     state: UnifiedNewsState,
     selection: UnifiedNewsSourceSelection.RemoteSource,
     viewModel: UnifiedNewsViewModel,
+    isActive: Boolean = true,
 ) {
+    if (!isActive && !state.sourceArticlesBySourceId.containsKey(selection.id)) {
+        LoadingIndicator()
+        return
+    }
     val sourceArticles = state.sourceArticlesBySourceId[selection.id].orEmpty()
     val articles = filteredUnifiedNewsRemoteArticles(sourceArticles, state.searchQuery)
     val isLoading = state.sourceArticlesLoadingSourceId == selection.id
@@ -64,7 +69,7 @@ internal fun UnifiedNewsSourceArticleContent(
             isLoading = isLoading,
             isLoadingMore = isLoadingMore,
             sourceArticlesError = state.sourceArticlesError,
-            canLoadMore = state.searchQuery.isBlank(),
+            canLoadMore = isActive && state.searchQuery.isBlank(),
             scrollToTopRequestKey = state.scrollToTopRequestKey,
             viewModel = viewModel,
         )

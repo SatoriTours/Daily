@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.shared.db.Unified_news_summary
+import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.ui.feature.myspace.*
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
@@ -31,20 +32,22 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 internal fun NewsFocusHeader(
     tabs: List<com.dailysatori.ui.component.appbar.HomeCompactTab>,
-    selectedTab: String,
+    selectedTabIndex: Int,
     onSearch: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().statusBarsPadding().background(MaterialTheme.colorScheme.background)) {
-        Row(Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.news_focus_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        MainPageHeader(
+            title = stringResource(R.string.news_focus_title),
+            modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.s),
+        ) {
             IconButton(onClick = onSearch) { Icon(Icons.Default.Search, stringResource(R.string.news_focus_search)) }
             IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, stringResource(R.string.news_focus_refresh)) }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.m),
             horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
-            tabs.forEach { tab ->
-                val selected = tab.label == selectedTab
+            tabs.forEachIndexed { index, tab ->
+                val selected = index == selectedTabIndex
                 Column(Modifier.width(IntrinsicSize.Max).selectable(selected, role = Role.Tab, onClick = tab.onClick),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(tab.label, Modifier.padding(vertical = Spacing.m), style = MaterialTheme.typography.titleSmall,

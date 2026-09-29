@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
+import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
@@ -65,9 +66,7 @@ fun MySpaceScreen(
     ) {
         item(key = "header") {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.personal_settings_my_title), Modifier.weight(1f),
-                        style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                MainPageHeader(title = stringResource(R.string.personal_settings_my_title)) {
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
                     }

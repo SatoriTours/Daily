@@ -27,7 +27,7 @@ class UnifiedNewsSearchDesignTest {
         val remote = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
 
         assertTrue(remote.contains("filteredUnifiedNewsRemoteArticles"))
-        assertTrue(remote.contains("canLoadMore = state.searchQuery.isBlank()"))
+        assertTrue(remote.contains("canLoadMore = isActive && state.searchQuery.isBlank()"))
         assertTrue(remote.contains("if (canLoadMore) LoadMoreWhenAtEnd"))
         assertTrue(remote.contains("这个来源没有匹配新闻"))
     }
@@ -37,13 +37,15 @@ class UnifiedNewsSearchDesignTest {
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val articleList = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleListScreen.kt").readText()
 
-        assertTrue(screen.contains("embeddedSearchQuery = state.searchQuery"))
+        assertTrue(screen.contains("embeddedSearchQuery = pageState.searchQuery"))
+        assertTrue(screen.contains("viewModelKey = pageKey"))
+        assertTrue(articleList.contains("koinViewModel(key = viewModelKey)"))
         assertTrue(articleList.contains("embeddedSearchQuery: String? = null"))
         assertTrue(articleList.contains("LaunchedEffect(externalFavoriteSourceId, embeddedSearchQuery)"))
     }
 
     @Test
-    fun cancelSearchRestoresEmbeddedArticleListsAndTopBarDoubleClickScrollsToTop() {
+    fun cancelSearchRestoresEmbeddedArticleListsAndSelectedTabClickScrollsToTop() {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val summary = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
@@ -53,13 +55,15 @@ class UnifiedNewsSearchDesignTest {
 
         assertTrue(viewModel.contains("val scrollToTopRequestKey: Int = 0"))
         assertTrue(viewModel.contains("fun requestScrollToTop()"))
-        assertTrue(screen.contains("if (selected) viewModel.requestScrollToTop() else select()"))
+        assertTrue(screen.contains("index == pagerState.settledPage && !pagerState.isScrollInProgress"))
+        assertTrue(screen.contains("viewModel.requestScrollToTop()"))
+        assertTrue(screen.contains("scrollRequests[selectedKey] = state.scrollToTopRequestKey"))
         assertTrue(appTopBar.contains("combinedClickable"))
         assertTrue(appTopBar.contains("onDoubleClick = onTitleDoubleClick"))
         assertTrue(summary.contains("LaunchedEffect(state.scrollToTopRequestKey)"))
         assertTrue(remote.contains("scrollToTopRequestKey = state.scrollToTopRequestKey"))
         assertTrue(remote.contains("LaunchedEffect(scrollToTopRequestKey)"))
-        assertTrue(screen.contains("scrollToTopRequestKey = state.scrollToTopRequestKey"))
+        assertTrue(screen.contains("scrollToTopRequestKey = pageState.scrollToTopRequestKey"))
         assertTrue(articleList.contains("scrollToTopRequestKey: Int = 0"))
         assertTrue(articleList.contains("LaunchedEffect(scrollToTopRequestKey, state.articles.isNotEmpty())"))
         assertTrue(articleList.contains("viewModel.search(embeddedSearchQuery.orEmpty())"))

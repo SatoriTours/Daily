@@ -9,7 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,14 +48,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,7 +77,8 @@ import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
-import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 @Composable
 fun UnifiedNewsScreen(
@@ -208,41 +209,72 @@ private fun UnifiedNewsSummaryPage(
     onOpportunities: () -> Unit,
     onOpportunity: (String) -> Unit,
 ) {
+    val pages = remember(state.remoteSources, state.externalFavoriteSources) { unifiedNewsSourcePages(state) }
+    val pagerState = rememberUnifiedNewsSourcePager(pages, state.sourceSelection, viewModel::selectNewsPage)
+    val scope = rememberCoroutineScope()
+    var tabScrollJob by remember { mutableStateOf<Job?>(null) }
+    val selectedKey = unifiedNewsSourcePageKey(state.sourceSelection)
+    val scrollRequests = remember { mutableStateMapOf<String, Int>() }
+    val refreshRequests = remember { mutableStateMapOf<String, Int>() }
+    LaunchedEffect(state.scrollToTopRequestKey) {
+        scrollRequests[selectedKey] = state.scrollToTopRequestKey
+    }
+    LaunchedEffect(state.localArticleRefreshRequestKey) {
+        refreshRequests[selectedKey] = state.localArticleRefreshRequestKey
+    }
+    val headerTabs = unifiedNewsHeaderTabs(pages) { index ->
+        if (index == pagerState.settledPage && !pagerState.isScrollInProgress) {
+            viewModel.requestScrollToTop()
+        } else {
+            tabScrollJob?.cancel()
+            tabScrollJob = scope.launch { pagerState.animateScrollToPage(index) }
+        }
+    }
     Scaffold(
         topBar = {
             UnifiedNewsTopBar(
                 state = state,
                 viewModel = viewModel,
-                onMyClick = onMyClick,
-                avatarBadgeCount = avatarBadgeCount,
+                tabs = headerTabs,
+                selectedTabIndex = pagerState.currentPage,
             )
         },
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        Column(modifier = modifier.fillMaxSize().unifiedNewsSourceSwipe(state, viewModel)) {
+        Column(modifier = modifier.fillMaxSize()) {
             if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
             val refreshMessage = state.manualRefreshMessage ?: state.error
             if (!state.isRegenerating && !refreshMessage.isNullOrBlank()) {
                 UnifiedNewsRefreshMessage(refreshMessage)
             }
-            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                when (val selection = state.sourceSelection) {
-                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(state, viewModel, onBriefing, onOpportunities, onOpportunity)
-                    is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(state, selection, viewModel)
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                key = { unifiedNewsSourcePageKey(pages[it]) },
+                beyondViewportPageCount = 1,
+            ) { page ->
+                val selection = pages[page]
+                val pageKey = unifiedNewsSourcePageKey(selection)
+                val pageState = unifiedNewsSourcePageState(state, selection, scrollRequests[pageKey] ?: 0, refreshRequests[pageKey] ?: 0)
+                when (selection) {
+                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(pageState, viewModel, onBriefing, onOpportunities, onOpportunity)
+                    is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(pageState, selection, viewModel, isActive = pageKey == selectedKey)
                     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
                         onArticleClick = onArticleClick,
                         showTopBar = false,
-                        refreshRequestKey = state.localArticleRefreshRequestKey,
+                        viewModelKey = pageKey,
+                        refreshRequestKey = pageState.localArticleRefreshRequestKey,
                         externalFavoriteSourceId = selection.id,
-                        embeddedSearchQuery = state.searchQuery,
-                        scrollToTopRequestKey = state.scrollToTopRequestKey,
+                        embeddedSearchQuery = pageState.searchQuery,
+                        scrollToTopRequestKey = pageState.scrollToTopRequestKey,
                     )
                     UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
                         onArticleClick = onArticleClick,
                         showTopBar = false,
-                        refreshRequestKey = state.localArticleRefreshRequestKey,
-                        embeddedSearchQuery = state.searchQuery,
-                        scrollToTopRequestKey = state.scrollToTopRequestKey,
+                        viewModelKey = pageKey,
+                        refreshRequestKey = pageState.localArticleRefreshRequestKey,
+                        embeddedSearchQuery = pageState.searchQuery,
+                        scrollToTopRequestKey = pageState.scrollToTopRequestKey,
                     )
                 }
             }
@@ -254,8 +286,8 @@ private fun UnifiedNewsSummaryPage(
 private fun UnifiedNewsTopBar(
     state: UnifiedNewsState,
     viewModel: UnifiedNewsViewModel,
-    onMyClick: () -> Unit,
-    avatarBadgeCount: Int,
+    tabs: List<HomeCompactTab>,
+    selectedTabIndex: Int,
 ) {
     if (state.isSearchVisible) {
         UnifiedNewsSearchTopBar(
@@ -265,8 +297,8 @@ private fun UnifiedNewsTopBar(
         )
     } else {
         NewsFocusHeader(
-            tabs = unifiedNewsHeaderTabs(state, viewModel),
-            selectedTab = unifiedNewsSelectedTab(state),
+            tabs = tabs,
+            selectedTabIndex = selectedTabIndex,
             onSearch = viewModel::toggleSearch,
             onRefresh = viewModel::refreshSelectedSource,
         )
@@ -274,66 +306,17 @@ private fun UnifiedNewsTopBar(
 }
 
 @Composable
-private fun unifiedNewsHeaderTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): List<HomeCompactTab> = buildList {
-    fun selectOrScrollTop(selected: Boolean, select: () -> Unit) {
-        if (selected) viewModel.requestScrollToTop() else select()
-    }
-    add(HomeCompactTab(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)) { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.Summary, viewModel::selectSummarySource) })
-    state.remoteSources.forEach { source ->
-        add(HomeCompactTab(source.name) { selectOrScrollTop((state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id) { viewModel.selectRemoteSource(source) } })
-    }
-    state.externalFavoriteSources.forEach { source ->
-        add(HomeCompactTab(source.name) { selectOrScrollTop((state.sourceSelection as? UnifiedNewsSourceSelection.ExternalFavoriteSource)?.id == source.id) { viewModel.selectExternalFavoriteSource(source) } })
-    }
-    add(HomeCompactTab("本地新闻") { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.LocalArticles, viewModel::selectLocalArticlesSource) })
-}
-
-@Composable
-private fun Modifier.unifiedNewsSourceSwipe(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Modifier {
-    val currentState by rememberUpdatedState(state)
-    val currentTabs by rememberUpdatedState(unifiedNewsHeaderTabs(state, viewModel))
-    return pointerInput(state.sourceSelection, state.remoteSources, state.externalFavoriteSources) {
-        var distance = 0f
-        detectHorizontalDragGestures(
-            onDragStart = { distance = 0f },
-            onDragCancel = { distance = 0f },
-            onDragEnd = {
-                val latest = currentState
-                val target = unifiedNewsSwipeTarget(latest, distance, viewConfiguration.touchSlop * 4)
-                if (target != null) currentTabs.getOrNull(target)?.onClick?.invoke()
-                distance = 0f
-            },
-            onHorizontalDrag = { _, amount -> distance += amount },
-        )
-    }
-}
-
-internal fun unifiedNewsSwipeTarget(state: UnifiedNewsState, distance: Float, threshold: Float): Int? {
-    if (abs(distance) < threshold || distance == 0f) return null
-    val current = when (val selection = state.sourceSelection) {
-        UnifiedNewsSourceSelection.Summary -> 0
-        is UnifiedNewsSourceSelection.RemoteSource -> {
-            val index = state.remoteSources.indexOfFirst { it.id == selection.id }
-            if (index < 0) return null
-            index + 1
+private fun unifiedNewsHeaderTabs(pages: List<UnifiedNewsSourceSelection>, onSelect: (Int) -> Unit): List<HomeCompactTab> {
+    val summaryTitle = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)
+    return pages.mapIndexed { index, selection ->
+        val title = when (selection) {
+            UnifiedNewsSourceSelection.Summary -> summaryTitle
+            is UnifiedNewsSourceSelection.RemoteSource -> selection.name
+            is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name
+            UnifiedNewsSourceSelection.LocalArticles -> "本地新闻"
         }
-        is UnifiedNewsSourceSelection.ExternalFavoriteSource -> {
-            val index = state.externalFavoriteSources.indexOfFirst { it.id == selection.id }
-            if (index < 0) return null
-            state.remoteSources.size + index + 1
-        }
-        UnifiedNewsSourceSelection.LocalArticles -> state.remoteSources.size + state.externalFavoriteSources.size + 1
+        HomeCompactTab(title) { onSelect(index) }
     }
-    val target = current + if (distance < 0) 1 else -1
-    return target.takeIf { it in 0..(state.remoteSources.size + state.externalFavoriteSources.size + 1) }
-}
-
-@Composable
-private fun unifiedNewsSelectedTab(state: UnifiedNewsState): String = when (val selection = state.sourceSelection) {
-    UnifiedNewsSourceSelection.Summary -> androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)
-    is UnifiedNewsSourceSelection.RemoteSource -> selection.name
-    is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name
-    UnifiedNewsSourceSelection.LocalArticles -> "本地新闻"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
