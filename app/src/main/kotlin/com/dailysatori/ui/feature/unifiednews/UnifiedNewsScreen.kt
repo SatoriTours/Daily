@@ -85,6 +85,9 @@ fun UnifiedNewsScreen(
     onArticleClick: (Long) -> Unit = {},
     onMyClick: () -> Unit = {},
     avatarBadgeCount: Int = 0,
+    onBriefing: (Long) -> Unit = {},
+    onOpportunities: () -> Unit = {},
+    onOpportunity: (String) -> Unit = {},
 ) {
     val viewModel: UnifiedNewsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -105,11 +108,14 @@ fun UnifiedNewsScreen(
         onArticleClick = onArticleClick,
         onMyClick = onMyClick,
         avatarBadgeCount = avatarBadgeCount,
+        onBriefing = onBriefing,
+        onOpportunities = onOpportunities,
+        onOpportunity = onOpportunity,
     )
 }
 
 @Composable
-private fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
+internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
     val remoteArticle = state.selectedRemoteArticle
     if (remoteArticle != null) {
         BackHandler(onBack = viewModel::closeSourceDetail)
@@ -164,6 +170,9 @@ private fun UnifiedNewsMainPageRoute(
     onArticleClick: (Long) -> Unit,
     onMyClick: () -> Unit,
     avatarBadgeCount: Int,
+    onBriefing: (Long) -> Unit,
+    onOpportunities: () -> Unit,
+    onOpportunity: (String) -> Unit,
 ) {
     BackHandler(enabled = state.page != UnifiedNewsPage.SUMMARY) {
         viewModel.switchPage(UnifiedNewsPage.SUMMARY)
@@ -173,7 +182,7 @@ private fun UnifiedNewsMainPageRoute(
     }
 
     when (state.page) {
-        UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick, avatarBadgeCount)
+        UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick, avatarBadgeCount, onBriefing, onOpportunities, onOpportunity)
         UnifiedNewsPage.LOCAL_ARTICLES -> ArticleListScreen(
             onArticleClick = onArticleClick,
             onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
@@ -195,6 +204,9 @@ private fun UnifiedNewsSummaryPage(
     onArticleClick: (Long) -> Unit,
     onMyClick: () -> Unit,
     avatarBadgeCount: Int,
+    onBriefing: (Long) -> Unit,
+    onOpportunities: () -> Unit,
+    onOpportunity: (String) -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -215,7 +227,7 @@ private fun UnifiedNewsSummaryPage(
             }
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (val selection = state.sourceSelection) {
-                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(state, viewModel)
+                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(state, viewModel, onBriefing, onOpportunities, onOpportunity)
                     is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(state, selection, viewModel)
                     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
                         onArticleClick = onArticleClick,
@@ -252,22 +264,21 @@ private fun UnifiedNewsTopBar(
             onClose = viewModel::closeSearch,
         )
     } else {
-        HomeCompactHeader(
-            avatarBadgeCount = avatarBadgeCount,
+        NewsFocusHeader(
             tabs = unifiedNewsHeaderTabs(state, viewModel),
             selectedTab = unifiedNewsSelectedTab(state),
-            onAvatar = onMyClick,
             onSearch = viewModel::toggleSearch,
             onRefresh = viewModel::refreshSelectedSource,
         )
     }
 }
 
+@Composable
 private fun unifiedNewsHeaderTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): List<HomeCompactTab> = buildList {
     fun selectOrScrollTop(selected: Boolean, select: () -> Unit) {
         if (selected) viewModel.requestScrollToTop() else select()
     }
-    add(HomeCompactTab("汇总") { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.Summary, viewModel::selectSummarySource) })
+    add(HomeCompactTab(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)) { selectOrScrollTop(state.sourceSelection == UnifiedNewsSourceSelection.Summary, viewModel::selectSummarySource) })
     state.remoteSources.forEach { source ->
         add(HomeCompactTab(source.name) { selectOrScrollTop((state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id) { viewModel.selectRemoteSource(source) } })
     }
@@ -280,6 +291,7 @@ private fun unifiedNewsHeaderTabs(state: UnifiedNewsState, viewModel: UnifiedNew
 @Composable
 private fun Modifier.unifiedNewsSourceSwipe(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Modifier {
     val currentState by rememberUpdatedState(state)
+    val currentTabs by rememberUpdatedState(unifiedNewsHeaderTabs(state, viewModel))
     return pointerInput(state.sourceSelection, state.remoteSources, state.externalFavoriteSources) {
         var distance = 0f
         detectHorizontalDragGestures(
@@ -288,7 +300,7 @@ private fun Modifier.unifiedNewsSourceSwipe(state: UnifiedNewsState, viewModel: 
             onDragEnd = {
                 val latest = currentState
                 val target = unifiedNewsSwipeTarget(latest, distance, viewConfiguration.touchSlop * 4)
-                if (target != null) unifiedNewsHeaderTabs(latest, viewModel)[target].onClick()
+                if (target != null) currentTabs.getOrNull(target)?.onClick?.invoke()
                 distance = 0f
             },
             onHorizontalDrag = { _, amount -> distance += amount },
@@ -316,8 +328,9 @@ internal fun unifiedNewsSwipeTarget(state: UnifiedNewsState, distance: Float, th
     return target.takeIf { it in 0..(state.remoteSources.size + state.externalFavoriteSources.size + 1) }
 }
 
+@Composable
 private fun unifiedNewsSelectedTab(state: UnifiedNewsState): String = when (val selection = state.sourceSelection) {
-    UnifiedNewsSourceSelection.Summary -> "汇总"
+    UnifiedNewsSourceSelection.Summary -> androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)
     is UnifiedNewsSourceSelection.RemoteSource -> selection.name
     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name
     UnifiedNewsSourceSelection.LocalArticles -> "本地新闻"

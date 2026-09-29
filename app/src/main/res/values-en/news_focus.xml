@@ -1,0 +1,27 @@
+<resources>
+    <string name="news_focus_title">News</string>
+    <string name="news_focus_search">Search news</string>
+    <string name="news_focus_refresh">Refresh news</string>
+    <string name="news_focus_tab">Daily highlights</string>
+    <string name="news_focus_headlines">Today’s headlines</string>
+    <string name="news_focus_past_headlines">Headlines</string>
+    <string name="news_focus_read_more">Read the news →</string>
+    <string name="news_focus_more">View more</string>
+    <string name="news_focus_continuous">Continuously updated · Saved first</string>
+    <string name="news_focus_continuous_detail">Updated from news, retained across dates</string>
+    <string name="news_focus_ranking_hint">Saved first; added tasks leave recommendations</string>
+    <string name="news_focus_recommended">Recommended</string>
+    <string name="news_focus_recommended_count">For you · %1$d opportunities</string>
+    <string name="news_focus_direction">Focus: %1$s</string>
+    <string name="news_focus_adjust">Adjust</string>
+    <string name="news_focus_history">Choose a date</string>
+    <string name="news_focus_news_count">%1$s · %2$d sources</string>
+    <string name="news_focus_updated">%1$s · Updated %2$s</string>
+    <string name="news_focus_source">Source: %1$s</string>
+    <string name="news_focus_read_article">Read article →</string>
+    <string name="news_focus_related">Related opportunities %1$d</string>
+    <string name="news_focus_empty">No headlines yet</string>
+    <string name="news_focus_empty_hint">Refresh the news to see summaries and reports here.</string>
+    <string name="news_focus_news_list">Top stories</string>
+    <string name="news_focus_no_summary">No summary available. Open the article to read more.</string>
+</resources>

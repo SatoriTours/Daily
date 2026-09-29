@@ -29,6 +29,9 @@ data class NewsOpportunity(
     val saved: Boolean = false,
     val ignored: Boolean = false,
     val reminderId: String? = null,
+    val savedAt: Long? = null,
+    val relevanceScore: Int = 50,
+    val actionabilityScore: Int = 50,
 )
 
 @Serializable
@@ -53,6 +56,8 @@ data class OpportunityDraft(
     val action: String,
     val caveat: String,
     val quote: String,
+    val relevanceScore: Int = 50,
+    val actionabilityScore: Int = 50,
 )
 
 data class OpportunityAnalysisInput(

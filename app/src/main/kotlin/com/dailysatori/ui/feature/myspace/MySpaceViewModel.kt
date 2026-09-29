@@ -58,6 +58,7 @@ class MySpaceViewModel(
         withContext(Dispatchers.Main) { onSaved() }
     }
     fun analyze() = mutate { enqueueAnalysis(automatic = false) }
+    fun refreshRecommendations() = mutate { enqueueAnalysis(automatic = true) }
     // Collected only while a recommendation page is visible; progress ticks do not reschedule work.
     suspend fun observeRecommendations() = withContext(Dispatchers.IO) {
         try {

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="personal_settings_my_title">我的</string>
+    <string name="personal_settings_title">设置</string>
+    <string name="personal_settings_library">收藏与任务</string>
+    <string name="personal_settings_favorites">文章收藏</string>
+    <string name="personal_settings_tasks">任务中心</string>
+    <string name="personal_settings_sources">内容来源</string>
+    <string name="personal_settings_news">新闻来源</string>
+    <string name="personal_settings_external">外部收藏同步</string>
+    <string name="personal_settings_ai">AI 与工具</string>
+    <string name="personal_settings_access">提醒与访问</string>
+    <string name="personal_settings_privacy">隐私说明</string>
+    <string name="personal_settings_updates">版本更新</string>
+</resources>

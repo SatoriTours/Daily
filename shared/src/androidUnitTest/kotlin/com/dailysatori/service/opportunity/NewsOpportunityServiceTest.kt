@@ -2,18 +2,41 @@ package com.dailysatori.service.opportunity
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.externalfavorites.sha256Hex
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertContains
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NewsOpportunityServiceTest {
+    @Test
+    fun savedRankingAndActionStateSurviveRefreshAndReanalysis() = withFixture(candidates = listOf(article())) { fixture ->
+        fixture.service.analyze()
+        val id = fixture.service.state.value.items.single().id
+        fixture.service.setSaved(id, true)
+        val savedAt = assertNotNull(fixture.service.state.value.items.single().savedAt)
+        fixture.service.linkReminder(id, "task-1")
+        fixture.service.saveFocus("新的关注方向")
+        fixture.service.analyze()
+        val fresh = fixture.newService()
+        fresh.refresh()
+        val item = fresh.state.value.items.single()
+        assertTrue(item.saved)
+        assertEquals(savedAt, item.savedAt)
+        assertEquals("task-1", item.reminderId)
+        fresh.setSaved(id, false)
+        assertNull(fresh.state.value.items.single().savedAt)
+    }
+
     @Test
     fun unreadCandidatesProduceSummariesWithoutMarkingThemRead() = withFixture(candidates = listOf(article(readAt = 0))) { fixture ->
         fixture.service.analyze()
@@ -160,6 +183,49 @@ class NewsOpportunityServiceTest {
     }
 
     @Test
+    fun genericArticleRecommendationIsNotAcceptedAsAProductOpportunity() {
+        val response = """{"hasOpportunity":true,"title":"值得一读","category":"观察","fact":"新闻摘要","relevance":"符合我的思想","action":"继续关注","caveat":"待确认","quote":"原文"}"""
+        assertFailsWith<Exception> { parseOpportunityResponse(response) }
+    }
+
+    @Test
+    fun productOpportunityNamesTheUserProblemAndSmallestBuildableVersion() {
+        val response = """{"hasOpportunity":true,"productIdea":"合规提醒工具","targetUser":"独立开发者","userProblem":"难以及时跟踪新规则","category":"效率软件","fact":"新闻披露了新规则","relevance":"与用户关注的软件项目有关（推断）","mvp":"先做规则变更提醒页","caveat":"确认数据源是否可用","quote":"新规则"}"""
+        val draft = assertNotNull(parseOpportunityResponse(response))
+        assertEquals("合规提醒工具", draft.title)
+        assertContains(draft.relevance, "独立开发者")
+        assertContains(draft.relevance, "难以及时跟踪新规则")
+        assertEquals("先做规则变更提醒页", draft.action)
+    }
+
+    @Test
+    fun legacyAnalysisIsPendingForProductOpportunityReanalysis() {
+        val article = article(readAt = 0)
+        val contextVersion = sha256Hex("\n已验证思想")
+        val oldFingerprint = sha256Hex("news-opportunity-analysis-v2:${article.key}:${sha256Hex(article.content)}:$contextVersion")
+        val archive = OpportunityArchive(candidates = listOf(article), checkpoints = listOf(OpportunityCheckpoint(article.key, oldFingerprint)))
+        withFixture(initialArchive = archive) { fixture ->
+            fixture.service.refresh()
+            assertEquals(1, fixture.service.state.value.pendingCount)
+            fixture.service.analyze()
+            assertEquals(1, fixture.analyzer.inputs.size)
+        }
+    }
+
+    @Test
+    fun recentLegacyAttemptDoesNotDelayProductOpportunityAnalysis() {
+        val archive = OpportunityArchive(
+            candidates = listOf(article(readAt = 0)),
+            lastAttemptAt = Clock.System.now().toEpochMilliseconds(),
+            lastAttemptContext = sha256Hex("\n已验证思想"),
+        )
+        withFixture(initialArchive = archive) { fixture ->
+            fixture.service.analyze(automatic = true)
+            assertEquals(1, fixture.analyzer.inputs.size)
+        }
+    }
+
+    @Test
     fun explicitlyReadArticlesAreDeduplicatedAndChangedBodiesBecomePending() = withFixture(results = mutableListOf()) { fixture ->
         fixture.service.markRead(article(content = "正文一"))
         fixture.service.markRead(article(content = "正文一", readAt = 20))
@@ -263,6 +329,7 @@ class NewsOpportunityServiceTest {
         results: MutableList<OpportunityDraft?> = mutableListOf(draft()),
         context: TrackingContext = TrackingContext(enabled = true, value = "已验证思想"),
         candidates: List<ReadNewsArticle> = emptyList(),
+        initialArchive: OpportunityArchive? = null,
         candidateSource: OpportunityCandidateSource? = null,
         block: suspend (Fixture) -> Unit,
     ) = runBlocking {
@@ -270,7 +337,8 @@ class NewsOpportunityServiceTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val settings = SettingRepository(DailySatoriDatabase(driver))
-            settings.upsert("news_opportunity_archive_v1", "{\"candidates\":${Json.encodeToString(candidates)}}")
+            settings.upsert("news_opportunity_archive_v1", initialArchive?.let { Json.encodeToString(it) }
+                ?: "{\"candidates\":${Json.encodeToString(candidates)}}")
             val analyzer = FakeAnalyzer(results)
             val store = NewsOpportunityStore(settings)
             val service = NewsOpportunityService(store, analyzer, context, candidateSource)

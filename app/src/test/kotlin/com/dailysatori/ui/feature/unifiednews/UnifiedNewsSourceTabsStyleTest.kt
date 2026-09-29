@@ -29,8 +29,8 @@ class UnifiedNewsSourceTabsStyleTest {
         val summary = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
         val remote = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
 
-        assertTrue(summary.contains("contentPadding = newsCompactListContentPadding()"))
-        assertTrue(summary.contains("items(visibleSummaries, key = { it.id })"))
+        assertTrue(summary.contains("bottom = Height.navBar + Spacing.xxl"))
+        assertTrue(summary.contains("itemsIndexed(recommendations, key = { _, item -> item.id })"))
         assertTrue(remote.contains("contentPadding = newsCompactListContentPadding()"))
         assertTrue(remote.contains("items(articles, key = { it.id })"))
     }

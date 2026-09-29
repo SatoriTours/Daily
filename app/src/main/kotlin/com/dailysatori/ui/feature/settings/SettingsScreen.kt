@@ -11,11 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
@@ -49,6 +53,12 @@ import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
 import com.dailysatori.ui.component.settings.SettingsSectionCard
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.ui.feature.profile.DataPrivacyScreen
+import com.dailysatori.ui.feature.profile.ProfileViewModel
+import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
+import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
+import org.koin.androidx.compose.koinViewModel
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
 import com.dailysatori.ui.feature.settings.importing.DataImportScreen
@@ -71,6 +81,9 @@ internal enum class SettingsPage {
     SKILLS,
     DIAGNOSTICS,
     REMINDERS,
+    REMOTE_NEWS,
+    EXTERNAL_FAVORITES,
+    PRIVACY,
 }
 
 internal fun SettingsPage.parent(): SettingsPage =
@@ -85,6 +98,7 @@ fun SettingsScreen(
 
     var currentPage by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
     val rootBack = onBack
 
     val childBack = { currentPage = currentPage.parent() }
@@ -96,6 +110,7 @@ fun SettingsScreen(
     when (currentPage) {
         SettingsPage.MAIN -> SettingsMainPage(
             state = state,
+            scrollState = scrollState,
             showAboutDialog = showAboutDialog,
             onShowAbout = { showAboutDialog = true },
             onDismissAbout = { showAboutDialog = false },
@@ -112,12 +127,16 @@ fun SettingsScreen(
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = childBack)
         SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = childBack)
         SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack)
+        SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(onBack = childBack)
+        SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = childBack)
+        SettingsPage.PRIVACY -> DataPrivacyScreen(onBack = childBack)
     }
 }
 
 @Composable
 private fun SettingsMainPage(
     state: SettingsState,
+    scrollState: ScrollState,
     showAboutDialog: Boolean,
     onShowAbout: () -> Unit,
     onDismissAbout: () -> Unit,
@@ -127,7 +146,7 @@ private fun SettingsMainPage(
 ) {
     AboutDialog(showAboutDialog, state.currentVersion, onDismissAbout)
     AppScaffold(
-        title = stringResource(R.string.management_general),
+        title = stringResource(R.string.personal_settings_title),
         onBack = onBack,
         showBack = onBack != null,
         actions = {
@@ -138,6 +157,7 @@ private fun SettingsMainPage(
     ) { modifier ->
         SettingsList(
             state = state,
+            scrollState = scrollState,
             viewModel = viewModel,
             onNavigate = onNavigate,
             modifier = modifier,
@@ -178,6 +198,7 @@ internal fun UpdateDownloadProgress(state: SettingsState) {
 @Composable
 private fun SettingsList(
     state: SettingsState,
+    scrollState: ScrollState,
     viewModel: SettingsViewModel,
     onNavigate: (SettingsPage) -> Unit,
     modifier: Modifier = Modifier,
@@ -186,15 +207,13 @@ private fun SettingsList(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = Spacing.m)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
         Spacer(modifier = Modifier.height(Spacing.s))
-        SettingsSectionCard(stringResource(R.string.management_preferences)) {
-            SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title), stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
-        }
+        ContentSourcesSection(onNavigate)
         AiServicesSection(onNavigate)
-        NetworkSection(state, viewModel)
+        AccessSection(state, viewModel, onNavigate)
         DataSection(onNavigate)
         UpdateSettingsSection(state, viewModel)
         Spacer(modifier = Modifier.height(Spacing.xl))
@@ -202,8 +221,23 @@ private fun SettingsList(
 }
 
 @Composable
+private fun ContentSourcesSection(onNavigate: (SettingsPage) -> Unit) {
+    val profile: ProfileViewModel = koinViewModel()
+    val state by profile.state.collectAsStateWithLifecycle()
+    SettingsSectionCard(stringResource(R.string.personal_settings_sources)) {
+        SettingsRow(Icons.Outlined.Newspaper, stringResource(R.string.personal_settings_news),
+            if (state.enabledRemoteNewsSourceCount == 0L) stringResource(R.string.management_no_sources)
+            else stringResource(R.string.management_news_count, state.remoteNewsArticleCount, state.enabledRemoteNewsSourceCount),
+            onClick = { onNavigate(SettingsPage.REMOTE_NEWS) })
+        SettingsRow(Icons.Outlined.CloudSync, stringResource(R.string.personal_settings_external),
+            stringResource(R.string.management_external_count, state.externalFavoriteCount, state.enabledExternalSourceCount),
+            onClick = { onNavigate(SettingsPage.EXTERNAL_FAVORITES) })
+    }
+}
+
+@Composable
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
-    SettingsSectionCard(stringResource(R.string.management_ai)) {
+    SettingsSectionCard(stringResource(R.string.personal_settings_ai)) {
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
         SettingsRow(Icons.AutoMirrored.Filled.MenuBook, skillSettingsRowTitle(), skillSettingsRowSubtitle(), onClick = { onNavigate(SettingsPage.SKILLS) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })
@@ -212,8 +246,10 @@ private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
 }
 
 @Composable
-private fun NetworkSection(state: SettingsState, viewModel: SettingsViewModel) {
-    SettingsSectionCard(stringResource(R.string.management_network)) {
+private fun AccessSection(state: SettingsState, viewModel: SettingsViewModel, onNavigate: (SettingsPage) -> Unit) {
+    SettingsSectionCard(stringResource(R.string.personal_settings_access)) {
+        SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title),
+            stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
     }
@@ -253,11 +289,13 @@ private fun ApiTokenRow(state: SettingsState, viewModel: SettingsViewModel) {
 @Composable
 private fun DataSection(onNavigate: (SettingsPage) -> Unit) {
     val i18n = org.koin.compose.koinInject<com.dailysatori.service.i18n.I18nService>()
-    SettingsSectionCard(stringResource(R.string.management_data)) {
-        SettingsRow(Icons.Default.FileDownload, i18n.t("diagnostics.title"), i18n.t("diagnostics.subtitle"),
-            onClick = { onNavigate(SettingsPage.DIAGNOSTICS) })
+    SettingsSectionCard(stringResource(R.string.management_privacy)) {
         SettingsRow(Icons.Default.Save, "备份与恢复", "管理数据备份与还原", onClick = { onNavigate(SettingsPage.BACKUP_SETTINGS) })
         SettingsRow(Icons.Default.FileDownload, "导入数据", "从 Flutter 版本迁移数据", onClick = { onNavigate(SettingsPage.DATA_IMPORT) })
+        SettingsRow(Icons.Outlined.PrivacyTip, stringResource(R.string.personal_settings_privacy), stringResource(R.string.management_privacy_hint),
+            onClick = { onNavigate(SettingsPage.PRIVACY) })
+        SettingsRow(Icons.Default.FileDownload, i18n.t("diagnostics.title"), i18n.t("diagnostics.subtitle"),
+            onClick = { onNavigate(SettingsPage.DIAGNOSTICS) })
     }
 }
 

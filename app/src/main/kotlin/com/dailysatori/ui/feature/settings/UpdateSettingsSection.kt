@@ -21,6 +21,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import com.dailysatori.core.service.UpdateChannel
 import com.dailysatori.ui.component.settings.SettingsRow
 import com.dailysatori.ui.component.settings.SettingsSectionCard
@@ -30,7 +32,7 @@ import com.dailysatori.ui.theme.*
 internal fun UpdateSettingsSection(state: SettingsState, viewModel: SettingsViewModel) {
     var choosing by remember { mutableStateOf(false) }
     val busy = state.isCheckingUpdate || state.isDownloadingUpdate || !state.updateChannelLoaded
-    SettingsSectionCard("应用更新") {
+    SettingsSectionCard(stringResource(R.string.personal_settings_updates)) {
         Text(
             text = "当前安装：${state.installedChannel.label} · ${state.currentVersion}",
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),

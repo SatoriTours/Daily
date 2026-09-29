@@ -39,7 +39,9 @@ class NewsOpportunityService(
         persistAndPublish(archive.copy(focus = text.trim()))
     }
 
-    suspend fun setSaved(id: String, saved: Boolean) = updateItem(id) { it.copy(saved = saved) }
+    suspend fun setSaved(id: String, saved: Boolean) = updateItem(id) {
+        it.copy(saved = saved, savedAt = if (saved) it.savedAt ?: Clock.System.now().toEpochMilliseconds() else null)
+    }
 
     suspend fun setIgnored(id: String, ignored: Boolean) = updateItem(id) { it.copy(ignored = ignored) }
 
@@ -86,14 +88,14 @@ class NewsOpportunityService(
     private fun shouldDeferAutomaticAnalysis(context: AnalysisContext): Boolean {
         if (archive.focus.isBlank() && context.thoughts.isNullOrBlank()) return true
         val elapsed = Clock.System.now().toEpochMilliseconds() - archive.lastAttemptAt
-        return archive.lastAttemptContext == context.version && elapsed in 0 until AUTO_REFRESH_INTERVAL
+        return archive.lastAttemptContext == "$ANALYSIS_VERSION:${context.version}" && elapsed in 0 until AUTO_REFRESH_INTERVAL
     }
 
     private suspend fun loadCandidates(context: AnalysisContext) {
         archive = archive.copy(lastError = null)
         val source = candidateSource ?: return
         // Persist the attempt before networking: failures and process restarts must not cause an AI request loop.
-        val attempted = archive.copy(lastAttemptAt = Clock.System.now().toEpochMilliseconds(), lastAttemptContext = context.version)
+        val attempted = archive.copy(lastAttemptAt = Clock.System.now().toEpochMilliseconds(), lastAttemptContext = "$ANALYSIS_VERSION:${context.version}")
         store.save(attempted)
         archive = attempted
         val candidates = source.load()
@@ -134,6 +136,8 @@ class NewsOpportunityService(
         action = action.trim(), caveat = caveat.trim(), quote = quote,
         createdAt = Clock.System.now().toEpochMilliseconds(),
         saved = old?.saved ?: false, ignored = old?.ignored ?: false, reminderId = old?.reminderId,
+        savedAt = old?.savedAt,
+        relevanceScore = relevanceScore.coerceIn(0, 100), actionabilityScore = actionabilityScore.coerceIn(0, 100),
     )
 
     private fun currentContext(): AnalysisContext {
@@ -177,13 +181,14 @@ class NewsOpportunityService(
     private fun ReadNewsArticle.identity() = key.trim()
 
     private fun ReadNewsArticle.fingerprint(contextVersion: String) =
-        sha256Hex("news-opportunity-analysis-v2:${identity()}:${sha256Hex(content)}:$contextVersion")
+        sha256Hex("news-opportunity-analysis-$ANALYSIS_VERSION:${identity()}:${sha256Hex(content)}:$contextVersion")
 
     private fun progress(done: Int, total: Int) = if (total == 0) "没有待分析的文章" else "已完成 $done/$total 篇"
 
     private data class AnalysisContext(val thoughts: String?, val version: String)
 
     private companion object {
+        const val ANALYSIS_VERSION = "v4"
         const val AUTO_REFRESH_INTERVAL = 30 * 60 * 1_000L
         const val MAX_CANDIDATES = 20
         const val MAX_FOCUS_LENGTH = 2_000

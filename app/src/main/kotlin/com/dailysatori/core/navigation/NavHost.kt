@@ -19,7 +19,6 @@ import com.dailysatori.ui.feature.book.BookContentSearchScreen
 import com.dailysatori.ui.feature.book.BookSearchScreen
 import com.dailysatori.ui.feature.home.HomeScreen
 import com.dailysatori.ui.feature.profile.DataPrivacyScreen
-import com.dailysatori.ui.feature.profile.ProfileScreen
 import com.dailysatori.ui.feature.article.ArticleListScreen
 import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterScreen
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
@@ -75,19 +74,31 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 },
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
-                onProfileClick = { navController.navigate(ProfileRoute) },
+                onProfileClick = { navController.navigate(SettingsRoute) },
+                onFavorites = { navController.navigate(ProfileFavoritesRoute) },
+                onTasks = { navController.navigate(TaskCenterRoute()) },
+                onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) },
                 onThoughts = { navController.navigate(MyThoughtsRoute) },
                 onReminders = { navController.navigate(ReminderListRoute()) },
                 onTodayReminders = { navController.navigate(ReminderListRoute(todayOnly = true)) },
                 onReminder = { navController.navigate(ReminderDetailRoute(it)) },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpportunities = { navController.navigate(MyOpportunitiesRoute) },
+                onBriefing = { navController.navigate(NewsBriefingRoute(it)) },
                 onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
                 onChat = { navController.navigate(PersonalChatRoute()) },
                 settingsViewModel = settingsViewModel,
             )
         }
 
+        composable<NewsBriefingRoute> { entry ->
+            com.dailysatori.ui.feature.unifiednews.UnifiedNewsBriefingScreen(
+                summaryId = entry.toRoute<NewsBriefingRoute>().summaryId,
+                onBack = { navController.popBackStack() },
+                onArticle = { navController.navigate(ArticleDetailRoute(it)) },
+                onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
+            )
+        }
         composable<MyThoughtsRoute> {
             val viewModel: DiaryThoughtViewModel = koinViewModel()
             DiaryThoughtScreen(viewModel, onBack = { navController.popBackStack() }, onDiaryClick = {
@@ -112,15 +123,9 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             PersonalChatScreen(route.kind, route.key, onBack = { navController.popBackStack() }, onArticle = { navController.navigate(ArticleDetailRoute(it)) })
         }
         composable<ProfileRoute> {
-            ProfileScreen(
+            SettingsScreen(
+                viewModel = settingsViewModel,
                 onBack = { navController.popBackStack() },
-                onFavorites = { navController.navigate(ProfileFavoritesRoute) },
-                onExternalFavorites = { navController.navigate(ProfileExternalFavoritesRoute) },
-                onRemoteNews = { navController.navigate(RemoteNewsSettingsRoute) },
-                onTasks = { navController.navigate(TaskCenterRoute()) },
-                onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) },
-                onSettings = { navController.navigate(SettingsRoute) },
-                onPrivacy = { navController.navigate(DataPrivacyRoute) },
             )
         }
         composable<DataPrivacyRoute> { DataPrivacyScreen(onBack = { navController.popBackStack() }) }

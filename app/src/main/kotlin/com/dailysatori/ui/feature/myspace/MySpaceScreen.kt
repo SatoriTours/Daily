@@ -18,11 +18,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.ui.feature.article.openArticleUrl
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
+import com.dailysatori.ui.feature.profile.ProfileLibrarySection
+import com.dailysatori.ui.feature.profile.ProfileViewModel
 import com.dailysatori.ui.feature.reminder.ReminderListItemUi
 import com.dailysatori.ui.feature.reminder.ReminderRepeatLabel
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
@@ -40,39 +43,46 @@ fun MySpaceScreen(
     onTodayReminders: () -> Unit,
     onReminder: (String) -> Unit,
     onAddReminder: () -> Unit,
-    onOpportunities: () -> Unit,
-    onOpportunity: (String) -> Unit,
-    onArticle: (Long) -> Unit,
     onChat: () -> Unit,
-    onManagement: () -> Unit,
+    onSettings: () -> Unit,
+    onFavorites: () -> Unit,
+    onTasks: () -> Unit,
+    onFailedTasks: () -> Unit,
 ) {
     val thoughts: DiaryThoughtViewModel = koinViewModel()
     val reminders: ReminderViewModel = koinViewModel()
-    val viewModel: MySpaceViewModel = koinViewModel()
+    val profile: ProfileViewModel = koinViewModel()
+    val profileState by profile.state.collectAsStateWithLifecycle()
     val thoughtState by thoughts.state.collectAsStateWithLifecycle()
     val allReminders by reminders.reminders.collectAsStateWithLifecycle()
-    val opportunities by viewModel.state.collectAsStateWithLifecycle()
-    val failure by viewModel.operationFailed.collectAsStateWithLifecycle()
-    val task by viewModel.task.collectAsStateWithLifecycle()
-    val busy = opportunities.isUpdating || task?.status in listOf("queued", "running", "retrying")
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
     val upcoming = myUpcomingReminders(allReminders, today)
     val todayCount = profileReminderSummary(allReminders, today).count
-    LaunchedEffect(viewModel) { viewModel.observeRecommendations() }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
-        contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
+        item(key = "header") {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.personal_settings_my_title), Modifier.weight(1f),
+                        style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
         item(key = "thoughts") {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Row(Modifier.weight(1f).heightIn(min = Height.button).clickable(onClick = onThoughts), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text(stringResource(R.string.my_space_thoughts), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.my_space_thoughts), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     IconButton(onClick = onChat) { Icon(Icons.Outlined.AutoAwesome, stringResource(R.string.my_space_chat), Modifier.size(IconSize.m), tint = MaterialTheme.colorScheme.primary) }
-                    IconButton(onClick = onManagement) { Icon(Icons.Outlined.Settings, stringResource(R.string.my_space_settings), Modifier.size(IconSize.m), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 MyThoughtSummary(thoughtState, onThoughts)
             }
@@ -81,7 +91,7 @@ fun MySpaceScreen(
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.my_space_next), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.my_space_next), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                     TextButton(onClick = onAddReminder) {
                         Icon(Icons.Default.Add, null, Modifier.size(IconSize.s))
                         Spacer(Modifier.width(Spacing.xs))
@@ -94,24 +104,8 @@ fun MySpaceScreen(
                 else upcoming.forEach { item -> MyReminderRow(item) { onReminder(item.id) } }
             }
         }
-        item(key = "opportunities") {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                MySectionHeading(stringResource(R.string.my_space_useful), onOpportunities)
-                if (busy) Text(opportunities.progress.ifBlank { stringResource(R.string.my_space_queued) }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                val error = opportunities.error ?: task?.last_error_message?.takeIf { task?.status == "failed" }
-                if (failure || error != null) {
-                    Text(error ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = { viewModel.analyze() }, enabled = !busy) { Text(stringResource(R.string.my_space_retry)) }
-                }
-                val entries = recommendedArticles(opportunities.items)
-                if (entries.isEmpty() && !busy) MyEmptyBlock(stringResource(R.string.my_space_opportunity_empty), stringResource(when {
-                    !opportunities.hasAnalysisContext -> R.string.my_space_analyze_missing
-                    opportunities.candidateCount == 0 -> R.string.my_space_opportunity_hint
-                    else -> R.string.my_space_no_relation
-                }), stringResource(R.string.my_space_expand), onOpportunities)
-                entries.forEach { entry -> OpportunitySummary(entry, onArticle) { onOpportunity(entry.id) } }
-            }
+        item(key = "library") {
+            ProfileLibrarySection(profileState, onFavorites, onTasks, onFailedTasks)
         }
     }
 }
@@ -197,17 +191,18 @@ private fun reminderRepeatText(label: ReminderRepeatLabel): String = stringResou
 internal fun OpportunitySummary(item: NewsOpportunity, onArticle: (Long) -> Unit, onClick: () -> Unit) {
     val context = LocalContext.current
     val localArticleId = item.article.localArticleId
-    Column(Modifier.fillMaxWidth().clickable {
-        when {
-            localArticleId != null -> onArticle(localArticleId)
-            item.article.url?.startsWith("https://") == true || item.article.url?.startsWith("http://") == true -> openArticleUrl(context, item.article.url)
-            else -> onClick()
-        }
-    }.padding(vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(item.article.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    val hasSource = localArticleId != null || item.article.url?.startsWith("https://") == true || item.article.url?.startsWith("http://") == true
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(item.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(item.fact, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
         Text(item.relevance, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(item.article.title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text("${item.category} · ${item.article.source}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        TextButton(onClick = onClick) { Text(stringResource(R.string.my_space_relevance)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            TextButton(onClick = onClick) { Text(stringResource(R.string.my_space_view_opportunity)) }
+            if (hasSource) TextButton(onClick = { localArticleId?.let(onArticle) ?: openArticleUrl(context, item.article.url) }) {
+                Text(stringResource(R.string.my_space_original))
+            }
+        }
     }
 }

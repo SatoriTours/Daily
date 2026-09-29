@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="personal_settings_my_title">My space</string>
+    <string name="personal_settings_title">Settings</string>
+    <string name="personal_settings_library">Library &amp; tasks</string>
+    <string name="personal_settings_favorites">Saved articles</string>
+    <string name="personal_settings_tasks">Task center</string>
+    <string name="personal_settings_sources">Content sources</string>
+    <string name="personal_settings_news">News sources</string>
+    <string name="personal_settings_external">External favorites sync</string>
+    <string name="personal_settings_ai">AI &amp; tools</string>
+    <string name="personal_settings_access">Reminders &amp; access</string>
+    <string name="personal_settings_privacy">Privacy information</string>
+    <string name="personal_settings_updates">App updates</string>
+</resources>

@@ -34,10 +34,28 @@ fun opportunityItems(items: List<NewsOpportunity>, filter: OpportunityFilter): L
         OpportunityFilter.SAVED -> item.saved && !item.ignored
         OpportunityFilter.ACTED -> item.reminderId != null && !item.ignored
         OpportunityFilter.IGNORED -> item.ignored
-    } }.sortedByDescending { it.createdAt }
+    } }.let { filtered ->
+        if (filter == OpportunityFilter.PENDING || filter == OpportunityFilter.SAVED) rankedOpportunities(filtered)
+        else filtered.sortedByDescending { it.createdAt }
+    }
 
 fun recommendedArticles(items: List<NewsOpportunity>): List<NewsOpportunity> =
-    items.filterNot { it.ignored }.sortedByDescending { it.createdAt }.take(3)
+    opportunityItems(items, OpportunityFilter.PENDING).take(5)
+
+internal fun rankedOpportunities(
+    items: List<NewsOpportunity>,
+    now: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): List<NewsOpportunity> = items.sortedWith(
+    compareByDescending<NewsOpportunity> { it.saved }
+        .thenByDescending { if (it.saved) it.savedAt ?: it.createdAt else 0L }
+        .thenByDescending { item ->
+            val published = runCatching { kotlinx.datetime.Instant.parse(item.article.publishedAt.orEmpty()).toEpochMilliseconds() }
+                .getOrDefault(item.createdAt)
+            val ageDays = ((now - published).coerceAtLeast(0) / 86_400_000.0).coerceAtMost(30.0)
+            item.relevanceScore.coerceIn(0, 100) * 0.6 + item.actionabilityScore.coerceIn(0, 100) * 0.3 +
+                (1 - ageDays / 30) * 10
+        }.thenByDescending { it.createdAt }.thenBy { it.id },
+)
 
 fun myUpcomingReminders(reminders: List<Reminder>, today: LocalDate): List<ReminderListItemUi> =
     buildReminderListState(reminders.filter { it.status == ReminderStatus.ACTIVE }, today, ReminderListMode.RECENT, ReminderListFilter())

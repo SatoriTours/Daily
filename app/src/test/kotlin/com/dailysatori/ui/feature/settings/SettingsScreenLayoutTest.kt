@@ -22,11 +22,14 @@ class SettingsScreenLayoutTest {
     }
 
     @Test
-    fun sourceAndTaskManagementAreNotDuplicatedInGeneralSettings() {
+    fun settingsDirectlyOwnSourceAndPrivacyConfigurationButNotTasks() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
-        listOf("RemoteNewsSettingsScreen", "ExternalFavoritesSettingsScreen", "TaskCenterScreen").forEach {
-            assertFalse(source.contains(it))
+        listOf("RemoteNewsSettingsScreen", "ExternalFavoritesSettingsScreen", "DataPrivacyScreen").forEach {
+            assertTrue(source.contains("$it(onBack = childBack)"), "$it must return directly to settings")
         }
+        assertFalse(source.contains("TaskCenterScreen"))
+        val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
+        assertTrue(navigation.contains("onProfileClick = { navController.navigate(SettingsRoute) }"))
     }
 
     @Test

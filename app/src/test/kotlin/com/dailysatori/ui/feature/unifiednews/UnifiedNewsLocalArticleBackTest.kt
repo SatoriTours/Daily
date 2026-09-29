@@ -91,7 +91,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("UnifiedNewsSourceSwitcher("))
         assertTrue(source.contains("UnifiedNewsSourceArticleContent("))
         assertTrue(source.contains("FilterChip("))
-        assertTrue(source.contains("Text(\"汇总\")"))
+        assertTrue(source.contains("news_focus_tab"))
         assertTrue(source.contains("sourceArticlesLoadingSourceId == selection.id"))
         assertTrue(source.contains("这个来源暂时没有已同步文章"))
         assertTrue(source.contains("PullToRefreshBox("))

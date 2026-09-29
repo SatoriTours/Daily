@@ -6,6 +6,14 @@ import kotlin.test.assertNull
 
 class UnifiedNewsBriefingContentTest {
     @Test
+    fun `daily headlines retain a full paragraph and keep linked news separate`() {
+        val model = unifiedNewsBriefingContent("## 今日要闻\n第一句介绍新闻主线。[R1]\n第二句解释具体变化。\n\n第三句补充影响。\n\n## 今日要点\n- 新闻细节 [R1]")
+        assertEquals("今日要闻", model.title)
+        assertEquals("第一句介绍新闻主线。第二句解释具体变化。第三句补充影响。", model.lead)
+        assertEquals(listOf("新闻细节"), model.points.map { it.text })
+    }
+
+    @Test
     fun `extracts lead and citation points from summary markdown`() {
         val model = unifiedNewsBriefingContent(
             """
@@ -19,7 +27,7 @@ class UnifiedNewsBriefingContentTest {
         )
 
         assertEquals("今天 AI 工具开始从功能展示走向团队治理。", model.lead)
-        assertEquals("今日封面", model.title)
+        assertEquals("今日要闻", model.title)
         assertEquals(2, model.points.size)
         assertEquals("AI 编程工具强调治理", model.points[0].text)
         assertEquals("R1", model.points[0].citation)
@@ -31,7 +39,7 @@ class UnifiedNewsBriefingContentTest {
     fun `falls back when there are no citation points`() {
         val model = unifiedNewsBriefingContent("只有一段普通总结，没有引用。")
 
-        assertEquals("今日封面", model.title)
+        assertEquals("今日要闻", model.title)
         assertEquals("只有一段普通总结，没有引用。", model.lead)
         assertEquals(emptyList(), model.points)
     }
@@ -46,7 +54,7 @@ class UnifiedNewsBriefingContentTest {
             """.trimIndent(),
         )
 
-        assertEquals("今日封面", model.title)
+        assertEquals("今日要闻", model.title)
         assertEquals("今天市场关注 AI 硬件。", model.lead)
         assertEquals(0, model.points.size)
     }
@@ -101,7 +109,7 @@ class UnifiedNewsBriefingContentTest {
     fun `empty content has no lead and default title`() {
         val model = unifiedNewsBriefingContent("   ")
 
-        assertEquals("今日封面", model.title)
+        assertEquals("今日要闻", model.title)
         assertNull(model.lead)
         assertEquals(emptyList(), model.points)
     }

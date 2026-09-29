@@ -1614,9 +1614,8 @@ class UnifiedNewsBehaviorTest {
         assertFalse(viewModelModule.contains("CrayfishNewsSettingsViewModel"))
         assertFalse(settings.contains("CRAYFISH_NEWS_SETTINGS"))
         assertFalse(settings.contains("小龙虾新闻设置"))
-        val management = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/profile/ProfileScreen.kt").readText()
-        assertTrue(management.contains("R.string.management_news"))
-        assertTrue(management.contains("onRemoteNews"))
+        assertTrue(settings.contains("R.string.personal_settings_news"))
+        assertTrue(settings.contains("onNavigate(SettingsPage.REMOTE_NEWS)"))
         assertFalse(screen.substringAfter("private fun SkeletonLine").substringBefore("private fun UnifiedNewsMenu").contains("14.dp"))
         assertFalse(unifiedNewsBriefingCardSource().substringAfter("internal fun TodayUnifiedNewsCard").contains("1.dp"))
         assertFalse(citationText.substringAfter("private fun UnifiedNewsBulletItem").substringBefore("private fun unifiedNewsDisplayBlocks").contains("6.dp"))
@@ -1642,7 +1641,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(topBar.contains("TextButton"))
         assertTrue(scaffold.contains("onMyNavigationClick"))
         assertTrue(home.contains("onProfileClick"))
-        assertTrue(unified.contains("HomeCompactHeader("))
+        assertTrue(unified.contains("NewsFocusHeader("))
         assertTrue(unified.contains("avatarBadgeCount"))
     }
 
@@ -1733,7 +1732,7 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsPromptRequestsDailyCoverLeadForMagazineSummary() {
+    fun unifiedNewsPromptRequestsLongerHeadlinesParagraph() {
         val prompt = buildUnifiedNewsPrompt(
             window = UnifiedNewsWindow(UnifiedNewsWindowKey.DAILY, "2026-05-27", 0L, 1L),
             sources = listOf(
@@ -1748,9 +1747,9 @@ class UnifiedNewsBehaviorTest {
             ),
         )
 
-        assertTrue(prompt.contains("## 每日封面"))
-        assertTrue(prompt.contains("封面导语"))
-        assertTrue(prompt.indexOf("## 每日封面") < prompt.indexOf("## 今日要点"))
+        assertTrue(prompt.contains("## 今日要闻"))
+        assertTrue(prompt.contains("150-250"))
+        assertTrue(prompt.indexOf("## 今日要闻") < prompt.indexOf("## 今日要点"))
     }
 
     @Test
@@ -1973,10 +1972,10 @@ class UnifiedNewsBehaviorTest {
         val screen = unifiedNewsScreenSource()
         val body = screen
             .requiredSubstringAfter("fun UnifiedNewsScreen")
-            .requiredSubstringBefore("@Composable\nprivate fun UnifiedNewsDetailRoute")
+            .requiredSubstringBefore("@Composable\ninternal fun UnifiedNewsDetailRoute")
 
         assertTrue(body.lineSequence().count() <= 50)
-        assertTrue(screen.contains("private fun UnifiedNewsDetailRoute"))
+        assertTrue(screen.contains("internal fun UnifiedNewsDetailRoute"))
         assertTrue(screen.contains("private fun UnifiedNewsMainPageRoute"))
         assertTrue(body.contains("UnifiedNewsDetailRoute"))
         assertTrue(body.contains("UnifiedNewsMainPageRoute"))
@@ -1993,19 +1992,18 @@ class UnifiedNewsBehaviorTest {
         assertTrue(viewModel.contains("if (loadJob != null) return"))
         assertTrue(viewModel.contains("fun openCitation(source: Unified_news_source)"))
         assertTrue(viewModel.contains("fun openCitationSource"))
-        assertTrue(screen.contains("onCitationClick = viewModel::openCitation"))
+        val detail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsBriefingScreen.kt").readText()
+        assertTrue(detail.contains("viewModel.openCitation(source)"))
     }
 
     @Test
-    fun unifiedNewsSummaryRendersSummaryList() {
+    fun unifiedNewsSummaryRendersHeadlinesAndOpportunitiesInOneList() {
         val screen = unifiedNewsSummaryContentSource() + "\n" + unifiedNewsBriefingCardSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
-        assertTrue(screen.contains("visibleSummaries.isEmpty()"))
-        assertTrue(screen.contains("items(visibleSummaries"))
-        assertTrue(screen.contains("summary = summary"))
-        assertTrue(screen.contains("TodayUnifiedNewsCard"))
-        assertTrue(screen.contains("unifiedNewsSummaryTitle"))
+        assertTrue(screen.contains("DailyHeadlinesPreview(entry)"))
+        assertTrue(screen.contains("itemsIndexed(recommendations"))
+        assertTrue(screen.contains("OpportunitySectionHeader"))
         assertFalse(screen.contains("Text(summary.title"))
         assertTrue(viewModel.contains("summaryRepo.getAll()"))
         assertFalse(viewModel.contains("summaries = listOfNotNull(displayed)"))
@@ -2119,7 +2117,8 @@ class UnifiedNewsBehaviorTest {
         val screen = unifiedNewsSummaryContentSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
-        assertTrue(screen.contains("sources = state.sourcesBySummaryId[summary.id].orEmpty()"))
+        val detail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsBriefingScreen.kt").readText()
+        assertTrue(detail.contains("state.sourcesBySummaryId[selectedId].orEmpty()"))
         assertTrue(viewModel.contains("dailyUnifiedNewsWindowFor"))
         assertTrue(viewModel.contains("summaryRepo.getAll().collect"))
         assertTrue(viewModel.contains("summaries = displaySummaries"))
@@ -2176,17 +2175,17 @@ class UnifiedNewsBehaviorTest {
 
         val scaffold = unifiedNewsScreenSource()
         assertTrue(scaffold.contains("UnifiedNewsGeneratingSkeleton("))
-        assertTrue(screen.contains("when {"))
+        assertTrue(screen.contains("state.isLoading || state.isRegenerating"))
         assertFalse(scaffold.contains("UnifiedNewsStatusBanner("))
     }
 
     @Test
-    fun unifiedNewsRegenerationHidesTodaySummaryAndTitlesSkeleton() {
+    fun unifiedNewsRegenerationKeepsPreviousHeadlinesReadable() {
         val screen = unifiedNewsSummaryContentSource()
 
-        assertTrue(screen.contains("visibleSummaries"))
+        assertTrue(screen.contains("summaries.firstOrNull"))
         assertTrue(screen.contains("state.isRegenerating"))
-        assertTrue(screen.contains("summary.summary_date != state.regeneratingSummaryDate"))
+        assertFalse(screen.contains("summary.summary_date != state.regeneratingSummaryDate"))
         val scaffold = unifiedNewsScreenSource()
         assertTrue(scaffold.contains("UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)"))
         assertTrue(scaffold.contains("unifiedNewsSummaryTitle(summaryDate)"))

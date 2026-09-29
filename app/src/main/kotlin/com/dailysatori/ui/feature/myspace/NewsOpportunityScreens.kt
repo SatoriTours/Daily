@@ -4,16 +4,23 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
+import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.openArticleUrl
@@ -44,24 +51,26 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     LaunchedEffect(viewModel) { viewModel.observeRecommendations() }
     LaunchedEffect(state.hasAnalysisContext) { if (state.hasAnalysisContext) choosingContext = false }
     BackHandler(onBack = onBack)
-    AppScaffold(title = stringResource(R.string.my_space_useful), onBack = onBack, actions = {
-        TextButton(onClick = requestUpdate, enabled = !busy) { Text(stringResource(if (busy) R.string.my_space_updating_recommendations else R.string.my_space_analyze)) }
+    AppScaffold(title = stringResource(R.string.my_space_recommendations_title), onBack = onBack, actions = {
+        if (state.hasAnalysisContext) IconButton(onClick = requestUpdate, enabled = !busy) {
+            Icon(Icons.Default.Refresh, contentDescription = stringResource(if (busy) R.string.my_space_updating_recommendations else R.string.my_space_analyze))
+        }
     }) { modifier ->
-        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            item { Text(stringResource(R.string.my_space_news_intro), style = MaterialTheme.typography.headlineSmall) }
-            item { Text(stringResource(R.string.my_space_news_hint), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             item {
-                TextButton(onClick = { editingFocus = true }, enabled = !busy) { Text(stringResource(R.string.my_space_focus)) }
-                if (state.focus.isNotBlank()) Text(state.focus, style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.my_space_analysis_scope, state.candidateCount, state.pendingCount), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (!state.hasAnalysisContext) {
-                    Text(stringResource(R.string.my_space_recommendation_context_hint), style = MaterialTheme.typography.bodyMedium)
-                    if (!thoughts.useInChat) Text(stringResource(R.string.my_space_permission), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (thoughts.isUpdating) Text(stringResource(R.string.my_space_waiting_for_thoughts), color = MaterialTheme.colorScheme.primary)
-                    thoughts.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    TextButton(onClick = organizeThoughts) { Text(stringResource(R.string.my_space_organize)) }
+                Column(Modifier.padding(bottom = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(stringResource(R.string.news_focus_continuous_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.news_focus_ranking_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TabRow(selectedTabIndex = filter.ordinal, containerColor = MaterialTheme.colorScheme.background) {
+                    OpportunityFilter.entries.forEach { value ->
+                        Tab(selected = filter == value, onClick = { filter = value }, text = {
+                            Text(opportunityFilterLabel(value), style = MaterialTheme.typography.labelLarge)
+                        })
+                    }
                 }
             }
+            item { RecommendationContextCard(state.hasAnalysisContext, state.focus, thoughts, busy, { editingFocus = true }, organizeThoughts) }
             if (busy) item {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(state.progress.ifBlank { task?.progress_message.orEmpty() }.ifBlank { stringResource(R.string.my_space_queued) }, style = MaterialTheme.typography.bodySmall)
@@ -72,18 +81,32 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                 Text(error ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = requestUpdate, enabled = !busy) { Text(stringResource(R.string.my_space_retry)) }
             }
-            item { FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                OpportunityFilter.entries.forEach { value -> FilterChip(selected = filter == value, onClick = { filter = value }, label = { Text(opportunityFilterLabel(value)) }) }
-            } }
-            val entries = opportunityItems(state.items, filter)
-            if (entries.isEmpty() && !busy) item {
-                MyEmptyBlock(stringResource(R.string.my_space_none), stringResource(when {
-                    !state.hasAnalysisContext -> R.string.my_space_analyze_missing
-                    state.candidateCount == 0 -> R.string.my_space_opportunity_hint
-                    else -> R.string.my_space_no_relation
-                }), "", {})
+            if (state.hasAnalysisContext || state.items.isNotEmpty()) {
+                val entries = opportunityItems(state.items, filter)
+                item { Text(
+                    if (filter == OpportunityFilter.PENDING) stringResource(R.string.news_focus_recommended_count, entries.size)
+                    else opportunityFilterLabel(filter),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = Spacing.s),
+                ) }
+                if (entries.isEmpty() && !busy) item {
+                    val hint = if (filter == OpportunityFilter.PENDING) stringResource(when {
+                        !state.hasAnalysisContext -> R.string.my_space_analyze_missing
+                        state.candidateCount == 0 -> R.string.my_space_opportunity_hint
+                        state.items.isEmpty() -> R.string.my_space_no_relation
+                        else -> R.string.my_space_no_pending_hint
+                    }) else ""
+                    MyEmptyBlock(stringResource(when (filter) {
+                        OpportunityFilter.PENDING -> R.string.my_space_no_pending
+                        OpportunityFilter.SAVED -> R.string.my_space_no_saved
+                        OpportunityFilter.ACTED -> R.string.my_space_no_acted
+                        OpportunityFilter.IGNORED -> R.string.my_space_no_ignored
+                    }), hint, "", {})
+                }
+                itemsIndexed(entries, key = { _, it -> it.id }) { index, entry ->
+                    NewsOpportunityCard(entry, index + 1, { onOpen(entry.id) }, { viewModel.setSaved(entry.id, !entry.saved) })
+                }
             }
-            items(entries, key = { it.id }) { entry -> OpportunitySummary(entry, onArticle) { onOpen(entry.id) }; HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
         }
     }
     if (choosingContext) AlertDialog(
@@ -100,9 +123,42 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
         dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.my_space_cancel)) } })
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecommendationContextCard(
+    hasContext: Boolean,
+    focus: String,
+    thoughts: DiaryThoughtState,
+    busy: Boolean,
+    onEditFocus: () -> Unit,
+    onOrganizeThoughts: () -> Unit,
+) {
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
+        Column(Modifier.padding(horizontal = Spacing.m, vertical = if (hasContext) Spacing.xs else Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            if (hasContext) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.news_focus_direction, focus.ifBlank { stringResource(R.string.my_space_thought_basis) }),
+                        Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    TextButton(onClick = onEditFocus, enabled = !busy) { Text(stringResource(R.string.news_focus_adjust)) }
+                }
+            } else {
+                Text(stringResource(R.string.my_space_recommendation_context_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.my_space_recommendation_context_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (thoughts.isUpdating) Text(stringResource(R.string.my_space_waiting_for_thoughts), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                thoughts.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    Button(onClick = onEditFocus, enabled = !busy) { Text(stringResource(R.string.my_space_set_focus)) }
+                    if (!thoughts.isUpdating) OutlinedButton(onClick = onOrganizeThoughts) { Text(stringResource(R.string.my_space_organize)) }
+                }
+                if (!thoughts.useInChat) Text(stringResource(R.string.my_space_permission), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
 @Composable
 private fun opportunityFilterLabel(filter: OpportunityFilter) = stringResource(when (filter) {
-    OpportunityFilter.PENDING -> R.string.my_space_pending
+    OpportunityFilter.PENDING -> R.string.news_focus_recommended
     OpportunityFilter.SAVED -> R.string.my_space_saved
     OpportunityFilter.ACTED -> R.string.my_space_acted
     OpportunityFilter.IGNORED -> R.string.my_space_ignored

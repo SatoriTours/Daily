@@ -1,0 +1,27 @@
+<resources>
+    <string name="news_focus_title">新闻</string>
+    <string name="news_focus_search">搜索新闻</string>
+    <string name="news_focus_refresh">刷新新闻</string>
+    <string name="news_focus_tab">每日重点</string>
+    <string name="news_focus_headlines">今日要闻</string>
+    <string name="news_focus_past_headlines">当日要闻</string>
+    <string name="news_focus_read_more">查看详细新闻 →</string>
+    <string name="news_focus_more">查看更多</string>
+    <string name="news_focus_continuous">持续更新 · 收藏优先</string>
+    <string name="news_focus_continuous_detail">持续根据新闻更新，跨日期保留</string>
+    <string name="news_focus_ranking_hint">收藏优先，加入待办后移出推荐</string>
+    <string name="news_focus_recommended">推荐</string>
+    <string name="news_focus_recommended_count">为你推荐 · %1$d 个机会</string>
+    <string name="news_focus_direction">关注方向：%1$s</string>
+    <string name="news_focus_adjust">调整</string>
+    <string name="news_focus_history">选择日期</string>
+    <string name="news_focus_news_count">%1$s · %2$d 条来源</string>
+    <string name="news_focus_updated">%1$s · 更新于 %2$s</string>
+    <string name="news_focus_source">来源：%1$s</string>
+    <string name="news_focus_read_article">阅读新闻 →</string>
+    <string name="news_focus_related">关联机会 %1$d</string>
+    <string name="news_focus_empty">暂无新闻要闻</string>
+    <string name="news_focus_empty_hint">刷新新闻后，可在这里查看总结与详细报道。</string>
+    <string name="news_focus_news_list">重点新闻</string>
+    <string name="news_focus_no_summary">该条新闻暂无摘要，点击阅读新闻查看内容。</string>
+</resources>

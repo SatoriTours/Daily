@@ -49,7 +49,7 @@ internal fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNe
         FilterChip(
             selected = state.sourceSelection is UnifiedNewsSourceSelection.Summary,
             onClick = viewModel::selectSummarySource,
-            label = { Text("汇总") },
+            label = { Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)) },
             colors = sourceChipColors,
         )
         state.remoteSources.forEach { source ->

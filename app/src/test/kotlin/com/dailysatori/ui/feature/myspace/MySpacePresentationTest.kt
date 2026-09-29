@@ -43,21 +43,35 @@ class MySpacePresentationTest {
 
     @Test fun completedAndIgnoredItemsDoNotCrowdThePendingList() {
         val items = listOf(item("pending"), item("saved", saved = true), item("acted", reminder = "r"), item("hidden", saved = true, ignored = true))
-        assertEquals(listOf("pending", "saved"), opportunityItems(items, OpportunityFilter.PENDING).map { it.id })
+        assertEquals(listOf("saved", "pending"), opportunityItems(items, OpportunityFilter.PENDING).map { it.id })
         assertEquals(listOf("saved"), opportunityItems(items, OpportunityFilter.SAVED).map { it.id })
         assertEquals(listOf("acted"), opportunityItems(items, OpportunityFilter.ACTED).map { it.id })
         assertEquals(listOf("hidden"), opportunityItems(items, OpportunityFilter.IGNORED).map { it.id })
     }
 
-    @Test fun recommendationsIncludeUsefulArticlesEvenAfterCreatingReminders() {
-        val entries = listOf(item("pending"), item("acted", reminder = "r"), item("hidden", ignored = true))
-        assertEquals(listOf("pending", "acted"), recommendedArticles(entries).map { it.id })
-        assertEquals(listOf("new", "pending", "acted"), recommendedArticles(entries + item("new").copy(createdAt = 2)).map { it.id })
+    @Test fun recommendationsKeepFiveAcrossDatesPrioritizeSavedAndExcludeActed() {
+        val entries = (1..6).map { item("news-$it").copy(createdAt = it.toLong()) } +
+            item("saved", saved = true).copy(createdAt = 0) +
+            item("acted", saved = true, reminder = "r") + item("hidden", ignored = true)
+        assertEquals(listOf("saved", "news-6", "news-5", "news-4", "news-3"), recommendedArticles(entries).map { it.id })
+        assertEquals("news-6", recommendedArticles(entries.filterNot { it.saved }).first().id)
+        assertEquals(listOf("saved", "news-6", "news-5", "news-4", "news-3"),
+            opportunityItems(entries, OpportunityFilter.PENDING).take(5).map { it.id })
     }
 
     @Test fun localAndRemoteReadersShareIdentityForTheSameOriginalArticle() {
         assertEquals(readNewsKey("https://site.test/a#section", "local:1"), readNewsKey("https://site.test/a", "remote:2"))
         assertNotEquals(readNewsKey(null, "remote:1:8"), readNewsKey(null, "remote:2:8"))
+    }
+
+    @Test fun matchingAndActionableOpportunitiesOutrankMerelyRecentOnesButSavedWins() {
+        val oldUseful = item("useful").copy(createdAt = 1, relevanceScore = 90, actionabilityScore = 90)
+        val recentWeak = item("recent").copy(createdAt = 100, relevanceScore = 20, actionabilityScore = 20)
+        val saved = item("saved", saved = true).copy(savedAt = 2, relevanceScore = 0)
+        assertEquals(listOf("saved", "useful", "recent"), rankedOpportunities(listOf(recentWeak, saved, oldUseful), 101).map { it.id })
+        val newlySaved = item("saved-later", saved = true).copy(savedAt = 20)
+        assertEquals(listOf("saved-later", "saved"), rankedOpportunities(listOf(saved, newlySaved), 101).map { it.id })
+        assertEquals("useful", rankedOpportunities(listOf(recentWeak, saved.copy(saved = false, savedAt = null), oldUseful), 101).first().id)
     }
 
     @Test fun blankSummariesCannotBeMarkedAsReadBodies() {

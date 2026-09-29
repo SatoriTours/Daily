@@ -25,10 +25,12 @@ class TaskCenterScreenSourceTest {
     }
 
     @Test
-    fun managementExposesSeparateAllTasksAndRecentFailureEntries() {
+    fun mySpaceExposesSeparateAllTasksAndRecentFailureEntries() {
         val profile = File("src/main/kotlin/com/dailysatori/ui/feature/profile/ProfileScreen.kt").readText()
         val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
-        assertTrue(profile.contains("TextButton(onClick = onFailedTasks)"))
+        val mySpace = File("src/main/kotlin/com/dailysatori/ui/feature/myspace/MySpaceScreen.kt").readText()
+        assertTrue(mySpace.contains("ProfileLibrarySection(profileState, onFavorites, onTasks, onFailedTasks)"))
+        assertTrue(profile.contains("TextButton(onClick = onFailedTasks,"))
         assertTrue(navigation.contains("onTasks = { navController.navigate(TaskCenterRoute()) }"))
         assertTrue(navigation.contains("onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) }"))
         assertTrue(navigation.contains("recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures"))

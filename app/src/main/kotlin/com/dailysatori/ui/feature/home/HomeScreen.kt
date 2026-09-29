@@ -128,12 +128,16 @@ fun HomeScreen(
     onArticleClick: (Long) -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onFavorites: () -> Unit = {},
+    onTasks: () -> Unit = {},
+    onFailedTasks: () -> Unit = {},
     onThoughts: () -> Unit = {},
     onReminders: () -> Unit = {},
     onTodayReminders: () -> Unit = {},
     onReminder: (String) -> Unit = {},
     onAddReminder: () -> Unit = {},
     onOpportunities: () -> Unit = {},
+    onBriefing: (Long) -> Unit = {},
     onOpportunity: (String) -> Unit = {},
     onChat: () -> Unit = {},
     settingsViewModel: SettingsViewModel,
@@ -173,7 +177,9 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) { index ->
                     when (index) {
-                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today))
+                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
+                            onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
+                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
                         DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick, onThoughtsClick = onThoughts)
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
@@ -189,13 +195,14 @@ fun HomeScreen(
                             onTodayReminders = onTodayReminders,
                             onReminder = onReminder,
                             onAddReminder = onAddReminder,
-                            onOpportunities = onOpportunities,
-                            onOpportunity = onOpportunity,
-                            onArticle = onArticleClick,
                             onChat = onChat,
-                            onManagement = onProfileClick,
+                            onSettings = onProfileClick,
+                            onFavorites = onFavorites,
+                            onTasks = onTasks,
+                            onFailedTasks = onFailedTasks,
                         )
-                        else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick)
+                        else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
+                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
                     }
                 }
             }
