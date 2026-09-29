@@ -22,7 +22,13 @@ class MainContentRhythmTest {
             end = "private fun UnifiedNewsSourceDetailLoadingScreen",
         )
 
-        assertTrue(summary.contains("contentPadding = newsCompactListContentPadding()"))
+        val summaryPadding = summary.extractCallBlock("LazyColumn(")
+            .extractCallExpression("contentPadding = PaddingValues(")
+            .replace(Regex("\\s+"), "")
+        assertTrue(summaryPadding.contains("start=Spacing.m"))
+        assertTrue(summaryPadding.contains("end=Spacing.m"))
+        assertTrue(summaryPadding.contains("top=Spacing.s"))
+        assertTrue(summaryPadding.contains("bottom=Height.navBar+Spacing.xxl"))
         assertTrue(layouts.contains("PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)"))
         assertFalse(summary.contains("contentPadding = PaddingValues(Spacing.m)"))
         assertTrue(refreshMessage.contains(compactStatePadding))

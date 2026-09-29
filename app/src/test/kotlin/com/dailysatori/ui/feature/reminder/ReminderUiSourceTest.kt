@@ -118,8 +118,10 @@ class ReminderUiSourceTest {
         assertTrue(sources.all { !Regex("[\\u3400-\\u9fff]").containsMatchIn(it) })
         assertTrue(sources.joinToString("\n").contains("stringResource("))
         val settingsRow = source("ui/feature/settings/SettingsScreen.kt")
-            .lineSequence()
-            .first { it.contains("SettingsPage.REMINDERS") && it.contains("SettingsRow") }
+            .split("SettingsRow(")
+            .drop(1)
+            .single { it.contains("onNavigate(SettingsPage.REMINDERS)") }
+            .substringBefore("onClick")
         assertTrue(settingsRow.contains("R.string.reminder_settings_row_title"))
         assertTrue(settingsRow.contains("R.string.reminder_settings_row_subtitle"))
 
