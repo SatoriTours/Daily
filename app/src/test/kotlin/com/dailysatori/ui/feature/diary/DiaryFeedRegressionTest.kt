@@ -16,7 +16,10 @@ class DiaryFeedRegressionTest {
         val attachmentList = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryAttachmentList.kt").readText()
 
         assertTrue(screen.contains("DiaryMonthHeader("))
-        assertTrue(screen.contains("DiaryDateHeader("))
+        assertTrue(!screen.contains("DiaryDateHeader("))
+        assertTrue(!screen.contains("DiaryThoughtEntry("))
+        assertTrue(screen.contains("DiaryMonthReviewScreen("))
+        assertTrue(card.contains("diaryCardDateTime("))
         assertTrue(screen.contains("DiaryCard("))
         assertTrue(!screen.contains("待整理"))
         assertTrue(!screen.contains("已入库"))

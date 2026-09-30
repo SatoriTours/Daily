@@ -26,6 +26,8 @@ class DiaryModuleStructureTest {
     fun diaryScreenUsesSharedDateHelpers() {
         val screenSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryScreen.kt").readText()
         val feedSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryFeedEntries.kt").readText()
+        val cardSource = File("src/main/kotlin/com/dailysatori/ui/component/card/DiaryCard.kt").readText()
+        val reviewSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryMonthReviewScreen.kt").readText()
 
         assertFalse(screenSource.contains("private fun diaryMonthKey"))
         assertFalse(screenSource.contains("private fun diaryDayKey"))
@@ -36,12 +38,10 @@ class DiaryModuleStructureTest {
         assertFalse(screenSource.contains("private fun diaryDateCountLabel"))
         assertFalse(screenSource.contains("private fun diaryRelativeDayLabel"))
         assertFalse(screenSource.contains("private fun toChineseNumber"))
-        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryDateCountLabel"))
-        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryDateDayNumber"))
-        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryDateMonthLabel"))
-        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryDateWeekLabel"))
-        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryMonthDayLabel"))
-        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryMonthTitle"))
+        assertTrue(screenSource.contains("import com.dailysatori.core.util.diaryMonthKey"))
+        assertTrue(cardSource.contains("import com.dailysatori.core.util.diaryCardDateTime"))
+        assertTrue(reviewSource.contains("import com.dailysatori.core.util.diaryCardDateTime"))
+        assertFalse(cardSource.contains("fun diaryCardDateTime"))
         assertTrue(feedSource.contains("import com.dailysatori.core.util.diaryDayKey"))
         assertTrue(feedSource.contains("import com.dailysatori.core.util.diaryMonthKey"))
     }

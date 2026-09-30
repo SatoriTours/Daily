@@ -49,6 +49,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -61,14 +63,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import com.dailysatori.core.util.diaryDateCountLabel
-import com.dailysatori.core.util.diaryDateDayNumber
-import com.dailysatori.core.util.diaryDateMonthLabel
-import com.dailysatori.core.util.diaryDateWeekLabel
-import com.dailysatori.core.util.diaryImagePaths
-import com.dailysatori.core.util.diaryMonthDayLabel
-import com.dailysatori.core.util.diaryMonthSummary
-import com.dailysatori.core.util.diaryMonthTitle
+import com.dailysatori.core.util.diaryMonthKey
+import com.dailysatori.ui.feature.profile.localDayTicker
+import kotlinx.datetime.Clock
+import kotlinx.datetime.todayIn
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.component.card.DiaryCard
 import com.dailysatori.ui.component.dialog.ConfirmDialog
@@ -88,12 +86,16 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun DiaryScreen(onMyClick: () -> Unit = {}, onThoughtsClick: (() -> Unit)? = null) {
+fun DiaryScreen(onMyClick: () -> Unit = {}, onDetailVisibilityChange: (Boolean) -> Unit = {}) {
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
-    val thoughtViewModel: DiaryThoughtViewModel = koinViewModel()
-    val thoughtState by thoughtViewModel.state.collectAsState()
-    var showThoughts by remember { mutableStateOf(false) }
+    var reviewMonthKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
+    val nowMillis = remember(today, TimeZone.getDefault().id) { System.currentTimeMillis() }
+    DisposableEffect(reviewMonthKey != null) {
+        onDetailVisibilityChange(reviewMonthKey != null)
+        onDispose { onDetailVisibilityChange(false) }
+    }
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
@@ -169,26 +171,25 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onThoughtsClick: (() -> Unit)? = nul
             return@LaunchedEffect
         }
         editingDiary = requestedDiary
-        showThoughts = false
+        reviewMonthKey = null
         showEditor = true
         DiaryRecordingOpenRequest.consume(diaryId)
     }
 
-    if (showThoughts) {
-        DiaryThoughtScreen(
-            thoughtViewModel,
-            onBack = { showThoughts = false },
-            onDiaryClick = DiaryRecordingOpenRequest::open,
+    if (reviewMonthKey != null) {
+        DiaryMonthReviewScreen(
+            monthKey = checkNotNull(reviewMonthKey),
+            diaries = state.diaries.filter { diaryMonthKey(it) == reviewMonthKey },
+            summary = state.monthSummaries[reviewMonthKey], attachments = state.attachmentsByDiary, nowMillis = nowMillis,
+            onBack = { reviewMonthKey = null }, onEdit = { editingDiary = it; showEditor = true },
+            onDelete = { showDeleteDialog = it }, onRetryTranscription = viewModel::retryTranscription,
+            onOpenTranscriptionSettings = onMyClick,
         )
-        return
-    }
-
-    AppScaffold(
+    } else AppScaffold(
         title = "我的日记",
         showBack = false,
         isMainPage = true,
         actions = {
-            DiaryThoughtEntry(thoughtState, onClick = onThoughtsClick ?: { showThoughts = true })
             IconButton(onClick = { viewModel.toggleSearch() }) {
                 Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
@@ -206,7 +207,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onThoughtsClick: (() -> Unit)? = nul
                 visible = showAddDiaryButton,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
                 exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-                modifier = Modifier.padding(bottom = 88.dp).size(48.dp),
+                modifier = Modifier.padding(bottom = Height.navBar + Spacing.xl + Spacing.xs).size(IconSize.xxl),
             ) {
                 MiniAddDiaryButton(
                     menuExpanded = showCaptureMenu,
@@ -285,26 +286,21 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onThoughtsClick: (() -> Unit)? = nul
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         state = diaryListState,
-                        contentPadding = PaddingValues(top = Spacing.s, bottom = 112.dp),
+                        contentPadding = PaddingValues(top = Spacing.s, bottom = Height.navBar + Spacing.xxl + Spacing.m),
                         verticalArrangement = Arrangement.spacedBy(Spacing.s),
                     ) {
                         items(feedEntries, key = { it.diary.id }) { entry ->
                             val diary = entry.diary
-                            if (entry.showMonthHeader) {
+                            if (entry.showMonthHeader && state.searchQuery.isBlank() && state.selectedTag == null) {
                                 DiaryMonthHeader(
                                     diaries = checkNotNull(entry.monthDiaries),
                                     summary = state.monthSummaries[entry.monthKey],
-                                )
-                            }
-                            if (entry.showDateHeader) {
-                                DiaryDateHeader(
-                                    diary = diary,
-                                    dayDiaryCount = entry.dayDiaryCount,
-                                    hasMonthHeader = entry.showMonthHeader,
+                                    onReview = { reviewMonthKey = entry.monthKey },
                                 )
                             }
                             DiaryCard(
                                 diary = diary,
+                                nowMillis = nowMillis,
                                 attachments = state.attachmentsByDiary[diary.id].orEmpty(),
                                 onEdit = {
                                     editingDiary = diary
@@ -429,70 +425,6 @@ private fun MiniAddDiaryButton(
             onCapture = onCapture,
             onFile = onFile,
         )
-    }
-}
-
-@Composable
-private fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
-    val firstDiary = diaries.firstOrNull()
-    val monthTitle = firstDiary?.let(::diaryMonthTitle) ?: diaryMonthTitle(System.currentTimeMillis())
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs, bottom = Spacing.xs),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(monthTitle, style = MaterialTheme.typography.displayMedium.copy(fontSize = 30.sp, lineHeight = 30.sp), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-        Text(
-            text = summary?.takeIf { it.isNotBlank() } ?: diaryMonthSummary(diaries),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        DiaryMonthMeta(diaries)
-    }
-}
-
-@Composable
-private fun DiaryMonthMeta(diaries: List<Diary>) {
-    val imageCount = diaries.sumOf { diary -> diaryImagePaths(diary.images).size }
-    val latest = diaries.maxOfOrNull { it.updated_at ?: it.created_at }?.let { latestTime ->
-        " · 最近更新 ${diaryMonthDayLabel(latestTime)}"
-    }.orEmpty()
-    val imageText = if (imageCount > 0) " · $imageCount 张照片" else ""
-    Text(
-        text = "${diaries.size} 篇日记$imageText$latest",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-    )
-}
-
-@Composable
-private fun DiaryDateHeader(diary: Diary, dayDiaryCount: Int, hasMonthHeader: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = if (hasMonthHeader) Spacing.s else Spacing.m, bottom = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = diaryDateDayNumber(diary),
-                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 27.sp, lineHeight = 27.sp),
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Black,
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(text = diaryDateMonthLabel(diary), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
-                Text(text = diaryDateWeekLabel(diary), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
-            }
-        }
-        Box(modifier = Modifier.weight(1f).height(1.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)))
-        Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)) {
-            Text(
-                text = diaryDateCountLabel(diary, dayDiaryCount),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.widthIn(min = 42.dp).padding(horizontal = 8.dp, vertical = 5.dp),
-            )
-        }
     }
 }
 

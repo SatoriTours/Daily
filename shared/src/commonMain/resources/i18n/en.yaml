@@ -1,3 +1,22 @@
+diary_feed:
+  today: "Today"
+  yesterday: "Yesterday"
+  expand: "Expand"
+  collapse: "Collapse"
+  month_review: "Monthly review"
+  read_review: "Read the %1$s review →"
+  month_count: "%1$d entries"
+  review_source: "Based on %1$d diary entries this month"
+  month_notes: "This month’s entries"
+  question_title: "A question for next month"
+  question: "Which entries could inspire your next small step?"
+  summary_empty: "Your monthly review is being prepared. Revisit this month’s entries below."
+  source_note: "Based on your diary. Tap an entry to read the original."
+  photo_count: "%1$d photos"
+  entry: "Diary entry"
+  reminder_badge: "My space, %1$d reminders remaining today"
+  month_title: "%1$s review"
+  attachment_entry: "Entry with attachments"
 diagnostics:
   title: Diagnostics and logs
   subtitle: Export recent logs and the last crash

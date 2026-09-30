@@ -9,6 +9,9 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,7 +47,7 @@ import androidx.core.content.ContextCompat
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.service.diary.TranscriptionErrorCode
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -54,6 +57,7 @@ fun DiaryAttachmentList(
     onDelete: ((Diary_attachment) -> Unit)? = null,
     onRetryTranscription: ((Long) -> Unit)? = null,
     onOpenTranscriptionSettings: (() -> Unit)? = null,
+    compact: Boolean = false,
 ) {
     val displayableAttachments = attachments.filterNot {
         it.kind == "audio" &&
@@ -70,6 +74,7 @@ fun DiaryAttachmentList(
                 onDelete = onDelete,
                 onRetryTranscription = onRetryTranscription,
                 onOpenTranscriptionSettings = onOpenTranscriptionSettings,
+                compact = compact,
             )
         }
         if (displayableAttachments.size > 2) {
@@ -86,11 +91,12 @@ private fun DiaryAttachmentRow(
     onDelete: ((Diary_attachment) -> Unit)?,
     onRetryTranscription: ((Long) -> Unit)?,
     onOpenTranscriptionSettings: (() -> Unit)?,
+    compact: Boolean,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = Spacing.xs),
     ) {
-        Row(
+        if (!compact || attachment.kind != "audio" || attachment.local_path.isBlank()) Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Spacing.s),
             verticalAlignment = Alignment.CenterVertically,
@@ -129,7 +135,8 @@ private fun DiaryAttachmentRow(
             }
         }
         if (attachment.kind == "audio" && attachment.local_path.isNotBlank()) {
-            DiaryAudioPlaybackButton(attachment.local_path, attachment.duration_ms)
+            DiaryAudioPlaybackButton(attachment.local_path, attachment.duration_ms, compact,
+                attachmentStatus(attachment, includeKnowledgeStatus = !compact))
         }
         if (
             attachment.kind == "audio" &&
@@ -151,7 +158,7 @@ private fun DiaryAttachmentRow(
 }
 
 @Composable
-private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
+private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, compact: Boolean = false, status: String? = null) {
     val context = LocalContext.current
     var isPrepared by remember(path) { mutableStateOf(false) }
     var isPreparing by remember(path) { mutableStateOf(false) }
@@ -246,7 +253,12 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
         }
     }
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = if (compact) Modifier.fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), RoundedCornerShape(Radius.m))
+                .padding(end = Spacing.s) else Modifier,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             IconButton(
                 enabled = !isPreparing,
                 onClick = {
@@ -277,7 +289,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
                     contentDescription = if (isPlaying) "暂停录音" else "播放录音",
                 )
             }
-            Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.labelSmall)
+            if (!compact) Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.labelSmall)
             Slider(
                 value = positionMs.coerceIn(0, durationMs.coerceAtLeast(0)).toFloat(),
                 onValueChange = {
@@ -293,6 +305,9 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long) {
                 modifier = Modifier.weight(1f),
             )
             Text(formatPlaybackTime(durationMs), style = MaterialTheme.typography.labelSmall)
+            if (compact && status != null) Text(status, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = Spacing.s).widthIn(max = Spacing.xxl * 2))
         }
         interruptionMessage?.let {
             Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
@@ -305,12 +320,12 @@ private fun formatPlaybackTime(milliseconds: Int): String {
     return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
-private fun attachmentStatus(attachment: Diary_attachment): String = when {
+private fun attachmentStatus(attachment: Diary_attachment, includeKnowledgeStatus: Boolean = true): String = when {
     attachment.error_message.startsWith("recording_") -> "录音失败"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.failed ->
         transcriptionErrorText(attachment.error_message)
     attachment.transcript_status == DiaryAttachmentProcessingStatus.processing -> "正在转写"
-    attachment.knowledge_status == DiaryAttachmentProcessingStatus.completed -> "已加入知识库"
+    includeKnowledgeStatus && attachment.knowledge_status == DiaryAttachmentProcessingStatus.completed -> "已加入知识库"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.completed -> "已转写"
     attachment.transcript_status == DiaryAttachmentProcessingStatus.queued -> "等待转写"
     else -> "附件"

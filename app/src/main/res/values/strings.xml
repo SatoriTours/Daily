@@ -233,4 +233,22 @@
     <string name="reminder_editor_leap_policy">非闰年时使用：</string>
     <string name="reminder_editor_feb_28">2 月 28 日</string>
     <string name="reminder_editor_mar_1">3 月 1 日</string>
+    <string name="diary_feed_today">今天</string>
+    <string name="diary_feed_yesterday">昨天</string>
+    <string name="diary_feed_expand">展开</string>
+    <string name="diary_feed_collapse">收起</string>
+    <string name="diary_feed_month_review">月度回顾</string>
+    <string name="diary_feed_read_review">阅读%1$s回顾 →</string>
+    <string name="diary_feed_month_count">%1$d篇记录</string>
+    <string name="diary_feed_review_source">根据本月%1$d篇日记整理</string>
+    <string name="diary_feed_month_notes">本月记录</string>
+    <string name="diary_feed_question_title">留给下个月的一个问题</string>
+    <string name="diary_feed_question">哪些记录，值得变成下一步的小行动？</string>
+    <string name="diary_feed_summary_empty">月度回顾还在整理中，可以先回看本月记录。</string>
+    <string name="diary_feed_source_note">回顾来自你的日记，点击记录可阅读原文。</string>
+    <string name="diary_feed_photo_count">%1$d张</string>
+    <string name="diary_feed_entry">日记</string>
+    <string name="diary_feed_reminder_badge">我的，今天还有%1$d项提醒</string>
+    <string name="diary_feed_month_title">%1$s回顾</string>
+    <string name="diary_feed_attachment_entry">附件记录</string>
 </resources>

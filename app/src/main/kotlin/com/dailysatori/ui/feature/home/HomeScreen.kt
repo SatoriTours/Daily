@@ -38,6 +38,9 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -61,6 +64,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
+import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.ui.feature.aichat.AiChatInputController
 import com.dailysatori.ui.feature.aichat.AiChatScreen
 import com.dailysatori.ui.feature.aichat.ChatInputField
@@ -116,6 +122,8 @@ private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f
 
 fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
+internal fun homeReminderBadgeCount(index: Int, count: Int): Int = if (index == MY_TAB_INDEX) count.coerceAtLeast(0) else 0
+
 const val MY_TAB_INDEX = AI_CHAT_TAB_INDEX
 
 @Composable
@@ -146,6 +154,8 @@ fun HomeScreen(
     val reminderViewModel: ReminderViewModel = koinViewModel()
     val reminders by reminderViewModel.reminders.collectAsState()
     val today by remember { localDayTicker() }.collectAsState(initial = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
+    val todayReminderCount = ReminderSummary.todayPendingCount(reminders, today)
+    var diaryDetailVisible by remember { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
 
@@ -180,7 +190,7 @@ fun HomeScreen(
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
                             onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
-                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick, onThoughtsClick = onThoughts)
+                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick, onDetailVisibilityChange = { diaryDetailVisible = it })
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,
@@ -205,7 +215,7 @@ fun HomeScreen(
                     }
                 }
             }
-            if (homeBottomBarVisibleForTab(selectedIndex)) {
+            if (homeBottomBarVisibleForTab(selectedIndex) && !(selectedIndex == DIARY_TAB_INDEX && diaryDetailVisible)) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter,
@@ -216,6 +226,7 @@ fun HomeScreen(
                         hazeState = hazeState,
                         onTabSelected = { selectedIndex = it },
                         onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
+                        todayReminderCount = todayReminderCount,
                     )
                 }
             }
@@ -230,6 +241,7 @@ private fun HomeBottomBarSurface(
     hazeState: HazeState,
     onTabSelected: (Int) -> Unit,
     onHomeClick: () -> Unit,
+    todayReminderCount: Int = 0,
 ) {
     val isAiMode = aiInputController != null
     Box(
@@ -253,6 +265,7 @@ private fun HomeBottomBarSurface(
                 HomeTabNavigationBar(
                     selectedIndex = selectedIndex,
                     onTabSelected = onTabSelected,
+                    todayReminderCount = todayReminderCount,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -377,6 +390,7 @@ private fun HomeGlassSurface(
 private fun HomeTabNavigationBar(
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
+    todayReminderCount: Int,
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
@@ -386,13 +400,24 @@ private fun HomeTabNavigationBar(
         tonalElevation = 0.dp,
     ) {
         tabs.forEachIndexed { index, tab ->
+            val badgeCount = homeReminderBadgeCount(index, todayReminderCount)
             NavigationBarItem(
                 icon = {
-                    Icon(
-                        if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                        contentDescription = if (index == MY_TAB_INDEX) androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_title) else tab.label,
-                        modifier = Modifier.size(HomeBottomBarIconSize),
-                    )
+                    BadgedBox(badge = {
+                        if (badgeCount > 0) Badge(containerColor = MaterialTheme.colorScheme.error) {
+                            Text(if (badgeCount > 99) "99+" else badgeCount.toString())
+                        }
+                    }) {
+                        Icon(
+                            if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
+                            contentDescription = when {
+                                badgeCount > 0 -> stringResource(R.string.diary_feed_reminder_badge, badgeCount)
+                                index == MY_TAB_INDEX -> stringResource(R.string.my_space_title)
+                                else -> tab.label
+                            },
+                            modifier = Modifier.size(HomeBottomBarIconSize),
+                        )
+                    }
                 },
                 selected = selectedIndex == index,
                 onClick = { onTabSelected(index) },

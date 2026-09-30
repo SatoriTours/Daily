@@ -1,3 +1,22 @@
+diary_feed:
+  today: "今天"
+  yesterday: "昨天"
+  expand: "展开"
+  collapse: "收起"
+  month_review: "月度回顾"
+  read_review: "阅读%1$s回顾 →"
+  month_count: "%1$d篇记录"
+  review_source: "根据本月%1$d篇日记整理"
+  month_notes: "本月记录"
+  question_title: "留给下个月的一个问题"
+  question: "哪些记录，值得变成下一步的小行动？"
+  summary_empty: "月度回顾还在整理中，可以先回看本月记录。"
+  source_note: "回顾来自你的日记，点击记录可阅读原文。"
+  photo_count: "%1$d张"
+  entry: "日记"
+  reminder_badge: "我的，今天还有%1$d项提醒"
+  month_title: "%1$s回顾"
+  attachment_entry: "附件记录"
 diagnostics:
   title: 诊断与日志
   subtitle: 导出最近半小时日志与崩溃现场

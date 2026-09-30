@@ -72,6 +72,30 @@ class DiaryFormatUtilsTest {
         assertEquals("二十一", toChineseNumber(21))
     }
 
+    @Test
+    fun compactMetadataUsesOneDateLabelAndKeepsTheTime() {
+        val now = localMillis(2026, 9, 30)
+        assertEquals("今天 · 10:30", diaryCardDateTime(now, now))
+        assertEquals("昨天 · 10:30", diaryCardDateTime(localMillis(2026, 9, 29), now))
+        assertEquals("9月28日 · 10:30", diaryCardDateTime(localMillis(2026, 9, 28), now))
+        assertEquals("2025年12月28日 · 10:30", diaryCardDateTime(localMillis(2025, 12, 28), now))
+    }
+
+    @Test
+    fun yesterdayWorksAcrossTheYearBoundaryAndMidnightUpdatesTheLabel() {
+        val newYear = localMillis(2026, 1, 1)
+        val lastDay = localMillis(2025, 12, 31)
+        assertEquals("昨天 · 10:30", diaryCardDateTime(lastDay, newYear))
+        assertEquals("今天 · 10:30", diaryCardDateTime(lastDay, lastDay))
+        assertEquals("Yesterday · 10:30", diaryCardDateTime(lastDay, newYear, "Today", "Yesterday", Locale.US))
+    }
+
+    @Test
+    fun compactPreviewRemovesMarkdownDecorationWithoutLosingWords() {
+        assertEquals("标题 记录一个想法 查看原文", diaryPreviewText("# 标题\n\n**记录一个想法**\n[查看原文](https://example.com)\n#日常"))
+        assertEquals("", diaryPreviewText("\n#日常\n"))
+    }
+
     private fun localMillis(year: Int, month: Int, day: Int): Long {
         return Calendar.getInstance(Locale.CHINA).apply {
             set(year, month - 1, day, 10, 30, 0)

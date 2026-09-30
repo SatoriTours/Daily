@@ -211,4 +211,22 @@
     <string name="reminder_editor_leap_policy">In non-leap years, use:</string>
     <string name="reminder_editor_feb_28">February 28</string>
     <string name="reminder_editor_mar_1">March 1</string>
+    <string name="diary_feed_today">Today</string>
+    <string name="diary_feed_yesterday">Yesterday</string>
+    <string name="diary_feed_expand">Expand</string>
+    <string name="diary_feed_collapse">Collapse</string>
+    <string name="diary_feed_month_review">Monthly review</string>
+    <string name="diary_feed_read_review">Read the %1$s review →</string>
+    <string name="diary_feed_month_count">%1$d entries</string>
+    <string name="diary_feed_review_source">Based on %1$d diary entries this month</string>
+    <string name="diary_feed_month_notes">This month’s entries</string>
+    <string name="diary_feed_question_title">A question for next month</string>
+    <string name="diary_feed_question">Which entries could inspire your next small step?</string>
+    <string name="diary_feed_summary_empty">Your monthly review is being prepared. Revisit this month’s entries below.</string>
+    <string name="diary_feed_source_note">Based on your diary. Tap an entry to read the original.</string>
+    <string name="diary_feed_photo_count">%1$d photos</string>
+    <string name="diary_feed_entry">Diary entry</string>
+    <string name="diary_feed_reminder_badge">My space, %1$d reminders remaining today</string>
+    <string name="diary_feed_month_title">%1$s review</string>
+    <string name="diary_feed_attachment_entry">Entry with attachments</string>
 </resources>

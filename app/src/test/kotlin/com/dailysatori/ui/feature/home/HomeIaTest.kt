@@ -8,6 +8,23 @@ import kotlin.test.assertTrue
 
 class HomeIaTest {
     @Test
+    fun reminderBadgeIsOnlyAttachedToMyTabAndHidesAtZero() {
+        assertEquals(3, homeReminderBadgeCount(MY_TAB_INDEX, 3))
+        assertEquals(0, homeReminderBadgeCount(MY_TAB_INDEX, 0))
+        assertEquals(0, homeReminderBadgeCount(MY_TAB_INDEX, -1))
+        assertEquals(0, homeReminderBadgeCount(DIARY_TAB_INDEX, 3))
+        assertEquals(0, homeReminderBadgeCount(TODAY_TAB_INDEX, 3))
+        assertEquals(0, homeReminderBadgeCount(READING_TAB_INDEX, 3))
+    }
+    @Test
+    fun myTabDisplaysTodaysReminderBadge() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        assertTrue(source.contains("ReminderSummary.todayPendingCount(reminders, today)"))
+        assertTrue(source.contains("BadgedBox("))
+        assertTrue(source.contains("homeReminderBadgeCount(index, todayReminderCount)"))
+    }
+
+    @Test
     fun homeTabsUseWeChatStyleInformationArchitecture() {
         assertEquals(listOf("今日", "日记", "读书", "我的"), tabs.map { it.label })
         assertEquals(0, TODAY_TAB_INDEX)
@@ -53,7 +70,7 @@ class HomeIaTest {
         assertTrue(source.contains("indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
         assertTrue(source.contains("consumeWindowInsets(innerPadding)"))
         assertFalse(source.contains("alwaysShowLabel = true"))
-        assertTrue(source.contains("else tab.label"))
+        assertTrue(source.contains("else -> tab.label"))
     }
 
     @Test
@@ -69,7 +86,9 @@ class HomeIaTest {
     @Test
     fun homeBottomBarOnlyRendersInsideHomeTabs() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val bottomBarGate = source.substringAfter("if (homeBottomBarVisibleForTab(selectedIndex))")
+        val gate = "if (homeBottomBarVisibleForTab(selectedIndex) && !(selectedIndex == DIARY_TAB_INDEX && diaryDetailVisible))"
+        assertTrue(source.contains(gate))
+        val bottomBarGate = source.substringAfter(gate)
 
         assertTrue(bottomBarGate.contains("HomeBottomBarSurface("))
         assertFalse(source.contains("showMy"))

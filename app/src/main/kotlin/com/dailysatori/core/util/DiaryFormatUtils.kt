@@ -147,3 +147,32 @@ private fun formatDiaryDate(timeMillis: Long, pattern: String): String =
 
 private fun calendarFor(timeMillis: Long): Calendar =
     Calendar.getInstance().apply { timeInMillis = timeMillis }
+
+internal fun diaryCardDateTime(
+    timeMillis: Long,
+    nowMillis: Long = System.currentTimeMillis(),
+    todayLabel: String = "今天",
+    yesterdayLabel: String = "昨天",
+    locale: Locale = Locale.CHINA,
+): String {
+    val now = calendarFor(nowMillis)
+    val previousDay = calendarFor(nowMillis).apply { add(Calendar.DAY_OF_YEAR, -1) }
+    val date = when (diaryDayKey(timeMillis)) {
+        diaryDayKey(nowMillis) -> todayLabel
+        diaryDayKey(previousDay.timeInMillis) -> yesterdayLabel
+        else -> {
+            val sameYear = calendarFor(timeMillis).get(Calendar.YEAR) == now.get(Calendar.YEAR)
+            val pattern = if (locale.language == "zh") {
+                if (sameYear) "M月d日" else "yyyy年M月d日"
+            } else if (sameYear) "MMM d" else "MMM d, yyyy"
+            SimpleDateFormat(pattern, locale).format(Date(timeMillis))
+        }
+    }
+    return "$date · ${SimpleDateFormat("HH:mm", locale).format(Date(timeMillis))}"
+}
+
+internal fun diaryPreviewText(content: String): String = stripDiaryInlineTags(content)
+    .replace(Regex("(?m)^\\s{0,3}(#{1,6}\\s+|>\\s?|[-*+]\\s+)"), "")
+    .replace(Regex("!?\\[([^]]*)]\\([^)]*\\)"), "$1")
+    .replace("**", "").replace("__", "").replace("`", "")
+    .replace(Regex("\\s+"), " ").trim()
