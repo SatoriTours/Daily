@@ -268,4 +268,19 @@
     <string name="recovery_export_residual">导出失败，保存位置可能留下不完整文件，请手动删除后重试。</string>
     <string name="recovery_check_failed">诊断记录暂时无法读取，仍可尝试导出或继续启动。</string>
     <string name="recovery_continue">继续启动应用</string>
+    <string name="recovery_update_title">更新应用</string>
+    <string name="recovery_update_version">当前版本：%1$s</string>
+    <string name="recovery_update_channel">更新渠道：%1$s</string>
+    <string name="recovery_update_commit">提交构建版</string>
+    <string name="recovery_update_stable">正式版</string>
+    <string name="recovery_update_defaults">配置暂不可读取，使用当前安装版本的默认设置。</string>
+    <string name="recovery_update_check">检查更新</string>
+    <string name="recovery_update_checking">检查中…</string>
+    <string name="recovery_update_available">可更新至：%1$s</string>
+    <string name="recovery_update_download">下载并安装</string>
+    <string name="recovery_update_install">安装已下载的更新</string>
+    <string name="recovery_update_downloading">正在下载并校验安装包…</string>
+    <string name="recovery_update_check_failed">检查更新失败，请检查网络后重试。</string>
+    <string name="recovery_update_download_failed">下载或校验失败，请重试或重新检查更新。</string>
+    <string name="recovery_update_install_failed">未能打开安装程序，请允许安装未知应用后重试。</string>
 </resources>

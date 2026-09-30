@@ -246,4 +246,19 @@
     <string name="recovery_export_residual">Export failed and an incomplete file may remain. Delete it before trying again.</string>
     <string name="recovery_check_failed">Diagnostic records could not be read. You can still try exporting or continue startup.</string>
     <string name="recovery_continue">Continue startup</string>
+    <string name="recovery_update_title">Update app</string>
+    <string name="recovery_update_version">Current version: %1$s</string>
+    <string name="recovery_update_channel">Update channel: %1$s</string>
+    <string name="recovery_update_commit">Commit builds</string>
+    <string name="recovery_update_stable">Stable releases</string>
+    <string name="recovery_update_defaults">Configuration could not be read. Using this installed version’s defaults.</string>
+    <string name="recovery_update_check">Check for updates</string>
+    <string name="recovery_update_checking">Checking…</string>
+    <string name="recovery_update_available">Available version: %1$s</string>
+    <string name="recovery_update_download">Download and install</string>
+    <string name="recovery_update_install">Install downloaded update</string>
+    <string name="recovery_update_downloading">Downloading and verifying the APK…</string>
+    <string name="recovery_update_check_failed">Could not check for updates. Check your connection and try again.</string>
+    <string name="recovery_update_download_failed">Download or verification failed. Retry or check for updates again.</string>
+    <string name="recovery_update_install_failed">Could not open the installer. Allow installation from this app and try again.</string>
 </resources>

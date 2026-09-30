@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -210,7 +211,9 @@ private fun UnifiedNewsSummaryPage(
     onOpportunity: (String) -> Unit,
 ) {
     val pages = remember(state.remoteSources, state.externalFavoriteSources) { unifiedNewsSourcePages(state) }
-    val pagerState = rememberUnifiedNewsSourcePager(pages, state.sourceSelection, viewModel::selectNewsPage)
+    val currentPages = rememberUpdatedState(pages)
+    val pagerState = rememberUnifiedNewsSourcePager(currentPages, state.sourceSelection, viewModel::selectNewsPage)
+    val pageKey = remember(currentPages) { unifiedNewsSourcePagerKey(currentPages) }
     val scope = rememberCoroutineScope()
     var tabScrollJob by remember { mutableStateOf<Job?>(null) }
     val selectedKey = unifiedNewsSourcePageKey(state.sourceSelection)
@@ -250,10 +253,10 @@ private fun UnifiedNewsSummaryPage(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                key = { unifiedNewsSourcePageKey(pages[it]) },
+                key = pageKey,
                 beyondViewportPageCount = 1,
             ) { page ->
-                val selection = pages[page]
+                val selection = currentPages.value.getOrNull(page) ?: return@HorizontalPager
                 val pageKey = unifiedNewsSourcePageKey(selection)
                 val pageState = unifiedNewsSourcePageState(state, selection, scrollRequests[pageKey] ?: 0, refreshRequests[pageKey] ?: 0)
                 when (selection) {

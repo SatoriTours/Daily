@@ -15,12 +15,14 @@ import com.dailysatori.core.diagnostics.DiagnosticExportPhase
 import com.dailysatori.ui.theme.*
 
 @Composable
-fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onContinue: () -> Unit) {
+fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onInstall: () -> Unit, onContinue: () -> Unit) {
     val state by viewModel.state.collectAsState()
     val export by viewModel.exportState.collectAsState()
+    val update by viewModel.updateState.collectAsState()
     var token by rememberSaveable { mutableStateOf<String?>(null) }
-    val busy = state.checking || export.phase in setOf(DiagnosticExportPhase.PREPARING,
+    val exporting = export.phase in setOf(DiagnosticExportPhase.PREPARING,
         DiagnosticExportPhase.AWAITING_DESTINATION, DiagnosticExportPhase.SAVING)
+    val busy = state.checking || exporting || update.busy
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         token?.let { viewModel.save(it, uri) }
         token = null
@@ -33,6 +35,7 @@ fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onContinue:
         }
     }
     LaunchedEffect(viewModel) { viewModel.startup.collect { onContinue() } }
+    LaunchedEffect(viewModel) { viewModel.installRequests.collect { onInstall() } }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(Spacing.l),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -48,7 +51,7 @@ fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onContinue:
                 modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(stringResource(R.string.recovery_export_crash)) }
             OutlinedButton(onClick = { viewModel.prepare(false) }, enabled = !busy,
                 modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(stringResource(R.string.recovery_export_recent)) }
-            if (busy) {
+            if (state.checking || exporting) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 Text(stringResource(if (export.phase == DiagnosticExportPhase.AWAITING_DESTINATION)
                     R.string.recovery_choose_destination else R.string.recovery_working), style = MaterialTheme.typography.bodySmall)
@@ -61,6 +64,8 @@ fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onContinue:
                     color = MaterialTheme.colorScheme.error)
             }
             state.error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
+            RecoveryUpdateSection(update, enabled = !state.checking && !exporting,
+                onCheck = viewModel::checkUpdate, onDownload = viewModel::downloadUpdate, onInstall = onInstall)
             TextButton(onClick = viewModel::continueStartup, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.recovery_continue))
             }

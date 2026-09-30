@@ -9,6 +9,11 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.BuildConfig
 import com.dailysatori.R
 import com.dailysatori.core.diagnostics.*
+import com.dailysatori.core.service.AppUpgradeService
+import com.dailysatori.core.service.InstalledBuild
+import com.dailysatori.core.service.UpdateChannel
+import com.dailysatori.config.DatabaseConfig
+import com.dailysatori.di.createHttpClient
 import java.io.IOException
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -34,15 +39,27 @@ class DiagnosticRecoveryViewModel(
     val requests = requestChannel.receiveAsFlow()
     private val startupChannel = Channel<Unit>(Channel.BUFFERED)
     val startup = startupChannel.receiveAsFlow()
+    private val httpClient = lazy { createHttpClient() }
+    private val upgradeService by lazy { AppUpgradeService(httpClient.value, "${context.packageName}.recoveryfiles") }
+    private val installed = InstalledBuild(BuildConfig.VERSION_CODE, UpdateChannel.fromId(BuildConfig.UPDATE_CHANNEL), DatabaseConfig.currentSchemaVersion)
+    private val updates = RecoveryUpdateController(installed,
+        { readRecoveryUpdateConfiguration(context, installed) },
+        { channel, build -> upgradeService.checkChannelUpdate(channel, build) },
+        { release, progress -> upgradeService.downloadApk(context, release, progress) })
+    val updateState = updates.state
+    private val installChannel = Channel<Unit>(Channel.BUFFERED)
+    val installRequests = installChannel.receiveAsFlow()
 
     init {
         viewModelScope.launch {
             try {
                 val needed = withContext(Dispatchers.IO) { reader.needsRecovery() }
+                if (needed || forceExport) withContext(Dispatchers.IO) { updates.loadConfiguration() }
                 mutableState.value = DiagnosticRecoveryState(checking = false, needsRecovery = needed)
                 if (!needed && !forceExport) startupChannel.send(Unit)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
+                withContext(Dispatchers.IO) { updates.loadConfiguration() }
                 mutableState.value = DiagnosticRecoveryState(checking = false, needsRecovery = true, error = R.string.recovery_check_failed)
             }
         }
@@ -74,7 +91,7 @@ class DiagnosticRecoveryViewModel(
     }
 
     fun continueStartup() {
-        if (mutableState.value.checking || exportState.value.phase in setOf(DiagnosticExportPhase.PREPARING,
+        if (mutableState.value.checking || updateState.value.busy || exportState.value.phase in setOf(DiagnosticExportPhase.PREPARING,
                 DiagnosticExportPhase.AWAITING_DESTINATION, DiagnosticExportPhase.SAVING)) return
         mutableState.update { it.copy(checking = true, error = null) }
         viewModelScope.launch {
@@ -86,9 +103,25 @@ class DiagnosticRecoveryViewModel(
         }
     }
 
+    fun checkUpdate() { viewModelScope.launch(Dispatchers.IO) { updates.check() } }
+
+    fun downloadUpdate() {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (updates.download() != null) installChannel.send(Unit)
+        }
+    }
+
+    fun createInstallIntent() = updateState.value.download?.let {
+        upgradeService.createInstallIntentForFilePathIfExists(context, it.filePath)
+    }
+
+    fun installFailed() { updates.installFailed() }
+
     override fun onCleared() {
         requestChannel.close()
         startupChannel.close()
+        installChannel.close()
+        if (httpClient.isInitialized()) httpClient.value.close()
         CoroutineScope(Dispatchers.IO).launch { session.cancel() }
         super.onCleared()
     }

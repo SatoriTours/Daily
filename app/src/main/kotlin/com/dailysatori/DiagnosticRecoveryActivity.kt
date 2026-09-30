@@ -2,6 +2,9 @@ package com.dailysatori
 
 import android.content.Intent
 import android.os.Bundle
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +19,10 @@ import java.io.File
 
 /** Launcher and manual export shortcut run independently of the normal startup pipeline. */
 class DiagnosticRecoveryActivity : ComponentActivity() {
+    private val installer = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    private val installPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (packageManager.canRequestPackageInstalls()) installUpdate() else viewModel.installFailed()
+    }
     private val viewModel by viewModels<DiagnosticRecoveryViewModel> {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -31,7 +38,7 @@ class DiagnosticRecoveryActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             DailySatoriTheme {
-                DiagnosticRecoveryScreen(viewModel) {
+                DiagnosticRecoveryScreen(viewModel, onInstall = ::installUpdate) {
                     // Only a foreground launch owns this marker; background workers are not failed UI launches.
                     DiagnosticRecoveryReader.startupStarted(File(noBackupFilesDir, "diagnostics"))
                     startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
@@ -39,6 +46,17 @@ class DiagnosticRecoveryActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun installUpdate() {
+        try {
+            if (!packageManager.canRequestPackageInstalls()) {
+                installPermission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                return
+            }
+            val installIntent = viewModel.createInstallIntent()
+            if (installIntent == null) viewModel.installFailed() else installer.launch(installIntent)
+        } catch (_: Exception) { viewModel.installFailed() }
     }
 
     companion object { const val ACTION_EXPORT = "com.dailysatori.action.EXPORT_DIAGNOSTICS" }

@@ -5,10 +5,26 @@ import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.w3c.dom.Element
 
 class DiagnosticRecoveryEntryTest {
+    @Test
+    fun recoveryInstallerCanReadApkWithoutStartingTheBusinessProcess() {
+        val manifest = File("src/main/AndroidManifest.xml").takeIf { it.isFile }
+            ?: File("app/src/main/AndroidManifest.xml")
+        val document = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+            .newDocumentBuilder().parse(manifest)
+        val providers = document.getElementsByTagName("provider")
+        val recovery = assertNotNull((0 until providers.length).map { providers.item(it) as Element }
+            .firstOrNull { it.androidAttribute("authorities").endsWith(".recoveryfiles") },
+            "Recovery APKs need a provider independent of business initialization")
+        assertEquals(":diagnostics", recovery.androidAttribute("process"))
+        assertEquals("false", recovery.androidAttribute("exported"))
+        assertEquals("true", recovery.androidAttribute("grantUriPermissions"))
+    }
+
     @Test
     fun launcherCanOpenBeforeTheBusinessProcessInitializes() {
         val manifest = File("src/main/AndroidManifest.xml").takeIf { it.isFile }

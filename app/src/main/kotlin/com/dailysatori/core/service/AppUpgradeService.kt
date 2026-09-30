@@ -33,7 +33,7 @@ data class ReleaseAsset(
     val downloadUrl: String,
 )
 
-class AppUpgradeService(private val client: HttpClient) {
+class AppUpgradeService(private val client: HttpClient, private val fileProviderAuthority: String? = null) {
     private var reportedDownloadId: Long? = null
     private var downloadTrace: DiagnosticTrace? = null
     private var downloadRequestId: String? = null
@@ -197,7 +197,7 @@ class AppUpgradeService(private val client: HttpClient) {
     }
 
     fun createInstallIntent(context: Context, file: File): Intent {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val uri = FileProvider.getUriForFile(context, fileProviderAuthority ?: "${context.packageName}.fileprovider", file)
         return Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

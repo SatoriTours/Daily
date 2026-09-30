@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.unifiednews
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -28,23 +29,27 @@ internal fun unifiedNewsSourcePageIndex(
     selection: UnifiedNewsSourceSelection,
 ): Int = pages.indexOfFirst { unifiedNewsSourcePageKey(it) == unifiedNewsSourcePageKey(selection) }.coerceAtLeast(0)
 
+// Pager may retain this callback while its observed page count has already changed.
+internal fun unifiedNewsSourcePagerKey(pages: State<List<UnifiedNewsSourceSelection>>): (Int) -> String = { index ->
+    pages.value.getOrNull(index)?.let(::unifiedNewsSourcePageKey) ?: "news-unavailable-$index"
+}
+
 @Composable
 internal fun rememberUnifiedNewsSourcePager(
-    pages: List<UnifiedNewsSourceSelection>,
+    pages: State<List<UnifiedNewsSourceSelection>>,
     selection: UnifiedNewsSourceSelection,
     onSelected: (UnifiedNewsSourceSelection) -> Unit,
 ): PagerState {
-    val pagerState = rememberPagerState(initialPage = unifiedNewsSourcePageIndex(pages, selection)) { pages.size }
-    val currentPages by rememberUpdatedState(pages)
+    val pagerState = rememberPagerState(initialPage = unifiedNewsSourcePageIndex(pages.value, selection)) { pages.value.size }
     val currentSelection by rememberUpdatedState(selection)
     val select by rememberUpdatedState(onSelected)
-    LaunchedEffect(pages.map(::unifiedNewsSourcePageKey)) {
+    LaunchedEffect(pages.value.map(::unifiedNewsSourcePageKey)) {
         // Resolve by source identity when sources are added, removed, or reordered.
-        pagerState.scrollToPage(unifiedNewsSourcePageIndex(currentPages, currentSelection))
+        pagerState.scrollToPage(unifiedNewsSourcePageIndex(pages.value, currentSelection))
         snapshotFlow { pagerState.settledPage.takeUnless { pagerState.isScrollInProgress } }
             .filterNotNull()
             .collect { index ->
-                val settled = currentPages.getOrNull(index) ?: return@collect
+                val settled = pages.value.getOrNull(index) ?: return@collect
                 if (unifiedNewsSourcePageKey(settled) != unifiedNewsSourcePageKey(currentSelection)) select(settled)
             }
     }
