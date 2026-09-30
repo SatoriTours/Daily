@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.diary
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryAttachmentDraft
@@ -16,7 +17,7 @@ import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import java.io.File
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -103,12 +105,15 @@ class DiaryViewModelSourceIdTest {
 
     @Test
     fun extractionFailureStillReturnsPersistedId() = runTest {
-        val fixture = diaryFixture(extractorFailure = IllegalStateException("extraction failed"))
-        try {
-            assertEquals(1L, fixture.viewModel.saveDiaryAndGetId(content = "persisted diary"))
-            assertEquals(1, fixture.diaryRepository.getAllSync().size)
-        } finally {
-            fixture.close()
+        // Each new ViewModel starts database observers while the first save runs on IO.
+        repeat(64) { attempt ->
+            val fixture = diaryFixture(extractorFailure = IllegalStateException("extraction failed"))
+            try {
+                assertEquals(1L, fixture.viewModel.saveDiaryAndGetId(content = "persisted diary"))
+                assertEquals(1, fixture.diaryRepository.getAllSync().size, "Startup/save attempt $attempt")
+            } finally {
+                fixture.close()
+            }
         }
     }
 
@@ -177,9 +182,11 @@ class DiaryViewModelSourceIdTest {
     }
 
     private fun diaryFixture(extractorFailure: Throwable? = null): DiaryFixture {
-        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        DailySatoriDatabase.Schema.create(driver)
+        // A file-backed driver isolates connections by thread; IN_MEMORY shares one connection.
+        val directory = Files.createTempDirectory("diary-source-id").toFile()
+        val driver = JdbcSqliteDriver("jdbc:sqlite:${File(directory, "diary.db").absolutePath}")
         val database = DailySatoriDatabase(driver)
+        database.transaction { DailySatoriDatabase.Schema.create(driver) }
         val diaryRepository = DiaryRepository(database, driver)
         val attachmentRepository = DiaryAttachmentRepository(database, driver)
         val monthSummaryRepository = DiaryMonthSummaryRepository(database)
@@ -199,7 +206,7 @@ class DiaryViewModelSourceIdTest {
             ),
             attachmentRepo = attachmentRepository,
         )
-        return DiaryFixture(driver, diaryRepository, attachmentRepository, viewModel, extractor, httpClient)
+        return DiaryFixture(driver, diaryRepository, attachmentRepository, viewModel, extractor, httpClient, directory)
     }
 
     private data class DiaryFixture(
@@ -209,15 +216,18 @@ class DiaryViewModelSourceIdTest {
         val viewModel: DiaryViewModel,
         val extractor: RecordingMemoryExtractor,
         val httpClient: HttpClient,
+        val directory: File,
     ) {
         fun close() {
+            val scopeJob = viewModel.viewModelScope.coroutineContext[Job]
             ViewModelStore().run {
                 put("test", viewModel)
                 clear()
             }
-            runBlocking { delay(50) }
+            runBlocking { withTimeout(5_000) { scopeJob?.join() } }
             httpClient.close()
             driver.close()
+            directory.deleteRecursively()
         }
     }
 
