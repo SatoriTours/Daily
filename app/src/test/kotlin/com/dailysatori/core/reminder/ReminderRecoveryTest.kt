@@ -8,6 +8,10 @@ import com.dailysatori.service.reminder.ReminderProfileSnapshot
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderStatus
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -17,6 +21,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -24,6 +29,29 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReminderRecoveryTest {
+    @Test
+    fun recoveryReadFailureCannotEscapeTheProcessOwnedStartupScope() = runTest {
+        val uncaught = mutableListOf<Throwable>()
+        val scopeJob = SupervisorJob()
+        val scope = CoroutineScope(scopeJob + UnconfinedTestDispatcher(testScheduler) +
+            CoroutineExceptionHandler { _, error -> uncaught += error })
+        try {
+            val recovery = ReminderRecoveryController(
+                capabilitySnapshot = { ReminderCapabilitySnapshot(true, true) },
+                recoveryScope = scope,
+                recover = { throw IllegalArgumentException("Invalid stored reminder private-content") },
+            )
+
+            recovery.startup()
+            runCurrent()
+
+            assertTrue(uncaught.isEmpty(), "提醒恢复异常不能从启动协程传出")
+            assertTrue(scopeJob.isActive)
+        } finally {
+            scopeJob.cancelAndJoin()
+        }
+    }
+
     @Test
     fun reminderAiBatchIntentRestoresOneConsumableBatchRouteForColdAndForegroundLaunches() {
         val openRequest = ReminderAiBatchOpenRequestState()

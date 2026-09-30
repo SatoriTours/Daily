@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.myspace
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.util.withUiObservationError
 import com.dailysatori.core.task.NewsOpportunityTaskHandler
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.data.repository.AsyncTaskRepository
@@ -35,8 +36,10 @@ class MySpaceViewModel(
     private val _operationFailed = MutableStateFlow(false)
     val operationFailed = _operationFailed.asStateFlow()
     val task = tasks.observeLatestByUniqueKey(NewsOpportunityTaskHandler.TYPE)
+        .withUiObservationError { _operationFailed.value = true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val activeReminderIds = reminders.observeAll().map { entries -> entries.map { it.id }.toSet() }
+        .withUiObservationError { _operationFailed.value = true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     init { refresh() }

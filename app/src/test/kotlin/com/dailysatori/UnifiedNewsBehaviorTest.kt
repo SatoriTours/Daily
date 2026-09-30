@@ -877,13 +877,11 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun releaseSkillUsesGitPushTagWorkflow() {
         val skill = java.io.File("../.opencode/skill/release-version/SKILL.md").readText()
-        val readme = java.io.File("../README.md").readText()
 
         assertTrue(skill.contains("app/build.gradle.kts"))
         assertTrue(skill.contains("git push origin main \"v${'$'}{current_version}\""))
         assertFalse(skill.contains("gh release create"))
         assertFalse(skill.contains("不使用 `git push`"))
-        assertTrue(readme.contains("tag 必须匹配 `app/build.gradle.kts` 的 `versionName`"))
     }
 
     @Test

@@ -251,4 +251,21 @@
     <string name="diary_feed_reminder_badge">我的，今天还有%1$d项提醒</string>
     <string name="diary_feed_month_title">%1$s回顾</string>
     <string name="diary_feed_attachment_entry">附件记录</string>
+    <string name="reminder_load_failed">提醒加载失败，请稍后重试</string>
+    <string name="reminder_profiles_load_failed">提醒配置加载失败，请稍后重试</string>
+    <string name="recovery_title">诊断与恢复</string>
+    <string name="recovery_shortcut">导出诊断日志</string>
+    <string name="recovery_interrupted">上次运行异常退出或启动未完成。你可以先导出日志，再尝试打开应用。</string>
+    <string name="recovery_description">无需进入设置，也能导出本机保存的诊断日志。</string>
+    <string name="recovery_privacy">本页不启动新闻汇总或读取日记。日志仅包含已过滤的技术记录，不会自动上传。</string>
+    <string name="recovery_destination">请选择本机位置保存。若选择云盘，文件可能由该服务上传。导出后可自行分享给开发者。</string>
+    <string name="recovery_export_crash">导出上次异常日志</string>
+    <string name="recovery_export_recent">导出最近诊断日志</string>
+    <string name="recovery_choose_destination">请在系统文件选择器中选择保存位置</string>
+    <string name="recovery_working">正在准备，请稍候…</string>
+    <string name="recovery_saved">日志已保存，可以从文件管理器中分享。</string>
+    <string name="recovery_export_failed">导出失败，请重试或更换本机保存位置。</string>
+    <string name="recovery_export_residual">导出失败，保存位置可能留下不完整文件，请手动删除后重试。</string>
+    <string name="recovery_check_failed">诊断记录暂时无法读取，仍可尝试导出或继续启动。</string>
+    <string name="recovery_continue">继续启动应用</string>
 </resources>

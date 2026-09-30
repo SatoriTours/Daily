@@ -9,6 +9,30 @@ import kotlin.test.assertTrue
 
 class UnifiedNewsSourceArticleStateTest {
     @Test
+    fun overlappingPagesKeepUniqueListKeysAndUseTheUpdatedArticle() {
+        val first = RemoteArticle(id = 1L, title = "第一条")
+        val second = RemoteArticle(id = 2L, title = "旧正文")
+        val updatedSecond = second.copy(title = "同步后的正文")
+        val third = RemoteArticle(id = 3L, title = "第三条")
+        val state = UnifiedNewsState(sourceArticlesBySourceId = mapOf(7L to listOf(first, second)))
+
+        val loaded = state.withUnifiedNewsSourceArticlesLoaded(7L, listOf(updatedSecond, third, third), append = true, hasMore = true)
+
+        assertEquals(listOf(first, updatedSecond, third), loaded.sourceArticlesBySourceId[7L])
+        assertTrue(7L in loaded.sourceArticlesHasMoreSourceIds)
+    }
+
+    @Test
+    fun initialSourceLoadDeduplicatesArticlesReturnedByMultipleMappings() {
+        val old = RemoteArticle(id = 1L, title = "旧记录")
+        val updated = old.copy(title = "新记录")
+
+        val loaded = UnifiedNewsState().withUnifiedNewsSourceArticlesLoaded(7L, listOf(old, updated), append = false, hasMore = false)
+
+        assertEquals(listOf(updated), loaded.sourceArticlesBySourceId[7L])
+    }
+
+    @Test
     fun removedRemoteSourceResetsSelectionToSummary() {
         val selection = UnifiedNewsSourceSelection.RemoteSource(id = 7L, name = "旧来源")
         val sources = listOf(UnifiedNewsRemoteSourceOption(id = 8L, name = "新来源"))

@@ -58,7 +58,7 @@ internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesLoaded(
     summaryDate: String,
     articles: List<RemoteArticle>,
 ): UnifiedNewsState = copy(
-    sourceArticlesByCacheKey = sourceArticlesByCacheKey + (sourceArticleCacheKey(sourceId, summaryDate) to articles),
+    sourceArticlesByCacheKey = sourceArticlesByCacheKey + (sourceArticleCacheKey(sourceId, summaryDate) to articles.associateBy { it.id }.values.toList()),
     sourceArticlesLoadingSourceId = null,
     sourceArticlesError = null,
 )
@@ -70,7 +70,9 @@ internal fun UnifiedNewsState.withUnifiedNewsSourceArticlesLoaded(
     hasMore: Boolean,
 ): UnifiedNewsState {
     val existing = if (append) sourceArticlesBySourceId[sourceId].orEmpty() else emptyList()
-    val nextArticles = existing + articles
+    // Syncing can shift pagination offsets or map multiple remote identities to one local article.
+    // Preserve list order, replace stale content, and keep LazyColumn keys unique.
+    val nextArticles = (existing + articles).associateBy { it.id }.values.toList()
     return copy(
         sourceArticlesBySourceId = sourceArticlesBySourceId + (sourceId to nextArticles),
         sourceArticlesHasMoreSourceIds = if (hasMore) {

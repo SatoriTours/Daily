@@ -3,6 +3,7 @@ package com.dailysatori.core.reminder
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import co.touchlab.kermit.Logger
 import com.dailysatori.MainActivity
 import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.data.repository.ReminderState
@@ -25,6 +26,7 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -300,7 +302,7 @@ class ReminderRecoveryController(
         if (started) return
         started = true
         previous = capabilitySnapshot()
-        recoveryScope.launch { recover() }
+        launchRecovery()
     }
 
     @Synchronized
@@ -308,6 +310,16 @@ class ReminderRecoveryController(
         val current = capabilitySnapshot()
         val changed = previous?.let { it != current } == true
         previous = current
-        if (changed) recoveryScope.launch { recover() }
+        if (changed) launchRecovery()
+    }
+
+    private fun launchRecovery() = recoveryScope.launch {
+        try {
+            recover()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Logger.withTag("ReminderRecovery").w { "Startup recovery failed (${error::class.simpleName})" }
+        }
     }
 }

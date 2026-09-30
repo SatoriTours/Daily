@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="diagnostics"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/recovery_shortcut">
+        <intent
+            android:action="com.dailysatori.action.EXPORT_DIAGNOSTICS"
+            android:targetPackage="com.dailysatori"
+            android:targetClass="com.dailysatori.DiagnosticRecoveryActivity" />
+    </shortcut>
+</shortcuts>

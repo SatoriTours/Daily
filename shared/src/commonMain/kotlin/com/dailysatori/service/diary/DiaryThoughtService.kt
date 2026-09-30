@@ -5,6 +5,7 @@ import com.dailysatori.data.repository.DiaryThoughtRepository
 import co.touchlab.kermit.Logger
 import com.dailysatori.service.diagnostics.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -46,24 +47,43 @@ class DiaryThoughtService(
     fun start(scope: CoroutineScope, scheduleRefresh: () -> Unit) {
         if (job?.isActive == true) return
         job = scope.launch(Dispatchers.IO) {
-            _state.value = DiaryThoughtState(corrections = repository.corrections(), useInChat = repository.useInChat())
-            diaryRepository.getAll().map { diaries ->
-                diaries.filter { it.content.isNotBlank() }.map { DiaryThoughtSource(it.id, it.content, it.created_at) }
-            }.distinctUntilChanged().combine(requests) { sources, revision -> sources to revision }
-                .collectLatest { (sources, revision) ->
-                    val corrections = repository.corrections()
-                    val archive = repository.load().supportedBy(sources)
-                    val stale = archive.fingerprint != diaryThoughtFingerprint(sources, corrections)
-                    val needsWork = stale || revision > (pending.value?.revision ?: 0L)
-                    _state.update { it.copy(
-                        archive = archive, corrections = corrections, isStale = stale,
-                        isUpdating = needsWork, error = null,
-                        progress = if (needsWork) "等待后台整理…" else "",
-                    ) }
-                    pending.value = RefreshRequest(sources, corrections, revision)
-                    if (needsWork) scheduleRefresh()
-                }
+            try {
+                _state.value = DiaryThoughtState(corrections = repository.corrections(), useInChat = repository.useInChat())
+                diaryRepository.getAll().map { diaries ->
+                    diaries.filter { it.content.isNotBlank() }.map { DiaryThoughtSource(it.id, it.content, it.created_at) }
+                }.distinctUntilChanged().combine(requests) { sources, revision -> sources to revision }
+                    .collectLatest { (sources, revision) -> updatePendingRefresh(sources, revision, scheduleRefresh) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                observationFailed(error)
+            }
         }
+    }
+
+    private fun updatePendingRefresh(sources: List<DiaryThoughtSource>, revision: Long, scheduleRefresh: () -> Unit) {
+        try {
+            val corrections = repository.corrections()
+            val archive = repository.load().supportedBy(sources)
+            val stale = archive.fingerprint != diaryThoughtFingerprint(sources, corrections)
+            val needsWork = stale || revision > (pending.value?.revision ?: 0L)
+            _state.update { it.copy(
+                archive = archive, corrections = corrections, isStale = stale,
+                isUpdating = needsWork, error = null,
+                progress = if (needsWork) "等待后台整理…" else "",
+            ) }
+            pending.value = RefreshRequest(sources, corrections, revision)
+            if (needsWork) scheduleRefresh()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            observationFailed(error)
+        }
+    }
+
+    private fun observationFailed(error: Exception) {
+        log.w { "Diary thought startup observation failed (${error::class.simpleName})" }
+        _state.update { it.copy(isUpdating = false, progress = "", error = "思想整理暂时不可用，请稍后重试") }
     }
 
     /** Worker 生命周期拥有执行权；日记变更取消旧快照，系统中断后从持久断点续作。 */

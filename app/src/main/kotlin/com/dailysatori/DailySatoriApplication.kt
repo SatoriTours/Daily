@@ -2,6 +2,8 @@ package com.dailysatori
 
 import android.app.Application
 import com.dailysatori.core.diagnostics.DiagnosticRuntime
+import android.os.Build
+import java.io.File
 import com.dailysatori.core.di.appModule
 import com.dailysatori.core.di.platformModule
 import com.dailysatori.core.di.viewModelModule
@@ -37,6 +39,8 @@ class DailySatoriApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // The launcher/export process must remain usable even when DI, SQLite or workers crash.
+        if (isDiagnosticProcess()) return
         DiagnosticRuntime.initialize(this)
         startKoin {
             androidLogger()
@@ -69,6 +73,14 @@ class DailySatoriApplication : Application() {
                 } catch (_: Exception) {}
             }
         }
+    }
+
+    private fun isDiagnosticProcess(): Boolean {
+        val processName = if (Build.VERSION.SDK_INT >= 28) getProcessName() else
+            File("/proc/self/cmdline").inputStream().use { stream ->
+                String(stream.readBytes(), Charsets.UTF_8).trimEnd('\u0000')
+            }
+        return processName == "$packageName:diagnostics"
     }
 
     private fun encryptStoredSecrets() {

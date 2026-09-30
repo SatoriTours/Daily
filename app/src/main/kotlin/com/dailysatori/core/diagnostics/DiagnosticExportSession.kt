@@ -22,10 +22,14 @@ data class DiagnosticExportRequest(val token: String, val fileName: String)
 
 /** One owner for a private snapshot, independently testable without Android URI or UI. */
 class DiagnosticExportSession(
-    private val store: DiagnosticStore,
+    private val snapshotSource: suspend (Boolean, Long) -> DiagnosticSnapshot,
     private val exporter: DiagnosticExporter,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val clearStorage: suspend () -> Unit = { error("Read-only diagnostic source") },
 ) {
+    constructor(store: DiagnosticStore, exporter: DiagnosticExporter, clock: () -> Long = System::currentTimeMillis) :
+        this({ crash, end -> if (crash) store.crashSnapshot() else store.snapshot(end) }, exporter, clock, { store.clear() })
+
     private val mutex = Mutex()
     private val mutableState = MutableStateFlow(DiagnosticExportState())
     val state = mutableState.asStateFlow()
@@ -39,7 +43,7 @@ class DiagnosticExportSession(
             mutableState.value = DiagnosticExportState(DiagnosticExportPhase.PREPARING)
             val end = clock()
             // Assign ownership inside the non-cancellable boundary, even if the UI is disposed.
-            withContext(NonCancellable + Dispatchers.IO) { snapshot = if (crash) store.crashSnapshot() else store.snapshot(end) }
+            withContext(NonCancellable + Dispatchers.IO) { snapshot = snapshotSource(crash, end) }
             currentCoroutineContext().ensureActive()
             val id = DiagnosticLog.newId()
             token = id
@@ -81,7 +85,7 @@ class DiagnosticExportSession(
     suspend fun clear() = mutex.withLock {
         release()
         try {
-            store.clear()
+            clearStorage()
             mutableState.value = DiagnosticExportState()
         } catch (_: Exception) { mutableState.value = DiagnosticExportState(DiagnosticExportPhase.FAILED) }
     }

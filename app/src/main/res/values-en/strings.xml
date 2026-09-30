@@ -229,4 +229,21 @@
     <string name="diary_feed_reminder_badge">My space, %1$d reminders remaining today</string>
     <string name="diary_feed_month_title">%1$s review</string>
     <string name="diary_feed_attachment_entry">Entry with attachments</string>
+    <string name="reminder_load_failed">Could not load reminders. Please try again later.</string>
+    <string name="reminder_profiles_load_failed">Could not load reminder profiles. Please try again later.</string>
+    <string name="recovery_title">Diagnostics and recovery</string>
+    <string name="recovery_shortcut">Export diagnostics</string>
+    <string name="recovery_interrupted">The previous run ended unexpectedly or startup did not finish. Export logs before trying to open the app again.</string>
+    <string name="recovery_description">Export diagnostic logs stored on this device without opening Settings.</string>
+    <string name="recovery_privacy">This page does not start news summaries or read your diary. Logs contain filtered technical records and are never uploaded automatically.</string>
+    <string name="recovery_destination">Choose a local location. A cloud provider may upload the file if selected. You can share the export with the developer yourself.</string>
+    <string name="recovery_export_crash">Export last failure logs</string>
+    <string name="recovery_export_recent">Export recent diagnostics</string>
+    <string name="recovery_choose_destination">Choose a location in the system file picker</string>
+    <string name="recovery_working">Preparing, please wait…</string>
+    <string name="recovery_saved">Logs saved. You can share them from your file manager.</string>
+    <string name="recovery_export_failed">Export failed. Try again or choose another local location.</string>
+    <string name="recovery_export_residual">Export failed and an incomplete file may remain. Delete it before trying again.</string>
+    <string name="recovery_check_failed">Diagnostic records could not be read. You can still try exporting or continue startup.</string>
+    <string name="recovery_continue">Continue startup</string>
 </resources>

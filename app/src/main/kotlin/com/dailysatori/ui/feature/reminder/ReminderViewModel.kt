@@ -5,12 +5,14 @@ import android.app.AlarmManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import com.dailysatori.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
 import com.dailysatori.core.reminder.ReminderCoordinator
+import com.dailysatori.core.util.withUiObservationError
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.data.repository.ReminderAiBatchRepository
@@ -406,15 +408,26 @@ class ReminderViewModel(
     private val batchSaveLaunchController = ReminderBatchSaveLaunchController()
     val state: StateFlow<ReminderUiState> = _state
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
+        .withUiObservationError { _state.update { it.copy(error = context.getString(R.string.reminder_load_failed)) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val profiles: StateFlow<List<ReminderProfile>> = repository.observeProfiles()
         .map { custom -> builtInProfiles() + custom }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInProfiles() + repository.profiles())
+        .withUiObservationError { _state.update { it.copy(error = context.getString(R.string.reminder_profiles_load_failed)) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initialProfiles())
     val visibleReminders: StateFlow<List<Reminder>> = combine(reminders, state) { items, ui -> filterReminders(items, ui.filter) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val listState: StateFlow<ReminderListState> = combine(reminders, state, com.dailysatori.ui.feature.profile.localDayTicker()) { items, ui, today ->
         buildReminderListState(items, today, ui.listMode, ui.listFilter)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), buildReminderListState(emptyList(), Clock.System.todayIn(TimeZone.currentSystemDefault()), ReminderListMode.RECENT, ReminderListFilter()))
+
+    private fun initialProfiles(): List<ReminderProfile> = try {
+        builtInProfiles() + repository.profiles()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        _state.update { it.copy(error = context.getString(R.string.reminder_profiles_load_failed)) }
+        builtInProfiles()
+    }
 
     init {
         batchStateTransitions.activateRestoredBatch()

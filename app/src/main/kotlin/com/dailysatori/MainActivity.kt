@@ -6,6 +6,9 @@ import com.dailysatori.core.diagnostics.SafeAndroidLog as Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
+import com.dailysatori.core.diagnostics.DiagnosticRecoveryReader
+import java.io.File
 import androidx.lifecycle.lifecycleScope
 import com.dailysatori.core.reminder.ReminderRecoveryController
 import com.dailysatori.core.reminder.handleReminderViewIntent
@@ -38,6 +41,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             DailySatoriTheme {
                 DailySatoriApp()
+                LaunchedEffect(Unit) {
+                    DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
+                }
             }
         }
     }
@@ -60,6 +66,7 @@ class MainActivity : ComponentActivity() {
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)
         handleReminderAiBatchViewIntent(intent)
+        DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
