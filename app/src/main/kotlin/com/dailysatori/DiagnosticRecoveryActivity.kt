@@ -12,6 +12,7 @@ import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.dailysatori.core.diagnostics.DiagnosticRecoveryReader
+import com.dailysatori.core.diagnostics.DiagnosticExitInfoReader
 import com.dailysatori.ui.feature.settings.diagnostics.DiagnosticRecoveryScreen
 import com.dailysatori.ui.feature.settings.diagnostics.DiagnosticRecoveryViewModel
 import com.dailysatori.ui.theme.*
@@ -27,7 +28,9 @@ class DiagnosticRecoveryActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T = DiagnosticRecoveryViewModel(
-                DiagnosticRecoveryReader(File(noBackupFilesDir, "diagnostics"), File(noBackupFilesDir, "diagnostic-recovery")),
+                DiagnosticRecoveryReader(File(noBackupFilesDir, "diagnostics"), File(noBackupFilesDir, "diagnostic-recovery"),
+                    installedAtMs = packageManager.getPackageInfo(packageName, 0).lastUpdateTime,
+                    previousExit = { since -> DiagnosticExitInfoReader.read(applicationContext, since, packageName) }),
                 applicationContext, intent.action == ACTION_EXPORT,
             ) as T
         }

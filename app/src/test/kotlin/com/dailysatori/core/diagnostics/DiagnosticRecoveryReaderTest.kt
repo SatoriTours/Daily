@@ -126,27 +126,88 @@ class DiagnosticRecoveryReaderTest {
     }
 
     @Test
-    fun startupFailureBeforeInstallingTheCrashHandlerStillOffersRecovery() {
+    fun unfinishedStartupOnlyOffersRecoveryWhenSystemConfirmsACrash() {
         val directory = Files.createTempDirectory("recovery-early-startup").toFile()
         try {
             val root = File(directory, "diagnostics")
-            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"))
+            var exit: DiagnosticExit? = null
+            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"), previousExit = { exit })
             DiagnosticRecoveryReader.startupStarted(root)
+            assertFalse(reader.needsRecovery())
+            exit = DiagnosticExit(System.currentTimeMillis(), 10) // User-requested stop.
+            assertFalse(reader.needsRecovery())
+            exit = DiagnosticExit(System.currentTimeMillis(), 4)
             assertTrue(reader.needsRecovery())
             reader.snapshot(true, System.currentTimeMillis()).use { assertFalse(it.crash) }
             reader.acknowledgeCrash()
             assertFalse(reader.needsRecovery())
             DiagnosticRecoveryReader.startupStarted(root)
+            exit = DiagnosticExit(System.currentTimeMillis(), 4)
             assertTrue(reader.needsRecovery())
             DiagnosticRecoveryReader.startupCompleted(root)
             assertFalse(reader.needsRecovery())
         } finally { directory.deleteRecursively() }
     }
 
-    private fun event(code: DiagnosticCode, time: Long): String {
+    @Test
+    fun upgradingSkipsOldCrashesAndStartupMarkersWithoutDeletingTheLogs() {
+        val directory = Files.createTempDirectory("recovery-upgrade").toFile()
+        try {
+            val root = File(directory, "diagnostics").apply { mkdirs() }
+            val pending = File(root, "crash-pending.json").apply { writeText(event(DiagnosticCode.CRASH, 10_000)) }
+            File(root, "crashes/00000000000000010000-old.jsonl").apply {
+                parentFile!!.mkdirs(); writeText(event(DiagnosticCode.CRASH, 10_000) + "\n")
+            }
+            File(root, "startup-pending").writeText("10000:old-launch")
+            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"), clock = { 30_000 },
+                installedAtMs = 20_000, previousExit = { DiagnosticExit(10_001, 4) })
+            assertFalse(reader.needsRecovery())
+            reader.snapshot(true, 30_000).use { assertTrue(it.events().any { event -> event.eventCode == DiagnosticCode.CRASH }) }
+            assertTrue(pending.exists())
+            pending.writeText(event(DiagnosticCode.CRASH, 25_000))
+            assertTrue(reader.needsRecovery())
+            reader.acknowledgeCrash()
+            assertFalse(reader.needsRecovery())
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test
+    fun staleStartupMarkersAndExitReasonsDoNotBlockAHealthyLaunch() {
+        val directory = Files.createTempDirectory("recovery-stale-startup").toFile()
+        try {
+            val root = File(directory, "diagnostics").apply { mkdirs() }
+            File(root, "startup-pending").writeText("20000:launch")
+            var exit = DiagnosticExit(19_999, 4)
+            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"), clock = { 30_000 },
+                installedAtMs = 10_000, previousExit = { exit })
+            assertFalse(reader.needsRecovery())
+            exit = DiagnosticExit(21_000, 5)
+            assertTrue(reader.needsRecovery())
+            File(root, "startup-pending").writeText("invalid-marker")
+            assertFalse(reader.needsRecovery())
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test
+    fun anOldProcessExitRecordedAfterUpgradeDoesNotBecomeANewCrash() {
+        val directory = Files.createTempDirectory("recovery-old-process-exit").toFile()
+        try {
+            val root = File(directory, "diagnostics").apply { mkdirs() }
+            val pending = File(root, "crash-pending.json")
+            pending.writeText(event(DiagnosticCode.PROCESS_EXIT, 25_000,
+                mapOf("reason" to "4", "exitTimestampMs" to "10000")))
+            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"), clock = { 30_000 }, installedAtMs = 20_000)
+            assertFalse(reader.needsRecovery())
+            pending.writeText(event(DiagnosticCode.PROCESS_EXIT, 25_000,
+                mapOf("reason" to "5", "exitTimestampMs" to "22000")))
+            assertTrue(reader.needsRecovery())
+        } finally { directory.deleteRecursively() }
+    }
+
+    private fun event(code: DiagnosticCode, time: Long, fields: Map<String, String> = emptyMap()): String {
         var captured: SafeDiagnosticEvent? = null
         Diagnostics(DiagnosticSink { captured = it; true }, now = { time }).emit(
-            code, DiagnosticSource.APP, error = if (code == DiagnosticCode.CRASH) IllegalStateException("private-canary") else null)
+            code, DiagnosticSource.APP, fields = fields, error = if (code == DiagnosticCode.CRASH) IllegalStateException("private-canary") else null)
         return diagnosticJson.encodeToString(SafeDiagnosticEvent.serializer(), assertNotNull(captured))
     }
 }

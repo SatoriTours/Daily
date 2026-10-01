@@ -36,6 +36,8 @@ fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onInstall: 
     }
     LaunchedEffect(viewModel) { viewModel.startup.collect { onContinue() } }
     LaunchedEffect(viewModel) { viewModel.installRequests.collect { onInstall() } }
+    // Keep the routing check invisible; normal launches never draw the recovery page.
+    if (!state.showRecovery) return
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(Spacing.l),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {

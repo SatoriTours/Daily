@@ -13,6 +13,8 @@ class DiagnosticRecoveryReader(
     private val recoveryRoot: File,
     private val clock: () -> Long = System::currentTimeMillis,
     private val policy: DiagnosticStorePolicy = DiagnosticStorePolicy(),
+    private val installedAtMs: Long = 0,
+    private val previousExit: (Long) -> DiagnosticExit? = { null },
 ) {
     init {
         recoveryRoot.listFiles()?.filter { it.name.startsWith("snapshot-") && it.lastModified() < clock() - policy.retentionMs }
@@ -20,10 +22,15 @@ class DiagnosticRecoveryReader(
     }
 
     fun needsRecovery(): Boolean {
-        val crash = latestCrash()
-        val startup = startupMarker()
-        return (crash != null && readAcknowledgement("crash") != crash.key) ||
-            (startup != null && readAcknowledgement("startup") != startup)
+        val crash = latestCrash(currentInstallOnly = true)
+        if (crash != null && readAcknowledgement("crash") != crash.key) return true
+        val startup = startupMarker() ?: return false
+        val startedAt = startup.substringBefore(':').toLongOrNull() ?: return false
+        if (startedAt < installedAtMs || startedAt < clock() - policy.crashRetentionMs ||
+            readAcknowledgement("startup") == startup) return false
+        // An interrupted launch can also mean force-stop, reboot or an ordinary system kill.
+        val exit = runCatching { previousExit(startedAt - 1) }.getOrNull() ?: return false
+        return exit.isCrash && exit.timestampMs >= startedAt
     }
 
     fun acknowledgeCrash() {
@@ -76,11 +83,13 @@ class DiagnosticRecoveryReader(
     private fun eventFiles() = File(root, "events").listFiles()
         ?.filter { it.extension == "jsonl" }?.sortedBy { it.name }.orEmpty()
 
-    private fun latestCrash(): Crash? {
+    private fun latestCrash(currentInstallOnly: Boolean = false): Crash? {
+        fun eligible(event: SafeDiagnosticEvent) = isRecentCrash(event) &&
+            (!currentInstallOnly || occurredAt(event) >= installedAtMs)
         val pending = File(root, "crash-pending.json")
         val pendingEvent = runCatching {
             if (pending.length() in 1..MAX_LINE_BYTES) decode(pending.readText()) else null
-        }.getOrNull()?.takeIf(::isRecentCrash)
+        }.getOrNull()?.takeIf(::eligible)
         val archived = File(root, "crashes").listFiles()?.filter { it.extension == "jsonl" }
             ?.sortedByDescending { it.name }.orEmpty().firstNotNullOfOrNull { file ->
                 runCatching {
@@ -91,18 +100,22 @@ class DiagnosticRecoveryReader(
                         input.seek(input.length() - size)
                         input.readFully(bytes)
                         String(bytes, Charsets.UTF_8).lineSequence().mapNotNull(::decode)
-                            .lastOrNull(::isRecentCrash)?.let { Crash(file, it, true) }
+                            .lastOrNull(::eligible)?.let { Crash(file, it, true) }
                     }
                 }.getOrNull()
             }
         val candidate = pendingEvent?.let { Crash(pending, it, false) }
-        return listOfNotNull(candidate, archived).maxByOrNull { it.event.timestampMs }
+        return listOfNotNull(candidate, archived).maxByOrNull { occurredAt(it.event) }
     }
 
     private fun isRecentCrash(event: SafeDiagnosticEvent): Boolean =
-        event.timestampMs >= clock() - policy.crashRetentionMs &&
+        occurredAt(event) >= clock() - policy.crashRetentionMs &&
             (event.eventCode == DiagnosticCode.CRASH ||
                 (event.eventCode == DiagnosticCode.PROCESS_EXIT && event.attributes["reason"] in setOf("4", "5", "6")))
+
+    private fun occurredAt(event: SafeDiagnosticEvent): Long =
+        if (event.eventCode == DiagnosticCode.PROCESS_EXIT)
+            event.attributes["exitTimestampMs"]?.toLongOrNull() ?: event.timestampMs else event.timestampMs
 
     private fun decode(line: String): SafeDiagnosticEvent? =
         if (line.length > MAX_LINE_BYTES) null else runCatching {

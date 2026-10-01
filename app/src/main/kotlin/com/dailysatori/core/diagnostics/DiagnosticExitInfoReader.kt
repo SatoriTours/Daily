@@ -13,10 +13,11 @@ object DiagnosticExitInfoReader {
     fun select(api: Int, lastSeen: Long, records: List<DiagnosticExit>): DiagnosticExit? =
         if (api < 30) null else records.filter { it.timestampMs > lastSeen }.maxByOrNull { it.timestampMs }
 
-    fun read(context: Context, lastSeen: Long): DiagnosticExit? {
+    fun read(context: Context, lastSeen: Long, processName: String? = null): DiagnosticExit? {
         if (Build.VERSION.SDK_INT < 30) return null
         val manager = context.getSystemService(ActivityManager::class.java)
         val records = manager.getHistoricalProcessExitReasons(null, 0, 5)
+            .filter { processName == null || it.processName == processName }
             .map { DiagnosticExit(it.timestamp, it.reason) }
         return select(Build.VERSION.SDK_INT, lastSeen, records)
     }

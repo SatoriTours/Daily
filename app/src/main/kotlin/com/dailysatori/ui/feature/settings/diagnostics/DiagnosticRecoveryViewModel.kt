@@ -22,7 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 
-data class DiagnosticRecoveryState(val checking: Boolean = true, val needsRecovery: Boolean = false, val error: Int? = null)
+data class DiagnosticRecoveryState(val checking: Boolean = true, val needsRecovery: Boolean = false,
+    val error: Int? = null, val showRecovery: Boolean = false)
 
 /** Deliberately has no dependency on Koin, repositories or workers. */
 class DiagnosticRecoveryViewModel(
@@ -55,12 +56,17 @@ class DiagnosticRecoveryViewModel(
             try {
                 val needed = withContext(Dispatchers.IO) { reader.needsRecovery() }
                 if (needed || forceExport) withContext(Dispatchers.IO) { updates.loadConfiguration() }
-                mutableState.value = DiagnosticRecoveryState(checking = false, needsRecovery = needed)
+                mutableState.value = DiagnosticRecoveryState(checking = false, needsRecovery = needed, showRecovery = needed || forceExport)
                 if (!needed && !forceExport) startupChannel.send(Unit)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
-                withContext(Dispatchers.IO) { updates.loadConfiguration() }
-                mutableState.value = DiagnosticRecoveryState(checking = false, needsRecovery = true, error = R.string.recovery_check_failed)
+                if (forceExport) {
+                    withContext(Dispatchers.IO) { updates.loadConfiguration() }
+                    mutableState.value = DiagnosticRecoveryState(checking = false, error = R.string.recovery_check_failed, showRecovery = true)
+                } else {
+                    mutableState.value = DiagnosticRecoveryState(checking = false)
+                    startupChannel.send(Unit)
+                }
             }
         }
     }
