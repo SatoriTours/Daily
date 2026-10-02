@@ -89,7 +89,7 @@ fun MessageBubble(
     onReAsk: (ChatMessageUi) -> Unit = {},
 ) {
     val isUser = message.role == "user"
-    val assistantContent = message.content.trim()
+    val assistantContent = remember(message.content) { message.content.trim() }
     val treatment = chatMessageTreatment(message.role, message.isError)
     val clipboard = LocalClipboardManager.current
     var showActions by remember(message.id) { mutableStateOf(false) }
@@ -241,7 +241,7 @@ private fun StructuredAssistantMessage(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             } else {
-                val structured = structuredAssistantContent(content)
+                val structured = remember(content) { structuredAssistantContent(content) }
                 if (assistantShouldRenderStructuredTitle(structured)) {
                     Text(
                         text = structured.title,

@@ -76,10 +76,7 @@ class AsyncTaskScheduler(private val context: Context) {
         )
         val now = Clock.System.now().toEpochMilliseconds()
         repo.markRunningForRetryAfterProcessRestart(now)
-        enqueueRunnable(repo, now)
-        repo.futureRetryingTasks(now).forEach { task ->
-            task.run_after_ms?.let { enqueueRetry(task.id, it) }
-        }
+        // Repair leases before any UI or worker can start new tasks. Enqueue on IO afterwards.
     }
 
     fun recoverAndEnqueueRunnable() {

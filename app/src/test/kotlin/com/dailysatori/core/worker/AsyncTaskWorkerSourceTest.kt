@@ -80,7 +80,7 @@ class AsyncTaskWorkerSourceTest {
         val recovery = worker.substringAfter("fun recoverAfterProcessStart()")
             .substringBefore("fun recoverAndEnqueueRunnable()")
         assertTrue(recovery.contains("reconcileOrphanedActiveBatches("))
-        assertTrue(recovery.indexOf("reconcileOrphanedActiveBatches(") < recovery.indexOf("enqueueRunnable(repo, now)"))
+        assertTrue(recovery.indexOf("reconcileOrphanedActiveBatches(") < recovery.indexOf("markRunningForRetryAfterProcessRestart(now)"))
         assertTrue(recovery.contains("reminderAiParseTaskPayloadJson"))
         assertTrue(recovery.contains("uniqueKeyForBatch = { \"reminder_ai_parse:${'$'}it\" }"))
 

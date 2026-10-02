@@ -33,6 +33,9 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
     fun getSources(summaryId: Long): List<Unified_news_source> =
         q.selectUnifiedNewsSources(summaryId).executeAsList()
 
+    fun getSourcesBySummary(): Map<Long, List<Unified_news_source>> =
+        q.selectAllUnifiedNewsSources().executeAsList().groupBy { it.summary_id }
+
     fun preserveExistingContent(
         window: UnifiedNewsWindow,
         title: String,

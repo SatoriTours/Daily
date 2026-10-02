@@ -133,8 +133,12 @@ class UnifiedNewsViewModel(
                 val today = dailyUnifiedNewsWindowFor()
                 summaryRepo.getAll().collect { summaries ->
                     val todaySummary = summaries.firstOrNull { it.summary_date == today.summaryDate && it.window_key == today.key.value }
-                    val displaySummaries = summaries.withDisplayFallback(summaryRepo.getLatestSuccessful())
-                    val sourcesBySummaryId = displaySummaries.associate { summary -> summary.id to summaryRepo.getSources(summary.id) }
+                    val latestSuccessfulFallback = summaryRepo.getLatestSuccessful()
+                    val displaySummaries = summaries.withDisplayFallback(latestSuccessfulFallback)
+                    val allSourcesBySummaryId = summaryRepo.getSourcesBySummary()
+                    val sourcesBySummaryId = displaySummaries.associate { summary ->
+                        summary.id to allSourcesBySummaryId[summary.id].orEmpty()
+                    }
                     val remoteSources = remoteNewsSourceRepo.getEnabled().map { source -> UnifiedNewsRemoteSourceOption(source.id, source.name) }
                     val externalFavoriteSources = externalFavoriteSourceRepo.getAll().map { source ->
                         UnifiedNewsExternalFavoriteSourceOption(source.id, source.display_name)
@@ -145,9 +149,8 @@ class UnifiedNewsViewModel(
                         invalidateSourceArticleRequest()
                     }
                     val nextSelection = resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)
-                    val latestSuccessfulFallback = summaryRepo.getLatestSuccessful()
                     val lastSuccessful = if (todaySummary.isSuccessfulDisplaySummary) todaySummary else latestSuccessfulFallback ?: currentState.lastSuccessfulSummary
-                    val lastSources = lastSuccessful?.let { summary -> sourcesBySummaryId[summary.id] ?: summaryRepo.getSources(summary.id) }.orEmpty()
+                    val lastSources = lastSuccessful?.let { summary -> allSourcesBySummaryId[summary.id] }.orEmpty()
                     _state.update {
                         it.copy(
                             sourceSelection = nextSelection,

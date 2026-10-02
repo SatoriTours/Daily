@@ -14,6 +14,12 @@ import com.dailysatori.service.book.parseBookViewpointRetryContext
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +37,7 @@ data class BooksState(
     val error: String? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BooksViewModel(
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
@@ -41,13 +48,16 @@ class BooksViewModel(
     private val _state = MutableStateFlow(BooksState())
     val state: StateFlow<BooksState> = _state.asStateFlow()
     private val log = Logger.withTag("BooksRefresh")
+    private var loadJob: Job? = null
 
     init {
         loadBooks()
+        observeViewpoints()
     }
 
     fun loadBooks() {
-        viewModelScope.launch(Dispatchers.IO) {
+        if (loadJob?.isActive == true) return
+        loadJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             bookRepo.getAll().collect { books ->
                 _state.update { it.copy(books = books, isLoading = false) }
@@ -60,16 +70,18 @@ class BooksViewModel(
 
     fun selectBook(bookId: Long?) {
         _state.update { it.copy(currentBookId = bookId, currentPage = 0) }
-        if (bookId != null) {
-            loadViewpoints(bookId)
-        }
     }
 
-    private fun loadViewpoints(bookId: Long) {
+    private fun observeViewpoints() {
         viewModelScope.launch(Dispatchers.IO) {
-            viewpointRepo.getByBook(bookId).collect { viewpoints ->
-                _state.update { it.copy(viewpoints = viewpoints) }
-            }
+            _state.map { it.currentBookId }
+                .distinctUntilChanged()
+                .flatMapLatest { bookId ->
+                    val viewpoints = if (bookId == null) flowOf(emptyList()) else viewpointRepo.getByBook(bookId)
+                    viewpoints.map { bookId to it }
+                }.collect { (bookId, viewpoints) ->
+                    _state.update { if (it.currentBookId == bookId) it.copy(viewpoints = viewpoints) else it }
+                }
         }
     }
 

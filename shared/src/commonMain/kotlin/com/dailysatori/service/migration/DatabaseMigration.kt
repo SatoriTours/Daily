@@ -125,6 +125,9 @@ class DatabaseMigration(
         if (currentVersion < 27) {
             migrateV26ToV27()
         }
+        if (currentVersion < 28) {
+            migrateV27ToV28()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1013,6 +1016,22 @@ class DatabaseMigration(
         addColumnIfMissing("reminder_ai_draft", "discarded", "INTEGER NOT NULL DEFAULT 0")
         addColumnIfMissing("reminder_ai_draft", "confirmation_state", "TEXT NOT NULL DEFAULT 'PENDING'")
         addColumnIfMissing("reminder_ai_draft", "reminder_id", "TEXT")
+    }
+
+    private fun migrateV27ToV28() {
+        log.i { "Migration V27 -> V28: local article ordering and source-specific task indexes" }
+        listOf(
+            "CREATE INDEX IF NOT EXISTS idx_article_local_created " +
+                "ON article(created_at DESC) WHERE source_type != 'remote_news'",
+            "CREATE INDEX IF NOT EXISTS idx_async_task_type_status_run_after " +
+                "ON async_task(type, status, run_after_ms)",
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                log.w(e) { "Could not create performance index" }
+            }
+        }
     }
 
     private fun addColumnIfMissing(table: String, column: String, definition: String) {

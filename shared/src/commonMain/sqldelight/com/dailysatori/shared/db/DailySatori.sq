@@ -35,6 +35,10 @@ CREATE TABLE article_tag (
 CREATE INDEX IF NOT EXISTS idx_article_source_created
 ON article(source_type, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_article_local_created
+ON article(created_at DESC)
+WHERE source_type != 'remote_news';
+
 CREATE INDEX IF NOT EXISTS idx_article_status_updated
 ON article(status, updated_at ASC);
 
@@ -526,6 +530,9 @@ WHERE unique_key IS NOT NULL
 
 CREATE INDEX IF NOT EXISTS idx_async_task_status_run_after_priority
 ON async_task(status, run_after_ms, priority DESC, created_at ASC);
+
+CREATE INDEX IF NOT EXISTS idx_async_task_type_status_run_after
+ON async_task(type, status, run_after_ms);
 
 CREATE INDEX IF NOT EXISTS idx_async_task_updated
 ON async_task(updated_at DESC, id DESC);
@@ -1893,6 +1900,9 @@ SELECT * FROM unified_news_summary WHERE summary_date = ? AND window_key = 'dail
 
 selectUnifiedNewsSources:
 SELECT * FROM unified_news_source WHERE summary_id = ? ORDER BY id ASC;
+
+selectAllUnifiedNewsSources:
+SELECT * FROM unified_news_source ORDER BY id ASC;
 
 insertUnifiedNewsSummary:
 INSERT INTO unified_news_summary (

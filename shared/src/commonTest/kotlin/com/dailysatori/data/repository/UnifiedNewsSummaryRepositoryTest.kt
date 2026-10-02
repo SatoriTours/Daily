@@ -2,6 +2,8 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
+import com.dailysatori.service.unifiednews.UnifiedNewsSourceItem
+import com.dailysatori.service.unifiednews.UnifiedNewsSourceType
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -12,6 +14,26 @@ import kotlin.test.assertTrue
 
 class UnifiedNewsSummaryRepositoryTest {
     private val window = dailyUnifiedNewsWindowFor(Instant.parse("2026-10-02T10:00:00Z"), TimeZone.UTC)
+
+    @Test
+    fun batchedSourcesMatchIndividualQueriesAndRefreshReplacesOldReferences() = withRepository { repository ->
+        assertTrue(repository.getSourcesBySummary().isEmpty())
+        val firstSources = listOf("R2", "R1").map { key ->
+            UnifiedNewsSourceItem(key, UnifiedNewsSourceType.REMOTE_ARTICLE, title = key, summary = key)
+        }
+        val first = repository.saveSummaryWithSources(window, "first", "content", "success", null, null, 1L, firstSources)
+        val previousWindow = dailyUnifiedNewsWindowFor(Instant.parse("2026-10-01T10:00:00Z"), TimeZone.UTC)
+        val second = repository.saveSummaryWithSources(previousWindow, "second", "content", "success", null, null, 1L, firstSources.take(1))
+        val batch = repository.getSourcesBySummary()
+        assertEquals(repository.getSources(first.id), batch[first.id])
+        assertEquals(repository.getSources(second.id), batch[second.id])
+        assertEquals(listOf("R2", "R1"), batch.getValue(first.id).map { it.ref_key })
+
+        repository.saveSummaryWithSources(window, "updated", "content", "success", null, null, 2L, emptyList())
+        val updated = repository.getSourcesBySummary()
+        assertTrue(updated[first.id].isNullOrEmpty())
+        assertEquals(repository.getSources(second.id), updated[second.id])
+    }
 
     @Test
     fun failedAndEmptyRefreshesKeepTheOriginalContentGenerationTime() = withRepository { repository ->

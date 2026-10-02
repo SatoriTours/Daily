@@ -22,7 +22,9 @@ import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.core.recording.DiaryRecordingOpenRequest
 import com.dailysatori.core.recording.DiaryRecordingService
 import com.dailysatori.ui.theme.DailySatoriTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.core.context.GlobalContext
 
 class MainActivity : ComponentActivity() {
@@ -42,7 +44,9 @@ class MainActivity : ComponentActivity() {
             DailySatoriTheme {
                 DailySatoriApp()
                 LaunchedEffect(Unit) {
-                    DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
+                    withContext(Dispatchers.IO) {
+                        DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
+                    }
                 }
             }
         }
@@ -66,12 +70,14 @@ class MainActivity : ComponentActivity() {
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)
         handleReminderAiBatchViewIntent(intent)
-        DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
+        lifecycleScope.launch(Dispatchers.IO) {
+            DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
+        }
     }
 
     private fun handleOAuthIntent(intent: Intent?) {
         val uri = intent?.data?.toString()?.takeIf { it.startsWith("dailysatori://oauth/x") } ?: return
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 val koin = GlobalContext.get()
                 val sourceId = koin.get<XOAuthCoordinator>().handleCallbackUrl(uri)
@@ -97,7 +103,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun pruneOldAsyncTasks() {
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 val koin = GlobalContext.get()
                 val deletedTaskIds = koin.get<AsyncTaskRepository>().pruneOldTasks()

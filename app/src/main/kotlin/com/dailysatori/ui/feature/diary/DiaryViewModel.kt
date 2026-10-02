@@ -18,11 +18,14 @@ import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.shared.db.Diary_attachment
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
@@ -45,6 +48,7 @@ data class DiaryState(
     val error: String? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DiaryViewModel(
     private val diaryRepo: DiaryRepository,
     private val memoryExtractor: MemoryExtractor,
@@ -118,20 +122,17 @@ class DiaryViewModel(
     }
 
     fun loadDiaries() {
-        loadJob?.cancel()
+        if (loadJob?.isActive == true) return
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
-            val currentState = _state.value
-            val flow = when {
-                currentState.searchQuery.isNotBlank() -> diaryRepo.search(currentState.searchQuery)
-                else -> diaryRepo.getAll()
-            }
-            flow.collect { diaries ->
-                val filtered = if (currentState.selectedTag != null) {
-                    diaries.filter { d -> d.tags?.contains(currentState.selectedTag) == true }
-                } else {
-                    diaries
+            val diaries = _state.map { it.searchQuery }.distinctUntilChanged()
+                .flatMapLatest { query ->
+                    if (query.isNotBlank()) diaryRepo.search(query) else diaryRepo.getAll()
                 }
+            val selectedTag = _state.map { it.selectedTag }.distinctUntilChanged()
+            diaries.combine(selectedTag) { entries, tag ->
+                if (tag == null) entries else entries.filter { it.tags?.contains(tag) == true }
+            }.collect { filtered ->
                 _state.update { it.copy(diaries = filtered, isLoading = false) }
                 visibleDiaryIds.value = filtered.map { it.id }
             }

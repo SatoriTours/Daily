@@ -27,7 +27,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import com.dailysatori.service.diary.DiaryThoughtService
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -49,21 +48,11 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         encryptStoredSecrets()
-        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope) {
-            DiaryThoughtScheduler(this).enqueue()
-        }
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
-        get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
-        get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
-        BackupScheduler(this).ensureScheduled()
-        UnifiedNewsScheduler(this).ensureScheduled()
-        get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).enqueuePeriodic(
-            get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).getEnabled(),
-        )
-        WeeklySummaryScheduler(this).ensureScheduled()
         I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
+        applicationScope.launch { initializeBackgroundServices() }
         if (com.dailysatori.BuildConfig.DEBUG) {
-            GlobalScope.launch(Dispatchers.IO) {
+            applicationScope.launch {
                 try {
                     val settingRepo = get<SettingRepository>(SettingRepository::class.java)
                     if (settingRepo.get("web_server_token") == null) {
@@ -73,6 +62,21 @@ class DailySatoriApplication : Application() {
                 } catch (_: Exception) {}
             }
         }
+    }
+
+    private fun initializeBackgroundServices() {
+        get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAndEnqueueRunnable()
+        get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope) {
+            DiaryThoughtScheduler(this).enqueue()
+        }
+        get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
+        get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
+        BackupScheduler(this).ensureScheduled()
+        UnifiedNewsScheduler(this).ensureScheduled()
+        get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).enqueuePeriodic(
+            get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).getEnabled(),
+        )
+        WeeklySummaryScheduler(this).ensureScheduled()
     }
 
     private fun isDiagnosticProcess(): Boolean {

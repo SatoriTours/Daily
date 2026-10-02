@@ -9,6 +9,7 @@ import com.dailysatori.data.repository.DiaryAttachmentDraft
 import com.dailysatori.data.repository.DiaryAttachmentKind
 import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.ObservationTrackingDriver
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.diary.DiaryMonthSummaryService
@@ -48,6 +49,33 @@ class DiaryViewModelSourceIdTest {
     @After
     fun tearDown() {
         kotlinx.coroutines.Dispatchers.resetMain()
+    }
+
+    @Test
+    fun tagFilteringReusesTheDiaryObservationAndSearchStillUpdates() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val workId = fixture.diaryRepository.create("work diary", tags = "work")
+            val homeId = fixture.diaryRepository.create("home diary", tags = "home")
+            withTimeout(5_000) { fixture.viewModel.state.first { it.diaries.size == 2 } }
+            val subscriptions = fixture.driver.totalSubscriptions("diary")
+
+            fixture.viewModel.filterByTag("work")
+            withTimeout(5_000) { fixture.viewModel.state.first { it.diaries.map { d -> d.id } == listOf(workId) } }
+            fixture.viewModel.filterByTag("work")
+            withTimeout(5_000) { fixture.viewModel.state.first { it.diaries.size == 2 } }
+            assertEquals(subscriptions, fixture.driver.totalSubscriptions("diary"))
+
+            fixture.viewModel.search("home")
+            withTimeout(5_000) { fixture.viewModel.state.first { it.diaries.map { d -> d.id } == listOf(homeId) } }
+            fixture.diaryRepository.update(homeId, "home updated", "home", null, null)
+            withTimeout(5_000) { fixture.viewModel.state.first { it.diaries.singleOrNull()?.content == "home updated" } }
+            fixture.viewModel.search("")
+            withTimeout(5_000) { fixture.viewModel.state.first { it.diaries.size == 2 } }
+            assertEquals(1, fixture.driver.activeSubscriptions("diary"))
+        } finally {
+            fixture.close()
+        }
     }
 
     @Test
@@ -184,7 +212,7 @@ class DiaryViewModelSourceIdTest {
     private fun diaryFixture(extractorFailure: Throwable? = null): DiaryFixture {
         // A file-backed driver isolates connections by thread; IN_MEMORY shares one connection.
         val directory = Files.createTempDirectory("diary-source-id").toFile()
-        val driver = JdbcSqliteDriver("jdbc:sqlite:${File(directory, "diary.db").absolutePath}")
+        val driver = ObservationTrackingDriver(JdbcSqliteDriver("jdbc:sqlite:${File(directory, "diary.db").absolutePath}"))
         val database = DailySatoriDatabase(driver)
         database.transaction { DailySatoriDatabase.Schema.create(driver) }
         val diaryRepository = DiaryRepository(database, driver)
@@ -210,7 +238,7 @@ class DiaryViewModelSourceIdTest {
     }
 
     private data class DiaryFixture(
-        val driver: JdbcSqliteDriver,
+        val driver: ObservationTrackingDriver,
         val diaryRepository: DiaryRepository,
         val attachmentRepository: DiaryAttachmentRepository,
         val viewModel: DiaryViewModel,

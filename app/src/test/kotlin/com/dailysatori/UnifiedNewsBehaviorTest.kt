@@ -973,7 +973,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(viewModel.contains("todaySummary.isSuccessfulDisplaySummary"))
         assertTrue(viewModel.contains("displaySummaries = summaries.withDisplayFallback"))
         assertTrue(viewModel.contains("lastSources = lastSuccessful?.let"))
-        assertTrue(viewModel.contains("sourcesBySummaryId[summary.id] ?: summaryRepo.getSources(summary.id)"))
+        assertTrue(viewModel.contains("allSourcesBySummaryId[summary.id]"))
     }
 
     @Test

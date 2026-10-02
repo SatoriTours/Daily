@@ -70,8 +70,7 @@ class ReminderMigrationTest {
             DatabaseMigration(driver, settings, TestCipher).runMigrations()
             db.dailySatoriQueries.insertReminderAiBatch("batch", null, "source", "source", "UTC", "2026-09-02", "PARSING", null, 0, 3, null, "", null, 1, 1)
 
-            assertEquals(27L, DatabaseConfig.currentSchemaVersion)
-            assertEquals("27", settings.get(SettingKeys.schemaVersion))
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
             assertEquals("preserved", db.dailySatoriQueries.selectReminderById("legacy").executeAsOne().content)
             assertEquals("source", db.dailySatoriQueries.selectReminderAiBatchById("batch").executeAsOne().original_input)
             assertEquals(null, db.dailySatoriQueries.selectReminderAiBatchById("batch").executeAsOne().parent_batch_id)
