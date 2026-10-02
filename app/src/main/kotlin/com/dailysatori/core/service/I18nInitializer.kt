@@ -5,6 +5,7 @@ import com.dailysatori.service.i18n.I18nService
 
 object I18nInitializer {
     fun init(context: Context, i18nService: I18nService) {
+        i18nService.init()
         val langs = listOf("zh", "en")
         langs.forEach { lang ->
             try {
@@ -14,7 +15,5 @@ object I18nInitializer {
                 com.dailysatori.core.diagnostics.SafeAndroidLog.e("I18nInitializer", "Failed to load $lang translations", e)
             }
         }
-        val savedLang = i18nService.getCurrentLanguage()
-        i18nService.init(savedLang)
     }
 }

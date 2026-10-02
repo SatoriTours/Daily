@@ -4,7 +4,11 @@ import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 
 class AiNewsOpportunityAnalyzer(
@@ -38,15 +42,24 @@ class AiNewsOpportunityAnalyzer(
 }
 
 internal fun parseOpportunityResponse(response: String): OpportunityDraft? {
-    val payload = response.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-    val parsed = Json { ignoreUnknownKeys = true }.decodeFromString<AiOpportunityResponse>(payload)
-    if (!parsed.hasOpportunity) return null
-    fun String.required(): String = trim().also { require(it.isNotEmpty()) }
-    val targetUser = parsed.targetUser.required()
-    val userProblem = parsed.userProblem.required()
-    return OpportunityDraft(parsed.productIdea.required(), parsed.category.required(), parsed.fact.required(),
-        "$targetUser：$userProblem\n${parsed.relevance.required()}", parsed.mvp.required(), parsed.caveat.required(), parsed.quote.required(),
-        parsed.relevanceScore.coerceIn(0, 100), parsed.actionabilityScore.coerceIn(0, 100))
+    try {
+        val payload = response.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+        val json = Json { ignoreUnknownKeys = true }
+        val objectValue = json.parseToJsonElement(payload) as? JsonObject ?: error("Expected JSON object")
+        val decision = (objectValue["hasOpportunity"] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
+        requireNotNull(decision) { "Expected opportunity decision" }
+        // No-op results need no draft fields; providers may explicitly return null for them.
+        if (!decision) return null
+        val parsed = json.decodeFromJsonElement<AiOpportunityResponse>(objectValue)
+        fun String.required(): String = trim().also { require(it.isNotEmpty()) }
+        val targetUser = parsed.targetUser.required()
+        val userProblem = parsed.userProblem.required()
+        return OpportunityDraft(parsed.productIdea.required(), parsed.category.required(), parsed.fact.required(),
+            "$targetUser：$userProblem\n${parsed.relevance.required()}", parsed.mvp.required(), parsed.caveat.required(), parsed.quote.required(),
+            parsed.relevanceScore.coerceIn(0, 100), parsed.actionabilityScore.coerceIn(0, 100))
+    } catch (error: Exception) {
+        throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_RESPONSE, error)
+    }
 }
 
 private fun opportunityPrompt(input: OpportunityAnalysisInput): String = buildJsonObject {

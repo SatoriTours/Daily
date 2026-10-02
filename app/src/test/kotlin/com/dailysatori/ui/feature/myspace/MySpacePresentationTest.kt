@@ -12,6 +12,18 @@ class MySpacePresentationTest {
     private fun item(id: String, saved: Boolean = false, ignored: Boolean = false, reminder: String? = null) =
         NewsOpportunity(id, source, "title", "category", "fact", "inference", "step", "caveat", "body", 1, saved, ignored, reminder)
 
+    @Test fun thoughtPreviewsShowFourDistinctSupportedIdeas() {
+        val thoughts = (1..8).map { index ->
+            DiaryThought("做事准则", "想法 $index", "明确表达", listOf(DiaryThoughtEvidence(index.toLong(), "原文 $index")))
+        }
+        val unsupported = thoughts.first().copy(statement = "无依据的观点", evidence = emptyList())
+        val previews = myThoughtPreviews(thoughts + thoughts.first() + unsupported, Random(23))
+
+        assertEquals(4, previews.size)
+        assertEquals(4, previews.distinctBy { it.statement }.size)
+        assertTrue(previews.all { it in thoughts })
+    }
+
     @Test fun thoughtPreviewsGiveEverySupportedIdeaAChanceToAppear() {
         val thoughts = (1..6).map { index ->
             DiaryThought("做事准则", "想法 $index", "明确表达", listOf(DiaryThoughtEvidence(index.toLong(), "原文 $index")))
@@ -39,8 +51,8 @@ class MySpacePresentationTest {
         val thoughts = listOf(explicit, inferred, third)
         val previews = myThoughtPreviews(thoughts, Random(23))
 
-        assertEquals(2, previews.size)
-        assertEquals(2, previews.distinctBy { it.statement }.size)
+        assertEquals(3, previews.size)
+        assertEquals(3, previews.distinctBy { it.statement }.size)
         assertTrue(previews.all { it in thoughts })
         assertEquals(previews, myThoughtPreviews(thoughts, Random(23)))
         assertEquals(setOf(explicit, inferred), myThoughtPreviews(listOf(explicit, inferred), Random(23)).toSet())

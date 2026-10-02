@@ -11,7 +11,7 @@ import kotlin.random.Random
 
 internal fun myThoughtPreviews(thoughts: List<DiaryThought>, random: Random = Random.Default): List<DiaryThought> =
     thoughts.filter { it.statement.isNotBlank() && it.evidence.any { evidence -> evidence.quote.isNotBlank() } }
-        .distinctBy { it.statement }.shuffled(random).take(2)
+        .distinctBy { it.statement }.shuffled(random).take(4)
 
 internal enum class RecommendationAction { WAIT, SET_UP_CONTEXT, UPDATE }
 

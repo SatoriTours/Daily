@@ -79,4 +79,14 @@ interface NewsOpportunityContext {
     fun verifiedContext(): String?
 }
 
-class NewsOpportunityAnalysisException : IllegalStateException("分析失败，请稍后重试")
+enum class OpportunityFailureReason(val message: String) {
+    UNKNOWN("分析失败，请稍后重试"),
+    INVALID_RESPONSE("AI 返回的分析格式不完整，请重试"),
+    INVALID_QUOTE("AI 引用与新闻原文不一致，请重试"),
+    CONTEXT_CHANGED("关注点或思想已更新，请重新分析"),
+}
+
+class NewsOpportunityAnalysisException(
+    val reason: OpportunityFailureReason = OpportunityFailureReason.UNKNOWN,
+    cause: Throwable? = null,
+) : IllegalStateException(reason.message, cause)

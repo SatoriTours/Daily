@@ -31,6 +31,17 @@ class NewsOpportunityTaskHandlerTest {
         assertFailsWith<CancellationException> { NewsOpportunityTaskHandler(service).execute(1, "{}", "", reporter { _, _ -> }) }
     }
 
+    @Test fun invalidAiResponseIsExplainedInTaskCenterAndRemainsPending() = withService(OpportunityAnalyzer {
+        throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_RESPONSE, IllegalArgumentException("api_token=private"))
+    }) { service ->
+        val result = NewsOpportunityTaskHandler(service).execute(1, "{}", "", reporter { _, _ -> })
+        val failure = assertIs<AsyncTaskExecutionResult.PermanentFailure>(result)
+        assertEquals("AI 返回的分析格式不完整，请重试", failure.message)
+        service.refresh()
+        assertEquals(failure.message, service.state.value.error)
+        assertEquals(1, service.state.value.pendingCount)
+    }
+
     private fun reporter(onProgress: (Long, Long) -> Unit) = object : AsyncTaskProgressReporter {
         override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) = onProgress(current, total)
     }

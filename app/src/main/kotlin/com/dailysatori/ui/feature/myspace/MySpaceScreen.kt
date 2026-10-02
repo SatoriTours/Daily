@@ -10,8 +10,11 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Add
 import com.dailysatori.ui.feature.profile.localDayTicker
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,8 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import com.dailysatori.ui.feature.article.openArticleUrl
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
@@ -29,7 +36,7 @@ import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
-import com.dailysatori.ui.feature.profile.ProfileLibrarySection
+import com.dailysatori.ui.feature.profile.ProfileUiState
 import com.dailysatori.ui.feature.profile.ProfileViewModel
 import com.dailysatori.ui.feature.reminder.ReminderListItemUi
 import com.dailysatori.ui.feature.reminder.ReminderRepeatLabel
@@ -70,60 +77,97 @@ fun MySpaceScreen(
     val previews = remember(thoughtState.archive.thoughts, previewSeed) {
         myThoughtPreviews(thoughtState.archive.thoughts, Random(previewSeed))
     }
-    val bottomBarSpace = Height.navBar + Spacing.xl
-    Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        LazyColumn(
-            Modifier.fillMaxWidth().weight(1f),
-            state = listState,
-            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
-                bottom = Spacing.l),
-            verticalArrangement = Arrangement.spacedBy(Spacing.l),
-        ) {
-            item(key = "header") {
-                MainPageHeader(title = stringResource(R.string.personal_settings_my_title)) {
-                    IconButton(onClick = onChat) {
-                        Icon(Icons.Outlined.AutoAwesome, stringResource(R.string.my_space_chat), tint = MaterialTheme.colorScheme.primary)
-                    }
-                    IconButton(onClick = onSettings) {
-                        Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
-                    }
+    LazyColumn(
+        Modifier.fillMaxSize().statusBarsPadding(),
+        state = listState,
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
+            bottom = Height.navBar + Spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.l),
+    ) {
+        item(key = "header") {
+            MainPageHeader(title = stringResource(R.string.personal_settings_my_title)) {
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
                 }
-            }
-            item(key = "reminders") {
-                MySectionCard {
-                    MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders)
-                    if (upcoming.isEmpty()) {
-                        MyEmptyBlock(stringResource(R.string.my_space_reminder_empty), "",
-                            stringResource(R.string.my_space_add_reminder), onAddReminder)
-                    } else upcoming.forEachIndexed { index, item ->
-                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MyReminderRow(item, today) { onReminder(item.id) }
-                    }
-                }
-            }
-            item(key = "thoughts") {
-                MySectionCard {
-                    MySectionHeading(stringResource(R.string.my_space_thoughts), Icons.Outlined.AutoAwesome, onThoughts)
-                    MyThoughtSummary(thoughtState, previews, onThoughts, onThought)
-                }
-            }
-            item(key = "library") {
-                ProfileLibrarySection(profileState, onFavorites, onTasks, onFailedTasks)
             }
         }
-        // A separate footer keeps the button clear of content at every scroll position.
-        Box(Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.s,
-            bottom = bottomBarSpace + Spacing.m)) {
-            ExtendedFloatingActionButton(
-                onClick = onAddReminder,
-                modifier = Modifier.align(Alignment.CenterEnd),
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(Radius.circular),
-                icon = { Icon(Icons.Default.Add, null, Modifier.size(IconSize.l)) },
-                text = { Text(stringResource(R.string.my_space_add_reminder)) },
-            )
+        item(key = "quick-actions") {
+            MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks, onFailedTasks)
         }
+        item(key = "reminders") {
+            MySectionCard {
+                MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders)
+                if (upcoming.isEmpty()) {
+                    Text(stringResource(R.string.my_space_reminder_empty), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else upcoming.forEachIndexed { index, item ->
+                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    MyReminderRow(item, today) { onReminder(item.id) }
+                }
+            }
+        }
+        item(key = "thoughts") {
+            MySectionCard {
+                MySectionHeading(stringResource(R.string.my_space_thoughts), Icons.Outlined.AutoAwesome, onThoughts)
+                MyThoughtSummary(thoughtState, previews, onThoughts, onThought)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MyQuickActions(
+    state: ProfileUiState,
+    onAddReminder: () -> Unit,
+    onChat: () -> Unit,
+    onFavorites: () -> Unit,
+    onTasks: () -> Unit,
+    onFailedTasks: () -> Unit,
+) {
+    val taskStatus = stringResource(R.string.management_task_status, state.activeTaskCount, state.failedTaskCount)
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = if (maxWidth < Spacing.xxl * 6 || LocalDensity.current.fontScale > 1.3f) 2 else 4
+            FlowRow(maxItemsInEachRow = columns, horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                MyQuickAction(Icons.Default.Add, stringResource(R.string.my_space_add_reminder), onAddReminder, Modifier.weight(1f))
+                MyQuickAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.my_space_chat_shortcut), onChat, Modifier.weight(1f))
+                MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
+                MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
+                    Modifier.weight(1f).semantics { stateDescription = taskStatus },
+                    showBadge = state.activeTaskCount > 0 || state.failedTaskCount > 0, badgeError = state.failedTaskCount > 0)
+            }
+        }
+        if (state.failedTaskCount > 0) {
+            TextButton(onClick = onFailedTasks, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.management_failed_tasks), color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MyQuickAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    showBadge: Boolean = false,
+    badgeError: Boolean = false,
+) {
+    Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.s),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        BadgedBox(badge = {
+            if (showBadge) Badge(containerColor = if (badgeError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+        }) {
+            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Box(Modifier.size(Spacing.xxl), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+        Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
     }
 }
 

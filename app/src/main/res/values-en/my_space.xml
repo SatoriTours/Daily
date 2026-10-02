@@ -8,6 +8,8 @@
     <string name="my_space_next">Up next</string>
     <string name="my_space_useful">Product opportunities</string>
     <string name="my_space_chat">Think it through</string>
+    <string name="my_space_chat_shortcut">Talk it through</string>
+    <string name="my_space_favorites_shortcut">My favorites</string>
     <string name="my_space_ai">With AI</string>
     <string name="my_space_all">View all</string>
     <string name="my_space_expand">Explore</string>
@@ -15,7 +17,7 @@
     <string name="my_space_thought_empty">Your thoughts will take shape here</string>
     <string name="my_space_thought_empty_hint">Find what matters and how you make decisions, with sources for every insight.</string>
     <string name="my_space_organize">Organize my thoughts</string>
-    <string name="my_space_thought_meta">Based on %1$d diary entries</string>
+    <string name="my_space_thought_meta">From %1$d diary entries</string>
     <string name="my_space_thought_explicit">What you expressed</string>
     <string name="my_space_thought_inferred">AI interpretation · For you to confirm</string>
     <string name="my_space_thought_quote">You wrote</string>

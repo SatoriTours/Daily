@@ -2,6 +2,11 @@ package com.dailysatori.service.opportunity
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.diagnostics.DiagnosticCode
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSink
+import com.dailysatori.service.diagnostics.Diagnostics
+import com.dailysatori.service.diagnostics.SafeDiagnosticEvent
 import com.dailysatori.service.externalfavorites.sha256Hex
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
@@ -183,6 +188,44 @@ class NewsOpportunityServiceTest {
     }
 
     @Test
+    fun noOpportunityWithNullUnusedFieldsIsAValidEmptyResult() {
+        val response = """```json
+            {"hasOpportunity":false,"productIdea":null,"targetUser":null,"userProblem":null,"category":null,"fact":null,"relevance":null,"mvp":null,"caveat":null,"quote":null,"relevanceScore":null,"actionabilityScore":null}
+            ```"""
+        assertNull(parseOpportunityResponse(response))
+    }
+
+    @Test
+    fun invalidDecisionsAndIncompleteOpportunitiesProduceSafeFormatErrors() {
+        listOf("{}", "[]", "not JSON", """{"hasOpportunity":"false"}""",
+            """{"hasOpportunity":true,"productIdea":null}""").forEach { response ->
+            val failure = assertFailsWith<NewsOpportunityAnalysisException> { parseOpportunityResponse(response) }
+            assertEquals("AI 返回的分析格式不完整，请重试", failure.message)
+            assertNotNull(failure.cause)
+        }
+    }
+
+    @Test
+    fun analysisFailureRetainsCauseAndRecordsOnlySafeDiagnostics() = withFixture { fixture ->
+        val events = mutableListOf<SafeDiagnosticEvent>()
+        val previous = DiagnosticLog.diagnostics
+        DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+        try {
+            fixture.service.markRead(article())
+            fixture.analyzer.failTitles += "标题"
+            val failure = assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() }
+            assertNotNull(failure.cause)
+            assertEquals("分析失败，请稍后重试", fixture.service.state.value.error)
+            val event = events.single { it.eventCode == DiagnosticCode.OPERATION_FAILED }
+            assertTrue(event.exception.any { it.contains("IllegalStateException") })
+            assertFalse(Json.encodeToString(event).contains("secret"))
+            assertFalse(Json.encodeToString(event).contains("这是可核对的正文"))
+        } finally {
+            DiagnosticLog.diagnostics = previous
+        }
+    }
+
+    @Test
     fun genericArticleRecommendationIsNotAcceptedAsAProductOpportunity() {
         val response = """{"hasOpportunity":true,"title":"值得一读","category":"观察","fact":"新闻摘要","relevance":"符合我的思想","action":"继续关注","caveat":"待确认","quote":"原文"}"""
         assertFailsWith<Exception> { parseOpportunityResponse(response) }
@@ -259,7 +302,7 @@ class NewsOpportunityServiceTest {
         assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() }
         assertEquals(previous, fixture.service.state.value.items.single())
         assertEquals(1, fixture.service.state.value.pendingCount)
-        assertEquals("分析失败，请稍后重试", fixture.service.state.value.error)
+        assertEquals("AI 引用与新闻原文不一致，请重试", fixture.service.state.value.error)
     }
 
     @Test
@@ -289,6 +332,21 @@ class NewsOpportunityServiceTest {
         fixture.analyzer.failTitles.clear()
         fixture.service.analyze()
         assertEquals(listOf("甲", "乙", "乙"), fixture.analyzer.inputs.map { it.article.title })
+        assertEquals(0, fixture.service.state.value.pendingCount)
+    }
+
+    @Test
+    fun contextChangedWhileAiIsRunningDoesNotSaveStaleResult() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        fixture.analyzer.beforeResult = { fixture.context.value = "更新后的思想" }
+        val failure = assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() }
+        assertEquals("关注点或思想已更新，请重新分析", failure.message)
+        assertTrue(fixture.service.state.value.items.isEmpty())
+        assertEquals(1, fixture.service.state.value.pendingCount)
+        assertFalse(fixture.service.state.value.isUpdating)
+        fixture.analyzer.beforeResult = {}
+        fixture.service.analyze()
+        assertEquals("更新后的思想", fixture.analyzer.inputs.last().thoughtContext)
         assertEquals(0, fixture.service.state.value.pendingCount)
     }
 
@@ -358,7 +416,7 @@ class NewsOpportunityServiceTest {
 
     private class TrackingContext(
         override val enabled: Boolean,
-        private val value: String?,
+        var value: String?,
     ) : NewsOpportunityContext {
         var reads = 0
         override fun verifiedContext(): String? = value.also { reads++ }
@@ -368,11 +426,13 @@ class NewsOpportunityServiceTest {
         val inputs = mutableListOf<OpportunityAnalysisInput>()
         val failTitles = mutableSetOf<String>()
         var cancellation = false
+        var beforeResult: () -> Unit = {}
 
         override suspend fun analyze(input: OpportunityAnalysisInput): OpportunityDraft? {
             inputs += input
             if (cancellation) throw CancellationException("private cancellation")
             if (input.article.title in failTitles) throw IllegalStateException("token=secret")
+            beforeResult()
             return if (results.isEmpty()) draft(quote = input.article.content) else results.removeAt(0)
         }
     }

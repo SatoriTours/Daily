@@ -18,6 +18,46 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class NewsRecommendationContextTest {
     @Test
+    fun automaticRecommendationsWaitForInProgressThoughtsEvenWhenCachedContextExists() = withService { service, context ->
+        context.summary = "上一次整理的思想"
+        val thoughts = MutableStateFlow(DiaryThoughtState(
+            archive = DiaryThoughtArchive(fingerprint = "cached"), isUpdating = true,
+        ))
+        var scheduled = 0
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            observeRecommendationContext(thoughts, service) { scheduled++ }
+        }
+        assertTrue(service.state.value.hasAnalysisContext)
+        assertEquals(0, scheduled, "不能用正在更新的思想启动自动分析")
+        thoughts.value = thoughts.value.copy(progress = "正在整理")
+        runCurrent()
+        assertEquals(0, scheduled)
+
+        context.summary = "本次整理完成的思想"
+        thoughts.value = thoughts.value.copy(isUpdating = false)
+        runCurrent()
+        assertEquals(1, scheduled, "即使归档未变化，完成更新也应恢复自动分析")
+    }
+
+    @Test
+    fun headlineRefreshChecksContextAndWaitsOnlyWhenThoughtsAreUsed() = withService { service, context ->
+        var scheduled = 0
+        refreshRecommendationsIfReady(DiaryThoughtState(), service) { scheduled++ }
+        assertEquals(0, scheduled, "没有分析条件时，首页更新不能创建失败任务")
+
+        service.saveFocus("用户填写的关注点")
+        refreshRecommendationsIfReady(DiaryThoughtState(isUpdating = true), service) { scheduled++ }
+        assertEquals(0, scheduled)
+
+        context.enabled = false
+        refreshRecommendationsIfReady(DiaryThoughtState(isUpdating = true, useInChat = false), service) { scheduled++ }
+        assertEquals(1, scheduled, "不用思想时，关注点应足以启动自动分析")
+        context.enabled = true
+        refreshRecommendationsIfReady(DiaryThoughtState(isUpdating = false), service) { scheduled++ }
+        assertEquals(2, scheduled)
+    }
+
+    @Test
     fun completedThoughtsUnlockRecommendationsWithoutReenteringThePage() = withService { service, context ->
         val thoughts = MutableStateFlow(DiaryThoughtState(isUpdating = true))
         var scheduled = 0

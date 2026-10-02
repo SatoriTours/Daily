@@ -109,8 +109,9 @@ internal fun UnifiedNewsSummaryContent(
             Text(opportunityState.progress.ifBlank { stringResource(R.string.my_space_queued) },
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (operationFailed || opportunityState.error != null || task?.status == "failed") item(key = "error") {
-            Text(stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        val analysisError = opportunityState.error ?: task?.last_error_message?.takeIf { task?.status == "failed" && it.isNotBlank() }
+        if (operationFailed || analysisError != null || task?.status == "failed") item(key = "error") {
+            Text(analysisError ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = onOpportunities) { Text(stringResource(R.string.my_space_expand)) }
         }
         if (recommendations.isEmpty() && !busy) item(key = "empty-opportunities") {

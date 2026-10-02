@@ -10,12 +10,16 @@ import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.service.diary.DiaryThoughtArchive
 import com.dailysatori.service.diary.DiaryThoughtService
 import com.dailysatori.service.diary.DiaryThoughtState
+import com.dailysatori.service.diagnostics.DiagnosticCode
+import com.dailysatori.service.diagnostics.DiagnosticLevel
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSource
 import com.dailysatori.service.opportunity.NewsOpportunityService
 import com.dailysatori.service.opportunity.ReadNewsArticle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,7 +51,7 @@ class MySpaceViewModel(
     fun refresh() = mutate { service.refresh() }
     fun saveFocus(text: String, onSaved: () -> Unit) = mutate {
         service.saveFocus(text)
-        enqueueAnalysis(automatic = true)
+        scheduleAutomaticAnalysis()
         withContext(Dispatchers.Main) { onSaved() }
     }
     fun setSaved(id: String, value: Boolean) = mutate { service.setSaved(id, value) }
@@ -61,14 +65,14 @@ class MySpaceViewModel(
         withContext(Dispatchers.Main) { onSaved() }
     }
     fun analyze() = mutate { enqueueAnalysis(automatic = false) }
-    fun refreshRecommendations() = mutate { enqueueAnalysis(automatic = true) }
+    fun refreshRecommendations() = mutate { scheduleAutomaticAnalysis() }
     // Collected only while a recommendation page is visible; progress ticks do not reschedule work.
     suspend fun observeRecommendations() = withContext(Dispatchers.IO) {
         try {
             observeRecommendationContext(thoughts.state, service) { enqueueAnalysis(automatic = true) }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) { _operationFailed.value = true }
+        } catch (error: Exception) { recordOperationFailure(error) }
     }
 
     fun organizeThoughts() {
@@ -79,13 +83,22 @@ class MySpaceViewModel(
         val id = tasks.enqueue(NewsOpportunityTaskHandler.TYPE, "{\"automatic\":$automatic}", uniqueKey = NewsOpportunityTaskHandler.TYPE, maxAttempts = 1)
         scheduler.enqueue(id)
     }
+    private suspend fun scheduleAutomaticAnalysis() = refreshRecommendationsIfReady(thoughts.state.value, service) {
+        enqueueAnalysis(automatic = true)
+    }
     fun clearError() { _operationFailed.value = false }
 
     private fun mutate(block: suspend () -> Unit) = viewModelScope.launch(Dispatchers.IO) {
         _operationFailed.value = false
         try { block() } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) { _operationFailed.value = true }
+        } catch (error: Exception) { recordOperationFailure(error) }
+    }
+
+    private fun recordOperationFailure(error: Exception) {
+        DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.APP,
+            DiagnosticLevel.ERROR, error = error)
+        _operationFailed.value = true
     }
 }
 
@@ -94,11 +107,20 @@ internal suspend fun observeRecommendationContext(
     service: NewsOpportunityService,
     onReady: suspend () -> Unit,
 ) {
-    thoughts.map { RecommendationThoughtSnapshot(it.archive, it.corrections, it.useInChat, it.isStale) }
-        .distinctUntilChanged().collect {
-            service.refresh()
-            if (service.state.value.hasAnalysisContext) onReady()
-        }
+    thoughts.distinctUntilChangedBy {
+        RecommendationThoughtSnapshot(it.archive, it.corrections, it.useInChat, it.isStale, it.isUpdating)
+    }.collect {
+        refreshRecommendationsIfReady(it, service, onReady)
+    }
+}
+
+internal suspend fun refreshRecommendationsIfReady(
+    thoughts: DiaryThoughtState,
+    service: NewsOpportunityService,
+    onReady: suspend () -> Unit,
+) {
+    service.refresh()
+    if (service.state.value.hasAnalysisContext && !(thoughts.useInChat && thoughts.isUpdating)) onReady()
 }
 
 private data class RecommendationThoughtSnapshot(
@@ -106,4 +128,5 @@ private data class RecommendationThoughtSnapshot(
     val corrections: String,
     val useInChat: Boolean,
     val isStale: Boolean,
+    val isUpdating: Boolean,
 )

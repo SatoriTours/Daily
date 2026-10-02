@@ -8,6 +8,8 @@
     <string name="my_space_next">接下来</string>
     <string name="my_space_useful">产品机会</string>
     <string name="my_space_chat">和自己聊聊</string>
+    <string name="my_space_chat_shortcut">与我聊聊</string>
+    <string name="my_space_favorites_shortcut">我的收藏</string>
     <string name="my_space_ai">AI 协助</string>
     <string name="my_space_all">全部</string>
     <string name="my_space_expand">展开</string>
@@ -15,7 +17,7 @@
     <string name="my_space_thought_empty">你的思想，会在这里慢慢清晰</string>
     <string name="my_space_thought_empty_hint">从日记中整理你看重的事与做事准则，每条观点都保留依据。</string>
     <string name="my_space_organize">整理我的思想</string>
-    <string name="my_space_thought_meta">根据 %1$d 篇日记整理</string>
+    <string name="my_space_thought_meta">来自 %1$d 篇日记</string>
     <string name="my_space_thought_explicit">你表达的想法</string>
     <string name="my_space_thought_inferred">AI 的理解 · 待你确认</string>
     <string name="my_space_thought_quote">你曾写道</string>

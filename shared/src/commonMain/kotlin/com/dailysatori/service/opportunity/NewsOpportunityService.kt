@@ -1,5 +1,9 @@
 package com.dailysatori.service.opportunity
 
+import com.dailysatori.service.diagnostics.DiagnosticCode
+import com.dailysatori.service.diagnostics.DiagnosticLevel
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSource
 import com.dailysatori.service.externalfavorites.sha256Hex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,10 +66,10 @@ class NewsOpportunityService(
             pending = pendingArticles(analysisContext)
             _state.value = buildState(analysisContext).copy(isUpdating = true, progress = progress(0, pending.size))
             pending.forEachIndexed { index, article ->
-                check(currentContext().version == analysisContext.version) { "Context changed during analysis" }
+                checkAnalysisContext(analysisContext)
                 onProgress(index, pending.size, progress(index, pending.size))
                 val draft = analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, analysisContext.thoughts))
-                check(currentContext().version == analysisContext.version) { "Context changed during analysis" }
+                checkAnalysisContext(analysisContext)
                 val before = archive
                 applyResult(article, analysisContext.version, draft)
                 try { store.save(archive) } catch (error: Exception) { archive = before; throw error }
@@ -77,11 +81,15 @@ class NewsOpportunityService(
         } catch (error: CancellationException) {
             _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size))
             throw error
-        } catch (_: Exception) {
-            archive = archive.copy(lastError = SAFE_ERROR)
+        } catch (error: Exception) {
+            val failure = error as? NewsOpportunityAnalysisException ?: NewsOpportunityAnalysisException(cause = error)
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.TASK,
+                DiagnosticLevel.ERROR, error = failure)
+            val message = failure.reason.message
+            archive = archive.copy(lastError = message)
             runCatching { store.save(archive) }
-            _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size), error = SAFE_ERROR)
-            throw NewsOpportunityAnalysisException()
+            _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size), error = message)
+            throw failure
         }
     }
 
@@ -124,8 +132,12 @@ class NewsOpportunityService(
     }
 
     private fun OpportunityDraft.validated(article: ReadNewsArticle): OpportunityDraft {
-        require(quote.isNotBlank() && article.content.take(OPPORTUNITY_BODY_LIMIT).contains(quote)) { "Invalid article quote" }
-        require(listOf(title, category, fact, relevance, action, caveat).all { it.isNotBlank() }) { "Incomplete analysis" }
+        if (quote.isBlank() || !article.content.take(OPPORTUNITY_BODY_LIMIT).contains(quote)) {
+            throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_QUOTE)
+        }
+        if (listOf(title, category, fact, relevance, action, caveat).any { it.isBlank() }) {
+            throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_RESPONSE)
+        }
         return this
     }
 
@@ -139,6 +151,12 @@ class NewsOpportunityService(
         savedAt = old?.savedAt,
         relevanceScore = relevanceScore.coerceIn(0, 100), actionabilityScore = actionabilityScore.coerceIn(0, 100),
     )
+
+    private fun checkAnalysisContext(expected: AnalysisContext) {
+        if (currentContext().version != expected.version) {
+            throw NewsOpportunityAnalysisException(OpportunityFailureReason.CONTEXT_CHANGED)
+        }
+    }
 
     private fun currentContext(): AnalysisContext {
         val thoughts = runCatching { if (context.enabled) context.verifiedContext()?.take(MAX_CONTEXT_LENGTH) else null }.getOrNull()
@@ -193,6 +211,5 @@ class NewsOpportunityService(
         const val MAX_CANDIDATES = 20
         const val MAX_FOCUS_LENGTH = 2_000
         const val MAX_CONTEXT_LENGTH = 4_000
-        const val SAFE_ERROR = "分析失败，请稍后重试"
     }
 }

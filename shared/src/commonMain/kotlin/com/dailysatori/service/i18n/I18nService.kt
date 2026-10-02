@@ -7,7 +7,7 @@ import com.charleskorn.kaml.YamlScalar
 import com.dailysatori.data.repository.SettingRepository
 
 class I18nService(private val settingRepo: SettingRepository) {
-    private var translations: Map<String, Any> = emptyMap()
+    private val translations = mutableMapOf<String, Map<String, Any>>()
     private var currentLang: String = "zh"
     private val warnedKeys = mutableSetOf<String>()
 
@@ -15,14 +15,14 @@ class I18nService(private val settingRepo: SettingRepository) {
         currentLang = lang ?: settingRepo.get("app_language") ?: "zh"
     }
 
+    /** Loading another resource must not change the selected language. */
     fun loadTranslation(lang: String, yamlContent: String) {
         val data = Yaml.default.parseToYamlNode(yamlContent)
-        translations = yamlNodeToMap(data)
-        currentLang = lang
+        translations[lang] = yamlNodeToMap(data)
     }
 
     fun t(key: String, defaultValue: String? = null): String {
-        val value = lookup(translations, key)
+        val value = lookup(translations[currentLang].orEmpty(), key)
         if (value == null) {
             val default = defaultValue ?: key
             if (key !in warnedKeys) {
