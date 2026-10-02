@@ -5,13 +5,30 @@ import com.dailysatori.service.diary.DiaryThoughtEvidence
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
 import kotlin.test.*
+import kotlin.random.Random
 
 class MySpacePresentationTest {
     private val source = ReadNewsArticle("key", "title", "body", source = "site", readAt = 1)
     private fun item(id: String, saved: Boolean = false, ignored: Boolean = false, reminder: String? = null) =
         NewsOpportunity(id, source, "title", "category", "fact", "inference", "step", "caveat", "body", 1, saved, ignored, reminder)
 
-    @Test fun thoughtPreviewsKeepTwoDistinctIdeasWithFullStatementsAndTheirOwnQuotes() {
+    @Test fun thoughtPreviewsGiveEverySupportedIdeaAChanceToAppear() {
+        val thoughts = (1..6).map { index ->
+            DiaryThought("做事准则", "想法 $index", "明确表达", listOf(DiaryThoughtEvidence(index.toLong(), "原文 $index")))
+        }
+        val displayed = (1..64).flatMap { myThoughtPreviews(thoughts, Random(it)) }.map { it.statement }.toSet()
+
+        assertEquals(setOf("想法 1", "想法 2", "想法 3", "想法 4", "想法 5", "想法 6"), displayed)
+    }
+
+    @Test fun thoughtPreviewsDoNotRepeatTheSameStatementAcrossCategories() {
+        val thought = DiaryThought("价值观", "先完成重要的事", "明确表达", listOf(DiaryThoughtEvidence(1, "重要的事")))
+        val previews = myThoughtPreviews(listOf(thought, thought.copy(category = "做事准则")))
+
+        assertEquals(listOf("先完成重要的事"), previews.map { it.statement })
+    }
+
+    @Test fun thoughtPreviewsKeepFullStatementsAndEvidenceStableForTheSameVisit() {
         val statement = "当工作上的事情挤在一起时，你想先完成最重要的一件，再处理琐事，而不是为了清空待办清单把精力分散掉。"
         val explicit = DiaryThought("做事准则", statement, "明确表达", listOf(
             DiaryThoughtEvidence(1, "先完成重要的事"), DiaryThoughtEvidence(2, "不把精力用在琐事上"),
@@ -19,25 +36,25 @@ class MySpacePresentationTest {
         val inferred = DiaryThought("价值观", "你可能更看重有意义的进展，而不是完成任务的数量。", "AI归纳", listOf(DiaryThoughtEvidence(3, "忙了一天，却没推进重要的事情")))
         val third = DiaryThought("思维方式", "先试一小步", "明确表达", listOf(DiaryThoughtEvidence(4, "今天决定先试一下")))
 
-        val previews = myThoughtPreviews(listOf(explicit, inferred, third))
+        val thoughts = listOf(explicit, inferred, third)
+        val previews = myThoughtPreviews(thoughts, Random(23))
 
         assertEquals(2, previews.size)
-        assertEquals(statement, previews.first().statement)
-        assertEquals("先完成重要的事", previews.first().quote)
-        assertFalse(previews.first().isInference)
-        assertEquals("忙了一天，却没推进重要的事情", previews.last().quote)
-        assertTrue(previews.last().isInference)
+        assertEquals(2, previews.distinctBy { it.statement }.size)
+        assertTrue(previews.all { it in thoughts })
+        assertEquals(previews, myThoughtPreviews(thoughts, Random(23)))
+        assertEquals(setOf(explicit, inferred), myThoughtPreviews(listOf(explicit, inferred), Random(23)).toSet())
     }
 
-    @Test fun thoughtPreviewsDoNotInventEvidenceAndUnknownBasisRemainsAnInference() {
+    @Test fun thoughtPreviewsExcludeBlankOrUnsupportedIdeasAndKeepExistingEvidence() {
         val unsupported = DiaryThought("价值观", "没有依据的想法", "明确表达", emptyList())
         val legacy = unsupported.copy(statement = "旧版想法", basis = "旧版标签", evidence = listOf(
             DiaryThoughtEvidence(1, " "), DiaryThoughtEvidence(2, "真实原文，不要改写。"),
         ))
         assertTrue(myThoughtPreviews(listOf(unsupported)).isEmpty())
         val preview = myThoughtPreviews(listOf(unsupported, legacy)).single()
-        assertEquals("真实原文，不要改写。", preview.quote)
-        assertTrue(preview.isInference)
+        assertEquals(legacy, preview)
+        assertTrue(myThoughtPreviews(listOf(legacy.copy(statement = " "))).isEmpty())
         assertTrue(myThoughtPreviews(emptyList()).isEmpty())
     }
 

@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.diary
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -30,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,9 +52,13 @@ import com.dailysatori.service.diary.DiaryThoughtEvidence
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.*
+import com.dailysatori.ui.feature.myspace.thoughtChatKey
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val THOUGHT_HIGHLIGHT_DURATION_MILLIS = 2_500L
 
 @Composable
 internal fun DiaryThoughtEntry(state: DiaryThoughtState, onClick: () -> Unit) {
@@ -76,10 +84,33 @@ internal fun DiaryThoughtEntry(state: DiaryThoughtState, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun DiaryThoughtScreen(viewModel: DiaryThoughtViewModel, onBack: () -> Unit, onDiaryClick: (Long) -> Unit, onDiscuss: ((DiaryThought) -> Unit)? = null) {
+internal fun DiaryThoughtScreen(
+    viewModel: DiaryThoughtViewModel,
+    onBack: () -> Unit,
+    onDiaryClick: (Long) -> Unit,
+    onDiscuss: ((DiaryThought) -> Unit)? = null,
+    focusThoughtKey: String? = null,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val saveError by viewModel.saveError.collectAsStateWithLifecycle()
     val presentation = remember(state.archive.thoughts) { diaryThoughtPresentation(state.archive.thoughts) }
+    val listState = rememberLazyListState()
+    val showStatus = state.isUpdating || state.isPaused || state.error != null || state.isStale
+    val focusIndex = presentation.focusedThoughtIndex(focusThoughtKey, showStatus)
+    var hasFocused by rememberSaveable(focusThoughtKey) { mutableStateOf(false) }
+    var highlightedKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(focusThoughtKey, focusIndex) {
+        if (focusIndex != null && !hasFocused) {
+            listState.scrollToItem(focusIndex)
+            hasFocused = true
+            highlightedKey = focusThoughtKey
+            try {
+                delay(THOUGHT_HIGHLIGHT_DURATION_MILLIS)
+            } finally {
+                highlightedKey = null
+            }
+        }
+    }
     var editing by remember { mutableStateOf(false) }
     BackHandler(onBack = onBack)
     AppScaffold(
@@ -93,6 +124,7 @@ internal fun DiaryThoughtScreen(viewModel: DiaryThoughtViewModel, onBack: () -> 
     ) { modifier ->
         LazyColumn(
             modifier = modifier.padding(horizontal = Spacing.m),
+            state = listState,
             contentPadding = PaddingValues(top = Spacing.l, bottom = Height.navBar + Spacing.xxl),
             verticalArrangement = Arrangement.spacedBy(Spacing.l),
         ) {
@@ -100,14 +132,14 @@ internal fun DiaryThoughtScreen(viewModel: DiaryThoughtViewModel, onBack: () -> 
             if (presentation.highlights.isNotEmpty()) {
                 item(key = "highlights") { DiaryThoughtHighlights(presentation.highlights) }
             }
-            if (state.isUpdating || state.isPaused || state.error != null || state.isStale) {
+            if (showStatus) {
                 item(key = "status") { DiaryThoughtStatus(state) }
             }
             if (state.archive.thoughts.isEmpty()) item(key = "empty") { DiaryThoughtEmptyState(state) }
             presentation.sections.forEach { section ->
                 item(key = "section:${section.category}") { DiaryThoughtSectionHeading(section) }
                 items(section.thoughts, key = { "thought:${it.category}:${it.statement}" }) { thought ->
-                    DiaryThoughtParagraph(thought, onDiaryClick)
+                    DiaryThoughtParagraph(thought, onDiaryClick, highlighted = thoughtChatKey(thought) == highlightedKey)
                     if (onDiscuss != null) TextButton(onClick = { onDiscuss(thought) }, enabled = state.useInChat && !state.isStale) {
                         Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_discuss))
                     }
@@ -270,10 +302,15 @@ private fun DiaryThoughtFootnote() {
 }
 
 @Composable
-private fun DiaryThoughtParagraph(thought: DiaryThought, onDiaryClick: (Long) -> Unit) {
+private fun DiaryThoughtParagraph(thought: DiaryThought, onDiaryClick: (Long) -> Unit, highlighted: Boolean = false) {
     var expanded by rememberSaveable(thought.category, thought.statement) { mutableStateOf(false) }
     val diaryCount = thought.evidence.map { it.diaryId }.distinct().size
-    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    val highlightColor by animateColorAsState(
+        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
+        label = "thoughtHighlight",
+    )
+    Column(Modifier.fillMaxWidth().background(highlightColor, RoundedCornerShape(Radius.m)).padding(Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(thought.statement, style = MaterialTheme.typography.bodyLarge)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Text(thought.basis, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

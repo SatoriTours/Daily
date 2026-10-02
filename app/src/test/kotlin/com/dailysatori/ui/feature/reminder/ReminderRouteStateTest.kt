@@ -123,13 +123,10 @@ class ReminderRouteStateTest {
     }
 
     @Test
-    fun todayReminderEntryIsSeparateFromAllRemindersAndReachesTheListFilter() {
+    fun reminderListRetainsTodayFilterForDirectNavigation() {
         val navigation = source("core/navigation/NavHost.kt")
         assertTrue(navigation.contains("onReminders = { navController.navigate(ReminderListRoute()) }"))
-        assertTrue(navigation.contains("onTodayReminders = { navController.navigate(ReminderListRoute(todayOnly = true)) }"))
         assertTrue(navigation.contains("initialTodayOnly = entry.toRoute<ReminderListRoute>().todayOnly"))
-        assertTrue(source("ui/feature/home/HomeScreen.kt").contains("onTodayReminders = onTodayReminders"))
-        assertTrue(source("ui/feature/myspace/MySpaceScreen.kt").contains("TextButton(onClick = onTodayReminders)"))
         assertTrue(source("ui/feature/reminder/ReminderListScreen.kt").contains("viewModel.applyListEntryFilter(initialTodayOnly)"))
     }
 

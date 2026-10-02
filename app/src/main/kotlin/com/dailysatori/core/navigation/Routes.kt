@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object HomeRoute
 @Serializable data object ProfileRoute
-@Serializable data object MyThoughtsRoute
+@Serializable data class MyThoughtsRoute(val thoughtKey: String? = null)
 @Serializable data object MyOpportunitiesRoute
 @Serializable data class MyOpportunityRoute(val id: String)
 @Serializable data class PersonalChatRoute(val kind: String = "", val key: String = "")

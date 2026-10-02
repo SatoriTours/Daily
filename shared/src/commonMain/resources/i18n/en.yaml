@@ -581,6 +581,8 @@ my_space:
   title: "Me"
   intro: "Understand yourself. Turn insights into action."
   thoughts: "My thoughts"
+  reminders: "My reminders"
+  view_all: "View all"
   next: "Up next"
   useful: "Product opportunities"
   chat: "Think it through"

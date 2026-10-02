@@ -3,6 +3,8 @@
     <string name="my_space_title">Me</string>
     <string name="my_space_intro">Understand yourself. Turn insights into action.</string>
     <string name="my_space_thoughts">My thoughts</string>
+    <string name="my_space_reminders">My reminders</string>
+    <string name="my_space_view_all">View all</string>
     <string name="my_space_next">Up next</string>
     <string name="my_space_useful">Product opportunities</string>
     <string name="my_space_chat">Think it through</string>

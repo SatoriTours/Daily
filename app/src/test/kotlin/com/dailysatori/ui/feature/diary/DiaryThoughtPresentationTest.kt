@@ -2,11 +2,35 @@ package com.dailysatori.ui.feature.diary
 
 import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.diary.DiaryThoughtEvidence
+import com.dailysatori.ui.feature.myspace.thoughtChatKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 class DiaryThoughtPresentationTest {
+    @Test
+    fun selectedThoughtIndexFollowsRenderedSectionsAndOptionalStatus() {
+        val value = thought("价值观", "先完成重要的事", 1)
+        val principle = thought("做事准则", "先完成重要的事", 2)
+        val thinking = thought("思维方式", "先尝试", 3)
+        val result = diaryThoughtPresentation(listOf(thinking, principle, value))
+
+        assertEquals(3, result.focusedThoughtIndex(thoughtChatKey(value), showStatus = false))
+        assertEquals(5, result.focusedThoughtIndex(thoughtChatKey(principle), showStatus = false))
+        assertEquals(7, result.focusedThoughtIndex(thoughtChatKey(thinking), showStatus = false))
+        assertEquals(8, result.focusedThoughtIndex(thoughtChatKey(thinking), showStatus = true))
+    }
+
+    @Test
+    fun missingOrRemovedThoughtDoesNotFocusAnUnrelatedItem() {
+        val result = diaryThoughtPresentation(listOf(thought("价值观", "现有观点", 1)))
+
+        assertNull(result.focusedThoughtIndex(null, showStatus = false))
+        assertNull(result.focusedThoughtIndex("removed-thought", showStatus = true))
+        assertNull(diaryThoughtPresentation(emptyList()).focusedThoughtIndex("removed-thought", showStatus = false))
+    }
+
     @Test
     fun highlightsBalanceTopicsAndCountDistinctDiariesInsteadOfQuotes() {
         val repeated = thought("价值观", "同篇日记的多个引文", 1, 1, 1)

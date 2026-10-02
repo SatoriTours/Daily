@@ -78,9 +78,9 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onFavorites = { navController.navigate(ProfileFavoritesRoute) },
                 onTasks = { navController.navigate(TaskCenterRoute()) },
                 onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) },
-                onThoughts = { navController.navigate(MyThoughtsRoute) },
+                onThoughts = { navController.navigate(MyThoughtsRoute()) },
+                onThought = { navController.navigate(MyThoughtsRoute(thoughtChatKey(it))) },
                 onReminders = { navController.navigate(ReminderListRoute()) },
-                onTodayReminders = { navController.navigate(ReminderListRoute(todayOnly = true)) },
                 onReminder = { navController.navigate(ReminderDetailRoute(it)) },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpportunities = { navController.navigate(MyOpportunitiesRoute) },
@@ -99,16 +99,17 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
             )
         }
-        composable<MyThoughtsRoute> {
+        composable<MyThoughtsRoute> { entry ->
             val viewModel: DiaryThoughtViewModel = koinViewModel()
             DiaryThoughtScreen(viewModel, onBack = { navController.popBackStack() }, onDiaryClick = {
                 com.dailysatori.core.recording.DiaryRecordingOpenRequest.open(it)
                 navController.popBackStack(HomeRoute, inclusive = false)
-            }, onDiscuss = { navController.navigate(PersonalChatRoute("thought", thoughtChatKey(it))) })
+            }, onDiscuss = { navController.navigate(PersonalChatRoute("thought", thoughtChatKey(it))) },
+                focusThoughtKey = entry.toRoute<MyThoughtsRoute>().thoughtKey)
         }
         composable<MyOpportunitiesRoute> {
             NewsOpportunityListScreen(onBack = { navController.popBackStack() },
-                onThoughts = { navController.navigate(MyThoughtsRoute) },
+                onThoughts = { navController.navigate(MyThoughtsRoute()) },
                 onOpen = { navController.navigate(MyOpportunityRoute(it)) },
                 onArticle = { navController.navigate(ArticleDetailRoute(it)) })
         }

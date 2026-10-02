@@ -3,12 +3,14 @@ package com.dailysatori.ui.feature.myspace
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Add
 import com.dailysatori.ui.feature.profile.localDayTicker
-import com.dailysatori.ui.feature.profile.profileReminderSummary
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,13 +18,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import com.dailysatori.ui.feature.article.openArticleUrl
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.service.diary.DiaryThoughtState
+import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
 import com.dailysatori.ui.feature.profile.ProfileLibrarySection
@@ -35,13 +39,17 @@ import com.dailysatori.ui.theme.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import kotlinx.datetime.LocalDate
+import kotlin.random.Random
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun MySpaceScreen(
+    previewSeed: Int,
+    listState: LazyListState,
     onThoughts: () -> Unit,
+    onThought: (DiaryThought) -> Unit,
     onReminders: () -> Unit,
-    onTodayReminders: () -> Unit,
     onReminder: (String) -> Unit,
     onAddReminder: () -> Unit,
     onChat: () -> Unit,
@@ -58,97 +66,100 @@ fun MySpaceScreen(
     val allReminders by reminders.reminders.collectAsStateWithLifecycle()
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
     val upcoming = myUpcomingReminders(allReminders, today)
-    val todayCount = profileReminderSummary(allReminders, today).count
-    LazyColumn(
-        Modifier.fillMaxSize().statusBarsPadding(),
-        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.l),
-    ) {
-        item(key = "header") {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+    // The home screen owns the saved seed and scroll state across detail navigation.
+    val previews = remember(thoughtState.archive.thoughts, previewSeed) {
+        myThoughtPreviews(thoughtState.archive.thoughts, Random(previewSeed))
+    }
+    val bottomBarSpace = Height.navBar + Spacing.xl
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        LazyColumn(
+            Modifier.fillMaxWidth().weight(1f),
+            state = listState,
+            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
+                bottom = Spacing.l),
+            verticalArrangement = Arrangement.spacedBy(Spacing.l),
+        ) {
+            item(key = "header") {
                 MainPageHeader(title = stringResource(R.string.personal_settings_my_title)) {
+                    IconButton(onClick = onChat) {
+                        Icon(Icons.Outlined.AutoAwesome, stringResource(R.string.my_space_chat), tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
-        }
-        item(key = "thoughts") {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).heightIn(min = Height.button).clickable(onClick = onThoughts), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text(stringResource(R.string.my_space_thoughts), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            item(key = "reminders") {
+                MySectionCard {
+                    MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders)
+                    if (upcoming.isEmpty()) {
+                        MyEmptyBlock(stringResource(R.string.my_space_reminder_empty), "",
+                            stringResource(R.string.my_space_add_reminder), onAddReminder)
+                    } else upcoming.forEachIndexed { index, item ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        MyReminderRow(item, today) { onReminder(item.id) }
                     }
-                    IconButton(onClick = onChat) { Icon(Icons.Outlined.AutoAwesome, stringResource(R.string.my_space_chat), Modifier.size(IconSize.m), tint = MaterialTheme.colorScheme.primary) }
                 }
-                MyThoughtSummary(thoughtState, onThoughts)
+            }
+            item(key = "thoughts") {
+                MySectionCard {
+                    MySectionHeading(stringResource(R.string.my_space_thoughts), Icons.Outlined.AutoAwesome, onThoughts)
+                    MyThoughtSummary(thoughtState, previews, onThoughts, onThought)
+                }
+            }
+            item(key = "library") {
+                ProfileLibrarySection(profileState, onFavorites, onTasks, onFailedTasks)
             }
         }
-        item(key = "reminders") {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.my_space_next), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                    TextButton(onClick = onAddReminder) {
-                        Icon(Icons.Default.Add, null, Modifier.size(IconSize.s))
-                        Spacer(Modifier.width(Spacing.xs))
-                        Text(stringResource(R.string.my_space_add_reminder))
-                    }
-                    IconButton(onClick = onReminders) { Icon(Icons.Default.ChevronRight, stringResource(R.string.my_space_all), Modifier.size(IconSize.s)) }
-                }
-                TextButton(onClick = onTodayReminders) { Text(stringResource(R.string.management_today_reminders, todayCount)) }
-                if (upcoming.isEmpty()) MyEmptyBlock(stringResource(R.string.my_space_reminder_empty), "", "", onAddReminder)
-                else upcoming.forEach { item -> MyReminderRow(item) { onReminder(item.id) } }
-            }
-        }
-        item(key = "library") {
-            ProfileLibrarySection(profileState, onFavorites, onTasks, onFailedTasks)
+        // A separate footer keeps the button clear of content at every scroll position.
+        Box(Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.s,
+            bottom = bottomBarSpace + Spacing.m)) {
+            ExtendedFloatingActionButton(
+                onClick = onAddReminder,
+                modifier = Modifier.align(Alignment.CenterEnd),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(Radius.circular),
+                icon = { Icon(Icons.Default.Add, null, Modifier.size(IconSize.l)) },
+                text = { Text(stringResource(R.string.my_space_add_reminder)) },
+            )
         }
     }
 }
 
 @Composable
-internal fun MySectionHeading(title: String, onAll: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-        IconButton(onClick = onAll) { Icon(Icons.Default.ChevronRight, "$title · ${stringResource(R.string.my_space_all)}", Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+private fun MySectionCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s), content = content)
     }
 }
 
 @Composable
-private fun MyThoughtSummary(state: DiaryThoughtState, onClick: () -> Unit) {
-    val previews = myThoughtPreviews(state.archive.thoughts)
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, Modifier.weight(1f).clickable(onClick = onAll), style = MaterialTheme.typography.titleMedium)
+        TextButton(onClick = onAll) {
+            Text(stringResource(R.string.my_space_view_all))
+            Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
+        }
+    }
+}
+
+@Composable
+private fun MyThoughtSummary(state: DiaryThoughtState, previews: List<DiaryThought>, onAll: () -> Unit, onThought: (DiaryThought) -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         if (previews.isEmpty()) {
-            MyEmptyBlock(stringResource(R.string.my_space_thought_empty), stringResource(R.string.my_space_thought_empty_hint), stringResource(R.string.my_space_organize), onClick)
+            MyEmptyBlock(stringResource(R.string.my_space_thought_empty), stringResource(R.string.my_space_thought_empty_hint), stringResource(R.string.my_space_organize), onAll)
         } else {
             previews.forEachIndexed { index, preview ->
                 if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.s), color = MaterialTheme.colorScheme.outlineVariant)
-                MyThoughtPreviewBlock(preview)
+                Text(preview.statement, Modifier.fillMaxWidth().clickable { onThought(preview) }.padding(vertical = Spacing.xs),
+                    style = MaterialTheme.typography.bodyLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
-            TextButton(onClick = onClick) { Text(stringResource(R.string.my_space_thought_more)) }
-            val updated = state.archive.generatedAt.takeIf { it > 0 }?.let { java.text.DateFormat.getDateInstance().format(java.util.Date(it)) }
-            Text(listOfNotNull(stringResource(R.string.my_space_thought_meta, state.archive.diaryCount), updated).joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.my_space_thought_meta, state.archive.diaryCount), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.isUpdating || state.error != null || state.isPaused) Text(state.error ?: state.progress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-@Composable
-private fun MyThoughtPreviewBlock(preview: MyThoughtPreview) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(
-            stringResource(if (preview.isInference) R.string.my_space_thought_inferred else R.string.my_space_thought_explicit),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(preview.statement, style = MaterialTheme.typography.bodyLarge)
-        Column(Modifier.padding(start = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(stringResource(R.string.my_space_thought_quote), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(preview.quote, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }
 
@@ -162,17 +173,41 @@ internal fun MyEmptyBlock(title: String, hint: String, action: String, onClick: 
 }
 
 @Composable
-private fun MyReminderRow(item: ReminderListItemUi, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Column(Modifier.width(Spacing.xxl), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(item.occurrenceDate.dayOfMonth.toString(), style = MaterialTheme.typography.headlineSmall)
-            Text(item.occurrenceDate.toString().take(7), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: () -> Unit) {
+    val fontScale = LocalDensity.current.fontScale
+    val day = when (item.daysUntil) {
+        0 -> stringResource(R.string.reminder_list_today)
+        1 -> stringResource(R.string.reminder_list_tomorrow)
+        else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
+    }
+    val date = if (item.occurrenceDate.year == today.year) day else "${item.occurrenceDate.year} · $day"
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val stackTime = maxWidth < Spacing.xxl * 5 || fontScale > 1.3f
+        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            if (stackTime) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text("$date · ${item.firstReminderTime}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    MyReminderBody(item)
+                }
+            } else {
+                Column(Modifier.widthIn(min = Spacing.xxl, max = Height.navBar + Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(date, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(item.firstReminderTime, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                }
+                VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
+                MyReminderBody(item, Modifier.weight(1f))
+            }
+            Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(item.content, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-            Text("${item.firstReminderTime} · ${reminderRepeatText(item.repeatLabel())}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun MyReminderBody(item: ReminderListItemUi, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Text(item.content, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
+        Text(reminderRepeatText(item.repeatLabel()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

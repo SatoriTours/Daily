@@ -581,6 +581,8 @@ my_space:
   title: "我的"
   intro: "了解自己，把收获变成行动。"
   thoughts: "我的思想"
+  reminders: "我的提醒"
+  view_all: "查看全部"
   next: "接下来"
   useful: "产品机会"
   chat: "和自己聊聊"

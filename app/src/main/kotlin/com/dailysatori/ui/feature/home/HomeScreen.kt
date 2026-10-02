@@ -10,6 +10,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.dailysatori.service.diary.DiaryThought
+import kotlin.random.Random
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -140,8 +143,8 @@ fun HomeScreen(
     onTasks: () -> Unit = {},
     onFailedTasks: () -> Unit = {},
     onThoughts: () -> Unit = {},
+    onThought: (DiaryThought) -> Unit = {},
     onReminders: () -> Unit = {},
-    onTodayReminders: () -> Unit = {},
     onReminder: (String) -> Unit = {},
     onAddReminder: () -> Unit = {},
     onOpportunities: () -> Unit = {},
@@ -151,6 +154,8 @@ fun HomeScreen(
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    var myPreviewSeed by rememberSaveable { mutableIntStateOf(Random.nextInt()) }
+    val myListState = rememberLazyListState()
     val reminderViewModel: ReminderViewModel = koinViewModel()
     val reminders by reminderViewModel.reminders.collectAsState()
     val today by remember { localDayTicker() }.collectAsState(initial = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
@@ -199,9 +204,11 @@ fun HomeScreen(
                             onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
                         )
                         MY_TAB_INDEX -> MySpaceScreen(
+                            previewSeed = myPreviewSeed,
+                            listState = myListState,
                             onThoughts = onThoughts,
+                            onThought = onThought,
                             onReminders = onReminders,
-                            onTodayReminders = onTodayReminders,
                             onReminder = onReminder,
                             onAddReminder = onAddReminder,
                             onChat = onChat,
@@ -224,7 +231,10 @@ fun HomeScreen(
                         selectedIndex = selectedIndex,
                         aiInputController = null,
                         hazeState = hazeState,
-                        onTabSelected = { selectedIndex = it },
+                        onTabSelected = { index ->
+                            if (index == MY_TAB_INDEX && selectedIndex != MY_TAB_INDEX) myPreviewSeed = Random.nextInt()
+                            selectedIndex = index
+                        },
                         onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
                         todayReminderCount = todayReminderCount,
                     )

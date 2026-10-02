@@ -1,22 +1,17 @@
 package com.dailysatori.ui.feature.myspace
 
 import com.dailysatori.service.diary.DiaryThought
-import com.dailysatori.ui.feature.diary.diaryThoughtPresentation
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.ui.feature.reminder.*
 import kotlinx.datetime.LocalDate
+import kotlin.random.Random
 
-internal data class MyThoughtPreview(val statement: String, val quote: String, val isInference: Boolean)
-
-internal fun myThoughtPreviews(thoughts: List<DiaryThought>): List<MyThoughtPreview> {
-    val supported = thoughts.filter { it.statement.isNotBlank() && it.evidence.any { evidence -> evidence.quote.isNotBlank() } }
-    return diaryThoughtPresentation(supported).highlights.take(2).map { thought ->
-        MyThoughtPreview(thought.statement, thought.evidence.first { it.quote.isNotBlank() }.quote, thought.basis.trim() != "明确表达")
-    }
-}
+internal fun myThoughtPreviews(thoughts: List<DiaryThought>, random: Random = Random.Default): List<DiaryThought> =
+    thoughts.filter { it.statement.isNotBlank() && it.evidence.any { evidence -> evidence.quote.isNotBlank() } }
+        .distinctBy { it.statement }.shuffled(random).take(2)
 
 internal enum class RecommendationAction { WAIT, SET_UP_CONTEXT, UPDATE }
 

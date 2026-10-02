@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.diary
 
 import com.dailysatori.service.diary.DiaryThought
+import com.dailysatori.ui.feature.myspace.thoughtChatKey
 
 internal data class DiaryThoughtSection(val category: String, val title: String, val thoughts: List<DiaryThought>)
 
@@ -21,4 +22,17 @@ internal fun diaryThoughtPresentation(thoughts: List<DiaryThought>): DiaryThough
         .sortedBy { titles.keys.indexOf(it.key).takeIf { index -> index >= 0 } ?: titles.size }
         .map { (category, entries) -> DiaryThoughtSection(category, titles[category] ?: category, entries) }
     return DiaryThoughtPresentation(highlights, sections)
+}
+
+internal fun DiaryThoughtPresentation.focusedThoughtIndex(key: String?, showStatus: Boolean): Int? {
+    if (key == null) return null
+    var index = 1 + (if (highlights.isNotEmpty()) 1 else 0) + (if (showStatus) 1 else 0)
+    for (section in sections) {
+        index++ // Section heading precedes its thought items.
+        for (thought in section.thoughts) {
+            if (thoughtChatKey(thought) == key) return index
+            index++
+        }
+    }
+    return null
 }
