@@ -7,17 +7,14 @@ import kotlin.test.assertTrue
 
 class DiaryCaptureUiTest {
     @Test
-    fun captureMenuKeepsFourOrderedCompactActionsAndAddButtonSizing() {
+    fun captureMenuKeepsFourOrderedCompactActions() {
         val menu = source("DiaryCaptureMenu.kt")
-        val screen = source("DiaryScreen.kt")
         val labels = listOf("语音日记", "文字日记", "拍摄", "添加文件")
 
         assertEquals(labels, labels.sortedBy { menu.indexOf("\"$it\"") })
         labels.forEach { assertTrue(menu.contains("\"$it\"")) }
         assertTrue(menu.contains("heightIn(min = 44.dp)"))
         assertTrue(menu.contains("onDismissRequest"))
-        assertTrue(screen.contains(".size(48.dp)"))
-        assertTrue(screen.contains("Modifier.size(36.dp)"))
     }
 
     @Test

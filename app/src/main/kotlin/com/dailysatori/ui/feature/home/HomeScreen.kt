@@ -81,10 +81,7 @@ import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
-import com.dailysatori.ui.theme.Height
-import com.dailysatori.ui.theme.IconSize
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.hazeEffect
@@ -160,7 +157,6 @@ fun HomeScreen(
     val reminders by reminderViewModel.reminders.collectAsState()
     val today by remember { localDayTicker() }.collectAsState(initial = kotlinx.datetime.Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
     val todayReminderCount = ReminderSummary.todayPendingCount(reminders, today)
-    var diaryDetailVisible by remember { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
 
@@ -195,7 +191,9 @@ fun HomeScreen(
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
                             onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
-                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick, onDetailVisibilityChange = { diaryDetailVisible = it })
+                        DIARY_TAB_INDEX -> DiaryTheme {
+                            DiaryScreen(onMyClick = onProfileClick)
+                        }
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,
@@ -222,22 +220,24 @@ fun HomeScreen(
                     }
                 }
             }
-            if (homeBottomBarVisibleForTab(selectedIndex) && !(selectedIndex == DIARY_TAB_INDEX && diaryDetailVisible)) {
+            if (homeBottomBarVisibleForTab(selectedIndex)) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter,
                 ) {
-                    HomeBottomBarSurface(
-                        selectedIndex = selectedIndex,
-                        aiInputController = null,
-                        hazeState = hazeState,
-                        onTabSelected = { index ->
-                            if (index == MY_TAB_INDEX && selectedIndex != MY_TAB_INDEX) myPreviewSeed = Random.nextInt()
-                            selectedIndex = index
-                        },
-                        onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
-                        todayReminderCount = todayReminderCount,
-                    )
+                    DiaryTheme(enabled = selectedIndex == DIARY_TAB_INDEX) {
+                        HomeBottomBarSurface(
+                            selectedIndex = selectedIndex,
+                            aiInputController = null,
+                            hazeState = hazeState,
+                            onTabSelected = { index ->
+                                if (index == MY_TAB_INDEX && selectedIndex != MY_TAB_INDEX) myPreviewSeed = Random.nextInt()
+                                selectedIndex = index
+                            },
+                            onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
+                            todayReminderCount = todayReminderCount,
+                        )
+                    }
                 }
             }
         }

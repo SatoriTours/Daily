@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -61,6 +60,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.dailysatori.R
 import com.dailysatori.core.util.diaryCardDateTime
+import com.dailysatori.core.util.diaryDateDayNumber
 import com.dailysatori.core.util.diaryPreviewText
 import com.dailysatori.core.util.diaryImagePaths
 import com.dailysatori.core.util.diaryTags
@@ -96,11 +96,10 @@ fun DiaryCard(
     Card(
         onClick = { if (hasOverflow || expanded) expanded = !expanded },
         modifier = modifier.fillMaxWidth().animateContentSize(),
-        shape = RoundedCornerShape(Radius.m),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(Radius.none),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
     ) {
-        Column(modifier = Modifier.padding(Spacing.m - Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Column(modifier = Modifier.padding(vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             DiaryCardHeader(
                 diary = diary,
                 contentText = contentText,
@@ -111,14 +110,8 @@ fun DiaryCard(
                 onDelete = onDelete,
                 nowMillis = nowMillis,
             )
-            if (expanded && imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
-                DiaryBody(contentText, expanded, onOverflow = { hasOverflow = it }, modifier = Modifier.weight(1f))
-                if (!expanded && imagePaths.isNotEmpty()) {
-                    DiaryPhoto(imagePaths.first(), context.filesDir,
-                        Modifier.size(Spacing.xxl + Spacing.m).clickable { expanded = true }, photoCount = imagePaths.size)
-                }
-            }
+            if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir, expanded)
+            DiaryBody(contentText, expanded, onOverflow = { hasOverflow = it }, modifier = Modifier.fillMaxWidth())
             DiaryAttachmentList(
                 attachments = attachments,
                 onRetryTranscription = onRetryTranscription,
@@ -126,6 +119,7 @@ fun DiaryCard(
                 compact = !expanded,
             )
             DiaryCardFooter(tags = tags, isLongContent = hasOverflow || expanded, expanded = expanded) { expanded = !expanded }
+            HorizontalDivider(Modifier.padding(top = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -147,6 +141,8 @@ private fun DiaryCardHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
+        Text(diaryDateDayNumber(diary).padStart(2, '0'), style = MaterialTheme.typography.displayMedium,
+            color = MaterialTheme.colorScheme.onSurface)
         Text(
             diaryCardDateTime(diary.created_at, nowMillis, stringResource(R.string.diary_feed_today),
                 stringResource(R.string.diary_feed_yesterday), LocalConfiguration.current.locales[0]),
@@ -154,9 +150,12 @@ private fun DiaryCardHeader(
             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         diary.mood?.takeIf { it.isNotBlank() && it != "null" }?.let { mood ->
-            Text(mood, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = Spacing.xxl + Spacing.l))
+            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.tertiaryContainer) {
+                Text(mood, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.widthIn(max = Spacing.xxl + Spacing.l)
+                        .padding(horizontal = Spacing.s, vertical = Spacing.xs))
+            }
         }
         if (showDelete) {
             Box {
@@ -204,7 +203,7 @@ private fun DiaryBody(contentText: String, expanded: Boolean, onOverflow: (Boole
         if (expanded) {
             Markdown(content = contentText, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
         } else {
-            Text(diaryPreviewText(contentText), style = MaterialTheme.typography.bodyMedium,
+            Text(diaryPreviewText(contentText), style = MaterialTheme.typography.bodyLarge,
                 maxLines = 3, overflow = TextOverflow.Ellipsis, onTextLayout = { onOverflow(it.hasVisualOverflow) })
         }
     }
@@ -238,12 +237,12 @@ private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded
 }
 
 @Composable
-private fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File) {
+private fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File, expanded: Boolean) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val photoWidth = if (imagePaths.size > 1) maxWidth - Spacing.l else maxWidth
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             itemsIndexed(imagePaths) { index, path ->
-                DiaryPhoto(path, filesDir, Modifier.width(photoWidth).aspectRatio(3f / 2f),
+                DiaryPhoto(path, filesDir, Modifier.width(photoWidth).aspectRatio(if (expanded) 3f / 2f else 2f),
                     photoCount = imagePaths.size.takeIf { index == 0 })
             }
         }
@@ -275,7 +274,9 @@ private fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, photoCo
 
 @Composable
 private fun DiaryTagChip(tag: String) {
-    Text(text = "#${tag.removePrefix("#")}", style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.widthIn(max = Spacing.xxl * 3))
+    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.primaryContainer) {
+        Text(text = "#${tag.removePrefix("#")}", style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = Spacing.xxl * 3).padding(horizontal = Spacing.s, vertical = Spacing.xs))
+    }
 }

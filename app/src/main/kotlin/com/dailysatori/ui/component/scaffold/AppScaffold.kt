@@ -9,6 +9,7 @@ import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.component.appbar.AppTopBar
@@ -29,6 +30,8 @@ fun AppScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     floatingActionButtonPosition: FabPosition = FabPosition.End,
     isMainPage: Boolean = false,
+    subtitle: String? = null,
+    showHeaderDivider: Boolean = true,
     content: @Composable (Modifier) -> Unit,
 ) {
     Scaffold(
@@ -36,10 +39,17 @@ fun AppScaffold(
             if (isMainPage) {
                 Column(Modifier.statusBarsPadding().padding(start = Spacing.m, end = Spacing.m, top = Spacing.s)) {
                     MainPageHeader(title = title, actions = actions)
-                    HorizontalDivider(
-                        modifier = Modifier.padding(top = Spacing.s),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
+                    subtitle?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.m))
+                    }
+                    if (showHeaderDivider) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(top = Spacing.s),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+                    }
                 }
             } else {
                 AppTopBar(

@@ -18,7 +18,7 @@ class DiaryFeedRegressionTest {
         assertTrue(screen.contains("DiaryMonthHeader("))
         assertTrue(!screen.contains("DiaryDateHeader("))
         assertTrue(!screen.contains("DiaryThoughtEntry("))
-        assertTrue(screen.contains("DiaryMonthReviewScreen("))
+        assertTrue(!screen.contains("DiaryMonthReviewScreen("), "月度回顾应在日记列表内阅读")
         assertTrue(card.contains("diaryCardDateTime("))
         assertTrue(screen.contains("DiaryCard("))
         assertTrue(!screen.contains("待整理"))

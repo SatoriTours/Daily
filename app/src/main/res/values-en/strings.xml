@@ -211,6 +211,16 @@
     <string name="reminder_editor_leap_policy">In non-leap years, use:</string>
     <string name="reminder_editor_feb_28">February 28</string>
     <string name="reminder_editor_mar_1">March 1</string>
+    <string name="diary_feed_title">My journal</string>
+    <string name="diary_feed_subtitle">Collect the little moments of everyday life.</string>
+    <string name="diary_feed_capture_title">What would you like to keep today?</string>
+    <string name="diary_feed_capture_hint">A sentence, a photo — every moment counts.</string>
+    <string name="diary_feed_write_now">Write a moment</string>
+    <string name="diary_feed_record_voice">Voice note</string>
+    <string name="diary_feed_review_title">Month in review</string>
+    <string name="diary_feed_review_no_summary">The moments you kept this month are right here.</string>
+    <string name="diary_feed_empty_title">Your story starts here</string>
+    <string name="diary_feed_empty_hint">Write a little about today, or record a voice note.</string>
     <string name="diary_feed_today">Today</string>
     <string name="diary_feed_yesterday">Yesterday</string>
     <string name="diary_feed_expand">Expand</string>

@@ -6,11 +6,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,13 +21,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
@@ -49,10 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,10 +49,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import com.dailysatori.core.util.diaryMonthKey
+import com.dailysatori.R
 import com.dailysatori.ui.feature.profile.localDayTicker
 import kotlinx.datetime.Clock
 import kotlinx.datetime.todayIn
@@ -75,7 +64,6 @@ import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.input.SearchBar
 import com.dailysatori.ui.theme.*
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
@@ -86,22 +74,16 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun DiaryScreen(onMyClick: () -> Unit = {}, onDetailVisibilityChange: (Boolean) -> Unit = {}) {
+fun DiaryScreen(onMyClick: () -> Unit = {}) {
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
-    var reviewMonthKey by rememberSaveable { mutableStateOf<String?>(null) }
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
     val nowMillis = remember(today, TimeZone.getDefault().id) { System.currentTimeMillis() }
-    DisposableEffect(reviewMonthKey != null) {
-        onDetailVisibilityChange(reviewMonthKey != null)
-        onDispose { onDetailVisibilityChange(false) }
-    }
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
-    var showCaptureMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val recordingController = remember(context) { DiaryRecordingController(context) }
     var showNotificationSettingsAction by remember { mutableStateOf(false) }
@@ -147,7 +129,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onDetailVisibilityChange: (Boolean) 
         else permissionLauncher.launch(missingPermissions.toTypedArray())
     }
     val diaryListState = rememberLazyListState()
-    val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
     val newestDiaryId = state.diaries.firstOrNull()?.id
     val timeZoneId = TimeZone.getDefault().id
     val feedEntries = remember(state.diaries, timeZoneId) { buildDiaryFeedEntries(state.diaries) }
@@ -171,60 +152,34 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onDetailVisibilityChange: (Boolean) 
             return@LaunchedEffect
         }
         editingDiary = requestedDiary
-        reviewMonthKey = null
         showEditor = true
         DiaryRecordingOpenRequest.consume(diaryId)
     }
 
-    if (reviewMonthKey != null) {
-        DiaryMonthReviewScreen(
-            monthKey = checkNotNull(reviewMonthKey),
-            diaries = state.diaries.filter { diaryMonthKey(it) == reviewMonthKey },
-            summary = state.monthSummaries[reviewMonthKey], attachments = state.attachmentsByDiary, nowMillis = nowMillis,
-            onBack = { reviewMonthKey = null }, onEdit = { editingDiary = it; showEditor = true },
-            onDelete = { showDeleteDialog = it }, onRetryTranscription = viewModel::retryTranscription,
-            onOpenTranscriptionSettings = onMyClick,
-        )
-    } else AppScaffold(
-        title = "我的日记",
+    AppScaffold(
+        title = stringResource(R.string.diary_feed_title),
+        subtitle = stringResource(R.string.diary_feed_subtitle),
+        showHeaderDivider = false,
         showBack = false,
         isMainPage = true,
         actions = {
             IconButton(onClick = { viewModel.toggleSearch() }) {
-                Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.m))
             }
             IconButton(onClick = { showTagFilter = true }) {
                 Icon(
                     Icons.Default.FilterList,
                     contentDescription = "筛选",
                     tint = if (state.selectedTag != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = showAddDiaryButton,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-                modifier = Modifier.padding(bottom = Height.navBar + Spacing.xl + Spacing.xs).size(IconSize.xxl),
-            ) {
-                MiniAddDiaryButton(
-                    menuExpanded = showCaptureMenu,
-                    onToggleMenu = { showCaptureMenu = !showCaptureMenu },
-                    onDismissMenu = { showCaptureMenu = false },
-                    onVoice = requestVoicePermissions,
-                    onText = { editingDiary = null; showEditor = true },
-                    onCapture = {},
-                    onFile = {},
+                    modifier = Modifier.size(IconSize.m),
                 )
             }
         },
     ) { scaffoldModifier ->
-        Box(modifier = scaffoldModifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
-            modifier = Modifier
+            modifier = scaffoldModifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = Spacing.m),
         ) {
             if (state.recordingState !is DiaryRecordingState.Idle) {
@@ -272,53 +227,58 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onDetailVisibilityChange: (Boolean) 
                 )
             }
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                if (state.isLoading && state.diaries.isEmpty()) {
-                    LoadingIndicator()
-                } else if (state.diaries.isEmpty()) {
-                    EmptyState(
-                        modifier = Modifier.align(Alignment.Center),
-                        icon = Icons.Default.Edit,
-                        title = "暂无日记",
-                        subtitle = "点击右下角 + 开始写日记",
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = diaryListState,
+                contentPadding = PaddingValues(top = Spacing.s, bottom = Height.navBar + Spacing.xxl + Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                item(key = "capture") {
+                    DiaryWelcomePanel(
+                        onText = { editingDiary = null; showEditor = true },
+                        onVoice = requestVoicePermissions,
+                        voiceEnabled = state.recordingState is DiaryRecordingState.Idle,
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        state = diaryListState,
-                        contentPadding = PaddingValues(top = Spacing.s, bottom = Height.navBar + Spacing.xxl + Spacing.m),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.s),
-                    ) {
-                        items(feedEntries, key = { it.diary.id }) { entry ->
-                            val diary = entry.diary
-                            if (entry.showMonthHeader && state.searchQuery.isBlank() && state.selectedTag == null) {
-                                DiaryMonthHeader(
-                                    diaries = checkNotNull(entry.monthDiaries),
-                                    summary = state.monthSummaries[entry.monthKey],
-                                    onReview = { reviewMonthKey = entry.monthKey },
-                                )
-                            }
-                            DiaryCard(
-                                diary = diary,
-                                nowMillis = nowMillis,
-                                attachments = state.attachmentsByDiary[diary.id].orEmpty(),
-                                onEdit = {
-                                    editingDiary = diary
-                                    showEditor = true
-                                },
-                                onDelete = { showDeleteDialog = diary },
-                                onRetryTranscription = viewModel::retryTranscription,
-                                onOpenTranscriptionSettings = onMyClick,
+                }
+                if (state.isLoading && state.diaries.isEmpty()) {
+                    item(key = "loading") { LoadingIndicator() }
+                } else if (state.diaries.isEmpty()) {
+                    item(key = "empty") {
+                        EmptyState(
+                            icon = Icons.Default.Edit,
+                            title = stringResource(R.string.diary_feed_empty_title),
+                            subtitle = stringResource(R.string.diary_feed_empty_hint),
+                        )
+                    }
+                }
+                feedEntries.forEach { entry ->
+                    if (entry.showMonthHeader && state.searchQuery.isBlank() && state.selectedTag == null) {
+                        item(key = "month-${entry.monthKey}") {
+                            DiaryMonthHeader(
+                                diaries = checkNotNull(entry.monthDiaries),
+                                summary = state.monthSummaries[entry.monthKey],
                             )
                         }
+                    }
+                    item(key = entry.diary.id) {
+                        val diary = entry.diary
+                        DiaryCard(
+                            diary = diary,
+                            nowMillis = nowMillis,
+                            attachments = state.attachmentsByDiary[diary.id].orEmpty(),
+                            onEdit = {
+                                editingDiary = diary
+                                showEditor = true
+                            },
+                            onDelete = { showDeleteDialog = diary },
+                            onRetryTranscription = viewModel::retryTranscription,
+                            onOpenTranscriptionSettings = onMyClick,
+                        )
                     }
                 }
             }
         }
-        }
     }
-
-    BackHandler(enabled = showCaptureMenu) { showCaptureMenu = false }
 
     if (showTagFilter) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -385,45 +345,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onDetailVisibilityChange: (Boolean) 
                 showDeleteDialog = null
             },
             onDismiss = { showDeleteDialog = null },
-        )
-    }
-}
-
-@Composable
-private fun MiniAddDiaryButton(
-    menuExpanded: Boolean,
-    onToggleMenu: () -> Unit,
-    onDismissMenu: () -> Unit,
-    onVoice: () -> Unit,
-    onText: () -> Unit,
-    onCapture: () -> Unit,
-    onFile: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onToggleMenu),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            modifier = Modifier.size(36.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            shadowElevation = 6.dp,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Add, contentDescription = "新建日记", modifier = Modifier.size(21.dp))
-            }
-        }
-        DiaryCaptureMenu(
-            expanded = menuExpanded,
-            onDismissRequest = onDismissMenu,
-            onVoice = onVoice,
-            onText = onText,
-            onCapture = onCapture,
-            onFile = onFile,
         )
     }
 }

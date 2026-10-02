@@ -39,7 +39,8 @@ class HomeIaTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
 
         assertTrue(source.contains("TODAY_TAB_INDEX -> UnifiedNewsScreen"))
-        assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryScreen"))
+        assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryTheme"))
+        assertTrue(source.contains("DiaryScreen(onMyClick = onProfileClick)"))
         assertTrue(source.contains("READING_TAB_INDEX -> BooksScreen"))
         assertTrue(source.contains("MY_TAB_INDEX -> MySpaceScreen"))
         assertFalse(source.contains("RECORDS_TAB_INDEX"))
@@ -86,7 +87,7 @@ class HomeIaTest {
     @Test
     fun homeBottomBarOnlyRendersInsideHomeTabs() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val gate = "if (homeBottomBarVisibleForTab(selectedIndex) && !(selectedIndex == DIARY_TAB_INDEX && diaryDetailVisible))"
+        val gate = "if (homeBottomBarVisibleForTab(selectedIndex))"
         assertTrue(source.contains(gate))
         val bottomBarGate = source.substringAfter(gate)
 
