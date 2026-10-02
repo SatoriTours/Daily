@@ -363,13 +363,12 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedSummaryRegenerationAlwaysStopsGeneratingState() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val regenerateBody = viewModel.substringAfter("fun regenerateCurrentWindow()").substringBefore("private fun manualRefreshMessage")
+        val regenerateBody = viewModel.substringAfter("fun regenerateCurrentWindow()").substringBefore("fun clearManualRefreshNotice()")
 
         assertTrue(regenerateBody.contains("isRegenerating = true"))
         assertTrue(regenerateBody.contains("isRegenerating = false"))
         assertTrue(regenerateBody.contains("regeneratingSummaryDate = null"))
-        assertTrue(regenerateBody.contains("manualRefreshMessage = manualRefreshMessage(result)"))
-        assertTrue(regenerateBody.contains("error = result.message?.takeIf { !result.success }"))
+        assertTrue(regenerateBody.contains("it.withManualNewsRefreshFinished(completed, summary)"))
         assertTrue(regenerateBody.contains("catch (e: CancellationException)"))
         assertTrue(regenerateBody.contains("throw e"))
         assertTrue(regenerateBody.contains("新闻汇总重新生成失败，请稍后重试"))
@@ -660,7 +659,7 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(scheduleNext >= 0)
         assertTrue(enqueueChain > scheduleNext)
-        assertTrue(worker.contains("asyncTaskScheduler.enqueueSequential("))
+        assertTrue(worker.contains("enqueueUnifiedNewsRefresh("))
     }
 
     @Test
@@ -980,10 +979,11 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsFailureAndEmptyPreserveExistingDailyContentAndSourcesForRestart() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
+        val repository = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/UnifiedNewsSummaryRepository.kt").readText()
 
-        assertTrue(source.contains("existing.content"))
-        assertTrue(source.contains("summaryRepo.upsertSummary("))
-        assertTrue(source.contains("preserveExistingContent"))
+        assertTrue(repository.contains("existing.content"))
+        assertTrue(repository.contains("generatedAt = existing.generated_at ?: existing.updated_at"))
+        assertTrue(source.contains("summaryRepo.preserveExistingContent("))
     }
 
     @Test
@@ -1475,14 +1475,15 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsWorkerUsesOneTimeWorkAndSchedulesStartup() {
         val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
+        val queue = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsRefreshQueue.kt").readText()
         val app = java.io.File("src/main/kotlin/com/dailysatori/DailySatoriApplication.kt").readText()
 
         assertTrue(worker.contains("OneTimeWorkRequestBuilder<UnifiedNewsWorker>"))
         assertTrue(worker.contains("setInitialDelay"))
         assertTrue(worker.contains("enqueueDailySummaryTask"))
         assertTrue(worker.contains("inputData.getString(KEY_MODE)"))
-        assertTrue(worker.contains("AsyncTaskType.remote_news_fetch.name"))
-        assertTrue(worker.contains("unifiedNewsGenerateTaskPayloadJson"))
+        assertTrue(queue.contains("AsyncTaskType.remote_news_fetch.name"))
+        assertTrue(queue.contains("unifiedNewsGenerateTaskPayloadJson"))
         assertTrue(worker.contains("else -> Result.failure()"))
         assertTrue(app.contains("UnifiedNewsScheduler(this).ensureScheduled()"))
     }
@@ -1767,13 +1768,12 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsSummaryDisplaysRegeneratingState() {
+    fun unifiedNewsBackgroundGenerationDoesNotDisplayLoadingUi() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
 
-        assertTrue(screen.contains("isRegenerating"))
-        assertTrue(screen.contains("UnifiedNewsGeneratingSkeleton"))
-        assertFalse(screen.contains("正在生成新的新闻汇总"))
-        assertFalse(screen.contains("新闻汇总已更新"))
+        assertFalse(screen.contains("UnifiedNewsGeneratingSkeleton"))
+        assertTrue(screen.contains("SnackbarHost("))
+        assertFalse(unifiedNewsSummaryContentSource().contains("LinearProgressIndicator("))
     }
 
     @Test
@@ -2070,31 +2070,23 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsSummaryDailyContentAvoidsVisibleBorderedBlock() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val skeletonCard = screen.substringAfter("private fun UnifiedNewsGeneratingSkeleton").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
         val summaryCard = unifiedNewsBriefingCardSource().substringAfter("internal fun TodayUnifiedNewsCard")
+            .substringBefore("@Composable\nprivate fun UnifiedNewsMagazineCover")
 
-        assertFalse(skeletonCard.contains("outlineVariant"))
+        assertFalse(screen.contains("UnifiedNewsGeneratingSkeleton"))
         assertFalse(summaryCard.contains("outlineVariant"))
-        assertTrue(skeletonCard.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
         assertFalse(summaryCard.substringBefore("@Composable\nprivate fun UnifiedNewsMagazineCover").contains("border = BorderStroke"))
     }
 
     @Test
     fun unifiedNewsTransientStatesMatchBriefingCardSystem() {
         val screen = unifiedNewsScreenSource()
-        val refreshMessage = screen.substringAfter("private fun UnifiedNewsRefreshMessage").substringBefore("@Composable\nprivate fun UnifiedNewsGeneratingSkeleton")
-        val skeletonCard = screen.substringAfter("private fun UnifiedNewsGeneratingSkeleton").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
+        val refreshMessage = screen.substringAfter("private fun UnifiedNewsRefreshMessage").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
 
         assertTrue(refreshMessage.contains("shape = RoundedCornerShape(Radius.l)"))
         assertTrue(refreshMessage.contains("color = MaterialTheme.colorScheme.surfaceContainerHighest"))
         assertTrue(refreshMessage.contains("border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
-        assertTrue(skeletonCard.contains("shape = RoundedCornerShape(Radius.xl)"))
-        assertTrue(skeletonCard.contains("CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)"))
-        assertTrue(skeletonCard.contains("Surface("))
-        assertTrue(skeletonCard.contains("shape = RoundedCornerShape(Radius.l)"))
-        assertTrue(skeletonCard.contains("color = MaterialTheme.colorScheme.surfaceContainer"))
-        assertFalse(skeletonCard.contains("SkeletonStatTile("))
-        assertTrue(skeletonCard.contains("SkeletonLine(width = 300.dp"))
+        assertFalse(screen.contains("UnifiedNewsGeneratingSkeleton"))
     }
 
     @Test
@@ -2167,17 +2159,17 @@ class UnifiedNewsBehaviorTest {
 
         assertFalse(viewModel.contains("visibleSummaryLimit"))
         assertFalse(screen.contains("加载更多..."))
-        assertTrue(screen.contains("UnifiedNewsGeneratingSkeleton("))
+        assertFalse(screen.contains("UnifiedNewsGeneratingSkeleton("))
         assertFalse(screen.contains("if (isRegenerating || !error.isNullOrBlank()) {\n            item"))
     }
 
     @Test
-    fun unifiedNewsRegenerationKeepsStatusVisibleOutsideEmptyState() {
+    fun unifiedNewsAutomaticRegenerationStaysSilentEvenWithoutCachedContent() {
         val screen = unifiedNewsSummaryContentSource()
 
         val scaffold = unifiedNewsScreenSource()
-        assertTrue(scaffold.contains("UnifiedNewsGeneratingSkeleton("))
-        assertTrue(screen.contains("state.isLoading || state.isRegenerating"))
+        assertFalse(scaffold.contains("UnifiedNewsGeneratingSkeleton("))
+        assertFalse(screen.contains("LinearProgressIndicator("))
         assertFalse(scaffold.contains("UnifiedNewsStatusBanner("))
     }
 
@@ -2186,11 +2178,10 @@ class UnifiedNewsBehaviorTest {
         val screen = unifiedNewsSummaryContentSource()
 
         assertTrue(screen.contains("summaries.firstOrNull"))
-        assertTrue(screen.contains("state.isRegenerating"))
+        assertTrue(screen.contains("state.lastSuccessfulSummary"))
         assertFalse(screen.contains("summary.summary_date != state.regeneratingSummaryDate"))
         val scaffold = unifiedNewsScreenSource()
-        assertTrue(scaffold.contains("UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)"))
-        assertTrue(scaffold.contains("unifiedNewsSummaryTitle(summaryDate)"))
+        assertFalse(scaffold.contains("UnifiedNewsGeneratingSkeleton("))
     }
 
     @Test
@@ -2224,13 +2215,13 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsManualRegenerationShowsEmptyResultMessage() {
-        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val policy = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsManualRefreshPolicy.kt").readText()
         val screen = unifiedNewsFeatureUiSource()
 
-        assertTrue(viewModel.contains("manualRefreshMessage"))
-        assertTrue(viewModel.contains("UnifiedNewsSummaryStatus.EMPTY"))
-        assertTrue(viewModel.contains("当前时间窗口暂无可总结新闻"))
-        assertFalse(viewModel.contains("UnifiedNewsSummaryStatus.SUCCESS -> \"新闻汇总已更新\""))
+        assertTrue(policy.contains("manualRefreshMessage"))
+        assertTrue(policy.contains("UnifiedNewsSummaryStatus.EMPTY"))
+        assertTrue(policy.contains("当前时间窗口暂无可总结新闻"))
+        assertFalse(policy.contains("UnifiedNewsSummaryStatus.SUCCESS -> \"新闻汇总已更新\""))
         assertTrue(screen.contains("manualRefreshMessage"))
         assertTrue(screen.contains("state.manualRefreshMessage"))
         assertTrue(screen.contains("state.error"))
@@ -2239,9 +2230,11 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsRegenerationUsesDailyWindowAndOverwritesToday() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
         val service = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
-        assertTrue(viewModel.contains("summaryService.generateDaily"))
+        assertFalse(viewModel.contains("summaryService.generateDaily"))
+        assertTrue(handler.contains("summaryService.generateDaily"))
         assertFalse(viewModel.contains("manualRefreshWindowForEnvironment(currentWindow"))
         assertTrue(service.contains("suspend fun generateDaily"))
         assertTrue(service.contains("dailyUnifiedNewsWindowFor"))
@@ -2277,10 +2270,10 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun debugManualRefreshSkipsSourceTimeFilteringForTestability() {
-        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val policy = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsManualRefreshPolicy.kt").readText()
         val service = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
-        assertTrue(viewModel.contains("ignoreSourceTimeFilter = isDebugBuild"))
+        assertTrue(policy.contains("ignoreSourceTimeFilter = isDebugBuild"))
         assertTrue(service.contains("ignoreSourceTimeFilter: Boolean = false"))
         assertTrue(service.contains("if (!ignoreSourceTimeFilter && time !in window.startMs..window.endMs)"))
     }

@@ -72,10 +72,10 @@ class ReminderAiParseTaskHandlerTest {
     fun parsesAllFragmentsInOneAiCallAndPersistsReadyDraftsWithTimingCheckpoints() = runBlocking {
         withRepository { repository ->
             val batch = repository.enqueueOrReuse("first; second", TimeZone.UTC, LocalDate(2026, 9, 2))
+            val reporter = RecordingReporter()
             val remote = RecordingRemote("""
                 [{"source_index":0,"content":"first","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"09:00","active_day_rule":"daily","recurrence_rule":"once"},{"source_index":1,"content":"second","start_date":"2026-09-03","end_date":"2026-09-03","first_reminder_time":"10:00","active_day_rule":"daily","recurrence_rule":"once"}]
-            """.trimIndent())
-            val reporter = RecordingReporter()
+            """.trimIndent(), onRequest = { assertEquals(1L to 4L, reporter.progress.last()) })
             val notifier = RecordingNotifier()
             val handler = ReminderAiParseTaskHandler(repository, remote, fixedBatchCodec(), FixedClock, notifier)
 
@@ -88,6 +88,7 @@ class ReminderAiParseTaskHandlerTest {
             assertEquals(listOf(batch.id), notifier.ready)
             assertTrue(reporter.checkpoints.any { it.contains("queue_wait_ms") })
             assertTrue(reporter.checkpoints.any { it.contains("persist_ms") })
+            assertEquals((0L..4L).map { it to 4L }, reporter.progress)
         }
     }
 
@@ -227,8 +228,10 @@ class ReminderAiParseTaskHandlerTest {
 
     private class RecordingReporter : AsyncTaskProgressReporter {
         val checkpoints = mutableListOf<String>()
+        val progress = mutableListOf<Pair<Long, Long>>()
         override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) {
             checkpoints += checkpointJson
+            progress += current to total
         }
     }
 
@@ -243,13 +246,18 @@ class ReminderAiParseTaskHandlerTest {
         driver.execute(null, "UPDATE async_task SET run_after_ms = 0 WHERE id = $taskId", 0)
     }
 
-    private class RecordingRemote(private val response: Any, private val delayMillis: Long = 0) : ReminderInterpretationRemote {
+    private class RecordingRemote(
+        private val response: Any,
+        private val delayMillis: Long = 0,
+        private val onRequest: () -> Unit = {},
+    ) : ReminderInterpretationRemote {
         var calls = 0
         val fragments = mutableListOf<List<ReminderInputFragment>>()
         override suspend fun interpret(text: String, now: Instant, zone: TimeZone): String = error("single parser is not used")
         override suspend fun interpretBatch(fragments: List<ReminderInputFragment>, now: Instant, zone: TimeZone): String {
             calls += 1
             this.fragments += fragments
+            onRequest()
             if (delayMillis > 0) delay(delayMillis)
             if (response is Throwable) throw response
             return response as String

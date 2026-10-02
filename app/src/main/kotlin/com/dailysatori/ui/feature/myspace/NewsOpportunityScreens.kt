@@ -26,6 +26,7 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -40,20 +41,24 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     var choosingContext by rememberSaveable { mutableStateOf(false) }
     val action = recommendationAction(state.hasAnalysisContext, state.isUpdating, task?.status)
     val busy = action == RecommendationAction.WAIT
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val backgroundMessage = stringResource(R.string.news_focus_background_running)
     val requestUpdate = {
         when (action) {
             RecommendationAction.UPDATE -> confirming = true
             RecommendationAction.SET_UP_CONTEXT -> choosingContext = true
-            RecommendationAction.WAIT -> Unit
+            RecommendationAction.WAIT -> { scope.launch { snackbar.showSnackbar(backgroundMessage) }; Unit }
         }
     }
     val organizeThoughts = { viewModel.organizeThoughts(); onThoughts() }
     LaunchedEffect(viewModel) { viewModel.observeRecommendations() }
     LaunchedEffect(state.hasAnalysisContext) { if (state.hasAnalysisContext) choosingContext = false }
     BackHandler(onBack = onBack)
-    AppScaffold(title = stringResource(R.string.my_space_recommendations_title), onBack = onBack, actions = {
-        if (state.hasAnalysisContext) IconButton(onClick = requestUpdate, enabled = !busy) {
-            Icon(Icons.Default.Refresh, contentDescription = stringResource(if (busy) R.string.my_space_updating_recommendations else R.string.my_space_analyze))
+    AppScaffold(title = stringResource(R.string.my_space_recommendations_title), onBack = onBack,
+        snackbarHost = { SnackbarHost(snackbar) }, actions = {
+        if (state.hasAnalysisContext) IconButton(onClick = requestUpdate) {
+            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.my_space_analyze))
         }
     }) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -71,11 +76,6 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                 }
             }
             item { RecommendationContextCard(state.hasAnalysisContext, state.focus, thoughts, busy, { editingFocus = true }, organizeThoughts) }
-            if (busy) item {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text(state.progress.ifBlank { task?.progress_message.orEmpty() }.ifBlank { stringResource(R.string.my_space_queued) }, style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.my_space_busy), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
             val error = state.error ?: task?.last_error_message?.takeIf { task?.status == "failed" }
             if (error != null || failed) item {
                 Text(error ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
@@ -89,7 +89,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = Spacing.s),
                 ) }
-                if (entries.isEmpty() && !busy) item {
+                if (entries.isEmpty()) item {
                     val hint = if (filter == OpportunityFilter.PENDING) stringResource(when {
                         !state.hasAnalysisContext -> R.string.my_space_analyze_missing
                         state.candidateCount == 0 -> R.string.my_space_opportunity_hint

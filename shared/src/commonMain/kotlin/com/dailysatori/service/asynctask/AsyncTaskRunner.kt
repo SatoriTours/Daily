@@ -182,7 +182,7 @@ class AsyncTaskRunner(
     private companion object {
         const val DEFAULT_LEASE_MS = 30 * 60 * 1000L
         const val MIN_HEARTBEAT_MS = 30_000L
-        val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name)
+        val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name)
     }
 }
 

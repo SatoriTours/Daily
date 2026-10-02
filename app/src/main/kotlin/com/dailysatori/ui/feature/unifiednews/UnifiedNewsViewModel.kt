@@ -20,8 +20,6 @@ import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.asynctask.AsyncTaskType
-import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
-import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.service.unifiednews.remoteNewsSourceRouteKey
@@ -34,6 +32,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
@@ -97,12 +97,12 @@ data class UnifiedNewsState(
     val summaryRefreshCompletedToken: Int = 0,
     val localArticleRefreshRequestKey: Int = 0,
     val manualRefreshMessage: String? = null,
+    val manualRefreshNotice: NewsManualRefreshNotice? = null,
     val error: String? = null,
 )
 
 class UnifiedNewsViewModel(
     private val summaryRepo: UnifiedNewsSummaryRepository,
-    private val summaryService: UnifiedNewsSummaryService,
     private val settingRepo: SettingRepository,
     private val asyncTaskRepo: AsyncTaskRepository,
     private val asyncTaskScheduler: AsyncTaskScheduler,
@@ -119,6 +119,7 @@ class UnifiedNewsViewModel(
     private val _state = MutableStateFlow(UnifiedNewsState())
     val state: StateFlow<UnifiedNewsState> = _state.asStateFlow()
     private var loadJob: Job? = null
+    private var summaryRefreshJob: Job? = null
     private var detailLoadJob: Job? = null
     private var detailRequestToken: Long = 0L
     private val sourceArticleRequestToken = AtomicLong(0L)
@@ -377,8 +378,15 @@ class UnifiedNewsViewModel(
     }
 
     fun regenerateCurrentWindow() {
-        viewModelScope.launch(Dispatchers.IO) {
+        if (summaryRefreshJob?.isActive == true) {
+            _state.update { it.copy(manualRefreshNotice = NewsManualRefreshNotice.ALREADY_RUNNING) }
+            return
+        }
+        summaryRefreshJob = viewModelScope.launch(Dispatchers.IO) {
             try {
+                val submission = enqueueManualNewsRefresh(asyncTaskRepo, isDebugBuild, asyncTaskScheduler::enqueue)
+                _state.update { it.copy(manualRefreshNotice = submission.notice) }
+                val taskId = submission.taskId ?: return@launch
                 val today = dailyUnifiedNewsWindowFor()
                 _state.update {
                     it.copy(
@@ -389,19 +397,12 @@ class UnifiedNewsViewModel(
                         page = UnifiedNewsPage.SUMMARY,
                     )
                 }
-                val result = summaryService.generateDaily(
-                    force = true,
-                    ignoreSourceTimeFilter = isDebugBuild,
-                )
-                _state.update {
-                    it.copy(
-                        isRegenerating = false,
-                        regeneratingSummaryDate = null,
-                        summaryRefreshCompletedToken = it.summaryRefreshCompletedToken + 1,
-                        manualRefreshMessage = manualRefreshMessage(result),
-                        error = result.message?.takeIf { !result.success },
-                    )
-                }
+                // Only observation belongs to this page; the durable worker owns execution.
+                val completed = asyncTaskRepo.observeTaskById(taskId).filterNotNull()
+                    .first { !hasActiveNewsRefreshTask(listOf(it.status)) }
+                val completedWindow = dailyUnifiedNewsWindowFor()
+                val summary = summaryRepo.getByWindow(completedWindow.summaryDate, completedWindow.key.value)
+                _state.update { it.withManualNewsRefreshFinished(completed, summary) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -410,11 +411,8 @@ class UnifiedNewsViewModel(
         }
     }
 
-    private fun manualRefreshMessage(result: UnifiedNewsGenerationResult): String? = when (result.status) {
-        UnifiedNewsSummaryStatus.EMPTY -> result.message ?: "当前时间窗口暂无可总结新闻"
-        UnifiedNewsSummaryStatus.SUCCESS -> null
-        UnifiedNewsSummaryStatus.FAILED -> null
-        UnifiedNewsSummaryStatus.PENDING -> null
+    fun clearManualRefreshNotice() {
+        _state.update { it.copy(manualRefreshNotice = null) }
     }
 
     private val Unified_news_summary?.isSuccessfulDisplaySummary: Boolean

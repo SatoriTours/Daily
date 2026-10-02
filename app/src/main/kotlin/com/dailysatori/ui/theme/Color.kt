@@ -60,6 +60,7 @@ object AppColors {
     val iosDarkSurfaceContainerLow = Color(0xFF111113)
 
     val primary = iosBlue
+    val onAccent = iosLightOnPrimaryRole
     val primaryLight = iosBlueDark
     val background = iosDarkBackground
     val surface = iosDarkSurface

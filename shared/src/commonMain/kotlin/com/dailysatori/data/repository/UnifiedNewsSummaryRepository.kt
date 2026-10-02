@@ -33,6 +33,27 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
     fun getSources(summaryId: Long): List<Unified_news_source> =
         q.selectUnifiedNewsSources(summaryId).executeAsList()
 
+    fun preserveExistingContent(
+        window: UnifiedNewsWindow,
+        title: String,
+        status: String,
+        message: String,
+        sourceWarnings: String?,
+    ): Boolean = q.transactionWithResult {
+        val existing = getByWindow(window.summaryDate, window.key.value)
+        if (existing == null || existing.content.isBlank()) return@transactionWithResult false
+        upsertSummary(
+            window = window,
+            title = title,
+            content = existing.content,
+            status = status,
+            errorMessage = message,
+            sourceWarnings = sourceWarnings,
+            generatedAt = existing.generated_at ?: existing.updated_at,
+        )
+        true
+    }
+
     fun upsertSummary(
         window: UnifiedNewsWindow,
         title: String,

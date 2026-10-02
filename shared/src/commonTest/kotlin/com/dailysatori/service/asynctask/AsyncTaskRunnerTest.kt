@@ -9,8 +9,42 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 
 class AsyncTaskRunnerTest {
+    @Test
+    fun legacyQueuedNewsRefreshTasksNeverExecuteConcurrently() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var calls = 0
+        val handler = object : AsyncTaskHandler {
+            override val type = "remote_news_fetch"
+            override suspend fun execute(
+                taskId: Long, payloadJson: String, checkpointJson: String, reporter: AsyncTaskProgressReporter,
+            ): AsyncTaskExecutionResult {
+                calls++
+                if (calls == 1) { started.complete(Unit); release.await() }
+                return AsyncTaskExecutionResult.Success()
+            }
+        }
+        withRunner(handlers = listOf(handler)) { tasks, runner, _ ->
+            val first = tasks.enqueue(handler.type, "{}", uniqueKey = "remote_news_fetch:manual")
+            val second = tasks.enqueue(handler.type, "{}", uniqueKey = "remote_news_fetch:due")
+            val firstRun = async { runner.run(first) }
+            started.await()
+            try {
+                assertIs<AsyncTaskRunOutcome.RetryScheduled>(runner.run(second))
+                assertEquals(1, calls)
+            } finally {
+                release.complete(Unit)
+            }
+            assertIs<AsyncTaskRunOutcome.Succeeded>(firstRun.await())
+            assertIs<AsyncTaskRunOutcome.Succeeded>(runner.run(second))
+            assertEquals(2, calls)
+        }
+    }
+
     @Test
     fun dependentTaskWaitsWithoutExecutingOrConsumingAttempts() = runBlocking {
         var calls = 0

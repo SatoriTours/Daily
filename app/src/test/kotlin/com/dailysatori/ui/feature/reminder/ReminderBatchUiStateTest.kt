@@ -25,6 +25,31 @@ import kotlin.concurrent.thread
 
 class ReminderBatchUiStateTest {
     @Test
+    fun invalidSelectedDraftRemainsCountedAsSelectedButCannotBeSaved() {
+        val initial = ReminderBatchUiState.from(batch(item("a")))
+        val invalid = initial.updateItem("a") { it.copy(draft = it.draft.editContent("")) }
+
+        assertEquals(1, invalid.selectedCount)
+        assertTrue(invalid.items.getValue("a").selected)
+        assertTrue(invalid.selectedIds.isEmpty())
+        assertEquals(0, invalid.saveableCount)
+        assertEquals(1, invalid.invalidSelectedCount)
+
+        val fixed = invalid.updateItem("a") { it.copy(draft = it.draft.editContent("valid reminder")) }
+        assertEquals(1, fixed.saveableCount)
+        assertEquals(0, fixed.invalidSelectedCount)
+    }
+
+    @Test
+    fun savingDoesNotMakeCheckedItemsDisappearFromSelectionCount() {
+        val initial = ReminderBatchUiState.from(batch(item("a")))
+        val saving = initial.claimSelectedItems().state
+
+        assertEquals(1, saving.selectedCount)
+        assertTrue(saving.selectedIds.isEmpty())
+    }
+
+    @Test
     fun batchItemIdOverridesTimestampBasedDecodedDraftId() {
         val decoded = item("same").copy(id = "batch_item_1")
 

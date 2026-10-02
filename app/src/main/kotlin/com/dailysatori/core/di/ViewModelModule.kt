@@ -286,7 +286,6 @@ val viewModelModule: Module = module {
     viewModel {
         UnifiedNewsViewModel(
             summaryRepo = get(),
-            summaryService = get(),
             settingRepo = get<SettingRepository>(),
             asyncTaskRepo = get(),
             asyncTaskScheduler = get(),

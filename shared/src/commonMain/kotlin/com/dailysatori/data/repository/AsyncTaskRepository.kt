@@ -30,6 +30,12 @@ data class AsyncTaskBatchEnqueueResult(
     val taskIds: List<Long>,
 )
 
+data class AsyncTaskFamilyEnqueueResult(
+    val taskId: Long,
+    val created: Boolean,
+    val predecessorId: Long? = null,
+)
+
 data class AsyncTaskCenterPage(
     val tasks: List<AsyncTaskListItem>,
     val loadedCount: Int,
@@ -106,6 +112,29 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             }
             AsyncTaskBatchEnqueueResult(batchId = batchId, taskIds = taskIds)
         }
+
+    fun enqueueUniqueFamilyChain(
+        request: AsyncTaskEnqueueRequest,
+        uniqueKeyPrefix: String,
+        predecessor: AsyncTaskEnqueueRequest? = null,
+    ): AsyncTaskFamilyEnqueueResult = q.transactionWithResult {
+        require(request.uniqueKey?.startsWith(uniqueKeyPrefix) == true)
+        val existing = q.selectActiveAsyncTaskByUniqueKeyPrefix(request.type, uniqueKeyPrefix).executeAsOneOrNull()
+        if (existing != null) {
+            val predecessorId = runCatching {
+                Json.parseToJsonElement(existing.payload_json).jsonObject["_afterTaskId"]?.jsonPrimitive?.longOrNull
+            }.getOrNull()
+            // Reuse the task without changing its payload, retry deadline or dependency.
+            AsyncTaskFamilyEnqueueResult(existing.id, created = false, predecessorId = predecessorId)
+        } else {
+            val predecessorId = predecessor?.let {
+                insertTask(it.type, it.payloadJson, it.uniqueKey, null, it.maxAttempts, it.priority)
+            }
+            val id = insertTask(request.type, request.payloadJson, request.uniqueKey, null, request.maxAttempts, request.priority)
+            if (predecessorId != null) linkSequentialTasks(listOf(predecessorId, id))
+            AsyncTaskFamilyEnqueueResult(id, created = true, predecessorId = predecessorId)
+        }
+    }
 
     private fun insertTask(
         type: String,

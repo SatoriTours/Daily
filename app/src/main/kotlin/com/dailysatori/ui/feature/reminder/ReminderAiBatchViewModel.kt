@@ -19,6 +19,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 
 data class ReminderAiBatchScreenState(
@@ -26,8 +32,10 @@ data class ReminderAiBatchScreenState(
     val preview: ReminderBatchUiState? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
+    val progress: ReminderAiProgressUi = ReminderAiProgressUi(),
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReminderAiBatchViewModel(
     private val batchId: String,
     private val batchRepository: ReminderAiBatchRepository,
@@ -54,6 +62,19 @@ class ReminderAiBatchViewModel(
                     isSaving = current.isSaving && batch?.status == ReminderAiBatchStatus.READY_FOR_CONFIRMATION,
                 )
             }
+        }
+        viewModelScope.launch {
+            batchRepository.observeBatch(batchId).map { it?.taskId }.distinctUntilChanged()
+                .flatMapLatest { id -> if (id == null) flowOf(null) else asyncTaskRepository.observeTaskById(id) }
+                .collect { task ->
+                    _state.update { current -> current.copy(progress = reminderAiProgress(
+                        status = task?.status,
+                        current = task?.progress_current ?: 0,
+                        total = task?.progress_total ?: 0,
+                        message = task?.progress_message.orEmpty(),
+                        retryAtMillis = task?.run_after_ms,
+                    )) }
+                }
         }
     }
 

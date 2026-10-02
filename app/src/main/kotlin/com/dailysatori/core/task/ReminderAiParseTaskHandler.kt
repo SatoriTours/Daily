@@ -49,15 +49,16 @@ class ReminderAiParseTaskHandler(
         }
 
         val startedMs = clock.now().toEpochMilliseconds()
-        reporter.report(0, 1, "准备解析提醒", checkpoint(startedMs - batch.createdAt.toEpochMilliseconds()))
+        reporter.report(0, 4, "准备解析提醒", checkpoint(startedMs - batch.createdAt.toEpochMilliseconds()))
         val fragments = splitReminderInput(batch.originalInput)
         if (fragments.isEmpty()) return fail(batchId, IllegalArgumentException("Reminder text is empty"), attempt, reporter, startedMs, batch.createdAt.toEpochMilliseconds())
 
+        reporter.report(1, 4, "正在等待 AI 返回", checkpoint(startedMs - batch.createdAt.toEpochMilliseconds()))
         val timed = remoteCall(fragments, batch.timeZone)
         val queueWait = startedMs - batch.createdAt.toEpochMilliseconds()
         timed.error?.let { return fail(batchId, it, attempt, reporter, startedMs, batch.createdAt.toEpochMilliseconds(), timed.configMs, timed.requestMs) }
         val response = requireNotNull(timed.response)
-        reporter.report(0, 1, "正在校验 AI 返回", checkpoint(queueWait, timed.configMs, timed.requestMs))
+        reporter.report(2, 4, "正在校验 AI 返回", checkpoint(queueWait, timed.configMs, timed.requestMs))
         if (response.isBlank()) return fail(batchId, IllegalStateException("AI returned an empty response"), attempt, reporter, startedMs, batch.createdAt.toEpochMilliseconds(), timed.configMs, timed.requestMs)
 
         val decoded = try {
@@ -66,6 +67,7 @@ class ReminderAiParseTaskHandler(
             return fail(batchId, error, attempt, reporter, startedMs, batch.createdAt.toEpochMilliseconds(), timed.configMs, timed.requestMs)
         }
         val decodeMs = clock.now().toEpochMilliseconds() - startedMs - timed.configMs - timed.requestMs
+        reporter.report(3, 4, "正在生成提醒草稿", checkpoint(queueWait, timed.configMs, timed.requestMs, decodeMs))
         val persistStarted = clock.now().toEpochMilliseconds()
         val persisted = batchRepository.markReady(batchId, decoded.map { draft ->
             val source = fragments.first { it.index == draft.sourceIndex }
@@ -77,7 +79,7 @@ class ReminderAiParseTaskHandler(
             return AsyncTaskExecutionResult.Success()
         }
         notifyTerminalIfNeeded(batchId)
-        reporter.report(1, 1, "提醒解析完成", checkpoint(queueWait, timed.configMs, timed.requestMs, decodeMs, persistMs))
+        reporter.report(4, 4, "提醒解析完成", checkpoint(queueWait, timed.configMs, timed.requestMs, decodeMs, persistMs))
         return AsyncTaskExecutionResult.Success("{\"batchId\":\"$batchId\"}")
     }
 

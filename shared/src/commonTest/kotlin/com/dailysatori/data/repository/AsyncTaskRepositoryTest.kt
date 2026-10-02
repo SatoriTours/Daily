@@ -15,6 +15,19 @@ import kotlin.test.assertTrue
 
 class AsyncTaskRepositoryTest {
     @Test
+    fun invalidDependencyPayloadRollsBackTheEntireFamilyChain() = withRepository { repository ->
+        assertFailsWith<IllegalArgumentException> {
+            repository.enqueueUniqueFamilyChain(
+                request = AsyncTaskEnqueueRequest("remote_news_fetch", "invalid", "remote_news_fetch:due"),
+                uniqueKeyPrefix = "remote_news_fetch:",
+                predecessor = AsyncTaskEnqueueRequest("remote_article_sync", "{}", "remote_article_sync:due"),
+            )
+        }
+        assertNull(repository.getLatestByUniqueKey("remote_news_fetch:due"))
+        assertNull(repository.getLatestByUniqueKey("remote_article_sync:due"))
+    }
+
+    @Test
     fun overviewOfEmptyDatabaseHasZeroCountsAndNoProgress() = withRepository { repository ->
         val overview = runBlocking { repository.observeTaskOverview(1_000).first() }
         assertEquals(0, overview.activeCount)

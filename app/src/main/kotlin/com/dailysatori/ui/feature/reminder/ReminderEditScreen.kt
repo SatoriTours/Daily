@@ -66,10 +66,10 @@ fun ReminderEditScreen(
                     val savingBatch = batch.items.values.any { it.saveStatus == BatchSaveStatus.SAVING }
                     Button(
                         onClick = { viewModel.saveSelectedBatch { onBack() } },
-                        enabled = batch.selectedCount > 0 && !savingBatch,
+                        enabled = batch.saveableCount > 0 && !savingBatch,
                         modifier = Modifier.fillMaxWidth().padding(Spacing.m),
                     ) {
-                        Text(stringResource(R.string.reminder_batch_save_selected, batch.selectedCount))
+                        Text(stringResource(R.string.reminder_batch_save_selected, batch.saveableCount))
                     }
                 }
             }

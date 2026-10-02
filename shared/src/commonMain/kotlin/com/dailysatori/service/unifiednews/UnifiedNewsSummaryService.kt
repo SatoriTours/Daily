@@ -198,20 +198,14 @@ class UnifiedNewsSummaryService(
         status: String,
         message: String,
         warnings: List<String>,
-    ): Boolean {
-        val existing = summaryRepo.getByWindow(window.summaryDate, window.key.value)
-        if (existing?.content.isNullOrBlank()) return false
-        summaryRepo.upsertSummary(
+    ): Boolean =
+        summaryRepo.preserveExistingContent(
             window = window,
             title = title,
-            content = existing.content,
             status = status,
-            errorMessage = message,
+            message = message,
             sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
-            generatedAt = Clock.System.now().toEpochMilliseconds(),
         )
-        return true
-    }
 
     private fun persistSuccess(
         window: UnifiedNewsWindow,

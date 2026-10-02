@@ -55,6 +55,7 @@ class UnifiedNewsGenerateTaskHandler(
         const val TYPE = "remote_news_fetch"
         const val MODE_DUE = "due"
         const val MODE_BACKFILL = "backfill"
+        const val MODE_MANUAL = "manual"
     }
 }
 

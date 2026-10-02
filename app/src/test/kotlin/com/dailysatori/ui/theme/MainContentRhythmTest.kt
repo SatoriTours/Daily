@@ -15,10 +15,6 @@ class MainContentRhythmTest {
         val compactStatePadding = ".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"
         val refreshMessage = news.extractBetween(
             start = "private fun UnifiedNewsRefreshMessage",
-            end = "private fun UnifiedNewsGeneratingSkeleton",
-        )
-        val generatingSkeleton = news.extractBetween(
-            start = "private fun UnifiedNewsGeneratingSkeleton",
             end = "private fun UnifiedNewsSourceDetailLoadingScreen",
         )
 
@@ -32,7 +28,7 @@ class MainContentRhythmTest {
         assertTrue(layouts.contains("PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)"))
         assertFalse(summary.contains("contentPadding = PaddingValues(Spacing.m)"))
         assertTrue(refreshMessage.contains(compactStatePadding))
-        assertTrue(generatingSkeleton.contains(compactStatePadding))
+        assertFalse(news.contains("private fun UnifiedNewsGeneratingSkeleton"))
     }
 
     @Test

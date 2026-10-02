@@ -23,12 +23,14 @@ class UnifiedNewsGenerateTaskSourceTest {
     @Test
     fun workerEnqueuesUnifiedNewsGenerationIntoAsyncTaskFramework() {
         val source = File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
+        val queue = File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsRefreshQueue.kt").readText()
 
-        assertTrue(source.contains("AsyncTaskType.remote_news_fetch.name"))
-        assertTrue(source.contains("unifiedNewsGenerateTaskPayloadJson("))
-        assertTrue(source.contains("\"remote_news_fetch:\${mode.name.lowercase()}\""))
-        assertTrue(source.contains("asyncTaskRepo.enqueue("))
-        assertTrue(source.contains("asyncTaskScheduler.enqueueSequential("))
+        assertTrue(source.contains("enqueueUnifiedNewsRefresh("))
+        assertTrue(queue.contains("AsyncTaskType.remote_news_fetch.name"))
+        assertTrue(queue.contains("unifiedNewsGenerateTaskPayloadJson("))
+        assertTrue(queue.contains("uniqueKeyPrefix = \"remote_news_fetch:\""))
+        assertTrue(queue.contains("tasks.enqueueUniqueFamilyChain("))
+        assertTrue(source.contains("schedule = asyncTaskScheduler::enqueue"))
     }
 
     @Test

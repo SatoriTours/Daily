@@ -21,6 +21,14 @@ class UnifiedNewsHeadlinesTest {
         assertNull(latestHeadlinesSummary(emptyList()))
     }
 
+    @Test fun lastSuccessfulHeadlinesRemainVisibleWhileLatestDataIsUnavailable() {
+        assertEquals(summary, latestHeadlinesSummary(emptyList(), summary))
+        assertEquals(summary, latestHeadlinesSummary(listOf(summary.copy(content = " ", status = "pending")), summary))
+        val newer = summary.copy(id = 2, content = "新的要闻")
+        assertEquals(newer, latestHeadlinesSummary(listOf(newer), summary))
+        assertNull(latestHeadlinesSummary(emptyList(), summary.copy(content = " ")))
+    }
+
     @Test fun relatedOpportunitiesMatchCanonicalUrlAndRespectLocalIdentity() {
         assertEquals(listOf(opportunity), relatedNewsOpportunities(source, listOf(opportunity)))
         assertTrue(relatedNewsOpportunities(source.copy(source_url = null), listOf(opportunity)).isEmpty())

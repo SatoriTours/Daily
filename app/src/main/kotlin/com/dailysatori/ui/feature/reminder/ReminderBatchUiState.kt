@@ -39,7 +39,11 @@ data class ReminderBatchUiState(
     val failure: String? = null,
 ) {
     val selectedIds: Set<String> get() = items.values.filter { it.canSave }.mapTo(linkedSetOf()) { it.id }
-    val selectedCount: Int get() = selectedIds.size
+    val selectedCount: Int get() = items.values.count { it.selected }
+    val saveableCount: Int get() = selectedIds.size
+    val invalidSelectedCount: Int get() = items.values.count {
+        it.selected && !it.isSaving && it.saveStatus != BatchSaveStatus.SAVED && it.draft.validationErrors.isNotEmpty()
+    }
     val isComplete: Boolean get() = items.isNotEmpty() && items.values.all { it.saveStatus == BatchSaveStatus.SAVED }
 
     fun toggleItem(id: String): ReminderBatchUiState = updateItem(id) { item ->

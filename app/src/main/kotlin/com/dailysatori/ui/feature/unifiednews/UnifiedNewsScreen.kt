@@ -1,14 +1,7 @@
 package com.dailysatori.ui.feature.unifiednews
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -32,13 +24,15 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,8 +49,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -79,6 +71,8 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Composable
@@ -210,6 +204,15 @@ private fun UnifiedNewsSummaryPage(
     onOpportunities: () -> Unit,
     onOpportunity: (String) -> Unit,
 ) {
+    val snackbar = remember { SnackbarHostState() }
+    val runningMessage by rememberUpdatedState(stringResource(R.string.news_focus_background_running))
+    val startedMessage by rememberUpdatedState(stringResource(R.string.news_focus_background_started))
+    LaunchedEffect(viewModel, snackbar) {
+        viewModel.state.map { it.manualRefreshNotice }.filterNotNull().collect { notice ->
+            viewModel.clearManualRefreshNotice()
+            snackbar.showSnackbar(if (notice == NewsManualRefreshNotice.ALREADY_RUNNING) runningMessage else startedMessage)
+        }
+    }
     val pages = remember(state.remoteSources, state.externalFavoriteSources) { unifiedNewsSourcePages(state) }
     val currentPages = rememberUpdatedState(pages)
     val pagerState = rememberUnifiedNewsSourcePager(currentPages, state.sourceSelection, viewModel::selectNewsPage)
@@ -234,6 +237,7 @@ private fun UnifiedNewsSummaryPage(
         }
     }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             UnifiedNewsTopBar(
                 state = state,
@@ -245,9 +249,8 @@ private fun UnifiedNewsSummaryPage(
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
         Column(modifier = modifier.fillMaxSize()) {
-            if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
             val refreshMessage = state.manualRefreshMessage ?: state.error
-            if (!state.isRegenerating && !refreshMessage.isNullOrBlank()) {
+            if (!refreshMessage.isNullOrBlank()) {
                 UnifiedNewsRefreshMessage(refreshMessage)
             }
             HorizontalPager(
@@ -415,43 +418,6 @@ private fun UnifiedNewsRefreshMessage(message: String) {
 }
 
 @Composable
-private fun UnifiedNewsGeneratingSkeleton(summaryDate: String?) {
-    val transition = rememberInfiniteTransition(label = "unified-news-generating")
-    val alpha by transition.animateFloat(
-        initialValue = 0.38f,
-        targetValue = 0.82f,
-        animationSpec = infiniteRepeatable(animation = tween(900, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
-        label = "unified-news-generating-alpha",
-    )
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
-        shape = RoundedCornerShape(Radius.xl),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            summaryDate?.let {
-                Text(unifiedNewsSummaryTitle(summaryDate), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            }
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(Radius.l),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    SkeletonLine(width = 132.dp, alpha = alpha)
-                    SkeletonLine(width = 260.dp, alpha = alpha)
-                    SkeletonLine(width = 220.dp, alpha = alpha)
-                }
-            }
-            SkeletonLine(width = 300.dp, alpha = alpha)
-            SkeletonLine(width = 240.dp, alpha = alpha)
-            SkeletonLine(width = 280.dp, alpha = alpha)
-        }
-    }
-}
-
-@Composable
 private fun UnifiedNewsSourceDetailLoadingScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     AppScaffold(title = "来源详情", onBack = onBack) { modifier ->
@@ -473,18 +439,6 @@ private fun UnifiedNewsSourceDetailErrorScreen(message: String, onBack: () -> Un
             )
         }
     }
-}
-
-@Composable
-private fun SkeletonLine(width: androidx.compose.ui.unit.Dp, alpha: Float) {
-    Box(
-        modifier = Modifier
-            .width(width)
-            .height(Spacing.m)
-            .alpha(alpha)
-            .clip(RoundedCornerShape(Radius.circular))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-    )
 }
 
 @Composable

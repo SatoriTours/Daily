@@ -32,12 +32,13 @@ class RemoteArticleSyncTaskSourceTest {
     @Test
     fun unifiedNewsWorkerEnqueuesRemoteArticleSyncTask() {
         val source = File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
+        val queue = File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsRefreshQueue.kt").readText()
 
-        assertTrue(source.contains("AsyncTaskType.remote_article_sync.name"))
-        assertTrue(source.contains("remoteArticleSyncTaskPayloadJson("))
-        assertTrue(source.contains("\"remote_article_sync:\${mode.name.lowercase()}\""))
-        assertTrue(source.contains("asyncTaskScheduler.enqueueSequential("))
-        assertTrue(source.contains("taskIds = listOf(syncTaskId, summaryTaskId)"))
+        assertTrue(source.contains("enqueueUnifiedNewsRefresh("))
+        assertTrue(queue.contains("AsyncTaskType.remote_article_sync.name"))
+        assertTrue(queue.contains("remoteArticleSyncTaskPayloadJson("))
+        assertTrue(queue.contains("predecessor = predecessor"))
+        assertTrue(source.contains("schedule = asyncTaskScheduler::enqueue"))
     }
 
     @Test

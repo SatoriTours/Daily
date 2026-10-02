@@ -75,7 +75,7 @@ internal fun UnifiedNewsSummaryContent(
     val operationFailed by opportunities.operationFailed.collectAsStateWithLifecycle()
     val task by opportunities.task.collectAsStateWithLifecycle()
     val summaries = filteredUnifiedNewsSummaries(state.summaries, state.sourcesBySummaryId, state.searchQuery)
-    val summary = latestHeadlinesSummary(state.summaries)
+    val summary = latestHeadlinesSummary(state.summaries, state.lastSuccessfulSummary)
     val headlineSummaries = if (state.searchQuery.isBlank()) listOfNotNull(summary) else summaries.filter { it.content.isNotBlank() }
     val recommendations = recommendedArticles(opportunityState.items)
     val listState = rememberLazyListState()
@@ -87,7 +87,6 @@ internal fun UnifiedNewsSummaryContent(
     LaunchedEffect(state.scrollToTopRequestKey) {
         if (state.scrollToTopRequestKey > 0) listState.animateScrollToItem(0)
     }
-    val busy = opportunityState.isUpdating || task?.status in listOf("queued", "running", "retrying")
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -97,24 +96,18 @@ internal fun UnifiedNewsSummaryContent(
                 Text(stringResource(R.string.news_focus_empty), style = MaterialTheme.typography.titleLarge)
                 Text(stringResource(R.string.news_focus_empty_hint), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (state.isLoading || state.isRegenerating) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
         }
         item(key = "opportunity-heading") {
             HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
             OpportunitySectionHeader(onOpportunities)
         }
-        if (busy) item(key = "progress") {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text(opportunityState.progress.ifBlank { stringResource(R.string.my_space_queued) },
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
         val analysisError = opportunityState.error ?: task?.last_error_message?.takeIf { task?.status == "failed" && it.isNotBlank() }
         if (operationFailed || analysisError != null || task?.status == "failed") item(key = "error") {
             Text(analysisError ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = onOpportunities) { Text(stringResource(R.string.my_space_expand)) }
         }
-        if (recommendations.isEmpty() && !busy) item(key = "empty-opportunities") {
+        if (recommendations.isEmpty()) item(key = "empty-opportunities") {
             MyEmptyBlock(stringResource(R.string.my_space_opportunity_empty), stringResource(
                 if (!opportunityState.hasAnalysisContext) R.string.my_space_analyze_missing else R.string.my_space_no_relation),
                 stringResource(R.string.news_focus_more), onOpportunities)
@@ -145,8 +138,11 @@ private fun DailyHeadlinesPreview(summary: Unified_news_summary, onOpen: () -> U
 internal fun headlinesTitleResource(date: String): Int =
     if (date == java.time.LocalDate.now().toString()) R.string.news_focus_headlines else R.string.news_focus_past_headlines
 
-internal fun latestHeadlinesSummary(summaries: List<Unified_news_summary>): Unified_news_summary? =
-    summaries.firstOrNull { it.content.isNotBlank() }
+internal fun latestHeadlinesSummary(
+    summaries: List<Unified_news_summary>,
+    retained: Unified_news_summary? = null,
+): Unified_news_summary? = summaries.firstOrNull { it.content.isNotBlank() }
+    ?: retained?.takeIf { it.content.isNotBlank() }
 
 @Composable
 private fun OpportunitySectionHeader(onMore: () -> Unit) {

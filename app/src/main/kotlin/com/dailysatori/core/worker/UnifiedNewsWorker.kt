@@ -9,10 +9,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
-import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
-import com.dailysatori.core.task.unifiedNewsGenerateTaskPayloadJson
+import com.dailysatori.core.task.enqueueUnifiedNewsRefresh
 import com.dailysatori.data.repository.AsyncTaskRepository
-import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
 import com.dailysatori.service.unifiednews.nextUnifiedNewsWindow
 import kotlinx.datetime.Clock
@@ -70,23 +68,12 @@ class UnifiedNewsWorker(
             UnifiedNewsWorkerMode.DUE -> UnifiedNewsGenerateTaskHandler.MODE_DUE
             UnifiedNewsWorkerMode.BACKFILL -> UnifiedNewsGenerateTaskHandler.MODE_BACKFILL
         }
-        val syncTaskId = asyncTaskRepo.enqueue(
-            type = AsyncTaskType.remote_article_sync.name,
-            payloadJson = remoteArticleSyncTaskPayloadJson(mode = modeValue),
-            uniqueKey = "remote_article_sync:${mode.name.lowercase()}",
-        )
-        val summaryTaskId = asyncTaskRepo.enqueue(
-            type = AsyncTaskType.remote_news_fetch.name,
-            payloadJson = unifiedNewsGenerateTaskPayloadJson(
-                force = force,
-                ignoreSourceTimeFilter = false,
-                mode = modeValue,
-            ),
-            uniqueKey = "remote_news_fetch:${mode.name.lowercase()}",
-        )
-        asyncTaskScheduler.enqueueSequential(
-            chainName = "unified-news-chain:${mode.name.lowercase()}:$summaryTaskId",
-            taskIds = listOf(syncTaskId, summaryTaskId),
+        enqueueUnifiedNewsRefresh(
+            tasks = asyncTaskRepo,
+            force = force,
+            ignoreSourceTimeFilter = false,
+            mode = modeValue,
+            schedule = asyncTaskScheduler::enqueue,
         )
         return Result.success()
     }
