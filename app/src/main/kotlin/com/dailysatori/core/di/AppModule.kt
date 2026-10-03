@@ -44,6 +44,8 @@ import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
 import com.dailysatori.service.reminder.ReminderScheduleEngine
 import com.dailysatori.service.reminder.ReminderAiInterpretationRemote
 import com.dailysatori.service.reminder.ReminderBatchCodec
+import com.dailysatori.service.lifearchive.*
+import com.dailysatori.core.lifearchive.EncryptedLifeArchiveRepository
 import com.dailysatori.ui.feature.settings.reminder.AndroidReminderDeliveryAccessChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +57,11 @@ import org.koin.dsl.module
 import java.io.File
 
 val appModule: Module = module {
+    single<LifeArchiveRepository> { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }
+    single { LifeArchiveAiService(get(), get()) }
+    single<LifeArchiveAi> { get<LifeArchiveAiService>() }
+    single<LifeArchiveReminderSource> { RepositoryLifeArchiveReminderSource(get()) }
+    single<LifeArchiveImporter> { LifeArchiveReminderImportService(get<LifeArchiveAiService>()) }
     single { com.dailysatori.core.diagnostics.DiagnosticRuntime.store }
     single<Clock> { Clock.System }
     single { AsyncTaskLogStore(File(androidContext().cacheDir, "async-task-logs")) }

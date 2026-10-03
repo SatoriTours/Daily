@@ -14,6 +14,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -28,6 +29,28 @@ class AiService(private val client: HttpClient) {
     private val log = Logger.withTag("AI")
     private val langChainClient = LangChainAiClient()
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    /** Private archives must not expose provider error bodies through logging or exception causes. */
+    suspend fun completePrivate(
+        prompt: String, apiAddress: String, apiToken: String, modelName: String,
+        provider: String, systemPrompt: String,
+    ): String = try {
+        val response = if (usesOpenAiCompatibleChatApi(provider)) {
+            rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, 0.0,
+                disableThinking = provider.trim().equals("deepseek", ignoreCase = true), recordUsage = false)
+        } else {
+            withTimeout(aiCompletionRequestTimeoutMillis()) {
+                langChainClient.complete(prompt, apiAddress.trim().trimEnd('/'), apiToken.trim(), modelName.trim(),
+                    provider.trim(), systemPrompt, 0.0)
+            }
+        }
+        require(response.isNotBlank() && response.length <= 100_000)
+        response
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        throw IllegalStateException("AI 请求失败，请检查配置或稍后重试")
+    }
 
     suspend fun complete(
         prompt: String,
@@ -74,6 +97,7 @@ class AiService(private val client: HttpClient) {
         systemPrompt: String?,
         temperature: Double,
         disableThinking: Boolean,
+        recordUsage: Boolean = true,
     ): String {
         val response = rawOpenAiChatCompletion(
             apiAddress = apiAddress,
@@ -83,6 +107,7 @@ class AiService(private val client: HttpClient) {
             tools = emptyList(),
             temperature = temperature,
             disableThinking = disableThinking,
+            recordUsage = recordUsage,
         )
         return extractOpenAiTextCompletionContent(response)
     }
@@ -166,6 +191,7 @@ class AiService(private val client: HttpClient) {
         tools: List<JsonObject>,
         temperature: Double,
         disableThinking: Boolean = false,
+        recordUsage: Boolean = true,
     ): JsonObject {
         val response = client.post(openAiChatCompletionEndpoint(apiAddress.trim())) {
             timeout {
@@ -184,7 +210,7 @@ class AiService(private val client: HttpClient) {
         }
         val parsed = json.parseToJsonElement(body) as JsonObject
         val usage = parsed["usage"] as? JsonObject
-        if (usage != null) {
+        if (usage != null && recordUsage) {
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.AI, fields = mapOf(
                 "inputTokens" to ((usage["prompt_tokens"] as? JsonPrimitive)?.contentOrNull ?: ""),
                 "outputTokens" to ((usage["completion_tokens"] as? JsonPrimitive)?.contentOrNull ?: ""),

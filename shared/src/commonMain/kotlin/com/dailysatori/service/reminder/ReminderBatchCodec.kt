@@ -23,7 +23,7 @@ class ReminderBatchCodec(
     private val json = Json { ignoreUnknownKeys = false; isLenient = false }
 
     fun decode(response: String, zone: TimeZone): ReminderBatchDecodedResponse {
-        val array = runCatching { json.parseToJsonElement(response) as? JsonArray }.getOrNull()
+        val array = runCatching { json.parseToJsonElement(unwrapReminderAiJson(response)) as? JsonArray }.getOrNull()
             ?: return ReminderBatchDecodedResponse(emptyList(), "Batch response must be a JSON array")
         val errors = mutableListOf<String>()
         val drafts = array.mapIndexedNotNull { position, element ->

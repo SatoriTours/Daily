@@ -3,6 +3,7 @@ package com.dailysatori.core.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable data object HomeRoute
+@Serializable data object LifeArchiveRoute
 @Serializable data object ProfileRoute
 @Serializable data class MyThoughtsRoute(val thoughtKey: String? = null)
 @Serializable data object MyOpportunitiesRoute

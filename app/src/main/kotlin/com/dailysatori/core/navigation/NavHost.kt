@@ -43,6 +43,13 @@ private const val BOOK_ANALYSIS_MESSAGE_KEY = "bookAnalysisMessage"
 @Composable
 fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: SettingsViewModel) {
     NavHost(navController, startDestination = HomeRoute) {
+        composable<LifeArchiveRoute> {
+            com.dailysatori.ui.feature.lifearchive.LifeArchiveScreen(
+                onBack = { navController.popBackStack() },
+                onConfigureAi = { navController.navigate(AiConfigRoute) },
+                onReminder = { navController.navigate(ReminderDetailRoute(it)) },
+            )
+        }
         composable<HomeRoute>(
             enterTransition = { fadeIn(animationSpec = tween(ANIM_DURATION)) },
             exitTransition = {
@@ -81,6 +88,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onThoughts = { navController.navigate(MyThoughtsRoute()) },
                 onThought = { navController.navigate(MyThoughtsRoute(thoughtChatKey(it))) },
                 onReminders = { navController.navigate(ReminderListRoute()) },
+                onLifeArchive = { navController.navigate(LifeArchiveRoute) },
                 onReminder = { navController.navigate(ReminderDetailRoute(it)) },
                 onAddReminder = { navController.navigate(ReminderEditRoute()) },
                 onOpportunities = { navController.navigate(MyOpportunitiesRoute) },

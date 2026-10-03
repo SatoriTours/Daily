@@ -15,10 +15,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ReminderAiRequestTest {
     @Test
@@ -50,6 +52,20 @@ class ReminderAiRequestTest {
             remote.interpretBatch(listOf(ReminderInputFragment(0, "明天九点交水费")), now, TimeZone.UTC)
 
             assertNull(requests.single()["thinking"])
+        }
+    }
+
+    @Test
+    fun singleAndBatchRequestsUseSystemInstructionsForJsonOnly() = runBlocking {
+        withRemote("openai") { remote, _, requests ->
+            remote.interpret("明天九点交水费", now, TimeZone.UTC)
+            remote.interpretBatch(listOf(ReminderInputFragment(0, "明天九点交水费")), now, TimeZone.UTC)
+
+            requests.forEach { request ->
+                val system = request["messages"]!!.jsonArray.first().jsonObject
+                assertEquals("system", system["role"]?.jsonPrimitive?.content)
+                assertTrue(system["content"]!!.jsonPrimitive.content.contains("JSON"))
+            }
         }
     }
 

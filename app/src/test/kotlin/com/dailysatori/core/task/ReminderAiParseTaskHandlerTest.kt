@@ -114,6 +114,30 @@ class ReminderAiParseTaskHandlerTest {
     }
 
     @Test
+    fun fencedAiResponseProducesReadyDraftAndRetainsOriginalInput() = runBlocking {
+        withRepository { repository ->
+            val original = "renew domain"
+            val batch = repository.enqueueOrReuse(original, TimeZone.UTC, LocalDate(2026, 9, 2))
+            val remote = RecordingRemote("""
+                Here is the parsed reminder:
+                ```json
+                [{"source_index":0,"content":"renew domain","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"09:00","active_day_rule":"daily","recurrence_rule":"once"}]
+                ```
+            """.trimIndent())
+            val handler = ReminderAiParseTaskHandler(repository, remote, fixedBatchCodec(), FixedClock)
+
+            val result = handler.execute(93, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
+
+            assertIs<AsyncTaskExecutionResult.Success>(result)
+            val ready = repository.getBatch(batch.id)!!
+            assertEquals(ReminderAiBatchStatus.READY_FOR_CONFIRMATION, ready.status)
+            assertEquals(original, ready.originalInput)
+            assertEquals(listOf(0), ready.drafts.map { it.sourceIndex })
+            assertEquals(1, remote.calls)
+        }
+    }
+
+    @Test
     fun recoveredTerminalBatchClaimsAndPostsExactlyOnceAfterPersistenceBeforeClaim() = runBlocking {
         withRepository { repository ->
             val batch = repository.enqueueOrReuse("persisted before crash", TimeZone.UTC, LocalDate(2026, 9, 2))

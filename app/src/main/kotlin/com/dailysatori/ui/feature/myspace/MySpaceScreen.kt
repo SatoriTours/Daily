@@ -63,6 +63,7 @@ fun MySpaceScreen(
     onSettings: () -> Unit,
     onFavorites: () -> Unit,
     onTasks: () -> Unit,
+    onLifeArchive: () -> Unit = {},
 ) {
     val thoughts: DiaryThoughtViewModel = koinViewModel()
     val reminders: ReminderViewModel = koinViewModel()
@@ -92,6 +93,13 @@ fun MySpaceScreen(
         }
         item(key = "quick-actions") {
             MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
+        }
+        item(key = "life-archive") {
+            MySectionCard {
+                MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive)
+                Text(stringResource(R.string.life_archive_entry_hint), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         item(key = "reminders") {
             MySectionCard {
