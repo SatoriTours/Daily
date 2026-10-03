@@ -49,6 +49,7 @@ import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsViewModel
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewModel
+import com.dailysatori.ui.feature.settings.speech.SpeechSettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
 import com.dailysatori.ui.feature.settings.skills.SkillSettingsViewModel
@@ -312,6 +313,7 @@ val viewModelModule: Module = module {
             postProcessingScheduler = get(),
         )
     }
+    viewModel { SpeechSettingsViewModel(get()) }
     viewModel {
         RemoteNewsSettingsViewModel(
             sourceRepo = get(),

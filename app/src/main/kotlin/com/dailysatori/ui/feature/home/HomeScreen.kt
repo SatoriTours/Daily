@@ -138,7 +138,6 @@ fun HomeScreen(
     onProfileClick: () -> Unit = {},
     onFavorites: () -> Unit = {},
     onTasks: () -> Unit = {},
-    onFailedTasks: () -> Unit = {},
     onThoughts: () -> Unit = {},
     onThought: (DiaryThought) -> Unit = {},
     onReminders: () -> Unit = {},
@@ -213,7 +212,6 @@ fun HomeScreen(
                             onSettings = onProfileClick,
                             onFavorites = onFavorites,
                             onTasks = onTasks,
-                            onFailedTasks = onFailedTasks,
                         )
                         else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)

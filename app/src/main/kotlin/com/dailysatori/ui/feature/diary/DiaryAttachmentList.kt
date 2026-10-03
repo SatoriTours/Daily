@@ -8,6 +8,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
+import com.dailysatori.core.recording.DiaryPlaybackLoudness
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Audiotrack
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,7 +59,6 @@ fun DiaryAttachmentList(
     modifier: Modifier = Modifier,
     onDelete: ((Diary_attachment) -> Unit)? = null,
     onRetryTranscription: ((Long) -> Unit)? = null,
-    onOpenTranscriptionSettings: (() -> Unit)? = null,
     compact: Boolean = false,
 ) {
     val displayableAttachments = attachments.filterNot {
@@ -73,7 +75,6 @@ fun DiaryAttachmentList(
                 attachment = attachment,
                 onDelete = onDelete,
                 onRetryTranscription = onRetryTranscription,
-                onOpenTranscriptionSettings = onOpenTranscriptionSettings,
                 compact = compact,
             )
         }
@@ -90,7 +91,6 @@ private fun DiaryAttachmentRow(
     attachment: Diary_attachment,
     onDelete: ((Diary_attachment) -> Unit)?,
     onRetryTranscription: ((Long) -> Unit)?,
-    onOpenTranscriptionSettings: (() -> Unit)?,
     compact: Boolean,
 ) {
     Column(
@@ -135,30 +135,27 @@ private fun DiaryAttachmentRow(
             }
         }
         if (attachment.kind == "audio" && attachment.local_path.isNotBlank()) {
-            DiaryAudioPlaybackButton(attachment.local_path, attachment.duration_ms, compact,
-                attachmentStatus(attachment, includeKnowledgeStatus = !compact))
-        }
-        if (
-            attachment.kind == "audio" &&
-            attachment.local_path.isNotBlank() &&
-            attachment.transcript_status == DiaryAttachmentProcessingStatus.failed
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                onRetryTranscription?.let { retry ->
-                    TextButton(onClick = { retry(attachment.id) }) { Text("重新转写") }
-                }
-                if (attachment.error_message.requiresTranscriptionSettings()) {
-                    onOpenTranscriptionSettings?.let { open ->
-                        TextButton(onClick = open) { Text("去设置") }
-                    }
-                }
-            }
+            DiaryAudioPlaybackButton(
+                path = attachment.local_path,
+                recordedDurationMs = attachment.duration_ms,
+                compact = compact,
+                status = attachmentStatus(attachment, includeKnowledgeStatus = !compact),
+                onRetry = if (attachment.transcript_status == DiaryAttachmentProcessingStatus.failed) {
+                    onRetryTranscription?.let { retry -> { retry(attachment.id) } }
+                } else null,
+            )
         }
     }
 }
 
 @Composable
-private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, compact: Boolean = false, status: String? = null) {
+private fun DiaryAudioPlaybackButton(
+    path: String,
+    recordedDurationMs: Long,
+    compact: Boolean = false,
+    status: String? = null,
+    onRetry: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     var isPrepared by remember(path) { mutableStateOf(false) }
     var isPreparing by remember(path) { mutableStateOf(false) }
@@ -178,6 +175,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
             setAudioAttributes(playbackAudioAttributes)
         }
     }
+    val loudness = remember(player) { DiaryPlaybackLoudness() }
     val audioManager = remember(context) { context.getSystemService(AudioManager::class.java) }
     val focusRequest = remember(player) {
         AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -185,6 +183,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
             .setOnAudioFocusChangeListener { change ->
                 if (change < 0 && isPlaying) {
                     runCatching { player.pause() }
+                    loudness.release()
                     isPlaying = false
                     interruptionMessage = "播放被其他音频暂停"
                 }
@@ -197,6 +196,8 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
     fun startWithAudioFocus(target: MediaPlayer) {
         if (audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             interruptionMessage = null
+            target.setVolume(1f, 1f)
+            loudness.attach(target.audioSessionId)
             target.start()
             isPlaying = true
         } else {
@@ -208,6 +209,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY && isPlaying) {
                     runCatching { player.pause() }
+                    loudness.release()
                     isPlaying = false
                     interruptionMessage = "耳机已断开，播放已暂停"
                     abandonAudioFocus()
@@ -228,11 +230,13 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
         }
         player.setOnSeekCompleteListener { positionMs = it.currentPosition }
         player.setOnCompletionListener {
+            loudness.release()
             positionMs = durationMs
             isPlaying = false
             abandonAudioFocus()
         }
         player.setOnErrorListener { _, _, _ ->
+            loudness.release()
             abandonAudioFocus()
             isPrepared = false
             isPreparing = false
@@ -243,6 +247,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
         onDispose {
             context.unregisterReceiver(noisyReceiver)
             abandonAudioFocus()
+            loudness.release()
             player.release()
         }
     }
@@ -265,6 +270,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
                     when {
                         isPlaying -> {
                             player.pause()
+                            loudness.release()
                             isPlaying = false
                             interruptionMessage = null
                             abandonAudioFocus()
@@ -276,6 +282,7 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
                         else -> runCatching {
                             interruptionMessage = null
                             isPreparing = true
+                            loudness.release()
                             player.reset()
                             player.setAudioAttributes(playbackAudioAttributes)
                             player.setDataSource(path)
@@ -308,6 +315,16 @@ private fun DiaryAudioPlaybackButton(path: String, recordedDurationMs: Long, com
             if (compact && status != null) Text(status, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = Spacing.s).widthIn(max = Spacing.xxl * 2))
+            onRetry?.let { retry ->
+                IconButton(onClick = retry) {
+                    Icon(
+                        Icons.Default.Sync,
+                        contentDescription = "重新转写",
+                        modifier = Modifier.size(IconSize.l),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
         }
         interruptionMessage?.let {
             Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
@@ -342,9 +359,3 @@ internal fun transcriptionErrorText(errorCode: String): String = when (errorCode
     TranscriptionErrorCode.SERVICE_UNAVAILABLE -> "转写服务暂时不可用，可重试"
     else -> "转写失败，可重试"
 }
-
-private fun String.requiresTranscriptionSettings(): Boolean =
-    this == TranscriptionErrorCode.NO_SUPPORTED_CONFIG ||
-        this == TranscriptionErrorCode.CONFIG_INVALID ||
-        this == TranscriptionErrorCode.AUTH_FAILED ||
-        this == TranscriptionErrorCode.MODEL_UNSUPPORTED

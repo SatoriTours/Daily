@@ -18,6 +18,7 @@ object SecretFieldRegistry {
         SecretFieldSpec(table = "external_favorite_source", column = "auth_json"),
         SecretFieldSpec(table = "skill_config", column = "api_token"),
         SecretFieldSpec(table = "setting", column = "value", whereClause = "key = '${SettingKeys.weReadApiKey}'"),
+        SecretFieldSpec(table = "setting", column = "value", whereClause = "key = '${SettingKeys.speechConfig}'"),
     )
 }
 

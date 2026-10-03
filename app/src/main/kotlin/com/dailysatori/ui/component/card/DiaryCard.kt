@@ -81,7 +81,6 @@ fun DiaryCard(
     showDelete: Boolean = true,
     attachments: List<Diary_attachment> = emptyList(),
     onRetryTranscription: ((Long) -> Unit)? = null,
-    onOpenTranscriptionSettings: (() -> Unit)? = null,
     nowMillis: Long = System.currentTimeMillis(),
     initiallyExpanded: Boolean = false,
 ) {
@@ -115,7 +114,6 @@ fun DiaryCard(
             DiaryAttachmentList(
                 attachments = attachments,
                 onRetryTranscription = onRetryTranscription,
-                onOpenTranscriptionSettings = onOpenTranscriptionSettings,
                 compact = !expanded,
             )
             DiaryCardFooter(tags = tags, isLongContent = hasOverflow || expanded, expanded = expanded) { expanded = !expanded }

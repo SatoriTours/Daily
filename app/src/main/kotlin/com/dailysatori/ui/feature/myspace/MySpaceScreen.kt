@@ -63,7 +63,6 @@ fun MySpaceScreen(
     onSettings: () -> Unit,
     onFavorites: () -> Unit,
     onTasks: () -> Unit,
-    onFailedTasks: () -> Unit,
 ) {
     val thoughts: DiaryThoughtViewModel = koinViewModel()
     val reminders: ReminderViewModel = koinViewModel()
@@ -92,7 +91,7 @@ fun MySpaceScreen(
             }
         }
         item(key = "quick-actions") {
-            MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks, onFailedTasks)
+            MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
         }
         item(key = "reminders") {
             MySectionCard {
@@ -123,26 +122,18 @@ private fun MyQuickActions(
     onChat: () -> Unit,
     onFavorites: () -> Unit,
     onTasks: () -> Unit,
-    onFailedTasks: () -> Unit,
 ) {
     val taskStatus = stringResource(R.string.management_task_status, state.activeTaskCount, state.failedTaskCount)
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns = if (maxWidth < Spacing.xxl * 6 || LocalDensity.current.fontScale > 1.3f) 2 else 4
-            FlowRow(maxItemsInEachRow = columns, horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                MyQuickAction(Icons.Default.Add, stringResource(R.string.my_space_add_reminder), onAddReminder, Modifier.weight(1f))
-                MyQuickAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.my_space_chat_shortcut), onChat, Modifier.weight(1f))
-                MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
-                MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
-                    Modifier.weight(1f).semantics { stateDescription = taskStatus },
-                    showBadge = state.activeTaskCount > 0 || state.failedTaskCount > 0, badgeError = state.failedTaskCount > 0)
-            }
-        }
-        if (state.failedTaskCount > 0) {
-            TextButton(onClick = onFailedTasks, modifier = Modifier.align(Alignment.End)) {
-                Text(stringResource(R.string.management_failed_tasks), color = MaterialTheme.colorScheme.error)
-            }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val columns = if (maxWidth < Spacing.xxl * 6 || LocalDensity.current.fontScale > 1.3f) 2 else 4
+        FlowRow(maxItemsInEachRow = columns, horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            MyQuickAction(Icons.Default.Add, stringResource(R.string.my_space_add_reminder), onAddReminder, Modifier.weight(1f))
+            MyQuickAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.my_space_chat_shortcut), onChat, Modifier.weight(1f))
+            MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
+            MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
+                Modifier.weight(1f).semantics { stateDescription = taskStatus },
+                showBadge = state.activeTaskCount > 0 || state.failedTaskCount > 0, badgeError = state.failedTaskCount > 0)
         }
     }
 }

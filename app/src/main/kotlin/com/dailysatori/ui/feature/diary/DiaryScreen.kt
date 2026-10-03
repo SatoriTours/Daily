@@ -272,7 +272,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                             },
                             onDelete = { showDeleteDialog = diary },
                             onRetryTranscription = viewModel::retryTranscription,
-                            onOpenTranscriptionSettings = onMyClick,
                         )
                     }
                 }

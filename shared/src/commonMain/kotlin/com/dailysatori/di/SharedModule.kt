@@ -70,6 +70,8 @@ import com.dailysatori.service.diary.DiaryLinkContentExtractor
 import com.dailysatori.service.diary.DefaultDiaryLinkContentExtractor
 import com.dailysatori.service.diary.OpenAiCompatibleSpeechTranscriptionClient
 import com.dailysatori.service.diary.SpeechTranscriptionClient
+import com.dailysatori.service.diary.SpeechSettingsService
+import com.dailysatori.service.diary.SpeechTranscriptionApi
 import com.dailysatori.service.diary.diaryAssistantCompletion
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
@@ -179,9 +181,9 @@ val sharedModule: Module = module {
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }
     single { DiaryKnowledgeCoordinator(get(), get(), get(), get<MemoryExtractor>()) }
-    single<SpeechTranscriptionClient> {
-        OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get(), get())
-    }
+    single { SpeechSettingsService(get(), get(), get()) }
+    single { SpeechTranscriptionApi(get()) }
+    single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
     single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }

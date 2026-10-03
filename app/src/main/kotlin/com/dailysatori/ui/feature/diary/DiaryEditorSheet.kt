@@ -465,7 +465,6 @@ fun DiaryEditorSheet(
                         attachments = attachments,
                         onDelete = { attachmentToDelete = it },
                         onRetryTranscription = onRetryTranscription,
-                        onOpenTranscriptionSettings = onOpenTranscriptionSettings,
                     )
                     Spacer(modifier = Modifier.height(Spacing.s))
                     DiaryEditorTagRow(

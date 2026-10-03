@@ -18,6 +18,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object BookSearchRoute
 @Serializable data object BookContentSearchRoute
 @Serializable data object AiConfigRoute
+@Serializable data object SpeechSettingsRoute
 @Serializable data class AiConfigEditRoute(val configId: Long? = null)
 @Serializable data object SettingsRoute
 @Serializable data class ReminderListRoute(val todayOnly: Boolean = false)

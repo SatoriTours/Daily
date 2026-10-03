@@ -23,6 +23,7 @@ import com.dailysatori.ui.feature.article.ArticleListScreen
 import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterScreen
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
+import com.dailysatori.ui.feature.settings.speech.SpeechSettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogScreen
@@ -77,7 +78,6 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onProfileClick = { navController.navigate(SettingsRoute) },
                 onFavorites = { navController.navigate(ProfileFavoritesRoute) },
                 onTasks = { navController.navigate(TaskCenterRoute()) },
-                onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) },
                 onThoughts = { navController.navigate(MyThoughtsRoute()) },
                 onThought = { navController.navigate(MyThoughtsRoute(thoughtChatKey(it))) },
                 onReminders = { navController.navigate(ReminderListRoute()) },
@@ -140,6 +140,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         }
         composable<ProfileExternalFavoritesRoute> { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<RemoteNewsSettingsRoute> { RemoteNewsSettingsScreen(onBack = { navController.popBackStack() }) }
+        composable<SpeechSettingsRoute> { SpeechSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<TaskCenterRoute> { entry ->
             TaskCenterScreen(onBack = { navController.popBackStack() }, recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures)
         }

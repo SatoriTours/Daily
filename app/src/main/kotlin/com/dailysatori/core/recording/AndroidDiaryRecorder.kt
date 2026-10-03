@@ -51,7 +51,7 @@ class AndroidDiaryRecorder(
         if (outputFile.exists() && !outputFile.delete()) {
             throw DiaryRecorderException(DiaryRecordingErrorCode.STORAGE_FAILED)
         }
-        val audioSources = listOf(MediaRecorder.AudioSource.VOICE_RECOGNITION, MediaRecorder.AudioSource.MIC)
+        val audioSources = listOf(MediaRecorder.AudioSource.MIC, MediaRecorder.AudioSource.VOICE_RECOGNITION)
         audioSources.forEachIndexed { index, audioSource ->
             val recorder = createMediaRecorder()
             mediaRecorder = recorder

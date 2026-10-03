@@ -15,6 +15,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.outlined.CloudSync
@@ -58,6 +59,7 @@ import com.dailysatori.ui.feature.profile.DataPrivacyScreen
 import com.dailysatori.ui.feature.profile.ProfileViewModel
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
+import com.dailysatori.ui.feature.settings.speech.SpeechSettingsScreen
 import org.koin.androidx.compose.koinViewModel
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
@@ -73,6 +75,7 @@ import com.dailysatori.ui.theme.*
 internal enum class SettingsPage {
     MAIN,
     AI_CONFIG,
+    SPEECH,
     MCP_SERVER,
     PLUGIN_CENTER,
     BACKUP_SETTINGS,
@@ -119,6 +122,7 @@ fun SettingsScreen(
             onBack = onBack,
         )
         SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = childBack)
+        SettingsPage.SPEECH -> SpeechSettingsScreen(onBack = childBack)
         SettingsPage.MCP_SERVER -> McpServerScreen(onBack = childBack)
         SettingsPage.PLUGIN_CENTER -> PluginCenterScreen(onBack = childBack)
         SettingsPage.BACKUP_SETTINGS -> BackupSettingsScreen(onBack = childBack, onRestore = { currentPage = SettingsPage.BACKUP_RESTORE })
@@ -239,6 +243,7 @@ private fun ContentSourcesSection(onNavigate: (SettingsPage) -> Unit) {
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
     SettingsSectionCard(stringResource(R.string.personal_settings_ai)) {
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
+        SettingsRow(Icons.Default.Mic, "语音模型", "设置日记转写的提供商、模型与 API Key", onClick = { onNavigate(SettingsPage.SPEECH) })
         SettingsRow(Icons.AutoMirrored.Filled.MenuBook, skillSettingsRowTitle(), skillSettingsRowSubtitle(), onClick = { onNavigate(SettingsPage.SKILLS) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })
         SettingsRow(Icons.Default.Settings, "插件中心", "管理 AI 提示词插件", onClick = { onNavigate(SettingsPage.PLUGIN_CENTER) })

@@ -25,13 +25,13 @@ class TaskCenterScreenSourceTest {
     }
 
     @Test
-    fun mySpaceExposesSeparateAllTasksAndRecentFailureEntries() {
+    fun mySpaceKeepsTaskEntryAndFailureBadgeWithoutAnExtraTextRow() {
         val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
         val mySpace = File("src/main/kotlin/com/dailysatori/ui/feature/myspace/MySpaceScreen.kt").readText()
-        assertTrue(mySpace.contains("MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks, onFailedTasks)"))
-        assertTrue(mySpace.contains("TextButton(onClick = onFailedTasks,"))
+        assertTrue(mySpace.contains("MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)"))
+        assertFalse(mySpace.contains("management_failed_tasks"))
+        assertTrue(mySpace.contains("badgeError = state.failedTaskCount > 0"))
         assertTrue(navigation.contains("onTasks = { navController.navigate(TaskCenterRoute()) }"))
-        assertTrue(navigation.contains("onFailedTasks = { navController.navigate(TaskCenterRoute(recentFailures = true)) }"))
         assertTrue(navigation.contains("recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures"))
     }
 

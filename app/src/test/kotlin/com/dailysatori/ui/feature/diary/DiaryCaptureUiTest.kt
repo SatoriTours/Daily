@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.diary
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DiaryCaptureUiTest {
@@ -87,7 +88,8 @@ class DiaryCaptureUiTest {
         val viewModel = source("DiaryViewModel.kt")
 
         assertTrue(attachmentList.contains("重新转写"))
-        assertTrue(attachmentList.contains("去设置"))
+        assertFalse(attachmentList.contains("Text(\"重新转写\")"))
+        assertFalse(attachmentList.contains("去设置"))
         assertTrue(attachmentList.contains("当前模型不支持音频转写"))
         assertTrue(attachmentList.contains("未配置支持语音转写的服务"))
         assertTrue(attachmentList.contains("转写服务认证失败"))
@@ -95,6 +97,10 @@ class DiaryCaptureUiTest {
         assertTrue(editor.contains("onRetryTranscription"))
         assertTrue(screen.contains("viewModel::retryTranscription"))
         assertTrue(screen.contains("onOpenTranscriptionSettings = onMyClick"))
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        assertTrue(home.contains("DiaryScreen(onMyClick = onProfileClick)"))
+        val navigation = java.io.File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
+        assertTrue(navigation.contains("composable<SpeechSettingsRoute> { SpeechSettingsScreen("))
         assertTrue(viewModel.contains("transcriptionCoordinator?.retry(id)"))
         assertTrue(viewModel.contains("taskScheduler?.enqueue(result.taskId)"))
     }
