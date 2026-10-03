@@ -37,10 +37,14 @@ class AiService(private val client: HttpClient) {
         provider: String = "openai",
         systemPrompt: String? = null,
         temperature: Double = 0.5,
+        disableThinking: Boolean = false,
     ): String = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
         fields = mapOf("provider" to provider, "model" to modelName)) {
         if (usesOpenAiCompatibleChatApi(provider)) {
-            return@operation rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, temperature)
+            return@operation rawOpenAiTextCompletion(
+                apiAddress, apiToken, modelName, prompt, systemPrompt, temperature,
+                disableThinking = disableThinking && provider.trim().equals("deepseek", ignoreCase = true),
+            )
         }
         val response = try {
             withTimeout(aiCompletionRequestTimeoutMillis()) {
@@ -69,6 +73,7 @@ class AiService(private val client: HttpClient) {
         prompt: String,
         systemPrompt: String?,
         temperature: Double,
+        disableThinking: Boolean,
     ): String {
         val response = rawOpenAiChatCompletion(
             apiAddress = apiAddress,
@@ -77,6 +82,7 @@ class AiService(private val client: HttpClient) {
             messages = buildOpenAiTextCompletionMessages(prompt, systemPrompt),
             tools = emptyList(),
             temperature = temperature,
+            disableThinking = disableThinking,
         )
         return extractOpenAiTextCompletionContent(response)
     }
@@ -159,6 +165,7 @@ class AiService(private val client: HttpClient) {
         messages: List<JsonObject>,
         tools: List<JsonObject>,
         temperature: Double,
+        disableThinking: Boolean = false,
     ): JsonObject {
         val response = client.post(openAiChatCompletionEndpoint(apiAddress.trim())) {
             timeout {
@@ -167,7 +174,9 @@ class AiService(private val client: HttpClient) {
             }
             contentType(ContentType.Application.Json)
             bearerAuth(apiToken.trim())
-            setBody(buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature).toString())
+            setBody(buildOpenAiChatCompletionRequest(
+                modelName.trim(), messages, tools, temperature, disableThinking = disableThinking,
+            ).toString())
         }
         val body = response.bodyAsText()
         if (response.status.value !in 200..299) {
@@ -263,10 +272,12 @@ fun buildOpenAiChatCompletionRequest(
     tools: List<JsonObject>,
     temperature: Double,
     stream: Boolean = false,
+    disableThinking: Boolean = false,
 ): JsonObject = buildJsonObject {
     put("model", JsonPrimitive(modelName))
     put("messages", JsonArray(messages))
     put("temperature", JsonPrimitive(temperature))
+    if (disableThinking) put("thinking", buildJsonObject { put("type", JsonPrimitive("disabled")) })
     if (stream) put("stream", JsonPrimitive(true))
     if (tools.isNotEmpty()) {
         put("tools", JsonArray(tools))

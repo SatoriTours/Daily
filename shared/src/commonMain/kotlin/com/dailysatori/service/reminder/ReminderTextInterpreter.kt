@@ -54,6 +54,7 @@ class ReminderAiInterpretationRemote(
             modelName = config.model_name,
             provider = config.provider,
             temperature = 0.0,
+            disableThinking = true,
         )
     }
 
@@ -86,6 +87,7 @@ class ReminderAiInterpretationRemote(
                 prompt = """Convert every structured reminder below into a strict JSON array only. Each array element must include source_index copied exactly from the input plus these required fields: content, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), first_reminder_time (HH:MM), active_day_rule (daily), recurrence_rule (once|monthly:<day>|yearly:<month>:<day>:FEBRUARY_28). Current instant: $now. Timezone: ${zone.id}. Input: $input""",
                 apiAddress = config.api_address, apiToken = config.api_token, modelName = config.model_name,
                 provider = config.provider, temperature = 0.0,
+                disableThinking = true,
             )
         }.fold(
             onSuccess = { ReminderBatchRemoteTiming(configMs, Clock.System.now().toEpochMilliseconds() - requestStarted, response = it) },

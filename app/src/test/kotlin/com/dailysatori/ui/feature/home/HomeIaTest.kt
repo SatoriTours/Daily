@@ -61,7 +61,7 @@ class HomeIaTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
 
         assertTrue(source.contains("private val HomeBottomBarHeight = Height.navBar"))
-        assertTrue(source.contains("private val HomeBottomBarIconSize = IconSize.xl"))
+        assertTrue(source.contains("private val HomeBottomBarIconSize = IconSize.l"))
         assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
         assertFalse(source.contains("BorderStroke("))
         assertFalse(source.contains("border ="))

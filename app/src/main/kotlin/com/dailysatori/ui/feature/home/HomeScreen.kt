@@ -109,8 +109,9 @@ val tabs = listOf(
     TabItem("我的", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
-private val HomeBottomBarHeight = Height.navBar + Spacing.m
-private val HomeBottomBarIconSize = IconSize.xl
+private val HomeBottomBarHeight = Height.navBar
+private val HomeBottomBarIconSize = IconSize.l
+private val HomeAiInputHeight = Height.navBar + Spacing.s
 private val HomeBottomBarHazeBlurRadius = 10.dp
 private const val HomeBottomBarSlideDurationMillis = 480
 private const val HomeBottomBarGlassAlpha = 0.10f
@@ -256,7 +257,7 @@ private fun HomeBottomBarSurface(
         modifier = Modifier
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = Spacing.m, vertical = Spacing.s),
+            .padding(horizontal = Spacing.m, vertical = Spacing.xs),
     ) {
         HomeGlassSurface(
             modifier = Modifier.fillMaxWidth(),
@@ -321,11 +322,11 @@ private fun AiCompactInputRow(
         hazeState = hazeState,
     ) {
         Row(
-            modifier = Modifier.height(HomeBottomBarHeight - Spacing.s).padding(horizontal = Spacing.xs),
+            modifier = Modifier.height(HomeAiInputHeight).padding(horizontal = Spacing.xs),
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onHomeClick, modifier = Modifier.size(HomeBottomBarHeight - Spacing.s)) {
+            IconButton(onClick = onHomeClick, modifier = Modifier.size(HomeAiInputHeight)) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "返回",
@@ -402,10 +403,11 @@ private fun HomeTabNavigationBar(
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
-        modifier = modifier.height(HomeBottomBarHeight).padding(Spacing.xs),
+        modifier = modifier.height(HomeBottomBarHeight),
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0),
     ) {
         tabs.forEachIndexed { index, tab ->
             val badgeCount = homeReminderBadgeCount(index, todayReminderCount)

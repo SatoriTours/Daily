@@ -13,6 +13,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -97,6 +98,12 @@ class GenericAsyncTaskWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
+    override suspend fun getForegroundInfo(): ForegroundInfo = createAsyncTaskForegroundInfo(
+        applicationContext,
+        inputData.getLong(KEY_TASK_ID, -1L),
+        inputData.getString(KEY_TASK_TYPE).orEmpty(),
+    )
+
     override suspend fun doWork(): Result {
         val taskId = inputData.getLong(KEY_TASK_ID, -1L)
         if (taskId <= 0L) return Result.failure()
@@ -176,7 +183,11 @@ internal fun buildAsyncTaskWorkRequest(
                 .build(),
         )
     }
-    if (initialDelayMs > 0L) builder.setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
+    if (initialDelayMs > 0L) {
+        builder.setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
+    } else if (taskType == ReminderAiParseTaskHandler.TYPE) {
+        builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+    }
     return builder.build()
 }
 
@@ -203,6 +214,7 @@ private fun createAsyncTaskForegroundInfo(context: Context, taskId: Long, taskTy
 }
 
 private fun asyncTaskNotificationText(taskType: String): String = when (taskType) {
+    ReminderAiParseTaskHandler.TYPE -> "正在解析提醒…"
     "external_favorite_sync" -> "正在同步外部收藏…"
     "save_article" -> "正在保存并整理文章…"
     "remote_article_reprocess" -> "正在整理收藏文章…"

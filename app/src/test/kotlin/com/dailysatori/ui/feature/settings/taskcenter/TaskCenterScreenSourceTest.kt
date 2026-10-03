@@ -25,12 +25,14 @@ class TaskCenterScreenSourceTest {
     }
 
     @Test
-    fun mySpaceKeepsTaskEntryAndFailureBadgeWithoutAnExtraTextRow() {
+    fun mySpaceKeepsTaskEntryAndOnlyBadgesActiveTasks() {
         val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
         val mySpace = File("src/main/kotlin/com/dailysatori/ui/feature/myspace/MySpaceScreen.kt").readText()
         assertTrue(mySpace.contains("MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)"))
         assertFalse(mySpace.contains("management_failed_tasks"))
-        assertTrue(mySpace.contains("badgeError = state.failedTaskCount > 0"))
+        assertTrue(mySpace.contains("showBadge = state.activeTaskCount > 0)"))
+        assertFalse(mySpace.contains("badgeError"))
+        assertFalse(mySpace.contains("showBadge = state.activeTaskCount > 0 || state.failedTaskCount > 0"))
         assertTrue(navigation.contains("onTasks = { navController.navigate(TaskCenterRoute()) }"))
         assertTrue(navigation.contains("recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures"))
     }

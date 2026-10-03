@@ -133,7 +133,7 @@ private fun MyQuickActions(
             MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
             MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
                 Modifier.weight(1f).semantics { stateDescription = taskStatus },
-                showBadge = state.activeTaskCount > 0 || state.failedTaskCount > 0, badgeError = state.failedTaskCount > 0)
+                showBadge = state.activeTaskCount > 0)
         }
     }
 }
@@ -145,12 +145,11 @@ private fun MyQuickAction(
     onClick: () -> Unit,
     modifier: Modifier,
     showBadge: Boolean = false,
-    badgeError: Boolean = false,
 ) {
     Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.s),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         BadgedBox(badge = {
-            if (showBadge) Badge(containerColor = if (badgeError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            if (showBadge) Badge(containerColor = MaterialTheme.colorScheme.primary)
         }) {
             Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Box(Modifier.size(Spacing.xxl), contentAlignment = Alignment.Center) {

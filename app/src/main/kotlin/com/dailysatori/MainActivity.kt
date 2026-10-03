@@ -1,6 +1,7 @@
 package com.dailysatori
 
 import android.content.Intent
+import android.content.Context
 import android.os.Bundle
 import com.dailysatori.core.diagnostics.SafeAndroidLog as Log
 import androidx.activity.ComponentActivity
@@ -8,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import com.dailysatori.core.diagnostics.DiagnosticRecoveryReader
+import com.dailysatori.core.service.I18nInitializer
+import com.dailysatori.service.i18n.I18nService
 import java.io.File
 import androidx.lifecycle.lifecycleScope
 import com.dailysatori.core.reminder.ReminderRecoveryController
@@ -29,6 +32,11 @@ import org.koin.core.context.GlobalContext
 
 class MainActivity : ComponentActivity() {
     private lateinit var reminderRecovery: ReminderRecoveryController
+
+    override fun attachBaseContext(newBase: Context) {
+        val language = GlobalContext.get().get<I18nService>().getCurrentLanguage()
+        super.attachBaseContext(I18nInitializer.localizedContext(newBase, language))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
