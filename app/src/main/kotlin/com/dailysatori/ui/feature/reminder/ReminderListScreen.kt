@@ -387,7 +387,7 @@ private fun ReminderMonthChip(month: ReminderMonthUi, isCurrent: Boolean, isSele
                     .align(Alignment.TopEnd)
                     .padding(top = 5.dp, end = 6.dp)
                     .size(5.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    .background(MaterialTheme.colorScheme.error, CircleShape),
             )
         }
     }

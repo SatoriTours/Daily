@@ -160,7 +160,7 @@ private fun MyQuickAction(
     Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         BadgedBox(badge = {
-            if (showBadge) Badge(containerColor = MaterialTheme.colorScheme.primary)
+            if (showBadge) Badge(containerColor = MaterialTheme.colorScheme.error)
         }) {
             Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Box(Modifier.size(Spacing.xxl - Spacing.xs), contentAlignment = Alignment.Center) {
@@ -232,7 +232,7 @@ private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: (
     }
     val date = if (item.occurrenceDate.year == today.year) day else "${item.occurrenceDate.year} · $day"
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stackTime = maxWidth < Spacing.xxl * 5 || fontScale > 1.3f
+        val stackTime = maxWidth < Spacing.xxl * 5 || fontScale > 1.3f || item.occurrenceDate.year != today.year
         Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             if (stackTime) {
@@ -241,9 +241,9 @@ private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: (
                     MyReminderBody(item)
                 }
             } else {
-                Column(Modifier.widthIn(min = Spacing.xxl, max = Height.navBar + Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(date, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(item.firstReminderTime, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(date, softWrap = false, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(item.firstReminderTime, softWrap = false, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                 }
                 VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
                 MyReminderBody(item, Modifier.weight(1f))
