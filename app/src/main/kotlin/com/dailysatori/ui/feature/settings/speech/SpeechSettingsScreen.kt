@@ -13,6 +13,10 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +29,7 @@ import com.dailysatori.service.diary.modelHint
 import com.dailysatori.service.diary.speechModelDisplayName
 import com.dailysatori.service.diary.speechSettingsProviders
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
+import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
 import com.dailysatori.ui.component.settings.SettingsScaffold
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
@@ -37,13 +42,19 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
     val pageBackground = MaterialTheme.colorScheme.background
     val viewModel: SpeechSettingsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val savedMessage = stringResource(R.string.settings_saved)
     val provider = speechSettingsProviders.firstOrNull { it.id == state.config.provider } ?: speechSettingsProviders.first()
     var picker by remember { mutableStateOf<SpeechPicker?>(null) }
+    val requestBack = rememberSettingsEditorBack(state.hasChanges, state.saving, onBack, viewModel::discardChanges)
     SettingsScaffold(
-        title = "语音模型", onBack = onBack,
+        title = "语音模型", onBack = requestBack,
         bottomBar = {
             Button(
-                onClick = viewModel::save, enabled = state.canSave,
+                onClick = { viewModel.save {
+                    Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+                    onBack()
+                } }, enabled = state.canSave,
                 shape = RoundedCornerShape(Radius.m),
                 modifier = Modifier.fillMaxWidth().padding(Spacing.m).heightIn(min = Height.button),
             ) { Text(if (state.saving) "保存中…" else "保存") }

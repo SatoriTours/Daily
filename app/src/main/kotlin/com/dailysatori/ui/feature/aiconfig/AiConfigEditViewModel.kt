@@ -9,6 +9,7 @@ import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.service.ai.AiModelCatalogService
 import com.dailysatori.service.ai.AiService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
+
+data class AiConfigDraft(
+    val providerId: String? = null,
+    val modelId: String? = null,
+    val apiToken: String = "",
+    val isDefault: Boolean = false,
+)
 
 data class AiConfigEditState(
     val selectedProvider: AiProvider? = null,
@@ -32,7 +40,15 @@ data class AiConfigEditState(
     val modelRefreshMessage: String? = null,
     val testResult: String? = null,
     val testSuccess: Boolean? = null,
-)
+    val savedDraft: AiConfigDraft = AiConfigDraft(),
+    val isLoading: Boolean = false,
+    val saveError: String? = null,
+) {
+    val draft: AiConfigDraft get() = AiConfigDraft(selectedProvider?.id,
+        currentModelId(customModelName, selectedModel), apiToken, isDefault)
+    val hasChanges: Boolean get() = draft != savedDraft
+    val editable: Boolean get() = !isLoading && !isSaving && !isTesting
+}
 
 class AiConfigEditViewModel(
     private val repo: AIConfigRepository,
@@ -47,30 +63,41 @@ class AiConfigEditViewModel(
     fun load(configId: Long?) {
         loadJob?.cancel()
         val token = loadRequestToken.incrementAndGet()
-        _state.value = AiConfigEditState()
+        _state.value = AiConfigEditState(isLoading = configId != null)
         if (configId == null) return
         loadJob = viewModelScope.launch(Dispatchers.IO) {
-            val config = repo.getById(configId) ?: return@launch
-            val provider = findProvider(config.provider)
-            val model = provider?.models?.find { it.id == config.model_name }
-            val availableModels = provider?.let { modelsForProvider(it) }.orEmpty()
-            _state.update {
-                if (token != loadRequestToken.get()) return@update it
-                it.copy(
-                    apiToken = config.api_token,
-                    isDefault = config.is_default == 1L,
-                    wasDefault = config.is_default == 1L,
-                    selectedProvider = provider,
-                    selectedModel = model,
-                    customModelName = config.model_name,
-                    availableModels = availableModels,
-                )
+            try {
+                val config = repo.getById(configId) ?: error("配置不存在")
+                val provider = findProvider(config.provider)
+                val model = provider?.models?.find { it.id == config.model_name }
+                val availableModels = provider?.let { modelsForProvider(it) }.orEmpty()
+                _state.update {
+                    if (token != loadRequestToken.get()) return@update it
+                    it.copy(
+                        apiToken = config.api_token,
+                        isDefault = config.is_default == 1L,
+                        wasDefault = config.is_default == 1L,
+                        selectedProvider = provider,
+                        selectedModel = model,
+                        customModelName = config.model_name,
+                        availableModels = availableModels,
+                        savedDraft = AiConfigDraft(provider?.id, currentModelId(config.model_name, model), config.api_token, config.is_default == 1L),
+                        isLoading = false,
+                    )
+                }
+                autoRefreshModelsIfNeeded()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { if (token == loadRequestToken.get()) it.copy(saveError = "读取配置失败，请返回后重试") else it }
+            } finally {
+                _state.update { if (token == loadRequestToken.get()) it.copy(isLoading = false) else it }
             }
-            autoRefreshModelsIfNeeded()
         }
     }
 
     fun selectProvider(provider: AiProvider) {
+        if (!_state.value.editable) return
         _state.update {
             it.copy(
                 selectedProvider = provider,
@@ -86,58 +113,71 @@ class AiConfigEditViewModel(
     }
 
     fun selectModel(model: AiModel) {
-        _state.update { it.copy(selectedModel = model, customModelName = model.id) }
+        if (!_state.value.editable) return
+        _state.update { it.copy(selectedModel = model, customModelName = model.id, testResult = null, testSuccess = null, saveError = null) }
     }
 
     fun updateApiToken(value: String) {
-        _state.update { it.copy(apiToken = value) }
+        if (!_state.value.editable) return
+        _state.update { it.copy(apiToken = value, testResult = null, testSuccess = null, saveError = null) }
         autoRefreshModelsIfNeeded()
     }
 
     fun updateCustomModelName(value: String) {
-        _state.update { it.copy(customModelName = value) }
+        if (!_state.value.editable) return
+        _state.update { it.copy(customModelName = value, testResult = null, testSuccess = null, saveError = null) }
     }
 
     fun updateIsDefault(value: Boolean) {
+        if (!_state.value.editable) return
         _state.update { it.copy(isDefault = value) }
     }
 
     fun testConnection() {
         val snapshot = _state.value
+        if (!snapshot.editable) return
         val provider = snapshot.selectedProvider ?: return
         val modelId = currentModelId(snapshot.customModelName, snapshot.selectedModel) ?: return
         val token = snapshot.apiToken
+        _state.update { it.copy(isTesting = true, testResult = null, testSuccess = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isTesting = true, testResult = null, testSuccess = null) }
-            val result = withContext(Dispatchers.IO) {
-                aiService.testConnection(
-                    apiAddress = provider.apiHost,
-                    apiToken = token,
-                    modelName = modelId,
-                    provider = provider.id,
-                )
-            }
-            _state.update {
-                it.copy(
-                    testSuccess = result.isSuccess,
-                    testResult = result.fold(
-                        onSuccess = { message -> "连接成功：${message.take(80)}" },
-                        onFailure = { error -> error.message ?: "连接失败" },
-                    ),
-                    isTesting = false,
-                )
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    aiService.testConnection(
+                        apiAddress = provider.apiHost,
+                        apiToken = token,
+                        modelName = modelId,
+                        provider = provider.id,
+                    )
+                }
+                _state.update {
+                    it.copy(
+                        testSuccess = result.isSuccess,
+                        testResult = result.fold(
+                            onSuccess = { message -> "连接成功：${message.take(80)}" },
+                            onFailure = { error -> error.message ?: "连接失败" },
+                        ),
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { it.copy(testResult = "连接失败，请重试", testSuccess = false) }
+            } finally {
+                _state.update { it.copy(isTesting = false) }
             }
         }
     }
 
     fun save(configId: Long?, onSaved: () -> Unit) {
         val snapshot = _state.value
+        if (!snapshot.editable || !snapshot.hasChanges) return
         val provider = snapshot.selectedProvider ?: return
         val modelId = currentModelId(snapshot.customModelName, snapshot.selectedModel) ?: return
         val token = snapshot.apiToken
         val defaultValue = snapshot.isDefault
+        _state.update { it.copy(isSaving = true, saveError = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true) }
             try {
                 withContext(Dispatchers.IO) {
                     if (configId != null) {
@@ -146,7 +186,12 @@ class AiConfigEditViewModel(
                         repo.insert(provider.id, provider.apiHost, token, modelId, if (defaultValue) 1L else 0L)
                     }
                 }
+                _state.update { it.copy(savedDraft = snapshot.draft) }
                 onSaved()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { it.copy(saveError = "保存失败，请重试") }
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }

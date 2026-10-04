@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -82,7 +83,7 @@ fun MySpaceScreen(
         state = listState,
         contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
             bottom = Height.navBar + Spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.l),
+        verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
         item(key = "header") {
             MainPageHeader(title = stringResource(R.string.personal_settings_my_title)) {
@@ -95,8 +96,10 @@ fun MySpaceScreen(
             MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
         }
         item(key = "life-archive") {
-            MySectionCard {
-                MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive)
+            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                .clickable(role = Role.Button, onClick = onLifeArchive)) {
+                MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive,
+                    titleClickable = false)
                 Text(stringResource(R.string.life_archive_entry_hint), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -154,13 +157,13 @@ private fun MyQuickAction(
     modifier: Modifier,
     showBadge: Boolean = false,
 ) {
-    Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.s),
+    Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         BadgedBox(badge = {
             if (showBadge) Badge(containerColor = MaterialTheme.colorScheme.primary)
         }) {
             Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Box(Modifier.size(Spacing.xxl), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(Spacing.xxl - Spacing.xs), contentAlignment = Alignment.Center) {
                     Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -170,17 +173,22 @@ private fun MyQuickAction(
 }
 
 @Composable
-private fun MySectionCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s), content = content)
+private fun MySectionCard(compact: Boolean = false, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+        Column(
+            Modifier.padding(horizontal = Spacing.m, vertical = if (compact) Spacing.s + Spacing.xs else Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(if (compact) Spacing.xs else Spacing.s),
+            content = content,
+        )
     }
 }
 
 @Composable
-private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit) {
+private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit, titleClickable: Boolean = true) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(title, Modifier.weight(1f).clickable(onClick = onAll), style = MaterialTheme.typography.titleMedium)
+        Text(title, Modifier.weight(1f).then(if (titleClickable) Modifier.clickable(onClick = onAll) else Modifier),
+            style = MaterialTheme.typography.titleMedium)
         TextButton(onClick = onAll) {
             Text(stringResource(R.string.my_space_view_all))
             Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))

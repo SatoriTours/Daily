@@ -17,6 +17,7 @@ import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.Remote_news_source
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+
+data class RemoteNewsDraft(val name: String = "", val baseUrl: String = "", val token: String = "", val enabled: Boolean = true)
 
 data class RemoteNewsSettingsState(
     val sources: List<Remote_news_source> = emptyList(),
@@ -40,7 +43,14 @@ data class RemoteNewsSettingsState(
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,
     val message: String? = null,
-)
+    val isError: Boolean = false,
+    val isDeleting: Boolean = false,
+    val savedDraft: RemoteNewsDraft = RemoteNewsDraft(),
+) {
+    val busy: Boolean get() = isSaving || isTesting || isDeleting
+    val draft: RemoteNewsDraft get() = RemoteNewsDraft(name, baseUrl, token, enabled)
+    val hasChanges: Boolean get() = isEditing && draft != savedDraft
+}
 
 data class RemoteNewsSyncWorkUi(
     val taskId: Long? = null,
@@ -70,16 +80,17 @@ class RemoteNewsSettingsViewModel(
 
     init { load() }
 
-    fun updateName(value: String) = _state.update { it.copy(name = value, message = null) }
+    fun updateName(value: String) = _state.update { if (it.busy) it else it.copy(name = value, message = null, isError = false) }
 
-    fun updateBaseUrl(value: String) = _state.update { it.copy(baseUrl = value, message = null) }
+    fun updateBaseUrl(value: String) = _state.update { if (it.busy) it else it.copy(baseUrl = value, message = null, isError = false) }
 
-    fun updateToken(value: String) = _state.update { it.copy(token = value, message = null) }
+    fun updateToken(value: String) = _state.update { if (it.busy) it else it.copy(token = value, message = null, isError = false) }
 
-    fun updateEnabled(value: Boolean) = _state.update { it.copy(enabled = value, message = null) }
+    fun updateEnabled(value: Boolean) = _state.update { if (it.busy) it else it.copy(enabled = value, message = null, isError = false) }
 
     fun openAdd() = _state.update {
-        it.copy(isEditing = true, editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
+        it.copy(isEditing = true, editingId = null, name = "", baseUrl = "", token = "", enabled = true,
+            message = null, isError = false, savedDraft = RemoteNewsDraft())
     }
 
     fun openEdit(source: Remote_news_source) = _state.update {
@@ -91,11 +102,13 @@ class RemoteNewsSettingsViewModel(
             token = source.api_token,
             enabled = source.enabled == 1L,
             message = null,
+            isError = false,
+            savedDraft = RemoteNewsDraft(source.name, source.base_url, source.api_token, source.enabled == 1L),
         )
     }
 
     fun closeEditor() = _state.update {
-        it.copy(isEditing = false, editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
+        if (it.busy) it else it.copy(isEditing = false, editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
     }
 
     fun load() {
@@ -106,7 +119,7 @@ class RemoteNewsSettingsViewModel(
     }
 
     fun save() {
-        if (state.value.isSaving) return
+        if (state.value.busy || !state.value.hasChanges) return
         val form = state.value
         val editingId = form.editingId
         val name = form.name.trim()
@@ -115,14 +128,14 @@ class RemoteNewsSettingsViewModel(
         val token = form.token.trim()
         val enabled = form.enabled
         if (name.isBlank() || rawBaseUrl.isBlank() || token.isBlank()) {
-            _state.update { it.copy(message = "请填写名称、URL 和 Token") }
+            _state.update { it.copy(message = "请填写名称、URL 和 Token", isError = true) }
             return
         }
         if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-            _state.update { it.copy(message = "URL 必须以 http:// 或 https:// 开头") }
+            _state.update { it.copy(message = "URL 必须以 http:// 或 https:// 开头", isError = true) }
             return
         }
-        _state.update { it.copy(isSaving = true, message = null) }
+        _state.update { it.copy(isSaving = true, message = null, isError = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 sourceRepo.save(editingId, name, baseUrl, token, enabled)
@@ -135,10 +148,13 @@ class RemoteNewsSettingsViewModel(
                         token = "",
                         enabled = true,
                         message = "远程新闻设置已保存",
+                        isError = false,
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
-                _state.update { it.copy(message = "远程新闻设置保存失败") }
+                _state.update { it.copy(message = "远程新闻设置保存失败", isError = true) }
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }
@@ -146,22 +162,34 @@ class RemoteNewsSettingsViewModel(
     }
 
     fun deleteSource(id: Long) {
+        if (_state.value.busy) return
+        _state.update { it.copy(isDeleting = true, message = null, isError = false) }
         viewModelScope.launch(Dispatchers.IO) {
-            sourceRepo.delete(id)
-            _state.update { current ->
-                val editingDeleted = current.editingId == id
-                current.copyRemoteNewsSyncCounts().copy(
-                    isEditing = if (editingDeleted) false else current.isEditing,
-                    editingId = if (editingDeleted) null else current.editingId,
-                    name = if (editingDeleted) "" else current.name,
-                    baseUrl = if (editingDeleted) "" else current.baseUrl,
-                    token = if (editingDeleted) "" else current.token,
-                    enabled = if (editingDeleted) true else current.enabled,
-                    message = "远程新闻已删除",
-                )
+            try {
+                sourceRepo.delete(id)
+                _state.update { current ->
+                    val editingDeleted = current.editingId == id
+                    current.copyRemoteNewsSyncCounts().copy(
+                        isEditing = if (editingDeleted) false else current.isEditing,
+                        editingId = if (editingDeleted) null else current.editingId,
+                        name = if (editingDeleted) "" else current.name,
+                        baseUrl = if (editingDeleted) "" else current.baseUrl,
+                        token = if (editingDeleted) "" else current.token,
+                        enabled = if (editingDeleted) true else current.enabled,
+                        message = "远程新闻已删除",
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { it.copy(message = "删除失败，请重试", isError = true) }
+            } finally {
+                _state.update { it.copy(isDeleting = false) }
             }
         }
     }
+
+    fun clearMessage() = _state.update { it.copy(message = null) }
 
     fun syncSource(id: Long) {
         if (remoteNewsHasActiveSync(_state.value)) {
@@ -219,29 +247,31 @@ class RemoteNewsSettingsViewModel(
     }
 
     fun testConnection() {
-        if (state.value.isTesting) return
+        if (state.value.busy) return
         val baseUrl = normalizeTopArticlesTodayUrl(state.value.baseUrl.trim())
         val token = state.value.token.trim()
         if (state.value.baseUrl.isBlank() || token.isBlank()) {
-            _state.update { it.copy(message = "请先配置远程新闻服务") }
+            _state.update { it.copy(message = "请先配置远程新闻服务", isError = true) }
             return
         }
-        _state.update { it.copy(isTesting = true, message = null) }
+        _state.update { it.copy(isTesting = true, message = null, isError = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val config = remoteNewsService.configOrFailure(baseUrl, token)
                 val message = when (config) {
-                    is RemoteNewsResult.Failure -> config.message
+                    is RemoteNewsResult.Failure -> config.message to true
                     is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (
                         val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 1)
                     ) {
-                        is RemoteNewsResult.Success -> "连接成功，获取到 ${result.value.articles.size} 篇文章"
-                        is RemoteNewsResult.Failure -> result.message
+                        is RemoteNewsResult.Success -> "连接成功，获取到 ${result.value.articles.size} 篇文章" to false
+                        is RemoteNewsResult.Failure -> result.message to true
                     }
                 }
-                _state.update { it.copy(message = message) }
+                _state.update { it.copy(message = message.first, isError = message.second) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
-                _state.update { it.copy(message = "无法连接远程新闻服务") }
+                _state.update { it.copy(message = "无法连接远程新闻服务", isError = true) }
             } finally {
                 _state.update { it.copy(isTesting = false) }
             }

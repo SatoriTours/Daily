@@ -48,6 +48,8 @@ fun ReminderSettingsScreen(
     }
     AppScaffold(title = stringResource(R.string.reminder_settings_title), onBack = onBack) { modifier ->
         Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
+            Text(stringResource(R.string.settings_immediate_changes), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             state.primarySections.forEach { section ->
                 when (section.id) {
                     "default-rhythm" -> DefaultRhythmCard(state, viewModel)

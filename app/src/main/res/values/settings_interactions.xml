@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_unsaved_title">有未保存的修改</string>
+    <string name="settings_unsaved_message">离开后，本次修改将不会保存。</string>
+    <string name="settings_discard_changes">放弃修改</string>
+    <string name="settings_continue_editing">继续编辑</string>
+    <string name="settings_token_title">API Token</string>
+    <string name="settings_token_hidden">已设置 · 点击复制</string>
+    <string name="settings_token_copy">复制 Token</string>
+    <string name="settings_token_copied">Token 已复制</string>
+    <string name="settings_token_show">显示 Token</string>
+    <string name="settings_token_hide">隐藏 Token</string>
+    <string name="settings_token_reset">重置 Token</string>
+    <string name="settings_token_reset_message">重置后，原 Token 将失效，已连接的客户端需要更新凭据。</string>
+    <string name="settings_token_reset_done">Token 已重置</string>
+    <string name="settings_cancel">取消</string>
+    <string name="settings_saved">已保存</string>
+    <string name="settings_delete_source_title">删除新闻源？</string>
+    <string name="settings_delete_source_message">将删除新闻源“%1$s”，之后不再从此来源同步。</string>
+    <string name="settings_delete">删除</string>
+    <string name="settings_immediate_changes">修改后自动保存，无需另外点击保存。</string>
+</resources>

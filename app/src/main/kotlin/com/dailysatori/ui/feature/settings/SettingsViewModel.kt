@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import java.net.NetworkInterface
 import java.security.SecureRandom
 
@@ -34,6 +35,8 @@ data class SettingsState(
     val webServerError: String? = null,
     val webServerAddress: String = "",
     val webServerToken: String = "",
+    val isRefreshingToken: Boolean = false,
+    val webServerMessage: String? = null,
     val isCheckingUpdate: Boolean = false,
     val availableRelease: AppRelease? = null,
     val showUpdateDialog: Boolean = false,
@@ -60,6 +63,7 @@ class SettingsViewModel(
     private val settingRepo: SettingRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsState())
+    private val webServerOperation = Mutex()
     val state: StateFlow<SettingsState> = _state.asStateFlow()
     private val updatePreferences = viewModelScope.async(Dispatchers.IO) {
         val channel = UpdateChannel.fromId(settingRepo.get("update_channel") ?: BuildConfig.UPDATE_CHANNEL)
@@ -82,31 +86,51 @@ class SettingsViewModel(
     }
 
     fun toggleWebServer() {
+        if (!webServerOperation.tryLock()) return
+        val wasRunning = _state.value.webServerRunning
+        _state.update { it.copy(isTogglingWebServer = true, webServerError = null) }
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isTogglingWebServer = true, webServerError = null) }
             try {
-                if (_state.value.webServerRunning) {
+                if (wasRunning) {
                     webServerService.stop()
-                    _state.update { it.copy(webServerRunning = false, isTogglingWebServer = false, webServerAddress = "") }
+                    _state.update { it.copy(webServerRunning = false, webServerAddress = "") }
                 } else {
                     ensureToken()
                     val port = webServerService.start()
                     val address = getDeviceIp()?.let { "http://$it:$port" } ?: "http://localhost:$port"
-                    _state.update { it.copy(webServerRunning = true, isTogglingWebServer = false, webServerAddress = address) }
+                    _state.update { it.copy(webServerRunning = true, webServerAddress = address) }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
-                _state.update { it.copy(isTogglingWebServer = false, webServerError = e.message ?: "Unknown error") }
+                _state.update { it.copy(webServerError = e.message ?: "操作失败，请重试") }
+            } finally {
+                _state.update { it.copy(isTogglingWebServer = false) }
+                webServerOperation.unlock()
             }
         }
     }
 
     fun refreshToken() {
+        if (!webServerOperation.tryLock()) return
+        _state.update { it.copy(isRefreshingToken = true, webServerError = null, webServerMessage = null) }
         viewModelScope.launch(Dispatchers.IO) {
-            val newToken = generateToken()
-            settingRepo.upsert("web_server_token", newToken)
-            _state.update { it.copy(webServerToken = newToken) }
+            try {
+                val newToken = generateToken()
+                settingRepo.upsert("web_server_token", newToken)
+                _state.update { it.copy(webServerToken = newToken, webServerMessage = "Token 已重置") }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _state.update { it.copy(webServerError = "Token 重置失败，请重试") }
+            } finally {
+                _state.update { it.copy(isRefreshingToken = false) }
+                webServerOperation.unlock()
+            }
         }
     }
+
+    fun consumeWebServerMessage() = _state.update { it.copy(webServerMessage = null) }
 
     private fun ensureToken() {
         val existing = settingRepo.get("web_server_token")

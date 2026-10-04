@@ -30,11 +30,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import android.widget.Toast
+import com.dailysatori.R
 import com.dailysatori.config.AiModel
 import com.dailysatori.config.aiProviders
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
+import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -47,6 +52,8 @@ fun AiConfigEditScreen(
 ) {
     val viewModel: AiConfigEditViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val savedMessage = stringResource(R.string.settings_saved)
 
     var providerExpanded by remember { mutableStateOf(false) }
     var modelExpanded by remember { mutableStateOf(false) }
@@ -65,8 +72,9 @@ fun AiConfigEditScreen(
     val testSuccess = state.testSuccess
     val models = state.availableModels
     val currentModel = currentModelId(customModelName, selectedModel)
-    val canTest = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
-    val canSave = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
+    val canTest = state.editable && selectedProvider != null && apiToken.isNotBlank() && currentModel != null
+    val canSave = canTest && state.hasChanges
+    val requestBack = rememberSettingsEditorBack(state.hasChanges, !state.editable, onBack)
 
     LaunchedEffect(configId) {
         viewModel.load(configId)
@@ -74,7 +82,7 @@ fun AiConfigEditScreen(
 
     AppScaffold(
         title = if (configId != null) "编辑配置" else "添加配置",
-        onBack = onBack,
+        onBack = requestBack,
         bottomBar = {
             SettingsEditorBottomBar(
                 canTest = canTest,
@@ -82,7 +90,10 @@ fun AiConfigEditScreen(
                 isTesting = isTesting,
                 isSaving = isSaving,
                 onTest = viewModel::testConnection,
-                onSave = { viewModel.save(configId, onBack) },
+                onSave = { viewModel.save(configId) {
+                    Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+                    onBack()
+                } },
             )
         },
     ) { modifier ->
@@ -91,15 +102,19 @@ fun AiConfigEditScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
             contentPadding = PaddingValues(vertical = Spacing.m),
         ) {
+            state.saveError?.let { message ->
+                item { SettingsEditorMessage(message, isError = true) }
+            }
             item {
                 Text("选择服务商", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 ExposedDropdownMenuBox(
                     expanded = providerExpanded,
-                    onExpandedChange = { providerExpanded = it },
+                    onExpandedChange = { if (state.editable) providerExpanded = it },
                 ) {
                     OutlinedTextField(
                         value = selectedProvider?.name ?: "请选择模型服务商",
+                        enabled = state.editable,
                         onValueChange = {},
                         readOnly = true,
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
@@ -129,6 +144,7 @@ fun AiConfigEditScreen(
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 OutlinedTextField(
                     value = apiToken,
+                    enabled = state.editable,
                     onValueChange = viewModel::updateApiToken,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("sk-...") },
@@ -150,7 +166,7 @@ fun AiConfigEditScreen(
                     )
                     TextButton(
                         onClick = viewModel::refreshModels,
-                        enabled = selectedProvider != null && !isRefreshingModels,
+                        enabled = selectedProvider != null && !isRefreshingModels && state.editable,
                     ) {
                         Text(if (isRefreshingModels) "刷新中" else "刷新模型")
                     }
@@ -179,10 +195,11 @@ fun AiConfigEditScreen(
                 } else {
                     ExposedDropdownMenuBox(
                         expanded = modelExpanded,
-                        onExpandedChange = { modelExpanded = it },
+                        onExpandedChange = { if (state.editable) modelExpanded = it },
                     ) {
                         OutlinedTextField(
                             value = selectedModel?.name ?: "请选择模型",
+                            enabled = state.editable,
                             onValueChange = {},
                             readOnly = true,
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
@@ -214,7 +231,7 @@ fun AiConfigEditScreen(
                     placeholder = { Text("自定义模型名称") },
                     shape = RoundedCornerShape(Radius.s),
                     singleLine = true,
-                    enabled = selectedProvider != null,
+                    enabled = state.editable && selectedProvider != null,
                 )
                 if (modelRefreshMessage != null) {
                     Spacer(modifier = Modifier.height(Spacing.xs))
@@ -243,7 +260,7 @@ fun AiConfigEditScreen(
                     Switch(
                         checked = isDefault,
                         onCheckedChange = viewModel::updateIsDefault,
-                        enabled = !wasDefault,
+                        enabled = state.editable && !wasDefault,
                     )
                 }
             }

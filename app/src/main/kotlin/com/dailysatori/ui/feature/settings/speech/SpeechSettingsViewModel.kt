@@ -20,9 +20,11 @@ data class SpeechSettingsState(
     val saving: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false,
+    val savedConfig: SpeechConfig? = null,
 ) {
     val editable: Boolean get() = loaded && !saving
-    val canSave: Boolean get() = editable && config.validationError() == null
+    val hasChanges: Boolean get() = loaded && config != (savedConfig ?: speechSettingsProviders.first().newConfig())
+    val canSave: Boolean get() = editable && hasChanges && config.validationError() == null
 }
 
 class SpeechSettingsViewModel(private val service: SpeechSettingsService) : ViewModel() {
@@ -38,13 +40,17 @@ class SpeechSettingsViewModel(private val service: SpeechSettingsService) : View
                 val officialOrigin = provider?.apiAddress?.let { Url(it).host }
                 val previousOrigin = config?.apiAddress?.let { runCatching { Url(it).host }.getOrNull() }
                 val sameOrigin = officialOrigin != null && officialOrigin == previousOrigin
-                _state.update { it.copy(
-                    config = if (provider != null && config != null) config.copy(
+                _state.update {
+                    val loadedConfig = if (provider != null && config != null) config.copy(
                         apiAddress = provider.apiAddress, apiKey = config.apiKey.takeIf { sameOrigin }.orEmpty(),
-                    ) else it.config,
-                    loaded = true,
-                    message = if (config != null && !sameOrigin) "请填写所选提供商的官方 API Key" else null,
-                ) }
+                    ) else it.config
+                    it.copy(
+                        config = loadedConfig,
+                        savedConfig = loadedConfig,
+                        loaded = true,
+                        message = if (config != null && !sameOrigin) "请填写所选提供商的官方 API Key" else null,
+                    )
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -71,7 +77,13 @@ class SpeechSettingsViewModel(private val service: SpeechSettingsService) : View
         if (_state.value.editable) _state.update { it.copy(config = config, message = null, isError = false) }
     }
 
-    fun save() {
+    fun discardChanges() {
+        if (!_state.value.editable) return
+        drafts.clear()
+        _state.update { it.copy(config = it.savedConfig ?: speechSettingsProviders.first().newConfig(), message = null, isError = false) }
+    }
+
+    fun save(onSaved: () -> Unit = {}) {
         val snapshot = _state.value
         if (!snapshot.editable) return
         snapshot.config.validationError()?.let { error ->
@@ -82,7 +94,8 @@ class SpeechSettingsViewModel(private val service: SpeechSettingsService) : View
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { service.save(snapshot.config) }
-                _state.update { it.copy(saving = false, message = "已保存，语音日记将使用此配置转写") }
+                _state.update { it.copy(saving = false, savedConfig = snapshot.config, message = "已保存，语音日记将使用此配置转写") }
+                onSaved()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

@@ -31,13 +31,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
+import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
+import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,9 +86,17 @@ private fun RemoteNewsSourceListPage(
     viewModel: RemoteNewsSettingsViewModel,
     onBack: () -> Unit,
 ) {
+    val snackbarHost = remember { SnackbarHostState() }
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbarHost.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
     AppScaffold(
         title = "远程新闻设置",
         onBack = onBack,
+        snackbarHost = { SnackbarHost(snackbarHost) },
         floatingActionButton = {
             FloatingActionButton(onClick = viewModel::openAdd) {
                 Icon(Icons.Default.Add, contentDescription = "新增远程新闻")
@@ -424,9 +441,36 @@ private fun RemoteNewsSourceEditorPage(
     state: RemoteNewsSettingsState,
     viewModel: RemoteNewsSettingsViewModel,
 ) {
+    val requestBack = rememberSettingsEditorBack(state.hasChanges, state.busy, viewModel::closeEditor)
+    var confirmDelete by rememberSaveable(state.editingId) { mutableStateOf(false) }
+    if (confirmDelete) AlertDialog(
+        onDismissRequest = { confirmDelete = false },
+        title = { Text(stringResource(R.string.settings_delete_source_title)) },
+        text = { Text(stringResource(R.string.settings_delete_source_message, state.savedDraft.name)) },
+        confirmButton = {
+            TextButton(enabled = !state.busy, onClick = {
+                confirmDelete = false
+                state.editingId?.let(viewModel::deleteSource)
+            }) { Text(stringResource(R.string.settings_delete), color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = {
+            TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.settings_cancel)) }
+        },
+    )
     AppScaffold(
         title = if (state.editingId == null) "新增远程新闻" else "编辑远程新闻",
-        onBack = viewModel::closeEditor,
+        onBack = requestBack,
+        bottomBar = {
+            SettingsEditorBottomBar(
+                canTest = !state.busy && state.baseUrl.isNotBlank() && state.token.isNotBlank(),
+                canSave = !state.busy && state.hasChanges && state.name.isNotBlank() &&
+                    state.baseUrl.isNotBlank() && state.token.isNotBlank(),
+                isTesting = state.isTesting,
+                isSaving = state.isSaving,
+                onTest = viewModel::testConnection,
+                onSave = viewModel::save,
+            )
+        },
     ) { modifier ->
         Column(
             modifier = modifier
@@ -440,6 +484,7 @@ private fun RemoteNewsSourceEditorPage(
                 value = state.name,
                 onValueChange = viewModel::updateName,
                 label = { Text("名称") },
+                enabled = !state.busy,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -447,6 +492,7 @@ private fun RemoteNewsSourceEditorPage(
                 value = state.baseUrl,
                 onValueChange = viewModel::updateBaseUrl,
                 label = { Text("完整 URL") },
+                enabled = !state.busy,
                 placeholder = { Text("http://host:3000/api/v1/external/top_articles_today") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -456,6 +502,7 @@ private fun RemoteNewsSourceEditorPage(
                 value = state.token,
                 onValueChange = viewModel::updateToken,
                 label = { Text("Token") },
+                enabled = !state.busy,
                 singleLine = true,
                 visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
@@ -474,20 +521,14 @@ private fun RemoteNewsSourceEditorPage(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("启用", style = MaterialTheme.typography.bodyMedium)
-                Switch(checked = state.enabled, onCheckedChange = viewModel::updateEnabled)
+                Switch(checked = state.enabled, onCheckedChange = viewModel::updateEnabled, enabled = !state.busy)
             }
             state.message?.let { message ->
-                RemoteNewsMessageCard(message)
-            }
-            Button(onClick = viewModel::save, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) {
-                Text(if (state.isSaving) "保存中..." else "保存")
-            }
-            OutlinedButton(onClick = viewModel::testConnection, enabled = !state.isTesting, modifier = Modifier.fillMaxWidth()) {
-                Text(if (state.isTesting) "测试中..." else "测试连接")
+                SettingsEditorMessage(message, state.isError)
             }
             if (state.editingId != null) {
-                TextButton(onClick = { viewModel.deleteSource(state.editingId) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { confirmDelete = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_delete), color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -515,17 +556,5 @@ private fun RemoteNewsSourceHelperCard() {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun RemoteNewsMessageCard(message: String) {
-    Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(
-            text = message,
-            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

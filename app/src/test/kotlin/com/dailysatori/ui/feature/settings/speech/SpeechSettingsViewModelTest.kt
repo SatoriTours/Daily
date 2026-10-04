@@ -18,6 +18,20 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SpeechSettingsViewModelTest {
+    @Test fun discardingChangesRestoresSavedValuesAndClearsProviderDrafts() = withModel(
+        SpeechConfig("minimax", "asr-1.0", "https://api.minimax.cn/v1", "saved-key"),
+    ) { model, service ->
+        model.setApiKey("unsaved-key")
+        model.selectProvider("dashscope")
+        model.setApiKey("other-key")
+        model.discardChanges()
+        assertEquals("saved-key", model.state.value.config.apiKey)
+        assertFalse(model.state.value.hasChanges)
+        model.selectProvider("dashscope")
+        assertEquals("", model.state.value.config.apiKey)
+        assertEquals("saved-key", service.load()?.apiKey)
+    }
+
     @Test fun endpointDependentCustomProviderCannotBeSelected() = withModel { model, _ ->
         val original = model.state.value.config
         model.selectProvider("compatible")
@@ -58,12 +72,19 @@ class SpeechSettingsViewModelTest {
         model.selectProvider("siliconflow")
         model.setModel("TeleAI/TeleSpeechASR")
         model.setApiKey("silicon-key")
-        model.save()
+        val savedCallback = CompletableDeferred<Unit>()
+        model.save {
+            assertFalse(model.state.value.hasChanges)
+            savedCallback.complete(Unit)
+        }
+        withTimeout(5_000) { savedCallback.await() }
         val saved = withTimeout(5_000) { model.state.first { !it.saving && it.message != null } }
         assertFalse(saved.isError)
         assertEquals("siliconflow", service.load()?.provider)
         assertEquals("TeleAI/TeleSpeechASR", service.load()?.model)
         assertEquals("silicon-key", service.load()?.apiKey)
+        assertFalse(saved.hasChanges)
+        assertFalse(saved.canSave)
     }
 
     @Test fun invalidKeyCannotBeSavedAndEditingClearsValidationMessage() = withModel { model, service ->

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_unsaved_title">Unsaved changes</string>
+    <string name="settings_unsaved_message">Your changes will not be saved if you leave.</string>
+    <string name="settings_discard_changes">Discard changes</string>
+    <string name="settings_continue_editing">Keep editing</string>
+    <string name="settings_token_title">API Token</string>
+    <string name="settings_token_hidden">Configured · Tap to copy</string>
+    <string name="settings_token_copy">Copy token</string>
+    <string name="settings_token_copied">Token copied</string>
+    <string name="settings_token_show">Show token</string>
+    <string name="settings_token_hide">Hide token</string>
+    <string name="settings_token_reset">Reset token</string>
+    <string name="settings_token_reset_message">The current token will stop working. Connected clients will need the new token.</string>
+    <string name="settings_token_reset_done">Token reset</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_saved">Saved</string>
+    <string name="settings_delete_source_title">Delete news source?</string>
+    <string name="settings_delete_source_message">Delete “%1$s”? This source will no longer sync.</string>
+    <string name="settings_delete">Delete</string>
+    <string name="settings_immediate_changes">Changes are saved automatically.</string>
+</resources>

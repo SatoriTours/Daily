@@ -31,8 +31,9 @@ fun SettingsRow(
     subtitle: String,
     onClick: () -> Unit,
     trailing: @Composable (() -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
-    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surface) {
+    Surface(onClick = onClick, enabled = enabled, color = MaterialTheme.colorScheme.surface) {
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = Height.listItem + Spacing.m)

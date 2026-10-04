@@ -26,6 +26,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
@@ -44,11 +47,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import android.widget.Toast
+import androidx.compose.foundation.layout.Row
 import com.dailysatori.R
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
@@ -148,6 +158,14 @@ private fun SettingsMainPage(
     viewModel: SettingsViewModel,
     onBack: (() -> Unit)? = null,
 ) {
+    val context = LocalContext.current
+    val tokenResetMessage = stringResource(R.string.settings_token_reset_done)
+    LaunchedEffect(state.webServerMessage) {
+        if (state.webServerMessage != null) {
+            Toast.makeText(context, tokenResetMessage, Toast.LENGTH_SHORT).show()
+            viewModel.consumeWebServerMessage()
+        }
+    }
     AboutDialog(showAboutDialog, state.currentVersion, onDismissAbout)
     AppScaffold(
         title = stringResource(R.string.personal_settings_title),
@@ -266,10 +284,12 @@ private fun WebServerRow(state: SettingsState, viewModel: SettingsViewModel) {
         icon = Icons.Default.Language,
         title = "Web 服务",
         subtitle = webServerSubtitle(state),
+        enabled = !state.isTogglingWebServer && !state.isRefreshingToken,
         trailing = {
-            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                if (state.isTogglingWebServer) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                else Switch(checked = state.webServerRunning, onCheckedChange = { viewModel.toggleWebServer() })
+            Box(modifier = Modifier.size(IconSize.xxl), contentAlignment = Alignment.Center) {
+                if (state.isTogglingWebServer) CircularProgressIndicator(modifier = Modifier.size(IconSize.l), strokeWidth = BorderWidth.l)
+                else Switch(checked = state.webServerRunning, onCheckedChange = { viewModel.toggleWebServer() },
+                    enabled = !state.isRefreshingToken)
             }
         },
         onClick = { viewModel.toggleWebServer() },
@@ -278,16 +298,50 @@ private fun WebServerRow(state: SettingsState, viewModel: SettingsViewModel) {
 
 @Composable
 private fun ApiTokenRow(state: SettingsState, viewModel: SettingsViewModel) {
-    SettingsRow(
-        icon = Icons.Default.Key,
-        title = "API Token",
-        subtitle = state.webServerToken,
-        trailing = {
-            IconButton(onClick = { viewModel.refreshToken() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "刷新 Token")
+    var visible by rememberSaveable { mutableStateOf(false) }
+    var confirmReset by rememberSaveable { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val copied = stringResource(R.string.settings_token_copied)
+    val copyToken = {
+        clipboard.setText(AnnotatedString(state.webServerToken))
+        Toast.makeText(context, copied, Toast.LENGTH_SHORT).show()
+    }
+    val busy = state.isRefreshingToken || state.isTogglingWebServer
+    if (confirmReset) AlertDialog(
+        onDismissRequest = { confirmReset = false },
+        title = { Text(stringResource(R.string.settings_token_reset)) },
+        text = { Text(stringResource(R.string.settings_token_reset_message)) },
+        confirmButton = {
+            TextButton(enabled = !busy, onClick = { confirmReset = false; visible = false; viewModel.refreshToken() }) {
+                Text(stringResource(R.string.settings_token_reset))
             }
         },
-        onClick = {},
+        dismissButton = {
+            TextButton(onClick = { confirmReset = false }) { Text(stringResource(R.string.settings_cancel)) }
+        },
+    )
+    SettingsRow(
+        icon = Icons.Default.Key,
+        title = stringResource(R.string.settings_token_title),
+        subtitle = if (visible) state.webServerToken else stringResource(R.string.settings_token_hidden),
+        enabled = !busy,
+        trailing = {
+            Row {
+                IconButton(onClick = { visible = !visible }, enabled = !busy) {
+                    Icon(if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        stringResource(if (visible) R.string.settings_token_hide else R.string.settings_token_show))
+                }
+                IconButton(onClick = copyToken, enabled = !busy) {
+                    Icon(Icons.Default.ContentCopy, stringResource(R.string.settings_token_copy))
+                }
+                IconButton(onClick = { confirmReset = true }, enabled = !busy) {
+                    if (state.isRefreshingToken) CircularProgressIndicator(Modifier.size(IconSize.m), strokeWidth = BorderWidth.l)
+                    else Icon(Icons.Default.Refresh, stringResource(R.string.settings_token_reset))
+                }
+            }
+        },
+        onClick = copyToken,
     )
 }
 
@@ -305,7 +359,7 @@ private fun DataSection(onNavigate: (SettingsPage) -> Unit) {
 }
 
 private fun webServerSubtitle(state: SettingsState): String = when {
-    state.isTogglingWebServer -> "启动中..."
+    state.isTogglingWebServer -> if (state.webServerRunning) "停止中..." else "启动中..."
     state.webServerError != null -> "错误: ${state.webServerError}"
     state.webServerRunning -> state.webServerAddress
     else -> "已停止"
