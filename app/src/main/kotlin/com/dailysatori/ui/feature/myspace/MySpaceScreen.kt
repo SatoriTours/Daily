@@ -224,32 +224,24 @@ internal fun MyEmptyBlock(title: String, hint: String, action: String, onClick: 
 
 @Composable
 private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: () -> Unit) {
-    val fontScale = LocalDensity.current.fontScale
     val day = when (item.daysUntil) {
         0 -> stringResource(R.string.reminder_list_today)
         1 -> stringResource(R.string.reminder_list_tomorrow)
         else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
     }
-    val date = if (item.occurrenceDate.year == today.year) day else "${item.occurrenceDate.year} · $day"
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stackTime = maxWidth < Spacing.xxl * 5 || fontScale > 1.3f || item.occurrenceDate.year != today.year
-        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            if (stackTime) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text("$date · ${item.firstReminderTime}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    MyReminderBody(item)
-                }
-            } else {
-                Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(date, softWrap = false, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(item.firstReminderTime, softWrap = false, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                }
-                VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
-                MyReminderBody(item, Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(Modifier.width(Spacing.xxl + Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            if (item.occurrenceDate.year != today.year) {
+                Text(item.occurrenceDate.year.toString(), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary)
             }
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(day, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(item.firstReminderTime, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         }
+        VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
+        MyReminderBody(item, Modifier.weight(1f))
+        Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

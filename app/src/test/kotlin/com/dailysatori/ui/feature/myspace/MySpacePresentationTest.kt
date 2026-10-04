@@ -4,10 +4,40 @@ import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.diary.DiaryThoughtEvidence
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
+import com.dailysatori.service.reminder.*
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
 import kotlin.test.*
 import kotlin.random.Random
 
 class MySpacePresentationTest {
+    private val today = LocalDate(2026, 10, 4)
+    private fun reminder(id: String, date: LocalDate = today, status: ReminderStatus = ReminderStatus.ACTIVE) =
+        Reminder(id, "提醒 $id", date, date, LocalTime(9, 0), ReminderActiveDayRule.Daily,
+            ReminderProfileSnapshot.standard(), status, TimeZone.UTC, 1)
+
+    @Test fun reminderPreviewKeepsTodayPendingAfterNotificationAndDismissalUntilCompleted() {
+        val pending = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
+        ReminderStatus.entries.forEach { status ->
+            assertEquals(if (status in pending) listOf("today") else emptyList(),
+                myUpcomingReminders(listOf(reminder("today", status = status)), today).map { it.id },
+                "status=$status")
+        }
+    }
+
+    @Test fun reminderPreviewPrioritizesTodayPendingOverFutureAndLimitsToTwo() {
+        val entries = listOf(reminder("future", LocalDate(2027, 1, 3)),
+            reminder("tomorrow", LocalDate(2026, 10, 5)),
+            reminder("today", status = ReminderStatus.NOTIFIED),
+            reminder("done", status = ReminderStatus.COMPLETED))
+        val preview = myUpcomingReminders(entries, today)
+        assertEquals(listOf("today", "tomorrow"), preview.map { it.id })
+        assertEquals(listOf(0, 1), preview.map { it.daysUntil })
+        assertEquals(listOf("tomorrow", "future"),
+            myUpcomingReminders(entries.map { if (it.id == "today") it.copy(status = ReminderStatus.COMPLETED) else it }, today).map { it.id })
+    }
+
     private val source = ReadNewsArticle("key", "title", "body", source = "site", readAt = 1)
     private fun item(id: String, saved: Boolean = false, ignored: Boolean = false, reminder: String? = null) =
         NewsOpportunity(id, source, "title", "category", "fact", "inference", "step", "caveat", "body", 1, saved, ignored, reminder)

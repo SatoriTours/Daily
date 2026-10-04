@@ -53,7 +53,8 @@ internal fun rankedOpportunities(
 )
 
 fun myUpcomingReminders(reminders: List<Reminder>, today: LocalDate): List<ReminderListItemUi> =
-    buildReminderListState(reminders.filter { it.status == ReminderStatus.ACTIVE }, today, ReminderListMode.RECENT, ReminderListFilter())
+    buildReminderListState(reminders, today, ReminderListMode.RECENT,
+        ReminderListFilter(statuses = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)))
         .sections.flatMap { it.items }.take(2)
 
 fun opportunityReminderId(id: String): String = "news-opportunity:$id"
