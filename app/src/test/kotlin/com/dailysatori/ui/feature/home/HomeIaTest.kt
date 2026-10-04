@@ -39,7 +39,8 @@ class HomeIaTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
 
         assertTrue(source.contains("TODAY_TAB_INDEX -> UnifiedNewsScreen"))
-        assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryTheme"))
+        assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryScreen"))
+        assertFalse(source.contains("DiaryTheme"))
         assertTrue(source.contains("DiaryScreen(onMyClick = onProfileClick)"))
         assertTrue(source.contains("READING_TAB_INDEX -> BooksScreen"))
         assertTrue(source.contains("MY_TAB_INDEX -> MySpaceScreen"))

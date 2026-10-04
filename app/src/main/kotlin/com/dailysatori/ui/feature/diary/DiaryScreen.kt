@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.R
 import com.dailysatori.ui.feature.profile.localDayTicker
 import kotlinx.datetime.Clock
@@ -63,7 +61,6 @@ import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.input.SearchBar
 import com.dailysatori.ui.theme.*
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
@@ -158,8 +155,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
 
     AppScaffold(
         title = stringResource(R.string.diary_feed_title),
-        subtitle = stringResource(R.string.diary_feed_subtitle),
-        showHeaderDivider = false,
         showBack = false,
         isMainPage = true,
         actions = {
@@ -353,7 +348,7 @@ private fun ActiveDiaryTagFilterChip(tag: String, onClear: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.m, vertical = Spacing.xs),
+            .padding(vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
@@ -371,8 +366,8 @@ private fun ActiveDiaryTagFilterChip(tag: String, onClear: () -> Unit) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "清除筛选", modifier = Modifier.size(14.dp))
+                IconButton(onClick = onClear, modifier = Modifier.size(IconSize.l)) {
+                    Icon(Icons.Default.Close, contentDescription = "清除筛选", modifier = Modifier.size(IconSize.xs))
                 }
             }
         }

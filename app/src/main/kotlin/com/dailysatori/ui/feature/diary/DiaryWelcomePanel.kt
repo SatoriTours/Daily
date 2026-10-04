@@ -18,7 +18,7 @@ import com.dailysatori.ui.theme.*
 internal fun DiaryWelcomePanel(onText: () -> Unit, onVoice: () -> Unit, voiceEnabled: Boolean) {
     Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(stringResource(R.string.diary_feed_capture_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.diary_feed_capture_title), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.diary_feed_capture_hint), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().padding(top = Spacing.s).height(IntrinsicSize.Min),

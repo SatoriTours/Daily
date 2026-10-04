@@ -33,7 +33,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +53,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -95,10 +93,10 @@ fun DiaryCard(
     Card(
         onClick = { if (hasOverflow || expanded) expanded = !expanded },
         modifier = modifier.fillMaxWidth().animateContentSize(),
-        shape = RoundedCornerShape(Radius.none),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+        shape = RoundedCornerShape(Radius.l),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(modifier = Modifier.padding(vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             DiaryCardHeader(
                 diary = diary,
                 contentText = contentText,
@@ -117,7 +115,6 @@ fun DiaryCard(
                 compact = !expanded,
             )
             DiaryCardFooter(tags = tags, isLongContent = hasOverflow || expanded, expanded = expanded) { expanded = !expanded }
-            HorizontalDivider(Modifier.padding(top = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -139,7 +136,8 @@ private fun DiaryCardHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
-        Text(diaryDateDayNumber(diary).padStart(2, '0'), style = MaterialTheme.typography.displayMedium,
+        Text(diaryDateDayNumber(diary).padStart(2, '0'), style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface)
         Text(
             diaryCardDateTime(diary.created_at, nowMillis, stringResource(R.string.diary_feed_today),

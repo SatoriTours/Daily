@@ -48,7 +48,7 @@ internal fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
     Column(Modifier.fillMaxWidth().padding(top = Spacing.s, bottom = Spacing.s),
         verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(month, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+            Text(month, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.diary_feed_month_count, diaries.size),
                 style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -57,7 +57,7 @@ internal fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
                 verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.diary_feed_review_title), Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleLarge)
+                        style = MaterialTheme.typography.titleMedium)
                     TextButton(onClick = { expanded = !expanded }) {
                         Text(stringResource(if (expanded) R.string.diary_feed_collapse else R.string.diary_feed_expand))
                         Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -92,7 +92,7 @@ private fun DiaryReviewDetails(review: DiaryMonthReviewContent) {
     }
     review.excerpt?.let { excerpt ->
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Text(excerpt, style = DiaryStyles.quoteTypography(), color = MaterialTheme.colorScheme.tertiary,
+        Text(excerpt, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

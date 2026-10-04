@@ -66,7 +66,7 @@ class MainContentRhythmTest {
         val messageBody = message.extractCallBlock("fun MessageBubble(")
         val citationBody = citation.extractCallBlock("fun CitationText(")
 
-        assertTrue(diaryBody.contains("Modifier.padding(vertical = Spacing.s)"))
+        assertTrue(diaryBody.contains("Modifier.padding(Spacing.m)"))
         assertTrue(diaryBody.contains("if (hasOverflow || expanded) expanded = !expanded"))
         assertTrue(diary.contains("Icons.Default.MoreHoriz"))
         assertFalse(diary.contains("Icons.Default.MoreVert"))

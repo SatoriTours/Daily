@@ -192,9 +192,7 @@ fun HomeScreen(
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
                             onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
-                        DIARY_TAB_INDEX -> DiaryTheme {
-                            DiaryScreen(onMyClick = onProfileClick)
-                        }
+                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick)
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,
@@ -226,19 +224,17 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter,
                 ) {
-                    DiaryTheme(enabled = selectedIndex == DIARY_TAB_INDEX) {
-                        HomeBottomBarSurface(
-                            selectedIndex = selectedIndex,
-                            aiInputController = null,
-                            hazeState = hazeState,
-                            onTabSelected = { index ->
-                                if (index == MY_TAB_INDEX && selectedIndex != MY_TAB_INDEX) myPreviewSeed = Random.nextInt()
-                                selectedIndex = index
-                            },
-                            onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
-                            todayReminderCount = todayReminderCount,
-                        )
-                    }
+                    HomeBottomBarSurface(
+                        selectedIndex = selectedIndex,
+                        aiInputController = null,
+                        hazeState = hazeState,
+                        onTabSelected = { index ->
+                            if (index == MY_TAB_INDEX && selectedIndex != MY_TAB_INDEX) myPreviewSeed = Random.nextInt()
+                            selectedIndex = index
+                        },
+                        onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
+                        todayReminderCount = todayReminderCount,
+                    )
                 }
             }
         }
