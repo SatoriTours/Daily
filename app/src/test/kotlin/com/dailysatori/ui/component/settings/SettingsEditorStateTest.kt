@@ -43,9 +43,19 @@ class SettingsEditorStateTest {
         assertTrue(saved.copy(token = "new-key").hasChanges)
         assertTrue(saved.copy(enabled = false).hasChanges)
         assertFalse(saved.copy(isEditing = false, name = "New source").hasChanges)
-        assertFalse(saved.busy)
-        assertTrue(saved.copy(isSaving = true).busy)
-        assertTrue(saved.copy(isTesting = true).busy)
-        assertTrue(saved.copy(isDeleting = true).busy)
+        val scenarios = listOf(
+            Triple(false, false, false) to false,
+            Triple(true, false, false) to true,
+            Triple(false, true, false) to true,
+            Triple(false, false, true) to true,
+            Triple(true, true, false) to true,
+            Triple(true, false, true) to true,
+            Triple(false, true, true) to true,
+            Triple(true, true, true) to true,
+        )
+        scenarios.forEach { (flags, expectedBusy) ->
+            assertEquals(expectedBusy, saved.copy(isSaving = flags.first, isTesting = flags.second,
+                isDeleting = flags.third).busy, "saving/testing/deleting=$flags")
+        }
     }
 }
