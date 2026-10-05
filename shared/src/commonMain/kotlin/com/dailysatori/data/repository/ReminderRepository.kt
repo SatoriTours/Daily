@@ -4,6 +4,7 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.reminder.Reminder
+import com.dailysatori.service.reminder.isUnscheduledSmsTodo
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
 import com.dailysatori.service.reminder.ReminderDataIssue
@@ -38,7 +39,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
-data class ReminderState(val dismissalCount: Int, val stateDate: LocalDate?)
+data class ReminderState(val dismissalCount: Int, val stateDate: LocalDate?, val lastNotifiedAt: Instant? = null)
 
 data class ReminderProfile(
     val id: String,
@@ -56,6 +57,7 @@ data class ReminderEdit(
     val activeDayRule: ReminderActiveDayRule? = null,
     val recurrence: ReminderRecurrence? = null,
     val profile: ReminderProfileSnapshot? = null,
+    val deadlineAt: Instant? = null,
 )
 
 class ReminderRepository(
@@ -99,6 +101,7 @@ class ReminderRepository(
             created_at = now,
             updated_at = now,
         )
+        draft.deadlineAt?.let { q.setReminderDeadline(it.toEpochMilliseconds(), draft.id) }
         recordEvent(draft.id, "confirmed", Instant.fromEpochMilliseconds(now))
         return requireNotNull(get(draft.id))
     }
@@ -149,7 +152,7 @@ class ReminderRepository(
         }
 
     fun state(id: String): ReminderState? = q.selectReminderById(id).executeAsOneOrNull()?.let {
-        ReminderState(it.dismissal_count.toInt(), it.state_date?.let(LocalDate::parse))
+        ReminderState(it.dismissal_count.toInt(), it.state_date?.let(LocalDate::parse), it.last_notified_at?.let(Instant::fromEpochMilliseconds))
     }
 
     fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone? = null): Boolean = transition(id, expectedVersion, at) { row ->
@@ -203,19 +206,26 @@ class ReminderRepository(
 
     fun pause(id: String, at: Instant = Clock.System.now()): Boolean = simpleTransition(id, ReminderStatus.PAUSED, at, "paused")
 
-    fun resume(id: String, at: Instant = Clock.System.now()): Boolean = simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")
+    fun resume(id: String, at: Instant = Clock.System.now()): Boolean =
+        if (get(id)?.isUnscheduledSmsTodo == true) false else simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")
 
     fun update(id: String, edit: ReminderEdit, at: Instant = Clock.System.now()): Boolean = q.transactionWithResult {
         val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult false
         if (row.version != edit.expectedVersion || row.status in terminalStatuses) return@transactionWithResult false
         val start = edit.startDate ?: LocalDate.parse(row.start_date)
-        val end = edit.endDate ?: LocalDate.parse(row.end_date)
+        val end = edit.deadlineAt?.toLocalDateTime(TimeZone.of(row.time_zone_id))?.date ?: edit.endDate ?: LocalDate.parse(row.end_date)
         val content = edit.content ?: row.content
         val rule = edit.activeDayRule ?: row.active_day_rule.decode()
         val recurrence = edit.recurrence ?: row.recurrence_rule.decodeRecurrence()
+        if ((row.deadline_at != null || edit.deadlineAt != null) && recurrence != ReminderRecurrence.Once) return@transactionWithResult false
+        if (edit.deadlineAt != null && edit.deadlineAt <= at) return@transactionWithResult false
         if (end < start || content.isBlank() || content.length > MAX_CONTENT_LENGTH || !rule.isValid()) return@transactionWithResult false
         val profile = edit.profile ?: runCatching { row.profile_json.toProfile() }.getOrNull() ?: return@transactionWithResult false
         if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
+        edit.deadlineAt?.let { q.setReminderDeadline(it.toEpochMilliseconds(), id) }
+        if (id.startsWith("sms:") && row.deadline_at == null && edit.deadlineAt != null && row.status == ReminderStatus.PAUSED.name) {
+            simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")
+        }
         recordEvent(id, "edited", at)
         true
     }
@@ -274,6 +284,7 @@ class ReminderRepository(
             TimeZone.of(time_zone_id), version,
             if (decodedProfile.isFailure) ReminderDataIssue.CORRUPT_PROFILE else null,
             recurrence_rule.decodeRecurrence(),
+            deadline_at?.let(Instant::fromEpochMilliseconds),
         )
     }
 

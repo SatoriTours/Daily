@@ -128,6 +128,9 @@ class DatabaseMigration(
         if (currentVersion < 28) {
             migrateV27ToV28()
         }
+        if (currentVersion < 29) {
+            migrateV28ToV29()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1031,6 +1034,24 @@ class DatabaseMigration(
             } catch (e: Exception) {
                 log.w(e) { "Could not create performance index" }
             }
+        }
+    }
+
+    private fun migrateV28ToV29() {
+        try {
+            addColumnIfMissing("reminder", "deadline_at", "INTEGER")
+        } catch (e: Exception) {
+            log.w(e) { "Could not add reminder deadline" }
+        }
+        try {
+            runSql("""CREATE TABLE IF NOT EXISTS sms_reminder_source (
+                id TEXT PRIMARY KEY NOT NULL, encrypted_source TEXT NOT NULL,
+                received_at INTEGER NOT NULL, time_zone_id TEXT NOT NULL,
+                status TEXT NOT NULL, draft_json TEXT NOT NULL DEFAULT '',
+                reminder_id TEXT, notified INTEGER NOT NULL DEFAULT 0
+            )""")
+        } catch (e: Exception) {
+            log.w(e) { "Could not create SMS source storage" }
         }
     }
 

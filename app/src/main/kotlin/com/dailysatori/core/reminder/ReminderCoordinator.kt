@@ -112,7 +112,7 @@ class ReminderCoordinator(
         val reminder = store.get(id)?.inCurrentTimeZone() ?: return
         if (reminder.version != expectedVersion) return
         if (!reminder.isEligibleAt(now)) {
-            if (now.toLocalDateTime(reminder.timeZone).date > reminder.endDate) store.expire(id, now)
+            if (reminder.deadlineAt?.let { now >= it } == true || now.toLocalDateTime(reminder.timeZone).date > reminder.endDate && reminder.deadlineAt == null) store.expire(id, now)
             scheduler.cancel(id)
             if (store.get(id)?.status !in terminalStatuses) recomputeSchedule(id)
             return
@@ -135,6 +135,14 @@ class ReminderCoordinator(
         val now = clock.now()
         val reminder = store.get(id)?.inCurrentTimeZone() ?: return
         if (reminder.version != expectedVersion || reminder.status !in deliverableStatuses) return
+        val deadline = reminder.deadlineAt
+        if (deadline != null) {
+            if (now >= deadline && store.expire(id, expectedVersion, now)) {
+                scheduler.cancel(id)
+                notifier.cancel(id)
+            } else recomputeSchedule(id)
+            return
+        }
         val local = now.toLocalDateTime(reminder.timeZone)
         val fallbackCycleDate = if (reminder.profile.dailyCutoff == LocalTime(0, 0)) local.date.minus(1, DateTimeUnit.DAY) else local.date
         val cycleDate = store.state(id)?.stateDate ?: fallbackCycleDate
@@ -219,6 +227,8 @@ class ReminderCoordinator(
             stateDate = state?.stateDate,
             expectedVersion = version,
             recurring = recurrence != ReminderRecurrence.Once,
+            deadlineAt = deadlineAt,
+            lastNotifiedAt = state?.lastNotifiedAt,
         )
     }
 
@@ -259,6 +269,12 @@ class ReminderCoordinator(
 
     private fun Reminder.isEligibleAt(now: Instant): Boolean {
         if (dataIssue != null || status !in deliverableStatuses) return false
+        deadlineAt?.let { deadline ->
+            if (now >= deadline) return false
+            val lead = Instant.fromEpochMilliseconds(deadline.toEpochMilliseconds() - 2 * 60 * 60 * 1_000L)
+            val last = store.state(id)?.lastNotifiedAt ?: return now >= lead
+            return last < lead && now >= lead
+        }
         val local = now.toLocalDateTime(timeZone)
         if (local.date !in startDate..endDate || !activeDayRule.includes(local.date.dayOfWeek)) return false
         if (local.date == startDate && local.time < firstReminderTime) return false

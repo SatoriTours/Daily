@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 
 data class ReminderOccurrence(
     val reminderId: String,
@@ -11,10 +12,14 @@ data class ReminderOccurrence(
     val startAt: Instant,
 )
 
-fun Reminder.nextOccurrenceOnOrAfter(onOrAfter: LocalDate): LocalDate? = when (val rule = recurrence) {
-    ReminderRecurrence.Once -> startDate.takeIf { it >= onOrAfter }
-    is ReminderRecurrence.Monthly -> nextMonthlyOccurrence(onOrAfter, rule.dayOfMonth)
-    is ReminderRecurrence.Yearly -> nextYearlyOccurrence(onOrAfter, rule)
+fun Reminder.nextOccurrenceOnOrAfter(onOrAfter: LocalDate): LocalDate? {
+    if (isUnscheduledSmsTodo) return onOrAfter.coerceAtLeast(startDate)
+    deadlineAt?.let { return it.toLocalDateTime(timeZone).date.takeIf { date -> date >= onOrAfter } }
+    return when (val rule = recurrence) {
+        ReminderRecurrence.Once -> startDate.takeIf { it >= onOrAfter }
+        is ReminderRecurrence.Monthly -> nextMonthlyOccurrence(onOrAfter, rule.dayOfMonth)
+        is ReminderRecurrence.Yearly -> nextYearlyOccurrence(onOrAfter, rule)
+    }
 }
 
 private fun nextMonthlyOccurrence(onOrAfter: LocalDate, dayOfMonth: Int): LocalDate {

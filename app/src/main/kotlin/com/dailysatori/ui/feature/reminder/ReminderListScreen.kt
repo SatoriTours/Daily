@@ -232,13 +232,14 @@ private fun ReminderSearchField(query: String, onQueryChange: (String) -> Unit) 
 @Composable
 private fun ReminderHero(summary: ReminderListSummaryUi, today: LocalDate) {
     val next = summary.nextItem ?: return
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
     val headline = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
     Column(
         Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
         verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
     ) {
         Text(
-            stringResource(R.string.reminder_list_next_kicker),
+            if (next.deadlineAt != null) i18n.t("sms.deadline") else stringResource(R.string.reminder_list_next_kicker),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp,
@@ -246,7 +247,8 @@ private fun ReminderHero(summary: ReminderListSummaryUi, today: LocalDate) {
         )
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Text(heroDayLabel(next, today), style = headline)
-            Text(next.firstReminderTime, style = headline, color = MaterialTheme.colorScheme.primary)
+            if (next.id.startsWith("sms:") && next.deadlineAt == null) Text(i18n.t("sms.no_deadline"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Text(next.deadlineAt?.let { com.dailysatori.ui.feature.settings.sms.formatSmsTime(it).takeLast(5) } ?: next.firstReminderTime, style = headline, color = MaterialTheme.colorScheme.primary)
         }
         Text(next.content, style = headline, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(
@@ -530,7 +532,10 @@ private fun DayOfWeek.weekdayLabel(): String = stringResource(
 
 @Composable
 private fun ReminderStoryMeta(item: ReminderListItemUi, isFinished: Boolean) {
-    Text(item.firstReminderTime, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+    val isUnscheduledSms = item.id.startsWith("sms:") && item.deadlineAt == null
+    Text(if (isUnscheduledSms) i18n.t("sms.no_deadline") else item.deadlineAt?.let { i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(it) } ?: item.firstReminderTime,
+        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (isFinished) {
         val completed = item.status == ReminderStatus.COMPLETED
         ReminderMetaChip(
@@ -540,6 +545,7 @@ private fun ReminderStoryMeta(item: ReminderListItemUi, isFinished: Boolean) {
         )
         return
     }
+    if (isUnscheduledSms) return
     val recurrenceChip = item.repeatLabel() == ReminderRepeatLabel.ONCE || item.repeatLabel() == ReminderRepeatLabel.YEARLY
     if (recurrenceChip) {
         ReminderMetaChip(

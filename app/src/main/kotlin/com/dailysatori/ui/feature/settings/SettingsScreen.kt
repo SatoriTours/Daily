@@ -94,6 +94,7 @@ internal enum class SettingsPage {
     SKILLS,
     DIAGNOSTICS,
     REMINDERS,
+    SMS_REMINDERS,
     REMOTE_NEWS,
     EXTERNAL_FAVORITES,
     PRIVACY,
@@ -141,6 +142,7 @@ fun SettingsScreen(
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = childBack)
         SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = childBack)
         SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack)
+        SettingsPage.SMS_REMINDERS -> com.dailysatori.ui.feature.settings.sms.SmsSettingsScreen(onBack = childBack)
         SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(onBack = childBack)
         SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = childBack)
         SettingsPage.PRIVACY -> DataPrivacyScreen(onBack = childBack)
@@ -270,9 +272,11 @@ private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
 
 @Composable
 private fun AccessSection(state: SettingsState, viewModel: SettingsViewModel, onNavigate: (SettingsPage) -> Unit) {
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
     SettingsSectionCard(stringResource(R.string.personal_settings_access)) {
         SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title),
             stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
+        SettingsRow(Icons.Default.Notifications, i18n.t("sms.title"), i18n.t("sms.row_hint"), onClick = { onNavigate(SettingsPage.SMS_REMINDERS) })
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
     }

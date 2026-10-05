@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.rememberNavController
 import com.dailysatori.core.navigation.DailySatoriNavHost
@@ -62,9 +63,28 @@ fun DailySatoriApp(
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val smsNotice: com.dailysatori.ui.feature.settings.sms.SmsCreationNoticeViewModel = koinViewModel()
+    val smsI18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+    LaunchedEffect(lifecycleOwner, smsNotice) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            smsNotice.pendingCount.collect { pending ->
+                if (pending > 0) {
+                    val count = smsNotice.takeCreatedCount()
+                    if (count > 0) snackbarHostState.showSnackbar(smsI18n.t("sms.created_notice", count))
+                }
+            }
+        }
+    }
     val context = LocalContext.current
     val reminderOpenId by ReminderOpenRequest.state.pending.collectAsState()
     val reminderAiBatchOpenId by ReminderAiBatchOpenRequest.state.pending.collectAsState()
+    val smsOpen by com.dailysatori.core.sms.SmsOpenRequest.pending.collectAsState()
+    LaunchedEffect(smsOpen) {
+        if (smsOpen) {
+            navController.navigate(com.dailysatori.core.navigation.SmsSettingsRoute) { launchSingleTop = true }
+            com.dailysatori.core.sms.SmsOpenRequest.pending.value = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         upgradeViewModel.checkUpdateAutomatically()

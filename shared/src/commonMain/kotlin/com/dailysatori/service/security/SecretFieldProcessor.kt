@@ -13,6 +13,8 @@ data class SecretFieldSpec(
 object SecretFieldRegistry {
     val fields: List<SecretFieldSpec> = listOf(
         SecretFieldSpec(table = "ai_config", column = "api_token"),
+        SecretFieldSpec(table = "sms_reminder_source", column = "encrypted_source"),
+        SecretFieldSpec(table = "setting", column = "value", whereClause = "key = 'sms_reminder.blocked_senders'"),
         SecretFieldSpec(table = "mcp_server", column = "api_key"),
         SecretFieldSpec(table = "remote_news_source", column = "api_token"),
         SecretFieldSpec(table = "external_favorite_source", column = "auth_json"),

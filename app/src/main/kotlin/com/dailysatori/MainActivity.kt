@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)
         handleReminderAiBatchViewIntent(intent)
+        com.dailysatori.core.sms.SmsOpenRequest.handle(intent)
         pruneOldAsyncTasks()
         enableEdgeToEdge()
         setContent {
@@ -78,6 +79,7 @@ class MainActivity : ComponentActivity() {
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)
         handleReminderAiBatchViewIntent(intent)
+        com.dailysatori.core.sms.SmsOpenRequest.handle(intent)
         lifecycleScope.launch(Dispatchers.IO) {
             DiagnosticRecoveryReader.startupCompleted(File(noBackupFilesDir, "diagnostics"))
         }

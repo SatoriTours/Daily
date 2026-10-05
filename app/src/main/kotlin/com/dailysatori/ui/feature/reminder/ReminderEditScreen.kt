@@ -29,6 +29,7 @@ import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
+import kotlinx.datetime.toInstant
 
 @Composable
 fun ReminderEditScreen(
@@ -42,14 +43,20 @@ fun ReminderEditScreen(
     val profiles by viewModel.profiles.collectAsState()
     val ui by viewModel.state.collectAsState()
     val existing = reminders.firstOrNull { it.id == reminderId }
+    val isSms = existing?.id?.startsWith("sms:") == true
     var editor by remember(existing?.id) { mutableStateOf(existing?.let(ReminderEditorState::from) ?: ReminderEditorState.createDefault()) }
+    var deadlineText by remember(existing?.id) { mutableStateOf(existing?.deadlineAt?.let { com.dailysatori.ui.feature.settings.sms.formatSmsTime(it) }.orEmpty()) }
+    val parsedDeadline = if (!isSms || deadlineText.isBlank()) null else runCatching {
+        kotlinx.datetime.LocalDateTime.parse(deadlineText.trim().replace(' ', 'T')).toInstant(kotlinx.datetime.TimeZone.currentSystemDefault())
+    }.getOrNull()
+    val deadlineValid = !isSms || deadlineText.isBlank() && existing?.deadlineAt == null || parsedDeadline?.let { it > kotlinx.datetime.Clock.System.now() } == true
     var showDiscardDialog by remember { mutableStateOf(false) }
     val batch = ui.aiParse.batch
     val hasUnsavedBatch = batch?.items?.values?.any { it.saveStatus != BatchSaveStatus.SAVED } == true
     val requestBack = { if (hasUnsavedBatch) showDiscardDialog = true else onBack() }
     BackHandler(enabled = hasUnsavedBatch, onBack = requestBack)
     val save = {
-        val submitted = editor
+        val submitted = editor.copy(deadlineAt = parsedDeadline)
         editor = submitted.copy(saving = true)
         viewModel.saveEditor(existing, submitted) { id, next -> editor = next; id?.let(onSaved) }
     }
@@ -58,8 +65,8 @@ fun ReminderEditScreen(
         onBack = requestBack,
         bottomBar = {
             Surface(shadowElevation = Spacing.xs) {
-                if (batch == null) {
-                    Button(onClick = save, enabled = editor.canSave, modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
+                if (batch == null || isSms) {
+                    Button(onClick = save, enabled = editor.canSave && deadlineValid, modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
                         Text(if (editor.saving) "保存中…" else "保存提醒")
                     }
                 } else {
@@ -80,7 +87,7 @@ fun ReminderEditScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
-            item {
+            if (!isSms) item {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         Text("提醒我什么", style = MaterialTheme.typography.titleMedium)
@@ -116,6 +123,16 @@ fun ReminderEditScreen(
                 }
             }
             item {
+                if (isSms) {
+                    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        OutlinedTextField(editor.content, onValueChange = { editor = editor.copy(content = it) }, label = { Text(i18n.t("sms.task_title")) }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(deadlineText, onValueChange = { deadlineText = it }, label = { Text(i18n.t("sms.deadline")) }, modifier = Modifier.fillMaxWidth())
+                        Text(i18n.t("sms.time_hint"), style = MaterialTheme.typography.bodySmall)
+                        Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)
+                        existing?.id?.let { SmsReminderSourcePanel(it) }
+                    }
+                } else {
                 ReminderEditorForm(
                     state = editor.toFormState(existing?.id ?: "new-reminder"),
                     profiles = profiles,
@@ -126,6 +143,7 @@ fun ReminderEditScreen(
                         if (yearly != null) editor = editor.copy(recurrence = yearly.copy(leapDayPolicy = policy), leapDayFallbackChosen = true)
                     },
                 )
+                }
             }
             editor.validationMessage?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
             editor.notice?.let { notice -> item { Text(notice, color = MaterialTheme.colorScheme.error) } }

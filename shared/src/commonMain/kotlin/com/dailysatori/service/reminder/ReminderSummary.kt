@@ -3,17 +3,20 @@ package com.dailysatori.service.reminder
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 object ReminderSummary {
     fun todayPendingReminders(reminders: List<Reminder>, today: LocalDate): List<Reminder> = reminders.filter {
-        it.dataIssue == null && it.status in pendingStatuses && it.isActiveOccurrenceOn(today)
+        it.dataIssue == null && (it.isUnscheduledSmsTodo || it.status in pendingStatuses && it.isActiveOccurrenceOn(today))
     }
 
     fun todayPendingCount(reminders: List<Reminder>, today: LocalDate): Int =
         todayPendingReminders(reminders, today).size
 
     private fun Reminder.isActiveOccurrenceOn(today: LocalDate): Boolean =
-        today in startDate..endDate && activeDayRule.includes(today) && when (recurrence) {
+        if (deadlineAt != null) today <= deadlineAt.toLocalDateTime(TimeZone.currentSystemDefault()).date
+        else today in startDate..endDate && activeDayRule.includes(today) && when (recurrence) {
             ReminderRecurrence.Once -> true
             else -> nextOccurrenceOnOrAfter(today) == today
         }

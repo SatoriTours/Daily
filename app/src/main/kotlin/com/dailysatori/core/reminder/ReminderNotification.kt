@@ -36,10 +36,14 @@ data class ReminderNotificationPolicy(
             val local = at.toLocalDateTime(reminder.timeZone)
             val workHours = local.date.dayOfWeek in reminder.profile.workDays &&
                 local.time >= reminder.profile.workStart && local.time < reminder.profile.workEnd
+            val quietHours = reminder.deadlineAt != null && with(reminder.profile) {
+                if (sleepStart <= sleepEnd) local.time >= sleepStart && local.time < sleepEnd
+                else local.time >= sleepStart || local.time < sleepEnd
+            }
             return ReminderNotificationPolicy(
                 visible = true,
-                soundEnabled = reminder.profile.soundEnabled && !workHours,
-                vibrationEnabled = reminder.profile.vibrationEnabled && !workHours,
+                soundEnabled = reminder.profile.soundEnabled && !workHours && !quietHours,
+                vibrationEnabled = reminder.profile.vibrationEnabled && !workHours && !quietHours,
                 lockScreenText = "You have a reminder",
                 importance = reminder.profile.importance,
                 lockScreenVisibility = reminder.profile.lockScreenVisibility,

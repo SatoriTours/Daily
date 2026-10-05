@@ -89,6 +89,7 @@ data class ReminderDraft(
     val timeZone: TimeZone = TimeZone.currentSystemDefault(),
     val validationErrors: List<String> = emptyList(),
     val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
+    val deadlineAt: Instant? = null,
 )
 
 data class Reminder(
@@ -104,9 +105,13 @@ data class Reminder(
     val version: Long,
     val dataIssue: ReminderDataIssue? = null,
     val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
+    val deadlineAt: Instant? = null,
 )
 
 enum class ReminderDeliveryReason { INITIAL, HOURLY_REPEAT, DISMISSAL_BACKOFF, EVENING_REINFORCEMENT, WAKE_RECOVERY, NEXT_ACTIVE_DATE }
+
+val Reminder.isUnscheduledSmsTodo: Boolean
+    get() = id.startsWith("sms:") && deadlineAt == null && status == ReminderStatus.PAUSED
 
 data class ReminderScheduleInput(
     val now: Instant,
@@ -121,6 +126,8 @@ data class ReminderScheduleInput(
     val stateDate: LocalDate? = null,
     val expectedVersion: Long,
     val recurring: Boolean = false,
+    val deadlineAt: Instant? = null,
+    val lastNotifiedAt: Instant? = null,
 )
 
 sealed interface ReminderScheduleDecision {

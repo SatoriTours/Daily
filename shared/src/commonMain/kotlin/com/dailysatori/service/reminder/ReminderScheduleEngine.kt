@@ -13,6 +13,7 @@ import kotlinx.datetime.toLocalDateTime
 class ReminderScheduleEngine {
     fun next(input: ReminderScheduleInput): ReminderScheduleDecision {
         if (input.status in terminalStatuses) return ReminderScheduleDecision.None(input.status)
+        input.deadlineAt?.let { return nextDeadline(input, it) }
         val localNow = input.now.toLocalDateTime(input.timeZone)
         val cycleInput = if (input.stateDate != null && input.stateDate != localNow.date) {
             input.copy(status = ReminderStatus.ACTIVE, dismissalCount = 0)
@@ -45,6 +46,14 @@ class ReminderScheduleEngine {
             ReminderStatus.ACTIVE -> schedule(input, input.now, ReminderDeliveryReason.INITIAL)
             else -> ReminderScheduleDecision.None(input.status)
         }
+    }
+
+    private fun nextDeadline(input: ReminderScheduleInput, deadline: Instant): ReminderScheduleDecision {
+        if (input.now >= deadline) return ReminderScheduleDecision.None(ReminderStatus.EXPIRED)
+        val lead = Instant.fromEpochMilliseconds(deadline.toEpochMilliseconds() - 2 * 60 * 60 * 1_000L)
+        if (input.lastNotifiedAt == null) return schedule(input, maxOf(input.now, lead), ReminderDeliveryReason.INITIAL)
+        if (input.lastNotifiedAt >= lead) return ReminderScheduleDecision.Cutoff(deadline, input.expectedVersion)
+        return schedule(input, maxOf(input.now, lead), ReminderDeliveryReason.INITIAL)
     }
 
     private fun nextDismissal(input: ReminderScheduleInput, date: LocalDate): ReminderScheduleDecision {

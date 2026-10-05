@@ -79,6 +79,9 @@ val appModule: Module = module {
     single { UnifiedNewsGenerateTaskHandler(get()) }
     single { com.dailysatori.core.task.NewsOpportunityTaskHandler(get()) }
     single { ReminderAiParseTaskHandler(get(), get<ReminderAiInterpretationRemote>(), get<ReminderBatchCodec>(), get(), get()) }
+    single { com.dailysatori.core.sms.SmsPendingNotifier(androidContext(), get(), get()) }
+    single { com.dailysatori.core.sms.SmsIntake(get(), get(), get(), get(), get()) }
+    single { com.dailysatori.core.task.SmsReminderTaskHandler(get(), get(), get(), get(), get()) }
     single {
         AsyncTaskHandlerRegistry(
             listOf(
@@ -92,6 +95,7 @@ val appModule: Module = module {
                 get<UnifiedNewsGenerateTaskHandler>(),
                 get<com.dailysatori.core.task.NewsOpportunityTaskHandler>(),
                 get<ReminderAiParseTaskHandler>(),
+                get<com.dailysatori.core.task.SmsReminderTaskHandler>(),
                 get<DiaryTranscriptionCoordinator>(),
                 get<DiaryKnowledgeCoordinator>(),
             ),

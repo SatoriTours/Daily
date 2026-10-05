@@ -25,6 +25,33 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReminderCoordinatorTest {
+    @Test fun smsCreationDoesNotNotifyAndDeliveryOccursAtLeadOnly() {
+        val sms = reminder().copy(deadlineAt = instant("2026-09-03T10:00:00Z"), endDate = LocalDate(2026, 9, 3))
+        val fixture = fixture(now = "2026-09-02T10:00:00Z", reminder = sms)
+        fixture.coordinator.deliver("bill", 0)
+        assertTrue(fixture.notifier.posts.isEmpty())
+        assertEquals(instant("2026-09-03T08:00:00Z"), fixture.scheduler.pending.getValue("bill").at)
+        fixture.clock.now = instant("2026-09-03T07:59:00Z")
+        fixture.coordinator.deliver("bill", 0)
+        assertTrue(fixture.notifier.posts.isEmpty())
+        fixture.clock.now = instant("2026-09-03T08:00:00Z")
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(1, fixture.notifier.posts.size)
+        assertEquals(ReminderOccurrenceKind.CUTOFF, fixture.scheduler.pending.getValue("bill").kind)
+        fixture.clock.now = instant("2026-09-03T10:00:00Z")
+        fixture.coordinator.cutoff("bill", 1)
+        assertEquals(ReminderStatus.EXPIRED, fixture.store.get("bill")!!.status)
+        assertFalse("bill" in fixture.scheduler.pending)
+    }
+
+    @Test fun smsQuietHoursDeliverSilentRatherThanDeferringPastDeadline() {
+        val sms = reminder().copy(deadlineAt = instant("2026-09-02T08:30:00Z"))
+        val fixture = fixture(now = "2026-09-02T08:00:00Z", reminder = sms)
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(1, fixture.notifier.posts.size)
+        assertFalse(fixture.notifier.posts.single().policy.soundEnabled)
+        assertFalse(fixture.notifier.posts.single().policy.vibrationEnabled)
+    }
     @Test
     fun collidingStringHashesStillUseDifferentNotificationTags() {
         assertEquals("FB".hashCode(), "Ea".hashCode())
@@ -391,7 +418,7 @@ class ReminderCoordinatorTest {
         override fun markDelivered(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Long? {
             var delivered: Reminder? = null
             val changed = update(expectedVersion) {
-                state = ReminderState(state.dismissalCount, at.toLocalDateTime(timeZone).date)
+                state = ReminderState(state.dismissalCount, at.toLocalDateTime(timeZone).date, at)
                 it.copy(status = ReminderStatus.NOTIFIED, version = it.version + 1).also { next -> delivered = next }
             }
             if (!changed) return null

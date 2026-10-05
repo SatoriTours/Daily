@@ -78,13 +78,27 @@ fun ReminderDetailScreen(
                     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m)) {
                         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                             Text(reminder.content, style = MaterialTheme.typography.headlineSmall)
-                            Text("下次 ${timeline.occurrenceDate ?: "—"} ${reminder.firstReminderTime}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(reminder.recurrence.toString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            reminder.deadlineAt?.let { deadline ->
+                                val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+                                Text(i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(deadline), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            if (reminder.id.startsWith("sms:") && reminder.deadlineAt == null) {
+                                val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+                                Text(i18n.t("sms.unscheduled"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            } else if (reminder.deadlineAt == null) {
+                                Text("下次 ${timeline.occurrenceDate ?: "—"} ${reminder.firstReminderTime}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(reminder.recurrence.toString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }
-                item { Text("提醒过程", style = MaterialTheme.typography.titleMedium) }
-                item {
+                if (reminder.id.startsWith("sms:")) item { SmsReminderSourcePanel(reminder.id) }
+                if (reminder.deadlineAt != null) item {
+                    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+                    Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)
+                }
+                if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item { Text("提醒过程", style = MaterialTheme.typography.titleMedium) }
+                if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item {
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(horizontal = Spacing.m)) {
                             timeline.steps.forEachIndexed { index, step ->

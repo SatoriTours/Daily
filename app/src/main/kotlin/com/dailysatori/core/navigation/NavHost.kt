@@ -305,6 +305,9 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         composable<ReminderSettingsRoute> {
             com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen(onBack = { navController.popBackStack() })
         }
+        composable<SmsSettingsRoute> {
+            com.dailysatori.ui.feature.settings.sms.SmsSettingsScreen(onBack = { navController.popBackStack() })
+        }
 
         composable<ReminderDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ReminderDetailRoute>()

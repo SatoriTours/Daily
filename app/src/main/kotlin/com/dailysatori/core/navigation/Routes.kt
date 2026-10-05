@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object SettingsRoute
 @Serializable data class ReminderListRoute(val todayOnly: Boolean = false)
 @Serializable data object ReminderSettingsRoute
+@Serializable data object SmsSettingsRoute
 @Serializable data class ReminderDetailRoute(val reminderId: String)
 @Serializable data class ReminderEditRoute(val reminderId: String? = null)
 @Serializable data class ReminderRoute(val reminderId: String)

@@ -36,6 +36,7 @@ data class ReminderListItemUi(
     val recurrence: ReminderRecurrenceKind,
     val status: ReminderStatus,
     val activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
+    val deadlineAt: kotlinx.datetime.Instant? = null,
 )
 
 fun ReminderListItemUi.repeatLabel(): ReminderRepeatLabel = when {
@@ -115,7 +116,8 @@ private fun Reminder.matchesFilters(filter: ReminderListFilter): Boolean =
 
 private fun List<Reminder>.upcomingItems(now: LocalDate): List<ReminderListItemUi> = mapNotNull { reminder ->
     if (reminder.recurrence == ReminderRecurrence.Once && reminder.status.isTerminal()) return@mapNotNull null
-    reminder.nextOccurrenceOnOrAfter(now)?.let { reminder.toItem(it, now) }
+    val displayed = if (reminder.deadlineAt == null) reminder else reminder.copy(timeZone = kotlinx.datetime.TimeZone.currentSystemDefault())
+    displayed.nextOccurrenceOnOrAfter(now)?.let { displayed.toItem(it, now) }
 }
 
 private fun List<Reminder>.finishedItems(now: LocalDate): List<ReminderListItemUi> = mapNotNull { reminder ->
@@ -157,6 +159,7 @@ private fun Reminder.toItem(date: LocalDate, now: LocalDate) = ReminderListItemU
     recurrence = recurrence.kind(),
     status = status,
     activeDayRule = activeDayRule,
+    deadlineAt = deadlineAt,
 )
 
 private fun ReminderListItemUi.matchesQuery(query: String, now: LocalDate): Boolean {

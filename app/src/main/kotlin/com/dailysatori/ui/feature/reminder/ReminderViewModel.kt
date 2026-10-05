@@ -70,6 +70,7 @@ data class ReminderEditorState(
     val notice: String? = null,
     val daytimeBackoffInput: String = profile.daytimeDismissalBackoffMinutes.joinToString(","),
     val eveningIntervalInput: String = profile.eveningIntervalMinutes?.toString().orEmpty(),
+    val deadlineAt: kotlinx.datetime.Instant? = null,
 ) {
     fun applyParsedDraft(draft: ReminderDraft): ReminderEditorState {
         val parsedRecurrence = draft.recurrence
@@ -139,6 +140,7 @@ data class ReminderEditorState(
             activeDayRule = reminder.activeDayRule,
             recurrence = reminder.recurrence,
             profile = reminder.profile,
+            deadlineAt = reminder.deadlineAt,
         )
     }
 }
@@ -378,7 +380,7 @@ fun reminderActions(reminder: Reminder): List<ReminderAction> = when (reminder.s
     ReminderStatus.DRAFT -> emptyList()
 }
 
-fun canResumeReminder(reminder: Reminder): Boolean = reminder.dataIssue == null
+fun canResumeReminder(reminder: Reminder): Boolean = reminder.dataIssue == null && (!reminder.id.startsWith("sms:") || reminder.deadlineAt != null)
 
 data class ReminderUiState(
     val drafts: Map<String, ReminderDraftUiState> = emptyMap(),
@@ -664,7 +666,7 @@ class ReminderViewModel(
                             editor.profile,
                         )
                     } else if (existing != null) {
-                        check(repository.update(id, ReminderEdit(existing.version, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.recurrence, editor.profile)))
+                        check(repository.update(id, ReminderEdit(existing.version, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.recurrence, editor.profile, editor.deadlineAt)))
                     }
                     coordinator.recompute(id)
                     id
