@@ -30,6 +30,9 @@ class ExternalFavoriteSourceRepository(
     fun getAll(): List<External_favorite_source> =
         q.selectExternalFavoriteSources().executeAsList().map(::decryptSource)
 
+    fun observeAll(): Flow<List<External_favorite_source>> =
+        q.selectExternalFavoriteSources().asFlow().mapToList(Dispatchers.IO).map { it.map(::decryptSource) }
+
     fun getEnabled(): List<External_favorite_source> =
         q.selectEnabledExternalFavoriteSources().executeAsList().map(::decryptSource)
 

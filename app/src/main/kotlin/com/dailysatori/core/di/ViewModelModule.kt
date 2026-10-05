@@ -352,6 +352,8 @@ val viewModelModule: Module = module {
             repository = get(),
             logStore = get(),
             scheduler = get(),
+            remoteSourceRepository = get(),
+            favoriteSourceRepository = get(),
         )
     }
     viewModel {

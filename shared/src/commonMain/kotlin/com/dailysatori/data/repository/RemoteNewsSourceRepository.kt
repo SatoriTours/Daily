@@ -2,11 +2,13 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOne
+import app.cash.sqldelight.coroutines.mapToList
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Remote_news_source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 
 class RemoteNewsSourceRepository(
@@ -17,6 +19,9 @@ class RemoteNewsSourceRepository(
 
     fun getAll(): List<Remote_news_source> =
         q.selectRemoteNewsSources().executeAsList().map(::decryptSource)
+
+    fun observeAll(): Flow<List<Remote_news_source>> =
+        q.selectRemoteNewsSources().asFlow().mapToList(Dispatchers.IO).map { it.map(::decryptSource) }
 
     fun getEnabled(): List<Remote_news_source> =
         q.selectEnabledRemoteNewsSources().executeAsList().map(::decryptSource)

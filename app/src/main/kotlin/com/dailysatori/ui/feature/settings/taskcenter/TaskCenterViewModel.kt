@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.data.repository.RemoteNewsSourceRepository
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.recentFailedTaskFilter
 import com.dailysatori.service.asynctask.recentTaskFailureCutoffs
@@ -38,6 +40,7 @@ data class TaskCenterState(
     val selectedTask: Async_task? = null,
     val taskLog: String = "",
     val selectedFailureSuperseded: Boolean = false,
+    val sourceNames: TaskCenterSourceNames = TaskCenterSourceNames(),
 )
 
 private data class SelectedTaskState(
@@ -58,7 +61,20 @@ class TaskCenterViewModel(
     private val repository: AsyncTaskRepository,
     private val logStore: AsyncTaskLogStore,
     private val scheduler: AsyncTaskScheduler,
+    remoteSourceRepository: RemoteNewsSourceRepository,
+    favoriteSourceRepository: ExternalFavoriteSourceRepository,
 ) : ViewModel() {
+    private val sourceNames = remoteSourceRepository.observeAll()
+        .combine(favoriteSourceRepository.observeAll()) { remote, favorites ->
+            TaskCenterSourceNames(
+                remote = remote.associate { it.id to it.name.ifBlank { "新闻源 #${it.id}" } },
+                enabledRemote = remote.filter { it.enabled == 1L }
+                    .associate { it.id to it.name.ifBlank { "新闻源 #${it.id}" } },
+                favorites = favorites.associate {
+                    it.id to taskCenterFavoriteSourceName(it.provider, it.display_name, it.account_name)
+                },
+            )
+        }
     private val filter = MutableStateFlow(AsyncTaskFilter())
     private var entryFilterApplied = false
     private val pageLimit = MutableStateFlow(DEFAULT_TASK_CENTER_PAGE_SIZE)
@@ -105,6 +121,7 @@ class TaskCenterViewModel(
                 )
             }
         }
+        .combine(sourceNames) { state, names -> state.copy(sourceNames = names) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskCenterState())
 
     fun applyEntryFilter(recentFailures: Boolean) {

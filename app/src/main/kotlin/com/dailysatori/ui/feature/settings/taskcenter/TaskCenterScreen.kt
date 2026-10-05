@@ -85,6 +85,7 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
         state.selectedTask?.let { task ->
             TaskCenterTaskDetail(
                 task = task,
+                title = taskCenterTaskTitle(task.type, task.payload_json, state.sourceNames),
                 taskLog = state.taskLog,
                 failureSuperseded = state.selectedFailureSuperseded,
                 modifier = modifier,
@@ -121,6 +122,7 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                     items(state.tasks, key = { it.id }) { task ->
                         TaskCenterTaskCard(
                             task = task,
+                            title = taskCenterTaskTitle(task.type, task.payloadJson, state.sourceNames),
                             onOpen = { viewModel.openTask(task.id) },
                             onCancel = { viewModel.cancel(task.id) },
                         )
@@ -271,7 +273,7 @@ private fun TaskCenterMultiSelectDropdown(
 }
 
 @Composable
-private fun TaskCenterTaskCard(task: AsyncTaskListItem, onOpen: () -> Unit, onCancel: () -> Unit) {
+private fun TaskCenterTaskCard(task: AsyncTaskListItem, title: String, onOpen: () -> Unit, onCancel: () -> Unit) {
     Surface(
         onClick = onOpen,
         shape = RoundedCornerShape(Radius.m),
@@ -288,7 +290,7 @@ private fun TaskCenterTaskCard(task: AsyncTaskListItem, onOpen: () -> Unit, onCa
                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    Text(asyncTaskTypeDisplayName(task.type), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     TaskCenterStatusPill(task.status)
                     if (task.status == AsyncTaskStatus.queued.name || task.status == AsyncTaskStatus.running.name || task.status == AsyncTaskStatus.retrying.name) {
                         OutlinedButton(onClick = onCancel) {
@@ -352,6 +354,7 @@ private fun taskCenterStatusColor(status: String): androidx.compose.ui.graphics.
 @Composable
 private fun TaskCenterTaskDetail(
     task: Async_task,
+    title: String,
     taskLog: String,
     failureSuperseded: Boolean,
     modifier: Modifier = Modifier,
@@ -381,7 +384,7 @@ private fun TaskCenterTaskDetail(
     ) {
         item(key = "task-header") {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(asyncTaskTypeDisplayName(task.type), style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Text("#${task.id} · ${asyncTaskStatusDisplayName(task.status)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
