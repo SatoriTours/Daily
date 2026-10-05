@@ -45,6 +45,9 @@ import com.dailysatori.ui.feature.reminder.ReminderListItemUi
 import com.dailysatori.ui.feature.reminder.ReminderRepeatLabel
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.feature.reminder.repeatLabel
+import com.dailysatori.ui.feature.reminder.ReminderPendingDot
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -139,6 +142,8 @@ private fun MyQuickActions(
     onTasks: () -> Unit,
 ) {
     val taskStatus = stringResource(R.string.management_task_status, state.activeTaskCount, state.failedTaskCount)
+    val i18n: I18nService = koinInject()
+    val attentionStatus = i18n.t("attention.task_count", state.taskAttentionCount)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val columns = if (maxWidth < Spacing.xxl * 6 || LocalDensity.current.fontScale > 1.3f) 2 else 4
         FlowRow(maxItemsInEachRow = columns, horizontalArrangement = Arrangement.spacedBy(Spacing.s),
@@ -147,8 +152,8 @@ private fun MyQuickActions(
             MyQuickAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.my_space_chat_shortcut), onChat, Modifier.weight(1f))
             MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
             MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
-                Modifier.weight(1f).semantics { stateDescription = taskStatus },
-                showBadge = state.activeTaskCount > 0)
+                Modifier.weight(1f).semantics { stateDescription = "$taskStatus · $attentionStatus" },
+                badgeCount = state.taskAttentionCount, activeTaskCount = state.activeTaskCount)
         }
     }
 }
@@ -159,12 +164,14 @@ private fun MyQuickAction(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier,
-    showBadge: Boolean = false,
+    badgeCount: Int = 0,
+    activeTaskCount: Long = 0,
 ) {
+    val i18n: I18nService = koinInject()
     Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         BadgedBox(badge = {
-            if (showBadge) Badge(containerColor = MaterialTheme.colorScheme.error)
+            if (badgeCount > 0) Badge(containerColor = MaterialTheme.colorScheme.error) { Text(badgeCount.toString()) }
         }) {
             Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Box(Modifier.size(Spacing.xxl - Spacing.xs), contentAlignment = Alignment.Center) {
@@ -173,6 +180,8 @@ private fun MyQuickAction(
             }
         }
         Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+        if (activeTaskCount > 0) Text(i18n.t("attention.task_active", activeTaskCount),
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -253,6 +262,7 @@ private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: (
         }
         VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
         MyReminderBody(item, Modifier.weight(1f))
+        if (item.isTodayPending) ReminderPendingDot()
         Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

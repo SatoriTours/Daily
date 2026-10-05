@@ -975,6 +975,24 @@ WHERE (:includeAllTypes = 1 OR type IN :types)
 ORDER BY updated_at DESC, id DESC
 LIMIT :limit;
 
+selectAsyncTasksNeedingAttention:
+SELECT task.id, task.type, task.status, task.progress_current, task.progress_total, task.progress_message,
+       task.checkpoint_json, task.created_at, task.started_at, task.finished_at, task.updated_at,
+       task.last_error_message, task.run_after_ms, task.attempt_count, task.payload_json
+FROM async_task task
+WHERE task.status = 'failed' AND task.updated_at >= :failedSince
+  AND NOT EXISTS (
+      SELECT 1 FROM setting
+      WHERE key = 'async_task_failure_seen:' || task.id AND value = CAST(task.updated_at AS TEXT)
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM async_task successor
+      WHERE successor.unique_key = task.unique_key AND successor.status = 'succeeded'
+        AND (successor.created_at > task.created_at OR
+             (successor.created_at = task.created_at AND successor.id > task.id))
+  )
+ORDER BY task.updated_at DESC, task.id DESC;
+
 selectAsyncTaskIdsBeyondRetention:
 SELECT id FROM async_task
 WHERE status IN ('succeeded', 'failed', 'cancelled') AND id NOT IN (

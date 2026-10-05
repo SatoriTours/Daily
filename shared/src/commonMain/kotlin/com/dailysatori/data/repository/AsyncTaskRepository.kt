@@ -197,6 +197,17 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         q.selectAsyncTaskOverview(failedSince, mapper = ::AsyncTaskOverview)
             .asFlow().mapToOne(Dispatchers.IO)
 
+    fun observeTasksNeedingAttention(failedSince: Long): Flow<List<AsyncTaskListItem>> =
+        q.selectAsyncTasksNeedingAttention(failedSince, mapper = ::AsyncTaskListItem)
+            .asFlow().mapToList(Dispatchers.IO)
+
+    fun acknowledgeFailure(taskId: Long, updatedAt: Long) = q.transaction {
+        val task = getById(taskId) ?: return@transaction
+        if (task.status != AsyncTaskStatus.failed.name || task.updated_at != updatedAt) return@transaction
+        val now = Clock.System.now().toEpochMilliseconds()
+        q.upsertSetting("async_task_failure_seen:$taskId", updatedAt.toString(), now, now)
+    }
+
     fun observeTaskCenter(filter: AsyncTaskFilter, limit: Int = DEFAULT_TASK_CENTER_LIMIT): Flow<AsyncTaskCenterPage> {
         val requestedLimit = limit.coerceAtLeast(1)
         val types = filter.types.ifEmpty { setOf("") }
@@ -358,7 +369,10 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         val keep = keepLatest.coerceAtLeast(1)
         return q.transactionWithResult {
             val ids = q.selectAsyncTaskIdsBeyondRetention(keep).executeAsList()
-            ids.forEach(q::deleteAsyncTaskById)
+            ids.forEach { id ->
+                q.deleteAsyncTaskById(id)
+                q.deleteSetting("async_task_failure_seen:$id")
+            }
             q.deleteOrphanAsyncTaskBatches()
             ids
         }

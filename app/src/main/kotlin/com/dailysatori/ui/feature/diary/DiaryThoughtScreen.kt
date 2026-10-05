@@ -51,6 +51,9 @@ import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.diary.DiaryThoughtEvidence
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.indicator.AttentionReason
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
 import com.dailysatori.ui.feature.myspace.thoughtChatKey
 import kotlinx.coroutines.delay
@@ -92,6 +95,7 @@ internal fun DiaryThoughtScreen(
     focusThoughtKey: String? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val i18n: I18nService = koinInject()
     val saveError by viewModel.saveError.collectAsStateWithLifecycle()
     val presentation = remember(state.archive.thoughts) { diaryThoughtPresentation(state.archive.thoughts) }
     val listState = rememberLazyListState()
@@ -133,7 +137,11 @@ internal fun DiaryThoughtScreen(
                 item(key = "highlights") { DiaryThoughtHighlights(presentation.highlights) }
             }
             if (showStatus) {
-                item(key = "status") { DiaryThoughtStatus(state) }
+                item(key = "status") {
+                    if (!state.isUpdating && state.error != null) {
+                        AttentionReason(state.error.orEmpty(), i18n.t("attention.retry"), viewModel::refresh)
+                    } else DiaryThoughtStatus(state)
+                }
             }
             if (state.archive.thoughts.isEmpty()) item(key = "empty") { DiaryThoughtEmptyState(state) }
             presentation.sections.forEach { section ->

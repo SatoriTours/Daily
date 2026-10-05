@@ -7,6 +7,12 @@ import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -14,6 +20,94 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AsyncTaskRepositoryTest {
+    @Test
+    fun attentionFindsRecentFailuresEvenBeyondTheDefaultPage() = withDatabase { db ->
+        val repository = AsyncTaskRepository(db)
+        val old = repository.enqueue("save_article", "{}")
+        repository.claimForRun(old, "test", Long.MAX_VALUE)
+        db.dailySatoriQueries.finishAsyncTask("failed", "", 999, "network", "offline", 999, old)
+        val failure = repository.enqueue("save_article", "{}")
+        repository.claimForRun(failure, "test", Long.MAX_VALUE)
+        db.dailySatoriQueries.finishAsyncTask("failed", "", 1_000, "network", "offline", 1_000, failure)
+        repeat(60) { repository.enqueue("save_article", "{}") }
+        runBlocking {
+            assertTrue(repository.observeTaskCenter(AsyncTaskFilter()).first().tasks.none { it.id == failure })
+            assertEquals(listOf(failure), repository.observeTasksNeedingAttention(1_000).first().map { it.id })
+        }
+    }
+
+    @Test
+    fun acknowledgementUpdatesObserversPersistsAndKeepsFailureHistory() = withDatabase { db ->
+        val repository = AsyncTaskRepository(db)
+        val failure = repository.enqueue("save_article", "{}")
+        repository.claimForRun(failure, "test", Long.MAX_VALUE)
+        db.dailySatoriQueries.finishAsyncTask("failed", "", 1_000, "network", "offline", 1_000, failure)
+        runBlocking {
+            withTimeout(5_000) {
+                val initial = CompletableDeferred<Unit>()
+                val updates = async {
+                    repository.observeTasksNeedingAttention(0).onEach { initial.complete(Unit) }.take(2).toList()
+                }
+                initial.await()
+                repository.acknowledgeFailure(failure, 1_000)
+                assertEquals(listOf(listOf(failure), emptyList()), updates.await().map { tasks -> tasks.map { it.id } })
+            }
+            assertTrue(AsyncTaskRepository(db).observeTasksNeedingAttention(0).first().isEmpty())
+            assertEquals(listOf(failure), repository.observeTaskCenter(AsyncTaskFilter()).first().tasks.map { it.id })
+            assertEquals("failed", repository.getById(failure)?.status)
+        }
+    }
+
+    @Test
+    fun acknowledgementCannotHideANewerFailureOrAnActiveTask() = withDatabase { db ->
+        val repository = AsyncTaskRepository(db)
+        val task = repository.enqueue("save_article", "{}")
+        repository.acknowledgeFailure(task, repository.getById(task)!!.updated_at)
+        assertNull(SettingRepository(db).get("async_task_failure_seen:$task"))
+        repository.claimForRun(task, "test", Long.MAX_VALUE)
+        db.dailySatoriQueries.finishAsyncTask("failed", "", 1_000, "network", "offline", 1_000, task)
+        repository.acknowledgeFailure(task, 999)
+        runBlocking { assertEquals(listOf(task), repository.observeTasksNeedingAttention(0).first().map { it.id }) }
+        repository.acknowledgeFailure(task, 1_000)
+        val fresh = repository.enqueue("save_article", "{}")
+        repository.claimForRun(fresh, "test", Long.MAX_VALUE)
+        db.dailySatoriQueries.finishAsyncTask("failed", "", 2_000, "timeout", "timeout", 2_000, fresh)
+        repository.acknowledgeFailure(task, 1_000)
+        runBlocking { assertEquals(listOf(fresh), repository.observeTasksNeedingAttention(0).first().map { it.id }) }
+    }
+
+    @Test
+    fun laterSuccessClearsOnlyTheMatchingFailureAndANewFailureReturns() = withRepository { repository ->
+        fun fail(key: String): Long = repository.enqueue("save_article", "{}", uniqueKey = key).also {
+            repository.claimForRun(it, "test", Long.MAX_VALUE)
+            repository.finishFailure(it, "network", "offline")
+        }
+        fail("article:1")
+        val unrelated = fail("article:2")
+        val success = repository.enqueue("save_article", "{}", uniqueKey = "article:1")
+        repository.claimForRun(success, "test", Long.MAX_VALUE)
+        repository.finishSuccess(success, "{}")
+        runBlocking {
+            assertEquals(listOf(unrelated), repository.observeTasksNeedingAttention(0).first().map { it.id })
+        }
+        val fresh = fail("article:1")
+        runBlocking {
+            assertEquals(setOf(unrelated, fresh), repository.observeTasksNeedingAttention(0).first().map { it.id }.toSet())
+        }
+    }
+
+    @Test
+    fun retentionAlsoRemovesAcknowledgementsForDeletedFailures() = withDatabase { db ->
+        val repository = AsyncTaskRepository(db)
+        val failure = repository.enqueue("save_article", "{}")
+        repository.claimForRun(failure, "test", Long.MAX_VALUE)
+        db.dailySatoriQueries.finishAsyncTask("failed", "", 1_000, "network", "offline", 1_000, failure)
+        repository.acknowledgeFailure(failure, 1_000)
+        repository.cancel(repository.enqueue("save_article", "{}"))
+        assertEquals(listOf(failure), repository.pruneOldTasks(1))
+        assertNull(SettingRepository(db).get("async_task_failure_seen:$failure"))
+    }
+
     @Test
     fun invalidDependencyPayloadRollsBackTheEntireFamilyChain() = withRepository { repository ->
         assertFailsWith<IllegalArgumentException> {

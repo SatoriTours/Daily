@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.data.repository.AsyncTaskCenterPage
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskFilter
@@ -40,6 +41,8 @@ data class TaskCenterState(
     val selectedTask: Async_task? = null,
     val taskLog: String = "",
     val selectedFailureSuperseded: Boolean = false,
+    val attentionTasks: List<AsyncTaskListItem> = emptyList(),
+    val attentionOnly: Boolean = false,
     val sourceNames: TaskCenterSourceNames = TaskCenterSourceNames(),
 )
 
@@ -78,6 +81,7 @@ class TaskCenterViewModel(
     private val filter = MutableStateFlow(AsyncTaskFilter())
     private var entryFilterApplied = false
     private val pageLimit = MutableStateFlow(DEFAULT_TASK_CENTER_PAGE_SIZE)
+    private val attentionOnly = MutableStateFlow(false)
     private val selectedTaskId = MutableStateFlow<Long?>(null)
     private val selected = selectedTaskId.flatMapLatest { id ->
         if (id == null) {
@@ -103,21 +107,29 @@ class TaskCenterViewModel(
 
     val state: StateFlow<TaskCenterState> = effectiveFilter
         .combine(pageLimit) { taskFilter, limit -> taskFilter to limit }
-        .flatMapLatest { (taskFilter, limit) ->
-            repository.observeTaskCenter(taskFilter, limit)
+        .combine(attentionOnly) { (taskFilter, limit), onlyAttention -> Triple(taskFilter, limit, onlyAttention) }
+        .flatMapLatest { (taskFilter, limit, onlyAttention) ->
+            val attention = recentTaskFailureCutoffs().flatMapLatest(repository::observeTasksNeedingAttention)
+            val page = if (onlyAttention) attention.map { tasks ->
+                AsyncTaskCenterPage(tasks.take(limit), tasks.take(limit).size, limit)
+            } else repository.observeTaskCenter(taskFilter, limit)
+            page.combine(attention) { taskPage, attentionTasks -> taskPage to attentionTasks }
                 .combine(selected) { page, selectedTask ->
+                val (taskPage, attentionTasks) = page
                 TaskCenterState(
                     types = taskFilter.types,
                     statuses = taskFilter.statuses,
                     showTerminal = taskFilter.showTerminal,
                     updatedSince = taskFilter.updatedSince,
-                    tasks = page.tasks,
-                    hasMore = page.hasMore,
-                    loadedCount = page.loadedCount,
-                    requestedLimit = page.requestedLimit,
+                    tasks = taskPage.tasks,
+                    hasMore = if (onlyAttention) attentionTasks.size > limit else taskPage.hasMore,
+                    loadedCount = taskPage.tasks.size,
+                    requestedLimit = taskPage.requestedLimit,
                     selectedTask = selectedTask.task,
                     taskLog = selectedTask.log,
                     selectedFailureSuperseded = selectedTask.failureSuperseded,
+                    attentionTasks = attentionTasks,
+                    attentionOnly = onlyAttention,
                 )
             }
         }
@@ -132,11 +144,23 @@ class TaskCenterViewModel(
 
     fun showAllTasks() {
         resetPaging()
+        attentionOnly.value = false
         filter.value = AsyncTaskFilter()
+    }
+
+    fun showAttentionTasks() {
+        resetPaging()
+        filter.value = AsyncTaskFilter()
+        attentionOnly.value = true
+    }
+
+    fun acknowledgeFailure(taskId: Long, updatedAt: Long) {
+        viewModelScope.launch(Dispatchers.IO) { repository.acknowledgeFailure(taskId, updatedAt) }
     }
 
     fun toggleType(type: String) {
         resetPaging()
+        attentionOnly.value = false
         filter.update {
             it.copy(types = if (type in it.types) it.types - type else it.types + type)
         }
@@ -144,11 +168,13 @@ class TaskCenterViewModel(
 
     fun clearTypes() {
         resetPaging()
+        attentionOnly.value = false
         filter.update { it.copy(types = emptySet()) }
     }
 
     fun toggleStatus(status: String) {
         resetPaging()
+        attentionOnly.value = false
         filter.update {
             it.copy(statuses = if (status in it.statuses) it.statuses - status else it.statuses + status)
         }
@@ -156,6 +182,7 @@ class TaskCenterViewModel(
 
     fun clearStatuses() {
         resetPaging()
+        attentionOnly.value = false
         filter.update { it.copy(statuses = emptySet()) }
     }
 

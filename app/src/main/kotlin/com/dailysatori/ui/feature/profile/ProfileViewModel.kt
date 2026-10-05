@@ -39,6 +39,7 @@ data class ProfileUiState(
     val enabledRemoteNewsSourceCount: Long = 0,
     val activeTaskCount: Long = 0,
     val failedTaskCount: Long = 0,
+    val taskAttentionCount: Int = 0,
     val taskProgressLabel: String? = null,
     val destinations: List<ProfileDestination> = profileDestinations,
 )
@@ -100,14 +101,19 @@ class ProfileViewModel(
         ProfileRemoteNews(articleCount, sourceCount)
     }
 
-    private val taskOverview = recentTaskFailureCutoffs().flatMapLatest(tasks::observeTaskOverview)
+    private val taskOverview = recentTaskFailureCutoffs().flatMapLatest { cutoff ->
+        combine(tasks.observeTaskOverview(cutoff), tasks.observeTasksNeedingAttention(cutoff)) { overview, attention ->
+            overview to attention.size
+        }
+    }
 
     val state = combine(
         articles.getFavorites(),
         externalFavorites,
         remoteNews,
         taskOverview,
-    ) { favoriteItems, externalFavoriteItems, remoteNews, overview ->
+    ) { favoriteItems, externalFavoriteItems, remoteNews, taskState ->
+        val (overview, attentionCount) = taskState
         val tasks = profileTaskSummary(overview)
         ProfileUiState(
             favoriteCount = favoriteItems.size,
@@ -117,6 +123,7 @@ class ProfileViewModel(
             enabledRemoteNewsSourceCount = remoteNews.enabledSourceCount,
             activeTaskCount = tasks.activeCount,
             failedTaskCount = tasks.failedCount,
+            taskAttentionCount = attentionCount,
             taskProgressLabel = tasks.progressLabel,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileUiState())

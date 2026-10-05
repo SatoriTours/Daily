@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
+import androidx.compose.material3.Badge
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -50,6 +51,9 @@ import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.asynctask.asyncTaskStatusDisplayName
 import com.dailysatori.service.asynctask.asyncTaskTypeDisplayName
 import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.component.indicator.AttentionReason
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.*
 import com.dailysatori.shared.db.Async_task
@@ -88,6 +92,8 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                 title = taskCenterTaskTitle(task.type, task.payload_json, state.sourceNames),
                 taskLog = state.taskLog,
                 failureSuperseded = state.selectedFailureSuperseded,
+                needsAttention = state.attentionTasks.any { it.id == task.id },
+                onAcknowledge = { viewModel.acknowledgeFailure(task.id, task.updated_at) },
                 modifier = modifier,
             )
             return@AppScaffold
@@ -96,6 +102,21 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
             modifier = modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
+            val i18n: I18nService = koinInject()
+            if (state.attentionTasks.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                    Badge(containerColor = MaterialTheme.colorScheme.error) { Text(state.attentionTasks.size.toString()) }
+                    Text(i18n.t("attention.task_pending"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = viewModel::showAttentionTasks) { Text(i18n.t("attention.view_reasons")) }
+                }
+            }
+            if (state.attentionOnly) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+                    Text(i18n.t("attention.task_pending"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = viewModel::showAllTasks) { Text(i18n.t("attention.all_tasks")) }
+                }
+            }
             if (state.updatedSince != null) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                     Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.management_recent_tasks), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
@@ -125,6 +146,7 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                             title = taskCenterTaskTitle(task.type, task.payloadJson, state.sourceNames),
                             onOpen = { viewModel.openTask(task.id) },
                             onCancel = { viewModel.cancel(task.id) },
+                            needsAttention = state.attentionTasks.any { it.id == task.id },
                         )
                     }
                     if (state.hasMore) {
@@ -273,7 +295,7 @@ private fun TaskCenterMultiSelectDropdown(
 }
 
 @Composable
-private fun TaskCenterTaskCard(task: AsyncTaskListItem, title: String, onOpen: () -> Unit, onCancel: () -> Unit) {
+private fun TaskCenterTaskCard(task: AsyncTaskListItem, title: String, onOpen: () -> Unit, onCancel: () -> Unit, needsAttention: Boolean) {
     Surface(
         onClick = onOpen,
         shape = RoundedCornerShape(Radius.m),
@@ -290,6 +312,7 @@ private fun TaskCenterTaskCard(task: AsyncTaskListItem, title: String, onOpen: (
                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    if (needsAttention) Badge(containerColor = MaterialTheme.colorScheme.error)
                     Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     TaskCenterStatusPill(task.status)
                     if (task.status == AsyncTaskStatus.queued.name || task.status == AsyncTaskStatus.running.name || task.status == AsyncTaskStatus.retrying.name) {
@@ -357,6 +380,8 @@ private fun TaskCenterTaskDetail(
     title: String,
     taskLog: String,
     failureSuperseded: Boolean,
+    needsAttention: Boolean,
+    onAcknowledge: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var pageIndex by remember(taskLog) { mutableStateOf(0) }
@@ -365,6 +390,7 @@ private fun TaskCenterTaskDetail(
     var logHasNext by remember(taskLog) { mutableStateOf(false) }
     var logLoading by remember(taskLog) { mutableStateOf(false) }
     var logLoadedOnce by remember(taskLog) { mutableStateOf(false) }
+    val i18n: I18nService = koinInject()
 
     LaunchedEffect(taskLog, pageIndex) {
         logLoading = true
@@ -391,6 +417,17 @@ private fun TaskCenterTaskDetail(
         if (failureSuperseded) {
             item(key = "task-superseded") {
                 TaskCenterDetailSection("状态说明", "这是历史失败记录，后续同类任务已经成功完成。")
+            }
+        }
+        if (task.status == AsyncTaskStatus.failed.name) {
+            item(key = "task-failure-reason") {
+                val reason = listOf(task.last_error_code, task.last_error_message)
+                    .filter { it.isNotBlank() }.joinToString("\n").ifBlank { i18n.t("attention.task_unknown_error") }
+                if (needsAttention) {
+                    AttentionReason(reason, i18n.t("attention.acknowledge"), onAcknowledge)
+                } else {
+                    TaskCenterDetailSection(i18n.t("attention.failure_reason"), reason)
+                }
             }
         }
         item(key = "task-time") {

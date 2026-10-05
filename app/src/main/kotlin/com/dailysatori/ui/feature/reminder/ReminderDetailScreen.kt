@@ -48,6 +48,11 @@ import androidx.compose.ui.text.style.TextAlign
 import com.dailysatori.R
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.indicator.AttentionReason
+import com.dailysatori.service.reminder.ReminderSummary
+import com.dailysatori.service.i18n.I18nService
+import com.dailysatori.ui.feature.profile.localDayTicker
+import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
@@ -63,17 +68,25 @@ fun ReminderDetailScreen(
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val reminder = reminders.firstOrNull { it.id == reminderId }
+    val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
     var confirmDelete by remember(reminderId) { mutableStateOf(false) }
     AppScaffold(title = "提醒详情", onBack = onBack) { modifier ->
         if (reminder == null) {
             Text("未找到提醒。", modifier = modifier.padding(Spacing.m))
         } else {
-            val timeline = buildReminderTimeline(reminder, Clock.System.todayIn(TimeZone.currentSystemDefault()))
+            val timeline = buildReminderTimeline(reminder, today)
+            val i18n: I18nService = koinInject()
+            val pending = ReminderSummary.todayPendingCount(listOf(reminder), today) > 0
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
+                if (pending) item(key = "pending-reason") {
+                    AttentionReason(i18n.t("attention.reminder_pending"), i18n.t("attention.reminder_complete")) {
+                        viewModel.complete(reminder.id)
+                    }
+                }
                 item {
                     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m)) {
                         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
