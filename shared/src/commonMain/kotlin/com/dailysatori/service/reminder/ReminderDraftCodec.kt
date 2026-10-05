@@ -2,14 +2,17 @@ package com.dailysatori.service.reminder
 
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.plus
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -42,9 +45,33 @@ class ReminderDraftCodec(
         )
     }
 
-    /** Normalize AI presentation, then apply the same strict validation used by reminder tools. */
-    fun decodeInterpretationResponse(arguments: String, zone: TimeZone = currentTimeZone()): ReminderDraft =
-        create(unwrapReminderAiJson(arguments), zone)
+    /** Apply AI defaults before strict validation; stored drafts and tool arguments retain their dates. */
+    fun decodeInterpretationResponse(arguments: String, zone: TimeZone = currentTimeZone()): ReminderDraft {
+        val raw = unwrapReminderAiJson(arguments)
+        val args = runCatching { json.parseToJsonElement(raw) as? JsonObject }.getOrNull()
+            ?: return create(raw, zone)
+        if ("draft_id" in args) return create(raw, zone)
+        val normalized = args.toMutableMap()
+        val time = args["first_reminder_time"]
+        if (time == null || time == JsonNull || time is JsonPrimitive && time.isString && time.content.isBlank()) {
+            normalized["first_reminder_time"] = JsonPrimitive("09:00")
+        }
+        val draft = create(JsonObject(normalized).toString(), zone)
+        val start = draft.startDate ?: return draft
+        val firstTime = draft.firstReminderTime ?: return draft
+        if (draft.recurrence == ReminderRecurrence.Once || start != draft.endDate) return draft
+        val localNow = now().toLocalDateTime(zone)
+        if (start > localNow.date || start == localNow.date && firstTime > localNow.time) return draft
+        val earliest = if (firstTime <= localNow.time) localNow.date.plus(1, DateTimeUnit.DAY) else localNow.date
+        val nextDate = when (val rule = draft.recurrence) {
+            is ReminderRecurrence.Monthly -> nextMonthlyOccurrence(earliest, rule.dayOfMonth)
+            is ReminderRecurrence.Yearly -> nextYearlyOccurrence(earliest, rule)
+            ReminderRecurrence.Once -> return draft
+        }
+        normalized["start_date"] = JsonPrimitive(nextDate.toString())
+        normalized["end_date"] = JsonPrimitive(nextDate.toString())
+        return create(JsonObject(normalized).toString(), zone)
+    }
 
     fun encode(draft: ReminderDraft): String = buildJsonObject {
         put("draft_id", draft.id)

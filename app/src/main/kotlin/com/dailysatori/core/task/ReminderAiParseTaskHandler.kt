@@ -87,13 +87,14 @@ class ReminderAiParseTaskHandler(
         batchCodec.decode(response, zone).let { decoded ->
             val expected = fragments.map { it.index }.toSet()
             val indexes = decoded.drafts.map { it.sourceIndex }
+            val invalid = decoded.drafts.firstOrNull { it.draft.validationErrors.isNotEmpty() }
             val duplicate = indexes.groupingBy { it }.eachCount().keys.firstOrNull { indexes.count { value -> value == it } > 1 }
             val error = when {
                 decoded.failure != null -> decoded.failure
                 duplicate != null -> "Batch response contains duplicate source_index $duplicate"
                 indexes.any { it !in expected } -> "Batch response contains out-of-range source_index"
                 indexes.toSet() != expected -> "Batch response is missing source_index"
-                decoded.drafts.any { it.draft.validationErrors.isNotEmpty() } -> "Batch response contains invalid reminder fields"
+                invalid != null -> "第 ${invalid.sourceIndex + 1} 条提醒字段有误：${invalid.draft.validationErrors.joinToString("；")}"
                 else -> null
             }
             if (error != null) throw ReminderAiBatchResponseException(error)

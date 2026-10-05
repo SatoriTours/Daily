@@ -11,6 +11,10 @@ import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
 import com.dailysatori.service.asynctask.AsyncTaskRunner
 import com.dailysatori.service.asynctask.reminderAiRetryDecision
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSink
+import com.dailysatori.service.diagnostics.Diagnostics
+import com.dailysatori.service.diagnostics.SafeDiagnosticEvent
 import com.dailysatori.service.reminder.ReminderBatchCodec
 import com.dailysatori.service.reminder.ReminderDraftCodec
 import com.dailysatori.service.reminder.ReminderInputFragment
@@ -30,6 +34,30 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class ReminderAiParseTaskHandlerTest {
+    @Test
+    fun invalidFieldsReportSpecificChineseValidationReason() = runBlocking {
+        val events = mutableListOf<SafeDiagnosticEvent>()
+        val previous = DiagnosticLog.diagnostics
+        DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+        try {
+            withRepository { repository ->
+                val batch = repository.enqueueOrReuse("续费", TimeZone.UTC, LocalDate(2026, 9, 2))
+                val response = """[{"source_index":0,"content":"续费","start_date":"2026-09-02","end_date":"2026-09-02","first_reminder_time":"25:00","active_day_rule":"daily","recurrence_rule":"monthly:2"}]"""
+                val result = ReminderAiParseTaskHandler(repository, RecordingRemote(response), fixedBatchCodec(), FixedClock)
+                    .execute(94, reminderAiParseTaskPayloadJson(batch.id), "", RecordingReporter())
+
+                assertIs<AsyncTaskExecutionResult.PermanentFailure>(result)
+                val error = repository.getBatch(batch.id)!!.errorSummary
+                assertTrue(error.contains("第 1 条"), error)
+                assertTrue(error.contains("first_reminder_time 必须是本地时间 HH:MM"), error)
+                assertEquals(listOf("first_reminder_time"), events.map { it.attributes["reminderField"] })
+                assertTrue(events.all { it.contentOmitted })
+            }
+        } finally {
+            DiagnosticLog.diagnostics = previous
+        }
+    }
+
     @Test
     fun orphanRecoveryRunsToOneNotificationRouteAndIdempotentConfirmedReminder() = runBlocking {
         withDatabase { database, _ ->

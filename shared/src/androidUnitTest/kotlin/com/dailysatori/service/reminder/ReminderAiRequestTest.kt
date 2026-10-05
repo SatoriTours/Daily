@@ -69,6 +69,23 @@ class ReminderAiRequestTest {
         }
     }
 
+    @Test
+    fun requestsSpecifyDefaultTimeAndNextRecurringOccurrenceInLocalTimezone() = runBlocking {
+        withRemote("openai") { remote, _, requests ->
+            val zone = TimeZone.of("Asia/Shanghai")
+            remote.interpret("每个月的 2 号提醒我续费", now, zone)
+            remote.interpretBatch(listOf(ReminderInputFragment(0, "每个月的 2 号提醒我续费")), now, zone)
+
+            requests.forEach { request ->
+                val prompt = request["messages"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
+                assertTrue(prompt.contains("If no time is specified, use 09:00"))
+                assertTrue(prompt.contains("2026-10-03T16:00"))
+                assertTrue(prompt.contains("next occurrence"))
+                assertTrue(prompt.contains("monthly:2"))
+            }
+        }
+    }
+
     private suspend fun withRemote(
         provider: String,
         test: suspend (ReminderAiInterpretationRemote, AiService, List<JsonObject>) -> Unit,

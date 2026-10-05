@@ -35,4 +35,5 @@ app/build/
 shared/build/
 build/
 local.properties
+ai-test.local.json
 /.local/

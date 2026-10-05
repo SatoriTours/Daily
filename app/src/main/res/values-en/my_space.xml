@@ -4,6 +4,8 @@
     <string name="my_space_intro">Understand yourself. Turn insights into action.</string>
     <string name="my_space_thoughts">My thoughts</string>
     <string name="my_space_reminders">My reminders</string>
+    <string name="my_space_today_pending_count">%1$d unfinished today</string>
+    <string name="my_space_reminder_pending">Due today, unfinished</string>
     <string name="my_space_view_all">View all</string>
     <string name="my_space_next">Up next</string>
     <string name="my_space_useful">Product opportunities</string>

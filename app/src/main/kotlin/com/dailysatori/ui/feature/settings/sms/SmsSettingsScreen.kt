@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -61,23 +64,54 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
     }) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    SmsToggle(i18n.t("sms.monitor"), state.enabled, state.busy) { enabled ->
-                        if (!enabled) viewModel.setMonitoring(false)
-                        else if (state.smsPermission) viewModel.setMonitoring(true)
-                        else smsPermission.launch(Manifest.permission.RECEIVE_SMS)
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radius.m),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Column {
+                            SmsToggle(i18n.t("sms.monitor"), state.enabled, state.busy) { enabled ->
+                                if (!enabled) viewModel.setMonitoring(false)
+                                else if (state.smsPermission) viewModel.setMonitoring(true)
+                                else smsPermission.launch(Manifest.permission.RECEIVE_SMS)
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = Spacing.m),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            SmsToggle(i18n.t("sms.cloud"), state.cloudAllowed, state.busy) {
+                                if (it) cloudConsent = true else viewModel.setCloudAllowed(false)
+                            }
+                        }
                     }
-                    SmsToggle(i18n.t("sms.cloud"), state.cloudAllowed, state.busy) { if (it) cloudConsent = true else viewModel.setCloudAllowed(false) }
-                    Text(i18n.t("sms.privacy"), style = MaterialTheme.typography.bodySmall)
-                    if (state.enabled && !state.smsPermission) Text(i18n.t("sms.permission_missing"), color = MaterialTheme.colorScheme.error)
-                    if (!state.notifications) TextButton(onClick = {
+                    Row(
+                        modifier = Modifier.padding(horizontal = Spacing.m),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                    ) {
+                        Icon(Icons.Default.PrivacyTip, null, Modifier.size(IconSize.s),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(i18n.t("sms.privacy"), modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (state.enabled && !state.smsPermission) Text(
+                        i18n.t("sms.permission_missing"), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = Spacing.m),
+                    )
+                    if (!state.notifications) SmsPermissionButton(i18n.t("sms.enable_notifications"), Icons.Default.Notifications) {
                         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                         else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
-                    }) { Text(i18n.t("sms.enable_notifications")) }
-                    if (!state.exactAlarms) TextButton(onClick = {
+                    }
+                    if (!state.exactAlarms) SmsPermissionButton(i18n.t("sms.exact_alarm_hint"), Icons.Default.Alarm) {
                         context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
-                    }) { Text(i18n.t("sms.exact_alarm_hint")) }
-                    state.messageKey?.let { Text(i18n.t(it), style = MaterialTheme.typography.bodySmall) }
+                    }
+                    state.messageKey?.let {
+                        Text(i18n.t(it), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = Spacing.m))
+                    }
                 }
             }
             items(state.records.filter { it.status != SmsSourceStatus.IGNORED }, key = { it.id }) { record ->
@@ -93,9 +127,29 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
 }
 
 @Composable private fun SmsToggle(title: String, checked: Boolean, busy: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .toggleable(value = checked, enabled = !busy, role = Role.Switch, onValueChange = onChange)
+            .heightIn(min = Height.listItem + Spacing.s)
+            .padding(horizontal = Spacing.m, vertical = Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-        Switch(checked, onCheckedChange = onChange, enabled = !busy)
+        Switch(checked, onCheckedChange = null, enabled = !busy)
+    }
+}
+
+@Composable private fun SmsPermissionButton(title: String, icon: ImageVector, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().heightIn(min = Height.button),
+        shape = RoundedCornerShape(Radius.m),
+        contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
+    ) {
+        Icon(icon, null, Modifier.size(IconSize.m))
+        Spacer(Modifier.width(Spacing.s))
+        Text(title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
     }
 }
 

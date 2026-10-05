@@ -6,6 +6,8 @@ import io.ktor.http.Url
 object DiagnosticRedactor {
     private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens")
     private val methods = setOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
+    private val reminderFields = setOf("content", "start_date", "end_date", "first_reminder_time",
+        "active_day_rule", "recurrence_rule", "selected_weekdays", "profile", "timezone", "other")
     private val providers = setOf("openai", "anthropic", "gemini")
     private val publicModels = setOf("gpt-4o", "gpt-4o-mini", "gpt-5", "gpt-5-mini", "gpt-5.1", "gpt-5.2",
         "claude-sonnet-4-5", "claude-opus-4-5", "gemini-2.5-pro", "gemini-2.5-flash")
@@ -21,6 +23,7 @@ object DiagnosticRedactor {
             when {
                 key in numeric -> value.toLongOrNull()?.takeIf { it >= 0 }?.let { put(key, it.toString()) }
                 key == "method" && value in methods -> put(key, value)
+                key == "reminderField" && value in reminderFields -> put(key, value)
                 key == "provider" && value.lowercase() in providers -> put(key, value.lowercase())
                 key == "url" -> putAll(endpoint(value))
                 key == "model" -> put(key, value.takeIf { it in publicModels } ?: "custom-${DiagnosticLog.fingerprint(value)}")

@@ -7,6 +7,13 @@ import kotlinx.serialization.json.Json
 
 class DiagnosticRedactorTest {
     @Test
+    fun reminderValidationRecordsOnlyAllowListedFieldNames() {
+        assertEquals(mapOf("reminderField" to "first_reminder_time"),
+            DiagnosticRedactor.fields(mapOf("reminderField" to "first_reminder_time", "response" to "private-body")))
+        assertTrue(DiagnosticRedactor.fields(mapOf("reminderField" to "private-body")).isEmpty())
+    }
+
+    @Test
     fun credentialsAndPrivateContentNeverEnterSerializedEvents() {
         val recorded = mutableListOf<SafeDiagnosticEvent>()
         val diagnostics = Diagnostics(DiagnosticSink { recorded.add(it) })

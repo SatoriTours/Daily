@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.dailysatori.ui.feature.article.openArticleUrl
@@ -35,6 +36,7 @@ import com.dailysatori.R
 import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.diary.DiaryThought
+import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.ui.feature.diary.DiaryThoughtViewModel
 import com.dailysatori.ui.feature.profile.ProfileUiState
@@ -74,6 +76,7 @@ fun MySpaceScreen(
     val allReminders by reminders.reminders.collectAsStateWithLifecycle()
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
     val upcoming = myUpcomingReminders(allReminders, today)
+    val todayPendingCount = ReminderSummary.todayPendingCount(allReminders, today)
     // The home screen owns the saved seed and scroll state across detail navigation.
     val previews = remember(thoughtState.archive.thoughts, previewSeed) {
         myThoughtPreviews(thoughtState.archive.thoughts, Random(previewSeed))
@@ -106,7 +109,8 @@ fun MySpaceScreen(
         }
         item(key = "reminders") {
             MySectionCard {
-                MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders)
+                MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders,
+                    pendingCount = todayPendingCount)
                 if (upcoming.isEmpty()) {
                     Text(stringResource(R.string.my_space_reminder_empty), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -184,11 +188,19 @@ private fun MySectionCard(compact: Boolean = false, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit, titleClickable: Boolean = true) {
+private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit, titleClickable: Boolean = true, pendingCount: Int = 0) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(title, Modifier.weight(1f).then(if (titleClickable) Modifier.clickable(onClick = onAll) else Modifier),
-            style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.weight(1f).then(if (titleClickable) Modifier.clickable(onClick = onAll) else Modifier),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (pendingCount > 0) {
+                val description = stringResource(R.string.my_space_today_pending_count, pendingCount)
+                Badge(Modifier.semantics { contentDescription = description },
+                    containerColor = MaterialTheme.colorScheme.error) { Text(pendingCount.toString()) }
+            }
+        }
         TextButton(onClick = onAll) {
             Text(stringResource(R.string.my_space_view_all))
             Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
@@ -231,7 +243,7 @@ private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: (
     }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Column(Modifier.width(Spacing.xxl + Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             if (item.occurrenceDate.year != today.year) {
                 Text(item.occurrenceDate.year.toString(), style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary)
@@ -241,15 +253,17 @@ private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: (
         }
         VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
         MyReminderBody(item, Modifier.weight(1f))
-        Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun MyReminderBody(item: ReminderListItemUi, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(item.content, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-        Text(reminderRepeatText(item.repeatLabel()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(item.content, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyLarge)
+        Text(reminderRepeatText(item.repeatLabel()),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

@@ -16,15 +16,51 @@ import kotlin.test.assertTrue
 
 class ReminderListStateTest {
     @Test
+    fun pendingDotsMatchTodayCountAndDisappearAfterCompletion() {
+        val today = LocalDate(2026, 9, 14)
+        val due = reminder("active", ReminderRecurrence.Once).copy(startDate = today, endDate = today)
+        val input = listOf(due,
+            due.copy(id = "notified", status = ReminderStatus.NOTIFIED),
+            due.copy(id = "dismissed", status = ReminderStatus.DISMISSED),
+            due.copy(id = "ongoing", startDate = LocalDate(2026, 9, 13)),
+            due.copy(id = "future", startDate = LocalDate(2026, 9, 15), endDate = LocalDate(2026, 9, 15)),
+            due.copy(id = "paused", status = ReminderStatus.PAUSED),
+            due.copy(id = "invalid", dataIssue = com.dailysatori.service.reminder.ReminderDataIssue.CORRUPT_PROFILE))
+        fun items(reminders: List<Reminder>) = buildReminderListState(reminders, today,
+            ReminderListMode.RECENT, ReminderListFilter()).sections.flatMap { it.items }
+        assertEquals(setOf("active", "notified", "dismissed", "ongoing"),
+            items(input).filter { it.isTodayPending }.map { it.id }.toSet())
+        assertEquals(com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(input, today),
+            items(input).count { it.isTodayPending })
+        val completed = input.map { it.copy(status = ReminderStatus.COMPLETED) }
+        assertTrue(items(completed).none { it.isTodayPending })
+        val finished = buildReminderListState(completed, today, ReminderListMode.FINISHED, ReminderListFilter())
+        assertTrue(finished.sections.flatMap { it.items }.none { it.isTodayPending })
+    }
+
+    @Test
+    fun monthlyPendingDotDoesNotMarkNextMonthsOccurrence() {
+        val today = LocalDate(2026, 9, 14)
+        val due = reminder("monthly", ReminderRecurrence.Monthly(14)).copy(startDate = today, endDate = today)
+        fun monthItems(month: Int) = buildReminderListState(listOf(due), today, ReminderListMode.MONTHS,
+            ReminderListFilter(expandedMonth = month)).sections.flatMap { it.items }
+        assertTrue(monthItems(9).single().isTodayPending)
+        assertFalse(monthItems(10).single().isTodayPending)
+    }
+
+    @Test
     fun todayEntryMatchesThePendingCountAndExcludesFuturePausedAndCompletedItems() {
         val today = LocalDate(2026, 9, 14)
         val due = reminder("today", ReminderRecurrence.Once).copy(startDate = today, endDate = today)
+        val ongoing = due.copy(id = "ongoing", startDate = LocalDate(2026, 9, 13),
+            firstReminderTime = LocalTime(10, 0), activeDayRule = ReminderActiveDayRule.ConsecutiveDateRange)
         val input = listOf(due, due.copy(id = "notified", status = ReminderStatus.NOTIFIED),
+            ongoing,
             due.copy(id = "tomorrow", startDate = LocalDate(2026, 9, 15), endDate = LocalDate(2026, 9, 15)),
             due.copy(id = "paused", status = ReminderStatus.PAUSED), due.copy(id = "done", status = ReminderStatus.COMPLETED),
             due.copy(id = "corrupt", dataIssue = com.dailysatori.service.reminder.ReminderDataIssue.CORRUPT_PROFILE))
         val state = buildReminderListState(input, today, ReminderListMode.RECENT, ReminderListFilter(todayOnly = true))
-        assertEquals(setOf("today", "notified"), state.sections.flatMap { it.items }.map { it.id }.toSet())
+        assertEquals(setOf("today", "notified", "ongoing"), state.sections.flatMap { it.items }.map { it.id }.toSet())
         assertEquals(listOf("today"), state.sections.map { it.key })
         assertEquals(com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(input, today), state.sections.sumOf { it.items.size })
         val all = buildReminderListState(input, today, ReminderListMode.RECENT, ReminderListFilter())

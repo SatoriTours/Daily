@@ -22,7 +22,7 @@ fun Reminder.nextOccurrenceOnOrAfter(onOrAfter: LocalDate): LocalDate? {
     }
 }
 
-private fun nextMonthlyOccurrence(onOrAfter: LocalDate, dayOfMonth: Int): LocalDate {
+internal fun nextMonthlyOccurrence(onOrAfter: LocalDate, dayOfMonth: Int): LocalDate {
     var month = LocalDate(onOrAfter.year, onOrAfter.monthNumber, 1)
     while (true) {
         validDateOrNull(month.year, month.monthNumber, dayOfMonth)?.takeIf { it >= onOrAfter }?.let { return it }
@@ -30,7 +30,7 @@ private fun nextMonthlyOccurrence(onOrAfter: LocalDate, dayOfMonth: Int): LocalD
     }
 }
 
-private fun nextYearlyOccurrence(onOrAfter: LocalDate, rule: ReminderRecurrence.Yearly): LocalDate {
+internal fun nextYearlyOccurrence(onOrAfter: LocalDate, rule: ReminderRecurrence.Yearly): LocalDate {
     var year = onOrAfter.year
     while (true) {
         yearlyDate(year, rule).takeIf { it >= onOrAfter }?.let { return it }

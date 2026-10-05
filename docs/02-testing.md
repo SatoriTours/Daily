@@ -41,6 +41,23 @@ Arch Linux 可运行 `bash scripts/init-dev-env.sh --skip-gradle-check` 安装�
 `shared/build/reports/tests/testDebugUnitTest/`。当前未配置 Android instrumentation
 测试；模拟器上的安装、启动和界面检查需另外执行。
 
+### 本地 AI 接口验证
+
+在项目根目录的 `.local/ai-test.json` 中填写 `apiAddress`（与 App 相同的接口地址）、
+`apiToken`、`modelName` 和 `provider`。OpenAI 兼容接口使用 `openai`；
+DeepSeek 使用 `deepseek`，与 App 设置保持一致。整个 `.local/` 目录已加入 Git 忽略，
+目录权限为 `700`，配置文件权限为 `600`；不得打包、提交或打印其中的 Token。
+
+```bash
+DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*ReminderAiLiveTest' --rerun
+```
+
+该测试通过实际 `AiService`、提醒请求和草稿校验链路验证「每月 2 号服务器续费」。
+未指定时刻时采用本地上午 9 点，循环提醒使用下一次未来日期。原始返回与校验后的草稿
+保存在被 Git 忽略的 `build/ai-live/reminder-response.json`，不含接口配置和 Token。
+常规单元测试跳过真实请求；显式运行会消耗服务商额度。不启动模拟器或 App。
+`--rerun` 仅重跑该测试任务，避免配置或模型变化后误用旧的测试结果。
+
 ### Android 模拟器
 
 仅发布代码前，或用户明确要求真机／UI 测试时，才启动模拟器进行 UI 验证。

@@ -38,6 +38,19 @@ class MySpacePresentationTest {
             myUpcomingReminders(entries.map { if (it.id == "today") it.copy(status = ReminderStatus.COMPLETED) else it }, today).map { it.id })
     }
 
+    @Test fun reminderPreviewKeepsAnOngoingReminderDueTodayAfterItsStartDate() {
+        val ongoing = reminder("phone-top-up", LocalDate(2026, 10, 3), ReminderStatus.NOTIFIED)
+            .copy(endDate = today, firstReminderTime = LocalTime(10, 0),
+                activeDayRule = ReminderActiveDayRule.ConsecutiveDateRange)
+        val future = reminder("future", LocalDate(2027, 1, 3))
+
+        val preview = myUpcomingReminders(listOf(future, ongoing), today)
+
+        assertEquals(listOf("phone-top-up", "future"), preview.map { it.id })
+        assertEquals(today, preview.first().occurrenceDate)
+        assertEquals(0, preview.first().daysUntil)
+    }
+
     private val source = ReadNewsArticle("key", "title", "body", source = "site", readAt = 1)
     private fun item(id: String, saved: Boolean = false, ignored: Boolean = false, reminder: String? = null) =
         NewsOpportunity(id, source, "title", "category", "fact", "inference", "step", "caveat", "body", 1, saved, ignored, reminder)

@@ -4,6 +4,8 @@
     <string name="my_space_intro">了解自己，把收获变成行动。</string>
     <string name="my_space_thoughts">我的思想</string>
     <string name="my_space_reminders">我的提醒</string>
+    <string name="my_space_today_pending_count">今天还有 %1$d 项未完成</string>
+    <string name="my_space_reminder_pending">今日待完成</string>
     <string name="my_space_view_all">查看全部</string>
     <string name="my_space_next">接下来</string>
     <string name="my_space_useful">产品机会</string>

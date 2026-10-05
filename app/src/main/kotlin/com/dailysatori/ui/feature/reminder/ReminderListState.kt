@@ -4,6 +4,7 @@ import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.reminder.ReminderStatus
+import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.service.reminder.nextOccurrenceOnOrAfter
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -37,6 +38,7 @@ data class ReminderListItemUi(
     val status: ReminderStatus,
     val activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
     val deadlineAt: kotlinx.datetime.Instant? = null,
+    val isTodayPending: Boolean = false,
 )
 
 fun ReminderListItemUi.repeatLabel(): ReminderRepeatLabel = when {
@@ -114,10 +116,15 @@ private fun Reminder.matchesFilters(filter: ReminderListFilter): Boolean =
     (filter.statuses.isEmpty() || status in filter.statuses) &&
         (filter.recurrences.isEmpty() || recurrence.kind() in filter.recurrences)
 
-private fun List<Reminder>.upcomingItems(now: LocalDate): List<ReminderListItemUi> = mapNotNull { reminder ->
-    if (reminder.recurrence == ReminderRecurrence.Once && reminder.status.isTerminal()) return@mapNotNull null
-    val displayed = if (reminder.deadlineAt == null) reminder else reminder.copy(timeZone = kotlinx.datetime.TimeZone.currentSystemDefault())
-    displayed.nextOccurrenceOnOrAfter(now)?.let { displayed.toItem(it, now) }
+private fun List<Reminder>.upcomingItems(now: LocalDate): List<ReminderListItemUi> {
+    val todayPendingIds = ReminderSummary.todayPendingReminders(this, now).map { it.id }.toSet()
+    return mapNotNull { reminder ->
+        if (reminder.recurrence == ReminderRecurrence.Once && reminder.status.isTerminal()) return@mapNotNull null
+        val displayed = if (reminder.deadlineAt == null) reminder else reminder.copy(timeZone = kotlinx.datetime.TimeZone.currentSystemDefault())
+        val date = if (displayed.deadlineAt == null && displayed.startDate <= now && displayed.id in todayPendingIds) now
+            else displayed.nextOccurrenceOnOrAfter(now)
+        date?.let { displayed.toItem(it, now) }
+    }
 }
 
 private fun List<Reminder>.finishedItems(now: LocalDate): List<ReminderListItemUi> = mapNotNull { reminder ->
@@ -160,6 +167,8 @@ private fun Reminder.toItem(date: LocalDate, now: LocalDate) = ReminderListItemU
     status = status,
     activeDayRule = activeDayRule,
     deadlineAt = deadlineAt,
+    isTodayPending = (recurrence == ReminderRecurrence.Once || date == now) &&
+        ReminderSummary.todayPendingCount(listOf(this), now) > 0,
 )
 
 private fun ReminderListItemUi.matchesQuery(query: String, now: LocalDate): Boolean {

@@ -1,5 +1,6 @@
 package com.dailysatori.service.reminder
 
+import com.dailysatori.service.diagnostics.*
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -32,10 +33,21 @@ class ReminderBatchCodec(
             val sourceIndex = runCatching { item["source_index"]?.jsonPrimitive?.intOrNull }.getOrNull()
                 ?: return@mapIndexedNotNull errors.add("Batch response entry $position is missing a valid source_index").let { null }
             val draftJson = JsonObject(item.filterKeys { it != "source_index" })
-            ReminderBatchRemoteDraft(sourceIndex, draftCodec.decodeInterpretationResponse(draftJson.toString(), zone))
+            val draft = draftCodec.decodeInterpretationResponse(draftJson.toString(), zone)
+            draft.validationErrors.forEach { error ->
+                val field = validationFields.firstOrNull { error.startsWith(it) || error.startsWith("缺少 $it") } ?: "other"
+                DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.PARSER,
+                    DiagnosticLevel.WARNING, fields = mapOf("count" to sourceIndex.toString(), "reminderField" to field))
+            }
+            ReminderBatchRemoteDraft(sourceIndex, draft)
         }
         return ReminderBatchDecodedResponse(drafts, errors.takeIf { it.isNotEmpty() }?.joinToString("; "))
     }
 
     fun encode(draft: ReminderBatchRemoteDraft): String = draftCodec.encode(draft.draft)
+
+    private companion object {
+        val validationFields = listOf("content", "start_date", "end_date", "first_reminder_time",
+            "active_day_rule", "recurrence_rule", "selected_weekdays", "profile", "timezone")
+    }
 }
