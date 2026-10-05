@@ -8,12 +8,14 @@ data class SecretFieldSpec(
     val table: String,
     val column: String,
     val whereClause: String? = null,
+    val optionalTable: Boolean = false,
 )
 
 object SecretFieldRegistry {
     val fields: List<SecretFieldSpec> = listOf(
         SecretFieldSpec(table = "ai_config", column = "api_token"),
         SecretFieldSpec(table = "sms_reminder_source", column = "encrypted_source"),
+        SecretFieldSpec(table = "bookkeeping_entry", column = "encrypted_payload", optionalTable = true),
         SecretFieldSpec(table = "setting", column = "value", whereClause = "key = 'sms_reminder.blocked_senders'"),
         SecretFieldSpec(table = "mcp_server", column = "api_key"),
         SecretFieldSpec(table = "remote_news_source", column = "api_token"),
@@ -105,6 +107,8 @@ class SecretFieldProcessor(
     }
 
     private fun readRows(field: SecretFieldSpec): List<SecretRow> {
+        // Restoring a pre-ledger backup prepares secrets before the schema migration runs.
+        if (field.optionalTable && !tableExists(field)) return emptyList()
         val where = listOfNotNull(
             field.whereClause,
             "${field.quotedColumn()} IS NOT NULL",
@@ -119,6 +123,9 @@ class SecretFieldProcessor(
             QueryResult.Value(rows)
         }, 0).value
     }
+
+    private fun tableExists(field: SecretFieldSpec): Boolean = driver.executeQuery(null,
+        "PRAGMA table_info(${field.quotedTable()})", { cursor -> QueryResult.Value(cursor.next().value) }, 0).value
 
     private fun updateRow(field: SecretFieldSpec, rowId: Long, value: String) {
         val sql = "UPDATE ${field.quotedTable()} SET ${field.quotedColumn()} = '${value.sqlEscaped()}' WHERE rowid = $rowId"

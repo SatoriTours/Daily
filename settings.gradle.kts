@@ -28,3 +28,4 @@ dependencyResolutionManagement {
 rootProject.name = "DailySatori"
 include(":shared")
 include(":app")
+include(":bookkeeping")

@@ -57,6 +57,7 @@ import org.koin.dsl.module
 import java.io.File
 
 val appModule: Module = module {
+    single { com.dailysatori.core.bookkeeping.BookkeepingCaptureMonitor() }
     single<LifeArchiveRepository> { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }
     single { LifeArchiveAiService(get(), get()) }
     single<LifeArchiveAi> { get<LifeArchiveAiService>() }

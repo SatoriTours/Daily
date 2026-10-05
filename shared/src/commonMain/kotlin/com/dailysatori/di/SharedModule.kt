@@ -133,6 +133,8 @@ val sharedModule: Module = module {
     single { ReminderRepository(get()) }
     single { ReminderAiBatchRepository(get()) }
     single { com.dailysatori.data.repository.SmsSourceRepository(get(), get()) }
+    single { com.dailysatori.data.repository.BookkeepingRepository(get(), get()) }
+    single { com.dailysatori.service.bookkeeping.BookkeepingService(get(), get()) }
     single<com.dailysatori.service.sms.SmsReminderRemote> { com.dailysatori.service.sms.SmsReminderAi(get(), get()) }
     single { com.dailysatori.service.sms.SmsReminderService(get(), get(), get(), get()) }
     single { RemoteNewsSourceRepository(get(), get()) }

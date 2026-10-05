@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -95,6 +96,7 @@ internal enum class SettingsPage {
     DIAGNOSTICS,
     REMINDERS,
     SMS_REMINDERS,
+    BOOKKEEPING,
     REMOTE_NEWS,
     EXTERNAL_FAVORITES,
     PRIVACY,
@@ -143,6 +145,7 @@ fun SettingsScreen(
         SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = childBack)
         SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack)
         SettingsPage.SMS_REMINDERS -> com.dailysatori.ui.feature.settings.sms.SmsSettingsScreen(onBack = childBack)
+        SettingsPage.BOOKKEEPING -> com.dailysatori.ui.feature.bookkeeping.BookkeepingScreen(onBack = childBack)
         SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(onBack = childBack)
         SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = childBack)
         SettingsPage.PRIVACY -> DataPrivacyScreen(onBack = childBack)
@@ -277,6 +280,8 @@ private fun AccessSection(state: SettingsState, viewModel: SettingsViewModel, on
         SettingsRow(Icons.Default.Notifications, stringResource(R.string.reminder_settings_row_title),
             stringResource(R.string.reminder_settings_row_subtitle), onClick = { onNavigate(SettingsPage.REMINDERS) })
         SettingsRow(Icons.Default.Notifications, i18n.t("sms.title"), i18n.t("sms.row_hint"), onClick = { onNavigate(SettingsPage.SMS_REMINDERS) })
+        SettingsRow(Icons.Default.AccountBalanceWallet, i18n.t("bookkeeping.title"), i18n.t("bookkeeping.row_hint"),
+            onClick = { onNavigate(SettingsPage.BOOKKEEPING) })
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
     }
