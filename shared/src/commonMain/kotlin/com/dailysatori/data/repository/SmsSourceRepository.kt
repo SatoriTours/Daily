@@ -29,6 +29,10 @@ class SmsSourceRepository(private val db: DailySatoriDatabase, private val ciphe
         put("sourceId", kotlinx.serialization.json.JsonPrimitive(id))
     }.toString(), "sms_reminder:$id", maxAttempts = 3)
     fun get(id: String): SmsSourceRecord? = q.selectSmsSource(id).executeAsOneOrNull()?.toRecord()
+    fun clearText(id: String) {
+        val row = get(id) ?: return
+        q.updateSmsSourceBody(cipher.encrypt(Json.encodeToString(row.source.copy(body = ""))), id)
+    }
     fun forReminder(id: String): SmsSourceRecord? = q.selectSmsSourceByReminder(id).executeAsOneOrNull()?.toRecord()
     fun all(): List<SmsSourceRecord> = q.selectSmsSources().executeAsList().mapNotNull { runCatching { it.toRecord() }.getOrNull() }
     fun observe() = q.selectSmsSources().asFlow().mapToList(Dispatchers.IO).map { rows -> rows.mapNotNull { runCatching { it.toRecord() }.getOrNull() } }

@@ -16,6 +16,7 @@ object SecretFieldRegistry {
         SecretFieldSpec(table = "ai_config", column = "api_token"),
         SecretFieldSpec(table = "sms_reminder_source", column = "encrypted_source"),
         SecretFieldSpec(table = "bookkeeping_entry", column = "encrypted_payload", optionalTable = true),
+        SecretFieldSpec(table = "phone_message", column = "encrypted_payload", optionalTable = true),
         SecretFieldSpec(table = "setting", column = "value", whereClause = "key = 'sms_reminder.blocked_senders'"),
         SecretFieldSpec(table = "mcp_server", column = "api_key"),
         SecretFieldSpec(table = "remote_news_source", column = "api_token"),

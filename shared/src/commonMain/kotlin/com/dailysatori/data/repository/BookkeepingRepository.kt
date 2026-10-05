@@ -32,6 +32,20 @@ class BookkeepingRepository(private val db: DailySatoriDatabase, private val cip
 
     fun dismiss(id: String, status: LedgerStatus): LedgerState = update { engine.dismiss(it, id, status) }.state
 
+    fun clearText(id: String): LedgerState = update { state ->
+        state.copy(entries = state.entries.map { if (it.id == id) it.copy(text = "") else it })
+    }.state
+
+    fun addManual(source: String, eventKey: String, text: String, receivedAt: Long,
+        amount: String, currency: String, kind: LedgerKind, merchant: String): LedgerEntry {
+        val minor = requireNotNull(LedgerMoney.parse(amount, currency))
+        require(kind != LedgerKind.UNKNOWN)
+        val entry = LedgerEntry("$source:$eventKey", listOf(eventKey), source, text, receivedAt,
+            minor, currency, kind, merchant.trim(), status = LedgerStatus.POSTED, reason = "", userConfirmed = true)
+        update { state -> state.copy(entries = state.entries.filterNot { it.id == entry.id } + entry) }
+        return entry
+    }
+
     private fun rowsToState(rows: List<com.dailysatori.shared.db.Bookkeeping_entry>): LedgerState =
         LedgerState(entries = rows.map { row ->
             val entry = json.decodeFromString<LedgerEntry>(cipher.decrypt(row.encrypted_payload))

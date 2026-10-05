@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="bookkeeping_notification_access_label">Daily Satori automatic bookkeeping</string>
+    <string name="bookkeeping_notification_access_label">Daily Satori phone assistant</string>
 </resources>

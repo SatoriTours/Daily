@@ -99,7 +99,7 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
     }
 }
 
-@Composable private fun SmsSourceCard(record: SmsSourceRecord, busy: Boolean, onRetry: () -> Unit, onIgnore: () -> Unit, onBlock: () -> Unit) {
+@Composable internal fun SmsSourceCard(record: SmsSourceRecord, busy: Boolean, onRetry: () -> Unit, onIgnore: () -> Unit, onBlock: () -> Unit) {
     val i18n: I18nService = koinInject()
     var expanded by remember(record.id) { mutableStateOf(false) }
     var menu by remember(record.id) { mutableStateOf(false) }

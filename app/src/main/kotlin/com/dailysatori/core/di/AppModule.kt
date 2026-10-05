@@ -58,6 +58,7 @@ import java.io.File
 
 val appModule: Module = module {
     single { com.dailysatori.core.bookkeeping.BookkeepingCaptureMonitor() }
+    single { com.dailysatori.core.bookkeeping.PhoneNotificationIdentity(get()) }
     single<LifeArchiveRepository> { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }
     single { LifeArchiveAiService(get(), get()) }
     single<LifeArchiveAi> { get<LifeArchiveAiService>() }
@@ -81,7 +82,9 @@ val appModule: Module = module {
     single { com.dailysatori.core.task.NewsOpportunityTaskHandler(get()) }
     single { ReminderAiParseTaskHandler(get(), get<ReminderAiInterpretationRemote>(), get<ReminderBatchCodec>(), get(), get()) }
     single { com.dailysatori.core.sms.SmsPendingNotifier(androidContext(), get(), get()) }
-    single { com.dailysatori.core.sms.SmsIntake(get(), get(), get(), get(), get()) }
+    single { com.dailysatori.core.phone.PhoneIntake(get(), get()) }
+    single { com.dailysatori.core.sms.SmsIntake(get()) }
+    single { com.dailysatori.core.task.PhoneAssistantTaskHandler(get(), get()) }
     single { com.dailysatori.core.task.SmsReminderTaskHandler(get(), get(), get(), get(), get()) }
     single {
         AsyncTaskHandlerRegistry(
@@ -97,6 +100,7 @@ val appModule: Module = module {
                 get<com.dailysatori.core.task.NewsOpportunityTaskHandler>(),
                 get<ReminderAiParseTaskHandler>(),
                 get<com.dailysatori.core.task.SmsReminderTaskHandler>(),
+                get<com.dailysatori.core.task.PhoneAssistantTaskHandler>(),
                 get<DiaryTranscriptionCoordinator>(),
                 get<DiaryKnowledgeCoordinator>(),
             ),

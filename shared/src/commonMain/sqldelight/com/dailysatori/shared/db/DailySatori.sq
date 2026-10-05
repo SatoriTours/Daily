@@ -2198,6 +2198,28 @@ ON CONFLICT(id) DO UPDATE SET encrypted_payload = excluded.encrypted_payload, up
 deleteBookkeepingEntry:
 DELETE FROM bookkeeping_entry WHERE id = ?;
 
+CREATE TABLE phone_message (
+    id TEXT PRIMARY KEY NOT NULL,
+    encrypted_payload TEXT NOT NULL,
+    received_at INTEGER NOT NULL
+);
+
+selectPhoneMessage:
+SELECT * FROM phone_message WHERE id = ?;
+
+selectPhoneMessages:
+SELECT * FROM phone_message ORDER BY received_at DESC, id DESC;
+
+selectPhoneHistory:
+SELECT * FROM phone_message ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?;
+
+upsertPhoneMessage:
+INSERT INTO phone_message(id, encrypted_payload, received_at) VALUES (?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET encrypted_payload = excluded.encrypted_payload;
+
+updateSmsSourceBody:
+UPDATE sms_reminder_source SET encrypted_source = ? WHERE id = ?;
+
 deleteReminder:
 DELETE FROM reminder WHERE id = ?;
 

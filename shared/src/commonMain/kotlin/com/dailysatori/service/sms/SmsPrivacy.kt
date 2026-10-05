@@ -11,13 +11,23 @@ object SmsPrivacy {
     private val writtenMoney = Regex("(?i)[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟萬億]+(?:元|圆|圓|块|塊|角|分)|\\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|thousand)[a-z -]*\\b(?:dollars?|pounds?|cents?)\\b")
     private val numeric = Regex("[\\p{N}][\\p{N}\\s+.,*/:#_-]*")
     private val balance = Regex("(?i)(余额|餘額|可用额度|可用額度|金额|金額|欠款|balance|amount\\s*(?:due|owing|[:=]))[^,，;；。！？!\\n]*")
-    private val action = Regex("(?i)充值|缴费|繳費|续费|續費|取件|领取|領取|预约|預約|还款|還款|付款|支付|到期|停机|停機|(?<![a-z])(?:top[ -]?up|pay(?:ment)?|renew|collect|pick[ -]?up|appointment|repay|expire|inactive|due)(?![a-z])")
-    private val completed = Regex("(?i)(?:payment|top[ -]?up|transaction|renewal).{0,20}(?:successful|completed|received)|已(?:成功)?(?:充值|缴费|繳費|付款|还款|還款)|支付成功|交易成功")
+    private val action = Regex("(?i)充值|缴费|繳費|续费|續費|取件|取货|取貨|提货|提貨|领取|領取|预约|預約|还款|還款|付款|支付|到期|停机|停機|(?<![a-z])(?:top[ -]?up|pay(?:ment)?|renew|collect|pick[ -]?up|appointment|repay|expire|inactive|due)(?![a-z])")
+    private val completed = Regex("(?i)(?:payment|top[ -]?up|transaction|renewal).{0,20}(?:successful|completed|received)|已(?:成功)?(?:充值|缴费|繳費|支付|付款|还款|還款|取件|取货|领取)|支付成功|交易成功")
     private val codeNumber = Regex("(?i)\\b(?:otp|verification|passcode|pin|code)\\s*(?:is\\s*)?[:：=#-]?\\s*\\p{N}{3,8}\\b")
     private val residualMoney = Regex("(?i)[$€£¥￥]|\\b(?:NZD|USD|AUD|RMB|CNY|dollars?|pounds?|cents?)\\b")
     private val writtenNumbers = Regex("(?i)[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟萬億]+|\\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|trillion|half|quarter|dozen)\\b")
 
-    fun isCandidate(text: String): Boolean = action.containsMatchIn(text) && !completed.containsMatchIn(text)
+    fun isCandidate(text: String): Boolean = taskClauses(text).isNotEmpty()
+
+    fun taskClauses(text: String): List<String> = text.split(Regex("(?<!\\d)[,，]|[,，](?!\\d)|[。；;\\n]"))
+        .map { clause ->
+            val metadata = Regex("(?:商户|商戶|收款方|付款方|备注|備註|附言)(?:名称|名稱)?[:：\\s]+|^\\s*(?:信用卡)?还款日(?!元)").find(clause)
+            (metadata?.let { clause.substring(0, it.range.first) } ?: clause).trim()
+        }.filter { clause ->
+            action.containsMatchIn(clause) && !completed.containsMatchIn(clause) &&
+                !Regex("处理中|處理中|待确认|待確認|失败|失敗|已取消|退款|优惠券|优惠活动|消费满|抽奖|(?i)\\b(?:processing|pending|failed|cancelled|refund|coupon)\\b").containsMatchIn(clause) &&
+                clause !in setOf("微信支付", "支付宝", "支付助手", "WeChat Pay", "Alipay")
+        }.distinct().take(10)
 
     fun isVerification(text: String): Boolean = normalize(text).let { otp.containsMatchIn(it) || codeNumber.containsMatchIn(it) }
 

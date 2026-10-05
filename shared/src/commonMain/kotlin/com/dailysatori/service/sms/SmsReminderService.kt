@@ -37,13 +37,7 @@ class SmsReminderService(
 
     private fun applyResult(row: SmsSourceRecord, input: SmsAiInput, result: SmsAiResult) {
         if (!result.actionable) { sources.update(row.id, SmsSourceStatus.IGNORED); return }
-        require(result.title.isNotBlank() && result.title.length <= 300 && result.reason.length <= 500)
-        require(result.evidence.isNotBlank() && input.text.contains(result.evidence))
-        require(result.category in categories && result.title.none(Char::isDigit) && result.reason.none(Char::isDigit))
-        require(SmsPrivacy.aiText(result.title) == result.title && SmsPrivacy.aiText(result.reason.ifBlank { "reason" }) == result.reason.ifBlank { "reason" })
-        val selected = result.deadlineIndex?.let { input.deadlines.getOrNull(it) ?: error("Invalid deadline index") }
-        val deadline = selected?.takeIf { input.deadlines.size == 1 && it.at > clock.now() }
-        val draft = SmsReminderDraft(result.title, result.reason, deadline?.at?.toEpochMilliseconds(), deadline?.estimated ?: false, result.category)
+        val draft = validatedDraft(input, result)
         sources.transaction {
             if (sources.get(row.id)?.status != SmsSourceStatus.QUEUED) return@transaction
             if (settings.get(CLOUD_KEY) != "true" || isBlocked(row.source.sender)) {
@@ -53,6 +47,28 @@ class SmsReminderService(
             sources.update(row.id, SmsSourceStatus.READY, draft)
             confirm(row.id, draft)
         }
+    }
+
+    suspend fun analyzeDraft(source: SmsSource, received: Instant, zone: TimeZone): SmsReminderDraft? {
+        val input = requireNotNull(SmsAiInput.from(source, received, zone))
+        val result = remote.analyze(input)
+        return if (result.actionable) validatedDraft(input, result) else null
+    }
+
+    fun stageLocal(id: String, source: SmsSource, received: Instant, zone: TimeZone, draft: SmsReminderDraft) {
+        sources.accept(id, source, received, zone, cloudEligible = false)
+        if (sources.get(id)?.status !in setOf(SmsSourceStatus.CREATED, SmsSourceStatus.IGNORED))
+            sources.update(id, SmsSourceStatus.PENDING, draft)
+    }
+
+    private fun validatedDraft(input: SmsAiInput, result: SmsAiResult): SmsReminderDraft {
+        require(result.title.isNotBlank() && result.title.length <= 300 && result.reason.length <= 500)
+        require(result.evidence.isNotBlank() && input.text.contains(result.evidence))
+        require(result.category in categories && result.title.none(Char::isDigit) && result.reason.none(Char::isDigit))
+        require(SmsPrivacy.aiText(result.title) == result.title && SmsPrivacy.aiText(result.reason.ifBlank { "reason" }) == result.reason.ifBlank { "reason" })
+        val selected = result.deadlineIndex?.let { input.deadlines.getOrNull(it) ?: error("Invalid deadline index") }
+        val deadline = selected?.takeIf { input.deadlines.size == 1 && it.at > clock.now() }
+        return SmsReminderDraft(result.title, result.reason, deadline?.at?.toEpochMilliseconds(), deadline?.estimated ?: false, result.category)
     }
 
     /** Local rules produce generic titles; private text never becomes reminder content. */
@@ -66,7 +82,7 @@ class SmsReminderService(
         confirm(id, draft.copy(deadlineMs = deadline?.at?.toEpochMilliseconds(), estimated = deadline?.estimated ?: false))
     }
 
-    private fun localDraft(body: String): SmsReminderDraft {
+    fun localDraft(body: String): SmsReminderDraft {
         val category = localActions.firstOrNull { it.second.containsMatchIn(body) }?.first ?: "other"
         val english = settings.get("app_language") == "en"
         val title = when (category) {
@@ -75,7 +91,7 @@ class SmsReminderService(
             "renewal" -> if (english) "Renew service" else "续费服务"
             "pickup" -> if (english) "Collect parcel" else "领取包裹"
             "appointment" -> if (english) "Attend appointment" else "处理预约事项"
-            else -> if (english) "Handle SMS action" else "处理短信事项"
+            else -> if (english) "Handle message action" else "处理信息中的事项"
         }
         return SmsReminderDraft(title, category = category)
     }
@@ -86,11 +102,11 @@ class SmsReminderService(
             reminders.get(it.reminderId)?.status !in setOf(null, ReminderStatus.COMPLETED, ReminderStatus.EXPIRED)
     }
 
-    fun confirm(id: String, draft: SmsReminderDraft): String? = sources.transaction {
+    fun confirm(id: String, draft: SmsReminderDraft, checkDuplicates: Boolean = true): String? = sources.transaction {
         val row = sources.get(id) ?: return@transaction null
         if (row.status == SmsSourceStatus.CREATED) return@transaction row.reminderId
         if (row.status == SmsSourceStatus.IGNORED) return@transaction null
-        if (isDuplicate(row, draft)) { ignore(id); return@transaction null }
+        if (checkDuplicates && isDuplicate(row, draft)) { ignore(id); return@transaction null }
         val deadline = draft.deadlineMs?.let(Instant::fromEpochMilliseconds)?.takeIf { it > clock.now() }
         require(draft.title.isNotBlank())
         val now = clock.now().toLocalDateTime(row.zone)
@@ -148,7 +164,7 @@ class SmsReminderService(
         const val CREATED_COUNT_KEY = "sms_reminder.created_count"
         private val localActions = listOf(
             "top_up" to Regex("(?i)充值|top[ -]?up"), "payment" to Regex("(?i)缴费|繳費|还款|還款|付款|支付|\\bpay(?:ment)?\\b|repay"),
-            "renewal" to Regex("(?i)续费|續費|renew"), "pickup" to Regex("(?i)取件|领取|領取|collect|pick[ -]?up"),
+            "renewal" to Regex("(?i)续费|續費|renew"), "pickup" to Regex("(?i)取件|取货|取貨|提货|提貨|领取|領取|collect|pick[ -]?up"),
             "appointment" to Regex("(?i)预约|預約|appointment"),
         )
         private val categories = setOf("top_up", "payment", "renewal", "pickup", "appointment", "other")

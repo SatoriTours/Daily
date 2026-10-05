@@ -134,6 +134,9 @@ class DatabaseMigration(
         if (currentVersion < 30) {
             migrateV29ToV30()
         }
+        if (currentVersion < 31) {
+            migrateV30ToV31()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1055,6 +1058,16 @@ class DatabaseMigration(
             )""")
         } catch (e: Exception) {
             log.w(e) { "Could not create SMS source storage" }
+        }
+    }
+
+    private fun migrateV30ToV31() {
+        try {
+            runSql("""CREATE TABLE IF NOT EXISTS phone_message (
+                id TEXT PRIMARY KEY NOT NULL, encrypted_payload TEXT NOT NULL, received_at INTEGER NOT NULL
+            )""")
+        } catch (e: Exception) {
+            log.w(e) { "Could not create phone assistant storage" }
         }
     }
 

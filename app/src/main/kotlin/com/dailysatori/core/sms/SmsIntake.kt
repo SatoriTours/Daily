@@ -28,18 +28,10 @@ internal fun smsFingerprint(sender: String, body: String, sentAt: Long, subscrip
     return MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 }
 
-class SmsIntake(
-    private val service: SmsReminderService, private val sources: SmsSourceRepository,
-    private val scheduler: AsyncTaskScheduler, private val notifier: SmsPendingNotifier,
-    private val coordinator: com.dailysatori.core.reminder.ReminderCoordinator,
-) {
-    fun accept(id: String, source: SmsSource, received: Instant, zone: TimeZone, manual: Boolean = false) {
-        service.accept(id, source, received, zone, manual)?.let(scheduler::enqueue)
-        val row = sources.get(id) ?: return
-        if (row.status == SmsSourceStatus.CREATED) {
-            notifier.cancel(id)
-            row.reminderId?.let(coordinator::recompute)
-        }
+class SmsIntake(private val intake: com.dailysatori.core.phone.PhoneIntake) {
+    suspend fun accept(id: String, source: SmsSource, received: Instant, zone: TimeZone) {
+        intake.accept(com.dailysatori.service.phone.PhoneEvent(com.dailysatori.service.phone.PhoneChannel.SMS,
+            source.sender.ifBlank { "unknown_sms" }, id, "", source.body, received.toEpochMilliseconds(), zone.id))
     }
 }
 

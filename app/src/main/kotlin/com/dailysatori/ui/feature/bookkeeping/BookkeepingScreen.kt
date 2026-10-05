@@ -94,7 +94,7 @@ private fun BookkeepingAccessCard(state: BookkeepingUiState, onEnabled: (Boolean
 }
 
 @Composable
-private fun BookkeepingMonth(state: BookkeepingUiState, onMonth: (Int) -> Unit) {
+internal fun BookkeepingMonth(state: BookkeepingUiState, onMonth: (Int) -> Unit) {
     val i18n: I18nService = koinInject()
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -112,7 +112,7 @@ private fun BookkeepingMonth(state: BookkeepingUiState, onMonth: (Int) -> Unit) 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun LedgerEntryCard(entry: LedgerEntry, state: BookkeepingUiState, onEdit: () -> Unit, onIgnore: () -> Unit, onDelete: () -> Unit) {
+internal fun LedgerEntryCard(entry: LedgerEntry, state: BookkeepingUiState, onEdit: () -> Unit, onIgnore: () -> Unit, onDelete: () -> Unit) {
     val i18n: I18nService = koinInject()
     var showText by remember(entry.id) { mutableStateOf(false) }
     Card(Modifier.fillMaxWidth()) {
