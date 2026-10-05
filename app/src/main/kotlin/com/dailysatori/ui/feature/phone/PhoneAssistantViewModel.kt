@@ -75,7 +75,8 @@ class PhoneAssistantViewModel(
     }
     fun configure(channel: PhoneChannel, options: PhoneOptions) = action {
         service.configure(channel, options)
-        mutableState.update { it.copy(preferences = service.preferences()) }
+        mutableState.update { it.copy(preferences = service.preferences(),
+            smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) }
         if (channel == PhoneChannel.NOTIFICATION && options.enabled && state.value.bookkeeping.granted)
             NotificationListenerService.requestRebind(ComponentName(context, BookkeepingNotificationListener::class.java))
     }

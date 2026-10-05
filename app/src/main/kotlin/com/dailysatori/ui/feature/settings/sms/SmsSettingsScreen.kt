@@ -29,6 +29,7 @@ import com.dailysatori.core.reminder.ReminderOpenRequest
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.sms.*
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
+import com.dailysatori.ui.component.settings.rememberSmsPermissionAccess
 import com.dailysatori.ui.theme.*
 import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
@@ -41,8 +42,8 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
     val context = LocalContext.current
     var cloudConsent by remember { mutableStateOf(false) }
     var pageMenu by remember { mutableStateOf(false) }
-    val smsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        viewModel.setMonitoring(granted); viewModel.refreshAccess()
+    val smsPermission = rememberSmsPermissionAccess(state.busy) {
+        viewModel.setMonitoring(true)
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.refreshAccess() }
     val owner = LocalLifecycleOwner.current
@@ -74,7 +75,7 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
                             SmsToggle(i18n.t("sms.monitor"), state.enabled, state.busy) { enabled ->
                                 if (!enabled) viewModel.setMonitoring(false)
                                 else if (state.smsPermission) viewModel.setMonitoring(true)
-                                else smsPermission.launch(Manifest.permission.RECEIVE_SMS)
+                                else smsPermission()
                             }
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = Spacing.m),

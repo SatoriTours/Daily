@@ -55,7 +55,8 @@ class SmsSettingsViewModel(
 
     fun setMonitoring(enabled: Boolean) = runAction {
         settings.upsert(SmsReminderService.ENABLED_KEY, enabled.toString())
-        mutableState.update { it.copy(enabled = enabled) }
+        mutableState.update { it.copy(enabled = enabled,
+            smsPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) }
     }
     fun setCloudAllowed(allowed: Boolean) = runAction {
         service.setCloudAllowed(allowed)
