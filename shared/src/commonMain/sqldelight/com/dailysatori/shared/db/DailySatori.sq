@@ -888,6 +888,18 @@ UPDATE article SET status = ?, updated_at = ? WHERE id = ?;
 updateArticleProcessingCompletion:
 UPDATE article SET status = ?, cover_image = COALESCE(?, cover_image), cover_image_url = COALESCE(?, cover_image_url), updated_at = ? WHERE id = ?;
 
+updateArticleCoverIfUrlMatches:
+UPDATE article SET cover_image = ?, updated_at = ? WHERE id = ? AND cover_image_url = ?;
+
+updateArticleOverviewIfOriginalMatches:
+UPDATE article SET ai_title = ?, ai_content = ?, updated_at = ? WHERE id = ? AND original_markdown_content = ?;
+
+updateArticleMarkdownIfOriginalMatches:
+UPDATE article SET ai_markdown_content = ?, updated_at = ? WHERE id = ? AND original_markdown_content = ?;
+
+updateArticleStatusIfOriginalMatches:
+UPDATE article SET status = ?, updated_at = ? WHERE id = ? AND original_markdown_content = ?;
+
 updateArticleField:
 UPDATE article SET updated_at = ? WHERE id = ?;
 

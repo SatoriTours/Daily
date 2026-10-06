@@ -15,9 +15,10 @@ internal fun isArticleProcessing(status: String?): Boolean = when (status) {
     else -> false
 }
 
-internal fun shouldReloadArticleAfterProcessingState(status: String?): Boolean = when (status) {
+internal fun shouldReloadArticleAfterProcessingState(status: String?, progress: String? = null): Boolean = when (status) {
     "completed", "error" -> true
-    else -> false
+    "webContentFetched" -> progress == "Original saved"
+    else -> progress in setOf("Summary ready", "Content ready", "Cover saved")
 }
 
 internal fun articleProcessingStepIndex(status: String?, progress: String? = null): Int = when (status) {
@@ -56,6 +57,9 @@ private fun pendingProgressMessage(progress: String?): String = when (progress) 
 }
 
 private fun aiProgressMessage(progress: String?): String = when (progress) {
+    "Translating article" -> "摘要与全文翻译正在处理，原文已可阅读..."
+    "Summary ready" -> "摘要已生成，正在整理全文..."
+    "Content ready" -> "正文已保存，正在完成 AI 处理..."
     "Generating title" -> "正在优化标题..."
     "Generating summary" -> "正在生成摘要..."
     "Converting to Markdown" -> "正在整理原文排版..."
@@ -65,6 +69,7 @@ private fun aiProgressMessage(progress: String?): String = when (progress) {
 }
 
 private fun aiProgressStepIndex(progress: String?): Int = when (progress) {
+    "Translating article", "Summary ready", "Content ready" -> 4
     "Generating title" -> 2
     "Generating summary" -> 3
     "Converting to Markdown" -> 4

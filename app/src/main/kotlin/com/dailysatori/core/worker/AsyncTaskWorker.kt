@@ -222,6 +222,7 @@ private fun asyncTaskNotificationText(taskType: String): String = when (taskType
 }
 
 private val NETWORK_TASK_TYPES = setOf(
+    "article_cover_download",
     "sms_reminder_parse",
     "external_favorite_organize",
     "save_article",

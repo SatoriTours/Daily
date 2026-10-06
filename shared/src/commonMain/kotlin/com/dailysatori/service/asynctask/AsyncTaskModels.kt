@@ -21,6 +21,7 @@ val AsyncTaskStatus.visibleByDefault: Boolean
 
 enum class AsyncTaskType(val displayName: String) {
     save_article("保存文章"),
+    article_cover_download("文章封面下载"),
     remote_article_sync("同步远程文章"),
     remote_news_fetch("获取远程新闻"),
     external_favorite_sync("外部收藏同步"),

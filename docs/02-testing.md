@@ -58,6 +58,12 @@ DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*ReminderAiLiv
 常规单元测试跳过真实请求；显式运行会消耗服务商额度。不启动模拟器或 App。
 `--rerun` 仅重跑该测试任务，避免配置或模型变化后误用旧的测试结果。
 
+文章处理的真实验证使用同一配置，覆盖中文摘要、英文全文翻译，以及代码、链接和图片保留：
+
+```bash
+DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*ArticleAiLiveTest' --rerun
+```
+
 ### Android 模拟器
 
 仅发布代码前，或用户明确要求真机／UI 测试时，才启动模拟器进行 UI 验证。

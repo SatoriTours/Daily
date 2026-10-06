@@ -27,6 +27,9 @@ import com.dailysatori.core.task.ExternalFavoriteSyncTaskHandler
 import com.dailysatori.core.task.ExternalFavoriteOrganizeTaskHandler
 import com.dailysatori.core.task.RemoteArticleReprocessTaskHandler
 import com.dailysatori.core.task.SaveArticleTaskHandler
+import com.dailysatori.core.task.ArticleCoverDownloadTaskHandler
+import com.dailysatori.core.task.PersistentArticleCoverScheduler
+import com.dailysatori.service.parser.ArticleCoverScheduler
 import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
 import com.dailysatori.core.task.ReminderAiParseTaskHandler
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
@@ -71,6 +74,8 @@ val appModule: Module = module {
     single { ClipboardMonitorService(androidContext()) }
     single { AsyncTaskScheduler(androidContext()) }
     single { SaveArticleTaskHandler(get(), get()) }
+    single<ArticleCoverScheduler> { PersistentArticleCoverScheduler(get(), get(), get()) }
+    single { ArticleCoverDownloadTaskHandler(get()) }
     single { ArticleMemoryExtractTaskHandler(get(), get()) }
     single { RemoteArticleReprocessTaskHandler(get(), get()) }
     single { ArticlePostProcessingScheduler(androidContext(), get()) }
@@ -90,6 +95,7 @@ val appModule: Module = module {
         AsyncTaskHandlerRegistry(
             listOf(
                 get<SaveArticleTaskHandler>(),
+                get<ArticleCoverDownloadTaskHandler>(),
                 get<ArticleMemoryExtractTaskHandler>(),
                 get<RemoteArticleReprocessTaskHandler>(),
                 get<ExternalFavoriteSyncTaskHandler>(),

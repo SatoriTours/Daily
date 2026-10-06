@@ -46,6 +46,7 @@ class ArticleDetailViewModel(
             }
         }
         viewModelScope.launch(Dispatchers.Default) {
+            var contentRevision = 0L
             webpageParserService.processingStates.collect { states ->
                 states[articleId]?.let { processing ->
                     val statusText = articleProcessingMessage(processing.status, processing.progress).orEmpty()
@@ -57,7 +58,9 @@ class ArticleDetailViewModel(
                             processingProgress = processing.progress,
                         )
                     }
-                    if (shouldReloadArticleAfterProcessingState(processing.status)) {
+                    if (shouldReloadArticleAfterProcessingState(processing.status, processing.progress) ||
+                        contentRevision != processing.contentRevision) {
+                        contentRevision = processing.contentRevision
                         loadArticle()
                     }
                 }

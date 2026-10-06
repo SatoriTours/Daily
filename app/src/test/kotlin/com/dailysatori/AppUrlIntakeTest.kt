@@ -211,58 +211,9 @@ class AppUrlIntakeTest {
         assertTrue(source.contains("clearSavePending(normalizedUrl)"))
     }
 
-    @Test
-    fun parallelAiTasksUseFieldSpecificArticleUpdates() {
-        val parser = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val repository = File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt").readText()
-        val queries = File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
 
-        assertTrue(parser.contains("updateAiTitle("))
-        assertTrue(parser.contains("updateAiContent("))
-        assertTrue(parser.contains("updateAiMarkdownContent("))
-        assertTrue(repository.contains("fun updateAiTitle("))
-        assertTrue(repository.contains("fun updateAiContent("))
-        assertTrue(repository.contains("fun updateAiMarkdownContent("))
-        assertTrue(queries.contains("updateArticleAiTitle:"))
-        assertTrue(queries.contains("updateArticleAiContent:"))
-        assertTrue(queries.contains("updateArticleAiMarkdownContent:"))
-    }
 
-    @Test
-    fun parallelAiTasksPropagateChildFailuresToWorkerRetry() {
-        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val aiProcessing = source.substringAfter("suspend fun processAiTasks")
-            .substringBefore("private suspend fun generateArticleTitle")
 
-        assertTrue(aiProcessing.contains("async"))
-        assertTrue(aiProcessing.contains("awaitAll"))
-        assertFalse(aiProcessing.contains("joinAll"))
-    }
-
-    @Test
-    fun aiProcessingFailureReloadsLatestArticleBeforePersistingError() {
-        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val catchBlock = source.substringAfter("AI processing failed: articleId=\$articleId")
-            .substringBefore("val errorState")
-
-        assertTrue(catchBlock.contains("articleRepo.getById(articleId)"))
-        assertTrue(catchBlock.contains("latestArticle.ai_content"))
-        assertTrue(catchBlock.contains("latestArticle.ai_markdown_content"))
-    }
-
-    @Test
-    fun existingArticleRetryUsesActiveProcessingGuard() {
-        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val existingBranch = source.substringAfter("suspend fun saveWebpage(")
-            .substringBefore("fun processAiTasksAsync")
-
-        assertTrue(existingBranch.contains("markArticleActive(articleId)"))
-        assertTrue(existingBranch.contains("finishQueuedArticle(articleId)"))
-        assertTrue(existingBranch.contains("enqueueArticleProcessing(articleId)"))
-        val activeGuard = existingBranch.substringAfter("if (!ownsProcessing)").substringBefore("setProcessingState")
-        assertTrue(activeGuard.indexOf("return articleId") < activeGuard.indexOf("updateStatus"), "已有所有者时不能回退处理状态")
-        assertFalse(existingBranch.contains("throw CancellationException"))
-    }
 
     @Test
     fun articleInsertUsesAtomicInsertedIdInsteadOfMaxId() {
@@ -308,18 +259,6 @@ class AppUrlIntakeTest {
         assertTrue(reprocess.contains("processAiTasks(articleId, extracted)"))
     }
 
-    @Test
-    fun markdownConversionRunsForPlainTextOriginalsNotOnlyHtml() {
-        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val body = source.substringAfter("private suspend fun generateArticleMarkdown")
-            .substringBefore("private fun updateArticleMarkdown")
-
-        assertFalse(body.contains("if (htmlContent.isBlank()) return generatedMarkdownOrFallback"))
-        assertTrue(body.contains("val markdownInput = articleMarkdownInput(extracted, modelName)"))
-        assertTrue(body.contains("if (markdownInput.isBlank()) return generatedMarkdownOrFallback"))
-        assertTrue(body.contains("aiService.htmlToMarkdown("))
-        assertTrue(body.contains("markdownInput,"))
-    }
 
     @Test
     fun resumeQueuesRecoverableArticlesWhenSlotsAreFull() {
@@ -331,19 +270,6 @@ class AppUrlIntakeTest {
         assertTrue(resume.contains("enqueueArticleProcessing(article.id)"))
     }
 
-    @Test
-    fun articleProcessingQueueUsesBoundedOverlapAndQueuesNewArticles() {
-        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val saveNewArticle = source.substringAfter("val ownsProcessing = markArticleActive(articleId)")
-            .substringBefore("val state = mutableMapOf<Long, ArticleProcessingState>()")
-        val enqueueIndex = saveNewArticle.indexOf("enqueueArticleProcessing(articleId)")
-        val returnIndex = saveNewArticle.indexOf("return articleId")
-
-        assertTrue(source.contains("const val MAX_CONCURRENT_PROCESSING = 2"))
-        assertTrue(enqueueIndex >= 0)
-        assertTrue(returnIndex >= 0)
-        assertTrue(enqueueIndex < returnIndex)
-    }
 
     @Test
     fun androidWebViewLoaderSerializesPageLoads() {
@@ -355,19 +281,6 @@ class AppUrlIntakeTest {
         assertTrue(source.contains("finishLoad(load)"))
     }
 
-    @Test
-    fun aiCompletionUsesFieldSpecificStatusAndCoverUpdate() {
-        val parser = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val repository = File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt").readText()
-        val queries = File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
-        val completion = parser.substringAfter("Downloading cover image")
-            .substringBefore("setProcessingState(articleId, finalArticleStatus")
-
-        assertTrue(completion.contains("updateProcessingCompletion("))
-        assertFalse(completion.contains("articleRepo.update("))
-        assertTrue(repository.contains("fun updateProcessingCompletion("))
-        assertTrue(queries.contains("updateArticleProcessingCompletion:"))
-    }
 
     @Test
     fun shareRetryWorkReplacesExistingStuckWork() {

@@ -161,6 +161,26 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         q.updateArticleAiMarkdownContent(aiMarkdownContent, now, id)
     }
 
+    fun updateOriginalMarkdownContent(id: Long, original: String) {
+        q.updateArticleOriginalMarkdownContent(original, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), id)
+    }
+
+    fun updateOverviewIfOriginalMatches(id: Long, original: String, title: String, summary: String) {
+        q.updateArticleOverviewIfOriginalMatches(title, summary, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), id, original)
+    }
+
+    fun updateMarkdownIfOriginalMatches(id: Long, original: String, markdown: String) {
+        q.updateArticleMarkdownIfOriginalMatches(markdown, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), id, original)
+    }
+
+    fun updateStatusIfOriginalMatches(id: Long, original: String, status: String) {
+        q.updateArticleStatusIfOriginalMatches(status, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), id, original)
+    }
+
+    fun updateCoverIfUrlMatches(id: Long, url: String, cover: String) {
+        q.updateArticleCoverIfUrlMatches(cover, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), id, url)
+    }
+
     fun updateStatus(id: Long, status: String) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateArticleStatus(status, now, id)
@@ -191,7 +211,10 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         return true
     }
 
-    fun delete(id: Long) = q.deleteArticle(id)
+    fun delete(id: Long) = q.transaction {
+        q.deleteSetting("article.ai.v3:$id")
+        q.deleteArticle(id)
+    }
 
     fun toggleFavorite(id: Long) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()

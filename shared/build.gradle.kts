@@ -33,6 +33,7 @@ kotlin {
             implementation(libs.ktor.client.mock)
         }
         androidMain.dependencies {
+            implementation(libs.jsoup)
             implementation(libs.sqldelight.android.driver)
             implementation(libs.androidx.documentfile)
             implementation(libs.ktor.client.okhttp)

@@ -11,6 +11,7 @@ import com.dailysatori.data.repository.needsChineseReprocessing
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.REMOTE_PROCESSING_STALE
 import com.dailysatori.data.repository.TagRepository
+import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewPageContent
 import com.dailysatori.platform.WebViewLoader
@@ -28,8 +29,6 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.http.URLBuilder
 import io.ktor.http.takeFrom
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +37,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -67,12 +67,6 @@ internal data class ParsedArticleSummary(
     val coverImageUrl: String?,
 )
 
-private data class ArticleSummaryResult(
-    val content: String,
-    val title: String?,
-    val coverImageUrl: String?,
-)
-
 internal data class ArticleAnalysisResult(
     val title: String?,
     val summary: String,
@@ -83,6 +77,7 @@ data class ArticleProcessingState(
     val articleId: Long,
     val status: String,
     val progress: String = "",
+    val contentRevision: Long = 0,
 )
 
 internal data class NormalizedAiConfigValues(
@@ -584,12 +579,17 @@ class WebpageParserService(
     private val externalFavoriteSourceRepo: ExternalFavoriteSourceRepository,
     private val xBookmarksConnector: XBookmarksConnector,
     private val remoteArticleSyncRepo: RemoteArticleSyncRepository? = null,
+    private val settingRepo: SettingRepository,
+    private val coverScheduler: ArticleCoverScheduler? = null,
 ) {
     private val log = Logger.withTag("WebpageParser")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val queueLock = Any()
     private val pendingProcessingIds = ArrayDeque<Long>()
+    private val queuedAt = mutableMapOf<Long, Long>()
     private val activeProcessingIds = mutableSetOf<Long>()
+    private val slotChanges = MutableStateFlow(0L)
+    private val aiProcessor = ArticleAiProcessor(aiService, settingRepo)
 
     private val _processingStates = MutableStateFlow<Map<Long, ArticleProcessingState>>(emptyMap())
     val processingStates: StateFlow<Map<Long, ArticleProcessingState>> = _processingStates
@@ -666,12 +666,11 @@ class WebpageParserService(
             existing.id
         }
 
-        val article = articleRepo.getById(articleId) ?: throw Exception("Failed to create article")
-        val ownsProcessing = markArticleActive(articleId)
-        if (!ownsProcessing) {
-            log.i { "saveWebpage skipped active article processing: articleId=$articleId" }
-            enqueueArticleProcessing(articleId)
-            return articleId
+        val ownsProcessing = measureArticleProcessingStage("queued") { awaitProcessingOwnership(articleId, reuseCompleted = true) }
+        if (!ownsProcessing) return articleId
+        val article = articleRepo.getById(articleId) ?: run {
+            finishQueuedArticle(articleId)
+            throw CancellationException("文章已删除")
         }
         articleRepo.updateStatus(articleId, "pending")
         setProcessingState(articleId, "pending")
@@ -741,6 +740,7 @@ class WebpageParserService(
                 false
             } else {
                 pendingProcessingIds.addLast(articleId)
+                queuedAt[articleId] = DiagnosticLog.elapsed()
                 true
             }
         }
@@ -748,15 +748,18 @@ class WebpageParserService(
     }
 
     private fun drainProcessingQueue() {
-        val articleIds = mutableListOf<Long>()
+        val articleIds = mutableListOf<Pair<Long, Long>>()
         synchronized(queueLock) {
             while (activeProcessingIds.size < MAX_CONCURRENT_PROCESSING && pendingProcessingIds.isNotEmpty()) {
                 val articleId = pendingProcessingIds.removeFirst()
-                if (activeProcessingIds.add(articleId)) articleIds.add(articleId)
+                val waitMs = DiagnosticLog.elapsed() - (queuedAt.remove(articleId) ?: DiagnosticLog.elapsed())
+                if (activeProcessingIds.add(articleId)) articleIds.add(articleId to waitMs.coerceAtLeast(0))
             }
         }
-        articleIds.forEach { articleId ->
+        articleIds.forEach { (articleId, waitMs) ->
             scope.launch {
+                DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.PARSER,
+                    fields = mapOf("articleStage" to "queued", "durationMs" to waitMs.toString()))
                 try {
                     val article = articleRepo.getById(articleId)
                     if (article != null && isRecoverableArticleForProcessing(article.status, article.ai_content, article.ai_markdown_content)) {
@@ -791,7 +794,17 @@ class WebpageParserService(
     }
 
     private fun setProcessingState(articleId: Long, status: String, progress: String = "") {
-        _processingStates.value = _processingStates.value + (articleId to ArticleProcessingState(articleId, status, progress))
+        _processingStates.update { it + (articleId to ArticleProcessingState(articleId, status, progress,
+            it[articleId]?.contentRevision ?: 0)) }
+    }
+
+    private suspend fun awaitProcessingOwnership(articleId: Long, reuseCompleted: Boolean = false): Boolean {
+        while (true) {
+            val revision = slotChanges.value
+            if (markArticleActive(articleId)) return true
+            slotChanges.first { it != revision }
+            if (reuseCompleted && articleRepo.getById(articleId)?.status == "completed") return false
+        }
     }
 
     private fun markArticleActive(articleId: Long): Boolean = synchronized(queueLock) {
@@ -799,6 +812,7 @@ class WebpageParserService(
             false
         } else {
             pendingProcessingIds.remove(articleId)
+            queuedAt.remove(articleId)
             activeProcessingIds.add(articleId)
             true
         }
@@ -808,6 +822,7 @@ class WebpageParserService(
         synchronized(queueLock) {
             activeProcessingIds.remove(articleId)
         }
+        slotChanges.update { it + 1 }
         drainProcessingQueue()
     }
 
@@ -816,12 +831,13 @@ class WebpageParserService(
 
     private suspend fun processAiTasksRecorded(articleId: Long, extracted: ExtractedContent?, retryOnFailure: Boolean) {
         val article = articleRepo.getById(articleId) ?: return
-        log.i { "processAiTasks: articleId=$articleId" }
-
-        setProcessingState(articleId, "aiProcessing", "Starting AI tasks")
-        updateArticleStatus(article, "aiProcessing")
-
         try {
+            val sourceSnapshot = persistOriginal(article, extracted)
+            val original = com.dailysatori.data.repository.articleOriginalMarkdown(sourceSnapshot, null,
+                isRemoteSnapshot = remoteArticleSyncRepo?.findByArticleId(articleId) != null).orEmpty()
+            setProcessingState(articleId, "webContentFetched", "Original saved")
+            articleRepo.updateStatus(articleId, "aiProcessing")
+            scheduleCover(articleId)
             val config = aiConfigService.getDefaultConfig()
             if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
                 throw IllegalStateException("AI config not set")
@@ -832,68 +848,26 @@ class WebpageParserService(
                 modelName = config.model_name,
                 provider = config.provider,
             )
-            val apiAddress = normalizedConfig.apiAddress
-            val apiToken = normalizedConfig.apiToken
-            val modelName = normalizedConfig.modelName
-            val provider = normalizedConfig.provider
-
-            setProcessingState(articleId, "aiProcessing", "Running AI tasks")
-            updateArticleStatus(article, "aiProcessing")
-
-            var aiCoverImageUrl: String? = null
-            val analysis = generateArticleAnalysis(article, extracted, apiAddress, apiToken, modelName, provider)
-            if (analysis != null) {
-                val aiTitle = selectedArticleAiTitle(analysis.title, extractMarkdownHeadingTitle(analysis.summary), extracted?.title, article.title)
-                updateArticleAiTitle(articleId, aiTitle)
-                updateArticleSummary(articleId, ArticleSummaryResult(content = analysis.summary, title = aiTitle, coverImageUrl = null))
-                updateArticleMarkdown(articleId, normalizeArticleMarkdownImages(analysis.markdown, extracted?.imageUrls.orEmpty()))
-            } else {
-                supervisorScope {
-                    listOf(
-                        async {
-                            val title = generateArticleTitle(article, extracted, apiAddress, apiToken, modelName, provider)
-                            updateArticleAiTitle(articleId, selectedArticleAiTitle(title, null, extracted?.title, article.title))
-                        },
-                        async {
-                            val summary = generateArticleSummary(article, extracted, apiAddress, apiToken, modelName, provider)
-                            aiCoverImageUrl = summary.coverImageUrl
-                            updateArticleSummary(articleId, summary)
-                        },
-                        async {
-                            val markdown = generateArticleMarkdown(article, extracted, extracted?.htmlContent ?: "", apiAddress, apiToken, modelName, provider)
-                            updateArticleMarkdown(articleId, markdown)
-                        },
-                    ).awaitAll()
-                }
-            }
-
-            val latestArticle = articleRepo.getById(articleId) ?: article
-            val aiContent = latestArticle.ai_content.orEmpty()
-            val aiMarkdownContent = latestArticle.ai_markdown_content.orEmpty()
-
-            setProcessingState(articleId, "aiProcessing", "Downloading cover image")
-            articleRepo.updateStatus(articleId, "aiProcessing")
-
-            var coverImage: String? = latestArticle.cover_image
-            val coverImageUrl = aiCoverImageUrl ?: extracted?.coverImageUrl ?: latestArticle.cover_image_url
-            if (!coverImageUrl.isNullOrBlank() && (coverImage == null || coverImage.isBlank())) {
-                try {
-                    coverImage = downloadCoverImage(articleId, coverImageUrl)
-                } catch (e: Exception) {
-                    if (!shouldPersistArticleProcessingError(e)) throw e
-                    log.e(e) { "Cover image download failed" }
-                }
-            }
-
-            articleRepo.updateProcessingCompletion(
-                id = articleId,
-                status = finalArticleStatus(aiContent, aiMarkdownContent),
-                coverImage = coverImage,
-                coverImageUrl = coverImageUrl,
+            aiProcessor.process(articleId, original, extracted?.title ?: article.title.orEmpty(), normalizedConfig,
+                onOverview = { overview ->
+                    ensureSourceCurrent(articleId, sourceSnapshot)
+                    articleRepo.updateOverviewIfOriginalMatches(articleId, sourceSnapshot, overview.title, overview.summary)
+                    ensureSourceCurrent(articleId, sourceSnapshot)
+                    setProcessingState(articleId, "aiProcessing", "Summary ready")
+                },
+                onMarkdown = { markdown ->
+                    ensureSourceCurrent(articleId, sourceSnapshot)
+                    articleRepo.updateMarkdownIfOriginalMatches(articleId, sourceSnapshot, markdown)
+                    ensureSourceCurrent(articleId, sourceSnapshot)
+                    setProcessingState(articleId, "aiProcessing", "Content ready")
+                },
+                onProgress = { setProcessingState(articleId, "aiProcessing", it) },
+                ensureCurrent = { ensureSourceCurrent(articleId, sourceSnapshot) },
             )
-
-            setProcessingState(articleId, finalArticleStatus(aiContent, aiMarkdownContent))
-            log.i { "AI processing completed: articleId=$articleId" }
+            ensureSourceCurrent(articleId, sourceSnapshot)
+            articleRepo.updateStatusIfOriginalMatches(articleId, sourceSnapshot, "completed")
+            ensureSourceCurrent(articleId, sourceSnapshot)
+            setProcessingState(articleId, "completed")
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "AI processing failed: articleId=$articleId" }
@@ -902,167 +876,69 @@ class WebpageParserService(
         }
     }
 
+    private fun persistOriginal(article: Article, extracted: ExtractedContent?): String {
+        if (extracted?.readableHtmlContent.isNullOrBlank() && !article.original_markdown_content.isNullOrBlank() &&
+            extracted?.content == article.original_markdown_content) return article.original_markdown_content
+        if (remoteArticleSyncRepo?.findByArticleId(article.id) != null && !article.original_markdown_content.isNullOrBlank()) {
+            return article.original_markdown_content
+        }
+        val original = extracted?.let { articleOriginalMarkdown(it, article.url.orEmpty()) }
+            ?.takeIf { it.isNotBlank() } ?: article.original_markdown_content.orEmpty()
+        require(original.isNotBlank()) { "文章没有可处理的正文" }
+        articleRepo.updateOriginalMarkdownContent(article.id, original)
+        if (article.ai_markdown_content.isNullOrBlank()) articleRepo.updateAiMarkdownContent(article.id, original)
+        return original
+    }
+
+    private fun ensureSourceCurrent(articleId: Long, snapshot: String) {
+        if (articleRepo.getById(articleId)?.original_markdown_content != snapshot) {
+            throw CancellationException("处理期间原文已更新，将使用新版本重试")
+        }
+    }
+
+    private fun scheduleCover(articleId: Long) {
+        val article = articleRepo.getById(articleId) ?: return
+        if (article.cover_image_url.isNullOrBlank() || !article.cover_image.isNullOrBlank()) return
+        try {
+            if (coverScheduler != null) coverScheduler.enqueue(articleId)
+            else scope.launch { runCatching { downloadArticleCover(articleId) } }
+        } catch (_: Exception) {
+            log.w { "Cover task enqueue failed: articleId=$articleId" }
+        }
+    }
+
+    suspend fun downloadArticleCover(articleId: Long) = measureArticleProcessingStage("cover") {
+        downloadArticleCoverRecorded(articleId)
+    }
+
+    private suspend fun downloadArticleCoverRecorded(articleId: Long) {
+        val article = articleRepo.getById(articleId) ?: return
+        val url = article.cover_image_url?.takeIf { it.isNotBlank() } ?: return
+        if (!article.cover_image.isNullOrBlank()) return
+        val cover = downloadCoverImage(articleId, url) ?: throw IllegalStateException("封面下载失败")
+        val latest = articleRepo.getById(articleId) ?: return
+        if (latest.cover_image_url != url) return
+        articleRepo.updateCoverIfUrlMatches(articleId, url, cover)
+        _processingStates.update { states ->
+            val state = states[articleId] ?: ArticleProcessingState(articleId, latest.status.orEmpty())
+            states + (articleId to state.copy(contentRevision = state.contentRevision + 1))
+        }
+    }
+
     private fun recordProcessingFailure(articleId: Long, error: Exception, retryOnFailure: Boolean): Boolean {
         val article = articleRepo.getById(articleId) ?: return false
         val errorMessage = articleProcessingErrorMessage(error)
-        // Decide from actual content before storing an error message in the legacy summary field.
-        val hasContent = finalArticleStatus(article.ai_content, article.ai_markdown_content) == "completed"
-        val status = if (hasContent) "completed" else if (retryOnFailure) "retrying" else "error"
-        val summary = if (hasContent)
-            summaryAfterProcessingError(article.ai_content, article.ai_markdown_content, errorMessage)
-        else null
-        articleRepo.update(id = articleId, title = article.title, aiTitle = article.ai_title,
-            aiContent = summary, aiMarkdownContent = article.ai_markdown_content, url = article.url,
-            isFavorite = article.is_favorite ?: 0L, comment = article.comment, status = status,
-            coverImage = article.cover_image, coverImageUrl = article.cover_image_url, pubDate = article.pub_date)
+        val status = if (retryOnFailure) "retrying" else "error"
+        articleRepo.updateStatus(articleId, status)
         setProcessingState(articleId, status, errorMessage)
-        return hasContent
+        return false
     }
 
-    private suspend fun generateArticleTitle(
-        article: Article,
-        extracted: ExtractedContent?,
-        apiAddress: String,
-        apiToken: String,
-        modelName: String,
-        provider: String,
-    ): String = try {
-        aiService.summarize(
-            articleTitleInput(extracted, modelName),
-            articleTitlePrompt(),
-            apiAddress, apiToken, modelName, provider,
-        ).trim().trim('#', ' ', '\n', '\t')
-    } catch (e: Exception) {
-        if (!shouldPersistArticleProcessingError(e)) throw e
-        log.e(e) { "Title generation failed" }
-        article.ai_title.orEmpty()
-    }
-
-    private fun updateArticleAiTitle(articleId: Long, aiTitle: String) {
-        val article = articleRepo.getById(articleId) ?: return
-        val selected = selectedArticleAiTitle(aiTitle, null, article.title, article.ai_title)
-        articleRepo.updateAiTitle(articleId, selected.ifBlank { article.ai_title })
-    }
-
-    private suspend fun generateArticleAnalysis(
-        article: Article,
-        extracted: ExtractedContent?,
-        apiAddress: String,
-        apiToken: String,
-        modelName: String,
-        provider: String,
-    ): ArticleAnalysisResult? {
-        if (isTwitterStatusUrl(article.url)) return null
-        if (extracted?.htmlContent == null && extracted?.content.orEmpty().length > AIConfig.maxContentLength) return null
-        return try {
-            val output = aiService.summarize(
-                articleAnalysisInput(article, extracted, modelName),
-                articleAnalysisPrompt(),
-                apiAddress, apiToken, modelName, provider,
-            )
-            parseArticleAnalysisOutput(output)
-        } catch (e: Exception) {
-            if (!shouldPersistArticleProcessingError(e)) throw e
-            log.e(e) { "Structured article analysis failed; falling back to separate AI tasks" }
-            null
-        }
-    }
-
-    private suspend fun generateArticleSummary(
-        article: Article,
-        extracted: ExtractedContent?,
-        apiAddress: String,
-        apiToken: String,
-        modelName: String,
-        provider: String,
-    ): ArticleSummaryResult = try {
-        val summary = aiService.summarize(
-            articleSummaryInput(extracted, modelName),
-            articleSummaryPrompt(),
-            apiAddress, apiToken, modelName, provider,
-        )
-        val parsed = parseArticleSummaryOutput(summary)
-        ArticleSummaryResult(
-            content = generatedSummaryOrFallback(parsed.summary, article.ai_content, extracted?.content, article.ai_markdown_content),
-            title = extractMarkdownHeadingTitle(parsed.summary),
-            coverImageUrl = validatedCoverImageUrl(parsed.coverImageUrl, extracted?.imageUrls.orEmpty()),
-        )
-    } catch (e: Exception) {
-        if (!shouldPersistArticleProcessingError(e)) throw e
-        log.e(e) { "Summary generation failed" }
-        ArticleSummaryResult(
-            content = generatedSummaryOrFallback("", article.ai_content, extracted?.content, article.ai_markdown_content),
-            title = null,
-            coverImageUrl = null,
-        )
-    }
-
-    private fun updateArticleSummary(articleId: Long, summary: ArticleSummaryResult) {
-        val article = articleRepo.getById(articleId) ?: return
-        val aiTitle = selectedArticleAiTitle(article.ai_title, summary.title, article.title, null)
-        articleRepo.updateAiContent(articleId, summary.content, aiTitle, summary.coverImageUrl)
-    }
-
-    private suspend fun generateArticleMarkdown(
-        article: Article,
-        extracted: ExtractedContent?,
-        htmlContent: String,
-        apiAddress: String,
-        apiToken: String,
-        modelName: String,
-        provider: String,
-    ): String {
-        val longPlainText = extracted?.content?.trim().orEmpty()
-        if (extracted?.htmlContent == null && longPlainText.length > AIConfig.maxContentLength) {
-            return try {
-                val convertedChunks = mutableListOf<String>()
-                for (chunk in splitArticleText(longPlainText)) {
-                    convertedChunks += aiService.htmlToMarkdown(
-                        "正文文本：\n$chunk",
-                        htmlToReadableMarkdownPrompt(),
-                        apiAddress, apiToken, modelName, provider,
-                    ).trim()
-                }
-                convertedChunks.joinToString("\n\n").let { markdown ->
-                    normalizeArticleMarkdownImages(
-                        generatedMarkdownOrFallback(markdown, article.ai_markdown_content, longPlainText),
-                        extracted?.imageUrls.orEmpty(),
-                    )
-                }
-            } catch (e: Exception) {
-                if (!shouldPersistArticleProcessingError(e)) throw e
-                log.e(e) { "Chunked markdown conversion failed" }
-                generatedMarkdownOrFallback("", article.ai_markdown_content, longPlainText)
-            }
-        }
-        val markdownInput = articleMarkdownInput(extracted, modelName)
-        if (markdownInput.isBlank()) return generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
-        return try {
-            val markdown = aiService.htmlToMarkdown(
-                markdownInput,
-                htmlToReadableMarkdownPrompt(),
-                apiAddress, apiToken, modelName, provider,
-            )
-            normalizeArticleMarkdownImages(
-                generatedMarkdownOrFallback(markdown, article.ai_markdown_content, extracted?.content),
-                extracted?.imageUrls.orEmpty(),
-            )
-        } catch (e: Exception) {
-            if (!shouldPersistArticleProcessingError(e)) throw e
-            log.e(e) { "Markdown conversion failed" }
-            normalizeArticleMarkdownImages(
-                generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content),
-                extracted?.imageUrls.orEmpty(),
-            )
-        }
-    }
-
-    private fun updateArticleMarkdown(articleId: Long, markdown: String) {
-        articleRepo.updateAiMarkdownContent(articleId, markdown)
-    }
 
     suspend fun extractContent(url: String): ExtractedContent =
-        DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { extractContentRecorded(url) }
+        measureArticleProcessingStage("extraction") {
+            DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { extractContentRecorded(url) }
+        }
 
     private suspend fun extractContentRecorded(url: String): ExtractedContent {
         return withContext(Dispatchers.Default) {
@@ -1096,7 +972,7 @@ class WebpageParserService(
     private suspend fun extractContentOnce(url: String): ExtractedContent {
         val extracted = fetchPublicPageOnce(url)
         return extracted.copy(
-            content = usableArticleContentOrThrow(extracted.content, url).take(AIConfig.maxContentLength.toInt()),
+            content = usableArticleContentOrThrow(extracted.content, url),
         )
     }
 
@@ -1171,9 +1047,7 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
 
-            val state = mutableMapOf<Long, ArticleProcessingState>()
-            state[articleId] = ArticleProcessingState(articleId, "pending")
-            _processingStates.value = state
+            setProcessingState(articleId, "pending")
 
             val extracted = existingArticleOriginalExtractedContent(article) ?: extractContent(url)
 
@@ -1192,9 +1066,7 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
 
-            val updatedState = mutableMapOf<Long, ArticleProcessingState>()
-            updatedState[articleId] = ArticleProcessingState(articleId, "webContentFetched")
-            _processingStates.value = updatedState
+            setProcessingState(articleId, "webContentFetched")
 
             processAiTasks(articleId, extracted)
 
@@ -1202,26 +1074,7 @@ class WebpageParserService(
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "refreshArticle failed: articleId=$articleId" }
-            val latestArticle = articleRepo.getById(articleId) ?: article
-            val status = finalArticleStatus(latestArticle.ai_content, latestArticle.ai_markdown_content)
-            articleRepo.update(
-                id = articleId,
-                title = latestArticle.title,
-                aiTitle = latestArticle.ai_title,
-                aiContent = latestArticle.ai_content,
-                aiMarkdownContent = latestArticle.ai_markdown_content,
-                url = latestArticle.url,
-                isFavorite = latestArticle.is_favorite ?: 0L,
-                comment = latestArticle.comment,
-                status = status,
-                coverImage = latestArticle.cover_image,
-                coverImageUrl = latestArticle.cover_image_url,
-                pubDate = latestArticle.pub_date,
-            )
-            val errorState = mutableMapOf<Long, ArticleProcessingState>()
-            errorState[articleId] = ArticleProcessingState(articleId, status, articleProcessingErrorMessage(e))
-            _processingStates.value = errorState
-            if (status == "completed") return
+            recordProcessingFailure(articleId, e, retryOnFailure = false)
             throw e
         } finally {
             finishQueuedArticle(articleId)
@@ -1253,7 +1106,7 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
 
-            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, "pending", "Fetching X post"))
+            setProcessingState(articleId, "pending", "Fetching X post")
 
             val extracted = fetchXPostExtractedContent(url)
 
@@ -1272,29 +1125,12 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
 
-            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, "webContentFetched"))
+            setProcessingState(articleId, "webContentFetched")
             processAiTasks(articleId, extracted)
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "refreshArticleWithXApi failed: articleId=$articleId" }
-            val latestArticle = articleRepo.getById(articleId) ?: article
-            val status = finalArticleStatus(latestArticle.ai_content, latestArticle.ai_markdown_content)
-            articleRepo.update(
-                id = articleId,
-                title = latestArticle.title,
-                aiTitle = latestArticle.ai_title,
-                aiContent = latestArticle.ai_content,
-                aiMarkdownContent = latestArticle.ai_markdown_content,
-                url = latestArticle.url,
-                isFavorite = latestArticle.is_favorite ?: 0L,
-                comment = latestArticle.comment,
-                status = status,
-                coverImage = latestArticle.cover_image,
-                coverImageUrl = latestArticle.cover_image_url,
-                pubDate = latestArticle.pub_date,
-            )
-            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, status, articleProcessingErrorMessage(e)))
-            if (status == "completed") return
+            recordProcessingFailure(articleId, e, retryOnFailure = false)
             throw e
         } finally {
             finishQueuedArticle(articleId)
@@ -1302,22 +1138,21 @@ class WebpageParserService(
     }
 
     suspend fun reprocessArticle(articleId: Long) {
-        val article = articleRepo.getById(articleId) ?: throw Exception("Article not found: $articleId")
-        val extracted = existingArticleOriginalExtractedContent(article)
-            ?: throw IllegalStateException("Article has no reusable original content")
-        if (!markArticleActive(articleId)) throw IllegalStateException("Article is already processing")
-        val originalMapping = remoteArticleSyncRepo?.findByArticleId(articleId)
-        val expectedSourceHash = originalMapping?.source_content_hash.orEmpty()
-        remoteArticleSyncRepo?.markProcessing(articleId)
+        awaitProcessingOwnership(articleId)
         try {
+            val article = articleRepo.getById(articleId) ?: throw CancellationException("文章已删除")
+            val extracted = existingArticleOriginalExtractedContent(article)
+                ?: throw IllegalStateException("Article has no reusable original content")
+            val expectedSourceHash = remoteArticleSyncRepo?.findByArticleId(articleId)?.source_content_hash.orEmpty()
+            remoteArticleSyncRepo?.markProcessing(articleId)
             articleRepo.update(
-                id = articleId, title = article.title, aiTitle = "",
-                aiContent = "", aiMarkdownContent = "",
+                id = articleId, title = article.title, aiTitle = article.ai_title,
+                aiContent = article.ai_content, aiMarkdownContent = article.ai_markdown_content,
                 url = article.url, isFavorite = article.is_favorite ?: 0L, comment = article.comment,
                 status = "webContentFetched", coverImage = article.cover_image,
                 coverImageUrl = article.cover_image_url, pubDate = article.pub_date,
             )
-            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, "webContentFetched"))
+            setProcessingState(articleId, "webContentFetched")
             processAiTasks(articleId, extracted)
 
             val processed = articleRepo.getById(articleId) ?: throw IllegalStateException("Processed article disappeared")
@@ -1326,9 +1161,7 @@ class WebpageParserService(
                 .joinToString("\n")
             if (needsChineseReprocessing(output)) {
                 articleRepo.updateStatus(articleId, "error")
-                _processingStates.value = mutableMapOf(
-                    articleId to ArticleProcessingState(articleId, "error", "AI did not produce Chinese content"),
-                )
+                setProcessingState(articleId, "error", "AI did not produce Chinese content")
                 throw IllegalStateException("文章整理未生成有效中文内容")
             }
             if (expectedSourceHash.isNotBlank() &&
@@ -1337,22 +1170,7 @@ class WebpageParserService(
                 throw IllegalStateException("处理期间原文已更新，将使用新版本重试")
             }
         } catch (error: Exception) {
-            if (originalMapping?.processed_content_hash?.isNotBlank() == true) {
-                articleRepo.update(
-                    id = articleId,
-                    title = article.title,
-                    aiTitle = article.ai_title,
-                    aiContent = article.ai_content,
-                    aiMarkdownContent = article.ai_markdown_content,
-                    url = article.url,
-                    isFavorite = article.is_favorite ?: 0L,
-                    comment = article.comment,
-                    status = article.status ?: "completed",
-                    coverImage = article.cover_image,
-                    coverImageUrl = article.cover_image_url,
-                    pubDate = article.pub_date,
-                )
-            }
+            if (error is CancellationException) throw error
             if (remoteArticleSyncRepo?.findByArticleId(articleId)?.processing_state != REMOTE_PROCESSING_STALE) {
                 remoteArticleSyncRepo?.markProcessingFailure(articleId, error.message.orEmpty().ifBlank { "文章整理失败" })
             }
@@ -1362,9 +1180,6 @@ class WebpageParserService(
         }
     }
 
-    private suspend fun updateArticleStatus(article: Article, status: String) {
-        articleRepo.updateStatus(article.id, status)
-    }
 
     private fun findExistingArticleByUrl(url: String): Article? {
         return articleRepo.findIntakeArticle(url)?.id?.let(articleRepo::getById)
@@ -1424,7 +1239,8 @@ class WebpageParserService(
                 fileManager.writeFile(filePath, bytes)
                 "images/$fileName"
             } catch (e: Exception) {
-                log.e(e) { "Failed to download cover image" }
+                if (e is CancellationException) throw e
+                log.w { "Cover image request failed: articleId=$articleId" }
                 null
             }
         }
@@ -1437,7 +1253,7 @@ class WebpageParserService(
     }
 }
 
-private const val REMOTE_PROCESSING_VERSION = "article-general-v2"
+private const val REMOTE_PROCESSING_VERSION = "article-general-v3"
 
 internal fun WebViewPageContent.summaryTextOrHtmlFallback(): String {
     val readable = readableContent.orEmpty().trim()
@@ -1569,7 +1385,7 @@ internal fun htmlForAiModel(html: String, modelName: String, fallbackLimit: Int 
 
 internal fun articleSummaryInput(extracted: ExtractedContent?, modelName: String): String {
     val textContent = extracted?.content?.trim().orEmpty()
-    if (textContent.isNotBlank()) return textContent.take(AIConfig.maxContentLength.toInt())
+    if (textContent.isNotBlank()) return textContent
     return htmlForAiModel(extracted?.htmlContent.orEmpty(), modelName)
 }
 
@@ -1604,7 +1420,7 @@ internal fun existingArticleOriginalExtractedContent(
         htmlContent = null,
         coverImageUrl = coverImageUrl?.trim()?.takeIf { it.isNotBlank() },
         readableHtmlContent = null,
-        imageUrls = listOfNotNull(coverImageUrl?.trim()?.takeIf { it.isNotBlank() }),
+        imageUrls = emptyList(),
     )
 }
 
@@ -1657,7 +1473,7 @@ internal fun articleMarkdownInput(extracted: ExtractedContent?, modelName: Strin
     if (textContent.isNotBlank()) {
         return buildString {
             append("正文文本：\n")
-            append(textContent.take(AIConfig.maxContentLength.toInt()))
+            append(textContent)
             if (images.isNotBlank()) {
                 append("\n\n正文图片：\n")
                 append(images)

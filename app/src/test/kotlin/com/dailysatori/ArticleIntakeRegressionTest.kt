@@ -123,7 +123,8 @@ class ArticleIntakeRegressionTest {
                         override fun decrypt(value: String) = value
                         override fun isEncrypted(value: String) = false
                     })), WebViewLoader(), FileManager(),
-                    client, ExternalFavoriteSourceRepository(db, { it }, { it }), XBookmarksConnector())
+                    client, ExternalFavoriteSourceRepository(db, { it }, { it }), XBookmarksConnector(),
+                    settingRepo = com.dailysatori.data.repository.SettingRepository(db))
                 val taskId = tasks.enqueue("save_article", saveArticleTaskPayloadJson(url),
                     uniqueKey = "save_article:$url", maxAttempts = 2)
                 val runner = AsyncTaskRunner(tasks, AsyncTaskHandlerRegistry(listOf(SaveArticleTaskHandler(parser, tasks))))

@@ -43,7 +43,7 @@ internal fun articleAnalysisPrompt(): String = """
     JSON 要求：
     1. 只返回 JSON，不要使用代码块包裹，不要输出 JSON 之外的文字。
     2. 字符串中的换行必须使用 \n 转义，双引号和反斜杠必须正确转义。
-    3. 如果原文很长，优先保证 JSON 完整，可以适当压缩 markdown，但不要遗漏核心正文。
+    3. 必须完整保留正文，不得为缩短输出压缩或遗漏正文。
 """.trimIndent()
 
 internal fun htmlToReadableMarkdownPrompt(): String = """

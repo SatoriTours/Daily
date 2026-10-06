@@ -276,8 +276,9 @@ class AiService(private val client: HttpClient) {
         apiToken: String,
         modelName: String,
         provider: String = "openai",
+        disableThinking: Boolean = false,
     ): String {
-        return complete(content, apiAddress, apiToken, modelName, provider, systemPrompt)
+        return complete(content, apiAddress, apiToken, modelName, provider, systemPrompt, disableThinking = disableThinking)
     }
 
     suspend fun htmlToMarkdown(
@@ -349,6 +350,8 @@ fun buildOpenAiTextCompletionMessages(prompt: String, systemPrompt: String?): Li
 }
 
 fun extractOpenAiTextCompletionContent(response: JsonObject): String {
+    val reason = response["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("finish_reason")?.jsonPrimitive?.contentOrNull
+    require(reason != "length" && reason != "content_filter") { "AI response was incomplete" }
     val content = response["choices"]?.jsonArray?.firstOrNull()
         ?.jsonObject?.get("message")?.jsonObject?.get("content")
         ?.jsonPrimitive?.contentOrNull

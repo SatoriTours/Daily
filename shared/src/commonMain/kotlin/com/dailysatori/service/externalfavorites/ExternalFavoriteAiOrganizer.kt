@@ -60,7 +60,10 @@ class ExternalFavoriteAiOrganizer(
     private val maxConcurrentAnalysis: Int = DEFAULT_MAX_CONCURRENT_ANALYSIS,
     private val retryDelayMs: Long = DEFAULT_AI_RETRY_DELAY_MS,
     private val itemTimeoutMs: Long = 90_000L,
+    private val settingRepo: com.dailysatori.data.repository.SettingRepository? = null,
 ) {
+    private val articleProcessor = if (aiService != null && settingRepo != null)
+        com.dailysatori.service.parser.ArticleAiProcessor(aiService, settingRepo) else null
     suspend fun organizePending(limit: Long = 10, includeFailed: Boolean = false): Int {
         return organizeItems(if (includeFailed) itemRepo.retryableAi(limit) else itemRepo.pendingAi(limit))
     }
@@ -180,7 +183,7 @@ class ExternalFavoriteAiOrganizer(
             initialDelayMs = retryDelayMs,
             shouldRetry = ::isRetryableExternalFavoriteAiFailure,
         ) {
-            val generated = generateAnalysis?.invoke(input) ?: generateWithAi(input)
+            val generated = generateAnalysis?.invoke(input) ?: generateWithAi(input, entry.article.id)
             if (githubAnalysisNeedsChineseRetry(input, generated)) {
                 throw IllegalStateException("GitHub 收藏整理未生成有效中文内容")
             }
@@ -190,12 +193,25 @@ class ExternalFavoriteAiOrganizer(
         return ExternalFavoriteAiResult(item, entry.article, input, analysis, null)
     }
 
-    private suspend fun generateWithAi(input: ExternalFavoriteAiInput): ExternalFavoriteAiAnalysis {
+    private suspend fun generateWithAi(input: ExternalFavoriteAiInput, articleId: Long): ExternalFavoriteAiAnalysis {
         val config = aiConfigService?.getDefaultConfig()
             ?: throw IllegalStateException("AI config not set")
         val ai = aiService ?: throw IllegalStateException("AI service not set")
         if (config.api_address.isBlank() || config.api_token.isBlank() || config.model_name.isBlank()) {
             throw IllegalStateException("AI config not set")
+        }
+
+        articleProcessor?.let { processor ->
+            val original = listOfNotNull(input.text.takeIf { it.isNotBlank() }, input.supplementText?.takeIf { it.isNotBlank() })
+                .joinToString("\n\n")
+            var title = ""
+            var summary = ""
+            var markdown = ""
+            processor.process(articleId, original, input.title,
+                com.dailysatori.service.parser.normalizeAiConfigValues(config.api_address, config.api_token, config.model_name, config.provider),
+                onOverview = { title = it.title; summary = it.summary }, onMarkdown = { markdown = it },
+                ensureCurrent = { if (articleRepo.getById(articleId) == null) throw CancellationException("文章已删除") })
+            return ExternalFavoriteAiAnalysis(title, summary, markdown)
         }
 
         val response = ai.summarize(
@@ -205,6 +221,7 @@ class ExternalFavoriteAiOrganizer(
             apiToken = config.api_token.trim(),
             modelName = config.model_name.trim(),
             provider = config.provider.trim(),
+            disableThinking = true,
         )
         return parseAiAnalysis(response)
     }
@@ -433,7 +450,7 @@ class ExternalFavoriteAiOrganizer(
         }
 
         const val MIN_EXISTING_TEXT_CHARS = 20
-        const val DEFAULT_MAX_CONCURRENT_ANALYSIS = 4
+        const val DEFAULT_MAX_CONCURRENT_ANALYSIS = 2
         const val AI_MAX_ATTEMPTS = 3
         const val DEFAULT_AI_RETRY_DELAY_MS = 750L
         const val FALLBACK_AI_LOG_URL = "ai://external-favorite/organize"

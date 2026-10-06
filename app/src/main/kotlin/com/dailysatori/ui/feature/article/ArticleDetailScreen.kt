@@ -6,6 +6,8 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,9 +69,8 @@ import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.news.ArticleReaderBody
 import com.dailysatori.ui.component.news.ArticleReaderHeader
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.MarkdownStyles
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
+import com.dailysatori.service.parser.articleTranslationMarkdown
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
@@ -335,11 +337,12 @@ private fun ArticleDetailLoadedContent(
         state.refreshError?.let { ArticleRefreshError(it) }
         val article = state.article ?: return@Column
         val coverImage = article.cover_image ?: article.cover_image_url
-        if (state.isRefreshing) {
-            ArticleRefreshingContent(article, state, coverImage)
-        } else {
-            ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density, state.sourceNames)
+        if (state.isRefreshing) ArticleProcessingStepper(state.processingStage, state.processingProgress,
+            modifier = Modifier.padding(Spacing.m))
+        if (article.status == "error" && !article.original_markdown_content.isNullOrBlank()) {
+            ArticleRefreshError("原文已保存，AI 处理失败，可刷新重试")
         }
+        ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density, state.sourceNames)
     }
 }
 
@@ -353,18 +356,6 @@ private fun ArticleRefreshError(message: String) {
     )
 }
 
-@Composable
-private fun ArticleRefreshingContent(
-    article: Article,
-    state: ArticleDetailState,
-    coverImage: String?,
-) {
-    if (!coverImage.isNullOrBlank()) {
-        ArticleCoverImage(imagePath = coverImage, modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp))
-    }
-    ArticleMagazineHeader(article, state.sourceNames)
-    ArticleProcessingStepper(state.processingStage, state.processingProgress, modifier = Modifier.padding(Spacing.m))
-}
 
 @Composable
 private fun ArticleDetailPage(
@@ -410,22 +401,26 @@ private fun ArticleDetailBody(article: Article) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ArticleOriginalBottomSheet(article: Article, onDismiss: () -> Unit) {
+    val original = articleDetailPageContent(page = 1, summary = article.ai_content, original = article.ai_markdown_content,
+        storedOriginal = article.original_markdown_content, isRemoteSnapshot = article.source_type == "remote_news",
+        originalImageUrls = listOfNotNull(article.cover_image_url))
+    val translation = articleTranslationMarkdown(original, article.ai_markdown_content)
+    var showTranslation by remember(article.id) { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
+        if (translation != null) {
+            Row(modifier = Modifier.padding(horizontal = Spacing.l), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                FilterChip(selected = !showTranslation, onClick = { showTranslation = false }, label = { Text("原文") })
+                FilterChip(selected = showTranslation, onClick = { showTranslation = true }, label = { Text("中文译文") })
+            }
+        }
         Text(
-            "原文",
+            if (showTranslation && translation != null) "中文译文" else "原文",
             modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),
             style = MaterialTheme.typography.titleLarge,
         )
         Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
             ArticleReaderBody(
-                content = articleDetailPageContent(
-                    page = 1,
-                    summary = article.ai_content,
-                    original = article.ai_markdown_content,
-                    storedOriginal = article.original_markdown_content,
-                    isRemoteSnapshot = article.source_type == "remote_news",
-                    originalImageUrls = listOfNotNull(article.cover_image_url),
-                ),
+                content = if (showTranslation && translation != null) translation else original,
                 typography = MarkdownStyles.readingTypography(),
                 padding = MarkdownStyles.readingPadding(),
             )

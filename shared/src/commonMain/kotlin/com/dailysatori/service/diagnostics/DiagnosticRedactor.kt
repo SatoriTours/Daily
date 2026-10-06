@@ -22,6 +22,7 @@ object DiagnosticRedactor {
         input.forEach { (key, value) ->
             when {
                 key in numeric -> value.toLongOrNull()?.takeIf { it >= 0 }?.let { put(key, it.toString()) }
+                key == "articleStage" && value in setOf("queued", "extraction", "overview", "translation", "cover") -> put(key, value)
                 key == "method" && value in methods -> put(key, value)
                 key == "reminderField" && value in reminderFields -> put(key, value)
                 key == "provider" && value.lowercase() in providers -> put(key, value.lowercase())

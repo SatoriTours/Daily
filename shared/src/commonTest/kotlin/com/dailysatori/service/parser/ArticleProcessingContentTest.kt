@@ -813,8 +813,15 @@ class ArticleProcessingContentTest {
 
         val input = articleSummaryInput(extracted, "gpt-5")
 
-        assertEquals(10_000, input.length)
+        assertEquals(16_000, input.length)
         assertEquals(false, input.contains("<html>"))
+    }
+
+    @Test
+    fun plainTextMarkdownInputDoesNotLoseTheEndOfLongArticles() {
+        val source = "前面的正文。".repeat(2_000) + "\n\n最后的结论必须保留。"
+        val input = articleMarkdownInput(ExtractedContent("长文", source, null, null), "deepseek")
+        assertTrue(input.endsWith("最后的结论必须保留。"))
     }
 
     @Test
