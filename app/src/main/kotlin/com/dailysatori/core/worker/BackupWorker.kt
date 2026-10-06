@@ -37,12 +37,13 @@ class BackupWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
-        return try {
-            GlobalContext.get().get<BackupService>().backupNow()
-            Result.success()
-        } catch (_: Exception) {
-            Result.retry()
-        }
-    }
+    override suspend fun doWork(): Result = runBackupWork { GlobalContext.get().get<BackupService>().backupNow() }
+}
+
+internal suspend fun runBackupWork(attempt: suspend () -> Boolean): androidx.work.ListenableWorker.Result = try {
+    if (attempt()) androidx.work.ListenableWorker.Result.success() else androidx.work.ListenableWorker.Result.retry()
+} catch (cancelled: kotlinx.coroutines.CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    androidx.work.ListenableWorker.Result.retry()
 }

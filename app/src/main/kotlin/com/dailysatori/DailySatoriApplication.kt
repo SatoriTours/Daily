@@ -41,6 +41,8 @@ class DailySatoriApplication : Application() {
         // The launcher/export process must remain usable even when DI, SQLite or workers crash.
         if (isDiagnosticProcess()) return
         DiagnosticRuntime.initialize(this)
+        com.dailysatori.platform.FileManager().apply { init(this@DailySatoriApplication) }
+            .applyPendingRestore()?.let { message -> android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show() }
         startKoin {
             androidLogger()
             androidContext(this@DailySatoriApplication)

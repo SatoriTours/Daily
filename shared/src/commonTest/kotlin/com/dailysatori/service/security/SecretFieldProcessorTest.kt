@@ -7,8 +7,23 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 class SecretFieldProcessorTest {
+    @Test
+    fun backupRejectsUnrecoverableSecretsInsteadOfProducingAnIncompleteBackup() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            driver.execute(null, "INSERT INTO setting(key, value, created_at, updated_at) VALUES ('weread_api_key', 'enc:v1:lost', 1, 1)", 0)
+            val cipher = object : com.dailysatori.service.security.SecretValueCipher {
+                override fun encrypt(value: String) = "enc:v1:$value"
+                override fun decrypt(value: String) = value
+                override fun isEncrypted(value: String) = value.startsWith("enc:v1:")
+            }
+            assertFailsWith<IllegalStateException> { SecretFieldProcessor(driver, cipher).decryptSecretsForBackup() }
+        } finally { driver.close() }
+    }
     @Test
     fun registryContainsAllPersistedSecretFields() {
         val fields = SecretFieldRegistry.fields.map { "${it.table}.${it.column}:${it.whereClause.orEmpty()}" }

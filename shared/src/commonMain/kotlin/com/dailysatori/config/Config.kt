@@ -18,6 +18,9 @@ object BackupConfig {
     const val productionIntervalHours = 6L
     const val developmentIntervalHours = 24L
     const val fileExtension = ".enc"
+    const val retentionDays = 10
+    // Safety floor when the device clock is wrong or backups are infrequent.
+    const val minimumRetainedBackups = 10
 }
 
 object DatabaseConfig {

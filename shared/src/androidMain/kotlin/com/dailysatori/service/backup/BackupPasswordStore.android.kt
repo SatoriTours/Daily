@@ -16,11 +16,15 @@ actual class BackupPasswordStore actual constructor(context: PlatformContext) {
     private val passwordFile: File = File(appContext.filesDir, "backup_password.sec")
 
     actual fun save(password: String) {
+        passwordFile.writeBytes(encryptedPassword(password))
+    }
+
+    actual fun encryptedPassword(password: String): ByteArray {
         val cipher = Cipher.getInstance(Transformation)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val encrypted = cipher.doFinal(password.toByteArray(Charsets.UTF_8))
         val iv = cipher.iv
-        passwordFile.writeBytes(byteArrayOf(iv.size.toByte()) + iv + encrypted)
+        return byteArrayOf(iv.size.toByte()) + iv + encrypted
     }
 
     actual fun get(): String? {

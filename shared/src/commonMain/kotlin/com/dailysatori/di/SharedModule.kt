@@ -180,7 +180,7 @@ val sharedModule: Module = module {
     single { SecretCipher(get()) }
     single<SecretValueCipher> { get<SecretCipher>() }
     single { SecretFieldProcessor(get(), get<SecretCipher>()) }
-    single { BackupService(get(), get(), get(), get(), get<SecretCipher>()) }
+    single { BackupService(get(), get(), get(), get(), get<SecretCipher>(), get()) }
     single { PluginService(get(), get()) }
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }

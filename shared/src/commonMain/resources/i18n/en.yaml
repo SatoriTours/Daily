@@ -668,6 +668,34 @@ backup_restore:
   delete_success: Delete successful
   no_backup_path: Backup path not set
   path_not_exist: Backup path does not exist
+  title: Restore from backup
+  choose_file: Choose backup file
+  empty: Select an encrypted backup exported from another device
+  encrypted_file: Encrypted backup file
+  restore: Restore backup
+  confirm_title: Confirm restore
+  warning: Restoring replaces current data and restarts the app. Back up anything you want to keep first.
+  password_label: Password used to create this backup
+  confirm: Restore and restart
+  cancel: Cancel
+  reading: Reading backup…
+  decrypting: Decrypting backup…
+  extracting: Extracting attachments…
+  validating: Checking integrity…
+  preparing: Preparing data for this device…
+  staging: Saving pending restore…
+  restart: Data is ready. Restarting to finish restoring…
+  restart_manual: Data is ready, but automatic restart failed. Fully close and reopen the app to finish restoring.
+  select_required: Choose a backup file first
+  legacy_life: This older backup does not include Life Archive. Existing local records will be kept. Create a new complete backup on the old device to transfer them.
+  password_required: Enter the password used to create this backup
+  password_error: Incorrect password or damaged backup. Check the password or choose another backup. Current data has not been replaced.
+  access_error: Cannot read the backup. Choose the file again and check access permissions. Current data has not been replaced.
+  space_error: Not enough storage. Free up space and try again. Current data has not been replaced.
+  version_error: This backup requires a newer app version. Update the app and retry. Current data has not been replaced.
+  invalid_error: Backup is incomplete or attachments failed verification. Choose a complete backup. Current data has not been replaced.
+  failed: Could not prepare the restore. Check the backup file, access permissions, and available storage.
+  load_failed: Cannot read the backup directory. You can choose a backup file directly.
 
 # Backup Settings
 backup_settings:

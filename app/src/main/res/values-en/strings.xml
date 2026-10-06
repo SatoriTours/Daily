@@ -379,8 +379,8 @@
     <string name="life_archive_error_conflict">The record or source to-do changed. Discard this draft, then reload or import again.</string>
     <string name="life_archive_error_input">Check your input: text limit is 20,000 characters, a title is required, field names must be filled and unique, and type names cannot repeat.</string>
     <string name="life_archive_error_import_empty">No new renewal or subscription records to import.</string>
-    <string name="life_archive_local_notice_title">Records are stored on this device</string>
-    <string name="life_archive_local_notice_body">The archive is encrypted and excluded from existing backups. Uninstalling, clearing app data, or losing the device key may make recovery impossible.</string>
+    <string name="life_archive_local_notice_title">Records are stored securely</string>
+    <string name="life_archive_local_notice_body">Life records and categories are included in future app backups. Create a backup and keep its password before changing devices, uninstalling, or clearing app data.</string>
     <string name="life_archive_accept_save">Understood, save</string>
     <string name="life_archive_delete_record">Delete record</string>
     <string name="life_archive_delete_title">Delete this record?</string>

@@ -280,6 +280,8 @@ val viewModelModule: Module = module {
     viewModel {
         BackupRestoreViewModel(
             backupService = get<BackupService>(),
+            fileManager = get(),
+            i18n = get(),
         )
     }
     viewModel {

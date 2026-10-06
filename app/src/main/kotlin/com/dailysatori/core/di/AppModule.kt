@@ -63,6 +63,7 @@ val appModule: Module = module {
     single { com.dailysatori.core.bookkeeping.BookkeepingCaptureMonitor() }
     single { com.dailysatori.core.bookkeeping.PhoneNotificationIdentity(get()) }
     single<LifeArchiveRepository> { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }
+    single<com.dailysatori.service.backup.LifeArchiveBackup> { get<LifeArchiveRepository>() as EncryptedLifeArchiveRepository }
     single { LifeArchiveAiService(get(), get()) }
     single<LifeArchiveAi> { get<LifeArchiveAiService>() }
     single<LifeArchiveReminderSource> { RepositoryLifeArchiveReminderSource(get()) }

@@ -401,8 +401,8 @@
     <string name="life_archive_error_conflict">资料或来源待办已变化，请放弃当前草稿后重新加载或导入。</string>
     <string name="life_archive_error_input">请检查输入：文字最多20,000字，标题必填，字段名需填写且不能重复，类型名称不能重复。</string>
     <string name="life_archive_error_import_empty">没有新的续费或订阅资料可导入。</string>
-    <string name="life_archive_local_notice_title">资料保存在本机</string>
-    <string name="life_archive_local_notice_body">生活档案已加密，但不随现有备份迁移。卸载、清除应用数据或丢失设备密钥后可能无法恢复。</string>
+    <string name="life_archive_local_notice_title">资料已加密保存</string>
+    <string name="life_archive_local_notice_body">生活资料和分类包含在之后创建的应用备份中。换机、卸载或清除应用数据前，请先完成备份并保留备份密码。</string>
     <string name="life_archive_accept_save">知道了，保存</string>
     <string name="life_archive_delete_record">删除资料</string>
     <string name="life_archive_delete_title">删除这条资料？</string>

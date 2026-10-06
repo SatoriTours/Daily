@@ -9,6 +9,38 @@ import kotlin.test.*
 
 class EncryptedLifeArchiveRepositoryTest {
     @Test
+    fun backupRestoresCustomCategoriesAndWholeRecordsUsingTheNewDevicesKey() = runBlocking {
+        withDirectory { source -> withDirectory { destination ->
+            val oldCipher = DeviceCipher("old-device")
+            val newCipher = DeviceCipher("new-device")
+            val original = EncryptedLifeArchiveRepository(source, oldCipher, { 10L })
+            val category = original.addCategory("家庭保险")
+            val saved = original.save(record().copy(categoryId = category.id, body = "续费资料",
+                sourceReminderId = "reminder1", sourceReminderVersion = 3), null)
+            val restored = EncryptedLifeArchiveRepository(destination, newCipher)
+            val encrypted = restored.prepareRestore(original.exportSnapshot())
+            assertFalse(encrypted.decodeToString().contains("secret@example.com"))
+            java.io.File(destination, "archive.json.enc").writeBytes(encrypted)
+
+            assertEquals(original.categories(), restored.categories())
+            assertEquals(listOf(saved), restored.records())
+            assertFailsWith<LifeArchiveStorageFailure> { EncryptedLifeArchiveRepository(destination, oldCipher).records() }
+        } }
+    }
+
+    @Test
+    fun invalidBackupSnapshotCannotOverwriteExistingLifeArchive() = runBlocking {
+        withDirectory { directory ->
+            val repository = EncryptedLifeArchiveRepository(directory, TestCipher)
+            val saved = repository.save(record(), null)
+            assertFailsWith<LifeArchiveStorageFailure> {
+                repository.prepareRestore("{\"schemaVersion\":2,\"categories\":[],\"records\":[]}")
+            }
+            assertEquals(listOf(saved), repository.records())
+        }
+    }
+
+    @Test
     fun persistsOnlyCiphertextAndLoadsWholeRecord() = runBlocking {
         withDirectory { dir ->
             val repository = EncryptedLifeArchiveRepository(dir, TestCipher, { 10L })
@@ -94,5 +126,12 @@ class EncryptedLifeArchiveRepositoryTest {
         override fun encrypt(value: String) = "test:" + Base64.getEncoder().encodeToString(value.toByteArray())
         override fun decrypt(value: String) = String(Base64.getDecoder().decode(value.removePrefix("test:")))
         override fun isEncrypted(value: String) = value.startsWith("test:")
+    }
+
+    private class DeviceCipher(private val device: String) : SecretValueCipher {
+        override fun encrypt(value: String) = "encrypted:$device:" + Base64.getEncoder().encodeToString(value.toByteArray())
+        override fun decrypt(value: String) = if (value.startsWith("encrypted:$device:"))
+            String(Base64.getDecoder().decode(value.removePrefix("encrypted:$device:"))) else value
+        override fun isEncrypted(value: String) = value.startsWith("encrypted:")
     }
 }

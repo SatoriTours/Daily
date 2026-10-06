@@ -5,8 +5,25 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlin.test.assertFailsWith
 
 class FileManagerPathSafetyTest {
+    @Test
+    fun extractionRejectsParentTraversalWithoutWritingOutsideDestination() {
+        val root = createTempDirectory().toFile()
+        try {
+            val archive = File(root, "backup.zip")
+            ZipOutputStream(archive.outputStream()).use { zip ->
+                zip.putNextEntry(ZipEntry("../escaped.txt"))
+                zip.write("private".toByteArray())
+                zip.closeEntry()
+            }
+            assertFailsWith<IllegalArgumentException> { FileManager().extractZip(archive.path, File(root, "restore").path) }
+            assertFalse(File(root, "escaped.txt").exists())
+        } finally { root.deleteRecursively() }
+    }
     @Test
     fun appDataContainmentRejectsSiblingPrefixesAndParentEscapes() {
         val parent = createTempDirectory().toFile()

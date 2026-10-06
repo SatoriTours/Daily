@@ -1,9 +1,10 @@
 package com.dailysatori.ui.feature.settings.backup
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,18 +45,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
+import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 
 @Composable
 fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     val viewModel: BackupRestoreViewModel = koinViewModel()
+    val i18n: I18nService = koinInject()
     val state by viewModel.state.collectAsState()
     var showPasswordDialog by remember { mutableStateOf(false) }
     var restorePassword by remember { mutableStateOf("") }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { viewModel.selectFile(it.toString()) }
+    }
     LaunchedEffect(Unit) {
         viewModel.loadBackupFiles()
     }
@@ -68,10 +74,10 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     AppScaffold(
         useGroupNavigation = true,
         navigationBusy = state.isRestoring,
-        title = "从备份恢复",
+        title = i18n.t("backup_restore.title"),
         onBack = onBack,
         bottomBar = {
-            if (state.backupList.isNotEmpty()) {
+            if (state.selectedName.isNotBlank()) {
                 Button(
                     onClick = {
                         showPasswordDialog = true
@@ -85,14 +91,14 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                             bottom = Spacing.m,
                         )
                         .height(Height.button),
-                    enabled = state.selectedBackupIndex >= 0 && !state.isRestoring,
+                    enabled = !state.isRestoring && !state.isRestorePending,
                 ) {
                     if (state.isRestoring) {
                         CircularProgressIndicator(modifier = Modifier.size(IconSize.m), strokeWidth = BorderWidth.l, color = MaterialTheme.colorScheme.onPrimary)
                     } else {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(Spacing.xs))
-                        Text("恢复备份")
+                        Text(i18n.t("backup_restore.restore"))
                     }
                 }
             }
@@ -100,60 +106,43 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     ) { modifier ->
         if (showPasswordDialog) {
             RestorePasswordDialog(
+                name = state.selectedName,
+                i18n = i18n,
                 password = restorePassword,
                 onPasswordChange = { restorePassword = it },
-                onDismiss = { showPasswordDialog = false },
+                onDismiss = { showPasswordDialog = false; restorePassword = "" },
                 onConfirm = {
                     showPasswordDialog = false
                     viewModel.restoreBackup(restorePassword)
+                    restorePassword = ""
                 },
             )
         }
-        if (state.backupList.isEmpty()) {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    if (state.isLoading) {
-                        CircularProgressIndicator()
-                    } else {
-                        Icon(
-                            Icons.Default.Restore,
-                            contentDescription = null,
-                            modifier = Modifier.size(IconSize.xxl * 2),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.m))
-                        Text(
-                            state.errorMessage.ifEmpty { "暂无备份信息" },
-                            style = MaterialTheme.typography.titleLarge,
-                        )
-                        Text(
-                            "请先在备份设置中创建备份",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+        Column(modifier = modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            OutlinedButton(
+                onClick = { filePicker.launch(arrayOf("*/*")) },
+                enabled = !state.isRestoring && !state.isRestorePending,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(i18n.t("backup_restore.choose_file")) }
+            RestoreFeedback(state)
+            if (state.selectedFileUri != null) {
+                BackupFileCard(selected = true, time = state.selectedFileName, onClick = {})
             }
-        } else {
-            Column(modifier = modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                RestoreFeedback(state)
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
-                    contentPadding = PaddingValues(bottom = Spacing.l),
-                ) {
-                    itemsIndexed(state.backupList) { index, path ->
-                        BackupFileCard(
-                            selected = index == state.selectedBackupIndex,
-                            time = viewModel.getBackupTime(path),
-                            onClick = { if (!state.isRestoring) viewModel.selectBackupIndex(index) },
-                        )
-                    }
+            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.size(IconSize.m))
+            if (state.backupList.isEmpty() && state.selectedFileUri == null && !state.isLoading) {
+                Text(i18n.t("backup_restore.empty"), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                contentPadding = PaddingValues(bottom = Spacing.l),
+            ) {
+                itemsIndexed(state.backupList) { index, path ->
+                    BackupFileCard(
+                        selected = index == state.selectedBackupIndex,
+                        time = viewModel.getBackupTime(path),
+                        onClick = { viewModel.selectBackupIndex(index) },
+                    )
                 }
             }
         }
@@ -163,9 +152,10 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
 @Composable
 private fun RestoreFeedback(state: BackupRestoreState) {
     if (state.isRestoring) {
-        LinearProgressIndicator(progress = { state.restoreProgress }, modifier = Modifier.fillMaxWidth())
+        if (state.restoreProgress <= 0f) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        else LinearProgressIndicator(progress = { state.restoreProgress }, modifier = Modifier.fillMaxWidth())
         Text(
-            state.statusMessage.ifBlank { "正在恢复备份..." },
+            state.statusMessage + if (state.restoreProgress > 0f) " ${(state.restoreProgress * 100).toInt()}%" else "",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -184,6 +174,7 @@ private fun BackupFileCard(
     time: String,
     onClick: () -> Unit,
 ) {
+    val i18n: I18nService = koinInject()
     Card(
         shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(
@@ -211,7 +202,7 @@ private fun BackupFileCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(time, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "加密备份文件",
+                    i18n.t("backup_restore.encrypted_file"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -229,6 +220,8 @@ private fun BackupFileCard(
 
 @Composable
 private fun RestorePasswordDialog(
+    name: String,
+    i18n: I18nService,
     password: String,
     onPasswordChange: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -238,25 +231,25 @@ private fun RestorePasswordDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 0.dp,
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text("输入备份密码") },
+        title = { Text(i18n.t("backup_restore.confirm_title")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text("请输入创建备份时设置的密码")
+                Text(name, style = MaterialTheme.typography.titleSmall)
+                Text(i18n.t("backup_restore.warning"))
                 OutlinedTextField(
                     value = password,
                     onValueChange = onPasswordChange,
-                    label = { Text("此备份文件的密码") },
+                    label = { Text(i18n.t("backup_restore.password_label")) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("恢复") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = onConfirm, enabled = password.isNotBlank()) { Text(i18n.t("backup_restore.confirm")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(i18n.t("backup_restore.cancel")) } },
     )
 }

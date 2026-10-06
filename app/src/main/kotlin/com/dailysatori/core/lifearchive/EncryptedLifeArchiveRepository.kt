@@ -2,6 +2,7 @@ package com.dailysatori.core.lifearchive
 
 import com.dailysatori.service.lifearchive.*
 import com.dailysatori.service.security.SecretValueCipher
+import com.dailysatori.service.backup.LifeArchiveBackup
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -28,9 +29,26 @@ class EncryptedLifeArchiveRepository(
     private val commit: (File, File) -> Unit = { temporary, destination ->
         Files.move(temporary.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
     },
-) : LifeArchiveRepository {
+) : LifeArchiveRepository, LifeArchiveBackup {
     private val mutex = Mutex()
     private val file get() = File(directory, "archive.json.enc")
+
+    override suspend fun exportSnapshot(): String = withContext(Dispatchers.IO) {
+        mutex.withLock { Json.encodeToString(read()) }
+    }
+
+    override suspend fun prepareRestore(snapshot: String): ByteArray = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            try {
+                val decoded = Json.decodeFromString<LifeArchiveSnapshot>(snapshot).also(::validate)
+                val encrypted = cipher.encrypt(Json.encodeToString(decoded))
+                require(cipher.isEncrypted(encrypted))
+                encrypted.toByteArray(Charsets.UTF_8)
+            } catch (_: Exception) {
+                throw LifeArchiveStorageFailure()
+            }
+        }
+    }
 
     override suspend fun records(): List<LifeArchiveRecord> = withContext(Dispatchers.IO) {
         mutex.withLock { read().records.sortedByDescending { it.updatedAt } }

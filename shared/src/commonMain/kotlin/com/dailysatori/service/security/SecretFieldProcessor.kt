@@ -61,7 +61,8 @@ class SecretFieldProcessor(
                 value.isBlank() || !cipher.isEncrypted(value) -> SecretTransform.Unchanged
                 else -> {
                     val decrypted = cipher.decrypt(value)
-                    if (decrypted != value) SecretTransform.Updated(decrypted) else SecretTransform.Unchanged
+                    check(decrypted != value && !cipher.isEncrypted(decrypted)) { "无法解密敏感数据，已取消备份以避免数据丢失" }
+                    SecretTransform.Updated(decrypted)
                 }
             }
         }
@@ -75,7 +76,11 @@ class SecretFieldProcessor(
             }
         }
 
-    fun prepareRestoredSecrets(): SecretProcessingResult {
+    fun prepareRestoredSecrets(strict: Boolean = false): SecretProcessingResult {
+        if (strict) {
+            decryptSecretsForBackup()
+            return encryptPlaintextSecrets()
+        }
         val cleared = clearUnrecoverableEncryptedSecrets()
         val encrypted = encryptPlaintextSecrets()
         return SecretProcessingResult(
@@ -109,7 +114,7 @@ class SecretFieldProcessor(
 
     private fun readRows(field: SecretFieldSpec): List<SecretRow> {
         // Restoring a pre-ledger backup prepares secrets before the schema migration runs.
-        if (field.optionalTable && !tableExists(field)) return emptyList()
+        if (!tableExists(field)) return emptyList()
         val where = listOfNotNull(
             field.whereClause,
             "${field.quotedColumn()} IS NOT NULL",

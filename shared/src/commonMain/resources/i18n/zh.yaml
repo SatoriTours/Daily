@@ -668,6 +668,34 @@ backup_restore:
   delete_success: 删除成功
   no_backup_path: 未设置备份路径
   path_not_exist: 备份路径不存在
+  title: 从备份恢复
+  choose_file: 选择备份文件
+  empty: 可直接选择其他设备导出的加密备份文件
+  encrypted_file: 加密备份文件
+  restore: 恢复备份
+  confirm_title: 确认恢复
+  warning: 恢复将替换当前数据，完成后自动重启。请先备份需要保留的内容。
+  password_label: 创建此备份时的密码
+  confirm: 恢复并重启
+  cancel: 取消
+  reading: 正在读取备份…
+  decrypting: 正在解密备份…
+  extracting: 正在解压附件…
+  validating: 正在校验完整性…
+  preparing: 正在适配本机数据…
+  staging: 正在保存待恢复数据…
+  restart: 数据已准备好，正在重启完成恢复…
+  restart_manual: 数据已准备好，自动重启失败；请完全关闭并重新打开应用完成恢复
+  select_required: 请先选择备份文件
+  legacy_life: 此旧备份不含生活资料，恢复后会保留本机原有资料；旧设备上的生活资料需重新创建完整备份才能迁移
+  password_required: 请输入创建此备份时的密码
+  password_error: 密码不正确或备份已损坏，请核对密码或选择其他备份；当前数据未替换
+  access_error: 无法读取备份文件，请重新选择并检查访问权限；当前数据未替换
+  space_error: 存储空间不足，请释放空间后重试；当前数据未替换
+  version_error: 备份来自较新版本，请升级应用后重试；当前数据未替换
+  invalid_error: 备份不完整或附件校验失败，请选择完整备份；当前数据未替换
+  failed: 恢复未能准备完成，请检查备份文件、访问权限和存储空间
+  load_failed: 无法读取备份目录，可直接选择备份文件
 
 # 备份设置
 backup_settings:
