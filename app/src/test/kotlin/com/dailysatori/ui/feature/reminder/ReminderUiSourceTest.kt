@@ -117,13 +117,11 @@ class ReminderUiSourceTest {
         )
         assertTrue(sources.all { !Regex("[\\u3400-\\u9fff]").containsMatchIn(it) })
         assertTrue(sources.joinToString("\n").contains("stringResource("))
-        val settingsRow = source("ui/feature/settings/SettingsScreen.kt")
-            .split("SettingsRow(")
-            .drop(1)
-            .single { it.contains("onNavigate(SettingsPage.REMINDERS)") }
-            .substringBefore("onClick")
-        assertTrue(settingsRow.contains("R.string.reminder_settings_row_title"))
-        assertTrue(settingsRow.contains("R.string.reminder_settings_row_subtitle"))
+        val settingsRow = com.dailysatori.ui.feature.settings.settingsHomeEntries.single {
+            it.destination.page == com.dailysatori.ui.feature.settings.SettingsPage.REMINDERS
+        }
+        assertEquals("settings_design.reminders", settingsRow.title)
+        assertEquals("settings_design.reminders_hint", settingsRow.description)
 
         val zh = resourceNames("src/main/res/values/strings.xml")
         val en = resourceNames("src/main/res/values-en/strings.xml")

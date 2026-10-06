@@ -28,12 +28,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -62,10 +64,17 @@ import androidx.core.content.FileProvider
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.service.diary.DiaryAssistantFallbackRequiredException
 import com.dailysatori.service.diary.DiaryAssistantService
+import com.dailysatori.service.diary.DiaryTagDraft
+import com.dailysatori.service.diary.DiaryTagHistory
+import com.dailysatori.service.diary.DiaryTagResult
+import com.dailysatori.service.diary.DiaryTagState
+import com.dailysatori.service.diary.DiaryTagVocabulary
+import com.dailysatori.service.diary.diaryTagFingerprint
+import com.dailysatori.service.diary.parseDiaryTags
+import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.shared.db.Diary_attachment
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -107,7 +116,7 @@ private fun sanitizeNull(value: String?): String {
 @Composable
 fun DiaryEditorSheet(
     onDismiss: () -> Unit,
-    onSave: (content: String, tags: String?, mood: String?, images: String?) -> Unit,
+    onSave: (content: String, tags: String?, mood: String?, images: String?, tagDraft: DiaryTagDraft) -> Unit,
     existingDiary: Diary? = null,
     recordingState: DiaryRecordingState? = null,
     onPauseResumeRecording: () -> Unit = {},
@@ -117,6 +126,12 @@ fun DiaryEditorSheet(
     onRetryTranscription: (Long) -> Unit = {},
     onOpenTranscriptionSettings: () -> Unit = {},
     assistantService: DiaryAssistantService = koinInject(),
+    tagVocabulary: DiaryTagVocabulary = DiaryTagVocabulary(),
+    initialTagState: DiaryTagState? = null,
+    onGenerateTags: suspend (String) -> DiaryTagResult = { error("AI 未配置") },
+    tagStatus: String? = null,
+    initialTagToEdit: String? = null,
+    latestTags: List<String>? = null,
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
@@ -126,12 +141,34 @@ fun DiaryEditorSheet(
     }
     val editorScrollState = rememberScrollState()
     var showMediaPicker by remember { mutableStateOf(false) }
-    var showTagEditor by remember { mutableStateOf(false) }
-    var showTagEntry by remember { mutableStateOf(false) }
+    var showTagEditor by remember { mutableStateOf(initialTagToEdit != null) }
+    var tagToEdit by remember { mutableStateOf(initialTagToEdit) }
+    var showTagEntry by remember { mutableStateOf(true) }
     var showMoodEditor by remember { mutableStateOf(false) }
     var showMoreFormats by remember { mutableStateOf(false) }
     var attachmentToDelete by remember { mutableStateOf<Diary_attachment?>(null) }
-    var tagsText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.tags)) }
+    var tagsText by remember(existingDiary?.id) {
+        mutableStateOf(parseDiaryTags(existingDiary?.tags).map(tagVocabulary::canonical).distinct().joinToString(","))
+    }
+    var tagHistory by remember(existingDiary?.id) {
+        mutableStateOf(DiaryTagHistory(DiaryTagDraft.from(existingDiary?.tags, initialTagState, existingDiary?.content.orEmpty(), tagVocabulary)))
+    }
+    val tagDraft = tagHistory.current
+    LaunchedEffect(initialTagState, tagVocabulary.aliases, latestTags) {
+        if (!tagHistory.current.edited && !tagHistory.canUndo && initialTagState != null) {
+            val value = latestTags?.joinToString(",") ?: existingDiary?.tags
+            tagHistory = DiaryTagHistory(DiaryTagDraft.from(value, initialTagState, existingDiary?.content.orEmpty(), tagVocabulary))
+            tagsText = tagHistory.current.tags.joinToString(",")
+        }
+    }
+    fun changeTags(next: DiaryTagDraft) {
+        tagHistory = tagHistory.change(next)
+        tagsText = next.tags.joinToString(",")
+    }
+    fun undoTags() {
+        tagHistory = tagHistory.undo()
+        tagsText = tagHistory.current.tags.joinToString(",")
+    }
     var moodText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.mood)) }
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
     val redoStack = remember { mutableStateListOf<TextFieldValue>() }
@@ -366,11 +403,15 @@ fun DiaryEditorSheet(
     }
 
     if (showTagEditor) {
-        DiaryTextEditDialog(
-            title = "编辑标签",
-            value = tagsText,
-            placeholder = "用逗号分隔，例如：生活,散步",
-            onValueChange = { tagsText = it },
+        DiaryTagEditorDialog(
+            draft = tagDraft,
+            content = content.text,
+            vocabulary = tagVocabulary,
+            onChange = ::changeTags,
+            onGenerate = onGenerateTags,
+            initialSelection = tagToEdit,
+            canUndo = tagHistory.canUndo,
+            onUndo = ::undoTags,
             onDismiss = { showTagEditor = false },
         )
     }
@@ -445,7 +486,7 @@ fun DiaryEditorSheet(
                         )
                         TextButton(
                             enabled = content.text.isNotBlank(),
-                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }) },
+                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft) },
                         ) {
                             Text(
                                 "保存",
@@ -467,13 +508,6 @@ fun DiaryEditorSheet(
                         onRetryTranscription = onRetryTranscription,
                     )
                     Spacer(modifier = Modifier.height(Spacing.s))
-                    DiaryEditorTagRow(
-                        tagsText = tagsText,
-                        showAddEntry = showTagEntry,
-                        colors = editorColors,
-                        onAddTag = { showTagEditor = true },
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.xs))
                     DiaryAssistantEditorViewport {
                         Box(
                             modifier = Modifier
@@ -520,6 +554,24 @@ fun DiaryEditorSheet(
                                         innerTextField()
                                     },
                                 )
+                                DiaryEditorTagRow(
+                                    tagsText = tagsText,
+                                    showAddEntry = showTagEntry,
+                                    colors = editorColors,
+                                    onAddTag = { tagToEdit = null; showTagEditor = true },
+                                    onEditTag = { tagToEdit = it; showTagEditor = true },
+                                    onRemoveTag = { changeTags(tagDraft.remove(it)) },
+                                )
+                                val tagStatusKey = when (tagStatus) {
+                                    "queued", "running", "retrying" -> "diary_tags.$tagStatus"
+                                    "failed" -> "diary_tags.failed_status"
+                                    else -> null
+                                }
+                                if (tagStatusKey != null) {
+                                    val i18n: I18nService = koinInject()
+                                    Text(i18n.t(tagStatusKey), style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
 
@@ -701,15 +753,20 @@ private fun DiaryEditorTagRow(
     showAddEntry: Boolean,
     colors: DiaryEditorColors,
     onAddTag: () -> Unit,
+    onRemoveTag: (String) -> Unit,
+    onEditTag: (String) -> Unit,
 ) {
-    val tags = tagsText.split(",").map { it.trim() }.filter { it.isNotBlank() && it != "null" }
+    val tags = parseDiaryTags(tagsText)
     if (tags.isNotEmpty() || showAddEntry) {
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
             if (showAddEntry) item { DiaryEditorAddTagChip(colors, onAddTag) }
-            items(tags, key = { it }) { tag -> DiaryEditorTagChip("#$tag", colors, onAddTag) }
+            items(tags, key = { it }) { tag ->
+                DiaryEditorTagChip((if (tags.firstOrNull() == tag) "★ " else "") + "#$tag", colors,
+                    { onEditTag(tag) }, { onRemoveTag(tag) })
+            }
         }
     }
 }
@@ -743,22 +800,26 @@ private fun DiaryEditorAddTagChip(colors: DiaryEditorColors, onClick: () -> Unit
 }
 
 @Composable
-private fun DiaryEditorTagChip(text: String, colors: DiaryEditorColors, onClick: () -> Unit) {
+private fun DiaryEditorTagChip(text: String, colors: DiaryEditorColors, onClick: () -> Unit, onRemove: () -> Unit) {
+    val i18n: I18nService = koinInject()
     Surface(
         onClick = onClick,
-        modifier = Modifier.height(30.dp),
+        modifier = Modifier.height(Height.chip),
         shape = RoundedCornerShape(Radius.circular),
         color = colors.chip,
     ) {
-        Box(
-            modifier = Modifier.padding(horizontal = Spacing.s),
-            contentAlignment = Alignment.Center,
+        Row(
+            modifier = Modifier.padding(start = Spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelMedium,
                 color = colors.muted,
             )
+            IconButton(onClick = onRemove, modifier = Modifier.size(IconSize.l)) {
+                Icon(Icons.Default.Close, i18n.t("diary_tags.remove"), Modifier.size(IconSize.xs), tint = colors.muted)
+            }
         }
     }
 }

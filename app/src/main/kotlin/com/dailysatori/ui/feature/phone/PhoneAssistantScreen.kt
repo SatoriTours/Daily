@@ -35,14 +35,15 @@ import kotlinx.datetime.*
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-@Composable fun PhoneAssistantScreen(onBack: () -> Unit, initialTab: Int = 0, vm: PhoneAssistantViewModel = koinViewModel()) {
+@Composable fun PhoneAssistantScreen(onBack: () -> Unit, initialTab: Int = 0,
+    initialSettings: Boolean = false, initialSection: String? = null, vm: PhoneAssistantViewModel = koinViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
-    var settings by rememberSaveable { mutableStateOf(false) }
+    var settings by rememberSaveable { mutableStateOf(initialSettings) }
     var history by rememberSaveable { mutableStateOf(false) }
-    var sources by remember { mutableStateOf(false) }
+    var sources by rememberSaveable { mutableStateOf(false) }
     var consent by remember { mutableStateOf<PhoneChannel?>(null) }
     var todoEdit by remember { mutableStateOf<PhoneTodoEdit?>(null) }
     var ledgerEdit by remember { mutableStateOf<LedgerEntry?>(null) }
@@ -79,7 +80,8 @@ import org.koin.compose.koinInject
     val todoCount = state.messages.sumOf { row -> row.todos.count { it.state == PhoneResultState.DONE } } +
         state.smsRecords.count { !it.id.startsWith("ph_") && it.status == SmsSourceStatus.CREATED }
     val needsSetup = PhoneChannel.entries.none { phoneChannelStatus(state, it) == "connected" }
-    if (settings) PhoneSettingsScreen(state, onDismiss = { settings = false }, onConfigure = vm::configure,
+    if (settings) PhoneSettingsScreen(state, onDismiss = { if (initialSettings) onBack() else settings = false },
+        initialSection = initialSection, onConfigure = vm::configure,
         onSmsEnable = { if (it) smsPermission() else vm.configure(PhoneChannel.SMS, state.preferences.sms.copy(enabled = false)) },
         onGrant = { openSettings(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
         onSources = { sources = true }, onCloud = { consent = it },
@@ -146,7 +148,7 @@ import org.koin.compose.koinInject
         text = { Text(i18n.t("phone.settings_unavailable")) }, confirmButton = {
             TextButton(onClick = { settingsUnavailable = false }) { Text(i18n.t("bookkeeping.done")) }
         })
-    if (sources) BookkeepingSourcesDialog(state.bookkeeping, vm::selectSource) { sources = false }
+    if (sources) BookkeepingSourcesDialog(state.bookkeeping.copy(busy = state.busy, error = state.failed), vm::selectSource) { sources = false }
     consent?.let { channel -> PhoneConsentDialog(channel, { consent = null }) {
         vm.configure(channel, state.preferences.forChannel(channel).copy(cloud = true)); consent = null
     } }

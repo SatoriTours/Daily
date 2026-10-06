@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.component.misc.FeatureIcon
 import com.dailysatori.ui.theme.*
+import androidx.compose.foundation.layout.widthIn
 
 @Composable
 fun SettingsRow(
@@ -32,6 +33,8 @@ fun SettingsRow(
     onClick: () -> Unit,
     trailing: @Composable (() -> Unit)? = null,
     enabled: Boolean = true,
+    value: String? = null,
+    showDivider: Boolean = true,
 ) {
     Surface(onClick = onClick, enabled = enabled, color = MaterialTheme.colorScheme.surface) {
         Column {
@@ -59,12 +62,15 @@ fun SettingsRow(
                     )
                 }
                 Spacer(Modifier.width(Spacing.s))
+                if (value != null) Text(value, modifier = Modifier.widthIn(max = Spacing.xxl * 3),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (trailing != null) trailing() else Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(IconSize.m),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            HorizontalDivider(
+            if (showDivider) HorizontalDivider(
                 modifier = Modifier.padding(start = Spacing.m + IconSize.xl + Spacing.m, end = Spacing.m),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )

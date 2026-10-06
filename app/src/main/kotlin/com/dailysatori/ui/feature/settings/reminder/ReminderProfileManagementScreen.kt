@@ -24,17 +24,26 @@ fun ReminderProfileManagementScreen(onBack: () -> Unit, viewModel: ReminderSetti
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.reminder_profiles_section), onBack = onBack) { modifier ->
         Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            state.profiles.forEach { ProfileCard(it, viewModel) }
-            Button(onClick = { viewModel.editProfile() }, modifier = Modifier.fillMaxWidth().heightIn(min = Height.button)) { Text(stringResource(R.string.reminder_new_custom_profile)) }
+            ReminderProfilesContent(state, viewModel)
         }
     }
     state.editor?.let { ProfileEditorDialog(it, state, viewModel) }
 }
 
 @Composable
+internal fun ReminderProfilesContent(state: ReminderSettingsState, viewModel: ReminderSettingsViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        state.profiles.forEach { ProfileCard(it, viewModel) }
+        OutlinedButton(onClick = { viewModel.editProfile() }, modifier = Modifier.fillMaxWidth().heightIn(min = Height.button)) {
+            Text(stringResource(R.string.reminder_new_custom_profile))
+        }
+    }
+}
+
+@Composable
 private fun ProfileCard(profile: ReminderProfile, viewModel: ReminderSettingsViewModel) {
     val displayName = profile.localizedName()
-    Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(displayName, style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.reminder_profile_summary, displayName, profile.snapshot.daytimeDismissalBackoffMinutes.joinToString(" / ")))

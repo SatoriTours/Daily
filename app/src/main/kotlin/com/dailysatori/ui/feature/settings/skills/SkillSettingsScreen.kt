@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +42,13 @@ import com.dailysatori.shared.db.Skill_config
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
+import com.dailysatori.ui.component.settings.matchesSettingsQuery
+import com.dailysatori.ui.component.settings.SettingsFormSection
+import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
+import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
@@ -98,22 +104,27 @@ private fun SkillListScreen(
     onEdit: (Skill_config) -> Unit,
     onDelete: (Skill_config) -> Unit,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleSkills = skills.filter { matchesSettingsQuery(query, it.name, it.description) }
     AppScaffold(
+        useGroupNavigation = true,
         title = skillSettingsScreenTitle(),
         onBack = onBack,
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+        searchQuery = query, onSearchQueryChange = { query = it },
+        actions = {
+            IconButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = skillAddButtonText())
             }
         },
     ) { modifier ->
-        LazyColumn(
+        if (query.isNotBlank() && visibleSkills.isEmpty()) SettingsSearchEmptyState(modifier)
+        else LazyColumn(
             modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             item { SkillCountText(skills.size) }
-            items(skills, key = { it.id }) { skill ->
+            items(visibleSkills, key = { it.id }) { skill ->
                 SkillCard(skill = skill, onEdit = { onEdit(skill) }, onDelete = { onDelete(skill) })
             }
         }
@@ -133,7 +144,7 @@ private fun SkillCountText(count: Int) {
 private fun SkillCard(skill: Skill_config, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         onClick = onEdit,
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
@@ -190,10 +201,17 @@ private fun SkillEditScreen(
     onFieldsChanged: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val i18n: I18nService = koinInject()
     val fields = rememberSkillEditFields(skill, onFieldsChanged)
+    val changed = fields.name != skill?.name.orEmpty() || fields.description != skill?.description.orEmpty() ||
+        fields.gatewayUrl != skill?.gateway_url.orEmpty() || fields.apiToken != skill?.api_token.orEmpty() ||
+        fields.skillVersion != skill?.skill_version.orEmpty() || fields.enabled != (skill?.enabled == 1L) ||
+        fields.provider != skill?.provider.orEmpty() || fields.templateId != skill?.template_id.orEmpty() ||
+        fields.toolSchemaJson != skill?.tool_schema_json.orEmpty()
+    val requestBack = rememberSettingsEditorBack(changed, isSaving || isTesting, onBack)
     AppScaffold(
         title = skill?.name ?: skillAddButtonText(),
-        onBack = onBack,
+        onBack = requestBack,
         bottomBar = {
             SettingsEditorBottomBar(
                 canTest = !isTesting,
@@ -212,9 +230,13 @@ private fun SkillEditScreen(
             contentPadding = PaddingValues(vertical = Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
-            skillCoreFieldItems(fields, skillCoreFieldsEditable(skill?.builtin ?: 0L))
-            item { SkillTokenField(fields) }
-            item { SkillEnabledRow(fields) }
+            skillCoreFieldItems(fields, skillCoreFieldsEditable(skill?.builtin ?: 0L), i18n)
+            item {
+                SettingsFormSection(i18n.t("settings_design.access_enable")) {
+                    SkillTokenField(fields)
+                    SkillEnabledRow(fields)
+                }
+            }
             if (error != null) item { SettingsEditorMessage(error, isError = true) }
             if (testMessage != null) item { SettingsEditorMessage(testMessage, isError = false) }
         }
@@ -269,14 +291,23 @@ private data class SkillEditFields(
 private fun androidx.compose.foundation.lazy.LazyListScope.skillCoreFieldItems(
     fields: SkillEditFields,
     editable: Boolean,
+    i18n: I18nService,
 ) {
-    item { SkillTextField(fields.name, fields.onNameChange, "名称", editable, singleLine = true) }
-    item { SkillTextField(fields.description, fields.onDescriptionChange, "给 AI 的能力描述", editable, minLines = 3) }
-    item { SkillTextField(fields.gatewayUrl, fields.onGatewayUrlChange, "Gateway URL", editable, singleLine = true) }
-    item { SkillTextField(fields.skillVersion, fields.onSkillVersionChange, "Skill Version", editable, singleLine = true) }
-    item { SkillTextField(fields.provider, fields.onProviderChange, "Provider", editable, singleLine = true) }
-    item { SkillTextField(fields.templateId, fields.onTemplateIdChange, "Template ID", editable, singleLine = true) }
-    item { SkillTextField(fields.toolSchemaJson, fields.onToolSchemaJsonChange, "Tool Schema JSON", editable, minLines = 4) }
+    item {
+        SettingsFormSection(i18n.t("settings_design.skill_info")) {
+            SkillTextField(fields.name, fields.onNameChange, "名称", editable, singleLine = true)
+            SkillTextField(fields.description, fields.onDescriptionChange, "给 AI 的能力描述", editable, minLines = 3)
+            SkillTextField(fields.skillVersion, fields.onSkillVersionChange, "Skill Version", editable, singleLine = true)
+        }
+    }
+    item {
+        SettingsFormSection(i18n.t("settings_design.service_connection")) {
+            SkillTextField(fields.gatewayUrl, fields.onGatewayUrlChange, "Gateway URL", editable, singleLine = true)
+            SkillTextField(fields.provider, fields.onProviderChange, "Provider", editable, singleLine = true)
+            SkillTextField(fields.templateId, fields.onTemplateIdChange, "Template ID", editable, singleLine = true)
+            SkillTextField(fields.toolSchemaJson, fields.onToolSchemaJsonChange, "Tool Schema JSON", editable, minLines = 4)
+        }
+    }
 }
 
 @Composable

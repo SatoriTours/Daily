@@ -11,8 +11,41 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
+import kotlin.test.assertFailsWith
 
 class AsyncTaskRunnerTest {
+    @Test
+    fun systemInterruptionRetriesWithoutConsumingTheOnlyAttemptOrLeakingCoroutineText() = runBlocking {
+        withRunner(handlers = listOf(FakeHandler { _, _, _ ->
+            throw CancellationException("Job was cancelled")
+        })) { repository, runner, _ ->
+            val id = repository.enqueue(FakeHandler.TYPE, "{}", maxAttempts = 1)
+            assertFailsWith<CancellationException> { runner.run(id) }
+            val task = repository.getById(id)!!
+            assertEquals("retrying", task.status)
+            assertEquals(0L, task.attempt_count)
+            assertEquals("interrupted", task.last_error_code)
+            assertEquals("任务被系统中断，将自动重试", task.last_error_message)
+        }
+    }
+
+    @Test
+    fun userCancellationDoesNotScheduleRetry() = runBlocking {
+        lateinit var tasks: AsyncTaskRepository
+        var id = 0L
+        withRunner(handlers = listOf(FakeHandler { _, _, _ ->
+            tasks.cancel(id)
+            throw CancellationException("Job was cancelled")
+        })) { repository, runner, _ ->
+            tasks = repository
+            id = tasks.enqueue(FakeHandler.TYPE, "{}", maxAttempts = 1)
+            assertFailsWith<CancellationException> { runner.run(id) }
+            assertEquals("cancelled", tasks.getById(id)!!.status)
+            assertEquals("", tasks.getById(id)!!.last_error_message)
+        }
+    }
+
     @Test
     fun legacyQueuedNewsRefreshTasksNeverExecuteConcurrently() = runBlocking {
         val started = CompletableDeferred<Unit>()

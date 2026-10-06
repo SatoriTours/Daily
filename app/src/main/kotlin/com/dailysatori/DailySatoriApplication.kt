@@ -69,6 +69,8 @@ class DailySatoriApplication : Application() {
         get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope) {
             DiaryThoughtScheduler(this).enqueue()
         }
+        get<com.dailysatori.service.diary.DiaryTagCoordinator>(com.dailysatori.service.diary.DiaryTagCoordinator::class.java)
+            .start(applicationScope) { get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).enqueue(it) }
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
         BackupScheduler(this).ensureScheduled()

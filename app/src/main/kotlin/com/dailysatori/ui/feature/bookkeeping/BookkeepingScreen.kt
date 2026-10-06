@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,7 +29,7 @@ fun BookkeepingScreen(onBack: () -> Unit, viewModel: BookkeepingViewModel = koin
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
-    var showSources by remember { mutableStateOf(false) }
+    var showSources by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<LedgerEntry?>(null) }
     DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshAccess() }

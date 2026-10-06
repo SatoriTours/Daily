@@ -1386,6 +1386,10 @@ WHERE session_id IN (
 selectAllDiaries:
 SELECT * FROM diary ORDER BY created_at DESC;
 
+selectDiaryTagIndex:
+SELECT id, tags, CASE WHEN content = '' THEN 0 ELSE 1 END AS has_content
+FROM diary ORDER BY id;
+
 selectDiariesPaginated:
 SELECT * FROM diary ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
@@ -1418,6 +1422,9 @@ VALUES (?, ?, ?, ?, ?, ?);
 
 updateDiary:
 UPDATE diary SET content = ?, tags = ?, mood = ?, images = ?, updated_at = ? WHERE id = ?;
+
+updateDiaryTags:
+UPDATE diary SET tags = ? WHERE id = ?;
 
 deleteDiary:
 DELETE FROM diary WHERE id = ?;

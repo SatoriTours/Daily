@@ -6,7 +6,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-internal fun diaryTags(value: String?): List<String> = cleanDiaryListValues(value)
+internal fun diaryTags(value: String?): List<String> = com.dailysatori.service.diary.parseDiaryTags(value)
 
 internal fun diaryImagePaths(value: String?): List<String> = cleanDiaryListValues(value)
 

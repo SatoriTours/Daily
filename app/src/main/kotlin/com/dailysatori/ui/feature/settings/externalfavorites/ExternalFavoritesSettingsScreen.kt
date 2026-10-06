@@ -39,7 +39,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -70,9 +69,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.IconSize
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.component.settings.matchesSettingsQuery
+import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -143,11 +143,15 @@ private fun ExternalFavoriteSourceListPage(
     openAddPage: () -> Unit,
     openEditPage: (Long) -> Unit,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleSources = state.sources.filter { matchesSettingsQuery(query, it.source.display_name, it.source.provider) }
     AppScaffold(
+        useGroupNavigation = true,
         title = "外部收藏同步",
         onBack = onBack,
-        floatingActionButton = {
-            FloatingActionButton(onClick = openAddPage) {
+        searchQuery = query, onSearchQueryChange = { query = it },
+        actions = {
+            IconButton(onClick = openAddPage) {
                 Icon(
                     Icons.Default.Add,
                     contentDescription = externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()),
@@ -155,7 +159,8 @@ private fun ExternalFavoriteSourceListPage(
             }
         },
     ) { modifier ->
-        if (state.sources.isEmpty()) {
+        if (query.isNotBlank() && visibleSources.isEmpty()) SettingsSearchEmptyState(modifier)
+        else if (state.sources.isEmpty()) {
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(Spacing.m),
@@ -175,7 +180,7 @@ private fun ExternalFavoriteSourceListPage(
             }
         } else {
             ExternalFavoriteSourceList(
-                state = state,
+                state = state.copy(sources = visibleSources),
                 viewModel = viewModel,
                 openAddPage = openAddPage,
                 openEditPage = openEditPage,
@@ -347,7 +352,7 @@ private fun ExternalFavoriteSummaryMetrics(metrics: List<ExternalFavoriteSummary
         metrics.forEach { metric ->
             Surface(
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(Radius.m),
+                shape = RoundedCornerShape(Radius.l),
                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
             ) {
@@ -686,7 +691,7 @@ private fun ExternalFavoriteHealthPill(health: ExternalSourceHealth, syncWork: E
 @Composable
 private fun ExternalFavoriteSyncProgressBox(work: ExternalFavoriteSyncWorkUi, historyComplete: Boolean) {
     Surface(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
@@ -738,7 +743,7 @@ private fun ExternalFavoriteSourceDetails(item: ExternalFavoriteSourceUi, syncWo
         externalFavoriteIdleDetailLines(item)
     }
     Surface(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
@@ -777,7 +782,7 @@ private fun ExternalFavoriteInlineNotice(
         else -> MaterialTheme.colorScheme.primary
     }
     Surface(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = color.copy(alpha = 0.09f),
         border = BorderStroke(1.dp, color.copy(alpha = 0.16f)),
     ) {
@@ -869,7 +874,7 @@ private fun ExternalFavoriteStepList(steps: List<Pair<String, String>>) {
 
 @Composable
 private fun ExternalFavoriteMessage(message: String) {
-    Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
         Text(
             text = message,
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),

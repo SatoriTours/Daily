@@ -1613,8 +1613,10 @@ class UnifiedNewsBehaviorTest {
         assertFalse(viewModelModule.contains("CrayfishNewsSettingsViewModel"))
         assertFalse(settings.contains("CRAYFISH_NEWS_SETTINGS"))
         assertFalse(settings.contains("小龙虾新闻设置"))
-        assertTrue(settings.contains("R.string.personal_settings_news"))
-        assertTrue(settings.contains("onNavigate(SettingsPage.REMOTE_NEWS)"))
+        assertTrue(settings.contains("SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen"))
+        assertTrue(com.dailysatori.ui.feature.settings.settingsHomeEntries.any {
+            it.destination.page == com.dailysatori.ui.feature.settings.SettingsPage.REMOTE_NEWS
+        })
         assertFalse(screen.substringAfter("private fun SkeletonLine").substringBefore("private fun UnifiedNewsMenu").contains("14.dp"))
         assertFalse(unifiedNewsBriefingCardSource().substringAfter("internal fun TodayUnifiedNewsCard").contains("1.dp"))
         assertFalse(citationText.substringAfter("private fun UnifiedNewsBulletItem").substringBefore("private fun unifiedNewsDisplayBlocks").contains("6.dp"))

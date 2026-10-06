@@ -15,6 +15,11 @@ import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.diary.TranscriptionRetryResult
 import com.dailysatori.service.diary.DiaryMonthSummaryService
+import com.dailysatori.data.repository.DiaryTagRepository
+import com.dailysatori.service.diary.DiaryTagCoordinator
+import com.dailysatori.service.diary.DiaryTagDraft
+import com.dailysatori.service.diary.DiaryTagVocabulary
+import com.dailysatori.service.diary.matchesDiaryTag
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.shared.db.Diary_attachment
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +63,8 @@ class DiaryViewModel(
     private val recordingStore: DiaryRecordingStore? = null,
     private val transcriptionCoordinator: DiaryTranscriptionCoordinator? = null,
     private val taskScheduler: AsyncTaskScheduler? = null,
+    private val tagRepo: DiaryTagRepository? = null,
+    private val tagCoordinator: DiaryTagCoordinator? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
@@ -71,12 +78,23 @@ class DiaryViewModel(
         loadDiaries()
         observeMonthSummaries()
         observeRecording()
+        observeTags()
         viewModelScope.launch(Dispatchers.IO) {
             if (recordingStore?.state?.value is DiaryRecordingState.Idle || recordingStore == null) {
                 attachmentRepo?.recoverInterruptedRecordings(startedBefore = recoveryCutoff)
             }
             refreshAvailableTags()
             monthSummaryService.refreshRecentMonthsIfNeeded()
+        }
+    }
+
+    private fun observeTags() {
+        val repository = tagRepo ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeCatalog().collect { catalog ->
+                _state.update { it.copy(availableTags = catalog.counts.keys.sorted(),
+                    selectedTag = it.selectedTag?.let(catalog.vocabulary::canonical)) }
+            }
         }
     }
 
@@ -114,8 +132,13 @@ class DiaryViewModel(
     }
 
     private fun refreshAvailableTags() {
+        if (tagRepo != null) {
+            _state.update { it.copy(availableTags = tagRepo.currentCatalog().counts.keys.sorted()) }
+            return
+        }
+        val vocabulary = tagRepo?.vocabulary() ?: DiaryTagVocabulary()
         val tags = diaryRepo.getAllSync()
-            .flatMap { diary -> diaryTags(diary.tags) }
+            .flatMap { diary -> diaryTags(diary.tags).map(vocabulary::canonical) }
             .distinct()
             .sorted()
         _state.update { it.copy(availableTags = tags) }
@@ -131,7 +154,8 @@ class DiaryViewModel(
                 }
             val selectedTag = _state.map { it.selectedTag }.distinctUntilChanged()
             diaries.combine(selectedTag) { entries, tag ->
-                if (tag == null) entries else entries.filter { it.tags?.contains(tag) == true }
+                val vocabulary = tagRepo?.vocabulary() ?: DiaryTagVocabulary()
+                if (tag == null) entries else entries.filter { matchesDiaryTag(it.tags, tag, vocabulary) }
             }.collect { filtered ->
                 _state.update { it.copy(diaries = filtered, isLoading = false) }
                 visibleDiaryIds.value = filtered.map { it.id }
@@ -191,6 +215,7 @@ class DiaryViewModel(
         mood: String? = null,
         images: String? = null,
         existingId: Long? = null,
+        tagDraft: DiaryTagDraft? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             saveDiaryAndGetId(
@@ -199,6 +224,7 @@ class DiaryViewModel(
                 mood = mood,
                 images = images,
                 existingId = existingId,
+                tagDraft = tagDraft,
             )
         }
     }
@@ -209,12 +235,18 @@ class DiaryViewModel(
         mood: String? = null,
         images: String? = null,
         existingId: Long? = null,
+        tagDraft: DiaryTagDraft? = null,
     ): Long? = withContext(Dispatchers.IO) {
         _state.update { it.copy(isSaving = true, error = null) }
         try {
+            val contentChanged = existingId == null || diaryRepo.getById(existingId)?.content != content
             val persistedId = try {
                 if (existingId != null) {
-                    diaryRepo.update(existingId, content, tags, mood, images)
+                    if (tagRepo != null && tagDraft != null) {
+                        tagRepo.saveEditedDiary(existingId, content, tagDraft.tags.takeIf { tagDraft.edited }, mood, images, tagDraft)
+                    } else {
+                        diaryRepo.update(existingId, content, tags, mood, images)
+                    }
                     existingId
                 } else {
                     diaryRepo.create(content, tags, mood, images)
@@ -224,6 +256,11 @@ class DiaryViewModel(
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
                 return@withContext null
+            }
+
+            runPostSaveOperation {
+                if (existingId == null && tagDraft != null) tagRepo?.saveDraft(persistedId, tagDraft)
+                if (contentChanged) tagCoordinator?.enqueue(persistedId)?.let { taskScheduler?.enqueue(it) }
             }
 
             runPostSaveOperation {
@@ -271,6 +308,7 @@ class DiaryViewModel(
                     }
                 }
                 diaryRepo.delete(id)
+                tagRepo?.deleteState(id)
                 refreshAvailableTags()
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }

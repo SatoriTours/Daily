@@ -103,6 +103,7 @@ val appModule: Module = module {
                 get<com.dailysatori.core.task.PhoneAssistantTaskHandler>(),
                 get<DiaryTranscriptionCoordinator>(),
                 get<DiaryKnowledgeCoordinator>(),
+                get<com.dailysatori.service.diary.DiaryTagCoordinator>(),
             ),
         )
     }

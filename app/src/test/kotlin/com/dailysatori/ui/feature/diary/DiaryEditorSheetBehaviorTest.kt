@@ -58,13 +58,14 @@ class DiaryEditorSheetBehaviorTest {
     }
 
     @Test
-    fun diaryEditorPresentsMetadataAndTagsBeforeWritingArea() {
+    fun diaryEditorKeepsMetadataAboveWritingAreaAndTagsBelowContent() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText()
 
         assertTrue(source.contains("DiaryEditorMetaRow("))
         assertTrue(source.contains("DiaryEditorTagRow("))
-        assertTrue(source.indexOf("DiaryEditorMetaRow(") < source.indexOf("DiaryEditorTagRow("))
-        assertTrue(source.indexOf("DiaryEditorTagRow(") < source.indexOf("BasicTextField("))
+        assertTrue(source.indexOf("DiaryEditorMetaRow(") < source.indexOf("BasicTextField("))
+        assertTrue(source.indexOf("BasicTextField(") < source.indexOf("DiaryEditorTagRow("))
+        assertTrue(source.indexOf("DiaryEditorTagRow(") < source.indexOf("DiaryEditorToolbar("))
         assertTrue(source.contains("private fun diaryEditorDateText("))
     }
 
@@ -76,7 +77,7 @@ class DiaryEditorSheetBehaviorTest {
         assertTrue(source.contains(".height(30.dp)"))
         assertTrue(source.contains("color = colors.chip"))
         assertTrue(source.contains("Calendar"))
-        assertTrue(source.contains("contentAlignment = Alignment.Center"))
+        assertTrue(source.contains("verticalAlignment = Alignment.CenterVertically"))
         assertFalse(source.contains("新建日记"))
         assertFalse(source.contains("HorizontalDivider("))
         assertTrue(source.contains("DiaryEditorAddTagChip"))

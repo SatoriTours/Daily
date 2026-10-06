@@ -46,10 +46,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.Height
-import com.dailysatori.ui.theme.IconSize
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 
@@ -69,6 +66,8 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     }
 
     AppScaffold(
+        useGroupNavigation = true,
+        navigationBusy = state.isRestoring,
         title = "从备份恢复",
         onBack = onBack,
         bottomBar = {
@@ -79,7 +78,6 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
                         .padding(
                             start = Spacing.m,
                             top = Spacing.m,
@@ -90,7 +88,7 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                     enabled = state.selectedBackupIndex >= 0 && !state.isRestoring,
                 ) {
                     if (state.isRestoring) {
-                        CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        CircularProgressIndicator(modifier = Modifier.size(IconSize.m), strokeWidth = BorderWidth.l, color = MaterialTheme.colorScheme.onPrimary)
                     } else {
                         Icon(Icons.Default.Restore, contentDescription = null)
                         Spacer(modifier = Modifier.width(Spacing.xs))
@@ -187,7 +185,7 @@ private fun BackupFileCard(
     onClick: () -> Unit,
 ) {
     Card(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -197,7 +195,7 @@ private fun BackupFileCard(
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Radius.m))
+            .clip(RoundedCornerShape(Radius.l))
             .clickable { onClick() },
     ) {
         Row(

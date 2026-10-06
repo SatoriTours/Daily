@@ -1,39 +1,13 @@
 package com.dailysatori.ui.feature.bookkeeping
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.bookkeeping.*
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.theme.*
 import org.koin.compose.koinInject
-
-@Composable
-internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (String, Boolean) -> Unit, onDismiss: () -> Unit) {
-    val i18n: I18nService = koinInject()
-    var search by remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(i18n.t("bookkeeping.select_sources")) }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(i18n.t("bookkeeping.sources_notice"), style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(search, onValueChange = { search = it }, label = { Text(i18n.t("bookkeeping.search_sources")) }, singleLine = true)
-            LazyColumn(Modifier.heightIn(max = Height.listItem * 6)) {
-                items(state.sources.filter { it.label.contains(search, true) || it.packageName.contains(search, true) }, key = { it.packageName }) { source ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(source.label)
-                            Text(source.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(source.packageName in state.selectedSources, onCheckedChange = { onSelect(source.packageName, it) }, enabled = !state.busy)
-                    }
-                }
-            }
-        }
-    }, confirmButton = { TextButton(onClick = onDismiss) { Text(i18n.t("bookkeeping.done")) } })
-}
 
 @Composable
 internal fun LedgerEditorDialog(entry: LedgerEntry, busy: Boolean, failed: Boolean, onDismiss: () -> Unit,

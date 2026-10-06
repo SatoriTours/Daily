@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.core.diagnostics.DiagnosticExportPhase
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
+import com.dailysatori.ui.component.settings.SettingsFormSection
 import com.dailysatori.ui.theme.*
 import java.text.DateFormat
 import java.util.Date
@@ -53,44 +54,50 @@ fun DiagnosticSettingsScreen(onBack: () -> Unit, viewModel: DiagnosticSettingsVi
     AppScaffold(title = i18n.t("diagnostics.title"), onBack = back) { modifier ->
         Column(modifier.verticalScroll(rememberScrollState()).padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Text(i18n.t("diagnostics.description"), style = MaterialTheme.typography.bodyMedium)
-            Text(i18n.t("diagnostics.privacy"), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(i18n.t("diagnostics.coverage"), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            info.bytes?.let {
-                Text(i18n.t("diagnostics.storage") + " " + String.format(Locale.ROOT, "%.2f MiB", it / (1024.0 * 1024)),
-                    style = MaterialTheme.typography.bodySmall)
+            SettingsFormSection(i18n.t("settings_design.diagnostics_hint")) {
+                Text(i18n.t("diagnostics.privacy"), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(i18n.t("diagnostics.coverage"), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                info.bytes?.let {
+                    Text(i18n.t("diagnostics.storage") + " " + String.format(Locale.ROOT, "%.2f MiB", it / (1024.0 * 1024)),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                if (info.health.droppedEvents + info.health.ioFailures + info.health.prunedFiles + info.health.corruptLines + info.health.truncatedEvents > 0) {
+                    Text(i18n.t("diagnostics.gaps"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
             }
-            if (info.health.droppedEvents + info.health.ioFailures + info.health.prunedFiles + info.health.corruptLines + info.health.truncatedEvents > 0) {
-                Text(i18n.t("diagnostics.gaps"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            SettingsFormSection(i18n.t("diagnostics.exportRecent")) {
+                Button(onClick = { viewModel.prepare(false) }, enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.exportRecent")) }
+                OutlinedButton(onClick = { viewModel.prepare(true) }, enabled = !busy && info.lastCrashMs != null,
+                    modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.exportCrash")) }
+                Text(info.lastCrashMs?.let { i18n.t("diagnostics.lastCrash") + " " + DateFormat.getDateTimeInstance().format(Date(it)) }
+                    ?: i18n.t("diagnostics.noCrash"), style = MaterialTheme.typography.bodySmall)
+                Text(i18n.t("diagnostics.destination"), style = MaterialTheme.typography.bodySmall)
+                if (busy) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text(i18n.t(when (export.phase) {
+                        DiagnosticExportPhase.AWAITING_DESTINATION -> "diagnostics.chooseDestination"
+                        DiagnosticExportPhase.SAVING -> "diagnostics.saving"
+                        else -> "diagnostics.preparing"
+                    }), style = MaterialTheme.typography.bodySmall)
+                }
+                if (export.phase == DiagnosticExportPhase.SAVED) {
+                    Text(i18n.t("diagnostics.saved"), color = MaterialTheme.colorScheme.primary)
+                    info.savedName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
+                if (export.phase == DiagnosticExportPhase.FAILED) {
+                    Text(i18n.t(if (export.residualFile) "diagnostics.failedResidual" else "diagnostics.failed"),
+                        color = MaterialTheme.colorScheme.error)
+                }
+                info.messageKey?.let { Text(i18n.t(it), color = MaterialTheme.colorScheme.error) }
             }
-            Button(onClick = { viewModel.prepare(false) }, enabled = !busy,
-                modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.exportRecent")) }
-            OutlinedButton(onClick = { viewModel.prepare(true) }, enabled = !busy && info.lastCrashMs != null,
-                modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.exportCrash")) }
-            Text(info.lastCrashMs?.let { i18n.t("diagnostics.lastCrash") + " " + DateFormat.getDateTimeInstance().format(Date(it)) }
-                ?: i18n.t("diagnostics.noCrash"), style = MaterialTheme.typography.bodySmall)
-            Text(i18n.t("diagnostics.destination"), style = MaterialTheme.typography.bodySmall)
-            if (busy) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Text(i18n.t(when (export.phase) {
-                    DiagnosticExportPhase.AWAITING_DESTINATION -> "diagnostics.chooseDestination"
-                    DiagnosticExportPhase.SAVING -> "diagnostics.saving"
-                    else -> "diagnostics.preparing"
-                }), style = MaterialTheme.typography.bodySmall)
+            SettingsFormSection(i18n.t("diagnostics.clear")) {
+                OutlinedButton(onClick = { confirmClear = true }, enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.clear")) }
             }
-            if (export.phase == DiagnosticExportPhase.SAVED) {
-                Text(i18n.t("diagnostics.saved"), color = MaterialTheme.colorScheme.primary)
-                info.savedName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            }
-            if (export.phase == DiagnosticExportPhase.FAILED) {
-                Text(i18n.t(if (export.residualFile) "diagnostics.failedResidual" else "diagnostics.failed"),
-                    color = MaterialTheme.colorScheme.error)
-            }
-            info.messageKey?.let { Text(i18n.t(it), color = MaterialTheme.colorScheme.error) }
-            OutlinedButton(onClick = { confirmClear = true }, enabled = !busy,
-                modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.clear")) }
-            Spacer(Modifier.height(Spacing.xxl))
+            Spacer(Modifier.height(Spacing.l))
         }
     }
     if (confirmClear) AlertDialog(

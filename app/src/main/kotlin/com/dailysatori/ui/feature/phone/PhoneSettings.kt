@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.phone
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,11 +23,14 @@ import org.koin.compose.koinInject
 @Composable internal fun PhoneSettingsScreen(state: PhoneUiState, onDismiss: () -> Unit,
     onConfigure: (PhoneChannel, PhoneOptions) -> Unit, onSmsEnable: (Boolean) -> Unit,
     onGrant: () -> Unit, onSources: () -> Unit, onCloud: (PhoneChannel) -> Unit,
-    onAppSettings: () -> Unit, onRestrictedHelp: () -> Unit, onNotify: () -> Unit, onAlarm: () -> Unit) {
+    onAppSettings: () -> Unit, onRestrictedHelp: () -> Unit, onNotify: () -> Unit, onAlarm: () -> Unit,
+    initialSection: String? = null) {
     val i18n: I18nService = koinInject()
     BackHandler(onBack = onDismiss)
     SettingsScaffold(title = i18n.t("phone.settings"), onBack = onDismiss) { modifier ->
-        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m),
+        LazyColumn(modifier.fillMaxSize(), state = rememberLazyListState(
+            initialFirstVisibleItemIndex = when (initialSection) { "sms" -> 1; "notification" -> 2; else -> 0 }),
+            contentPadding = PaddingValues(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
             item { PhoneInfoNote(i18n.t("phone.settings_intro")) }
             PhoneChannel.entries.forEach { channel ->

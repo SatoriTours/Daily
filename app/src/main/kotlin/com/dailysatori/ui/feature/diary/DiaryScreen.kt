@@ -72,6 +72,10 @@ import java.util.TimeZone
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DiaryScreen(onMyClick: () -> Unit = {}) {
+    val tagViewModel: DiaryTagViewModel = koinViewModel()
+    val tagState by tagViewModel.state.collectAsState()
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+    var showTagSettings by remember { mutableStateOf(false) }
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(kotlinx.datetime.TimeZone.currentSystemDefault()))
@@ -79,6 +83,10 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     val requestedDiaryId by DiaryRecordingOpenRequest.diaryId.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
+    var editingTag by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(showEditor, editingDiary?.id) {
+        tagViewModel.observeEditor(editingDiary?.id.takeIf { showEditor })
+    }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -149,6 +157,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             return@LaunchedEffect
         }
         editingDiary = requestedDiary
+        editingTag = null
         showEditor = true
         DiaryRecordingOpenRequest.consume(diaryId)
     }
@@ -185,6 +194,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     onOpenDiary = {
                         state.recordingState.diaryId?.let { id ->
                             editingDiary = state.diaries.firstOrNull { it.id == id }
+                            editingTag = null
                             showEditor = editingDiary != null
                         }
                     },
@@ -258,15 +268,18 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     item(key = entry.diary.id) {
                         val diary = entry.diary
                         DiaryCard(
-                            diary = diary,
+                            diary = diary.copy(tags = com.dailysatori.service.diary.parseDiaryTags(diary.tags)
+                                .map(tagState.vocabulary::canonical).distinct().joinToString(",")),
                             nowMillis = nowMillis,
                             attachments = state.attachmentsByDiary[diary.id].orEmpty(),
                             onEdit = {
+                                editingTag = null
                                 editingDiary = diary
                                 showEditor = true
                             },
                             onDelete = { showDeleteDialog = diary },
                             onRetryTranscription = viewModel::retryTranscription,
+                            onTagClick = { tag -> editingDiary = diary; editingTag = tag; showEditor = true },
                         )
                     }
                 }
@@ -292,7 +305,18 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 },
                 onClear = { viewModel.filterByTag(null) },
                 onClose = { showTagFilter = false },
+                onManage = { showTagFilter = false; showTagSettings = true },
             )
+        }
+    }
+
+    if (showTagSettings) {
+        ModalBottomSheet(onDismissRequest = { showTagSettings = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+                Text(i18n.t("diary_tags.title"), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { showTagSettings = false }) { Text(i18n.t("diary_tags.done")) }
+            }
+            DiaryTagSettingsContent(tagViewModel)
         }
     }
 
@@ -300,9 +324,16 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         BackHandler {
             showEditor = false
             editingDiary = null
+            editingTag = null
         }
         DiaryEditorSheet(
             existingDiary = editingDiary,
+            tagVocabulary = tagState.vocabulary.copy(names = tagState.vocabulary.names.sortedByDescending { tagState.counts[it] ?: 0 }),
+            initialTagState = tagState.provenance[editingDiary?.id],
+            latestTags = tagState.editorTags[editingDiary?.id],
+            onGenerateTags = tagViewModel::generate,
+            tagStatus = tagState.taskStatuses[editingDiary?.id],
+            initialTagToEdit = editingTag,
             recordingState = state.recordingState.takeIf {
                 editingDiary?.id == state.recordingState.diaryId && it !is DiaryRecordingState.Idle
             },
@@ -314,8 +345,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             onDeleteAttachment = viewModel::deleteAttachment,
             onRetryTranscription = viewModel::retryTranscription,
             onOpenTranscriptionSettings = onMyClick,
-            onDismiss = { showEditor = false; editingDiary = null },
-            onSave = { content, tags, mood, images ->
+            onDismiss = { showEditor = false; editingDiary = null; editingTag = null },
+            onSave = { content, tags, mood, images, tagDraft ->
                 val existingId = editingDiary?.id
                 viewModel.saveDiary(
                     existingId = existingId,
@@ -323,9 +354,11 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     tags = tags,
                     mood = mood,
                     images = images,
+                    tagDraft = tagDraft,
                 )
                 showEditor = false
                 editingDiary = null
+                editingTag = null
             },
         )
     }
@@ -382,7 +415,9 @@ private fun DiaryTagFilterSheet(
     onTagSelected: (String) -> Unit,
     onClear: () -> Unit,
     onClose: () -> Unit,
+    onManage: () -> Unit,
 ) {
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
     Column(
         modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, bottom = Spacing.xl),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
@@ -399,6 +434,7 @@ private fun DiaryTagFilterSheet(
             TextButton(onClick = onClose) { Text("关闭") }
         }
 
+        TextButton(onClick = onManage) { Text(i18n.t("diary_tags.title")) }
         if (selectedTag != null) {
             TextButton(onClick = onClear) { Text("清除当前筛选") }
         }

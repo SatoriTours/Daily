@@ -39,7 +39,7 @@ private data class SpeechChoice(val id: String, val title: String, val subtitle:
 
 @Composable
 fun SpeechSettingsScreen(onBack: () -> Unit) {
-    val pageBackground = MaterialTheme.colorScheme.background
+    val pageBackground = MaterialTheme.colorScheme.surfaceContainerLowest
     val viewModel: SpeechSettingsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -48,6 +48,10 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
     var picker by remember { mutableStateOf<SpeechPicker?>(null) }
     val requestBack = rememberSettingsEditorBack(state.hasChanges, state.saving, onBack, viewModel::discardChanges)
     SettingsScaffold(
+        useGroupNavigation = true,
+        hasUnsavedChanges = state.hasChanges,
+        navigationBusy = state.saving,
+        onDiscardChanges = viewModel::discardChanges,
         title = "语音模型", onBack = requestBack,
         bottomBar = {
             Button(
@@ -55,7 +59,7 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
                     Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
                     onBack()
                 } }, enabled = state.canSave,
-                shape = RoundedCornerShape(Radius.m),
+                shape = RoundedCornerShape(Radius.l),
                 modifier = Modifier.fillMaxWidth().padding(Spacing.m).heightIn(min = Height.button),
             ) { Text(if (state.saving) "保存中…" else "保存") }
         },

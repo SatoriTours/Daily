@@ -26,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,9 +62,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.shared.db.Remote_news_source
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.IconSize
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.component.settings.matchesSettingsQuery
+import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -86,6 +85,8 @@ private fun RemoteNewsSourceListPage(
     viewModel: RemoteNewsSettingsViewModel,
     onBack: () -> Unit,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleSources = state.sources.filter { matchesSettingsQuery(query, it.name, it.base_url) }
     val snackbarHost = remember { SnackbarHostState() }
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -94,16 +95,19 @@ private fun RemoteNewsSourceListPage(
         }
     }
     AppScaffold(
+        useGroupNavigation = true,
         title = "远程新闻设置",
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHost) },
-        floatingActionButton = {
-            FloatingActionButton(onClick = viewModel::openAdd) {
+        searchQuery = query, onSearchQueryChange = { query = it },
+        actions = {
+            IconButton(onClick = viewModel::openAdd) {
                 Icon(Icons.Default.Add, contentDescription = "新增远程新闻")
             }
         },
     ) { modifier ->
-        if (state.sources.isEmpty()) {
+        if (query.isNotBlank() && visibleSources.isEmpty()) SettingsSearchEmptyState(modifier)
+        else if (state.sources.isEmpty()) {
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(Spacing.m),
@@ -114,7 +118,7 @@ private fun RemoteNewsSourceListPage(
                     EmptyState(
                         icon = Icons.Default.Add,
                         title = "暂无远程新闻",
-                        subtitle = "点击右下角新增远程新闻源",
+                        subtitle = "点击右上角新增远程新闻源",
                         actionLabel = "新增远程新闻",
                         onAction = viewModel::openAdd,
                     )
@@ -128,7 +132,7 @@ private fun RemoteNewsSourceListPage(
             ) {
                 item { RemoteNewsSyncSummary(state) }
                 item { RemoteNewsSourceListHeader(state.sources.size) }
-                items(state.sources, key = { it.id }) { source ->
+                items(visibleSources, key = { it.id }) { source ->
                     RemoteNewsSourceRow(
                         source = source,
                         syncedCountText = remoteNewsSourceSyncedCountText(source, state),
@@ -196,7 +200,7 @@ private fun RemoteNewsIconBox() {
 private fun RemoteNewsMetricTile(metric: RemoteNewsSummaryMetric, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
     ) {
         Column(
@@ -341,7 +345,7 @@ private fun RemoteNewsStatusPill(source: Remote_news_source, syncWork: RemoteNew
 @Composable
 private fun RemoteNewsSyncProgressBox(work: RemoteNewsSyncWorkUi) {
     Surface(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
@@ -397,7 +401,7 @@ private fun RemoteNewsSourceDetails(source: Remote_news_source, syncedCountText:
         )
     }
     Surface(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
@@ -538,7 +542,7 @@ private fun RemoteNewsSourceEditorPage(
 @Composable
 private fun RemoteNewsSourceHelperCard() {
     Surface(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
     ) {
         Row(

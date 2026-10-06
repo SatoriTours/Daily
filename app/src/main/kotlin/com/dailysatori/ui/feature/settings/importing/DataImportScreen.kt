@@ -39,9 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.Height
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -61,6 +59,8 @@ fun DataImportScreen(
     }
 
     AppScaffold(
+        useGroupNavigation = true,
+        navigationBusy = state.isImporting,
         title = "导入数据",
         onBack = onBack,
     ) { modifier ->
@@ -83,7 +83,7 @@ fun DataImportScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(Height.button),
-                shape = RoundedCornerShape(Radius.m),
+                shape = RoundedCornerShape(Radius.l),
             ) {
                 Icon(
                     Icons.Default.CloudUpload,
@@ -114,7 +114,7 @@ fun DataImportScreen(
 @Composable
 private fun ImportHeaderCard() {
     Card(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -137,7 +137,7 @@ private fun ImportHeaderCard() {
 @Composable
 private fun ProgressCard() {
     Card(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
@@ -166,7 +166,7 @@ private fun ProgressCard() {
 @Composable
 private fun ErrorCard(error: String) {
     Card(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
     ) {
         Row(
@@ -194,7 +194,7 @@ private fun ErrorCard(error: String) {
 @Composable
 private fun ResultCard(result: ImportService.ImportResult) {
     Card(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(

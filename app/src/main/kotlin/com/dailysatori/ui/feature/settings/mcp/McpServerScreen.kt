@@ -25,7 +25,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -53,8 +52,15 @@ import com.dailysatori.shared.db.Mcp_server
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.component.settings.matchesSettingsQuery
+import com.dailysatori.ui.component.settings.SettingsFormSection
+import androidx.compose.material3.IconButton
+import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
+import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 internal enum class McpScreenMode { LIST, PRESET_ADD, MANUAL_ADD }
@@ -65,6 +71,9 @@ fun McpServerScreen(
 ) {
     val viewModel: McpServerViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val i18n: I18nService = koinInject()
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleServers = state.servers.filter { matchesSettingsQuery(query, it.name, it.server_url) }
     var mode by remember { mutableStateOf(McpScreenMode.LIST) }
     var showEdit by remember { mutableStateOf<Long?>(null) }
 
@@ -106,26 +115,32 @@ fun McpServerScreen(
     }
 
     AppScaffold(
-        title = "MCP 服务",
+        useGroupNavigation = true,
+        title = i18n.t("settings_design.mcp"),
         onBack = onBack,
-        floatingActionButton = {
-            FloatingActionButton(
+        searchQuery = query, onSearchQueryChange = { query = it },
+        actions = {
+            IconButton(
                 onClick = { mode = McpScreenMode.PRESET_ADD },
-                containerColor = MaterialTheme.colorScheme.primary,
             ) {
-                Icon(Icons.Default.Add, contentDescription = "添加 MCP 服务")
+                Icon(Icons.Default.Add, contentDescription = i18n.t("settings_design.mcp_add"))
             }
         },
     ) { modifier ->
-        if (state.servers.isEmpty()) {
+        if (query.isNotBlank() && visibleServers.isEmpty()) SettingsSearchEmptyState(modifier)
+        else if (state.servers.isEmpty()) {
             Column(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize().padding(Spacing.l),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("暂无 MCP 服务", style = MaterialTheme.typography.titleLarge)
+                Text(i18n.t("settings_design.mcp_empty"), style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.padding(Spacing.s))
-                Text("点击右下角 + 添加 MCP 服务", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(i18n.t("settings_design.mcp_hint"), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(Spacing.s))
+                Text(i18n.t("settings_design.mcp_empty_hint"), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
@@ -133,10 +148,14 @@ fun McpServerScreen(
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
-                items(state.servers, key = { it.id }) { server ->
+                item {
+                    Text(i18n.t("settings_design.mcp_hint"), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                items(visibleServers, key = { it.id }) { server ->
                     Card(
                         onClick = { showEdit = server.id },
-                        shape = RoundedCornerShape(Radius.m),
+                        shape = RoundedCornerShape(Radius.l),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
@@ -178,6 +197,7 @@ private fun McpServerPresetAddScreen(
     onManualAdd: () -> Unit,
 ) {
     var selectedProvider by remember { mutableStateOf<McpProvider?>(null) }
+    val i18n: I18nService = koinInject()
     var providerExpanded by remember { mutableStateOf(false) }
     var apiKey by remember { mutableStateOf("") }
     var selectedTemplateIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -185,6 +205,8 @@ private fun McpServerPresetAddScreen(
     val groupedTemplates = selectedProvider?.let { selectableMcpTemplatesByType(it, existingServerUrls) }.orEmpty()
     val selectedTemplates = groupedTemplates.values.flatten().filter { it.id in selectedTemplateIds }
     val canSave = selectedProvider != null && apiKey.isNotBlank() && selectedTemplates.isNotEmpty() && !state.isSaving
+    val requestBack = rememberSettingsEditorBack(
+        selectedProvider != null || apiKey.isNotEmpty() || selectedTemplateIds.isNotEmpty(), state.isSaving, onBack)
 
     LaunchedEffect(state.error) {
         if (state.error != null) {
@@ -194,8 +216,8 @@ private fun McpServerPresetAddScreen(
     }
 
     AppScaffold(
-        title = "添加 MCP 服务",
-        onBack = onBack,
+        title = i18n.t("settings_design.mcp_add"),
+        onBack = requestBack,
         bottomBar = {
             McpPresetAddActions(
                 canSave = canSave,
@@ -286,12 +308,13 @@ private fun McpProviderDropdown(
     onExpandedChange: (Boolean) -> Unit,
     onProviderSelected: (McpProvider) -> Unit,
 ) {
+    val i18n: I18nService = koinInject()
     Column {
         Text("选择服务商", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(Spacing.xs))
         ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = onExpandedChange) {
             OutlinedTextField(
-                value = selectedProvider?.name ?: "请选择 MCP 服务商",
+                value = selectedProvider?.name ?: i18n.t("settings_design.mcp_choose_provider"),
                 onValueChange = {},
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
@@ -358,7 +381,7 @@ private fun McpTemplateCard(
 ) {
     Card(
         onClick = { onCheckedChange(!checked) },
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -408,6 +431,11 @@ private fun McpServerEditScreen(
     var serverUrl by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
     var enabled by remember { mutableStateOf(true) }
+    val i18n: I18nService = koinInject()
+    var original by remember(serverId) { mutableStateOf(listOf("", "", "", "true")) }
+    val busy = state.isSaving || state.isTesting
+    val requestBack = rememberSettingsEditorBack(
+        listOf(name, serverUrl, apiKey, enabled.toString()) != original, busy, onBack)
 
     LaunchedEffect(serverId) {
         viewModel.clearTestMessage()
@@ -417,13 +445,14 @@ private fun McpServerEditScreen(
                 serverUrl = server.server_url
                 apiKey = server.api_key
                 enabled = server.enabled == 1L
+                original = listOf(name, serverUrl, apiKey, enabled.toString())
             }
         }
     }
 
     AppScaffold(
-        title = if (serverId != null && serverId > 0) "编辑 MCP 服务" else "添加 MCP 服务",
-        onBack = onBack,
+        title = i18n.t(if (serverId != null && serverId > 0) "settings_design.mcp_edit" else "settings_design.mcp_add"),
+        onBack = requestBack,
         bottomBar = {
             SettingsEditorBottomBar(
                 canTest = mcpConnectionValidationMessage(name, serverUrl) == null,
@@ -463,50 +492,52 @@ private fun McpServerEditScreen(
                 }
             }
             item {
-                Column {
-                    Text("服务名称", style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it; viewModel.clearTestMessage() },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("如：Web Search") },
-                        shape = RoundedCornerShape(Radius.s),
-                        singleLine = true,
-                    )
+                SettingsFormSection(i18n.t("settings_design.connection_settings")) {
+                    Column {
+                        Text("服务名称", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it; viewModel.clearTestMessage() },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("如：Web Search") },
+                            shape = RoundedCornerShape(Radius.s),
+                            singleLine = true,
+                        )
+                    }
+                    Column {
+                        Text("服务地址", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        OutlinedTextField(
+                            value = serverUrl,
+                            onValueChange = { serverUrl = it; viewModel.clearTestMessage() },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("https://mcp.example.com") },
+                            shape = RoundedCornerShape(Radius.s),
+                            singleLine = true,
+                        )
+                    }
                 }
             }
             item {
-                Column {
-                    Text("服务地址", style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    OutlinedTextField(
-                        value = serverUrl,
-                        onValueChange = { serverUrl = it; viewModel.clearTestMessage() },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("https://mcp.example.com") },
-                        shape = RoundedCornerShape(Radius.s),
-                        singleLine = true,
-                    )
-                }
-            }
-            item {
-                Column {
-                    Text("API Key（可选）", style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    OutlinedTextField(
-                        value = apiKey,
-                        onValueChange = { apiKey = it; viewModel.clearTestMessage() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(Radius.s),
-                        singleLine = true,
-                    )
-                }
-            }
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("启用", modifier = Modifier.weight(1f))
-                    Switch(checked = enabled, onCheckedChange = { enabled = it })
+                SettingsFormSection(i18n.t("settings_design.access_enable")) {
+                    Column {
+                        Text("API Key（可选）", style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        OutlinedTextField(
+                            value = apiKey,
+                            visualTransformation = PasswordVisualTransformation(),
+                            enabled = !busy,
+                            onValueChange = { apiKey = it; viewModel.clearTestMessage() },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radius.s),
+                            singleLine = true,
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("启用", modifier = Modifier.weight(1f))
+                        Switch(checked = enabled, onCheckedChange = { enabled = it })
+                    }
                 }
             }
         }

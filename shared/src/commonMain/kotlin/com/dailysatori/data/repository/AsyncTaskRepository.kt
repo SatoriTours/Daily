@@ -339,11 +339,11 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         )
     }
 
-    fun markRetry(id: Long, code: String, message: String, runAfterMs: Long) {
+    fun markRetry(id: Long, code: String, message: String, runAfterMs: Long, consumeAttempt: Boolean = true) {
         val task = getById(id) ?: return
         q.markAsyncTaskRetry(
             status = AsyncTaskStatus.retrying.name,
-            attempt_count = task.attempt_count + 1,
+            attempt_count = task.attempt_count + if (consumeAttempt) 1 else 0,
             run_after_ms = runAfterMs,
             last_error_code = code,
             last_error_message = message,

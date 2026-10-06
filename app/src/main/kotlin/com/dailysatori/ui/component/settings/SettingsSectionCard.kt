@@ -24,11 +24,11 @@ fun SettingsSectionCard(
             text = title,
             modifier = Modifier.padding(horizontal = Spacing.xs),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(Radius.m),
+            shape = RoundedCornerShape(Radius.l),
             color = MaterialTheme.colorScheme.surface,
         ) { Column(content = content) }
     }

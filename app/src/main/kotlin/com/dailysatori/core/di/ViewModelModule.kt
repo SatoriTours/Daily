@@ -148,6 +148,7 @@ val viewModelModule: Module = module {
         )
     }
     viewModel { DiaryThoughtViewModel(get()) }
+    viewModel { com.dailysatori.ui.feature.diary.DiaryTagViewModel(get(), get(), get(), get(), get()) }
     viewModel {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),
@@ -158,6 +159,8 @@ val viewModelModule: Module = module {
             recordingStore = get(),
             transcriptionCoordinator = get(),
             taskScheduler = get(),
+            tagRepo = get(),
+            tagCoordinator = get(),
         )
     }
     viewModel {

@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,9 +42,10 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.service.ai.aiConfigDisplayName
 import com.dailysatori.service.ai.canDeleteAiConfig
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.BorderWidth
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.component.settings.matchesSettingsQuery
+import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 internal const val aiConfigDeleteActionSizeDp = 32
@@ -62,6 +62,8 @@ fun AiConfigScreen(
     val viewModel: AiConfigViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
 
+    var query by rememberSaveable { mutableStateOf("") }
+    val visibleConfigs = state.configs.filter { matchesSettingsQuery(query, it.provider, it.model_name) }
     var isEditing by remember { mutableStateOf(false) }
     var editingConfigId by remember { mutableStateOf<Long?>(null) }
     var deletingConfigId by remember { mutableStateOf<Long?>(null) }
@@ -82,11 +84,13 @@ fun AiConfigScreen(
         return
     }
 
-        AppScaffold(
+    AppScaffold(
+        useGroupNavigation = true,
         title = "AI 配置",
         onBack = onBack,
-        floatingActionButton = {
-            FloatingActionButton(
+        searchQuery = query, onSearchQueryChange = { query = it },
+        actions = {
+            IconButton(
                 onClick = {
                     if (onEditConfig != null) {
                         onEditConfig(null)
@@ -95,13 +99,13 @@ fun AiConfigScreen(
                         editingConfigId = null
                     }
                 },
-                containerColor = MaterialTheme.colorScheme.primary,
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加配置")
             }
         },
     ) { modifier ->
-        if (state.configs.isEmpty()) {
+        if (query.isNotBlank() && visibleConfigs.isEmpty()) SettingsSearchEmptyState(modifier)
+        else if (state.configs.isEmpty()) {
             Column(
                 modifier = modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -110,7 +114,7 @@ fun AiConfigScreen(
                 Text("暂无 AI 配置", style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
-                    "点击右下角 + 添加模型配置",
+                    "点击右上角 + 添加模型配置",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -129,7 +133,7 @@ fun AiConfigScreen(
                         modifier = Modifier.padding(bottom = Spacing.xs),
                     )
                 }
-                items(state.configs, key = { it.id }) { config ->
+                items(visibleConfigs, key = { it.id }) { config ->
                     val isDefault = config.is_default == 1L
                     val canDelete = canDeleteAiConfig(config.is_default)
                     Card(
@@ -141,7 +145,7 @@ fun AiConfigScreen(
                                 editingConfigId = config.id
                             }
                         },
-                        shape = RoundedCornerShape(Radius.m),
+                        shape = RoundedCornerShape(Radius.l),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isDefault)
                                 MaterialTheme.colorScheme.surfaceContainerLow

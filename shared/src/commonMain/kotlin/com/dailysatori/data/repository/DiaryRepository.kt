@@ -10,6 +10,10 @@ import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import com.dailysatori.service.diary.DiaryTagVocabulary
+import com.dailysatori.service.diary.matchesDiaryTag
+import kotlinx.serialization.json.Json
 
 class DiaryRepository(
     private val db: DailySatoriDatabase,
@@ -26,12 +30,17 @@ class DiaryRepository(
 
     fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()
 
-    fun search(query: String): Flow<List<Diary>> =
-        if (query.isBlank()) {
+    fun search(query: String): Flow<List<Diary>> {
+        val matches = if (query.isBlank()) {
             q.searchDiaries(query, query).asFlow().mapToList(Dispatchers.IO)
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
         }
+        if (query.isBlank()) return matches
+        return combine(matches, getAll(), q.selectAllSettings().asFlow()) { found, all, _ ->
+            includeTagAliases(found, all, query)
+        }
+    }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Diary>> =
         q.selectDiariesByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
@@ -87,12 +96,22 @@ class DiaryRepository(
 
     fun getAllSync(): List<Diary> = q.selectAllDiaries().executeAsList()
 
-    fun searchSync(query: String): List<Diary> =
-        if (query.isBlank()) {
+    fun searchSync(query: String): List<Diary> {
+        val matches = if (query.isBlank()) {
             q.searchDiaries(query, query).executeAsList()
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).executeAsList()
         }
+        return if (query.isBlank()) matches else includeTagAliases(matches, getAllSync(), query)
+    }
+
+    private fun includeTagAliases(found: List<Diary>, all: List<Diary>, query: String): List<Diary> {
+        val stored = q.selectSettingByKey("diary_tag_vocabulary_v1").executeAsOneOrNull()?.value_
+        val vocabulary = stored?.let { runCatching { Json.decodeFromString<DiaryTagVocabulary>(it) }.getOrNull() }
+            ?: DiaryTagVocabulary()
+        return (found + all.filter { matchesDiaryTag(it.tags, query.trim().removePrefix("#"), vocabulary) })
+            .distinctBy { it.id }.sortedByDescending { it.created_at }
+    }
 
     fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
         q.selectDiariesByDateRange(startMs, endMs).executeAsList()

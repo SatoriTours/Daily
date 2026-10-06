@@ -47,9 +47,17 @@ import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.IconSize
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dailysatori.ui.component.settings.matchesSettingsQuery
+import com.dailysatori.ui.component.settings.SettingsFormSection
+import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
+import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
+import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
 fun pluginServerConfigTitle(): String = "插件服务器"
@@ -61,6 +69,10 @@ fun pluginServerValidationMessage(url: String): String? =
 fun PluginCenterScreen(onBack: () -> Unit = {}) {
     val viewModel: PluginCenterViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val i18n: I18nService = koinInject()
+    var query by rememberSaveable { mutableStateOf("") }
+    var showMenu by remember { mutableStateOf(false) }
+    val visiblePlugins = state.plugins.filter { matchesSettingsQuery(query, it.fileName) }
     var editingServer by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingServer) {
@@ -79,17 +91,24 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
     }
 
     AppScaffold(
+        useGroupNavigation = true,
         title = "插件中心",
         onBack = onBack,
+        searchQuery = query, onSearchQueryChange = { query = it },
         actions = {
-            IconButton(onClick = { editingServer = true }) {
-                Icon(Icons.Default.Settings, contentDescription = pluginServerConfigTitle())
-            }
-            IconButton(onClick = { viewModel.loadPlugins() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "刷新")
-            }
-            IconButton(onClick = { viewModel.updateAllPlugins() }) {
-                Icon(Icons.Default.CloudDownload, contentDescription = "全部更新")
+            Box {
+                IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, i18n.t("settings_design.more")) }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(text = { Text(pluginServerConfigTitle()) },
+                        onClick = { showMenu = false; editingServer = true },
+                        leadingIcon = { Icon(Icons.Default.Settings, null) })
+                    DropdownMenuItem(text = { Text("刷新") },
+                        onClick = { showMenu = false; viewModel.loadPlugins() },
+                        leadingIcon = { Icon(Icons.Default.Refresh, null) })
+                    DropdownMenuItem(text = { Text("全部更新") },
+                        onClick = { showMenu = false; viewModel.updateAllPlugins() },
+                        leadingIcon = { Icon(Icons.Default.CloudDownload, null) })
+                }
             }
         },
     ) { modifier ->
@@ -100,7 +119,8 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
             ) {
                 CircularProgressIndicator()
             }
-        } else if (state.plugins.isEmpty()) {
+        } else if (query.isNotBlank() && visiblePlugins.isEmpty()) SettingsSearchEmptyState(modifier)
+        else if (state.plugins.isEmpty()) {
             Box(
                 modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -119,10 +139,10 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
-                items(state.plugins, key = { it.fileName }) { plugin ->
+                items(visiblePlugins, key = { it.fileName }) { plugin ->
                     val isUpdating = state.updatingPluginId == plugin.fileName
                     Card(
-                        shape = RoundedCornerShape(Radius.m),
+                        shape = RoundedCornerShape(Radius.l),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     ) {
                         Row(
@@ -183,9 +203,10 @@ private fun PluginServerEditScreen(
 ) {
     var url by remember(state.serverUrl) { mutableStateOf(state.serverUrl) }
     val validation = pluginServerValidationMessage(url)
+    val requestBack = rememberSettingsEditorBack(url != state.serverUrl, state.isTesting || state.isSaving, onBack)
     AppScaffold(
         title = pluginServerConfigTitle(),
-        onBack = onBack,
+        onBack = requestBack,
         bottomBar = {
             SettingsEditorBottomBar(
                 canTest = validation == null,
@@ -203,21 +224,23 @@ private fun PluginServerEditScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             item {
-                Text(
-                    "服务器地址",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it; onUrlChange() },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("https://plugins.example.com") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(Radius.s),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                )
+                SettingsFormSection(pluginServerConfigTitle()) {
+                    Text(
+                        "服务器地址",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it; onUrlChange() },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("https://plugins.example.com") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(Radius.s),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    )
+                }
             }
             state.error?.let { item { SettingsEditorMessage(it, isError = true) } }
             state.testMessage?.let {

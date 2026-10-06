@@ -8,9 +8,8 @@ import kotlin.test.assertTrue
 
 class SettingsScreenLayoutTest {
     @Test
-    fun backupRestoreReturnsOneLevelAndBothBackActionsShareTheSameHandler() {
-        assertEquals(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE.parent())
-        SettingsPage.entries.filter { it != SettingsPage.BACKUP_RESTORE }.forEach {
+    fun allSettingsTabsReturnDirectlyToTheHomePage() {
+        SettingsPage.entries.forEach {
             assertEquals(SettingsPage.MAIN, it.parent())
         }
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
@@ -19,6 +18,12 @@ class SettingsScreenLayoutTest {
         val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
         val settings = navigation.substringAfter("SettingsScreen(\n                viewModel = settingsViewModel,").substringBefore(")")
         assertTrue(settings.contains("onBack = { navController.popBackStack("))
+    }
+
+    @Test
+    fun phoneEntryOpensConfigurationWithoutPassingThroughTheBusinessDashboard() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
+        assertTrue(source.contains("initialSettings = true, initialSection = section"))
     }
 
     @Test

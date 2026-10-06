@@ -141,7 +141,7 @@ class ReminderRouteStateTest {
 
         assertTrue(navHost.contains("SettingsScreen(\n                viewModel = settingsViewModel,"))
         assertTrue(settingsHost.contains("SettingsPage.REMINDERS -> ReminderSettingsScreen("))
-        assertTrue(settingsHost.contains("ReminderSettingsScreen(onBack = childBack)"))
+        assertTrue(settingsHost.contains("ReminderSettingsScreen(onBack = childBack, initialSection = section)"))
         assertTrue(!settings.contains("ReminderListScreen("))
         listOf(settingsRoute, settingsHost, settings).forEach { source ->
             assertFalse(source.contains("onAddReminder"))

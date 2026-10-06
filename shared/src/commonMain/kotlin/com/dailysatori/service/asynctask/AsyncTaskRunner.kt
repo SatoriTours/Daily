@@ -115,13 +115,11 @@ class AsyncTaskRunner(
             }
         } catch (error: CancellationException) {
             if (repository.isRunning(taskId)) {
-                handleRetryableFailure(
-                    taskId = taskId,
-                    task = task,
-                    code = "interrupted",
-                    message = error.message.orEmpty().ifBlank { "任务被系统中断" },
-                    retryAfterMs = null,
+                repository.markRetry(
+                    taskId, "interrupted", "任务被系统中断，将自动重试",
+                    nowMs() + asyncTaskNextRetryDelayMs(task.attempt_count), consumeAttempt = false,
                 )
+                log(taskId, "TASK interrupted; retry scheduled")
             }
             throw error
         } catch (error: Throwable) {

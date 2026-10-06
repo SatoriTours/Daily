@@ -79,6 +79,7 @@ fun DiaryCard(
     showDelete: Boolean = true,
     attachments: List<Diary_attachment> = emptyList(),
     onRetryTranscription: ((Long) -> Unit)? = null,
+    onTagClick: (String) -> Unit = { onEdit() },
     nowMillis: Long = System.currentTimeMillis(),
     initiallyExpanded: Boolean = false,
 ) {
@@ -114,7 +115,7 @@ fun DiaryCard(
                 onRetryTranscription = onRetryTranscription,
                 compact = !expanded,
             )
-            DiaryCardFooter(tags = tags, isLongContent = hasOverflow || expanded, expanded = expanded) { expanded = !expanded }
+            DiaryCardFooter(tags = tags, isLongContent = hasOverflow || expanded, expanded = expanded, onTagClick = onTagClick) { expanded = !expanded }
         }
     }
 }
@@ -206,7 +207,7 @@ private fun DiaryBody(contentText: String, expanded: Boolean, onOverflow: (Boole
 }
 
 @Composable
-private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded: Boolean, onExpand: () -> Unit) {
+private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded: Boolean, onTagClick: (String) -> Unit, onExpand: () -> Unit) {
     if (tags.isEmpty() && !isLongContent) return
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
@@ -215,7 +216,7 @@ private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded
     ) {
         if (tags.isNotEmpty()) {
             LazyRow(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                items(tags, key = { it }) { tag -> DiaryTagChip(tag) }
+                items(tags, key = { it }) { tag -> DiaryTagChip(tag) { onTagClick(tag) } }
             }
         } else {
             Box(modifier = Modifier.weight(1f))
@@ -269,8 +270,8 @@ private fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, photoCo
 }
 
 @Composable
-private fun DiaryTagChip(tag: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.primaryContainer) {
+private fun DiaryTagChip(tag: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.primaryContainer) {
         Text(text = "#${tag.removePrefix("#")}", style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = Spacing.xxl * 3).padding(horizontal = Spacing.s, vertical = Spacing.xs))
