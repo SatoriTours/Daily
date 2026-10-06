@@ -1101,6 +1101,34 @@ attention:
   reminder_complete: "Complete this occurrence"
   retry: "Try again"
 
+
+task_failure:
+  context_changed: "Explanation: The focus or thought context changed during analysis. Analysis stopped to avoid saving outdated results; completed results are retained.\nNext step: Once the context is stable, run analysis again from News opportunities."
+  auth: "Next step: Check the service Key or sign-in authorization and the account's permission to access this API."
+  config: "Next step: Check the service URL, model and required settings, then run the task again from its feature."
+  model: "Next step: Select an audio transcription model and confirm that the account has access to it."
+  rate_limit: "Next step: Wait before retrying. If this persists, check the provider's quota and rate limits."
+  timeout: "Next step: Check the network and provider status before retrying. Scheduled retries appear in the execution summary."
+  interrupted: "Next step: The system interrupted this task. It will retry automatically; see the execution summary for its schedule."
+  ai_response: "Next step: The AI response failed format or source-quote validation. Completed results are retained; analyze unfinished items again."
+  input: "Next step: Check that the source, article or attachment still exists, update the input, then run the task again from its feature."
+  general: "Next step: Check the execution history below to find where the task stopped, then check settings, network and provider status. Export diagnostics if it fails again."
+  acknowledge_hint: "Clearing the badge only marks this failure as read. It does not retry or fix the task."
+
+speech_test:
+  button: "Choose audio and test"
+  testing: "Testing transcription…"
+  hint: "Choose a short recording with clear speech (up to 1 MB). This tests the current Key and model before saving. Audio is sent to the selected provider and may use paid quota; no diary is created."
+  success: "Test passed: The current Key and model transcribed the audio. Result:"
+  auth: "Test failed: Authentication or permission was denied. Check the provider's API Key, account status and model access."
+  model: "Test failed: The model or transcription endpoint is unavailable. Confirm that the selected speech model is enabled."
+  unavailable: "Test failed: The service is unavailable or requests are limited. Try later and check the provider's balance, quota and service status."
+  audio: "Test failed: Choose clear speech audio up to 1 MB in WAV, MP3, M4A, MP4, AAC, OGG, FLAC or WebM format."
+  timeout: "Test failed: Transcription did not complete within 30 seconds. Check the network and provider status before retrying."
+  network: "Test failed: Unable to read the audio or connect to the service. Check file access, network and proxy settings."
+  rejected: "Test failed: The service rejected the request or returned no valid transcript. Check the audio format, model permissions and provider settings."
+
+
 settings_design:
   search_list_hint: "Search names or keywords"
   service_access: "Service & access"

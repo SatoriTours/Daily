@@ -324,7 +324,7 @@ val viewModelModule: Module = module {
             postProcessingScheduler = get(),
         )
     }
-    viewModel { SpeechSettingsViewModel(get()) }
+    viewModel { SpeechSettingsViewModel(get(), get(), get()) }
     viewModel {
         RemoteNewsSettingsViewModel(
             sourceRepo = get(),

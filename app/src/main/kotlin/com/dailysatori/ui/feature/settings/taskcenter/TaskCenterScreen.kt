@@ -421,8 +421,7 @@ private fun TaskCenterTaskDetail(
         }
         if (task.status == AsyncTaskStatus.failed.name) {
             item(key = "task-failure-reason") {
-                val reason = listOf(task.last_error_code, task.last_error_message)
-                    .filter { it.isNotBlank() }.joinToString("\n").ifBlank { i18n.t("attention.task_unknown_error") }
+                val reason = taskCenterFailureText(task.last_error_code, task.last_error_message) { i18n.t(it) }
                 if (needsAttention) {
                     AttentionReason(reason, i18n.t("attention.acknowledge"), onAcknowledge)
                 } else {
@@ -1060,13 +1059,28 @@ internal fun taskCenterLifecycleText(log: String): String = log.lineSequence()
             event.startsWith("started") -> "开始执行"
             event.startsWith("progress") -> event.substringAfter("message=", "进度更新").substringBefore(" checkpoint=")
             event.startsWith("succeeded") -> "执行完成"
-            event.startsWith("failed") -> "执行失败"
-            event.startsWith("retry") -> "安排重试"
+            event.startsWith("failed") -> "执行失败：${taskCenterEventReason(event)}"
+            event.startsWith("retry") -> buildString {
+                append("安排重试：${taskCenterEventReason(event)}")
+                event.substringAfter("runAfterMs=", "").toLongOrNull()?.let {
+                    append("；预计最早重试：${taskCenterTimestampText(it)}")
+                }
+            }
             event.startsWith("cancelled") -> "执行取消"
+            event.startsWith("interrupted") -> "被系统中断，已安排自动重试"
             else -> "状态更新"
         }
-        "${line.substringBefore(' ')} · $summary"
-    }.toList().takeLast(40).joinToString("\n").ifBlank { "暂无执行记录；旧日志可能已清理" }
+        val time = runCatching { Instant.parse(line.substringBefore(' ')).toEpochMilliseconds() }.getOrNull()
+        "${time?.let { taskCenterTimestampText(it, includeSeconds = true) } ?: line.substringBefore(' ')} · $summary"
+    }.toList().fold(mutableListOf<String>()) { entries, entry ->
+        if (entries.lastOrNull()?.substringAfter(" · ") != entry.substringAfter(" · ")) entries.add(entry)
+        entries
+    }.takeLast(40).joinToString("\n").ifBlank { "暂无执行记录；旧日志可能已清理" }
+
+private fun taskCenterEventReason(event: String): String = event.substringAfter("message=", "")
+    .substringBefore(" runAfterMs=").ifBlank {
+        event.substringAfter("code=", "").substringBefore(' ').ifBlank { "未记录具体原因，请查看失败原因" }
+    }
 
 private fun taskCenterCheckpointLong(json: String, key: String): Long? =
     Regex(""""${Regex.escape(key)}"\s*:\s*(\d+)""")
@@ -1089,11 +1103,12 @@ private fun taskCenterStatusFilterSummary(selected: Set<String>): String =
         selected.joinToString("、") { asyncTaskStatusDisplayName(it) }
     }
 
-private fun taskCenterTimestampText(value: Long?): String {
+private fun taskCenterTimestampText(value: Long?, includeSeconds: Boolean = false): String {
     if (value == null || value <= 0L) return "未开始"
     val time = Instant.fromEpochMilliseconds(value).toLocalDateTime(TimeZone.currentSystemDefault())
     return "${time.monthNumber.toString().padStart(2, '0')}-${time.dayOfMonth.toString().padStart(2, '0')} " +
-        "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
+        "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}" +
+        if (includeSeconds) ":${time.second.toString().padStart(2, '0')}" else ""
 }
 
 private fun taskCenterDurationText(startedAt: Long?, endedAt: Long?): String {

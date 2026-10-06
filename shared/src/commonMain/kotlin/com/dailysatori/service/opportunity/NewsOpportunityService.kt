@@ -73,7 +73,7 @@ class NewsOpportunityService(
             _state.value = buildState(analysisContext).copy(isUpdating = true, progress = progress(0, pending.size))
             pending.forEach { article ->
                 checkAnalysisContext(analysisContext)
-                onProgress(completed, pending.size, progress(completed, pending.size))
+                onProgress(completed, pending.size, "正在分析第 ${completed + 1}/${pending.size} 篇新闻")
                 try {
                     analyzeArticle(article, analysisContext)
                 } catch (failure: NewsOpportunityAnalysisException) {

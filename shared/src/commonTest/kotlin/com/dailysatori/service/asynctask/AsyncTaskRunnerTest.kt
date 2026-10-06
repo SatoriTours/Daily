@@ -16,6 +16,21 @@ import kotlin.test.assertFailsWith
 
 class AsyncTaskRunnerTest {
     @Test
+    fun timeoutHandlerWritesTheActualTerminalReason() = runBlocking {
+        val handler = object : AsyncTaskHandler {
+            override val type = FakeHandler.TYPE
+            override suspend fun execute(taskId: Long, payloadJson: String, checkpointJson: String, reporter: AsyncTaskProgressReporter): AsyncTaskExecutionResult = awaitCancellation()
+            override suspend fun onExecutionTimeout(taskId: Long, payloadJson: String, checkpointJson: String, reporter: AsyncTaskProgressReporter) =
+                AsyncTaskExecutionResult.PermanentFailure("model_timeout", "模型未及时返回，请稍后重试")
+        }
+        withRunner(handlers = listOf(handler), executionTimeoutMs = { 10L }) { repository, runner, logger ->
+            val id = repository.enqueue(FakeHandler.TYPE, "{}")
+            assertIs<AsyncTaskRunOutcome.Failed>(runner.run(id))
+            assertTrue(logger.lines.any { it.contains("TASK failed code=model_timeout message=模型未及时返回") })
+        }
+    }
+
+    @Test
     fun systemInterruptionRetriesWithoutConsumingTheOnlyAttemptOrLeakingCoroutineText() = runBlocking {
         withRunner(handlers = listOf(FakeHandler { _, _, _ ->
             throw CancellationException("Job was cancelled")

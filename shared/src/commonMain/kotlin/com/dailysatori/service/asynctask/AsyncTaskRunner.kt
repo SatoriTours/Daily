@@ -108,8 +108,16 @@ class AsyncTaskRunner(
             AsyncTaskRunOutcome.Skipped
         } catch (_: TimeoutCancellationException) {
             when (val timeoutResult = handler.onExecutionTimeout(taskId, executionPayload, task.checkpoint_json, reporter)) {
-                is AsyncTaskExecutionResult.Success -> { repository.finishSuccess(taskId, timeoutResult.resultJson); AsyncTaskRunOutcome.Succeeded }
-                is AsyncTaskExecutionResult.PermanentFailure -> { repository.finishFailure(taskId, timeoutResult.code, timeoutResult.message); AsyncTaskRunOutcome.Failed }
+                is AsyncTaskExecutionResult.Success -> {
+                    repository.finishSuccess(taskId, timeoutResult.resultJson)
+                    log(taskId, "TASK succeeded")
+                    AsyncTaskRunOutcome.Succeeded
+                }
+                is AsyncTaskExecutionResult.PermanentFailure -> {
+                    repository.finishFailure(taskId, timeoutResult.code, timeoutResult.message)
+                    log(taskId, "TASK failed code=${timeoutResult.code} message=${timeoutResult.message}")
+                    AsyncTaskRunOutcome.Failed
+                }
                 is AsyncTaskExecutionResult.RetryableFailure -> handleRetryableFailure(taskId, task, timeoutResult.code, timeoutResult.message, timeoutResult.retryAfterMs)
                 null -> handleRetryableFailure(taskId, task, "timeout", "任务执行超时，已停止并等待重试", null)
             }

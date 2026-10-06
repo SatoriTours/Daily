@@ -7,6 +7,14 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.diary.SpeechConfig
 import com.dailysatori.service.diary.SpeechSettingsService
+import com.dailysatori.service.diary.SpeechTranscriptionApi
+import com.dailysatori.service.i18n.I18nService
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpHeaders
+import java.io.File
 import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.*
@@ -18,6 +26,87 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SpeechSettingsViewModelTest {
+    @Test fun testUsesUnsavedKeyAndModelWithoutSavingOrCreatingDiary() = withModel(
+        engine = MockEngine { request ->
+            assertEquals("Bearer draft-key", request.headers[HttpHeaders.Authorization])
+            respond("{\"text\":\"语音测试成功\"}", HttpStatusCode.OK)
+        },
+    ) { model, service ->
+        model.selectProvider("minimax")
+        model.setApiKey("draft-key")
+        model.testConfiguration { byteArrayOf(1, 2) to "test.wav" }
+        val result = withTimeout(5_000) { model.state.first { !it.testing && it.message != null } }
+        assertFalse(result.isError)
+        assertTrue(result.message.orEmpty().contains("语音测试成功"))
+        assertNull(service.load())
+        assertTrue(result.hasChanges)
+        model.setApiKey("updated-key")
+        assertNull(model.state.value.message)
+    }
+
+    @Test fun deniedKeyHasActionableErrorWithoutServerEchoedCredentials() = withModel(
+        engine = MockEngine { respond("invalid draft-key", HttpStatusCode.Unauthorized) },
+    ) { model, service ->
+        model.setApiKey("draft-key")
+        model.testConfiguration { byteArrayOf(1) to "test.wav" }
+        val result = withTimeout(5_000) { model.state.first { !it.testing && it.message != null } }
+        assertTrue(result.isError)
+        assertTrue(result.message.orEmpty().contains("API Key"))
+        assertFalse(result.message.orEmpty().contains("draft-key"))
+        assertTrue(result.canTest)
+        assertNull(service.load())
+    }
+
+    @Test fun inFlightTestPreventsDuplicateCallsEditingAndSaving() = withModel(
+        engine = MockEngine { awaitCancellation() },
+    ) { model, service ->
+        model.setApiKey("draft-key")
+        val loaded = CompletableDeferred<Unit>()
+        model.testConfiguration { loaded.complete(Unit); byteArrayOf(1) to "test.wav" }
+        loaded.await()
+        assertTrue(model.state.value.testing)
+        assertFalse(model.state.value.canSave)
+        model.setApiKey("other-key")
+        model.selectProvider("minimax")
+        model.save()
+        model.testConfiguration { error("Duplicate test must not load audio") }
+        assertEquals("draft-key", model.state.value.config.apiKey)
+        assertNull(service.load())
+        model.viewModelScope.coroutineContext[Job]!!.cancelAndJoin()
+        assertFalse(model.state.value.testing)
+    }
+
+    @Test fun emptyOrOversizedAudioDoesNotSendRequest() = withModel { model, _ ->
+        model.setApiKey("draft-key")
+        for (bytes in listOf(byteArrayOf(), ByteArray(SPEECH_TEST_MAX_BYTES + 1))) {
+            model.testConfiguration { bytes to "test.wav" }
+            val result = withTimeout(5_000) { model.state.first { !it.testing && it.message != null } }
+            assertTrue(result.isError)
+            assertTrue(result.message.orEmpty().contains("1 MB"))
+        }
+    }
+
+    @Test fun invalidConfigurationNeverReadsOrUploadsAudio() = withModel { model, _ ->
+        assertFalse(model.state.value.canTest)
+        model.testConfiguration { error("Missing Key must not start a test") }
+        assertFalse(model.state.value.testing)
+        assertNull(model.state.value.message)
+    }
+
+    @Test fun modelAndServiceFailuresAreDistinguishable() {
+        for ((status, expected) in listOf(HttpStatusCode.NotFound to "模型", HttpStatusCode.ServiceUnavailable to "暂不可用")) {
+            withModel(engine = MockEngine { respond("echoed-key", status) }) { model, _ ->
+                model.setApiKey("echoed-key")
+                model.testConfiguration { byteArrayOf(1) to "test.wav" }
+                val result = withTimeout(5_000) { model.state.first { !it.testing && it.message != null } }
+                assertTrue(result.isError)
+                assertTrue(result.message.orEmpty().contains(expected))
+                assertFalse(result.message.orEmpty().contains("echoed-key"))
+            }
+        }
+    }
+
+
     @Test fun discardingChangesRestoresSavedValuesAndClearsProviderDrafts() = withModel(
         SpeechConfig("minimax", "asr-1.0", "https://api.minimax.cn/v1", "saved-key"),
     ) { model, service ->
@@ -106,22 +195,29 @@ class SpeechSettingsViewModelTest {
 
     private fun withModel(
         initial: SpeechConfig? = null,
+        engine: MockEngine = MockEngine { error("Unexpected speech request") },
         test: suspend (SpeechSettingsViewModel, SpeechSettingsService) -> Unit,
     ) = runBlocking {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         var model: SpeechSettingsViewModel? = null
+        val client = HttpClient(engine)
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
             val service = SpeechSettingsService(SettingRepository(db), TestCipher, AiConfigService(AIConfigRepository(db, TestCipher)))
             initial?.let(service::save)
-            val viewModel = SpeechSettingsViewModel(service).also { model = it }
+            val i18n = I18nService(SettingRepository(db)).apply {
+                loadTranslation("zh", File("../shared/src/commonMain/resources/i18n/zh.yaml").readText())
+                init("zh")
+            }
+            val viewModel = SpeechSettingsViewModel(service, SpeechTranscriptionApi(client), i18n).also { model = it }
             withTimeout(5_000) { viewModel.state.first { it.loaded } }
             test(viewModel, service)
         } finally {
             model?.viewModelScope?.coroutineContext?.get(Job)?.cancelAndJoin()
             driver.close()
+            client.close()
             Dispatchers.resetMain()
         }
     }

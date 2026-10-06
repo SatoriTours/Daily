@@ -9,6 +9,18 @@ import kotlin.test.assertTrue
 
 class TaskCenterScreenSourceTest {
     @Test
+    fun failureAndRetryEventsExplainTheReasonAndRetryTime() {
+        val summary = taskCenterLifecycleText("""
+            2026-10-06T08:20:00Z TASK failed code=opportunity_context_changed message=关注点或思想已更新，请重新分析
+            2026-10-06T08:21:00Z TASK retry code=timeout message=请求超时 runAfterMs=1791274920000
+        """.trimIndent())
+        assertTrue(summary.contains("关注点或思想已更新，请重新分析"))
+        assertTrue(summary.contains("请求超时"))
+        assertTrue(summary.contains("预计最早重试"))
+        assertFalse(summary.contains("T08:"))
+    }
+
+    @Test
     fun lifecycleSummarySeparatesEventsFromHttpAndCheckpointData() {
         val log = """
             2026-09-06T00:00:00Z TASK started type=save_article

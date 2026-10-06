@@ -86,6 +86,7 @@ class NewsOpportunityTaskHandlerTest {
         val result = NewsOpportunityTaskHandler(service).execute(1, "{}", "", reporter { _, _ -> })
         val failure = assertIs<AsyncTaskExecutionResult.PermanentFailure>(result)
         assertEquals("AI 返回的分析格式不完整，请重试", failure.message)
+        assertEquals("opportunity_invalid_response", failure.code)
         service.refresh()
         assertEquals(failure.message, service.state.value.error)
         assertEquals(1, service.state.value.pendingCount)

@@ -4,6 +4,7 @@ import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.opportunity.NewsOpportunityService
+import com.dailysatori.service.opportunity.NewsOpportunityAnalysisException
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
@@ -24,8 +25,10 @@ class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : 
             AsyncTaskExecutionResult.Success()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
-            AsyncTaskExecutionResult.PermanentFailure("opportunity_analysis_failed", service.state.value.error ?: "新闻机会点分析未完成，请重试")
+        } catch (error: Exception) {
+            val failure = error as? NewsOpportunityAnalysisException
+            val code = failure?.reason?.name?.lowercase()?.let { "opportunity_$it" } ?: "opportunity_analysis_failed"
+            AsyncTaskExecutionResult.PermanentFailure(code, failure?.reason?.message ?: service.state.value.error ?: "新闻机会点分析未完成，请重试")
         }
     }
 

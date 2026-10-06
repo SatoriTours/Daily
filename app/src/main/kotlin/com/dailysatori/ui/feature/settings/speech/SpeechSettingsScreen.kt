@@ -13,6 +13,11 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.content.ContentResolver
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -33,6 +38,8 @@ import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
 import com.dailysatori.ui.component.settings.SettingsScaffold
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import com.dailysatori.service.i18n.I18nService
 
 private enum class SpeechPicker { PROVIDER, MODEL }
 private data class SpeechChoice(val id: String, val title: String, val subtitle: String = "")
@@ -43,14 +50,18 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
     val viewModel: SpeechSettingsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val i18n: I18nService = koinInject()
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { viewModel.testConfiguration { readSpeechTestAudio(context.contentResolver, it) } }
+    }
     val savedMessage = stringResource(R.string.settings_saved)
     val provider = speechSettingsProviders.firstOrNull { it.id == state.config.provider } ?: speechSettingsProviders.first()
     var picker by remember { mutableStateOf<SpeechPicker?>(null) }
-    val requestBack = rememberSettingsEditorBack(state.hasChanges, state.saving, onBack, viewModel::discardChanges)
+    val requestBack = rememberSettingsEditorBack(state.hasChanges, state.saving || state.testing, onBack, viewModel::discardChanges)
     SettingsScaffold(
         useGroupNavigation = true,
         hasUnsavedChanges = state.hasChanges,
-        navigationBusy = state.saving,
+        navigationBusy = state.saving || state.testing,
         onDiscardChanges = viewModel::discardChanges,
         title = "语音模型", onBack = requestBack,
         bottomBar = {
@@ -81,6 +92,14 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
             Text(provider.modelHint(state.config.model), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Spacing.xs))
             SpeechKeyCard(state.config.apiKey, state.editable, provider.id, viewModel::setApiKey)
+            OutlinedButton(
+                onClick = { audioPicker.launch("audio/*") },
+                enabled = state.canTest,
+                modifier = Modifier.fillMaxWidth().heightIn(min = Height.button),
+                shape = RoundedCornerShape(Radius.l),
+            ) { Text(i18n.t(if (state.testing) "speech_test.testing" else "speech_test.button")) }
+            Text(i18n.t("speech_test.hint"), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Spacing.xs))
             state.message?.let { SettingsEditorMessage(it, state.isError, Modifier.padding(horizontal = Spacing.xs)) }
             Spacer(Modifier.height(Spacing.s))
         }
@@ -98,6 +117,26 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
             picker = null
         }
     }
+}
+
+private fun readSpeechTestAudio(resolver: ContentResolver, uri: Uri): Pair<ByteArray, String> {
+    val extension = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0)?.substringAfterLast('.', "")?.lowercase() else null
+    }
+    require(extension in setOf("wav", "mp3", "m4a", "mp4", "aac", "ogg", "flac", "webm"))
+    val bytes = resolver.openInputStream(uri)?.use { input ->
+        val buffer = ByteArray(SPEECH_TEST_MAX_BYTES + 1)
+        var size = 0
+        while (size < buffer.size) {
+            val count = input.read(buffer, size, buffer.size - size)
+            if (count < 0) break
+            if (count == 0) continue
+            size += count
+        }
+        require(size in 1..SPEECH_TEST_MAX_BYTES)
+        buffer.copyOf(size)
+    } ?: throw java.io.IOException("Audio unavailable")
+    return bytes to "test.$extension"
 }
 
 @Composable
