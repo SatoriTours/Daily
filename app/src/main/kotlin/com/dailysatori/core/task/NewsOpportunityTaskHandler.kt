@@ -15,9 +15,11 @@ class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : 
 
     override suspend fun execute(taskId: Long, payloadJson: String, checkpointJson: String, reporter: AsyncTaskProgressReporter): AsyncTaskExecutionResult {
         return try {
-            val automatic = Json.parseToJsonElement(payloadJson).jsonObject["automatic"]?.jsonPrimitive?.booleanOrNull == true
+            val automatic = Json.parseToJsonElement(payloadJson).jsonObject["automatic"]?.jsonPrimitive?.booleanOrNull == true && checkpointJson.isBlank()
+            // A system retry must resume pending articles instead of being skipped by the automatic refresh interval.
+            reporter.report(0, 0, "正在查找适合你的文章", RESUME_CHECKPOINT)
             service.analyze(automatic = automatic) { current, total, message ->
-                reporter.report(current.toLong(), total.toLong(), message)
+                reporter.report(current.toLong(), total.toLong(), message, RESUME_CHECKPOINT)
             }
             AsyncTaskExecutionResult.Success()
         } catch (cancelled: CancellationException) {
@@ -27,5 +29,8 @@ class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : 
         }
     }
 
-    companion object { const val TYPE = "news_opportunity_analysis" }
+    companion object {
+        const val TYPE = "news_opportunity_analysis"
+        private const val RESUME_CHECKPOINT = "{\"started\":true}"
+    }
 }

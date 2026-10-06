@@ -43,6 +43,11 @@ class NewsOpportunityService(
         persistAndPublish(archive.copy(focus = text.trim()))
     }
 
+    suspend fun clearError(taskId: Long?) = execution.withLock {
+        ensureLoaded()
+        persistAndPublish(archive.copy(lastError = null, dismissedErrorTaskId = taskId))
+    }
+
     suspend fun setSaved(id: String, saved: Boolean) = updateItem(id) {
         it.copy(saved = saved, savedAt = if (saved) it.savedAt ?: Clock.System.now().toEpochMilliseconds() else null)
     }
@@ -188,7 +193,8 @@ class NewsOpportunityService(
         focus = archive.focus,
         readCount = archive.articles.size,
         candidateCount = analysisArticles().size,
-        error = archive.lastError,
+        error = archive.lastError?.takeUnless(::isOpportunityCancellationMessage),
+        dismissedErrorTaskId = archive.dismissedErrorTaskId,
         pendingCount = pendingArticles(context).size,
         hasAnalysisContext = archive.focus.isNotBlank() || !context.thoughts.isNullOrBlank(),
     )

@@ -3,6 +3,9 @@ package com.dailysatori.ui.feature.myspace
 import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
+import com.dailysatori.service.opportunity.OpportunityState
+import com.dailysatori.service.opportunity.isOpportunityCancellationMessage
+import com.dailysatori.shared.db.Async_task
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderStatus
 import com.dailysatori.ui.feature.reminder.*
@@ -14,6 +17,14 @@ internal fun myThoughtPreviews(thoughts: List<DiaryThought>, random: Random = Ra
         .distinctBy { it.statement }.shuffled(random).take(4)
 
 internal enum class RecommendationAction { WAIT, SET_UP_CONTEXT, UPDATE }
+
+internal fun recommendationError(state: OpportunityState, task: Async_task?, fallback: String): String? {
+    if (state.isUpdating || task?.status in listOf("queued", "running", "retrying")) return null
+    state.error?.takeUnless(::isOpportunityCancellationMessage)?.let { return it }
+    if (task == null || task.status != "failed" || task.id == state.dismissedErrorTaskId) return null
+    if (task.last_error_code == "interrupted" || isOpportunityCancellationMessage(task.last_error_message)) return null
+    return fallback
+}
 
 internal fun recommendationAction(hasAnalysisContext: Boolean, isUpdating: Boolean, taskStatus: String?): RecommendationAction = when {
     isUpdating || taskStatus in listOf("queued", "running", "retrying") -> RecommendationAction.WAIT

@@ -86,7 +86,15 @@ class MySpaceViewModel(
     private suspend fun scheduleAutomaticAnalysis() = refreshRecommendationsIfReady(thoughts.state.value, service) {
         enqueueAnalysis(automatic = true)
     }
-    fun clearError() { _operationFailed.value = false }
+    fun clearError() = mutate {
+        service.clearError(tasks.getLatestByUniqueKey(NewsOpportunityTaskHandler.TYPE)?.id)
+    }
+
+    fun cancelAnalysis() = mutate {
+        val id = tasks.cancelLatestByUniqueKey(NewsOpportunityTaskHandler.TYPE)
+        if (id != null) scheduler.cancel(id)
+        service.clearError(id)
+    }
 
     private fun mutate(block: suspend () -> Unit) = viewModelScope.launch(Dispatchers.IO) {
         _operationFailed.value = false

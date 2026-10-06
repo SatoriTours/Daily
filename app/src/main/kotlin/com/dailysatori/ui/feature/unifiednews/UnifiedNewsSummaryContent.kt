@@ -74,6 +74,7 @@ internal fun UnifiedNewsSummaryContent(
     val opportunityState by opportunities.state.collectAsStateWithLifecycle()
     val operationFailed by opportunities.operationFailed.collectAsStateWithLifecycle()
     val task by opportunities.task.collectAsStateWithLifecycle()
+    val analysisError = recommendationError(opportunityState, task, stringResource(R.string.my_space_error))
     val summaries = filteredUnifiedNewsSummaries(state.summaries, state.sourcesBySummaryId, state.searchQuery)
     val summary = latestHeadlinesSummary(state.summaries, state.lastSuccessfulSummary)
     val headlineSummaries = if (state.searchQuery.isBlank()) listOfNotNull(summary) else summaries.filter { it.content.isNotBlank() }
@@ -102,10 +103,19 @@ internal fun UnifiedNewsSummaryContent(
             HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
             OpportunitySectionHeader(onOpportunities)
         }
-        val analysisError = opportunityState.error ?: task?.last_error_message?.takeIf { task?.status == "failed" && it.isNotBlank() }
-        if (operationFailed || analysisError != null || task?.status == "failed") item(key = "error") {
+        if (opportunityState.isUpdating || task?.status in listOf("queued", "running", "retrying")) item(key = "opportunity-progress") {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(task?.progress_message?.takeIf { it.isNotBlank() } ?: stringResource(R.string.my_space_updating_recommendations),
+                    Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { opportunities.cancelAnalysis() }) { Text(stringResource(R.string.my_space_cancel)) }
+            }
+        }
+        if (operationFailed || analysisError != null) item(key = "error") {
             Text(analysisError ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = onOpportunities) { Text(stringResource(R.string.my_space_expand)) }
+            Row {
+                TextButton(onClick = onOpportunities) { Text(stringResource(R.string.my_space_expand)) }
+                TextButton(onClick = { opportunities.clearError() }) { Text(stringResource(R.string.my_space_close)) }
+            }
         }
         if (recommendations.isEmpty()) item(key = "empty-opportunities") {
             MyEmptyBlock(stringResource(R.string.my_space_opportunity_empty), stringResource(

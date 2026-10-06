@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.myspace
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.service.diary.DiaryThoughtArchive
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.*
@@ -17,6 +18,24 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NewsRecommendationContextTest {
+    @Test
+    fun interruptionErrorsAreHiddenAndDismissalOnlyAppliesToThatTask() = runTest {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val tasks = AsyncTaskRepository(DailySatoriDatabase(driver))
+            val id = tasks.enqueue("news_opportunity_analysis", "{}")
+            tasks.claimForRun(id, "test", Long.MAX_VALUE)
+            tasks.finishFailure(id, "interrupted", "Job was cancelled")
+            assertNull(recommendationError(OpportunityState(), tasks.getById(id), "分析失败"))
+            val failure = tasks.getById(id)!!.copy(last_error_code = "opportunity_analysis_failed", last_error_message = "private error")
+            assertEquals("分析失败", recommendationError(OpportunityState(), failure, "分析失败"))
+            assertNull(recommendationError(OpportunityState(dismissedErrorTaskId = id), failure, "分析失败"))
+            assertEquals("分析失败", recommendationError(OpportunityState(dismissedErrorTaskId = id - 1), failure, "分析失败"))
+            assertNull(recommendationError(OpportunityState(error = "Job was cancelled"), null, "分析失败"))
+        } finally { driver.close() }
+    }
+
     @Test
     fun automaticRecommendationsWaitForInProgressThoughtsEvenWhenCachedContextExists() = withService { service, context ->
         context.summary = "上一次整理的思想"

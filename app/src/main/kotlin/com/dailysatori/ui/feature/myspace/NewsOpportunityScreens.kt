@@ -41,6 +41,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     var choosingContext by rememberSaveable { mutableStateOf(false) }
     val action = recommendationAction(state.hasAnalysisContext, state.isUpdating, task?.status)
     val busy = action == RecommendationAction.WAIT
+    val analysisError = recommendationError(state, task, stringResource(R.string.my_space_error))
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val backgroundMessage = stringResource(R.string.news_focus_background_running)
@@ -76,10 +77,20 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                 }
             }
             item { RecommendationContextCard(state.hasAnalysisContext, state.focus, thoughts, busy, { editingFocus = true }, organizeThoughts) }
-            val error = state.error ?: task?.last_error_message?.takeIf { task?.status == "failed" }
+            if (busy) item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(task?.progress_message?.takeIf { it.isNotBlank() } ?: stringResource(R.string.my_space_updating_recommendations),
+                        Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { viewModel.cancelAnalysis() }) { Text(stringResource(R.string.my_space_cancel)) }
+                }
+            }
+            val error = analysisError
             if (error != null || failed) item {
                 Text(error ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = requestUpdate, enabled = !busy) { Text(stringResource(R.string.my_space_retry)) }
+                Row {
+                    TextButton(onClick = requestUpdate, enabled = !busy) { Text(stringResource(R.string.my_space_retry)) }
+                    TextButton(onClick = { viewModel.clearError() }) { Text(stringResource(R.string.my_space_close)) }
+                }
             }
             if (state.hasAnalysisContext || state.items.isNotEmpty()) {
                 val entries = opportunityItems(state.items, filter)

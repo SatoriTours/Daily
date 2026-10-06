@@ -24,6 +24,26 @@ import kotlin.test.assertTrue
 
 class NewsOpportunityServiceTest {
     @Test
+    fun legacyCancellationErrorIsNotDisplayed() = withFixture(
+        initialArchive = OpportunityArchive(lastError = "Job was cancelled"),
+    ) { fixture ->
+        fixture.service.refresh()
+        assertNull(fixture.service.state.value.error)
+    }
+
+    @Test
+    fun dismissedErrorRemainsDismissedAcrossReopeningWithoutLosingResults() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        fixture.service.analyze()
+        fixture.service.clearError(17L)
+        val reopened = fixture.newService()
+        reopened.refresh()
+        assertEquals(17L, reopened.state.value.dismissedErrorTaskId)
+        assertEquals(1, reopened.state.value.items.size)
+        assertNull(reopened.state.value.error)
+    }
+
+    @Test
     fun savedRankingAndActionStateSurviveRefreshAndReanalysis() = withFixture(candidates = listOf(article())) { fixture ->
         fixture.service.analyze()
         val id = fixture.service.state.value.items.single().id

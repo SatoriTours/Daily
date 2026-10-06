@@ -45,7 +45,14 @@ data class OpportunityState(
     val progress: String = "",
     val error: String? = null,
     val hasAnalysisContext: Boolean = false,
+    val dismissedErrorTaskId: Long? = null,
 )
+
+fun isOpportunityCancellationMessage(message: String?): Boolean = message?.let {
+    it.contains("job was cancel", ignoreCase = true) ||
+        it.startsWith("Parent job is cancelling", ignoreCase = true) ||
+        it == "任务已取消"
+} == true
 
 @Serializable
 data class OpportunityDraft(

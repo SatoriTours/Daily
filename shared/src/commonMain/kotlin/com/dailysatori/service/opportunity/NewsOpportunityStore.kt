@@ -30,6 +30,7 @@ internal data class OpportunityArchive(
     val lastAttemptAt: Long = 0,
     val lastAttemptContext: String = "",
     val lastError: String? = null,
+    val dismissedErrorTaskId: Long? = null,
 )
 
 @Serializable
