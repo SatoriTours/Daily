@@ -5,7 +5,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -147,11 +146,27 @@ private fun ArchiveRecordCard(record: LifeArchiveRecord, categories: List<LifeAr
 @Composable
 internal fun ArchiveCategoryChips(categories: List<LifeArchiveCategory>, selected: String?, onSelect: (String?) -> Unit,
     onAdd: (() -> Unit)? = null, onManage: ((LifeArchiveCategory) -> Unit)? = null, enabled: Boolean = true, all: Boolean = false) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        if (all) item { ArchiveChip(stringResource(R.string.life_archive_all), selected == null, enabled, { onSelect(null) }) }
-        items(categories, key = { it.id }) { category -> ArchiveChip(archiveCategoryLabel(category), selected == category.id, enabled,
-            { onSelect(category.id) }, { onManage?.invoke(category) }) }
-        if (onAdd != null) item { TextButton(onClick = onAdd, enabled = enabled) { Text(stringResource(R.string.life_archive_add_type)) } }
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (all) ArchiveChip(stringResource(R.string.life_archive_all), selected == null, enabled, { onSelect(null) })
+        categories.forEach { category ->
+            key(category.id) {
+                ArchiveChip(archiveCategoryLabel(category), selected == category.id, enabled,
+                    { onSelect(category.id) }, { onManage?.invoke(category) })
+            }
+        }
+        if (onAdd != null) TextButton(
+            onClick = onAdd,
+            enabled = enabled,
+            shape = RoundedCornerShape(Radius.circular),
+            contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
+        ) {
+            Text(stringResource(R.string.life_archive_add_type), style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 
