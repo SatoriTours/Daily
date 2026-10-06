@@ -71,6 +71,8 @@ import com.dailysatori.ui.component.news.ArticleReaderHeader
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.*
 import com.dailysatori.service.parser.articleTranslationMarkdown
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
@@ -90,10 +92,10 @@ fun ArticleDetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
 
-    val title = extractDomain(state.article?.url)
+    val i18n = koinInject<I18nService>()
 
     AppScaffold(
-        title = title,
+        title = i18n.t("article.detail_title"),
         onBack = onBack,
         actions = {
             state.article?.let { MarkNewsReadButton(it.toReadNewsArticle()) }
@@ -393,7 +395,7 @@ private fun ArticleDetailBody(article: Article) {
                 originalImageUrls = listOfNotNull(article.cover_image_url),
             ),
             typography = MarkdownStyles.readingTypography(),
-            padding = MarkdownStyles.readingPadding(),
+            padding = MarkdownStyles.summaryPadding(),
         )
     }
 }
@@ -451,12 +453,15 @@ private fun rememberArticleDetailNestedScrollConnection(
 
 @Composable
 private fun ArticleMagazineHeader(article: Article, sourceNames: List<String>) {
+    val context = LocalContext.current
+    val i18n = koinInject<I18nService>()
     ArticleReaderHeader(
         title = articleMagazineTitle(article),
-        metaChips = articleMagazineMetaChips(article),
+        metaChips = articleMagazineMetaChips(article, i18n.t("article.published_on"), i18n.t("article.saved_on")),
         sourceName = sourceNames.joinToString(" · ").ifBlank {
             extractDomain(article.url).takeIf { it != "文章详情" }.orEmpty()
         },
+        onSourceClick = article.url?.takeIf { it.isNotBlank() }?.let { url -> { openArticleUrl(context, url) } },
     )
 }
 
@@ -512,11 +517,9 @@ private fun extractDomain(url: String?): String = articleDisplayDomain(url)
 
 private fun articleMagazineTitle(article: Article): String = articleDisplayTitle(article)
 
-private fun articleMagazineMetaChips(article: Article): List<String> = listOfNotNull(
-    extractDomain(article.url).takeIf { it != "文章详情" },
-    article.pub_date?.let { TimeUtils.formatDate(it) } ?: TimeUtils.formatDate(article.created_at),
-    article.status?.takeIf { it.isNotBlank() },
-).take(3)
+internal fun articleMagazineMetaChips(article: Article, publishedLabel: String, savedLabel: String): List<String> =
+    listOf(article.pub_date?.let { "$publishedLabel ${TimeUtils.formatDate(it)}" }
+        ?: "$savedLabel ${TimeUtils.formatDate(article.created_at)}")
 
 @Composable
 private fun ArticleCoverImage(

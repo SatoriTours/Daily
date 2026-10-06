@@ -569,6 +569,9 @@ personal_settings:
   updates: "版本更新"
 
 article:
+  detail_title: 文章详情
+  published_on: 发布于
+  saved_on: 收藏于
   source: 来源
   source_unknown: 来源未知
   all_articles: 全部文章

@@ -569,6 +569,9 @@ personal_settings:
   updates: "App updates"
 
 article:
+  detail_title: Article Details
+  published_on: Published on
+  saved_on: Saved on
   source: Source
   source_unknown: Unknown source
   all_articles: All Articles

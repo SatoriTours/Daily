@@ -36,8 +36,12 @@ private fun String?.normalizedSummaryMarkdownOrFallback(fallback: String): Strin
         .joinToString("\n")
         .replace(ExcessiveMarkdownNewlinesRegex, "\n\n")
         .trim()
-    return cleaned.ifBlank { content }
+    return cleaned.ifBlank { content }.replace(generatedArticleSourceFooterRegex, "").trim().ifBlank { fallback }
 }
+
+private val generatedArticleSourceFooterRegex = Regex(
+    """(?:^|\n{2,})[ \t]*来源[ \t]*[:：][ \t]*\[原文]\((?:<[^>\n]+>|[^\n)]+)\)[ \t]*$""",
+)
 
 private fun String?.normalizedOriginalMarkdownOrFallback(fallback: String, imageUrls: List<String>): String {
     val content = normalizedMarkdownOrFallback(fallback)

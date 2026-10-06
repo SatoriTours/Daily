@@ -1,5 +1,6 @@
 package com.dailysatori.ui.component.news
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ fun ArticleReaderHeader(
     metaChips: List<String>,
     modifier: Modifier = Modifier,
     sourceName: String? = null,
+    onSourceClick: (() -> Unit)? = null,
 ) {
     val i18n = koinInject<I18nService>()
     Column(
@@ -38,27 +40,24 @@ fun ArticleReaderHeader(
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
         Text(
-            text = title.ifBlank { "文章详情" },
+            text = title.ifBlank { i18n.t("article.detail_title") },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        val meta = metaChips.map { it.trim() }.filter { it.isNotBlank() }.joinToString(" · ")
         Text(
-            text = i18n.t("article.source") + ": " +
-                (sourceName?.takeIf { it.isNotBlank() } ?: i18n.t("article.source_unknown")),
+            text = i18n.t("article.source") + ": " + articleReaderMetadata(sourceName, metaChips, i18n.t("article.source_unknown")),
+            modifier = onSourceClick?.let { Modifier.clickable(onClick = it) } ?: Modifier,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (meta.isNotBlank()) {
-            Text(
-                text = meta,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
+
+internal fun articleReaderMetadata(sourceName: String?, meta: List<String>, unknownSource: String): String =
+    (listOf(sourceName?.trim()?.takeIf { it.isNotBlank() } ?: unknownSource) + meta)
+        .flatMap { it.split(" · ") }.map { it.trim() }.filter { it.isNotBlank() }
+        .distinctBy { it.lowercase() }.joinToString(" · ")
 
 @Composable
 fun ArticleReaderBody(

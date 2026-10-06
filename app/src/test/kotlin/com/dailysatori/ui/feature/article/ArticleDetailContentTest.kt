@@ -6,6 +6,19 @@ import kotlin.test.assertTrue
 
 class ArticleDetailContentTest {
     @Test
+    fun generatedSourceFooterIsHiddenWithoutRemovingAnalysisOrOtherReferences() {
+        val brief = "**新闻事实：** 服务已恢复。\n\n**为什么重要（分析）：** 需核查失败任务。"
+        assertEquals(brief, articleDetailPageContent(0,
+            "$brief\n\n来源：[原文](<https://example.com/incident>)", null))
+        assertEquals(brief, articleDetailPageContent(0,
+            "$brief\n\n来源：[原文](https://example.com/incident)", null))
+        val references = "$brief\n\n来源：[官方公告](https://example.com/notice) · [报告](https://example.com/report)"
+        assertEquals(references, articleDetailPageContent(0, references, null))
+        val original = "原文正文。\n\n来源：[原文](https://example.com/incident)"
+        assertEquals(original, articleDetailPageContent(1, brief, original))
+    }
+
+    @Test
     fun remoteOriginalShowsBodyWithoutSnapshotSummaryAndViewpoints() {
         assertEquals("Full original", articleDetailPageContent(
             page = 1, summary = "Summary", original = null,

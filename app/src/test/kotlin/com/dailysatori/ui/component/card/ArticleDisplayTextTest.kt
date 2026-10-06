@@ -1,10 +1,32 @@
 package com.dailysatori.ui.component.card
 
 import com.dailysatori.shared.db.Article
+import com.dailysatori.ui.feature.article.articleMagazineMetaChips
+import com.dailysatori.core.util.TimeUtils
+import com.dailysatori.ui.component.news.articleReaderMetadata
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ArticleDisplayTextTest {
+    @Test
+    fun articleMetadataContainsOnlyAnExplicitDateWithoutDomainOrInternalStatus() {
+        val article = article("标题", "解读标题", "https://githubstatus.com/incident")
+        for (status in listOf("completed", "pending", "retrying", "error")) {
+            assertEquals(listOf("收藏于 ${TimeUtils.formatDate(article.created_at)}"),
+                articleMagazineMetaChips(article.copy(status = status), "发布于", "收藏于"))
+        }
+        assertEquals(listOf("发布于 ${TimeUtils.formatDate(article.created_at)}"),
+            articleMagazineMetaChips(article.copy(pub_date = article.created_at), "发布于", "收藏于"))
+    }
+
+    @Test
+    fun readerMetadataShowsEachSourceOnlyOnceInOneLine() {
+        assertEquals("GitHub · 收藏于 2026-10-06", articleReaderMetadata(" GitHub ",
+            listOf("github", "收藏于 2026-10-06", " "), "来源未知"))
+        assertEquals("来源未知 · 发布于 2026-10-05", articleReaderMetadata(null,
+            listOf("发布于 2026-10-05"), "来源未知"))
+    }
+
     @Test
     fun displayTitleMatchesArticleDetailPriority() {
         val article = article(
