@@ -59,24 +59,28 @@ class NewsOpportunityService(
         if (automatic && shouldDeferAutomaticAnalysis(analysisContext)) { publish(analysisContext); return@withLock }
         var pending = pendingArticles(analysisContext)
         var completed = 0
+        var quoteFailure: NewsOpportunityAnalysisException? = null
         _state.value = buildState(analysisContext).copy(isUpdating = true, progress = "正在查找适合你的文章", error = null)
         try {
             check((candidateSource == null && pending.isEmpty()) || archive.focus.isNotBlank() || !analysisContext.thoughts.isNullOrBlank())
             loadCandidates(analysisContext)
             pending = pendingArticles(analysisContext)
             _state.value = buildState(analysisContext).copy(isUpdating = true, progress = progress(0, pending.size))
-            pending.forEachIndexed { index, article ->
+            pending.forEach { article ->
                 checkAnalysisContext(analysisContext)
-                onProgress(index, pending.size, progress(index, pending.size))
-                val draft = analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, analysisContext.thoughts))
-                checkAnalysisContext(analysisContext)
-                val before = archive
-                applyResult(article, analysisContext.version, draft)
-                try { store.save(archive) } catch (error: Exception) { archive = before; throw error }
-                completed = index + 1
+                onProgress(completed, pending.size, progress(completed, pending.size))
+                try {
+                    analyzeArticle(article, analysisContext)
+                } catch (failure: NewsOpportunityAnalysisException) {
+                    if (failure.reason != OpportunityFailureReason.INVALID_QUOTE) throw failure
+                    quoteFailure = quoteFailure ?: failure
+                    return@forEach
+                }
+                completed++
                 _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size), isUpdating = true)
-                onProgress(index + 1, pending.size, progress(index + 1, pending.size))
+                onProgress(completed, pending.size, progress(completed, pending.size))
             }
+            quoteFailure?.let { throw it }
             publish(analysisContext)
         } catch (error: CancellationException) {
             _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size))
@@ -91,6 +95,14 @@ class NewsOpportunityService(
             _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size), error = message)
             throw failure
         }
+    }
+
+    private suspend fun analyzeArticle(article: ReadNewsArticle, context: AnalysisContext) {
+        val draft = analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, context.thoughts))
+        checkAnalysisContext(context)
+        val before = archive
+        applyResult(article, context.version, draft)
+        try { store.save(archive) } catch (error: Exception) { archive = before; throw error }
     }
 
     private fun shouldDeferAutomaticAnalysis(context: AnalysisContext): Boolean {
@@ -132,13 +144,12 @@ class NewsOpportunityService(
     }
 
     private fun OpportunityDraft.validated(article: ReadNewsArticle): OpportunityDraft {
-        if (quote.isBlank() || !article.content.take(OPPORTUNITY_BODY_LIMIT).contains(quote)) {
-            throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_QUOTE)
-        }
+        val originalQuote = resolveOpportunityQuote(article.content, quote)
+            ?: throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_QUOTE)
         if (listOf(title, category, fact, relevance, action, caveat).any { it.isBlank() }) {
             throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_RESPONSE)
         }
-        return this
+        return copy(quote = originalQuote)
     }
 
     private fun OpportunityDraft.toOpportunity(article: ReadNewsArticle, old: NewsOpportunity?) = NewsOpportunity(

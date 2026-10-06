@@ -292,6 +292,59 @@ class NewsOpportunityServiceTest {
     }
 
     @Test
+    fun badQuoteDoesNotBlockRemainingArticlesAndRetrySkipsSuccessfulOnes() = withFixture(
+        results = mutableListOf(null, draft(quote = "不存在的引用"), null),
+    ) { fixture ->
+        fixture.service.markRead(article(key = "a", title = "甲", readAt = 1))
+        fixture.service.markRead(article(key = "b", title = "乙", readAt = 2))
+        fixture.service.markRead(article(key = "c", title = "丙", readAt = 3))
+
+        val failure = assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() }
+        assertEquals(OpportunityFailureReason.INVALID_QUOTE, failure.reason)
+        assertEquals(listOf("甲", "乙", "丙"), fixture.analyzer.inputs.map { it.article.title })
+        assertEquals(1, fixture.service.state.value.pendingCount)
+        assertEquals("已完成 2/3 篇", fixture.service.state.value.progress)
+        fixture.service.analyze()
+        assertEquals(listOf("甲", "乙", "丙", "乙"), fixture.analyzer.inputs.map { it.article.title })
+        assertEquals(0, fixture.service.state.value.pendingCount)
+        assertNull(fixture.service.state.value.error)
+    }
+
+    @Test
+    fun quoteWhitespaceDifferencesAreRestoredToOriginalAndPersisted() = withFixture(
+        results = mutableListOf(draft(quote = "Teams spend hours checking failed jobs.")),
+    ) { fixture ->
+        fixture.service.markRead(article(content = "# Report\nTeams\u00a0spend  hours\nchecking failed jobs.\nEnd."))
+        fixture.service.analyze()
+
+        assertEquals("Teams\u00a0spend  hours\nchecking failed jobs.", fixture.service.state.value.items.single().quote)
+        assertEquals(0, fixture.service.state.value.pendingCount)
+        assertNull(fixture.service.state.value.error)
+        val reopened = fixture.newService()
+        reopened.refresh()
+        assertEquals("Teams\u00a0spend  hours\nchecking failed jobs.", reopened.state.value.items.single().quote)
+    }
+
+    @Test
+    fun translatedOrSplicedQuotesAndUnseenBodyAreRejected() {
+        listOf(
+            "Teams spend hours checking failed jobs." to "团队花几个小时检查失败的任务。",
+            "Teams check jobs. Other work happens. Failures need retries." to "Teams check jobs. Failures need retries.",
+            "Jobs did not fail." to "Jobs did fail.",
+            "Jobs failed." to "Jobs failed!",
+            "x".repeat(OPPORTUNITY_BODY_LIMIT) + "Hidden evidence" to "Hidden evidence",
+        ).forEach { (body, quote) ->
+            withFixture(results = mutableListOf(draft(quote = quote))) { fixture ->
+                fixture.service.markRead(article(content = body))
+                val failure = assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() }
+                assertEquals(OpportunityFailureReason.INVALID_QUOTE, failure.reason)
+                assertTrue(fixture.service.state.value.items.isEmpty())
+                assertEquals(1, fixture.service.state.value.pendingCount)
+            }
+        }
+    }
+
+    @Test
     fun invalidQuoteIsRejectedAndPreviousResultSurvives() = withFixture { fixture ->
         fixture.service.markRead(article())
         fixture.service.analyze()
