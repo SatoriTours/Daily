@@ -1,11 +1,10 @@
 package com.dailysatori.ui.feature.diary
 
-import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,40 +37,38 @@ internal fun diaryMonthReviewContent(diaries: List<Diary>, summary: String?): Di
         excerpt = diaries.firstNotNullOfOrNull { diaryPreviewText(it.content).takeIf(String::isNotBlank) },
     )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
     if (diaries.isEmpty()) return
     val monthKey = diaryMonthKey(diaries.first())
     val month = diaryReviewMonthLabel(monthKey, LocalConfiguration.current.locales[0])
     val review = remember(diaries, summary) { diaryMonthReviewContent(diaries, summary) }
-    var expanded by rememberSaveable(monthKey) { mutableStateOf(true) }
+    var showReview by rememberSaveable(monthKey) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(top = Spacing.s, bottom = Spacing.s),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(month, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.diary_feed_month_count, diaries.size),
-                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Text(month, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth().clickable(enabled = review.summary != null) { showReview = true }
+            .padding(vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(stringResource(R.string.diary_feed_review_title), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(review.summary?.let(::diaryPreviewText)?.takeIf(String::isNotBlank)
+                ?: stringResource(R.string.diary_feed_review_no_summary),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
-        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
-            Column(Modifier.fillMaxWidth().animateContentSize().padding(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.diary_feed_review_title), Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = { expanded = !expanded }) {
-                        Text(stringResource(if (expanded) R.string.diary_feed_collapse else R.string.diary_feed_expand))
-                        Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null, modifier = Modifier.size(IconSize.s))
-                    }
-                }
-                if (expanded && review.summary != null) {
-                    Markdown(content = review.summary, typography = MarkdownStyles.cardTypography(),
-                        padding = MarkdownStyles.cardPadding())
-                } else {
-                    Text(review.summary?.let(::diaryPreviewText) ?: stringResource(R.string.diary_feed_review_no_summary),
-                        style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                if (expanded) DiaryReviewDetails(review)
+    }
+    if (showReview && review.summary != null) {
+        ModalBottomSheet(onDismissRequest = { showReview = false },
+            containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.m).padding(bottom = Spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                Text(stringResource(R.string.diary_feed_review_title), style = MaterialTheme.typography.titleMedium)
+                Markdown(content = review.summary, typography = MarkdownStyles.cardTypography(),
+                    padding = MarkdownStyles.cardPadding())
+                DiaryReviewDetails(review)
             }
         }
     }

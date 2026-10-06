@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -259,8 +260,8 @@ private fun DiaryAudioPlaybackButton(
     }
     Column {
         Row(
-            modifier = if (compact) Modifier.fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.06f), RoundedCornerShape(Radius.m))
+            modifier = if (compact) Modifier.widthIn(max = Spacing.xxl * 6).fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(Radius.m))
                 .padding(end = Spacing.s) else Modifier,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -310,11 +311,13 @@ private fun DiaryAudioPlaybackButton(
                 valueRange = 0f..durationMs.coerceAtLeast(1).toFloat(),
                 enabled = isPrepared && durationMs > 0,
                 modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    activeTrackColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
             )
             Text(formatPlaybackTime(durationMs), style = MaterialTheme.typography.labelSmall)
-            if (compact && status != null) Text(status, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = Spacing.s).widthIn(max = Spacing.xxl * 2))
             onRetry?.let { retry ->
                 IconButton(onClick = retry) {
                     Icon(
@@ -326,6 +329,9 @@ private fun DiaryAudioPlaybackButton(
                 }
             }
         }
+        if (compact && status != null) Text(status, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = Spacing.xs))
         interruptionMessage?.let {
             Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
         }

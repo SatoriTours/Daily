@@ -96,6 +96,66 @@ class DiaryFormatUtilsTest {
         assertEquals("", diaryPreviewText("\n#日常\n"))
     }
 
+    @Test
+    fun cardPreviewSeparatesTheFirstLevelOneHeadingFromTheBody() {
+        val preview = diaryCollapsedPreview("# 慢下来\n\n**记录一个想法**\n[查看原文](https://example.com)\n#日常")
+
+        assertEquals(DiaryCollapsedPreview("慢下来", "记录一个想法 查看原文"), preview)
+    }
+
+    @Test
+    fun titleOnlyDiaryHasNoBodyPreview() {
+        assertEquals(DiaryCollapsedPreview("今天也要好好生活", ""), diaryCollapsedPreview("# 今天也要好好生活"))
+        assertEquals(DiaryCollapsedPreview("今天也要好好生活", ""),
+            diaryCollapsedPreview("# 今天也要好好生活\n\n#生活"))
+    }
+
+    @Test
+    fun cardPreviewOnlyTreatsAFirstLineLevelOneHeadingAsATitle() {
+        val ordinaryContents = listOf("普通首行\n# 后面的标题", "## 二级标题\n正文", "#标签\n正文",
+            "\n# 前面有空行\n正文", "    # 缩进代码\n正文", "# ", "")
+
+        ordinaryContents.forEach { content ->
+            assertEquals(null, diaryCollapsedPreview(content).title, content)
+            assertEquals(diaryPreviewText(content), diaryCollapsedPreview(content).body, content)
+        }
+    }
+
+    @Test
+    fun cardTitleHandlesMarkdownWhitespaceAndInlineFormatting() {
+        assertEquals(DiaryCollapsedPreview("今天 读书", "正文"),
+            diaryCollapsedPreview("  #\t**今天** [读书](https://example.com) ###\r\n\r\n正文"))
+        assertEquals(DiaryCollapsedPreview("C#", "正文"), diaryCollapsedPreview("# C#\n正文"))
+    }
+
+    @Test
+    fun cardPreviewKeepsQuotedWordsAfterExtractingATitle() {
+        assertEquals(DiaryCollapsedPreview("记住这句话", "慢一点"), diaryCollapsedPreview("# 记住这句话\n\n> 慢一点"))
+        assertEquals(DiaryCollapsedPreview(null, "慢一点"), diaryCollapsedPreview("> 慢一点"))
+    }
+
+    @Test
+    fun cardTitleCanContainAHashtagWithoutBeingStrippedAsATagLine() {
+        assertEquals("# #生活", stripDiaryInlineTags("# #生活\n#日常"))
+        assertEquals(DiaryCollapsedPreview("#生活", ""), diaryCollapsedPreview("# #生活\n#日常"))
+    }
+
+    @Test
+    fun feedDateKeepsTheCalendarDateAlongsideRelativeLabels() {
+        val now = localMillis(2026, 10, 5)
+        assertEquals("10月5日 · 今天 · 10:30", diaryCardDateTime(now, now, includeDateForRelativeDays = true))
+        assertEquals("10月4日 · 昨天 · 10:30", diaryCardDateTime(localMillis(2026, 10, 4), now,
+            includeDateForRelativeDays = true))
+        assertEquals("Oct 5 · Today · 10:30", diaryCardDateTime(now, now, "Today", "Yesterday", Locale.US,
+            includeDateForRelativeDays = true))
+    }
+
+    @Test
+    fun feedDateKeepsTheYearWhenYesterdayFallsInThePreviousYear() {
+        assertEquals("2025年12月31日 · 昨天 · 10:30", diaryCardDateTime(localMillis(2025, 12, 31),
+            localMillis(2026, 1, 1), includeDateForRelativeDays = true))
+    }
+
     private fun localMillis(year: Int, month: Int, day: Int): Long {
         return Calendar.getInstance(Locale.CHINA).apply {
             set(year, month - 1, day, 10, 30, 0)

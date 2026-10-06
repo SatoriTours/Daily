@@ -24,7 +24,7 @@ internal fun stripDiaryInlineTags(content: String): String {
             continue
         }
         val parts = line.split("\\s+".toRegex()).filter { it.isNotBlank() }
-        if (parts.all { it.startsWith("#") }) {
+        if (parts.all { it.startsWith("#") && it != "#" }) {
             lines.removeAt(i)
             i--
         } else {
@@ -154,21 +154,35 @@ internal fun diaryCardDateTime(
     todayLabel: String = "今天",
     yesterdayLabel: String = "昨天",
     locale: Locale = Locale.CHINA,
+    includeDateForRelativeDays: Boolean = false,
 ): String {
     val now = calendarFor(nowMillis)
     val previousDay = calendarFor(nowMillis).apply { add(Calendar.DAY_OF_YEAR, -1) }
+    val sameYear = calendarFor(timeMillis).get(Calendar.YEAR) == now.get(Calendar.YEAR)
+    val pattern = if (locale.language == "zh") {
+        if (sameYear) "M月d日" else "yyyy年M月d日"
+    } else if (sameYear) "MMM d" else "MMM d, yyyy"
+    val absoluteDate = SimpleDateFormat(pattern, locale).format(Date(timeMillis))
+    val relativePrefix = if (includeDateForRelativeDays) "$absoluteDate · " else ""
     val date = when (diaryDayKey(timeMillis)) {
-        diaryDayKey(nowMillis) -> todayLabel
-        diaryDayKey(previousDay.timeInMillis) -> yesterdayLabel
-        else -> {
-            val sameYear = calendarFor(timeMillis).get(Calendar.YEAR) == now.get(Calendar.YEAR)
-            val pattern = if (locale.language == "zh") {
-                if (sameYear) "M月d日" else "yyyy年M月d日"
-            } else if (sameYear) "MMM d" else "MMM d, yyyy"
-            SimpleDateFormat(pattern, locale).format(Date(timeMillis))
-        }
+        diaryDayKey(nowMillis) -> "$relativePrefix$todayLabel"
+        diaryDayKey(previousDay.timeInMillis) -> "$relativePrefix$yesterdayLabel"
+        else -> absoluteDate
     }
     return "$date · ${SimpleDateFormat("HH:mm", locale).format(Date(timeMillis))}"
+}
+
+internal data class DiaryCollapsedPreview(val title: String?, val body: String)
+
+internal fun diaryCollapsedPreview(content: String): DiaryCollapsedPreview {
+    val text = stripDiaryInlineTags(content)
+    val heading = Regex("^ {0,3}#[\\t ]+(.+)$").matchEntire(text.substringBefore('\n'))
+    val title = heading?.groupValues?.get(1)
+        ?.replace(Regex("(?:^|[\\t ]+)#+[\\t ]*$"), "")
+        ?.trim()?.takeIf(String::isNotBlank)
+        ?.let { diaryPreviewText("# $it") }?.takeIf(String::isNotBlank)
+    return if (title == null) DiaryCollapsedPreview(null, diaryPreviewText(text))
+    else DiaryCollapsedPreview(title, diaryPreviewText(text.substringAfter('\n', "")))
 }
 
 internal fun diaryPreviewText(content: String): String = stripDiaryInlineTags(content)

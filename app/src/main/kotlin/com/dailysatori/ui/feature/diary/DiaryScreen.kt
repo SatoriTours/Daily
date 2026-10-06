@@ -27,10 +27,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MicNone
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -166,6 +169,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         title = stringResource(R.string.diary_feed_title),
         showBack = false,
         isMainPage = true,
+        showHeaderDivider = false,
         actions = {
             IconButton(onClick = { viewModel.toggleSearch() }) {
                 Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.m))
@@ -175,6 +179,25 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     Icons.Default.FilterList,
                     contentDescription = "筛选",
                     tint = if (state.selectedTag != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(IconSize.m),
+                )
+            }
+            IconButton(
+                onClick = requestVoicePermissions,
+                enabled = state.recordingState is DiaryRecordingState.Idle,
+                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+            ) {
+                Icon(
+                    Icons.Default.MicNone,
+                    contentDescription = stringResource(R.string.diary_feed_record_voice),
+                    modifier = Modifier.size(IconSize.m),
+                )
+            }
+            IconButton(onClick = { editingDiary = null; editingTag = null; showEditor = true }) {
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = stringResource(R.string.diary_feed_write_now),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(IconSize.m),
                 )
             }
@@ -235,16 +258,9 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 state = diaryListState,
-                contentPadding = PaddingValues(top = Spacing.s, bottom = Height.navBar + Spacing.xxl + Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                contentPadding = PaddingValues(top = Spacing.m, bottom = Height.navBar + Spacing.xxl + Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.l),
             ) {
-                item(key = "capture") {
-                    DiaryWelcomePanel(
-                        onText = { editingDiary = null; showEditor = true },
-                        onVoice = requestVoicePermissions,
-                        voiceEnabled = state.recordingState is DiaryRecordingState.Idle,
-                    )
-                }
                 if (state.isLoading && state.diaries.isEmpty()) {
                     item(key = "loading") { LoadingIndicator() }
                 } else if (state.diaries.isEmpty()) {
