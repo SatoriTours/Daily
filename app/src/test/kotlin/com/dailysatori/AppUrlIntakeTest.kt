@@ -171,9 +171,10 @@ class AppUrlIntakeTest {
     @Test
     fun shareCanRetryIncompleteExistingArticles() {
         assertEquals(true, shouldRetryExistingSharedArticle("error"))
-        assertEquals(true, shouldRetryExistingSharedArticle("pending"))
-        assertEquals(true, shouldRetryExistingSharedArticle("webContentFetched"))
-        assertEquals(true, shouldRetryExistingSharedArticle("aiProcessing"))
+        assertEquals(false, shouldRetryExistingSharedArticle("pending"))
+        assertEquals(false, shouldRetryExistingSharedArticle("webContentFetched"))
+        assertEquals(false, shouldRetryExistingSharedArticle("aiProcessing"))
+        assertEquals(false, shouldRetryExistingSharedArticle("retrying"))
         assertEquals(false, shouldRetryExistingSharedArticle("completed"))
     }
 
@@ -189,16 +190,15 @@ class AppUrlIntakeTest {
     }
 
     @Test
-    fun clipboardExistingIncompleteArticleCanRetryInsteadOfDuplicateOnly() {
+    fun clipboardFailedArticleRequiresConfirmationAndLookupDoesNotReadBodies() {
         val source = File("src/main/kotlin/com/dailysatori/AppUrlIntakeViewModel.kt").readText()
         val clipboard = source.substringAfter("fun checkClipboard()")
             .substringBefore("fun confirmClipboardUrl()")
-        val retryIndex = clipboard.indexOf("retryExistingArticle(url)")
-        val existingIndex = clipboard.indexOf("isExistingArticle(url)")
-
-        assertTrue(retryIndex >= 0)
-        assertTrue(existingIndex >= 0)
-        assertTrue(retryIndex < existingIndex)
+        assertTrue(clipboard.contains("articleRepo.findIntakeArticle(url)"))
+        assertTrue(clipboard.contains("!shouldRetryExistingSharedArticle(existing.status)"))
+        assertTrue(clipboard.contains("clipboardUrl = url"))
+        assertFalse(clipboard.contains("enqueueRetrySave"))
+        assertFalse(source.contains("getAllSync()"))
     }
 
     @Test
@@ -253,12 +253,14 @@ class AppUrlIntakeTest {
     @Test
     fun existingArticleRetryUsesActiveProcessingGuard() {
         val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val existingBranch = source.substringAfter("findExistingArticleByUrl(url)?.let")
-            .substringBefore("val articleId = articleRepo.insert")
+        val existingBranch = source.substringAfter("suspend fun saveWebpage(")
+            .substringBefore("fun processAiTasksAsync")
 
-        assertTrue(existingBranch.contains("markArticleActive(existing.id)"))
-        assertTrue(existingBranch.contains("finishQueuedArticle(existing.id)"))
-        assertTrue(existingBranch.contains("enqueueArticleProcessing(existing.id)"))
+        assertTrue(existingBranch.contains("markArticleActive(articleId)"))
+        assertTrue(existingBranch.contains("finishQueuedArticle(articleId)"))
+        assertTrue(existingBranch.contains("enqueueArticleProcessing(articleId)"))
+        val activeGuard = existingBranch.substringAfter("if (!ownsProcessing)").substringBefore("setProcessingState")
+        assertTrue(activeGuard.indexOf("return articleId") < activeGuard.indexOf("updateStatus"), "已有所有者时不能回退处理状态")
         assertFalse(existingBranch.contains("throw CancellationException"))
     }
 

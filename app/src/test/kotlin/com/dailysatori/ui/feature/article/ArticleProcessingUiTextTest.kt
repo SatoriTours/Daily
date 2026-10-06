@@ -48,7 +48,7 @@ class ArticleProcessingUiTextTest {
     @Test
     fun ignoresUnknownBlankAndCompletedStatusForPersistentCardMessage() {
         assertNull(articleProcessingCardMessage("completed"))
-        assertNull(articleProcessingCardMessage("error"))
+        assertEquals("处理失败，点击查看", articleProcessingCardMessage("error"))
         assertNull(articleProcessingCardMessage(""))
         assertNull(articleProcessingCardMessage("archived"))
     }

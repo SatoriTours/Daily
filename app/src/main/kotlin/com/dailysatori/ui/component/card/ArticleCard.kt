@@ -34,7 +34,7 @@ fun ArticleCard(
     val createdAt = remember(article.created_at) { TimeUtils.formatRelativeTime(article.created_at) }
     val isFavorite = article.is_favorite == 1L
     val processingMessage = articleProcessingCardMessage(article.status)
-    val meta = listOf(domain, createdAt, processingMessage.orEmpty())
+    val meta = listOf(processingMessage.orEmpty(), domain, createdAt)
         .filter { it.isNotBlank() }
         .joinToString(" · ")
 

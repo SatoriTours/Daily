@@ -606,6 +606,44 @@ SELECT * FROM article ORDER BY created_at DESC;
 selectLocalArticles:
 SELECT * FROM article WHERE source_type != 'remote_news' ORDER BY created_at DESC;
 
+selectArticleCards:
+SELECT a.id, a.title, a.ai_title,
+       substr(a.ai_content, 1, 512) AS ai_content,
+       substr(a.ai_markdown_content, 1, 512) AS ai_markdown_content,
+       a.url, a.is_favorite, a.source_type, a.status,
+       a.cover_image, a.cover_image_url, a.pub_date, a.created_at, a.updated_at
+FROM article AS a
+LEFT JOIN (
+    SELECT article_id, MAX(COALESCE(favorited_at, first_seen_at)) AS sort_time
+    FROM external_favorite_item
+    WHERE source_id = :sourceId AND article_id IS NOT NULL
+    GROUP BY article_id
+) favorite_order ON favorite_order.article_id = a.id
+WHERE (:sourceId IS NULL AND (a.source_type != 'remote_news' OR :favoritesOnly = 1 OR :tagId IS NOT NULL)
+       OR favorite_order.article_id IS NOT NULL)
+  AND (:favoritesOnly = 0 OR a.is_favorite = 1)
+  AND (:tagId IS NULL OR a.id IN (SELECT article_id FROM article_tag WHERE tag_id = :tagId))
+  AND (:searchQuery = ''
+       OR a.id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery)
+       OR a.title LIKE '%' || :searchQuery || '%'
+       OR a.ai_title LIKE '%' || :searchQuery || '%'
+       OR a.ai_content LIKE '%' || :searchQuery || '%')
+ORDER BY
+    CASE WHEN :searchQuery != '' AND a.id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
+    COALESCE(favorite_order.sort_time, a.created_at) DESC, a.id DESC;
+
+selectArticleIntakeByUrl:
+SELECT id, status FROM article
+WHERE rtrim(trim(url), '/') = :normalizedUrl
+ORDER BY CASE WHEN url = :normalizedUrl THEN 0 ELSE 1 END
+LIMIT 1;
+
+selectArticleIntakeByExactUrl:
+SELECT id, status FROM article
+WHERE url IN (:normalizedUrl, :normalizedUrl || '/')
+ORDER BY CASE WHEN url = :normalizedUrl THEN 0 ELSE 1 END
+LIMIT 1;
+
 selectArticlesPaginated:
 SELECT * FROM article ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
@@ -653,8 +691,14 @@ WHERE NOT EXISTS (
       AND article.ai_markdown_content LIKE '%## AI 整理%'
       AND article.ai_markdown_content LIKE '%待整理'
 )
+  AND NOT EXISTS (
+      SELECT 1 FROM async_task
+      WHERE type = 'save_article'
+        AND unique_key = 'save_article:' || rtrim(trim(article.url), '/')
+        AND status IN ('queued', 'running', 'retrying')
+  )
   AND (
-      status IN ('pending', 'webContentFetched', 'aiProcessing')
+      status IN ('pending', 'webContentFetched', 'aiProcessing', 'retrying')
       OR (status = 'error' AND lower(coalesce(ai_content, '')) LIKE '%cancelled%')
       OR (
           status = 'error'

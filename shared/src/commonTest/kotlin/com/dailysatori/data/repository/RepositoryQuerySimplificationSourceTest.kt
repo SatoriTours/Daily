@@ -99,15 +99,15 @@ class RepositoryQuerySimplificationSourceTest {
         val schema = File("src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
         val repository = File("src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt").readText()
         val viewModel = File("../app/src/main/kotlin/com/dailysatori/ui/feature/article/ArticlesViewModel.kt").readText()
-        val query = schema.substringAfter("searchExternalFavoriteArticlesBySourceFts:")
-            .substringBefore("selectArticleDailyCounts:")
+        val query = schema.substringAfter("selectArticleCards:")
+            .substringBefore("selectArticleIntakeByUrl:")
 
         assertTrue(query.contains("source_id = :sourceId"))
         assertTrue(query.contains("article_fts MATCH :ftsQuery"))
         assertTrue(query.contains("GROUP BY article_id"))
-        assertTrue(repository.contains("searchExternalFavoritesBySource("))
-        assertTrue(repository.contains("searchExternalFavoritesBySourceSync("))
-        assertTrue(viewModel.contains("currentState.externalFavoriteSourceId != null && currentState.searchQuery.isNotBlank()"))
-        assertTrue(viewModel.indexOf("searchExternalFavoritesBySource(currentState.externalFavoriteSourceId") < viewModel.indexOf("currentState.searchQuery.isNotBlank() -> articleRepo.search"))
+        assertTrue(repository.contains("q.selectArticleCards("))
+        assertTrue(viewModel.contains("articleRepo.getCards(current.searchQuery"))
+        assertTrue(viewModel.contains("articleRepo.getCardsSync(current.searchQuery"))
+        assertTrue(viewModel.contains("externalFavoriteSourceId.takeIf { searchQuery.isNotBlank() || selectedTagId == null }"))
     }
 }

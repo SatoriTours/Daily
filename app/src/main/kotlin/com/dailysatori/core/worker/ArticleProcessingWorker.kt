@@ -18,6 +18,7 @@ import androidx.work.workDataOf
 import com.dailysatori.normalizeArticleUrl
 import com.dailysatori.core.task.saveArticleTaskPayloadJson
 import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.parser.WebpageParserService
 import kotlinx.coroutines.CancellationException
@@ -28,6 +29,7 @@ class ArticleProcessingScheduler(
     private val context: Context,
     private val asyncTaskRepo: AsyncTaskRepository? = null,
     private val asyncTaskScheduler: AsyncTaskScheduler? = null,
+    private val articleRepo: ArticleRepository? = null,
 ) {
     fun enqueueSave(url: String) {
         enqueueSave(url, ExistingWorkPolicy.KEEP)
@@ -40,16 +42,20 @@ class ArticleProcessingScheduler(
     private fun enqueueSave(url: String, policy: ExistingWorkPolicy) {
         val normalizedUrl = normalizeArticleUrl(url)
         if (normalizedUrl.isBlank()) return
-        markSavePending(normalizedUrl)
         if (asyncTaskRepo != null && asyncTaskScheduler != null) {
             val taskId = asyncTaskRepo.enqueue(
                 type = AsyncTaskType.save_article.name,
                 payloadJson = saveArticleTaskPayloadJson(url),
                 uniqueKey = saveTaskUniqueKey(normalizedUrl),
             )
+            // Persist the owner before publishing the article, so startup recovery cannot claim it.
+            articleRepo?.createPendingFromUrl(normalizedUrl)
+            markSavePending(normalizedUrl)
             asyncTaskScheduler.enqueue(taskId)
             return
         }
+        articleRepo?.createPendingFromUrl(normalizedUrl)
+        markSavePending(normalizedUrl)
         val request = buildArticleSaveWorkRequest(url, normalizedUrl)
         WorkManager.getInstance(context).enqueueUniqueWork(
             saveWorkName(normalizedUrl),
@@ -135,7 +141,8 @@ class ArticleProcessingWorker(
                     val url = inputData.getString(KEY_URL).orEmpty()
                     if (normalizeArticleUrl(url).isBlank()) Result.failure() else {
                         try {
-                            parser.saveWebpage(url = url, comment = null, title = null, tags = null)
+                            parser.saveWebpage(url = url, comment = null, title = null, tags = null,
+                                retryOnFailure = runAttemptCount < MAX_SAVE_ATTEMPTS - 1)
                             clearPendingSave()
                             Result.success()
                         } catch (e: CancellationException) {

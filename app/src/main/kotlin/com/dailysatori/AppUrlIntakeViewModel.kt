@@ -11,11 +11,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
 data class AppUrlIntakeState(
     val clipboardUrl: String? = null,
     val duplicateUrl: String? = null,
     val isSavingUrl: Boolean = false,
+    val saveMessage: String? = null,
 )
 
 class AppUrlIntakeViewModel(
@@ -25,16 +29,17 @@ class AppUrlIntakeViewModel(
 ) : ViewModel() {
     private val clipboardPromptState = ClipboardUrlPromptState()
     private val clipboardCheckGate = ClipboardCheckGate()
+    private var clipboardCheckJob: Job? = null
     private val _state = MutableStateFlow(AppUrlIntakeState())
     val state: StateFlow<AppUrlIntakeState> = _state.asStateFlow()
 
     fun handleSharedText(text: String?) {
         val url = extractFirstUrl(text) ?: return
         clipboardCheckGate.suppressNextCheck()
-        viewModelScope.launch(Dispatchers.IO) {
-            if (retryExistingArticle(url)) {
-                _state.update { it.copy(clipboardUrl = null, duplicateUrl = null) }
-            } else if (isExistingArticle(url)) {
+        clipboardCheckJob?.cancel()
+        viewModelScope.launch {
+            val existing = withContext(Dispatchers.IO) { articleRepo.findIntakeArticle(url) }
+            if (existing != null && !shouldRetryExistingSharedArticle(existing.status)) {
                 _state.update { it.copy(duplicateUrl = url, clipboardUrl = null) }
             } else {
                 saveUrl(url)
@@ -46,12 +51,10 @@ class AppUrlIntakeViewModel(
         if (!clipboardCheckGate.shouldCheck()) return
         val url = clipboardMonitorService.checkClipboard() ?: return
         if (!clipboardPromptState.shouldPrompt(url)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            if (retryExistingArticle(url)) {
-                clipboardPromptState.markHandled(url)
-                clipboardMonitorService.markProcessed(url)
-                _state.update { it.copy(duplicateUrl = null, clipboardUrl = null) }
-            } else if (isExistingArticle(url)) {
+        clipboardCheckJob?.cancel()
+        clipboardCheckJob = viewModelScope.launch {
+            val existing = withContext(Dispatchers.IO) { articleRepo.findIntakeArticle(url) }
+            if (existing != null && !shouldRetryExistingSharedArticle(existing.status)) {
                 clipboardPromptState.markHandled(url)
                 clipboardMonitorService.markProcessed(url)
                 _state.update { it.copy(duplicateUrl = url, clipboardUrl = null) }
@@ -63,10 +66,9 @@ class AppUrlIntakeViewModel(
 
     fun confirmClipboardUrl() {
         val url = _state.value.clipboardUrl ?: return
-        clipboardPromptState.markHandled(url)
-        clipboardMonitorService.markProcessed(url)
-        _state.update { it.copy(clipboardUrl = null) }
-        viewModelScope.launch(Dispatchers.IO) { saveUrl(url) }
+        if (_state.value.isSavingUrl) return
+        _state.update { it.copy(isSavingUrl = true, saveMessage = null) }
+        viewModelScope.launch { saveUrl(url) }
     }
 
     fun dismissClipboardUrl() {
@@ -81,23 +83,22 @@ class AppUrlIntakeViewModel(
         _state.update { it.copy(duplicateUrl = null) }
     }
 
-    private fun isExistingArticle(url: String): Boolean {
-        return articleUrlExists(url, articleRepo.getAllSync().mapNotNull { it.url })
-    }
-
-    private fun retryExistingArticle(url: String): Boolean {
-        val article = articleRepo.getAllSync()
-            .firstOrNull { normalizeArticleUrl(it.url) == normalizeArticleUrl(url) }
-            ?: return false
-        if (!shouldRetryExistingSharedArticle(article.status)) return false
-        articleProcessingScheduler.enqueueRetrySave(url)
-        return true
+    fun dismissSaveMessage() {
+        _state.update { it.copy(saveMessage = null) }
     }
 
     private suspend fun saveUrl(url: String) {
         _state.update { it.copy(isSavingUrl = true) }
         try {
-            articleProcessingScheduler.enqueueSave(url)
+            withContext(Dispatchers.IO) { articleProcessingScheduler.enqueueSave(url) }
+            clipboardPromptState.markHandled(url)
+            clipboardMonitorService.markProcessed(url)
+            _state.update { it.copy(clipboardUrl = null, duplicateUrl = null,
+                saveMessage = "文章已保存，正在后台整理") }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            _state.update { it.copy(saveMessage = "保存未完成，请重试") }
         } finally {
             _state.update { it.copy(isSavingUrl = false) }
         }

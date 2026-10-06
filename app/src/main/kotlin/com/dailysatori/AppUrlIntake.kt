@@ -18,7 +18,7 @@ internal fun articleUrlExists(url: String, existingUrls: List<String>): Boolean 
 }
 
 internal fun shouldRetryExistingSharedArticle(status: String?): Boolean = when (status) {
-    "pending", "webContentFetched", "aiProcessing", "error" -> true
+    "error" -> true
     else -> false
 }
 

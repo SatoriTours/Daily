@@ -16,6 +16,45 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun getAll(): Flow<List<Article>> =
         q.selectLocalArticles().asFlow().mapToList(Dispatchers.IO)
 
+    fun getCards(searchQuery: String = "", tagId: Long? = null, favoritesOnly: Boolean = false,
+        sourceId: Long? = null): Flow<List<Article>> =
+        articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId).asFlow().mapToList(Dispatchers.IO)
+
+    fun getCardsSync(searchQuery: String = "", tagId: Long? = null, favoritesOnly: Boolean = false,
+        sourceId: Long? = null): List<Article> =
+        articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId).executeAsList()
+
+    private fun articleCardsQuery(searchQuery: String, tagId: Long?, favoritesOnly: Boolean, sourceId: Long?) =
+        q.selectArticleCards(sourceId = sourceId, favoritesOnly = if (favoritesOnly) 1L else 0L,
+            tagId = tagId, searchQuery = searchQuery, ftsQuery = searchQuery.toFtsPhraseQuery()) {
+                id, title, aiTitle, summary, markdown, url, favorite, source, status, cover, coverUrl, pubDate, created, updated ->
+            Article(id = id, title = title, ai_title = aiTitle, ai_content = summary,
+                ai_markdown_content = markdown, original_markdown_content = null, url = url,
+                is_favorite = favorite, source_type = source, comment = null, status = status,
+                cover_image = cover, cover_image_url = coverUrl, pub_date = pubDate,
+                created_at = created, updated_at = updated)
+        }
+
+    fun findIntakeArticle(url: String): com.dailysatori.shared.db.SelectArticleIntakeByUrl? {
+        val normalized = url.trim().trimEnd('/')
+        val exact = q.selectArticleIntakeByExactUrl(normalized).executeAsOneOrNull()
+        return exact?.let { com.dailysatori.shared.db.SelectArticleIntakeByUrl(it.id, it.status) }
+            ?: q.selectArticleIntakeByUrl(normalized).executeAsOneOrNull()
+    }
+
+    fun createPendingFromUrl(url: String): Long = q.transactionWithResult {
+        val normalized = url.trim().trimEnd('/')
+        require(normalized.isNotBlank()) { "Article URL required" }
+        val existing = findIntakeArticle(normalized)
+        if (existing != null) {
+            if (existing.status == "error") updateStatus(existing.id, "pending")
+            existing.id
+        } else {
+            insert(title = "正在加载...", url = normalized, status = "pending",
+                pubDate = kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+        }
+    }
+
     fun getPaginated(limit: Long, offset: Long): Flow<List<Article>> =
         q.selectLocalArticlesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
 

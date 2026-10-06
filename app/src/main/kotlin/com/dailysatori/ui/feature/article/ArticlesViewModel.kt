@@ -72,7 +72,7 @@ class ArticlesViewModel(
             com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Loading articles with flow")
             articlesFlowFor(_state.value).catch { error ->
                 com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Article observation failed", error)
-                _state.update { it.copy(isLoading = false, isRefreshing = false, loadError = "文章读取失败，点击重试") }
+                _state.update { it.copy(isLoading = false, isRefreshing = false, loadError = "文章列表读取失败，点击重试") }
             }.collect { articles ->
                 com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Got ${articles.size} articles")
                 _state.update { it.copy(articles = articles, isLoading = false, loadError = null) }
@@ -97,25 +97,19 @@ class ArticlesViewModel(
         }
     }
 
-    private fun articlesFlowFor(currentState: ArticlesState): Flow<List<Article>> = when {
-        currentState.externalFavoriteSourceId != null && currentState.searchQuery.isNotBlank() ->
-            articleRepo.searchExternalFavoritesBySource(currentState.externalFavoriteSourceId, currentState.searchQuery)
-        currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
-        currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId)
-        currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
-        currentState.showFavoritesOnly -> articleRepo.getFavorites()
-        else -> articleRepo.getAll()
-    }
+    private fun articlesFlowFor(current: ArticlesState): Flow<List<Article>> =
+        articleRepo.getCards(current.searchQuery, current.cardTagFilter(), current.cardFavoriteFilter(), current.cardSourceFilter())
 
-    private fun articlesSnapshotFor(currentState: ArticlesState): List<Article> = when {
-        currentState.externalFavoriteSourceId != null && currentState.searchQuery.isNotBlank() ->
-            articleRepo.searchExternalFavoritesBySourceSync(currentState.externalFavoriteSourceId, currentState.searchQuery)
-        currentState.searchQuery.isNotBlank() -> articleRepo.searchSync(currentState.searchQuery)
-        currentState.selectedTagId != null -> articleRepo.getByTagSync(currentState.selectedTagId)
-        currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySourceSync(currentState.externalFavoriteSourceId)
-        currentState.showFavoritesOnly -> articleRepo.getFavoritesSync()
-        else -> articleRepo.getLocalSync()
-    }
+    private fun articlesSnapshotFor(current: ArticlesState): List<Article> =
+        articleRepo.getCardsSync(current.searchQuery, current.cardTagFilter(), current.cardFavoriteFilter(), current.cardSourceFilter())
+
+    private fun ArticlesState.cardTagFilter(): Long? = selectedTagId.takeIf { searchQuery.isBlank() }
+
+    private fun ArticlesState.cardSourceFilter(): Long? =
+        externalFavoriteSourceId.takeIf { searchQuery.isNotBlank() || selectedTagId == null }
+
+    private fun ArticlesState.cardFavoriteFilter(): Boolean =
+        showFavoritesOnly && searchQuery.isBlank() && selectedTagId == null && externalFavoriteSourceId == null
 
     fun search(query: String) {
         _state.update { it.copy(searchQuery = query) }

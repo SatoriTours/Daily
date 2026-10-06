@@ -11,7 +11,7 @@ internal val articleProcessingStepLabels = listOf(
 )
 
 internal fun isArticleProcessing(status: String?): Boolean = when (status) {
-    "pending", "webContentFetched", "aiProcessing" -> true
+    "pending", "webContentFetched", "aiProcessing", "retrying" -> true
     else -> false
 }
 
@@ -21,7 +21,7 @@ internal fun shouldReloadArticleAfterProcessingState(status: String?): Boolean =
 }
 
 internal fun articleProcessingStepIndex(status: String?, progress: String? = null): Int = when (status) {
-    "pending" -> 0
+    "pending", "retrying" -> 0
     "webContentFetched" -> 1
     "aiProcessing" -> aiProgressStepIndex(progress)
     "completed" -> articleProcessingStepLabels.lastIndex
@@ -35,12 +35,14 @@ internal fun articleProcessingProgress(status: String?, progress: String? = null
 }
 
 internal fun articleProcessingCardMessage(status: String?): String? {
+    if (status == "error") return "处理失败，点击查看"
     if (!isArticleProcessing(status)) return null
     return articleProcessingMessage(status)
 }
 
 internal fun articleProcessingMessage(status: String?, progress: String? = null): String? = when (status) {
     "pending" -> pendingProgressMessage(progress)
+    "retrying" -> "等待自动重试..."
     "webContentFetched" -> "网页内容已获取，正在整理..."
     "aiProcessing" -> aiProgressMessage(progress)
     "completed" -> "文章已更新"

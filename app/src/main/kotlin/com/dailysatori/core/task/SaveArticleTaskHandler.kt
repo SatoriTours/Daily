@@ -5,6 +5,7 @@ import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.parser.WebpageParserService
+import com.dailysatori.data.repository.AsyncTaskRepository
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -16,6 +17,7 @@ data class SaveArticleTaskPayload(
 
 class SaveArticleTaskHandler(
     private val parser: WebpageParserService,
+    private val taskRepo: AsyncTaskRepository? = null,
 ) : AsyncTaskHandler {
     override val type: String = AsyncTaskType.save_article.name
 
@@ -34,7 +36,10 @@ class SaveArticleTaskHandler(
         }
 
         reporter.report(1, 3, "正在处理文章", checkpointJson = """{"stage":"started"}""")
-        parser.saveWebpage(url = payload.url, comment = null, title = null, tags = null)
+        val task = taskRepo?.getById(taskId)
+        val willRetry = task != null && task.attempt_count + 1 < task.max_attempts
+        parser.saveWebpage(url = payload.url, comment = null, title = null, tags = null,
+            retryOnFailure = willRetry)
         reporter.report(3, 3, "文章已保存", checkpointJson = """{"stage":"completed"}""")
         return AsyncTaskExecutionResult.Success()
     }

@@ -22,10 +22,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import android.view.ViewTreeObserver
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -43,8 +44,6 @@ import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.UpdateDownloadProgress
 import com.dailysatori.ui.theme.Radius
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -61,7 +60,6 @@ fun DailySatoriApp(
     val sharedText by sharedTextState?.collectAsState(initial = null) ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(null) }
     val launchedFromShare by launchedFromShareState?.collectAsState(initial = false) ?: androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val smsNotice: com.dailysatori.ui.feature.settings.sms.SmsCreationNoticeViewModel = koinViewModel()
     val smsI18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
@@ -76,6 +74,7 @@ fun DailySatoriApp(
         }
     }
     val context = LocalContext.current
+    val view = LocalView.current
     val reminderOpenId by ReminderOpenRequest.state.pending.collectAsState()
     val reminderAiBatchOpenId by ReminderAiBatchOpenRequest.state.pending.collectAsState()
     val smsOpen by com.dailysatori.core.sms.SmsOpenRequest.pending.collectAsState()
@@ -109,20 +108,26 @@ fun DailySatoriApp(
         }
     }
 
-    DisposableEffect(lifecycleOwner, launchedFromShare) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && shouldCheckClipboardOnForeground(launchedFromShare)) {
-                coroutineScope.launch {
-                    delay(500)
-                    viewModel.checkClipboard()
-                }
+    DisposableEffect(lifecycleOwner, launchedFromShare, view) {
+        fun checkClipboardIfFocused() {
+            if (view.hasWindowFocus() && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                && shouldCheckClipboardOnForeground(launchedFromShare)) {
+                viewModel.checkClipboard()
             }
+        }
+        val focusListener = ViewTreeObserver.OnWindowFocusChangeListener { focused ->
+            if (focused) checkClipboardIfFocused()
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) checkClipboardIfFocused()
             if (event == Lifecycle.Event.ON_RESUME) {
                 installPendingUpgradeIfAllowed(context, upgradeViewModel)
             }
         }
+        view.viewTreeObserver.addOnWindowFocusChangeListener(focusListener)
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            if (view.viewTreeObserver.isAlive) view.viewTreeObserver.removeOnWindowFocusChangeListener(focusListener)
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
@@ -131,6 +136,13 @@ fun DailySatoriApp(
         if (state.duplicateUrl != null) {
             snackbarHostState.showSnackbar(duplicateUrlSnackbarMessage())
             viewModel.dismissDuplicateUrl()
+        }
+    }
+
+    LaunchedEffect(state.saveMessage) {
+        state.saveMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.dismissSaveMessage()
         }
     }
 
@@ -172,7 +184,7 @@ fun DailySatoriApp(
 
     state.clipboardUrl?.let { url ->
         AlertDialog(
-            onDismissRequest = { viewModel.dismissClipboardUrl() },
+            onDismissRequest = { if (!state.isSavingUrl) viewModel.dismissClipboardUrl() },
             shape = RoundedCornerShape(Radius.xl),
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             tonalElevation = 0.dp,
@@ -190,7 +202,7 @@ fun DailySatoriApp(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.dismissClipboardUrl() }) {
+                TextButton(onClick = { viewModel.dismissClipboardUrl() }, enabled = !state.isSavingUrl) {
                     Text("取消")
                 }
             },

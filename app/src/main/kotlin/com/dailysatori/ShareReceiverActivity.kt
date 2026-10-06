@@ -32,7 +32,7 @@ class ShareReceiverActivity : Activity() {
             url == null -> shareInvalidUrlToastMessage()
             retryExistingArticle(url) -> shareSaveStartedToastMessage()
             articleProcessingScheduler.isSavePending(url) -> duplicateUrlSnackbarMessage()
-            articleUrlExists(url, articleRepo.getAllSync().mapNotNull { it.url }) -> duplicateUrlSnackbarMessage()
+            articleRepo.findIntakeArticle(url) != null -> duplicateUrlSnackbarMessage()
             else -> {
                 articleProcessingScheduler.enqueueSave(url)
                 shareSaveStartedToastMessage()
@@ -42,9 +42,7 @@ class ShareReceiverActivity : Activity() {
     }
 
     private fun retryExistingArticle(url: String): Boolean {
-        val article = articleRepo.getAllSync()
-            .firstOrNull { normalizeArticleUrl(it.url) == normalizeArticleUrl(url) }
-            ?: return false
+        val article = articleRepo.findIntakeArticle(url) ?: return false
         if (!shouldRetryExistingSharedArticle(article.status)) return false
         articleProcessingScheduler.enqueueRetrySave(url)
         return true

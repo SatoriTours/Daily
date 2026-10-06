@@ -482,7 +482,7 @@ private fun isLegacyProcessingErrorSummary(summary: String): Boolean =
         summary == "AI summary generation returned empty result"
 
 internal fun isRecoverableArticleStatus(status: String?): Boolean = when (status) {
-    "pending", "webContentFetched", "aiProcessing" -> true
+    "pending", "webContentFetched", "aiProcessing", "retrying" -> true
     else -> false
 }
 
@@ -647,30 +647,12 @@ class WebpageParserService(
         comment: String?,
         title: String?,
         tags: List<String>?,
+        retryOnFailure: Boolean = false,
     ): Long {
-        log.i { "saveWebpage: url=$url" }
+        val existing = findExistingArticleByUrl(url)
+        if (existing != null && !shouldRetryExistingArticleSave(existing.status)) return existing.id
 
-        findExistingArticleByUrl(url)?.let { existing ->
-            if (!shouldRetryExistingArticleSave(existing.status)) {
-                return existing.id
-            }
-            val ownsProcessing = markArticleActive(existing.id)
-            if (!ownsProcessing) {
-                articleRepo.updateStatus(existing.id, "pending")
-                enqueueArticleProcessing(existing.id)
-                return existing.id
-            }
-            try {
-                articleRepo.updateStatus(existing.id, "pending")
-                val extracted = existing.url?.let { extractContent(it) }
-                processAiTasks(existing.id, extracted)
-            } finally {
-                finishQueuedArticle(existing.id)
-            }
-            return existing.id
-        }
-
-        val articleId = try {
+        val articleId = existing?.id ?: try {
             articleRepo.insert(
                 title = title ?: "正在加载...",
                 comment = comment,
@@ -691,6 +673,7 @@ class WebpageParserService(
             enqueueArticleProcessing(articleId)
             return articleId
         }
+        articleRepo.updateStatus(articleId, "pending")
         setProcessingState(articleId, "pending")
 
         try {
@@ -715,37 +698,15 @@ class WebpageParserService(
 
             tags?.let { tagRepo.setTagsForArticle(articleId, it) }
 
-            processAiTasks(articleId, extracted)
+            processAiTasks(articleId, extracted, retryOnFailure)
 
             log.i { "saveWebpage completed: articleId=$articleId" }
             return articleId
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "saveWebpage failed: articleId=$articleId" }
-            val latestArticle = articleRepo.getById(articleId) ?: article
-            val errorMessage = articleProcessingErrorMessage(e)
-            val aiContent = summaryAfterProcessingError(
-                latestArticle.ai_content,
-                latestArticle.ai_markdown_content,
-                errorMessage,
-            )
-            val status = finalArticleStatus(aiContent, latestArticle.ai_markdown_content)
-            articleRepo.update(
-                id = articleId,
-                title = latestArticle.title,
-                aiTitle = latestArticle.ai_title,
-                aiContent = aiContent,
-                aiMarkdownContent = latestArticle.ai_markdown_content,
-                url = latestArticle.url,
-                isFavorite = latestArticle.is_favorite ?: 0L,
-                comment = latestArticle.comment,
-                status = status,
-                coverImage = latestArticle.cover_image,
-                coverImageUrl = latestArticle.cover_image_url,
-                pubDate = latestArticle.pub_date,
-            )
-            setProcessingState(articleId, status, errorMessage)
-            if (status == "completed") return articleId
+            val alreadyRecorded = articleRepo.getById(articleId)?.status in setOf("error", "retrying")
+            if (!alreadyRecorded && recordProcessingFailure(articleId, e, retryOnFailure)) return articleId
             throw e
         } finally {
             if (ownsProcessing) finishQueuedArticle(articleId)
@@ -850,10 +811,10 @@ class WebpageParserService(
         drainProcessingQueue()
     }
 
-    suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null) =
-        DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { processAiTasksRecorded(articleId, extracted) }
+    suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null, retryOnFailure: Boolean = false) =
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { processAiTasksRecorded(articleId, extracted, retryOnFailure) }
 
-    private suspend fun processAiTasksRecorded(articleId: Long, extracted: ExtractedContent?) {
+    private suspend fun processAiTasksRecorded(articleId: Long, extracted: ExtractedContent?, retryOnFailure: Boolean) {
         val article = articleRepo.getById(articleId) ?: return
         log.i { "processAiTasks: articleId=$articleId" }
 
@@ -936,32 +897,26 @@ class WebpageParserService(
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "AI processing failed: articleId=$articleId" }
-            val latestArticle = articleRepo.getById(articleId) ?: article
-            val errorMessage = articleProcessingErrorMessage(e)
-            val aiContent = summaryAfterProcessingError(
-                latestArticle.ai_content,
-                latestArticle.ai_markdown_content,
-                errorMessage,
-            )
-            val status = finalArticleStatus(aiContent, latestArticle.ai_markdown_content)
-            articleRepo.update(
-                id = articleId,
-                title = latestArticle.title,
-                aiTitle = latestArticle.ai_title,
-                aiContent = aiContent,
-                aiMarkdownContent = latestArticle.ai_markdown_content,
-                url = latestArticle.url,
-                isFavorite = latestArticle.is_favorite ?: 0L,
-                comment = latestArticle.comment,
-                status = status,
-                coverImage = latestArticle.cover_image,
-                coverImageUrl = latestArticle.cover_image_url,
-                pubDate = latestArticle.pub_date,
-            )
-            setProcessingState(articleId, status, errorMessage)
-            if (status == "completed") return
+            if (recordProcessingFailure(articleId, e, retryOnFailure)) return
             throw e
         }
+    }
+
+    private fun recordProcessingFailure(articleId: Long, error: Exception, retryOnFailure: Boolean): Boolean {
+        val article = articleRepo.getById(articleId) ?: return false
+        val errorMessage = articleProcessingErrorMessage(error)
+        // Decide from actual content before storing an error message in the legacy summary field.
+        val hasContent = finalArticleStatus(article.ai_content, article.ai_markdown_content) == "completed"
+        val status = if (hasContent) "completed" else if (retryOnFailure) "retrying" else "error"
+        val summary = if (hasContent)
+            summaryAfterProcessingError(article.ai_content, article.ai_markdown_content, errorMessage)
+        else null
+        articleRepo.update(id = articleId, title = article.title, aiTitle = article.ai_title,
+            aiContent = summary, aiMarkdownContent = article.ai_markdown_content, url = article.url,
+            isFavorite = article.is_favorite ?: 0L, comment = article.comment, status = status,
+            coverImage = article.cover_image, coverImageUrl = article.cover_image_url, pubDate = article.pub_date)
+        setProcessingState(articleId, status, errorMessage)
+        return hasContent
     }
 
     private suspend fun generateArticleTitle(
@@ -1412,13 +1367,11 @@ class WebpageParserService(
     }
 
     private fun findExistingArticleByUrl(url: String): Article? {
-        val normalizedUrl = url.trim().trimEnd('/')
-        return articleRepo.getAllSync()
-            .firstOrNull { it.url?.trim()?.trimEnd('/') == normalizedUrl }
+        return articleRepo.findIntakeArticle(url)?.id?.let(articleRepo::getById)
     }
 
     private fun shouldRetryExistingArticleSave(status: String?): Boolean = when (status) {
-        "pending", "webContentFetched", "aiProcessing", "error" -> true
+        "pending", "webContentFetched", "aiProcessing", "retrying", "error" -> true
         else -> false
     }
 

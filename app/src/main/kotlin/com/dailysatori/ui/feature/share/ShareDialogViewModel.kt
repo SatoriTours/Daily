@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -35,8 +34,7 @@ class ShareDialogViewModel(
         _state.update { it.copy(shareURL = url, title = "", comment = "", tags = emptyList(), tagInput = "", error = null) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val articles = articleRepo.getAll().first()
-                val existing = articles.find { article -> article.url == url }
+                val existing = articleRepo.findIntakeArticle(url)?.id?.let(articleRepo::getById)
                 if (existing != null) {
                     _state.update {
                         it.copy(

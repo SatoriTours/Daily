@@ -70,7 +70,7 @@ val appModule: Module = module {
     single<FavoriteSyncHttpLogger> { AsyncTaskHttpLogWriter(get()) }
     single { ClipboardMonitorService(androidContext()) }
     single { AsyncTaskScheduler(androidContext()) }
-    single { SaveArticleTaskHandler(get()) }
+    single { SaveArticleTaskHandler(get(), get()) }
     single { ArticleMemoryExtractTaskHandler(get(), get()) }
     single { RemoteArticleReprocessTaskHandler(get(), get()) }
     single { ArticlePostProcessingScheduler(androidContext(), get()) }
@@ -107,7 +107,7 @@ val appModule: Module = module {
             ),
         )
     }
-    single { ArticleProcessingScheduler(androidContext(), get(), get()) }
+    single { ArticleProcessingScheduler(androidContext(), get(), get(), get()) }
     single { ExternalFavoriteSyncScheduler(androidContext(), get(), get()) }
     single { SharedPreferencesXOAuthSessionStore(androidContext()) }
     single {
