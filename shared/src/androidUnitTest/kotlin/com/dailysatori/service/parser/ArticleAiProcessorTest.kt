@@ -19,6 +19,60 @@ import kotlin.test.*
 class ArticleAiProcessorTest {
     private val config = NormalizedAiConfigValues("https://example.com/v1", "test-key", "deepseek-flash", "deepseek")
 
+    @Test fun newsBriefSeparatesFactsAnalysisAndVerifiedSourceInOneRequest() = runBlocking {
+        withProcessor({ briefResponse() }) { processor, requests, _ ->
+            var summary = ""
+            processor.process(20, "10月5日，平台宣布故障恢复，根因报告尚未发布。", "平台故障恢复", config,
+                sourceUrl = "https://example.com/incident", onOverview = { summary = it.summary })
+            assertTrue(summary.startsWith("10月5日\n\n**新闻事实：**"))
+            assertTrue(summary.contains("**为什么重要（分析）：**"))
+            assertTrue(summary.contains("**工作／技术决策（分析）：**"))
+            assertTrue(summary.endsWith("来源：[原文](<https://example.com/incident>)"))
+            assertTrue(summary.contains("根因报告尚未发布"))
+            assertEquals(1, requests.size)
+        }
+    }
+
+    @Test fun nonNewsBriefUsesCoreContentAndDoesNotInventEventTime() = runBlocking {
+        withProcessor({ briefResponse(news = false, time = null) }) { processor, _, _ ->
+            var summary = ""
+            for (sourceUrl in listOf("", "javascript:alert(1)", "example.com/report")) {
+                processor.process(21, "技术文章讲解可靠处理流程。", "可靠处理", config,
+                    sourceUrl = sourceUrl, onOverview = { summary = it.summary })
+                assertFalse(summary.contains("来源："), "没有合法原文地址时不能构造来源链接")
+            }
+            assertTrue(summary.startsWith("**核心内容：**"))
+            assertFalse(summary.contains("新闻事实"))
+            assertFalse(summary.contains("10月5日"))
+            assertFalse(summary.contains("javascript:"))
+        }
+    }
+
+    @Test fun incompleteBriefAndModelInventedLinksAreNotPublished() = runBlocking {
+        for (response in listOf(briefResponse().replace("建议检查失败任务。", ""),
+            briefResponse().replace("建议检查失败任务。", "参考 https://invented.example/report"))) {
+            withProcessor({ response }) { processor, _, _ ->
+                var published = false
+                assertFailsWith<ArticleAiProcessingException> {
+                    processor.process(22, "平台恢复服务，根因未披露。", "恢复服务", config,
+                        onOverview = { published = true })
+                }
+                assertFalse(published)
+            }
+        }
+    }
+
+    @Test fun longArticleExtractsFactsBeforeProducingOneFinalAnalysis() = runBlocking {
+        withProcessor({ request ->
+            if (system(request).contains("只提取资料中的事实")) factsResponse() else briefResponse()
+        }) { processor, requests, _ ->
+            processor.process(23, "详细的技术事实。".repeat(1_000) + "\n\n末尾独有结论。", "长文", config)
+            val analyses = requests.filter { system(it).contains("工作／技术决策") }
+            assertEquals(1, analyses.size)
+            assertTrue(requests.count { system(it).contains("只提取资料中的事实") } >= 2)
+        }
+    }
+
     @Test fun translationKeepsCodeAndDestinationsAndRejectsMissingPlaceholders() {
         val source = "Read [docs](https://example.com/docs).\n\n```kotlin\nprintln(\"English code\")\n```\n\n![图](https://example.com/a.png)"
         val protected = protectArticleMarkdown(source)
@@ -95,7 +149,7 @@ class ArticleAiProcessorTest {
             val input = prompt(request)
             seen += input
             if (input.contains("末尾独有结论") && failLast) error("network failure")
-            overviewResponse()
+            if (system(request).contains("只提取资料中的事实")) factsResponse() else overviewResponse()
         }) { processor, _, createProcessor ->
             val source = "开始内容。".repeat(900) + "\n\n" + "中间内容。".repeat(900) + "\n\n末尾独有结论。"
             assertFailsWith<ArticleAiProcessingException> { processor.process(4, source, "长文", config) }
@@ -113,6 +167,36 @@ class ArticleAiProcessorTest {
             processor.process(5, "新版中文正文。", "标题", config)
             assertEquals(2, requests.size)
             assertTrue(prompt(requests.last()).contains("新版中文正文"))
+        }
+    }
+
+    @Test fun oldOverviewCheckpointIsRegeneratedWithNewFormat() = runBlocking {
+        val source = "中文正文。"
+        val fingerprint = com.dailysatori.service.externalfavorites.sha256Hex(
+            "article-v3\n$source\n标题\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
+        withProcessor({ overviewResponse() }, prepare = { settings ->
+            settings.upsert("article.ai.v3:24", buildJsonObject {
+                put("fingerprint", fingerprint)
+                put("overview", buildJsonObject { put("title", "旧版标题"); put("summary", "旧版普通摘要。") })
+            }.toString())
+        }) { processor, requests, _ ->
+            var summary = ""
+            processor.process(24, source, "标题", config, onOverview = { summary = it.summary })
+            assertEquals(1, requests.size)
+            assertTrue(summary.contains("工作／技术决策（分析）"))
+            assertFalse(summary.contains("旧版普通摘要"))
+        }
+    }
+
+    @Test fun changedSourceUrlDoesNotReuseTheOldSourceLink() = runBlocking {
+        withProcessor({ overviewResponse() }) { processor, requests, _ ->
+            var summary = ""
+            for (url in listOf("https://example.com/old", "https://example.com/new")) {
+                processor.process(25, "中文正文。", "标题", config, sourceUrl = url, onOverview = { summary = it.summary })
+            }
+            assertEquals(2, requests.size)
+            assertTrue(summary.contains("https://example.com/new"))
+            assertFalse(summary.contains("https://example.com/old"))
         }
     }
 
@@ -135,11 +219,13 @@ class ArticleAiProcessorTest {
 
     private suspend fun withProcessor(
         respondText: suspend (JsonObject) -> String,
+        prepare: (SettingRepository) -> Unit = {},
         test: suspend (ArticleAiProcessor, MutableList<JsonObject>, () -> ArticleAiProcessor) -> Unit,
     ) {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val settings = SettingRepository(DailySatoriDatabase(driver))
+            prepare(settings)
             val requests = mutableListOf<JsonObject>()
             HttpClient(MockEngine { request ->
                 val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
@@ -158,7 +244,16 @@ class ArticleAiProcessorTest {
         }
     }
 
-    private fun overviewResponse() = """{"title":"软件性能优化","summary":"保留正文事实并改善处理效率。"}"""
+    private fun overviewResponse() = briefResponse(news = false, time = null)
+    private fun factsResponse() = """{"title":"软件性能优化","summary":"保留正文事实并改善处理效率。"}"""
+    private fun briefResponse(news: Boolean = true, time: String? = "10月5日") = buildJsonObject {
+        put("title", "平台故障已恢复，先检查失败任务")
+        put("isNews", news)
+        put("eventTime", time?.let(::JsonPrimitive) ?: JsonNull)
+        put("facts", "平台宣布故障恢复，根因报告尚未发布。")
+        put("importance", "平台故障可能影响任务执行，具体影响仍需核查。")
+        put("decision", "建议检查失败任务。")
+    }.toString()
     private fun prompt(request: JsonObject) = request["messages"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
     private fun system(request: JsonObject) = request["messages"]!!.jsonArray.first().jsonObject["content"]!!.jsonPrimitive.content
 }

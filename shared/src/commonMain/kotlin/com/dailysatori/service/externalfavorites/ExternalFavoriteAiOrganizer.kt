@@ -210,7 +210,8 @@ class ExternalFavoriteAiOrganizer(
             processor.process(articleId, original, input.title,
                 com.dailysatori.service.parser.normalizeAiConfigValues(config.api_address, config.api_token, config.model_name, config.provider),
                 onOverview = { title = it.title; summary = it.summary }, onMarkdown = { markdown = it },
-                ensureCurrent = { if (articleRepo.getById(articleId) == null) throw CancellationException("文章已删除") })
+                ensureCurrent = { if (articleRepo.getById(articleId) == null) throw CancellationException("文章已删除") },
+                sourceUrl = input.canonicalUrl)
             return ExternalFavoriteAiAnalysis(title, summary, markdown)
         }
 

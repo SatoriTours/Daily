@@ -45,7 +45,7 @@ class ArticlePipelineRepositoryTest {
             HttpClient(MockEngine {
                 requests++
                 delay(30)
-                respondCompletion("""{"title":"文章处理优化","summary":"同一篇文章只处理一次。"}""")
+                respondOverview("文章处理优化", "同一篇文章只处理一次。")
             }).use { client ->
                 val service = parser(db, client)
                 (1..3).map { async { service.saveWebpage("https://example.com/article", null, null, null) } }.awaitAll()
@@ -70,7 +70,7 @@ class ArticlePipelineRepositoryTest {
                 val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
                 val system = body["messages"]!!.jsonArray.first().jsonObject["content"]!!.jsonPrimitive.content
                 assertFalse(system.contains("\"markdown\""))
-                respondCompletion("""{"title":"中文收藏处理优化","summary":"先保存完整正文，然后生成标题和摘要。"}""")
+                respondOverview("中文收藏处理优化", "先保存完整正文，然后生成标题和摘要。")
             }).use { client ->
                 val organizer = ExternalFavoriteAiOrganizer(items, articles, AiConfigService(AIConfigRepository(db, PlainCipher)),
                     AiService(client), settingRepo = SettingRepository(db))
@@ -78,6 +78,9 @@ class ArticlePipelineRepositoryTest {
                 assertEquals(1, requests)
                 val item = items.getBySourceExternalId(sourceId, "123")!!
                 assertEquals(original, articles.getById(item.article_id!!)?.ai_markdown_content?.substringAfter("## AI 整理")?.trim())
+                val summary = articles.getById(item.article_id!!)?.ai_content.orEmpty()
+                assertTrue(summary.contains("**核心内容：**"))
+                assertTrue(summary.contains("https://x.com/test/status/123"))
             }
         }
     }
@@ -100,7 +103,7 @@ class ArticlePipelineRepositoryTest {
             }
             HttpClient(MockEngine {
                 delay(60)
-                respondCompletion("""{"title":"文章处理优化","summary":"排队的文章也必须完成 AI 处理。"}""")
+                respondOverview("文章处理优化", "排队的文章也必须完成 AI 处理。")
             }).use { client ->
                 val service = parser(db, client)
                 ids.map { id -> async {
@@ -117,7 +120,7 @@ class ArticlePipelineRepositoryTest {
             HttpClient(MockEngine {
                 requests++
                 assertEquals("/v1/chat/completions", it.url.encodedPath)
-                respondCompletion("""{"title":"文章处理优化","summary":"全文先保存，再生成标题和摘要。"}""")
+                respondOverview("文章处理优化", "全文先保存，再生成标题和摘要。")
             }).use { client ->
                 articles.fillCoverImageUrlIfMissing(id, "https://example.com/cover.jpg")
                 parser(db, client, ArticleCoverScheduler { scheduled++ }).saveWebpage("https://example.com/article", null, null, null)
@@ -125,7 +128,8 @@ class ArticlePipelineRepositoryTest {
                 assertEquals("completed", saved.status)
                 assertEquals(original, saved.original_markdown_content)
                 assertEquals(original, saved.ai_markdown_content)
-                assertEquals("全文先保存，再生成标题和摘要。", saved.ai_content)
+                assertTrue(saved.ai_content.orEmpty().startsWith("**核心内容：** 全文先保存，再生成标题和摘要。"))
+                assertTrue(saved.ai_content.orEmpty().endsWith("来源：[原文](<https://example.com/article>)"))
                 assertEquals(1, requests)
                 assertEquals(1, scheduled)
                 assertNull(saved.cover_image)
@@ -152,7 +156,7 @@ class ArticlePipelineRepositoryTest {
         withArticle { db, articles, id, _ ->
             HttpClient(MockEngine {
                 articles.updateOriginalMarkdownContent(id, "新版正文，旧任务不能覆盖。")
-                respondCompletion("""{"title":"旧版标题","summary":"旧版摘要。"}""")
+                respondOverview("旧版标题", "旧版摘要。")
             }).use { client ->
                 assertFailsWith<CancellationException> {
                     parser(db, client).saveWebpage("https://example.com/article", null, null, null)
@@ -201,6 +205,14 @@ class ArticlePipelineRepositoryTest {
             put("finish_reason", "stop")
         }) })
     }.toString(), headers = headersOf(HttpHeaders.ContentType, "application/json"))
+
+    private fun MockRequestHandleScope.respondOverview(title: String, facts: String) = respondCompletion(buildJsonObject {
+        put("title", title)
+        put("facts", facts)
+        put("importance", "保存的原文可在处理过程中阅读。")
+        put("decision", "可先阅读原文，再查看处理结果。")
+        put("isNews", false)
+    }.toString())
 
     private object PlainCipher : SecretValueCipher {
         override fun encrypt(value: String) = value

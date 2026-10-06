@@ -28,16 +28,26 @@ class ArticleAiLiveTest {
             HttpClient(OkHttp) { install(HttpTimeout) { requestTimeoutMillis = 120_000; connectTimeoutMillis = 15_000 } }.use { client ->
                 val processor = ArticleAiProcessor(AiService(client), SettingRepository(DailySatoriDatabase(driver)))
                 var overview: ArticleAiOverview? = null
-                val chinese = "# 文章处理优化\n\n中文文章先完整保存原文，再生成标题和摘要。英文文章需要翻译全文。封面独立下载，不影响正文阅读。"
+                val chinese = "# 示例云服务故障恢复公告\n\n10月5日22:49 UTC，示例云服务宣布服务故障已恢复。" +
+                    "故障期间定时任务可能失败，用户应核查并补跑必要任务。根因报告尚未发布，不能认定事故由 AI 负载引起。"
                 var markdown = ""
-                processor.process(1, chinese, "文章处理优化", config, onOverview = { overview = it }, onMarkdown = { markdown = it })
-                assertNotNull(overview)
+                processor.process(1, chinese, "示例云服务故障恢复公告", config, sourceUrl = "https://example.com/incident",
+                    onOverview = { overview = it }, onMarkdown = { markdown = it })
+                val news = assertNotNull(overview).summary
+                assertTrue(news.contains("**新闻事实：**"))
+                assertTrue(news.contains("10月5日"))
+                assertTrue(news.contains("根因"))
+                assertTrue(news.contains("**为什么重要（分析）：**"))
+                assertTrue(news.contains("**工作／技术决策（分析）：**"))
+                assertTrue(news.endsWith("来源：[原文](<https://example.com/incident>)"))
                 assertEquals(chinese, markdown)
                 val english = "# Reliable article processing\n\nSave the complete original article before generating a summary. " +
                     "Download the cover independently so readers can read immediately. Never discard the end of a long article.\n\n" +
                     "See [documentation](https://example.com/docs).\n\n```kotlin\nval attempts = 2\nprintln(attempts)\n```\n\n" +
                     "![Architecture](https://example.com/diagram.png)"
-                processor.process(2, english, "Reliable article processing", config, onOverview = { overview = it }, onMarkdown = { markdown = it })
+                processor.process(2, english, "Reliable article processing", config, sourceUrl = "https://example.com/article",
+                    onOverview = { overview = it }, onMarkdown = { markdown = it })
+                assertTrue(assertNotNull(overview).summary.contains("**核心内容：**"))
                 assertTrue(markdown.contains("https://example.com/docs"))
                 assertTrue(markdown.contains("https://example.com/diagram.png"))
                 assertTrue(markdown.contains("val attempts = 2\nprintln(attempts)"))

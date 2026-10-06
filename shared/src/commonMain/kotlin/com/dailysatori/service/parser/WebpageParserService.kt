@@ -863,6 +863,7 @@ class WebpageParserService(
                 },
                 onProgress = { setProcessingState(articleId, "aiProcessing", it) },
                 ensureCurrent = { ensureSourceCurrent(articleId, sourceSnapshot) },
+                sourceUrl = article.url.orEmpty(),
             )
             ensureSourceCurrent(articleId, sourceSnapshot)
             articleRepo.updateStatusIfOriginalMatches(articleId, sourceSnapshot, "completed")
@@ -1253,7 +1254,7 @@ class WebpageParserService(
     }
 }
 
-private const val REMOTE_PROCESSING_VERSION = "article-general-v3"
+private const val REMOTE_PROCESSING_VERSION = "article-general-v4"
 
 internal fun WebViewPageContent.summaryTextOrHtmlFallback(): String {
     val readable = readableContent.orEmpty().trim()
