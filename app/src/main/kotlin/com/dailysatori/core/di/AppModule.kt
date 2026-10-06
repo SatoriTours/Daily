@@ -49,6 +49,7 @@ import com.dailysatori.service.reminder.ReminderAiInterpretationRemote
 import com.dailysatori.service.reminder.ReminderBatchCodec
 import com.dailysatori.service.lifearchive.*
 import com.dailysatori.core.lifearchive.EncryptedLifeArchiveRepository
+import com.dailysatori.service.backup.LifeArchiveBackup
 import com.dailysatori.ui.feature.settings.reminder.AndroidReminderDeliveryAccessChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,13 +58,15 @@ import kotlinx.datetime.Clock
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import org.koin.dsl.binds
 import java.io.File
 
 val appModule: Module = module {
     single { com.dailysatori.core.bookkeeping.BookkeepingCaptureMonitor() }
     single { com.dailysatori.core.bookkeeping.PhoneNotificationIdentity(get()) }
-    single<LifeArchiveRepository> { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }
-    single<com.dailysatori.service.backup.LifeArchiveBackup> { get<LifeArchiveRepository>() as EncryptedLifeArchiveRepository }
+    // One factory owns both interfaces, even if R8 merges their class literals in release builds.
+    single { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }
+        .binds(arrayOf(LifeArchiveRepository::class, LifeArchiveBackup::class))
     single { LifeArchiveAiService(get(), get()) }
     single<LifeArchiveAi> { get<LifeArchiveAiService>() }
     single<LifeArchiveReminderSource> { RepositoryLifeArchiveReminderSource(get()) }
