@@ -37,3 +37,25 @@ build/
 local.properties
 ai-test.local.json
 /.local/
+
+# Distribution outputs (APK, manifests and generated release notes)
+dist/
+*.apk
+*.aab
+*.apks
+
+# Python caches and local environments
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.coverage
+.coverage.*
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+*~
