@@ -150,6 +150,10 @@ val sharedModule: Module = module {
     single { ImageRepository(get()) }
     single { IdeaTopicRepository(get()) }
     single { com.dailysatori.service.ideatopic.IdeaTopicService(get()) }
+    single<com.dailysatori.service.ideatopic.IdeaTopicAiPort> {
+        com.dailysatori.service.ideatopic.IdeaTopicAiService(get(), get(), get())
+    }
+    single { com.dailysatori.service.ideatopic.IdeaTopicAiWorkflow(get(), get()) }
     single { MemoryRepository(get()) }
     single { RemoteArticleSyncRepository(get()) }
     single { ReminderRepository(get()) }

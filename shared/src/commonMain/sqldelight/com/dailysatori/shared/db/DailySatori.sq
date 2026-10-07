@@ -2571,3 +2571,7 @@ DELETE FROM idea_topic_message WHERE id = ?;
 
 deleteIdeaTopic:
 DELETE FROM idea_topic WHERE id = ?;
+
+markIdeaTopicSummaryNeedsUpdate:
+UPDATE idea_topic_session SET summary_status = 'needs_update', updated_at = ?
+WHERE id = ? AND summary_status = 'ready';

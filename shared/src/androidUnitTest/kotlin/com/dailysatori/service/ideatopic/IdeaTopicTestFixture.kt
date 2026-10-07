@@ -12,6 +12,8 @@ class IdeaTopicTestFixture {
     val db: DailySatoriDatabase
     val repository: IdeaTopicRepository
     val service: IdeaTopicService
+    val aiPort = IdeaTopicAiPortFake()
+    val workflow: IdeaTopicAiWorkflow
     var clockMs: Long = 1_000L
     private var idSeq: Int = 0
 
@@ -20,9 +22,15 @@ class IdeaTopicTestFixture {
         db = DailySatoriDatabase(driver)
         repository = IdeaTopicRepository(db)
         service = IdeaTopicService(repository, now = { clockMs }, newId = { nextId() })
+        workflow = IdeaTopicAiWorkflow(service, aiPort, newId = { nextId("ai") })
     }
 
     fun nextId(prefix: String = "gen"): String = "$prefix-${++idSeq}"
+
+    /** Advances the controllable clock so message/event order is deterministic. */
+    fun tick(milliseconds: Long = 1L) {
+        clockMs += milliseconds
+    }
 
     fun peekNextId(prefix: String = "gen"): String = "$prefix-${idSeq + 1}"
 

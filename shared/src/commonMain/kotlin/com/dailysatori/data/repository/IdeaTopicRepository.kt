@@ -98,6 +98,9 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
     fun getSessionRowSync(sessionId: String): Idea_topic_session? =
         q.selectIdeaTopicSessionById(sessionId).executeAsOneOrNull()
 
+    fun getSessionSync(sessionId: String): IdeaTopicSession? =
+        q.selectIdeaTopicSessionById(sessionId).executeAsOneOrNull()?.let(::toSession)
+
     /** Owner topic currently holding the source key, without resolving the merge chain. */
     fun findBySourceSync(key: IdeaSourceKey): String? =
         q.selectIdeaTopicSourceByKey(key.type, key.recordId).executeAsOneOrNull()?.topic_id
@@ -460,6 +463,15 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
 
     fun updateSessionSummaryStatus(sessionId: String, status: String, now: Long) {
         q.updateIdeaTopicSessionSummaryStatus(summary_status = status, updated_at = now, id = sessionId)
+    }
+
+    /** Marks a ready summary as outdated after the conversation continues. */
+    fun markSummaryNeedsUpdateIfReady(sessionId: String, now: Long) {
+        q.markIdeaTopicSummaryNeedsUpdate(updated_at = now, id = sessionId)
+    }
+
+    fun bumpRevision(topicId: String, now: Long) = q.transactionWithResult {
+        bumpRevisionInternal(topicId, now)
     }
 
     fun updateSessionTitle(sessionId: String, title: String, now: Long) {
