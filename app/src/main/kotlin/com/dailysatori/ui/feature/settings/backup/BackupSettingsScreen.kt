@@ -28,6 +28,7 @@ import org.koin.androidx.compose.koinViewModel
 fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
     val viewModel: BackupSettingsViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val busy = state.isBackingUp || state.isSavingDirectory
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     val grouped = LocalSettingsGroupNavigation.current != null
@@ -36,12 +37,12 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
         uri?.let { viewModel.saveBackupDirectory(it, activity) }
     }
     AppScaffold(title = "备份与恢复", onBack = onBack, useGroupNavigation = true,
-        navigationBusy = state.isBackingUp,
+        navigationBusy = busy,
         bottomBar = {
-            Button(onClick = viewModel::startBackup, enabled = !state.isBackingUp,
+            Button(onClick = viewModel::startBackup, enabled = !busy,
                 modifier = Modifier.fillMaxWidth().padding(Spacing.m).heightIn(min = Height.button),
                 shape = RoundedCornerShape(Radius.l)) {
-                if (state.isBackingUp) CircularProgressIndicator(Modifier.size(IconSize.m),
+                if (busy) CircularProgressIndicator(Modifier.size(IconSize.m),
                     strokeWidth = BorderWidth.l, color = MaterialTheme.colorScheme.onPrimary)
                 else {
                     Icon(Icons.Default.Backup, null)
@@ -56,7 +57,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
             SettingsSectionCard(i18n.t("settings_design.backup_location")) {
                 SettingsRow(Icons.Default.Folder, i18n.t("settings_design.backup_directory"),
                     state.backupDirectory.ifBlank { i18n.t("settings_design.choose_directory_hint") },
-                    onClick = { directoryPicker.launch(null) }, enabled = !state.isBackingUp, showDivider = false)
+                    onClick = { directoryPicker.launch(null) }, enabled = !busy, showDivider = false)
             }
             SettingsSectionCard(i18n.t("settings_design.backup_encryption")) {
                 Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -66,8 +67,8 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                         modifier = Modifier.fillMaxWidth(), label = { Text(i18n.t("settings_design.backup_password")) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        singleLine = true, enabled = !state.isBackingUp)
-                    OutlinedButton(onClick = viewModel::saveBackupPassword, enabled = !state.isBackingUp,
+                        singleLine = true, enabled = !busy)
+                    OutlinedButton(onClick = viewModel::saveBackupPassword, enabled = !busy,
                         modifier = Modifier.fillMaxWidth().heightIn(min = Height.button)) { Text(i18n.t("settings_design.save_backup_password")) }
                 }
             }
@@ -75,7 +76,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
             state.message?.let { SettingsEditorMessage(it, isError = false) }
             if (state.isBackingUp) LinearProgressIndicator(progress = { state.backupProgress },
                 modifier = Modifier.fillMaxWidth())
-            if (!grouped) OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text(i18n.t("settings_design.restore_backup")) }
+            if (!grouped) OutlinedButton(onClick = onRestore, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(i18n.t("settings_design.restore_backup")) }
         }
     }
 }
