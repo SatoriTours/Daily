@@ -18,7 +18,7 @@ class IdeaTopicService(
 ) {
     private val writeLock = Mutex()
 
-    val writeMutex: Mutex get() = writeLock
+    private val activeRequestTopics = mutableSetOf<String>()
 
     // ---------- Reads ----------
 
@@ -74,6 +74,59 @@ class IdeaTopicService(
     private fun validateSnapshot(snapshot: IdeaSourceSnapshot) {
         if (snapshot.key.type.isBlank() || snapshot.key.recordId.isBlank()) {
             throw IdeaTopicException(IdeaTopicError.InvalidInput)
+        }
+    }
+
+    // ---------- Lifecycle ----------
+
+    suspend fun updateContent(topicId: String, content: IdeaTopicContent) = writeLock.withLock {
+        val main = repository.resolveMainTopicIdSync(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        val trimmed = content.copy(title = content.title.trim())
+        if (trimmed.title.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidInput)
+        assertNotBusy(main)
+        repository.updateContent(main, trimmed, newId(), now())
+    }
+
+    suspend fun setStatus(topicId: String, status: IdeaTopicStatus) = writeLock.withLock {
+        val main = repository.resolveMainTopicIdSync(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        assertNotBusy(main)
+        repository.changeStatus(main, status, newId(), now())
+    }
+
+    suspend fun appendProgress(topicId: String, text: String) = writeLock.withLock {
+        val main = repository.resolveMainTopicIdSync(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        val trimmed = text.trim()
+        if (trimmed.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidInput)
+        assertNotBusy(main)
+        repository.appendProgress(main, trimmed, newId(), now())
+    }
+
+    /** Merges [fromTopicId] into the main topic behind [intoTopicId] and returns the final target id. */
+    suspend fun merge(fromTopicId: String, intoTopicId: String): String = writeLock.withLock {
+        val fromRow = repository.getTopicRowSync(fromTopicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        val intoMain = repository.resolveMainTopicIdSync(intoTopicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        if (fromRow.merged_into_topic_id != null) throw IdeaTopicException(IdeaTopicError.AlreadyMerged)
+        if (fromTopicId == intoMain) {
+            if (fromTopicId == intoTopicId) throw IdeaTopicException(IdeaTopicError.InvalidInput)
+            throw IdeaTopicException(IdeaTopicError.MergeCycle)
+        }
+        assertNotBusy(fromTopicId)
+        assertNotBusy(intoMain)
+        repository.merge(fromTopicId, intoMain, newId(), now())
+        intoMain
+    }
+
+    /** Deletes the main topic together with everything merged into it. Original entries stay untouched. */
+    suspend fun delete(topicId: String) = writeLock.withLock {
+        val main = repository.resolveMainTopicIdSync(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        assertNotBusy(main)
+        repository.deleteComponent(main)
+    }
+
+    private fun assertNotBusy(topicId: String) {
+        if (topicId in activeRequestTopics) throw IdeaTopicException(IdeaTopicError.Busy)
+        repository.componentTopicIdsSync(topicId).forEach { componentId ->
+            if (componentId in activeRequestTopics) throw IdeaTopicException(IdeaTopicError.Busy)
         }
     }
 }

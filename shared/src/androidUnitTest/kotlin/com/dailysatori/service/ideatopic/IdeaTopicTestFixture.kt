@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
+import kotlinx.serialization.json.Json
 
 /** Real in-memory database with a controllable clock and deterministic IDs. */
 class IdeaTopicTestFixture {
@@ -22,6 +23,36 @@ class IdeaTopicTestFixture {
     }
 
     fun nextId(prefix: String = "gen"): String = "$prefix-${++idSeq}"
+
+    fun peekNextId(prefix: String = "gen"): String = "$prefix-${idSeq + 1}"
+
+    fun insertSourceDirect(
+        topicId: String,
+        sourceId: String,
+        snapshot: IdeaSourceSnapshot,
+        capturedAt: Long = clockMs,
+    ) {
+        db.dailySatoriQueries.insertIdeaTopicSource(
+            id = sourceId,
+            topic_id = topicId,
+            original_topic_id = topicId,
+            source_type = snapshot.key.type,
+            source_record_id = snapshot.key.recordId,
+            snapshot_json = json.encodeToString(IdeaSourceSnapshot.serializer(), snapshot),
+            captured_at = capturedAt,
+            created_at = capturedAt,
+            updated_at = capturedAt,
+        )
+    }
+
+    fun insertReminderDirect(id: String, content: String) {
+        db.dailySatoriQueries.insertReminder(
+            id, content, "", "ACTIVE", "2026-09-01", "2026-09-01", "09:00", "daily", "once", "UTC",
+            "{}", 0, null, 0, null, null, null, null, 1, 1,
+        )
+    }
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     fun createDiary(content: String, createdAt: Long = clockMs, tags: String? = null): Long {
         db.dailySatoriQueries.insertDiary(content, tags, null, null, createdAt, createdAt)

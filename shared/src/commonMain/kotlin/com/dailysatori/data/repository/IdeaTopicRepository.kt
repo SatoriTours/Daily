@@ -333,10 +333,11 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             ?: throw IdeaTopicException(IdeaTopicError.NotFound)
 
         val duplicateSnapshots = mutableListOf<IdeaSourceSnapshot>()
+        val targetKeys = q.selectIdeaTopicSourcesByTopic(intoTopicId).executeAsList()
+            .map { it.source_type to it.source_record_id }
+            .toSet()
         q.selectIdeaTopicSourcesByTopic(fromTopicId).executeAsList().forEach { source ->
-            val conflict = q.selectIdeaTopicSourceByKey(source.source_type, source.source_record_id)
-                .executeAsOneOrNull()
-            if (conflict != null && conflict.topic_id != fromTopicId) {
+            if ((source.source_type to source.source_record_id) in targetKeys) {
                 decodeOrNull<IdeaSourceSnapshot>(source.snapshot_json)?.let { duplicateSnapshots += it }
                 q.deleteIdeaTopicSource(source.id)
             } else {
