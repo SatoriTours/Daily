@@ -12,6 +12,37 @@ import com.dailysatori.service.security.SecretValueCipher
 
 /** Operates only on the backup copy, never on the running app's database. */
 internal class BackupDatabaseData(private val driver: SqlDriver) {
+    fun checkBackupDatabase() {
+        check(strings("PRAGMA integrity_check") == listOf("ok")) { "数据库完整性检查失败" }
+        check(strings("PRAGMA foreign_key_check").isEmpty()) { "数据库关联完整性检查失败" }
+        val tables = schemaColumns().keys
+        check(tables.containsAll(listOf("setting", "diary", "article", "book", "image"))) { "备份不是完整的应用数据库" }
+        val version = SettingRepository(DailySatoriDatabase(driver)).get(SettingKeys.schemaVersion)
+        check(version == null || version.toLongOrNull()?.let { it in 0..DatabaseConfig.currentSchemaVersion } == true) {
+            "备份数据库版本无效或较新"
+        }
+    }
+
+    fun schemaColumns(): Map<String, Set<String>> =
+        strings("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> 'android_metadata'")
+            .associateWith { table -> strings("SELECT name FROM pragma_table_info('${table.replace("'", "''")}')").toSet() }
+
+    fun verifiedSummary(expectedSchema: Map<String, Set<String>>): Map<String, Long> {
+        val actual = schemaColumns()
+        expectedSchema.forEach { (table, columns) ->
+            check(actual[table]?.containsAll(columns) == true) { "备份数据库缺少应用所需的表或字段" }
+        }
+        checkBackupDatabase()
+        // Read every application table, not merely the SQLite header or schema.
+        val counts = expectedSchema.keys.associateWith { table ->
+            driver.executeQuery(null, "SELECT COUNT(*) FROM \"${table.replace("\"", "\"\"")}\"", { cursor ->
+                check(cursor.next().value)
+                QueryResult.Value(checkNotNull(cursor.getLong(0)))
+            }, 0).value
+        }
+        return counts.filterKeys { it in setOf("diary", "article", "book", "bookkeeping_entry", "reminder", "setting") }
+    }
+
     fun prepareSecrets(cipher: SecretValueCipher) {
         val settings = SettingRepository(DailySatoriDatabase(driver))
         val version = settings.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0

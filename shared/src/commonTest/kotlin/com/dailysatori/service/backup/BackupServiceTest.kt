@@ -3,6 +3,7 @@ package com.dailysatori.service.backup
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -17,6 +18,182 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 
 class BackupServiceTest {
+    @Test
+    fun verificationChecksLatestBackupWithoutStagingRestartingOrChangingLiveData() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.databasePathValue, "live database")
+        fixture.files.seedFile("/app/images/live.jpg", "live photo")
+        fixture.files.seedRestorableBackup("daily_satori_backup_2026-05-20-12-00-00.zip.enc", "old password")
+        val name = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
+        fixture.files.seedCurrentBackup(name)
+
+        val result = fixture.service.verifyLatestBackup()
+
+        assertEquals(BackupVerificationStatus.PASSED, result.status)
+        assertEquals(name, result.fileName)
+        assertEquals(BackupVerificationStage.COMPLETE, result.stage)
+        assertEquals("live database", fixture.files.readText(fixture.files.databasePathValue))
+        assertEquals("live photo", fixture.files.readText("/app/images/live.jpg"))
+        assertFalse(fixture.files.exists("/pending"))
+        assertFalse(fixture.files.restartCalled)
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+        assertNull(fixture.settings[SettingKeys.lastBackupTime])
+        assertTrue(fixture.files.deletedBackups.isEmpty())
+        assertFalse(fixture.service.isBackingUp.value)
+    }
+
+    @Test
+    fun brokenLatestBackupNeverFallsBackToAnOlderGoodBackup() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-20-12-00-00.zip.enc")
+        val latest = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
+        fixture.files.seedCurrentBackup(latest, damaged = true)
+
+        val result = fixture.service.verifyLatestBackup()
+
+        assertEquals(BackupVerificationStatus.FAILED, result.status)
+        assertEquals(latest, result.fileName)
+        assertEquals(BackupVerificationStage.FILES, result.stage)
+        assertTrue(fixture.secrets.preparedRestoredDatabases.isEmpty())
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test
+    fun wrongPasswordCanBeRetriedWithoutSavingIt() = runBlocking {
+        val fixture = backupFixture()
+        val name = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
+        fixture.files.seedCurrentBackup(name, password = "previous password")
+        val failed = fixture.service.verifyLatestBackup()
+        assertEquals(BackupVerificationStage.DECRYPTING, failed.stage)
+        assertEquals(BackupVerificationStatus.FAILED, failed.status)
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+
+        assertEquals(BackupVerificationStatus.PASSED,
+            fixture.service.verifyLatestBackup("previous password", name).status)
+        // The stored password is still used by the next ordinary verification.
+        assertEquals(BackupVerificationStatus.FAILED, fixture.service.verifyLatestBackup().status)
+    }
+
+    @Test
+    fun retryDoesNotSilentlyTestADifferentNewerFile() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        val result = fixture.service.verifyLatestBackup("previous password", "daily_satori_backup_2026-05-20-12-00-00.zip.enc")
+        assertEquals(BackupVerificationStatus.INCOMPLETE, result.status)
+        assertEquals(BackupVerificationIssue.BACKUP_CHANGED, result.issue)
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test
+    fun legacyBackupOnlyReceivesLimitedValidation() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedRestorableBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc", "correct horse battery")
+        val result = fixture.service.verifyLatestBackup()
+        assertEquals(BackupVerificationStatus.LIMITED, result.status)
+        assertFalse(fixture.files.exists("/pending"))
+        assertFalse(fixture.files.restartCalled)
+    }
+
+    @Test
+    fun missingDirectoryOrBackupCannotBeReportedAsPassed() = runBlocking {
+        val fixture = backupFixture()
+        assertEquals(BackupVerificationIssue.NO_BACKUP, fixture.service.verifyLatestBackup().issue)
+        fixture.settings.remove(SettingKeys.backupDir)
+        assertEquals(BackupVerificationIssue.NO_DIRECTORY, fixture.service.verifyLatestBackup().issue)
+        assertFalse(fixture.service.isBackingUp.value)
+    }
+
+    @Test
+    fun missingPasswordIsIncompleteInsteadOfCorruption() = runBlocking {
+        val fixture = backupFixture(password = null)
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        val result = fixture.service.verifyLatestBackup()
+        assertEquals(BackupVerificationStatus.INCOMPLETE, result.status)
+        assertEquals(BackupVerificationIssue.NO_PASSWORD, result.issue)
+    }
+
+    @Test
+    fun cancellationCleansPlaintextAndReleasesOperationLock() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        fixture.secrets.onPrepare = { throw kotlinx.coroutines.CancellationException("cancel") }
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { fixture.service.verifyLatestBackup() }
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+        assertFalse(fixture.service.isBackingUp.value)
+        fixture.secrets.onPrepare = null
+        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup().status)
+    }
+
+    @Test
+    fun concurrentBackupRestoreAndVerificationCannotInterruptAnActiveCheck() = runBlocking {
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val fixture = backupFixture(life = object : LifeArchiveBackup {
+            override suspend fun exportSnapshot() = "{\"records\":[]}"
+            override suspend fun prepareRestore(snapshot: String): ByteArray {
+                entered.complete(Unit)
+                release.await()
+                return "secured".encodeToByteArray()
+            }
+        })
+        val name = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
+        fixture.files.seedCurrentBackup(name)
+        val first = async { fixture.service.verifyLatestBackup() }
+        entered.await()
+        assertTrue(fixture.service.isBackingUp.value)
+        assertEquals(BackupVerificationIssue.BUSY, fixture.service.verifyLatestBackup().issue)
+        assertFalse(fixture.service.backupNow())
+        assertFalse(fixture.service.restore(name, "correct horse battery"))
+        assertTrue(fixture.service.isBackingUp.value)
+        release.complete(Unit)
+        assertEquals(BackupVerificationStatus.PASSED, first.await().status)
+        assertFalse(fixture.service.isBackingUp.value)
+        assertFalse(fixture.files.exists("/pending"))
+    }
+
+    @Test
+    fun directoryAccessFailureIsNotMisreportedAsAnEmptyBackupList() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.failList = true
+        val result = fixture.service.verifyLatestBackup()
+        assertEquals(BackupVerificationStatus.FAILED, result.status)
+        assertEquals(BackupVerificationStage.SELECTING, result.stage)
+        assertFalse(fixture.service.isBackingUp.value)
+    }
+
+    @Test
+    fun unreadableLatestFileFailsWithoutTryingOlderFiles() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        fixture.files.failRead = true
+        assertEquals(BackupVerificationStage.READING, fixture.service.verifyLatestBackup().stage)
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test
+    fun cleanupFailurePreventsReportingAPassAndCanBeRetried() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        fixture.secrets.onPrepare = { fixture.files.failCleanup = true }
+        val result = fixture.service.verifyLatestBackup()
+        assertEquals(BackupVerificationStatus.FAILED, result.status)
+        assertEquals(BackupVerificationStage.CLEANUP, result.stage)
+        fixture.secrets.onPrepare = null
+        fixture.files.failCleanup = false
+        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup().status)
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test
+    fun invalidCalendarDatesAndUnrelatedFilenamesAreNotConsideredLatest() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedBackup("daily_satori_backup_2026-99-99-00-00-00.zip.enc")
+        fixture.files.seedBackup("zzz.zip.enc")
+        val name = "daily_satori_backup_2026-05-21-12-00-00_hint_abc.zip.enc"
+        fixture.files.seedCurrentBackup(name)
+        assertEquals(name, fixture.service.verifyLatestBackup().fileName)
+    }
+
     @Test
     fun legacyBackupStagesAndReportsThatLifeArchiveWasNotIncluded() = runBlocking {
         val fixture = backupFixture()
@@ -407,7 +584,10 @@ class BackupServiceTest {
     }
 }
 
-private fun backupFixture(password: String? = "correct horse battery"): BackupFixture {
+private fun backupFixture(password: String? = "correct horse battery", life: LifeArchiveBackup = object : LifeArchiveBackup {
+    override suspend fun exportSnapshot() = "{\"categories\":[],\"records\":[]}"
+    override suspend fun prepareRestore(snapshot: String) = "encrypted:$snapshot".encodeToByteArray()
+}): BackupFixture {
     val files = FakeBackupFiles()
     val settings = mutableMapOf(SettingKeys.backupDir to "content://selected-backup-dir")
     val passwords = FakeBackupPasswords(password)
@@ -418,11 +598,7 @@ private fun backupFixture(password: String? = "correct horse battery"): BackupFi
         settings = settings,
         secrets = secrets,
         clock = clock,
-        service = BackupService(files, FakeBackupSettings(settings), passwords, secrets, clock,
-            object : LifeArchiveBackup {
-                override suspend fun exportSnapshot() = "{\"categories\":[],\"records\":[]}"
-                override suspend fun prepareRestore(snapshot: String) = "encrypted:$snapshot".encodeToByteArray()
-            }),
+        service = BackupService(files, FakeBackupSettings(settings), passwords, secrets, clock, life),
     )
 }
 
@@ -456,14 +632,18 @@ private class FakeBackupPasswords(private val value: String?) : BackupPasswords 
 private class FakeBackupSecrets : BackupSecrets {
     val decryptedBackupDatabases = mutableListOf<String>()
     val preparedRestoredDatabases = mutableListOf<String>()
+    var onPrepare: (() -> Unit)? = null
 
     override fun decryptSecretsForBackup(databasePath: String) {
         decryptedBackupDatabases += databasePath
     }
 
     override fun prepareRestoredSecrets(databasePath: String) {
+        onPrepare?.invoke()
         preparedRestoredDatabases += databasePath
     }
+    override fun checkBackupDatabase(databasePath: String) = Unit
+    override fun backupDatabaseSummary(databasePath: String) = emptyMap<String, Long>()
     override fun requiredUserFiles(databasePath: String, appDataDir: String) = emptyList<String>()
     override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>) = Unit
 }
@@ -483,6 +663,9 @@ private class FakeBackupFiles : BackupFiles {
     var failWrite = false
     var failDelete = false
     var hideWrittenBackups = false
+    var failList = false
+    var failRead = false
+    var failCleanup = false
 
     private val files = mutableMapOf<String, String>()
     private val directories = mutableSetOf("/cache", appDataDirPath, imagesDirPath, diaryImagesDirPath)
@@ -496,6 +679,18 @@ private class FakeBackupFiles : BackupFiles {
     }
 
     fun readText(path: String): String = files.getValue(path)
+
+    fun seedCurrentBackup(name: String, password: String = "correct horse battery", damaged: Boolean = false) {
+        val life = "{\"categories\":[],\"records\":[]}"
+        val manifest = BackupManifest(schemaVersion = DatabaseConfig.currentSchemaVersion, sourceAppDataDir = "/app", files = listOf(
+            BackupManifestFile("daily_satori.db", 11, "restored-db"),
+            BackupManifestFile("life_archive.json", life.length.toLong(), life),
+        ))
+        seedRestorableBackup(name, password, extraFiles = mapOf(
+            "life_archive.json" to if (damaged) "broken" else life,
+            "manifest.json" to Json.encodeToString(manifest),
+        ))
+    }
 
     fun seedBackup(name: String) {
         directoryBackups.getValue("content://selected-backup-dir")[name] = "old-backup"
@@ -529,6 +724,7 @@ private class FakeBackupFiles : BackupFiles {
     }
 
     override fun deleteFile(path: String): Boolean {
+        check(!failCleanup || path != "/cache/verify_temp") { "Cannot remove private temporary directory" }
         val existed = files.remove(path) != null || directories.remove(path)
         files.keys.filter { it.startsWith("$path/") }.toList().forEach { files.remove(it) }
         directories.filter { it.startsWith("$path/") }.toList().forEach { directories.remove(it) }
@@ -586,9 +782,11 @@ private class FakeBackupFiles : BackupFiles {
         seedFile(outputPath, "zip:$backupName")
     }
 
-    override fun listBackupFilesInDirectory(uri: String): List<String> =
-        directoryBackups[uri]?.keys?.sortedDescending().orEmpty()
+    override fun listBackupFilesInDirectory(uri: String): List<String> {
+        check(!failList) { "Directory permission denied" }
+        return directoryBackups[uri]?.keys?.sortedDescending().orEmpty()
             .filterNot { hideWrittenBackups && it in writtenBackups.map { backup -> backup.name } }
+    }
 
     override fun writeFileToDirectory(uri: String, name: String, sourcePath: String): String {
         check(!failWrite) { "Could not write backup" }
@@ -598,6 +796,7 @@ private class FakeBackupFiles : BackupFiles {
     }
 
     override fun readFileFromDirectory(uri: String, name: String, destPath: String): Boolean {
+        if (failRead) return false
         val content = directoryBackups[uri]?.get(name) ?: return false
         seedFile(destPath, content)
         return true

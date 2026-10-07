@@ -103,31 +103,61 @@ actual class FileManager actual constructor() {
 
     actual fun extractZip(zipPath: String, destDir: String, progress: (Double) -> Unit) {
         val dest = File(destDir)
-        if (!dest.exists()) dest.mkdirs()
+        check(dest.isDirectory || dest.mkdirs()) { "无法创建解压目录" }
         java.util.zip.ZipFile(zipPath).use { zip ->
-            val total = zip.entries().asSequence().filter { !it.isDirectory }.sumOf { it.size.coerceAtLeast(0) }.coerceAtLeast(1)
-            var processed = 0L
-            zip.entries().asSequence().forEach { entry ->
+            require(zip.size() <= 100_000) { "备份包含过多文件" }
+            val targets = mutableSetOf<String>()
+            val entries = zip.entries().asSequence().map { entry ->
                 val file = File(dest, entry.name)
-                require('\\' !in entry.name && !File(entry.name).isAbsolute && isPathWithinDirectory(dest.path, file.path) && file.canonicalFile != dest.canonicalFile) {
-                    "备份包含非法文件路径"
+                val parts = entry.name.removeSuffix("/").split('/')
+                require('\\' !in entry.name && !File(entry.name).isAbsolute &&
+                    parts.none { it.isBlank() || it == "." || it == ".." } &&
+                    isPathWithinDirectory(dest.path, file.path) && targets.add(file.canonicalPath)) {
+                    "备份包含非法或重复文件路径"
                 }
-                if (entry.isDirectory) {
-                    file.mkdirs()
-                } else {
-                    file.parentFile?.mkdirs()
-                    ProgressInputStream(zip.getInputStream(entry), entry.size.coerceAtLeast(1)) { fraction ->
-                        progress(((processed + fraction * entry.size.coerceAtLeast(0)) / total).coerceIn(0.0, 1.0))
-                    }.use { input ->
-                        file.outputStream().buffered(DefaultBufferSize).use { output ->
-                            input.copyTo(output, DefaultBufferSize)
-                        }
+                require(if (entry.isDirectory) entry.size == 0L && entry.crc == 0L else entry.size >= 0 && entry.crc >= 0) {
+                    "备份文件长度或校验码无效"
+                }
+                require(entry.isDirectory || entry.size / entry.compressedSize.coerceAtLeast(1) <= 2_000) { "备份解压体积异常" }
+                entry to file
+            }.toList()
+            val total = entries.filterNot { it.first.isDirectory }.fold(0L) { size, pair -> Math.addExact(size, pair.first.size) }
+            check(total <= 32L * 1024 * 1024 * 1024 && total <= dest.usableSpace - 64L * 1024 * 1024) {
+                "空间不足或备份解压体积异常"
+            }
+            var processed = 0L
+            entries.forEach { (entry, file) ->
+                if (entry.isDirectory) check(file.isDirectory || file.mkdirs())
+                else {
+                    extractArchiveEntry(zip, entry, file) { bytes ->
+                        progress(((processed + bytes).toDouble() / total.coerceAtLeast(1)).coerceIn(0.0, 1.0))
                     }
-                    processed += entry.size.coerceAtLeast(0)
+                    processed += entry.size
                 }
             }
         }
         progress(1.0)
+    }
+
+    private fun extractArchiveEntry(zip: java.util.zip.ZipFile, entry: java.util.zip.ZipEntry, file: File, progress: (Long) -> Unit) {
+        file.parentFile?.let { check(it.isDirectory || it.mkdirs()) }
+        val crc = java.util.zip.CRC32()
+        var size = 0L
+        zip.getInputStream(entry).use { input ->
+            file.outputStream().buffered(DefaultBufferSize).use { output ->
+                val buffer = ByteArray(DefaultBufferSize)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    check(count <= entry.size - size) { "备份文件解压长度异常" }
+                    output.write(buffer, 0, count)
+                    crc.update(buffer, 0, count)
+                    size += count
+                    progress(size)
+                }
+            }
+        }
+        check(size == entry.size && crc.value == entry.crc) { "备份 ZIP 文件校验失败" }
     }
 
     actual fun createZip(sourceDir: String, zipPath: String, files: List<String>, progress: (Double) -> Unit) {

@@ -6,6 +6,43 @@ import kotlin.test.*
 
 class BackupArchiveTest {
     @Test
+    fun extractionRejectsPayloadWhoseStoredCrcNoLongerMatches() {
+        val root = Files.createTempDirectory("backup-crc").toFile()
+        try {
+            val zip = root.resolve("damaged.zip")
+            val payload = "unique stored payload".toByteArray()
+            java.util.zip.ZipOutputStream(zip.outputStream()).use { output ->
+                val entry = java.util.zip.ZipEntry("payload.txt").apply {
+                    method = java.util.zip.ZipEntry.STORED
+                    size = payload.size.toLong()
+                    compressedSize = size
+                    crc = java.util.zip.CRC32().apply { update(payload) }.value
+                }
+                output.putNextEntry(entry); output.write(payload); output.closeEntry()
+            }
+            val bytes = zip.readBytes()
+            val offset = bytes.indices.first { i -> i + payload.size <= bytes.size && bytes.copyOfRange(i, i + payload.size).contentEquals(payload) }
+            bytes[offset] = (bytes[offset].toInt() xor 1).toByte()
+            zip.writeBytes(bytes)
+            assertFails { FileManager().extractZip(zip.path, root.resolve("output").path) }
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test
+    fun extractionRejectsAliasedPathsInsteadOfOverwritingAnEarlierEntry() {
+        val root = Files.createTempDirectory("backup-duplicate").toFile()
+        try {
+            val zip = root.resolve("duplicate.zip")
+            java.util.zip.ZipOutputStream(zip.outputStream()).use { output ->
+                listOf("payload.txt", "folder/../payload.txt").forEach { name ->
+                    output.putNextEntry(java.util.zip.ZipEntry(name)); output.write(name.toByteArray()); output.closeEntry()
+                }
+            }
+            assertFails { FileManager().extractZip(zip.path, root.resolve("output").path) }
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test
     fun largeFilesReportIntermediateProgressThroughoutArchiveAndEncryption() {
         val root = Files.createTempDirectory("backup-progress").toFile()
         try {

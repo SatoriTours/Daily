@@ -16,7 +16,11 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
 
 data class BackupEntry(
     val name: String,
@@ -66,6 +70,114 @@ class BackupService internal constructor(
     val progress: StateFlow<Double> = _progress
     private val _lastMessage = MutableStateFlow("")
     val lastMessage: StateFlow<String> = _lastMessage
+
+    private val _verificationStage = MutableStateFlow(BackupVerificationStage.SELECTING)
+    val verificationStage: StateFlow<BackupVerificationStage> = _verificationStage
+    private val _verificationFileName = MutableStateFlow<String?>(null)
+    val verificationFileName: StateFlow<String?> = _verificationFileName
+
+    suspend fun verifyLatestBackup(password: String? = null, expectedName: String? = null): BackupVerificationResult =
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.BACKUP, isFailure = {
+            it.status == BackupVerificationStatus.FAILED || it.status == BackupVerificationStatus.INCOMPLETE
+        }) { verifyRecorded(password, expectedName) }
+
+    private suspend fun verifyRecorded(password: String?, expectedName: String?): BackupVerificationResult {
+        val checkedAt = clock.now().toString()
+        fun incomplete(issue: BackupVerificationIssue) = BackupVerificationResult(
+            BackupVerificationStatus.INCOMPLETE, BackupVerificationStage.SELECTING, checkedAt, issue = issue)
+        if (!operationMutex.tryLock()) return incomplete(BackupVerificationIssue.BUSY)
+        _isBackingUp.value = true
+        _progress.value = 0.0
+        _verificationStage.value = BackupVerificationStage.SELECTING
+        _verificationFileName.value = null
+        var selected: Pair<String, Instant>? = null
+        var temporary: String? = null
+        var cleanupFailed = false
+        val result = try {
+            val directory = selectedBackupDir()
+            selected = directory?.let { latestBackup(it) }
+            _verificationFileName.value = selected?.first
+            val effectivePassword = password ?: passwords.get()
+            val issue = when {
+                directory == null -> BackupVerificationIssue.NO_DIRECTORY
+                selected == null -> BackupVerificationIssue.NO_BACKUP
+                expectedName != null && expectedName != selected.first -> BackupVerificationIssue.BACKUP_CHANGED
+                effectivePassword.isNullOrBlank() -> BackupVerificationIssue.NO_PASSWORD
+                else -> null
+            }
+            if (issue != null) incomplete(issue).copy(fileName = selected?.first, backupTime = selected?.second?.toString())
+            else {
+                val chosen = checkNotNull(selected)
+                temporary = "${files.getCacheDir()}/verify_temp"
+                files.deleteFile(temporary)
+                check(!files.exists(temporary))
+                check(files.createDirectory(temporary)) { "Cannot create private verification directory" }
+                verifyArchive(checkNotNull(directory), chosen, checkNotNull(effectivePassword), temporary, checkedAt)
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            BackupVerificationResult(BackupVerificationStatus.FAILED, _verificationStage.value, checkedAt,
+                selected?.first, selected?.second?.toString(), BackupVerificationIssue.CHECK_FAILED)
+        } finally {
+            temporary?.let { path ->
+                cleanupFailed = runCatching { files.deleteFile(path); check(!files.exists(path)) }.isFailure
+            }
+            _isBackingUp.value = false
+            operationMutex.unlock()
+        }
+        return if (cleanupFailed) result.copy(status = BackupVerificationStatus.FAILED,
+            stage = BackupVerificationStage.CLEANUP, issue = BackupVerificationIssue.CHECK_FAILED) else result
+    }
+
+    private fun latestBackup(directory: String): Pair<String, Instant>? =
+        files.listBackupFilesInDirectory(directory).mapNotNull { name -> backupInstant(name)?.let { name to it } }
+            .maxByOrNull { it.second }
+
+    private suspend fun verifyArchive(directory: String, selected: Pair<String, Instant>, password: String,
+        temporary: String, checkedAt: String): BackupVerificationResult {
+        val context = currentCoroutineContext()
+        fun stage(value: BackupVerificationStage, progress: Double) {
+            context.ensureActive()
+            _verificationStage.value = value
+            _progress.value = progress
+        }
+        fun progress(start: Double, range: Double): (Double) -> Unit = { fraction ->
+            context.ensureActive(); _progress.value = start + fraction * range
+        }
+        val encrypted = "$temporary/source.enc"
+        val zip = "$temporary/backup.zip"
+        val content = "$temporary/content"
+        stage(BackupVerificationStage.READING, 0.0)
+        check(files.readFileFromDirectory(directory, selected.first, encrypted))
+        stage(BackupVerificationStage.DECRYPTING, 0.1)
+        files.decryptFile(encrypted, zip, password, progress(0.1, 0.3))
+        stage(BackupVerificationStage.EXTRACTING, 0.4)
+        files.extractZip(zip, content, progress(0.4, 0.2))
+        val actual = files.listFilesRecursively(content).map { it.removePrefix("$content/") }.toSet()
+        stage(BackupVerificationStage.FILES, 0.6)
+        val manifest = validateManifest(content, actual) { context.ensureActive() }
+        stage(BackupVerificationStage.DATABASE, 0.7)
+        val database = "$content/${DatabaseConfig.name}"
+        check(files.exists(database))
+        secrets.checkBackupDatabase(database)
+        stage(BackupVerificationStage.PREPARING, 0.75)
+        secrets.prepareRestoredSecrets(database)
+        secrets.relocateRestoredData(database, files.getAppDataDir(), directory, actual)
+        val summary = secrets.backupDatabaseSummary(database).toMutableMap()
+        stage(BackupVerificationStage.LIFE_ARCHIVE, 0.9)
+        if (LifeArchiveBackupName in actual) {
+            val snapshot = files.readFile("$content/$LifeArchiveBackupName").decodeToString()
+            lifeArchive.prepareRestore(snapshot) // Validate and encrypt a copy, never commit it.
+            summary["life_archive"] = Json.parseToJsonElement(snapshot).jsonObject["records"]?.jsonArray?.size?.toLong() ?: 0
+        }
+        summary["files"] = actual.count(::isBackupUserFile).toLong()
+        summary["images"] = actual.count { it.substringAfterLast('.').lowercase() in setOf("jpg", "jpeg", "png", "webp", "gif", "heic") }.toLong()
+        summary["audio"] = actual.count { it.substringAfterLast('.').lowercase() in setOf("m4a", "mp3", "wav", "aac", "ogg", "opus") }.toLong()
+        stage(BackupVerificationStage.COMPLETE, 1.0)
+        return BackupVerificationResult(if (manifest == null) BackupVerificationStatus.LIMITED else BackupVerificationStatus.PASSED,
+            BackupVerificationStage.COMPLETE, checkedAt, selected.first, selected.second.toString(), summary = summary)
+    }
 
     suspend fun backupNow(): Boolean = DiagnosticLog.diagnostics.operation(
         DiagnosticSource.BACKUP, isFailure = { !it },
@@ -264,21 +376,23 @@ class BackupService internal constructor(
         return prepared
     }
 
-    private fun validateManifest(directory: String, actualFiles: Set<String>) {
-        if (BackupManifestName !in actualFiles) return // Legacy encrypted backups have no content manifest.
+    private fun validateManifest(directory: String, actualFiles: Set<String>, checkpoint: () -> Unit = {}): BackupManifest? {
+        if (BackupManifestName !in actualFiles) return null // Legacy encrypted backups have no content manifest.
         val manifest = Json.decodeFromString<BackupManifest>(files.readFile("$directory/$BackupManifestName").decodeToString())
-        require(manifest.formatVersion == 1 && manifest.schemaVersion <= DatabaseConfig.currentSchemaVersion) {
+        require(manifest.formatVersion == 1 && manifest.schemaVersion in 0..DatabaseConfig.currentSchemaVersion) {
             "备份版本较新，请先升级应用"
         }
         val names = manifest.files.map { it.path }
         require(names.size == names.distinct().size && DatabaseConfig.name in names && LifeArchiveBackupName in names)
         require(actualFiles == names.toSet() + BackupManifestName) { "备份内容不完整或包含未登记文件" }
         manifest.files.forEachIndexed { index, entry ->
+            checkpoint()
             require(entry.path == DatabaseConfig.name || entry.path == LifeArchiveBackupName || isBackupUserFile(entry.path))
             val path = "$directory/${entry.path}"
             require(files.fileSize(path) == entry.size && files.sha256(path) == entry.sha256) { "备份文件校验失败" }
             _progress.value = 0.6 + 0.1 * (index + 1) / manifest.files.size
         }
+        return manifest
     }
 
     fun listBackups(): List<BackupEntry> {
@@ -424,6 +538,8 @@ internal interface BackupSecrets {
     fun decryptSecretsForBackup(databasePath: String)
     fun prepareRestoredSecrets(databasePath: String)
     fun requiredUserFiles(databasePath: String, appDataDir: String): List<String>
+    fun checkBackupDatabase(databasePath: String)
+    fun backupDatabaseSummary(databasePath: String): Map<String, Long>
     fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>)
 }
 
@@ -503,8 +619,25 @@ private class DatabaseBackupSecrets(
     override fun requiredUserFiles(databasePath: String, appDataDir: String): List<String> =
         withDatabase(databasePath) { BackupDatabaseData(it).userFiles(appDataDir) }
 
+    override fun checkBackupDatabase(databasePath: String) {
+        withBackupDatabase(databasePath) { BackupDatabaseData(it).checkBackupDatabase() }
+    }
+
+    override fun backupDatabaseSummary(databasePath: String): Map<String, Long> {
+        val reference = databaseDriverFactory.createInMemoryDriver()
+        return try {
+            val schema = BackupDatabaseData(reference).schemaColumns()
+            withBackupDatabase(databasePath) { BackupDatabaseData(it).verifiedSummary(schema) }
+        } finally { reference.close() }
+    }
+
     override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>) {
         withDatabase(databasePath) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }
+    }
+
+    private fun <T> withBackupDatabase(path: String, block: (app.cash.sqldelight.db.SqlDriver) -> T): T {
+        val driver = databaseDriverFactory.createBackupDriver(path)
+        return try { block(driver) } finally { driver.close() }
     }
 
     private fun <T> withDatabase(path: String, block: (app.cash.sqldelight.db.SqlDriver) -> T): T {
