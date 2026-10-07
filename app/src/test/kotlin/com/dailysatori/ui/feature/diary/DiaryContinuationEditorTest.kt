@@ -173,7 +173,9 @@ class DiaryContinuationEditorTest {
 
             fixture.viewModel.openThread(rootId)
             val state = withTimeout(5_000) {
-                fixture.viewModel.state.first { it.selectedThread?.root?.id == rootId }
+                fixture.viewModel.state.first {
+                    it.selectedThread?.root?.id == rootId && it.selectedThread?.summary != null
+                }
             }
             val snapshot = requireNotNull(state.selectedThread)
             assertEquals("原始日记", snapshot.entries.first().content)

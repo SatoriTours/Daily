@@ -137,12 +137,18 @@ fun DiaryEditorSheet(
     tagStatus: String? = null,
     initialTagToEdit: String? = null,
     latestTags: List<String>? = null,
+    continuationRootId: Long? = null,
+    onSaveContinuation: ((content: String, mood: String?, images: String?,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit)? = null,
+    onStartRecording: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
+    val isContinuation = continuationRootId != null
 
     var content by remember(existingDiary) {
-        mutableStateOf(TextFieldValue(existingDiary?.content ?: ""))
+        val rawText = existingDiary?.content.orEmpty()
+        mutableStateOf(TextFieldValue(filterDisplayableDiaryContent(rawText)))
     }
     val editorScrollState = rememberScrollState()
     var showMediaPicker by remember { mutableStateOf(false) }
@@ -514,15 +520,32 @@ fun DiaryEditorSheet(
                     ) {
                         TextButton(onClick = onDismiss) { Text("取消", color = editorColors.primary) }
                         DiaryEditorMetaRow(
-                            dateText = diaryEditorDateText(existingDiary),
+                            dateText = diaryEditorDateText(existingDiary, continuationRootId),
                             mood = moodText,
                             colors = editorColors,
                             onMood = { showMoodEditor = true },
                         )
                         TextButton(
                             enabled = content.text.isNotBlank(),
-                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft,
-                                polishedTranscripts.takeIf { polishVersionsLoaded }) },
+                            onClick = {
+                                if (isContinuation && onSaveContinuation != null) {
+                                    onSaveContinuation(
+                                        content.text,
+                                        moodText.ifBlank { null },
+                                        images.joinToString(",").ifBlank { null },
+                                        polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    )
+                                } else {
+                                    onSave(
+                                        content.text,
+                                        if (isContinuation) null else tagsText.ifBlank { null },
+                                        moodText.ifBlank { null },
+                                        images.joinToString(",").ifBlank { null },
+                                        tagDraft,
+                                        polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    )
+                                }
+                            },
                         ) {
                             Text(
                                 "保存",
@@ -600,23 +623,25 @@ fun DiaryEditorSheet(
                                         innerTextField()
                                     },
                                 )
-                                DiaryEditorTagRow(
-                                    tagsText = tagsText,
-                                    showAddEntry = showTagEntry,
-                                    colors = editorColors,
-                                    onAddTag = { tagToEdit = null; showTagEditor = true },
-                                    onEditTag = { tagToEdit = it; showTagEditor = true },
-                                    onRemoveTag = { changeTags(tagDraft.remove(it)) },
-                                )
-                                val tagStatusKey = when (tagStatus) {
-                                    "queued", "running", "retrying" -> "diary_tags.$tagStatus"
-                                    "failed" -> "diary_tags.failed_status"
-                                    else -> null
-                                }
-                                if (tagStatusKey != null) {
-                                    val i18n: I18nService = koinInject()
-                                    Text(i18n.t(tagStatusKey), style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (!isContinuation) {
+                                    DiaryEditorTagRow(
+                                        tagsText = tagsText,
+                                        showAddEntry = showTagEntry,
+                                        colors = editorColors,
+                                        onAddTag = { tagToEdit = null; showTagEditor = true },
+                                        onEditTag = { tagToEdit = it; showTagEditor = true },
+                                        onRemoveTag = { changeTags(tagDraft.remove(it)) },
+                                    )
+                                    val tagStatusKey = when (tagStatus) {
+                                        "queued", "running", "retrying" -> "diary_tags.$tagStatus"
+                                        "failed" -> "diary_tags.failed_status"
+                                        else -> null
+                                    }
+                                    if (tagStatusKey != null) {
+                                        val i18n: I18nService = koinInject()
+                                        Text(i18n.t(tagStatusKey), style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                             }
                         }
@@ -941,7 +966,10 @@ private fun DiaryTextEditDialog(
     )
 }
 
-private fun diaryEditorDateText(existingDiary: Diary?): String {
+private fun diaryEditorDateText(existingDiary: Diary?, continuationRootId: Long? = null): String {
+    if (continuationRootId != null) {
+        return diaryEditorHeaderTitle(existingDiary, continuationRootId)
+    }
     val time = existingDiary?.created_at ?: System.currentTimeMillis()
     return SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(Date(time))
 }

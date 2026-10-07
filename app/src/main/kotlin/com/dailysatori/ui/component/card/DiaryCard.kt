@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
@@ -61,9 +62,11 @@ import com.dailysatori.core.util.diaryCollapsedPreview
 import com.dailysatori.core.util.diaryImagePaths
 import com.dailysatori.core.util.diaryTags
 import com.dailysatori.core.util.stripDiaryInlineTags
+import com.dailysatori.service.diary.DiaryThreadOverview
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.feature.diary.DiaryAttachmentList
+import com.dailysatori.ui.feature.diary.resolveDiaryCardBodyPresentation
 import com.dailysatori.ui.theme.*
 import com.mikepenz.markdown.m3.Markdown
 import java.io.File
@@ -80,11 +83,18 @@ fun DiaryCard(
     nowMillis: Long = System.currentTimeMillis(),
     initiallyExpanded: Boolean = false,
     onTagClick: (String) -> Unit = { onEdit() },
+    threadOverview: DiaryThreadOverview? = null,
+    onContinue: () -> Unit = {},
+    onOpenThread: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val tags = diaryTags(diary.tags)
     val imagePaths = diaryImagePaths(diary.images)
-    val contentText = stripDiaryInlineTags(diary.content)
+    val rawContentText = stripDiaryInlineTags(diary.content)
+    val bodyPresentation = remember(rawContentText, threadOverview) {
+        resolveDiaryCardBodyPresentation(rawContentText, threadOverview)
+    }
+    val contentText = bodyPresentation.text
     var hasOverflow by remember(contentText) { mutableStateOf(false) }
     var expanded by rememberSaveable(diary.id, contentText) { mutableStateOf(initiallyExpanded) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -96,14 +106,46 @@ fun DiaryCard(
     ) {
         DiaryCardHeader(
             diary = diary,
-            contentText = contentText,
+            contentText = rawContentText,
             showDelete = showDelete,
             menuExpanded = menuExpanded,
             onMenuChange = { menuExpanded = it },
             onEdit = onEdit,
             onDelete = onDelete,
+            onContinue = onContinue,
             nowMillis = nowMillis,
         )
+        if (bodyPresentation.isAiSummary) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Radius.xs))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                    .clickable(onClick = onOpenThread)
+                    .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+            ) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(IconSize.xs),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.diary_card_ai_summary_tag),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                if (bodyPresentation.isStale) {
+                    Text(
+                        text = "· ${stringResource(R.string.diary_card_summary_stale_tag)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+            }
+        }
         DiaryBody(contentText, expanded, onOverflow = { hasOverflow = it }, modifier = Modifier.fillMaxWidth(),
             hasPhotos = imagePaths.isNotEmpty())
         if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir, expanded)
@@ -112,8 +154,40 @@ fun DiaryCard(
             onRetryTranscription = onRetryTranscription,
             compact = !expanded,
         )
-        DiaryCardFooter(tags = tags, isLongContent = hasOverflow || expanded, expanded = expanded,
-            onTagClick = onTagClick) { expanded = !expanded }
+        if (bodyPresentation.replyCount > 0) {
+            Surface(
+                shape = RoundedCornerShape(Radius.circular),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Radius.circular))
+                    .clickable(onClick = onOpenThread),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    Text(
+                        text = stringResource(R.string.diary_card_replies_count, bodyPresentation.replyCount),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = "· ${stringResource(R.string.diary_card_open_thread)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        DiaryCardFooter(
+            tags = tags,
+            isLongContent = hasOverflow || expanded,
+            expanded = expanded,
+            onTagClick = onTagClick,
+            onContinue = onContinue,
+        ) { expanded = !expanded }
     }
 }
 
@@ -126,6 +200,7 @@ private fun DiaryCardHeader(
     onMenuChange: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onContinue: () -> Unit = {},
     nowMillis: Long,
 ) {
     val context = LocalContext.current
@@ -163,6 +238,14 @@ private fun DiaryCardHeader(
                         onClick = {
                             onMenuChange(false)
                             copyDiaryContent(context, contentText)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.diary_card_action_continue)) },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        onClick = {
+                            onMenuChange(false)
+                            onContinue()
                         },
                     )
                     DropdownMenuItem(text = { Text("编辑") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { onMenuChange(false); onEdit() })
@@ -231,9 +314,14 @@ private fun DiaryCollapsedBody(contentText: String, hasPhotos: Boolean, onOverfl
 }
 
 @Composable
-private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded: Boolean,
-    onTagClick: (String) -> Unit, onExpand: () -> Unit) {
-    if (tags.isEmpty() && !isLongContent) return
+private fun DiaryCardFooter(
+    tags: List<String>,
+    isLongContent: Boolean,
+    expanded: Boolean,
+    onTagClick: (String) -> Unit,
+    onContinue: () -> Unit,
+    onExpand: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
@@ -246,6 +334,15 @@ private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded
         } else {
             Box(modifier = Modifier.weight(1f))
         }
+        Text(
+            text = stringResource(R.string.diary_card_action_continue),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(Radius.circular))
+                .clickable(onClick = onContinue)
+                .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+        )
         if (isLongContent) Text(
             text = stringResource(if (expanded) R.string.diary_feed_collapse else R.string.diary_feed_expand),
             style = MaterialTheme.typography.labelMedium,
@@ -259,7 +356,7 @@ private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded
 }
 
 @Composable
-private fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File, expanded: Boolean) {
+internal fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File, expanded: Boolean) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val pageWidth = maxWidth
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -286,7 +383,7 @@ private fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File, expanded: B
 }
 
 @Composable
-private fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, photoCount: Int? = null) {
+internal fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, photoCount: Int? = null) {
     val file = File(filesDir, "DailySatori/$path")
     if (!file.exists()) return
     Box(modifier = modifier.clip(RoundedCornerShape(Radius.s))) {

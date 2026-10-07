@@ -55,6 +55,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.R
 import com.dailysatori.ui.feature.profile.localDayTicker
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.todayIn
 import com.dailysatori.shared.db.Diary
@@ -87,6 +89,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var showEditor by remember { mutableStateOf(false) }
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var editingTag by remember { mutableStateOf<String?>(null) }
+    var continuationRootId by remember { mutableStateOf<Long?>(null) }
+    var continuationReplyId by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(showEditor, editingDiary?.id) {
         tagViewModel.observeEditor(editingDiary?.id.takeIf { showEditor })
     }
@@ -216,9 +220,24 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     onStop = recordingController::stop,
                     onOpenDiary = {
                         state.recordingState.diaryId?.let { id ->
-                            editingDiary = state.diaries.firstOrNull { it.id == id }
-                            editingTag = null
-                            showEditor = editingDiary != null
+                            val diary = state.diaries.firstOrNull { it.id == id }
+                            if (diary != null) {
+                                editingDiary = diary
+                                continuationRootId = null
+                                continuationReplyId = null
+                                editingTag = null
+                                showEditor = true
+                            } else {
+                                viewModel.viewModelScope.launch {
+                                    val snapshot = viewModel.getThreadSnapshot(id)
+                                    val rootId = snapshot?.root?.id ?: id
+                                    continuationRootId = rootId
+                                    continuationReplyId = id
+                                    editingDiary = null
+                                    editingTag = null
+                                    showEditor = true
+                                }
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -289,13 +308,30 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                             nowMillis = nowMillis,
                             attachments = state.attachmentsByDiary[diary.id].orEmpty(),
                             onEdit = {
+                                continuationRootId = null
+                                continuationReplyId = null
                                 editingTag = null
                                 editingDiary = diary
                                 showEditor = true
                             },
                             onDelete = { showDeleteDialog = diary },
                             onRetryTranscription = viewModel::retryTranscription,
-                            onTagClick = { tag -> editingDiary = diary; editingTag = tag; showEditor = true },
+                            onTagClick = { tag ->
+                                continuationRootId = null
+                                continuationReplyId = null
+                                editingDiary = diary
+                                editingTag = tag
+                                showEditor = true
+                            },
+                            threadOverview = state.threadOverviews[diary.id],
+                            onContinue = {
+                                continuationRootId = diary.id
+                                continuationReplyId = null
+                                editingDiary = null
+                                editingTag = null
+                                showEditor = true
+                            },
+                            onOpenThread = { viewModel.openThread(diary.id) },
                         )
                     }
                 }
@@ -338,12 +374,20 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
 
     if (showEditor) {
         BackHandler {
+            val replyToDiscard = continuationReplyId
+            if (replyToDiscard != null) {
+                viewModel.viewModelScope.launch { viewModel.discardDraftReply(replyToDiscard) }
+            }
             showEditor = false
+            continuationRootId = null
+            continuationReplyId = null
             editingDiary = null
             editingTag = null
         }
+        val currentDiaryId = continuationReplyId ?: editingDiary?.id
         DiaryEditorSheet(
             existingDiary = editingDiary,
+            continuationRootId = continuationRootId,
             tagVocabulary = tagState.vocabulary.copy(names = tagState.vocabulary.names.sortedByDescending { tagState.counts[it] ?: 0 }),
             initialTagState = tagState.provenance[editingDiary?.id],
             latestTags = tagState.editorTags[editingDiary?.id],
@@ -351,18 +395,29 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             tagStatus = tagState.taskStatuses[editingDiary?.id],
             initialTagToEdit = editingTag,
             recordingState = state.recordingState.takeIf {
-                editingDiary?.id == state.recordingState.diaryId && it !is DiaryRecordingState.Idle
+                (editingDiary?.id == state.recordingState.diaryId || continuationReplyId == state.recordingState.diaryId) &&
+                    it !is DiaryRecordingState.Idle
             },
             onPauseResumeRecording = {
                 recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused)
             },
             onStopRecording = recordingController::stop,
-            attachments = state.attachmentsByDiary[editingDiary?.id ?: -1L].orEmpty(),
+            attachments = state.attachmentsByDiary[currentDiaryId ?: -1L].orEmpty(),
             onDeleteAttachment = viewModel::deleteAttachment,
             onRetryTranscription = viewModel::retryTranscription,
             onOpenTranscriptionSettings = onMyClick,
             onLoadPolishedTranscripts = viewModel::loadPolishedTranscripts,
-            onDismiss = { showEditor = false; editingDiary = null; editingTag = null },
+            onDismiss = {
+                val replyToDiscard = continuationReplyId
+                if (replyToDiscard != null) {
+                    viewModel.viewModelScope.launch { viewModel.discardDraftReply(replyToDiscard) }
+                }
+                showEditor = false
+                continuationRootId = null
+                continuationReplyId = null
+                editingDiary = null
+                editingTag = null
+            },
             onSave = { content, tags, mood, images, tagDraft, polishedTranscripts ->
                 val existingId = editingDiary?.id
                 viewModel.saveDiary(
@@ -375,9 +430,73 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     polishedTranscripts = polishedTranscripts,
                 )
                 showEditor = false
+                continuationRootId = null
+                continuationReplyId = null
                 editingDiary = null
                 editingTag = null
             },
+            onSaveContinuation = { content, mood, images, polishedTranscripts ->
+                val rootId = continuationRootId
+                if (rootId != null) {
+                    viewModel.viewModelScope.launch {
+                        viewModel.saveReplyAndGetId(
+                            rootId = rootId,
+                            content = content,
+                            mood = mood,
+                            images = images,
+                            existingReplyId = continuationReplyId,
+                            polishedTranscripts = polishedTranscripts,
+                        )
+                    }
+                }
+                showEditor = false
+                continuationRootId = null
+                continuationReplyId = null
+                editingDiary = null
+                editingTag = null
+            },
+            onStartRecording = {
+                val rootId = continuationRootId
+                if (rootId != null && state.recordingState is DiaryRecordingState.Idle) {
+                    viewModel.viewModelScope.launch {
+                        val pair = viewModel.prepareReplyRecording(rootId)
+                        if (pair != null) {
+                            continuationReplyId = pair.first
+                            recordingController.start(pair.first, pair.second)
+                        }
+                    }
+                }
+            },
+        )
+    }
+
+    state.selectedThread?.let { snapshot ->
+        DiaryThreadSheet(
+            snapshot = snapshot,
+            onDismiss = { viewModel.closeThread() },
+            onContinue = {
+                val rootId = snapshot.root.id
+                viewModel.closeThread()
+                continuationRootId = rootId
+                continuationReplyId = null
+                editingDiary = null
+                editingTag = null
+                showEditor = true
+            },
+            onEditOriginal = {
+                val root = snapshot.root
+                viewModel.closeThread()
+                continuationRootId = null
+                continuationReplyId = null
+                editingTag = null
+                editingDiary = root
+                showEditor = true
+            },
+            onRetrySummary = {
+                viewModel.retryThreadSummary(snapshot.root.id)
+            },
+            onRetryTranscription = viewModel::retryTranscription,
+            onDeleteAttachment = viewModel::deleteAttachment,
         )
     }
 
