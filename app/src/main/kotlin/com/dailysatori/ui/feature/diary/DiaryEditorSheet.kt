@@ -31,6 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.MicNone
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -141,12 +144,13 @@ fun DiaryEditorSheet(
     onSaveContinuation: ((content: String, mood: String?, images: String?,
         polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit)? = null,
     onStartRecording: (() -> Unit)? = null,
+    isSaving: Boolean = false,
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
     val isContinuation = continuationRootId != null
 
-    var content by remember(existingDiary) {
+    var content by remember(existingDiary?.id ?: continuationRootId) {
         val rawText = existingDiary?.content.orEmpty()
         mutableStateOf(TextFieldValue(filterDisplayableDiaryContent(rawText)))
     }
@@ -434,6 +438,12 @@ fun DiaryEditorSheet(
                     MediaPickerButton("从相册选择") {
                         showMediaPicker = false; galleryLauncher.launch("image/*")
                     }
+                    if (onStartRecording != null && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
+                        MediaPickerButton(stringResource(R.string.diary_feed_record_voice)) {
+                            showMediaPicker = false
+                            onStartRecording()
+                        }
+                    }
                 }
             },
             confirmButton = {},
@@ -524,9 +534,18 @@ fun DiaryEditorSheet(
                             mood = moodText,
                             colors = editorColors,
                             onMood = { showMoodEditor = true },
+                            onStartRecording = onStartRecording.takeIf {
+                                recordingState == null || recordingState is DiaryRecordingState.Idle
+                            },
+                        )
+                        val canSave = canSaveDiaryEntry(
+                            isContinuation = isContinuation,
+                            content = content.text,
+                            hasImages = images.isNotEmpty(),
+                            isSaving = isSaving,
                         )
                         TextButton(
-                            enabled = content.text.isNotBlank(),
+                            enabled = canSave,
                             onClick = {
                                 if (isContinuation && onSaveContinuation != null) {
                                     onSaveContinuation(
@@ -549,7 +568,7 @@ fun DiaryEditorSheet(
                         ) {
                             Text(
                                 "保存",
-                                color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
+                                color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
                             )
                         }
                     }
@@ -795,6 +814,7 @@ private fun DiaryEditorMetaRow(
     mood: String,
     colors: DiaryEditorColors,
     onMood: () -> Unit,
+    onStartRecording: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
@@ -837,6 +857,31 @@ private fun DiaryEditorMetaRow(
                     colors.primary
                 },
             )
+        }
+        if (onStartRecording != null) {
+            Surface(
+                onClick = onStartRecording,
+                shape = RoundedCornerShape(Radius.circular),
+                color = colors.chip,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                ) {
+                    Icon(
+                        Icons.Default.MicNone,
+                        contentDescription = stringResource(R.string.diary_feed_record_voice),
+                        modifier = Modifier.size(16.dp),
+                        tint = colors.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.diary_feed_record_voice),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.primary,
+                    )
+                }
+            }
         }
     }
 }

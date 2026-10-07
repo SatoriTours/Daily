@@ -255,4 +255,132 @@ class DiaryThreadPresentationTest {
         assertTrue(utcFormatted.contains("00:00") || utcFormatted.contains("0:00"))
         assertTrue(shanghaiFormatted.contains("08:00") || shanghaiFormatted.contains("8:00"))
     }
+
+    @Test
+    fun canSaveDiaryEntryAllowsImagesOnlyForContinuation() {
+        // Continuation mode with photos but empty text should be allowed to save (F5)
+        assertTrue(
+            canSaveDiaryEntry(
+                isContinuation = true,
+                content = "",
+                hasImages = true,
+                isSaving = false,
+            ),
+        )
+        // Continuation mode with blank text and no photos must not be allowed (prevents empty history)
+        assertFalse(
+            canSaveDiaryEntry(
+                isContinuation = true,
+                content = "   ",
+                hasImages = false,
+                isSaving = false,
+            ),
+        )
+        // Continuation mode while isSaving must be disabled
+        assertFalse(
+            canSaveDiaryEntry(
+                isContinuation = true,
+                content = "续写正文",
+                hasImages = false,
+                isSaving = true,
+            ),
+        )
+    }
+
+    @Test
+    fun canSaveDiaryEntryRequiresContentForNormalDiary() {
+        // Normal diary requires content
+        assertTrue(
+            canSaveDiaryEntry(
+                isContinuation = false,
+                content = "今天发生的事情",
+                hasImages = false,
+                isSaving = false,
+            ),
+        )
+        // Normal diary does not allow empty text even if images exist
+        assertFalse(
+            canSaveDiaryEntry(
+                isContinuation = false,
+                content = "",
+                hasImages = true,
+                isSaving = false,
+            ),
+        )
+    }
+
+    @Test
+    fun resolveDiaryEditorRouteTargetSeparatesRootAndChild() {
+        val rootDiary = com.dailysatori.shared.db.Diary(
+            id = 100L,
+            content = "主日记",
+            tags = "日常",
+            mood = "开心",
+            images = null,
+            created_at = 1000L,
+            updated_at = 1000L,
+            parent_diary_id = null,
+        )
+        val childDiary = com.dailysatori.shared.db.Diary(
+            id = 200L,
+            content = "续写回复",
+            tags = null,
+            mood = null,
+            images = null,
+            created_at = 2000L,
+            updated_at = 2000L,
+            parent_diary_id = 100L,
+        )
+
+        val rootRoute = resolveDiaryEditorRouteTarget(rootDiary)
+        assertFalse(rootRoute.isContinuation)
+        assertNull(rootRoute.continuationRootId)
+        assertNull(rootRoute.continuationReplyId)
+        assertEquals(100L, rootRoute.editingDiary?.id)
+
+        val childRoute = resolveDiaryEditorRouteTarget(childDiary)
+        assertTrue(childRoute.isContinuation)
+        assertEquals(expected = 100L, actual = childRoute.continuationRootId, message = "子记录的 parent_diary_id 必须正确恢复为 rootId")
+        assertEquals(expected = 200L, actual = childRoute.continuationReplyId, message = "子记录的 id 必须恢复为 replyId")
+        assertEquals(expected = 200L, actual = childRoute.editingDiary?.id)
+    }
+
+    @Test
+    fun resolveVoiceRecordingActionPreservesIntent() {
+        val newDiaryAction = PendingVoiceRecordingAction.NewDiary
+        val continuationAction = PendingVoiceRecordingAction.Continuation(rootId = 555L)
+
+        val newResolution = resolveVoiceRecordingAction(newDiaryAction)
+        assertFalse(newResolution.isContinuation)
+        assertNull(newResolution.targetRootId)
+
+        val contResolution = resolveVoiceRecordingAction(continuationAction)
+        assertTrue(contResolution.isContinuation)
+        assertEquals(555L, contResolution.targetRootId)
+    }
+
+    @Test
+    fun resolveContinuationSaveResultKeepsDraftOnFailureAndClearsOnSuccess() {
+        // When save succeeds (returns non-null ID), editor should close and clear IDs
+        val successResolution = resolveContinuationSaveResult(
+            rootId = 100L,
+            replyId = 200L,
+            savedReplyId = 200L,
+        )
+        assertTrue(successResolution.shouldClose)
+        assertNull(successResolution.retainedRootId)
+        assertNull(successResolution.retainedReplyId)
+
+        // When save fails (returns null), editor should STAY OPEN and RETAIN rootId/replyId (F3)
+        val failureResolution = resolveContinuationSaveResult(
+            rootId = 100L,
+            replyId = 200L,
+            savedReplyId = null,
+            error = "网络错误或日记已删除",
+        )
+        assertFalse(failureResolution.shouldClose, "保存失败时不能关闭编辑器丢草稿")
+        assertEquals(100L, failureResolution.retainedRootId)
+        assertEquals(200L, failureResolution.retainedReplyId)
+        assertEquals("网络错误或日记已删除", failureResolution.errorMessage)
+    }
 }

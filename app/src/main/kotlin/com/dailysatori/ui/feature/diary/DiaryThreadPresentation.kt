@@ -198,3 +198,119 @@ fun diaryEditorHeaderTitle(
     format.timeZone = timeZone
     return format.format(date)
 }
+
+/**
+ * 校验日记保存按钮启用状态。
+ * - 普通日记：必须有非空正文；
+ * - 续写日记：允许非空正文或非空图片（F5：空正文照片续写）；完全全空的草稿禁止保存；
+ * - 正在保存时（isSaving = true）统一禁用（F3）。
+ */
+fun canSaveDiaryEntry(
+    isContinuation: Boolean,
+    content: String,
+    hasImages: Boolean,
+    isSaving: Boolean = false,
+): Boolean {
+    if (isSaving) return false
+    return if (isContinuation) {
+        content.isNotBlank() || hasImages
+    } else {
+        content.isNotBlank()
+    }
+}
+
+/**
+ * 日记编辑器打开路由目标解析（F2）：
+ * 根据实际日记记录的 parent_diary_id 区分主记录与续写子记录，
+ * 保证续写打开时 parent_diary_id 正确解析为 continuationRootId，自身 id 为 continuationReplyId。
+ */
+data class DiaryEditorRouteTarget(
+    val continuationRootId: Long?,
+    val continuationReplyId: Long?,
+    val editingDiary: Diary?,
+    val isContinuation: Boolean,
+)
+
+fun resolveDiaryEditorRouteTarget(diary: Diary): DiaryEditorRouteTarget {
+    val parentId = diary.parent_diary_id
+    return if (parentId != null) {
+        DiaryEditorRouteTarget(
+            continuationRootId = parentId,
+            continuationReplyId = diary.id,
+            editingDiary = diary,
+            isContinuation = true,
+        )
+    } else {
+        DiaryEditorRouteTarget(
+            continuationRootId = null,
+            continuationReplyId = null,
+            editingDiary = diary,
+            isContinuation = false,
+        )
+    }
+}
+
+/**
+ * 待执行的语音录音动作模型（F1）。
+ * 保证麦克风/通知权限授予后分别正确恢复主日记录音与续写录音，避免权限通过后跑错主日记。
+ */
+sealed interface PendingVoiceRecordingAction {
+    data object NewDiary : PendingVoiceRecordingAction
+    data class Continuation(val rootId: Long) : PendingVoiceRecordingAction
+}
+
+data class VoiceRecordingResolution(
+    val action: PendingVoiceRecordingAction,
+    val isContinuation: Boolean,
+    val targetRootId: Long?,
+)
+
+fun resolveVoiceRecordingAction(action: PendingVoiceRecordingAction): VoiceRecordingResolution {
+    return when (action) {
+        is PendingVoiceRecordingAction.NewDiary -> VoiceRecordingResolution(
+            action = action,
+            isContinuation = false,
+            targetRootId = null,
+        )
+        is PendingVoiceRecordingAction.Continuation -> VoiceRecordingResolution(
+            action = action,
+            isContinuation = true,
+            targetRootId = action.rootId,
+        )
+    }
+}
+
+/**
+ * 续写保存结果解析（F3）：
+ * 成功后关闭编辑器并清空 IDs；
+ * 失败时保持编辑器打开，保留 rootId、replyId 及未保存输入，并展示错误。
+ */
+data class DiaryContinuationSaveResolution(
+    val shouldClose: Boolean,
+    val retainedRootId: Long?,
+    val retainedReplyId: Long?,
+    val errorMessage: String?,
+)
+
+fun resolveContinuationSaveResult(
+    rootId: Long,
+    replyId: Long?,
+    savedReplyId: Long?,
+    error: String? = null,
+): DiaryContinuationSaveResolution {
+    return if (savedReplyId != null) {
+        DiaryContinuationSaveResolution(
+            shouldClose = true,
+            retainedRootId = null,
+            retainedReplyId = null,
+            errorMessage = null,
+        )
+    } else {
+        DiaryContinuationSaveResolution(
+            shouldClose = false,
+            retainedRootId = rootId,
+            retainedReplyId = replyId,
+            errorMessage = error ?: "保存续写失败",
+        )
+    }
+}

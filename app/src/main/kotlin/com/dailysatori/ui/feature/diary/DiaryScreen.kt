@@ -91,6 +91,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var editingTag by remember { mutableStateOf<String?>(null) }
     var continuationRootId by remember { mutableStateOf<Long?>(null) }
     var continuationReplyId by remember { mutableStateOf<Long?>(null) }
+    var pendingVoiceAction by remember { mutableStateOf<PendingVoiceRecordingAction?>(null) }
     LaunchedEffect(showEditor, editingDiary?.id) {
         tagViewModel.observeEditor(editingDiary?.id.takeIf { showEditor })
     }
@@ -114,6 +115,23 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             viewModel.setError("录音通知已关闭，无法在后台或锁屏时提示录音状态")
         }
     }
+    val startContinuationVoiceIfNotificationsVisible: (Long) -> Unit = { rootId ->
+        if (DiaryRecordingNotification.canShow(context)) {
+            showNotificationSettingsAction = false
+            viewModel.viewModelScope.launch {
+                val pair = viewModel.prepareReplyRecording(rootId)
+                if (pair != null) {
+                    continuationRootId = rootId
+                    continuationReplyId = pair.first
+                    showEditor = true
+                    recordingController.start(pair.first, pair.second)
+                }
+            }
+        } else {
+            showNotificationSettingsAction = true
+            viewModel.setError("录音通知已关闭，无法在后台或锁屏时提示录音状态")
+        }
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
@@ -122,10 +140,22 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         val notificationGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             grants[Manifest.permission.POST_NOTIFICATIONS] == true ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        if (microphoneGranted && notificationGranted) startVoiceDiaryIfNotificationsVisible()
-        else viewModel.setError("需要麦克风和通知权限才能开始语音日记")
+        if (microphoneGranted && notificationGranted) {
+            val action = pendingVoiceAction ?: PendingVoiceRecordingAction.NewDiary
+            pendingVoiceAction = null
+            val resolution = resolveVoiceRecordingAction(action)
+            if (resolution.isContinuation) {
+                startContinuationVoiceIfNotificationsVisible(checkNotNull(resolution.targetRootId))
+            } else {
+                startVoiceDiaryIfNotificationsVisible()
+            }
+        } else {
+            pendingVoiceAction = null
+            viewModel.setError("需要麦克风和通知权限才能开始语音日记")
+        }
     }
     val requestVoicePermissions: () -> Unit = {
+        pendingVoiceAction = PendingVoiceRecordingAction.NewDiary
         val missingPermissions = buildList {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 add(Manifest.permission.RECORD_AUDIO)
@@ -139,6 +169,25 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         }
         if (missingPermissions.isEmpty()) startVoiceDiaryIfNotificationsVisible()
         else permissionLauncher.launch(missingPermissions.toTypedArray())
+    }
+    val requestContinuationVoicePermissions: (Long) -> Unit = { rootId ->
+        pendingVoiceAction = PendingVoiceRecordingAction.Continuation(rootId)
+        val missingPermissions = buildList {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                add(Manifest.permission.RECORD_AUDIO)
+            }
+            if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        if (missingPermissions.isEmpty()) {
+            startContinuationVoiceIfNotificationsVisible(rootId)
+        } else {
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+        }
     }
     val diaryListState = rememberLazyListState()
     val newestDiaryId = state.diaries.firstOrNull()?.id
@@ -163,7 +212,10 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             DiaryRecordingOpenRequest.consume(diaryId)
             return@LaunchedEffect
         }
-        editingDiary = requestedDiary
+        val target = resolveDiaryEditorRouteTarget(requestedDiary)
+        continuationRootId = target.continuationRootId
+        continuationReplyId = target.continuationReplyId
+        editingDiary = target.editingDiary
         editingTag = null
         showEditor = true
         DiaryRecordingOpenRequest.consume(diaryId)
@@ -222,20 +274,23 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                         state.recordingState.diaryId?.let { id ->
                             val diary = state.diaries.firstOrNull { it.id == id }
                             if (diary != null) {
-                                editingDiary = diary
-                                continuationRootId = null
-                                continuationReplyId = null
+                                val target = resolveDiaryEditorRouteTarget(diary)
+                                continuationRootId = target.continuationRootId
+                                continuationReplyId = target.continuationReplyId
+                                editingDiary = target.editingDiary
                                 editingTag = null
                                 showEditor = true
                             } else {
                                 viewModel.viewModelScope.launch {
-                                    val snapshot = viewModel.getThreadSnapshot(id)
-                                    val rootId = snapshot?.root?.id ?: id
-                                    continuationRootId = rootId
-                                    continuationReplyId = id
-                                    editingDiary = null
-                                    editingTag = null
-                                    showEditor = true
+                                    val fetched = viewModel.getDiaryById(id)
+                                    if (fetched != null) {
+                                        val target = resolveDiaryEditorRouteTarget(fetched)
+                                        continuationRootId = target.continuationRootId
+                                        continuationReplyId = target.continuationReplyId
+                                        editingDiary = target.editingDiary
+                                        editingTag = null
+                                        showEditor = true
+                                    }
                                 }
                             }
                         }
@@ -388,6 +443,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         DiaryEditorSheet(
             existingDiary = editingDiary,
             continuationRootId = continuationRootId,
+            isSaving = state.isSaving,
             tagVocabulary = tagState.vocabulary.copy(names = tagState.vocabulary.names.sortedByDescending { tagState.counts[it] ?: 0 }),
             initialTagState = tagState.provenance[editingDiary?.id],
             latestTags = tagState.editorTags[editingDiary?.id],
@@ -437,34 +493,37 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             },
             onSaveContinuation = { content, mood, images, polishedTranscripts ->
                 val rootId = continuationRootId
+                val replyId = continuationReplyId
                 if (rootId != null) {
                     viewModel.viewModelScope.launch {
-                        viewModel.saveReplyAndGetId(
+                        val savedId = viewModel.saveReplyAndGetId(
                             rootId = rootId,
                             content = content,
                             mood = mood,
                             images = images,
-                            existingReplyId = continuationReplyId,
+                            existingReplyId = replyId,
                             polishedTranscripts = polishedTranscripts,
                         )
+                        val resolution = resolveContinuationSaveResult(
+                            rootId = rootId,
+                            replyId = replyId,
+                            savedReplyId = savedId,
+                            error = state.error,
+                        )
+                        if (resolution.shouldClose) {
+                            showEditor = false
+                            continuationRootId = null
+                            continuationReplyId = null
+                            editingDiary = null
+                            editingTag = null
+                        }
                     }
                 }
-                showEditor = false
-                continuationRootId = null
-                continuationReplyId = null
-                editingDiary = null
-                editingTag = null
             },
             onStartRecording = {
                 val rootId = continuationRootId
                 if (rootId != null && state.recordingState is DiaryRecordingState.Idle) {
-                    viewModel.viewModelScope.launch {
-                        val pair = viewModel.prepareReplyRecording(rootId)
-                        if (pair != null) {
-                            continuationReplyId = pair.first
-                            recordingController.start(pair.first, pair.second)
-                        }
-                    }
+                    requestContinuationVoicePermissions(rootId)
                 }
             },
         )
@@ -482,6 +541,11 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 editingDiary = null
                 editingTag = null
                 showEditor = true
+            },
+            onVoiceContinue = {
+                val rootId = snapshot.root.id
+                viewModel.closeThread()
+                requestContinuationVoicePermissions(rootId)
             },
             onEditOriginal = {
                 val root = snapshot.root

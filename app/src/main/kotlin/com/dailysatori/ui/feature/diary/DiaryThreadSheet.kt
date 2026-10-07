@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MicNone
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +60,7 @@ fun DiaryThreadSheet(
     onEditOriginal: () -> Unit,
     onRetrySummary: () -> Unit,
     modifier: Modifier = Modifier,
+    onVoiceContinue: () -> Unit = {},
     onRetryTranscription: ((Long) -> Unit)? = null,
     onDeleteAttachment: ((Long) -> Unit)? = null,
 ) {
@@ -81,6 +83,7 @@ fun DiaryThreadSheet(
                 onDismiss = onDismiss,
                 onContinue = onContinue,
                 onEditOriginal = onEditOriginal,
+                onVoiceContinue = onVoiceContinue,
             )
 
             Spacer(modifier = Modifier.height(Spacing.s))
@@ -122,6 +125,7 @@ private fun DiaryThreadHeader(
     onDismiss: () -> Unit,
     onContinue: () -> Unit,
     onEditOriginal: () -> Unit,
+    onVoiceContinue: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -142,6 +146,11 @@ private fun DiaryThreadHeader(
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(IconSize.xs))
                 Spacer(modifier = Modifier.size(Spacing.xxs))
                 Text(stringResource(R.string.diary_thread_action_edit_original))
+            }
+            OutlinedButton(onClick = onVoiceContinue) {
+                Icon(Icons.Default.MicNone, contentDescription = null, modifier = Modifier.size(IconSize.xs))
+                Spacer(modifier = Modifier.size(Spacing.xxs))
+                Text(stringResource(R.string.diary_feed_record_voice))
             }
             Button(onClick = onContinue) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(IconSize.xs))

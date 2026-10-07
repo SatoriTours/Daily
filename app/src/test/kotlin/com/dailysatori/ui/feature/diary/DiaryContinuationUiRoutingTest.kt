@@ -74,6 +74,63 @@ class DiaryContinuationUiRoutingTest {
     }
 
     @Test
+    fun editOriginalVsContinueRouteDistinct() {
+        val root = Diary(
+            id = 42L,
+            content = "主日记",
+            tags = "测试",
+            mood = null,
+            images = null,
+            created_at = 1000L,
+            updated_at = 1000L,
+            parent_diary_id = null,
+        )
+
+        // Route for "编辑原文":
+        val editOriginalTarget = resolveDiaryEditorRouteTarget(root)
+        assertEquals(42L, editOriginalTarget.editingDiary?.id)
+        assertNull(editOriginalTarget.continuationRootId)
+        assertFalse(editOriginalTarget.isContinuation)
+
+        // Route for "继续写":
+        val continueTarget = resolveDiaryEditorRouteTarget(
+            Diary(
+                id = 99L,
+                content = "续写",
+                tags = null,
+                mood = null,
+                images = null,
+                created_at = 2000L,
+                updated_at = 2000L,
+                parent_diary_id = root.id,
+            ),
+        )
+        assertEquals(expected = 42L, actual = continueTarget.continuationRootId, message = "继续写路由的目标根 ID 必须是主日记 ID")
+        assertEquals(expected = 99L, actual = continueTarget.continuationReplyId)
+        assertTrue(continueTarget.isContinuation)
+    }
+
+    @Test
+    fun childRecordingRestorationResolvesToParentRootId() {
+        // F2: 录音控制器恢复 child 时，必须通过真实记录将 parent_diary_id 作为 continuationRootId
+        val childRecordingDiary = Diary(
+            id = 303L,
+            content = "语音转写中...",
+            tags = null,
+            mood = null,
+            images = null,
+            created_at = 3000L,
+            updated_at = 3000L,
+            parent_diary_id = 101L,
+        )
+
+        val target = resolveDiaryEditorRouteTarget(childRecordingDiary)
+        assertEquals(expected = 101L, actual = target.continuationRootId, message = "续写录音恢复时根 ID 必须为 parent_diary_id 而不是 child id")
+        assertEquals(expected = 303L, actual = target.continuationReplyId, message = "续写录音恢复时 replyId 必须为 child id")
+        assertTrue(target.isContinuation)
+    }
+
+    @Test
     fun editOriginalVsContinueRouteDistinctInSource() {
         val file = File("app/src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryThreadSheet.kt").takeIf { it.exists() }
             ?: File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryThreadSheet.kt")
