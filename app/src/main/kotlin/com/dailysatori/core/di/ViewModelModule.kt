@@ -161,6 +161,8 @@ val viewModelModule: Module = module {
             taskScheduler = get(),
             tagRepo = get(),
             tagCoordinator = get(),
+            threadRepo = get(),
+            threadSummaryCoordinator = get(),
         )
     }
     viewModel {

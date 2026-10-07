@@ -12,6 +12,10 @@ import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.core.recording.DiaryRecordingStore
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.service.memory.MemoryExtractor
+import com.dailysatori.data.repository.DiaryThreadRepository
+import com.dailysatori.service.diary.DiaryThreadOverview
+import com.dailysatori.service.diary.DiaryThreadSnapshot
+import com.dailysatori.service.diary.DiaryThreadSummaryCoordinator
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.diary.TranscriptionRetryResult
 import com.dailysatori.service.diary.DiaryMonthSummaryService
@@ -52,6 +56,8 @@ data class DiaryState(
     val attachmentsByDiary: Map<Long, List<Diary_attachment>> = emptyMap(),
     val recordingState: DiaryRecordingState = DiaryRecordingState.Idle,
     val error: String? = null,
+    val threadOverviews: Map<Long, DiaryThreadOverview> = emptyMap(),
+    val selectedThread: DiaryThreadSnapshot? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,11 +72,14 @@ class DiaryViewModel(
     private val taskScheduler: AsyncTaskScheduler? = null,
     private val tagRepo: DiaryTagRepository? = null,
     private val tagCoordinator: DiaryTagCoordinator? = null,
+    private val threadRepo: DiaryThreadRepository? = null,
+    private val threadSummaryCoordinator: DiaryThreadSummaryCoordinator? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
+    private var threadJob: Job? = null
     private val visibleDiaryIds = MutableStateFlow<List<Long>>(emptyList())
 
     init {
@@ -80,6 +89,7 @@ class DiaryViewModel(
         observeMonthSummaries()
         observeRecording()
         observeTags()
+        observeThreadOverviews()
         viewModelScope.launch(Dispatchers.IO) {
             if (recordingStore?.state?.value is DiaryRecordingState.Idle || recordingStore == null) {
                 attachmentRepo?.recoverInterruptedRecordings(startedBefore = recoveryCutoff)
@@ -97,6 +107,51 @@ class DiaryViewModel(
                     selectedTag = it.selectedTag?.let(catalog.vocabulary::canonical)) }
             }
         }
+    }
+
+    /** 列表卡片只用轻量概览，不逐卡片加载整串过程。 */
+    private fun observeThreadOverviews() {
+        val repository = threadRepo ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.observeOverviews().collect { overviews ->
+                _state.update { it.copy(threadOverviews = overviews.associateBy { overview -> overview.rootId }) }
+            }
+        }
+    }
+
+    /** 打开日记串时只观察这一串的完整过程与汇总状态。 */
+    fun openThread(rootId: Long) {
+        val repository = threadRepo ?: return
+        threadJob?.cancel()
+        threadJob = viewModelScope.launch(Dispatchers.IO) {
+            repository.observeThread(rootId).collect { snapshot ->
+                _state.update { it.copy(selectedThread = snapshot) }
+            }
+        }
+    }
+
+    fun closeThread() {
+        threadJob?.cancel()
+        threadJob = null
+        _state.update { it.copy(selectedThread = null) }
+    }
+
+    /** 显式重试：终态失败不被观察循环自动重排，只能由用户触发或新原文版本失效。 */
+    fun retryThreadSummary(rootId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runPostSaveOperation {
+                val taskId = threadSummaryCoordinator?.enqueue(rootId, force = true)
+                if (taskId == null) {
+                    _state.update { it.copy(error = "请先在设置中配置默认 AI 模型") }
+                    return@runPostSaveOperation
+                }
+                taskScheduler?.enqueue(taskId)
+            }
+        }
+    }
+
+    suspend fun getThreadSnapshot(rootId: Long): DiaryThreadSnapshot? = withContext(Dispatchers.IO) {
+        threadRepo?.getSnapshot(rootId)
     }
 
     private fun observeRecording() {
@@ -288,6 +343,96 @@ class DiaryViewModel(
         }
     }
 
+    /**
+     * 保存一笔续写：原文始终落在独立记录，不覆盖主日记；
+     * 保存成功先返回 UI，再调度汇总、主标签与原文消费者。
+     */
+    suspend fun saveReplyAndGetId(
+        rootId: Long,
+        content: String,
+        mood: String? = null,
+        images: String? = null,
+        existingReplyId: Long? = null,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>? = null,
+    ): Long? = withContext(Dispatchers.IO) {
+        _state.update { it.copy(isSaving = true, error = null) }
+        try {
+            val repository = threadRepo
+            if (repository == null || repository.getSnapshot(rootId) == null) {
+                _state.update { it.copy(error = "日记串不存在") }
+                return@withContext null
+            }
+            val replyId = if (existingReplyId != null) {
+                if (repository.rootId(existingReplyId) != rootId) {
+                    _state.update { it.copy(error = "续写不属于该日记") }
+                    return@withContext null
+                }
+                diaryRepo.update(existingReplyId, content, null, mood, images)
+                existingReplyId
+            } else {
+                repository.createReply(rootId, content, mood, images)
+            }
+            runPostSaveOperation {
+                polishedTranscripts?.let { attachmentRepo?.savePolishedTranscripts(replyId, it) }
+            }
+            runPostSaveOperation {
+                threadSummaryCoordinator?.enqueue(rootId)?.let { taskScheduler?.enqueue(it) }
+            }
+            runPostSaveOperation {
+                if (content.isNotBlank()) tagCoordinator?.enqueue(rootId)?.let { taskScheduler?.enqueue(it) }
+            }
+            runPostSaveOperation {
+                val source = repository.getSource(rootId)?.content.orEmpty()
+                if (source.isNotBlank()) {
+                    memoryExtractor.extractAndSave(
+                        sourceType = "diary",
+                        sourceId = rootId,
+                        title = "日记",
+                        content = source,
+                    )
+                }
+            }
+            runPostSaveOperation(::refreshAvailableTags)
+            replyId
+        } finally {
+            _state.update { it.copy(isSaving = false) }
+        }
+    }
+
+    /**
+     * 录音前先建立这条续写及附件，返回 (replyId, attachmentId) 供现有录音控制器使用。
+     * 占位正文不会进入汇总，也不会覆盖主日记。
+     */
+    suspend fun prepareReplyRecording(rootId: Long): Pair<Long, Long>? = withContext(Dispatchers.IO) {
+        try {
+            val repository = threadRepo ?: return@withContext null
+            val attachments = attachmentRepo ?: return@withContext null
+            if (repository.getSnapshot(rootId) == null) {
+                _state.update { it.copy(error = "日记串不存在") }
+                return@withContext null
+            }
+            val replyId = repository.createReply(rootId, DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = attachments.create(
+                replyId,
+                DiaryAttachmentDraft(
+                    kind = DiaryAttachmentKind.audio,
+                    localPath = "",
+                    displayName = "语音续写.m4a",
+                    mimeType = "audio/mp4",
+                ),
+            )
+            replyId to attachmentId
+        } catch (error: Exception) {
+            _state.update { it.copy(error = error.message) }
+            null
+        }
+    }
+
+    /** 取消未保存草稿：只清理无正文、无图片且无附件的空续写，有录音成果的记录不会被删。 */
+    suspend fun discardDraftReply(replyId: Long): Boolean = withContext(Dispatchers.IO) {
+        threadRepo?.discardEmptyReply(replyId) ?: false
+    }
+
     private suspend fun runPostSaveOperation(operation: suspend () -> Unit) {
         try {
             operation()
@@ -303,7 +448,8 @@ class DiaryViewModel(
             try {
                 val store = recordingStore
                 val recording = store?.state?.value
-                if (recording != null && recording !is DiaryRecordingState.Idle && recording.diaryId == id) {
+                val recordingRoot = recording?.diaryId?.let { diaryId -> threadRepo?.rootId(diaryId) ?: diaryId }
+                if (recording != null && recording !is DiaryRecordingState.Idle && recordingRoot == id) {
                     onStopRecording()
                     val stopped = withTimeoutOrNull(15_000) {
                         store.state.first { state ->
