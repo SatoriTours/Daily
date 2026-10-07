@@ -124,6 +124,7 @@ val sharedModule: Module = module {
     single { ChatConversationRepository(get()) }
     single { DiaryAttachmentRepository(get(), get(), get()) }
     single { DiaryRepository(get(), get(), get()) }
+    single { com.dailysatori.data.repository.DiaryThreadRepository(get(), get()) }
     single { com.dailysatori.data.repository.DiaryTagRepository(get()) }
     single {
         val configs = get<com.dailysatori.service.ai.AiConfigService>()
@@ -281,7 +282,7 @@ val sharedModule: Module = module {
     single { ReminderBatchCodec(get()) }
     single { ReminderAiInterpretationRemote(get(), get()) }
     single { ReminderTextInterpreter(get(), get<ReminderAiInterpretationRemote>()) }
-    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Agent service
     single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }

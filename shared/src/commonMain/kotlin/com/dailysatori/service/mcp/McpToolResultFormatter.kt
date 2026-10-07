@@ -33,15 +33,31 @@ internal fun errorResult(message: String): McpToolResult {
     return McpToolResult(false, obj)
 }
 
-internal fun diaryListToJson(diaries: List<Diary>): JsonArray = JsonArray(diaries.map { diary ->
+internal fun diaryListToJson(diaries: List<Diary>, contentFor: (Diary) -> String = { it.content }): JsonArray = JsonArray(diaries.map { diary ->
     buildJsonObject {
         put("id", diary.id)
-        put("content", truncate(diary.content, 500))
+        put("content", truncate(contentFor(diary), 500))
         put("tags", diary.tags ?: "")
         put("mood", diary.mood ?: "")
         put("createdAt", formatDate(diary.created_at))
     }
 })
+
+/**
+ * 搜索证据：从完整日记串原文中截取命中词附近的片段。
+ * 不能先截主正文前 500 字再搜，否则只能命中主记录开头。
+ */
+internal fun diarySearchPassage(content: String, keyword: String): String {
+    if (keyword.isBlank()) return content
+    val index = content.indexOf(keyword, ignoreCase = true)
+    if (index < 0) return content
+    val start = (index - DIARY_PASSAGE_BEFORE).coerceAtLeast(0)
+    val end = (index + keyword.length + DIARY_PASSAGE_AFTER).coerceAtMost(content.length)
+    return content.substring(start, end)
+}
+
+internal const val DIARY_PASSAGE_BEFORE = 120
+internal const val DIARY_PASSAGE_AFTER = 180
 
 internal fun articleListToJson(articles: List<Article>): JsonArray = JsonArray(articles.map { article ->
     buildJsonObject {

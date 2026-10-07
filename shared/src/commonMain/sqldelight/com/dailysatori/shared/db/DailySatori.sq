@@ -1501,20 +1501,43 @@ FROM diary ORDER BY id;
 selectDiariesPaginated:
 SELECT * FROM diary ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
+selectDiaryRootsPaginated:
+SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
 selectDiaryById:
 SELECT * FROM diary WHERE id = ?;
 
 searchDiaries:
 SELECT * FROM diary
-WHERE content LIKE '%' || ? || '%'
-   OR tags LIKE '%' || ? || '%'
+WHERE parent_diary_id IS NULL
+  AND (
+      content LIKE '%' || :legacyQuery || '%'
+      OR tags LIKE '%' || :legacyQuery || '%'
+      OR id IN (
+          SELECT child.parent_diary_id FROM diary child
+          WHERE child.parent_diary_id IS NOT NULL
+            AND (child.content LIKE '%' || :legacyQuery || '%' OR child.tags LIKE '%' || :legacyQuery || '%')
+      )
+  )
 ORDER BY created_at DESC;
 
 searchDiariesFts:
 SELECT * FROM diary
-WHERE id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
-   OR content LIKE '%' || :legacyQuery || '%'
-   OR tags LIKE '%' || :legacyQuery || '%'
+WHERE parent_diary_id IS NULL
+  AND (
+      id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
+      OR content LIKE '%' || :legacyQuery || '%'
+      OR tags LIKE '%' || :legacyQuery || '%'
+      OR id IN (
+          SELECT child.parent_diary_id FROM diary child
+          WHERE child.parent_diary_id IS NOT NULL
+            AND (
+                child.id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
+                OR child.content LIKE '%' || :legacyQuery || '%'
+                OR child.tags LIKE '%' || :legacyQuery || '%'
+            )
+      )
+  )
 ORDER BY
     CASE WHEN id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
     created_at DESC;
@@ -1522,6 +1545,11 @@ ORDER BY
 selectDiariesByDateRange:
 SELECT * FROM diary
 WHERE created_at >= ? AND created_at <= ?
+ORDER BY created_at DESC;
+
+selectDiaryRootsByDateRange:
+SELECT * FROM diary
+WHERE parent_diary_id IS NULL AND created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
 
 insertDiary:
@@ -1582,6 +1610,9 @@ DELETE FROM diary_thread_summary WHERE diary_id = ?;
 
 diaryCount:
 SELECT COUNT(*) FROM diary;
+
+diaryRootCount:
+SELECT COUNT(*) FROM diary WHERE parent_diary_id IS NULL;
 
 insertDiaryAttachment:
 INSERT INTO diary_attachment (

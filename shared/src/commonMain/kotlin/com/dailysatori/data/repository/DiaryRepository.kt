@@ -23,16 +23,16 @@ class DiaryRepository(
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Diary>> =
-        q.selectAllDiaries().asFlow().mapToList(Dispatchers.IO)
+        q.selectDiaryRoots().asFlow().mapToList(Dispatchers.IO)
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Diary>> =
-        q.selectDiariesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
+        q.selectDiaryRootsPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
 
     fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()
 
     fun search(query: String): Flow<List<Diary>> {
         val matches = if (query.isBlank()) {
-            q.searchDiaries(query, query).asFlow().mapToList(Dispatchers.IO)
+            q.searchDiaries(query).asFlow().mapToList(Dispatchers.IO)
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
         }
@@ -43,7 +43,7 @@ class DiaryRepository(
     }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Diary>> =
-        q.selectDiariesByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
+        q.selectDiaryRootsByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
 
     fun insert(
         content: String,
@@ -105,13 +105,13 @@ class DiaryRepository(
         attachmentPaths.forEach { path -> fileManager?.deleteAppOwnedFile(path) }
     }
 
-    fun count(): Long = q.diaryCount().executeAsOne()
+    fun count(): Long = q.diaryRootCount().executeAsOne()
 
-    fun getAllSync(): List<Diary> = q.selectAllDiaries().executeAsList()
+    fun getAllSync(): List<Diary> = q.selectDiaryRoots().executeAsList()
 
     fun searchSync(query: String): List<Diary> {
         val matches = if (query.isBlank()) {
-            q.searchDiaries(query, query).executeAsList()
+            q.searchDiaries(query).executeAsList()
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).executeAsList()
         }
@@ -127,8 +127,8 @@ class DiaryRepository(
     }
 
     fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
-        q.selectDiariesByDateRange(startMs, endMs).executeAsList()
+        q.selectDiaryRootsByDateRange(startMs, endMs).executeAsList()
 
     fun getLatestSync(limit: Int = 5): List<Diary> =
-        q.selectDiariesPaginated(limit.toLong(), 0).executeAsList()
+        q.selectDiaryRootsPaginated(limit.toLong(), 0).executeAsList()
 }
