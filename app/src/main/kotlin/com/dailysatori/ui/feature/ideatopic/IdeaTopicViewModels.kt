@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.service.ideatopic.IdeaAiMaxUserPromptCharacters
 import com.dailysatori.service.ideatopic.IdeaCaptureInput
+import com.dailysatori.service.ideatopic.IdeaDraftContent
 import com.dailysatori.service.ideatopic.IdeaDraftState
 import com.dailysatori.service.ideatopic.IdeaSessionSummaryStatus
 import com.dailysatori.service.ideatopic.IdeaSourceKey
@@ -98,6 +99,7 @@ data class IdeaDraftPreview(
     val draftId: String,
     val state: String,
     val changes: List<IdeaDraftChange>,
+    val proposal: IdeaDraftContent? = null,
 )
 
 data class IdeaTopicDetailState(
@@ -109,6 +111,7 @@ data class IdeaTopicDetailState(
     val error: IdeaTopicError? = null,
     val mergedInto: String? = null,
     val deleted: Boolean = false,
+    val mergeCandidates: List<IdeaTopicSummary> = emptyList(),
 ) {
     val canMergeOrDelete: Boolean get() = detail != null && !busy && !deleted
 }
@@ -161,7 +164,21 @@ class IdeaTopicDetailViewModel(
                         }
                     }
             }
+            viewModelScope.launch {
+                service.observeSummaries()
+                    .catch { failure -> _state.update { it.copy(error = failure.toIdeaTopicError()) } }
+                    .collect { summaries ->
+                        _state.update { state ->
+                            state.copy(mergeCandidates = summaries.filter { it.id != mainTopicId })
+                        }
+                    }
+            }
         }
+    }
+
+    fun createSession(title: String = "", onCreated: (String) -> Unit = {}) = runAction {
+        val sessionId = service.createSession(requireTopicId(), title)
+        onCreated(sessionId)
     }
 
     fun updateContent(content: IdeaTopicContent) = runAction { service.updateContent(requireTopicId(), content) }
@@ -220,6 +237,7 @@ class IdeaTopicDetailViewModel(
                 draftId = draft.id,
                 state = draft.state,
                 changes = if (draft.state == IdeaDraftState.Pending) draftChanges(before, draft.proposal.content) else emptyList(),
+                proposal = draft.proposal,
             )
         }
 
@@ -344,6 +362,21 @@ class IdeaTopicSessionViewModel(
         }
     }
 
+    fun retry(failedMessageId: String? = null) {
+        val list = _state.value.messages
+        val target = if (failedMessageId != null) {
+            val msg = list.firstOrNull { it.id == failedMessageId }
+            if (msg?.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.User) msg
+            else {
+                val idx = list.indexOfFirst { it.id == failedMessageId }
+                if (idx > 0) list.subList(0, idx).lastOrNull { it.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.User } else null
+            }
+        } else {
+            list.lastOrNull { it.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.User }
+        }
+        target?.let { send(it.content) }
+    }
+
     private fun refreshSession(topicId: String) {
         val session = runCatching { service.sessionOrThrow(sessionId) }.getOrNull()
         _state.update {
@@ -365,14 +398,26 @@ data class IdeaTopicCaptureState(
     val capturedTopicId: String? = null,
     val busy: Boolean = false,
     val error: IdeaTopicError? = null,
+    val existingTopics: List<IdeaTopicSummary> = emptyList(),
 )
 
 class IdeaTopicCaptureViewModel(private val service: IdeaTopicService) : ViewModel() {
     private val _state = MutableStateFlow(IdeaTopicCaptureState())
     val state: StateFlow<IdeaTopicCaptureState> = _state.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            service.observeSummaries()
+                .catch { /* ignore */ }
+                .collect { summaries ->
+                    _state.update { it.copy(existingTopics = summaries) }
+                }
+        }
+    }
+
     fun lookupExisting(key: IdeaSourceKey) {
-        _state.value = IdeaTopicCaptureState(sourceKey = key, existingTopicId = service.findBySourceSync(key))
+        val existing = service.findBySourceSync(key)
+        _state.update { it.copy(sourceKey = key, existingTopicId = existing) }
     }
 
     fun submit(input: IdeaCaptureInput) {

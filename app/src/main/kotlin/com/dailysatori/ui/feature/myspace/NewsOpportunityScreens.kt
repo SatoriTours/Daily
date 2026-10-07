@@ -22,6 +22,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.NewsOpportunity
+import com.dailysatori.service.ideatopic.opportunityIdeaCaptureInput
+import com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureSheet
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.theme.*
@@ -30,7 +32,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen: (String) -> Unit, onArticle: (Long) -> Unit, viewModel: MySpaceViewModel = koinViewModel()) {
+fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen: (String) -> Unit, onArticle: (Long) -> Unit, onTopic: (String) -> Unit = {}, viewModel: MySpaceViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val thoughts by viewModel.thoughtState.collectAsStateWithLifecycle()
     val task by viewModel.task.collectAsStateWithLifecycle()
@@ -39,6 +41,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     var editingFocus by rememberSaveable { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
     var choosingContext by rememberSaveable { mutableStateOf(false) }
+    var capturingOpportunity by remember { mutableStateOf<NewsOpportunity?>(null) }
     val action = recommendationAction(state.hasAnalysisContext, state.isUpdating, task?.status)
     val busy = action == RecommendationAction.WAIT
     val analysisError = recommendationError(state, task, stringResource(R.string.my_space_error))
@@ -115,10 +118,28 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                     }), hint, "", {})
                 }
                 itemsIndexed(entries, key = { _, it -> it.id }) { index, entry ->
-                    NewsOpportunityCard(entry, index + 1, { onOpen(entry.id) }, { viewModel.setSaved(entry.id, !entry.saved) })
+                    NewsOpportunityCard(
+                        entry,
+                        index + 1,
+                        { onOpen(entry.id) },
+                        { viewModel.setSaved(entry.id, !entry.saved) },
+                        onCaptureIdea = { capturingOpportunity = entry },
+                    )
                 }
             }
         }
+    }
+    capturingOpportunity?.let { opp ->
+        val input = opportunityIdeaCaptureInput(opp)
+        IdeaTopicCaptureSheet(
+            source = input.source,
+            initialContent = input.content,
+            onCaptured = {
+                capturingOpportunity = null
+                onTopic(it)
+            },
+            onDismiss = { capturingOpportunity = null },
+        )
     }
     if (choosingContext) AlertDialog(
         onDismissRequest = { choosingContext = false },
@@ -191,13 +212,14 @@ private fun FocusDialog(initial: String, failed: Boolean, onDismiss: () -> Unit,
 }
 
 @Composable
-fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Unit, onArticle: (Long) -> Unit, viewModel: MySpaceViewModel = koinViewModel()) {
+fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Unit, onArticle: (Long) -> Unit, onTopic: (String) -> Unit = {}, viewModel: MySpaceViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val failure by viewModel.operationFailed.collectAsStateWithLifecycle()
     val activeReminders by viewModel.activeReminderIds.collectAsStateWithLifecycle()
     val item = state.items.firstOrNull { it.id == id }
     var evidence by rememberSaveable(id) { mutableStateOf(false) }
     var reminder by rememberSaveable(id) { mutableStateOf(false) }
+    var capturingOpportunity by remember { mutableStateOf<NewsOpportunity?>(null) }
     val context = LocalContext.current
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_useful), onBack = onBack, bottomBar = {
@@ -211,6 +233,7 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
             item { Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 TextButton(onClick = { viewModel.setSaved(id, !item.saved) }) { Text(stringResource(if (item.saved) R.string.my_space_unsave else R.string.my_space_save)) }
                 TextButton(onClick = { viewModel.setIgnored(id, !item.ignored) }) { Text(stringResource(if (item.ignored) R.string.my_space_restore else R.string.my_space_irrelevant)) }
+                TextButton(onClick = { capturingOpportunity = item }) { Text("收为点子") }
             } }
             if (failure) item { Text(stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error) }
             item { OpportunityParagraph(stringResource(R.string.my_space_fact), item.fact) }
@@ -231,6 +254,18 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
         }
     }
     if (reminder && item != null) OpportunityReminderSheet(item, viewModel) { reminder = false }
+    capturingOpportunity?.let { opp ->
+        val input = opportunityIdeaCaptureInput(opp)
+        IdeaTopicCaptureSheet(
+            source = input.source,
+            initialContent = input.content,
+            onCaptured = {
+                capturingOpportunity = null
+                onTopic(it)
+            },
+            onDismiss = { capturingOpportunity = null },
+        )
+    }
 }
 
 @Composable

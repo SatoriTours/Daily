@@ -12,6 +12,7 @@ import com.dailysatori.ui.feature.profile.localDayTicker
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -70,6 +71,7 @@ fun MySpaceScreen(
     onFavorites: () -> Unit,
     onTasks: () -> Unit,
     onLifeArchive: () -> Unit = {},
+    onIdeaTopics: () -> Unit = {},
 ) {
     val thoughts: DiaryThoughtViewModel = koinViewModel()
     val reminders: ReminderViewModel = koinViewModel()
@@ -107,6 +109,16 @@ fun MySpaceScreen(
                 MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive,
                     titleClickable = false)
                 Text(stringResource(R.string.life_archive_entry_hint), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item(key = "idea-topics") {
+            val i18n: I18nService = koinInject()
+            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                .clickable(role = Role.Button, onClick = onIdeaTopics)) {
+                MySectionHeading(i18n.t("idea_topic.title"), Icons.Outlined.Lightbulb, onIdeaTopics,
+                    titleClickable = false)
+                Text(i18n.t("idea_topic.entry_hint"), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ internal fun NewsOpportunityCard(
     rank: Int,
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onCaptureIdea: (() -> Unit)? = null,
 ) {
     Surface(
         onClick = onOpen,
@@ -48,6 +50,14 @@ internal fun NewsOpportunityCard(
                     contentDescription = stringResource(if (item.saved) R.string.my_space_unsave else R.string.my_space_save),
                     tint = if (item.saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(IconSize.m))
+            }
+            if (onCaptureIdea != null) {
+                IconButton(onClick = onCaptureIdea) {
+                    Icon(Icons.Outlined.Lightbulb,
+                        contentDescription = "收为点子",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(IconSize.m))
+                }
             }
         }
     }

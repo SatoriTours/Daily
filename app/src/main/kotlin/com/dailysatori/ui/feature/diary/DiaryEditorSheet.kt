@@ -137,6 +137,8 @@ fun DiaryEditorSheet(
     tagStatus: String? = null,
     initialTagToEdit: String? = null,
     latestTags: List<String>? = null,
+    onCaptureIdea: ((content: String, tags: String?, mood: String?, images: String?, tagDraft: DiaryTagDraft,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
@@ -519,15 +521,37 @@ fun DiaryEditorSheet(
                             colors = editorColors,
                             onMood = { showMoodEditor = true },
                         )
-                        TextButton(
-                            enabled = content.text.isNotBlank(),
-                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft,
-                                polishedTranscripts.takeIf { polishVersionsLoaded }) },
-                        ) {
-                            Text(
-                                "保存",
-                                color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (onCaptureIdea != null) {
+                                TextButton(
+                                    enabled = content.text.isNotBlank(),
+                                    onClick = {
+                                        onCaptureIdea(
+                                            content.text,
+                                            tagsText.ifBlank { null },
+                                            moodText.ifBlank { null },
+                                            images.joinToString(",").ifBlank { null },
+                                            tagDraft,
+                                            polishedTranscripts.takeIf { polishVersionsLoaded },
+                                        )
+                                    },
+                                ) {
+                                    Text(
+                                        "收为点子",
+                                        color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
+                                    )
+                                }
+                            }
+                            TextButton(
+                                enabled = content.text.isNotBlank(),
+                                onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft,
+                                    polishedTranscripts.takeIf { polishVersionsLoaded }) },
+                            ) {
+                                Text(
+                                    "保存",
+                                    color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
+                                )
+                            }
                         }
                     }
                     recordingState?.let {

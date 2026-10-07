@@ -95,6 +95,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onBriefing = { navController.navigate(NewsBriefingRoute(it)) },
                 onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
                 onChat = { navController.navigate(PersonalChatRoute()) },
+                onIdeaTopics = { navController.navigate(IdeaTopicListRoute) },
                 settingsViewModel = settingsViewModel,
             )
         }
@@ -119,13 +120,15 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             NewsOpportunityListScreen(onBack = { navController.popBackStack() },
                 onThoughts = { navController.navigate(MyThoughtsRoute()) },
                 onOpen = { navController.navigate(MyOpportunityRoute(it)) },
-                onArticle = { navController.navigate(ArticleDetailRoute(it)) })
+                onArticle = { navController.navigate(ArticleDetailRoute(it)) },
+                onTopic = { navController.navigate(IdeaTopicDetailRoute(it)) })
         }
         composable<MyOpportunityRoute> { entry ->
             val route = entry.toRoute<MyOpportunityRoute>()
             NewsOpportunityDetailScreen(route.id, onBack = { navController.popBackStack() },
                 onChat = { navController.navigate(PersonalChatRoute("opportunity", route.id)) },
-                onArticle = { navController.navigate(ArticleDetailRoute(it)) })
+                onArticle = { navController.navigate(ArticleDetailRoute(it)) },
+                onTopic = { navController.navigate(IdeaTopicDetailRoute(it)) })
         }
         composable<PersonalChatRoute> { entry ->
             val route = entry.toRoute<PersonalChatRoute>()
@@ -363,6 +366,31 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             val route = backStackEntry.toRoute<ShareDialogRoute>()
             ShareDialogScreen(
                 url = route.url,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<IdeaTopicListRoute> {
+            com.dailysatori.ui.feature.ideatopic.IdeaTopicListScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { topicId -> navController.navigate(IdeaTopicDetailRoute(topicId)) },
+            )
+        }
+        composable<IdeaTopicDetailRoute> { entry ->
+            val route = entry.toRoute<IdeaTopicDetailRoute>()
+            com.dailysatori.ui.feature.ideatopic.IdeaTopicDetailScreen(
+                id = route.id,
+                onBack = { navController.popBackStack() },
+                onSession = { topicId, sessionId ->
+                    navController.navigate(IdeaTopicSessionRoute(topicId, sessionId))
+                },
+            )
+        }
+        composable<IdeaTopicSessionRoute> { entry ->
+            val route = entry.toRoute<IdeaTopicSessionRoute>()
+            com.dailysatori.ui.feature.ideatopic.IdeaTopicSessionScreen(
+                topicId = route.topicId,
+                sessionId = route.sessionId,
                 onBack = { navController.popBackStack() },
             )
         }

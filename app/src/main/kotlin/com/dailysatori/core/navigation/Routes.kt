@@ -30,3 +30,6 @@ import kotlinx.serialization.Serializable
 @Serializable data class ReminderRoute(val reminderId: String)
 @Serializable data class ReminderAiBatchRoute(val batchId: String)
 @Serializable data class ShareDialogRoute(val url: String)
+@Serializable data object IdeaTopicListRoute
+@Serializable data class IdeaTopicDetailRoute(val id: String)
+@Serializable data class IdeaTopicSessionRoute(val topicId: String, val sessionId: String)

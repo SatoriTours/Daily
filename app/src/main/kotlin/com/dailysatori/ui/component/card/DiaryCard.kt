@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -80,6 +81,7 @@ fun DiaryCard(
     nowMillis: Long = System.currentTimeMillis(),
     initiallyExpanded: Boolean = false,
     onTagClick: (String) -> Unit = { onEdit() },
+    onCaptureIdea: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val tags = diaryTags(diary.tags)
@@ -103,6 +105,7 @@ fun DiaryCard(
             onEdit = onEdit,
             onDelete = onDelete,
             nowMillis = nowMillis,
+            onCaptureIdea = onCaptureIdea,
         )
         DiaryBody(contentText, expanded, onOverflow = { hasOverflow = it }, modifier = Modifier.fillMaxWidth(),
             hasPhotos = imagePaths.isNotEmpty())
@@ -127,6 +130,7 @@ private fun DiaryCardHeader(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     nowMillis: Long,
+    onCaptureIdea: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     Row(
@@ -165,6 +169,16 @@ private fun DiaryCardHeader(
                             copyDiaryContent(context, contentText)
                         },
                     )
+                    if (onCaptureIdea != null) {
+                        DropdownMenuItem(
+                            text = { Text("收为点子") },
+                            leadingIcon = { Icon(Icons.Outlined.Lightbulb, null) },
+                            onClick = {
+                                onMenuChange(false)
+                                onCaptureIdea()
+                            },
+                        )
+                    }
                     DropdownMenuItem(text = { Text("编辑") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { onMenuChange(false); onEdit() })
                     DropdownMenuItem(text = { Text("删除") }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }, onClick = { onMenuChange(false); onDelete() })
                 }

@@ -163,6 +163,37 @@ class IdeaTopicViewModelTest {
             assertEquals(listOf("title"), preview.changes.map { it.field })
             assertEquals("AI 新标题", preview.changes.single().after)
             assertEquals("草稿主题", vm.state.value.detail!!.topic.content.title, "AI must not overwrite content")
+            assertNotNull(preview.proposal)
+            assertEquals("AI 新标题", preview.proposal?.content?.title)
+
+            // User edits the proposal before applying
+            val edited = preview.proposal!!.content.copy(title = "人工修改后标题")
+            vm.applyDraft(preview.draftId, edited)
+            withTimeout(5_000) { vm.state.first { it.detail?.topic?.content?.title == "人工修改后标题" } }
+            assertEquals("人工修改后标题", vm.state.value.detail!!.topic.content.title)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun detailExposesMergeCandidatesAndCreateSession() = runBlocking {
+        val fixture = ViewModelFixture()
+        try {
+            val mainTopic = fixture.captureTopic("主主题")
+            val targetTopic = fixture.captureTopic("候选合并目标")
+            val vm = IdeaTopicDetailViewModel(mainTopic, fixture.service, fixture.workflow)
+            withTimeout(5_000) { vm.state.first { it.detail != null && it.mergeCandidates.isNotEmpty() } }
+
+            assertEquals(listOf(targetTopic), vm.state.value.mergeCandidates.map { it.id })
+
+            var createdSessionId: String? = null
+            vm.createSession("新沟通") { id -> createdSessionId = id }
+            withTimeout(5_000) { while (createdSessionId == null) delay(10) }
+            val created = assertNotNull(createdSessionId)
+
+            val sessions = fixture.service.sessionsSync(mainTopic)
+            assertTrue(sessions.any { it.id == created && it.title == "新沟通" })
         } finally {
             fixture.close()
         }
@@ -229,6 +260,7 @@ class IdeaTopicViewModelTest {
             withTimeout(5_000) { second.state.first { it.capturedTopicId != null } }
             assertEquals(captured, second.state.value.capturedTopicId)
             assertEquals(1, fixture.service.observeSummaries().first().size)
+            assertTrue(second.state.value.existingTopics.any { it.id == captured })
         } finally {
             fixture.close()
         }
