@@ -58,6 +58,13 @@ fun Diary_attachment.isPendingThreadTranscription(): Boolean =
 fun pendingThreadAttachmentCount(attachments: List<Diary_attachment>): Long =
     attachments.count { it.isPendingThreadTranscription() }.toLong()
 
+/** 单个记录的统一段落：带记录类型、ID 与时间边界。 */
+internal fun diaryThreadEntrySegment(entries: List<Diary>, diary: Diary, includeBody: Boolean = true): String {
+    val kind = if (diary.id == entries.firstOrNull()?.id) "最初记录" else "续写"
+    val header = "【$kind #${diary.id} · ${Instant.fromEpochMilliseconds(diary.created_at)}】"
+    return if (includeBody) "$header\n${diary.content.trim()}" else header
+}
+
 /**
  * 统一原文：单条记录保持原样以便沿用既有指纹与展示；
  * 有续写时按记录 ID 和时间加边界，占位正文不再作为原文参与分析。
@@ -66,15 +73,7 @@ fun renderDiaryThreadContent(entries: List<Diary>): String {
     if (entries.size <= 1) {
         return entries.firstOrNull()?.takeIf { it.hasRenderableThreadContent() }?.content?.trim().orEmpty()
     }
-    val rootId = entries.first().id
     return entries.joinToString("\n\n") { diary ->
-        val kind = if (diary.id == rootId) "最初记录" else "续写"
-        buildString {
-            append("【").append(kind).append(" #").append(diary.id).append(" · ")
-                .append(Instant.fromEpochMilliseconds(diary.created_at)).append("】")
-            if (diary.hasRenderableThreadContent()) {
-                append('\n').append(diary.content.trim())
-            }
-        }
+        diaryThreadEntrySegment(entries, diary, includeBody = diary.hasRenderableThreadContent())
     }
 }

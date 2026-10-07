@@ -218,6 +218,7 @@ private fun asyncTaskNotificationText(taskType: String): String = when (taskType
     "external_favorite_sync" -> "正在同步外部收藏…"
     "save_article" -> "正在保存并整理文章…"
     "remote_article_reprocess" -> "正在整理收藏文章…"
+    "diary_thread_summarize" -> "正在整理日记续写…"
     else -> "正在执行后台任务…"
 }
 
@@ -234,6 +235,7 @@ private val NETWORK_TASK_TYPES = setOf(
     "book_viewpoint_generate",
     "diary_attachment_transcribe",
     "diary_knowledge_extract",
+    "diary_thread_summarize",
     "reminder_ai_parse",
 )
 

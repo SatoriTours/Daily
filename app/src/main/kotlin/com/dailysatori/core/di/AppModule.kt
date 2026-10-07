@@ -114,6 +114,7 @@ val appModule: Module = module {
                 get<DiaryTranscriptionCoordinator>(),
                 get<DiaryKnowledgeCoordinator>(),
                 get<com.dailysatori.service.diary.DiaryTagCoordinator>(),
+                get<com.dailysatori.service.diary.DiaryThreadSummaryCoordinator>(),
             ),
         )
     }

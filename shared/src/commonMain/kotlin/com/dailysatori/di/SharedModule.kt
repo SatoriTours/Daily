@@ -145,6 +145,20 @@ val sharedModule: Module = module {
     single { DiaryThoughtGenerator(diaryAssistantCompletion(get(), get())) }
     single { DiaryThoughtService(get(), get(), get()) }
     single { DiaryThoughtChatContextProvider(get(), get()) }
+    single {
+        val configs = get<com.dailysatori.service.ai.AiConfigService>()
+        val ai = get<com.dailysatori.service.ai.AiService>()
+        com.dailysatori.service.diary.DiaryThreadSummaryGenerator { prompt, system ->
+            val config = configs.getDefaultConfig() ?: error("请先配置默认 AI")
+            ai.completePrivate(prompt, config.api_address, config.api_token, config.model_name, config.provider, system)
+        }
+    }
+    single {
+        val configs = get<com.dailysatori.service.ai.AiConfigService>()
+        com.dailysatori.service.diary.DiaryThreadSummaryCoordinator(get(), get(), get()) {
+            configs.getDefaultConfig()?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
+        }
+    }
     single { ExternalFavoriteSourceRepository(get(), get()) }
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
