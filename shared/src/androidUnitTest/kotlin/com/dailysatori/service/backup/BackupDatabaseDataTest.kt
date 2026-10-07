@@ -2,6 +2,7 @@ package com.dailysatori.service.backup
 
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.shared.db.DailySatoriDatabase
 import java.nio.file.Files
 import kotlin.test.*
@@ -38,7 +39,7 @@ class BackupDatabaseDataTest {
             BackupDatabaseData(driver).prepareSecrets(cipher)
             val q = DailySatoriDatabase(driver).dailySatoriQueries
             assertEquals("keep this diary", q.selectAllDiaries().executeAsOne().content)
-            assertEquals("31", q.selectSettingByKey("schema_version").executeAsOne().value_)
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), q.selectSettingByKey("schema_version").executeAsOne().value_)
             listOf("sms_reminder_source", "bookkeeping_entry", "phone_message").forEach { table ->
                 driver.execute(null, "SELECT * FROM $table", 0)
             }
