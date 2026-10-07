@@ -58,6 +58,7 @@ data class ReminderEdit(
     val recurrence: ReminderRecurrence? = null,
     val profile: ReminderProfileSnapshot? = null,
     val deadlineAt: Instant? = null,
+    val notes: String? = null,
 )
 
 class ReminderRepository(
@@ -83,6 +84,7 @@ class ReminderRepository(
         q.insertReminder(
             id = draft.id,
             content = draft.content,
+            notes = draft.notes,
             status = ReminderStatus.ACTIVE.name,
             start_date = startDate.toString(),
             end_date = endDate.toString(),
@@ -221,7 +223,7 @@ class ReminderRepository(
         if (edit.deadlineAt != null && edit.deadlineAt <= at) return@transactionWithResult false
         if (end < start || content.isBlank() || content.length > MAX_CONTENT_LENGTH || !rule.isValid()) return@transactionWithResult false
         val profile = edit.profile ?: runCatching { row.profile_json.toProfile() }.getOrNull() ?: return@transactionWithResult false
-        if (q.updateReminderEditableIfVersion(content, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
+        if (q.updateReminderEditableIfVersion(content, edit.notes ?: row.notes, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         edit.deadlineAt?.let { q.setReminderDeadline(it.toEpochMilliseconds(), id) }
         if (id.startsWith("sms:") && row.deadline_at == null && edit.deadlineAt != null && row.status == ReminderStatus.PAUSED.name) {
             simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")
@@ -285,6 +287,7 @@ class ReminderRepository(
             if (decodedProfile.isFailure) ReminderDataIssue.CORRUPT_PROFILE else null,
             recurrence_rule.decodeRecurrence(),
             deadline_at?.let(Instant::fromEpochMilliseconds),
+            notes = notes,
         )
     }
 

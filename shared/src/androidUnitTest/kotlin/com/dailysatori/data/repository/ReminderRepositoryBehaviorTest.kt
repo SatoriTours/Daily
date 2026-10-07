@@ -94,6 +94,36 @@ class ReminderRepositoryBehaviorTest {
         assertEquals("续订 satori.dev 域名", repository.get(created.id)!!.content)
     }
 
+    @Test
+    fun notesSurviveReloadUnrelatedEditsAndCanBeCleared() = withRepository { db, repository ->
+        val draft = ReminderDraft(
+            "notes-test", "提交周报", LocalDate(2026, 9, 16), LocalDate(2026, 9, 16), LocalTime(9, 0),
+            notes = "附上进度截图\n发送给项目负责人",
+        )
+        val created = repository.createConfirmed(draft, ReminderProfileSnapshot.standard())
+        assertEquals("附上进度截图\n发送给项目负责人", created.notes)
+        val reloaded = ReminderRepository(db, TimeZone.UTC)
+        assertEquals("附上进度截图\n发送给项目负责人", reloaded.get(draft.id)?.notes)
+
+        assertTrue(reloaded.update(draft.id, ReminderEdit(created.version, notes = "补充本周风险")))
+        assertTrue(reloaded.update(draft.id, ReminderEdit(created.version + 1, content = "更新周报")))
+        assertEquals("补充本周风险", reloaded.get(draft.id)?.notes)
+        assertTrue(reloaded.update(draft.id, ReminderEdit(created.version + 2, notes = "")))
+        assertEquals("", reloaded.get(draft.id)?.notes)
+    }
+
+    @Test
+    fun staleEditCannotOverwriteNotes() = withRepository { _, repository ->
+        val created = repository.createConfirmed(
+            ReminderDraft("notes-cas", "续费", LocalDate(2026, 9, 16), LocalDate(2026, 9, 16), LocalTime(9, 0)),
+            ReminderProfileSnapshot.standard(),
+        )
+        assertEquals("", created.notes)
+        assertTrue(repository.update(created.id, ReminderEdit(created.version, notes = "新备注")))
+        kotlin.test.assertFalse(repository.update(created.id, ReminderEdit(created.version, notes = "旧备注")))
+        assertEquals("新备注", repository.get(created.id)?.notes)
+    }
+
     private fun withRepository(test: (DailySatoriDatabase, ReminderRepository) -> Unit) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)

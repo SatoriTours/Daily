@@ -127,6 +127,7 @@ fun ReminderEditScreen(
                     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         OutlinedTextField(editor.content, onValueChange = { editor = editor.copy(content = it) }, label = { Text(i18n.t("sms.task_title")) }, modifier = Modifier.fillMaxWidth())
+                        ReminderNotesField(editor.notes) { editor = editor.copy(notes = it) }
                         OutlinedTextField(deadlineText, onValueChange = { deadlineText = it }, label = { Text(i18n.t("sms.deadline")) }, modifier = Modifier.fillMaxWidth())
                         Text(i18n.t("sms.time_hint"), style = MaterialTheme.typography.bodySmall)
                         Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)

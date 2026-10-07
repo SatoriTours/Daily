@@ -40,6 +40,7 @@ private data class SavedDraft(
     val activeRule: String, val activeDays: List<String>, val recurrence: String,
     val recurrenceDay: Int?, val recurrenceMonth: Int?, val leapPolicy: String?,
     val profile: SavedProfile?, val profileId: String?, val backoffInput: String, val eveningInput: String,
+    val notes: String = "",
 )
 
 @Serializable
@@ -105,7 +106,7 @@ private fun ReminderDraftUiState.toSaved(): SavedDraft {
         recurrenceMonth = (repeat as? ReminderRecurrence.Yearly)?.month,
         leapPolicy = (repeat as? ReminderRecurrence.Yearly)?.leapDayPolicy?.name,
         profile = profile?.toSaved(), profileId = profileId,
-        backoffInput = daytimeBackoffInput, eveningInput = eveningIntervalInput,
+        backoffInput = daytimeBackoffInput, eveningInput = eveningIntervalInput, notes = notes,
     )
 }
 
@@ -148,7 +149,7 @@ private fun SavedDraft.toUi() = ReminderDraftUiState(
         else -> ReminderRecurrence.Once
     },
     profile = profile?.toUi(), profileId = profileId, daytimeBackoffInput = backoffInput,
-    eveningIntervalInput = eveningInput,
+    eveningIntervalInput = eveningInput, notes = notes,
 )
 
 private fun SavedProfile.toUi() = ReminderProfileSnapshot(

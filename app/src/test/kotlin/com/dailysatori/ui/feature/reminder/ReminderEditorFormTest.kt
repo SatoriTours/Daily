@@ -43,6 +43,32 @@ class ReminderEditorFormTest {
         assertEquals(original.recurrence, changed.recurrence)
     }
 
+    @Test
+    fun notesRoundTripThroughFormAndConfirmationWithoutChangingSchedule() {
+        val original = editor().copy(notes = "原备注")
+        val form = original.toFormState("id")
+        assertEquals("原备注", form.notes)
+        val changed = original.applyFormState(form.editNotes("第一行\n第二行"))
+        assertEquals(original.copy(notes = "第一行\n第二行"), changed)
+        val payload = changed.toFormState("id").confirmationPayload()!!
+        assertEquals("第一行\n第二行", payload.draft.notes)
+        assertEquals("第一行\n第二行", ReminderDraftUiState.from(payload.draft).notes)
+        val cleared = changed.applyFormState(changed.toFormState("id").editNotes(""))
+        assertEquals("", cleared.notes)
+        assertTrue(cleared.canSave)
+    }
+
+    @Test
+    fun existingReminderNotesArePrefilledInEditor() {
+        val reminder = com.dailysatori.service.reminder.Reminder(
+            "existing", "缴费", LocalDate(2026, 9, 2), LocalDate(2026, 9, 2), LocalTime(9, 0),
+            ReminderActiveDayRule.Daily, ReminderProfileSnapshot.standard(),
+            com.dailysatori.service.reminder.ReminderStatus.ACTIVE, kotlinx.datetime.TimeZone.UTC, 0,
+            notes = "账单编号 123",
+        )
+        assertEquals("账单编号 123", ReminderEditorState.from(reminder).toFormState(reminder.id).notes)
+    }
+
     private fun editor() = ReminderEditorState(
         content = "提醒内容",
         startDate = LocalDate(2028, 2, 29),

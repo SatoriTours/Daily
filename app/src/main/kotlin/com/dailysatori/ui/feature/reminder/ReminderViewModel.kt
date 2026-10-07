@@ -71,6 +71,7 @@ data class ReminderEditorState(
     val daytimeBackoffInput: String = profile.daytimeDismissalBackoffMinutes.joinToString(","),
     val eveningIntervalInput: String = profile.eveningIntervalMinutes?.toString().orEmpty(),
     val deadlineAt: kotlinx.datetime.Instant? = null,
+    val notes: String = "",
 ) {
     fun applyParsedDraft(draft: ReminderDraft): ReminderEditorState {
         val parsedRecurrence = draft.recurrence
@@ -141,6 +142,7 @@ data class ReminderEditorState(
             recurrence = reminder.recurrence,
             profile = reminder.profile,
             deadlineAt = reminder.deadlineAt,
+            notes = reminder.notes,
         )
     }
 }
@@ -212,6 +214,7 @@ data class ReminderDraftUiState(
     val confirmed: Boolean = false,
     val cancelled: Boolean = false,
     val notice: ReminderDraftNotice? = null,
+    val notes: String = "",
 ) {
     val validationErrors: Set<ReminderDraftField>
         get() = buildSet {
@@ -232,6 +235,7 @@ data class ReminderDraftUiState(
         ).joinToString(" — ")
 
     fun editContent(value: String) = copy(content = value, notice = null)
+    fun editNotes(value: String) = copy(notes = value, notice = null)
     fun editDates(start: LocalDate?, end: LocalDate?): ReminderDraftUiState {
         val updatedRecurrence = if (start == null || start == startDate) recurrence else when (val rule = recurrence) {
             ReminderRecurrence.Once -> rule
@@ -292,7 +296,7 @@ data class ReminderDraftUiState(
     fun confirmationPayload(): ReminderConfirmationPayload? {
         if (validationErrors.isNotEmpty()) return null
         return ReminderConfirmationPayload(
-            draft = ReminderDraft(id, content.trim(), startDate, endDate, firstReminderTime, activeDayRule, profile?.copy(), recurrence = recurrence),
+            draft = ReminderDraft(id, content.trim(), startDate, endDate, firstReminderTime, activeDayRule, profile?.copy(), recurrence = recurrence, notes = notes),
             profileSnapshot = profile!!.copy(),
         )
     }
@@ -305,6 +309,7 @@ data class ReminderDraftUiState(
         ) = ReminderDraftUiState(
             id = draft.id,
             content = draft.content,
+            notes = draft.notes,
             startDate = draft.startDate,
             endDate = draft.endDate,
             firstReminderTime = draft.firstReminderTime,
@@ -662,11 +667,11 @@ class ReminderViewModel(
                     val id = existing?.id ?: creationId ?: UUID.randomUUID().toString()
                     if (existing == null) {
                         repository.createConfirmedOnce(
-                            ReminderDraft(id, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.profile, recurrence = editor.recurrence),
+                            ReminderDraft(id, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.profile, recurrence = editor.recurrence, notes = editor.notes),
                             editor.profile,
                         )
                     } else if (existing != null) {
-                        check(repository.update(id, ReminderEdit(existing.version, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.recurrence, editor.profile, editor.deadlineAt)))
+                        check(repository.update(id, ReminderEdit(existing.version, editor.content.trim(), editor.startDate, editor.endDate, editor.firstReminderTime, editor.activeDayRule, editor.recurrence, editor.profile, editor.deadlineAt, notes = editor.notes)))
                     }
                     coordinator.recompute(id)
                     id

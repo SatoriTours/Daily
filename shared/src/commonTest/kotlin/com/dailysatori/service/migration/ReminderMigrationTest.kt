@@ -64,7 +64,7 @@ class ReminderMigrationTest {
             driver.execute(null, "DROP TABLE reminder_ai_batch", 0)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
-            db.dailySatoriQueries.insertReminder("legacy", "preserved", "ACTIVE", "2026-09-02", "2026-09-02", "09:00", "daily", "once", "UTC", "{}", 0, null, 0, null, null, null, null, 1, 1)
+            db.dailySatoriQueries.insertReminder("legacy", "preserved", "", "ACTIVE", "2026-09-02", "2026-09-02", "09:00", "daily", "once", "UTC", "{}", 0, null, 0, null, null, null, null, 1, 1)
             settings.upsert(SettingKeys.schemaVersion, "24")
 
             DatabaseMigration(driver, settings, TestCipher).runMigrations()
@@ -110,6 +110,36 @@ class ReminderMigrationTest {
             assertEquals(0L, draft.discarded)
             assertEquals("PENDING", draft.confirmation_state)
             assertEquals(null, draft.reminder_id)
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
+    fun version31ReminderPreservesDataAndReceivesEmptyNotes() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            driver.execute(null, "ALTER TABLE reminder DROP COLUMN notes", 0)
+            driver.execute(null, "INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, time_zone_id, profile_json, version, dismissal_count, created_at, updated_at) VALUES ('legacy-note', '保留原提醒', 'ACTIVE', '2026-09-01', '2026-09-01', '09:00', 'daily', 'UTC', '{}', 0, 0, 1, 1)", 0)
+            val settings = SettingRepository(DailySatoriDatabase(driver))
+            settings.upsert(SettingKeys.schemaVersion, "31")
+
+            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+
+            val columns = driver.executeQuery(null, "SELECT name FROM pragma_table_info('reminder')", { cursor ->
+                val names = mutableListOf<String>()
+                while (cursor.next().value) names += cursor.getString(0).orEmpty()
+                QueryResult.Value(names)
+            }, 0).value
+            assertTrue("notes" in columns, "Upgrade must add reminder notes storage")
+            driver.executeQuery(null, "SELECT content, notes FROM reminder WHERE id = 'legacy-note'", { cursor ->
+                assertTrue(cursor.next().value)
+                assertEquals("保留原提醒", cursor.getString(0))
+                assertEquals("", cursor.getString(1))
+                QueryResult.Value(Unit)
+            }, 0)
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
         } finally {
             driver.close()
         }

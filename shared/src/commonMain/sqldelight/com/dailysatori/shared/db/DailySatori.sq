@@ -2168,6 +2168,7 @@ CREATE TABLE reminder_profile (
 CREATE TABLE reminder (
     id TEXT PRIMARY KEY NOT NULL,
     content TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
     start_date TEXT NOT NULL,
     end_date TEXT NOT NULL,
@@ -2221,8 +2222,8 @@ deleteReminderProfile:
 DELETE FROM reminder_profile WHERE id = ?;
 
 insertReminder:
-INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, recurrence_rule, time_zone_id, profile_json, version, state_date, dismissal_count, last_notified_at, last_dismissed_at, completed_at, next_occurrence_at, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO reminder (id, content, notes, status, start_date, end_date, first_reminder_time, active_day_rule, recurrence_rule, time_zone_id, profile_json, version, state_date, dismissal_count, last_notified_at, last_dismissed_at, completed_at, next_occurrence_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectReminderById:
 SELECT * FROM reminder WHERE id = ?;
@@ -2319,7 +2320,7 @@ updateReminderLifecycleIfVersion:
 UPDATE reminder SET status = ?, version = ?, state_date = ?, dismissal_count = ?, last_notified_at = ?, last_dismissed_at = ?, completed_at = ?, next_occurrence_at = ?, updated_at = ? WHERE id = ? AND version = ?;
 
 updateReminderEditableIfVersion:
-UPDATE reminder SET content = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, recurrence_rule = ?, profile_json = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?;
+UPDATE reminder SET content = ?, notes = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, recurrence_rule = ?, profile_json = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?;
 
 insertReminderEvent:
 INSERT INTO reminder_event (reminder_id, event_type, scheduled_at, actual_at, metadata_json) VALUES (?, ?, ?, ?, ?);

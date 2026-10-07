@@ -105,6 +105,14 @@ fun ReminderDetailScreen(
                         }
                     }
                 }
+                if (reminder.notes.isNotBlank()) item(key = "notes") {
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            Text(stringResource(R.string.reminder_notes_label), style = MaterialTheme.typography.titleMedium)
+                            Text(reminder.notes, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
                 if (reminder.id.startsWith("sms:")) item { SmsReminderSourcePanel(reminder.id) }
                 if (reminder.deadlineAt != null) item {
                     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()

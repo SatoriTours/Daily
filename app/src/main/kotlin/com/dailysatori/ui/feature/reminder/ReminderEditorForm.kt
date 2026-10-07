@@ -50,6 +50,7 @@ internal fun ReminderEditorForm(
             label = { Text(stringResource(R.string.reminder_content_label)) },
             modifier = Modifier.fillMaxWidth(),
         )
+        ReminderNotesField(state.notes) { onChange(state.editNotes(it)) }
         ReminderEditorRecurrence(state, onChange, leapDayFallbackChosen, onLeapDayPolicySelected)
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             ReminderSettingRow(stringResource(R.string.reminder_start_date), state.startDate?.toString() ?: missing) { picker = EditorPicker.START }
@@ -94,6 +95,18 @@ internal fun ReminderEditorForm(
         EditorPicker.TIME -> TimeDialog(state.firstReminderTime ?: LocalTime(9, 0), { picker = null }) { onChange(state.editFirstTime(it)); picker = null }
         null -> Unit
     }
+}
+
+@Composable
+internal fun ReminderNotesField(notes: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = notes,
+        onValueChange = onChange,
+        label = { Text(stringResource(R.string.reminder_notes_label)) },
+        placeholder = { Text(stringResource(R.string.reminder_notes_placeholder)) },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = 3,
+    )
 }
 
 @Composable
@@ -160,7 +173,7 @@ private fun ReminderEditorDayRules(state: ReminderDraftUiState, onChange: (Remin
 }
 
 internal fun ReminderEditorState.toFormState(id: String) = ReminderDraftUiState(
-    id = id, content = content, startDate = startDate, endDate = endDate,
+    id = id, content = content, notes = notes, startDate = startDate, endDate = endDate,
     firstReminderTime = firstReminderTime, activeDayRule = activeDayRule,
     recurrence = recurrence, profile = profile, saving = saving,
     daytimeBackoffInput = daytimeBackoffInput, eveningIntervalInput = eveningIntervalInput,
@@ -168,7 +181,7 @@ internal fun ReminderEditorState.toFormState(id: String) = ReminderDraftUiState(
 
 internal fun ReminderDraftUiState.toEditorStateOrNull(): ReminderEditorState? {
     return ReminderEditorState(
-        content = content, startDate = startDate ?: return null, endDate = endDate ?: return null,
+        content = content, notes = notes, startDate = startDate ?: return null, endDate = endDate ?: return null,
         firstReminderTime = firstReminderTime ?: return null, activeDayRule = activeDayRule,
         recurrence = recurrence, profile = profile ?: return null, saving = saving,
         daytimeBackoffInput = daytimeBackoffInput, eveningIntervalInput = eveningIntervalInput,

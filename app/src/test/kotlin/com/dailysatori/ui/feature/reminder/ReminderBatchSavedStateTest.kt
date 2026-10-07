@@ -17,7 +17,7 @@ class ReminderBatchSavedStateTest {
             id = "batch-1", content = "还信用卡", startDate = LocalDate(2026, 9, 2),
             endDate = LocalDate(2026, 9, 2), firstReminderTime = LocalTime(10, 30),
             activeDayRule = ReminderActiveDayRule.Daily, recurrence = ReminderRecurrence.Monthly(2),
-            profile = ReminderProfileSnapshot.standard(), profileId = "builtin-standard",
+            profile = ReminderProfileSnapshot.standard(), profileId = "builtin-standard", notes = "使用工资卡\n保留凭证",
         )
         val original = ReminderAiParseState(
             prompt = "明天提醒我还信用卡", submitCount = 1, requestToken = 8, batchGeneration = 4,
@@ -31,6 +31,7 @@ class ReminderBatchSavedStateTest {
         val item = assertNotNull(restored.batch?.items?.get("batch-1"))
         assertEquals(original.prompt, restored.prompt)
         assertEquals(ReminderRecurrence.Monthly(2), item.draft.recurrence)
+        assertEquals("使用工资卡\n保留凭证", item.draft.notes)
         assertEquals(BatchSaveStatus.FAILED, item.saveStatus)
         assertEquals(true, item.selected)
         assertEquals(ReminderBatchErrorCode.SAVE_FAILED, item.saveError)

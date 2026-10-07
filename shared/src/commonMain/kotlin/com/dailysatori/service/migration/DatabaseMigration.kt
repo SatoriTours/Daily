@@ -137,6 +137,9 @@ class DatabaseMigration(
         if (currentVersion < 31) {
             migrateV30ToV31()
         }
+        if (currentVersion < 32) {
+            migrateV31ToV32()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1079,6 +1082,14 @@ class DatabaseMigration(
             )""")
         } catch (e: Exception) {
             log.w(e) { "Could not create bookkeeping storage" }
+        }
+    }
+
+    private fun migrateV31ToV32() {
+        try {
+            addColumnIfMissing("reminder", "notes", "TEXT NOT NULL DEFAULT ''")
+        } catch (e: Exception) {
+            log.w(e) { "Could not add reminder notes" }
         }
     }
 

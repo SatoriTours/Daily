@@ -90,6 +90,7 @@ data class ReminderDraft(
     val validationErrors: List<String> = emptyList(),
     val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
     val deadlineAt: Instant? = null,
+    val notes: String = "",
 )
 
 data class Reminder(
@@ -106,6 +107,7 @@ data class Reminder(
     val dataIssue: ReminderDataIssue? = null,
     val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
     val deadlineAt: Instant? = null,
+    val notes: String = "",
 )
 
 enum class ReminderDeliveryReason { INITIAL, HOURLY_REPEAT, DISMISSAL_BACKOFF, EVENING_REINFORCEMENT, WAKE_RECOVERY, NEXT_ACTIVE_DATE }
