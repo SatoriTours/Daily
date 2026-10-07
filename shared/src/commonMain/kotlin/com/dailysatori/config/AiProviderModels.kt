@@ -11,7 +11,15 @@ data class AiProvider(
 data class AiModel(
     val id: String,
     val name: String,
+    val requestProtocol: AiRequestProtocol? = null,
 )
+
+enum class AiRequestProtocol {
+    OpenAiChatCompletions,
+    AnthropicMessages,
+    Gemini,
+    OpenAiResponses,
+}
 
 data class AiModelDiscovery(
     val protocol: AiModelDiscoveryProtocol,
@@ -180,6 +188,45 @@ val aiProviders = listOf(
             AiModel("google/gemini-2.5-flash-preview", "Gemini 2.5 Flash"),
             AiModel("deepseek/deepseek-chat", "DeepSeek V3"),
             AiModel("qwen/qwen-2.5-7b-instruct:free", "Qwen 2.5 7B (免费)"),
+        ),
+    ),
+    AiProvider(
+        id = "opencode-go",
+        name = "OpenCode Go",
+        apiHost = "https://opencode.ai/zen/go/v1",
+        // Exact protocol assignments from https://opencode.ai/docs/go/#endpoints.
+        // The /models endpoint does not expose protocol metadata.
+        models = listOf(
+            AiModel("glm-5.3-flash", "GLM-5.3 Flash", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("glm-5.3", "GLM-5.3", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("glm-5.2", "GLM-5.2", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("kimi-k3", "Kimi K3", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("kimi-k2.7-code", "Kimi K2.7 Code", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("kimi-k2.6", "Kimi K2.6", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("longcat-2.0", "LongCat 2.0", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("longcat-2.5-preview-free", "LongCat 2.5 Preview Free", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("deepseek-v4.1-flash", "DeepSeek V4.1 Flash", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("deepseek-v4-pro", "DeepSeek V4 Pro", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("deepseek-v4-flash", "DeepSeek V4 Flash", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("deepseek-v4-flash-vision-exp", "DeepSeek V4 Flash Vision Exp", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("mimo-v2.6-flash", "MiMo V2.6 Flash", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("mimo-v2.6-pro", "MiMo V2.6 Pro", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("mimo-v2.5", "MiMo V2.5", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("mimo-v2.5-pro", "MiMo V2.5 Pro", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("minimax-m3", "MiniMax M3", AiRequestProtocol.AnthropicMessages),
+            AiModel("minimax-m2.7", "MiniMax M2.7", AiRequestProtocol.AnthropicMessages),
+            AiModel("qwen3.8-max", "Qwen3.8 Max", AiRequestProtocol.AnthropicMessages),
+            AiModel("qwen3.8-flash", "Qwen3.8 Flash", AiRequestProtocol.AnthropicMessages),
+            AiModel("qwen3.7-plus", "Qwen3.7 Plus", AiRequestProtocol.AnthropicMessages),
+            AiModel("hy4-preview", "Hy4 Preview", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("hy3", "Hy3", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("space-bunny", "Space Bunny", AiRequestProtocol.OpenAiChatCompletions),
+            AiModel("grok-4.7", "Grok 4.7", AiRequestProtocol.OpenAiResponses),
+            AiModel("grok-4.6", "Grok 4.6", AiRequestProtocol.OpenAiResponses),
+            AiModel("gpt-6-luna", "GPT 6 Luna", AiRequestProtocol.OpenAiResponses),
+            AiModel("gpt-5.6-luna", "GPT 5.6 Luna", AiRequestProtocol.OpenAiResponses),
+            AiModel("muse-spark-1.3-contributor", "Muse Spark 1.3 Contributor", AiRequestProtocol.OpenAiResponses),
+            AiModel("muse-spark-1.2-contributor", "Muse Spark 1.2 Contributor", AiRequestProtocol.OpenAiResponses),
         ),
     ),
     AiProvider(

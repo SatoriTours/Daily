@@ -1,10 +1,12 @@
 package com.dailysatori.service.ai
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.config.AiRequestProtocol
 import com.dailysatori.service.diagnostics.*
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
@@ -30,25 +32,37 @@ class AiService(private val client: HttpClient) {
     private val langChainClient = LangChainAiClient()
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
+    private suspend fun <T> withAiOperation(
+        provider: String, model: String, isFailure: (T) -> Boolean = { false }, block: suspend () -> T,
+    ): T = withAiRequestSession {
+        DiagnosticLog.diagnostics.operation(
+            DiagnosticSource.AI, fields = mapOf("provider" to provider, "model" to model), isFailure = isFailure, block = block,
+        )
+    }
+
     /** Private archives must not expose provider error bodies through logging or exception causes. */
     suspend fun completePrivate(
         prompt: String, apiAddress: String, apiToken: String, modelName: String,
         provider: String, systemPrompt: String,
     ): String = try {
-        val response = if (usesOpenAiCompatibleChatApi(provider)) {
-            rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, 0.0,
-                disableThinking = provider.trim().equals("deepseek", ignoreCase = true), recordUsage = false)
-        } else {
-            withTimeout(aiCompletionRequestTimeoutMillis()) {
-                langChainClient.complete(prompt, apiAddress.trim().trimEnd('/'), apiToken.trim(), modelName.trim(),
-                    provider.trim(), systemPrompt, 0.0)
+        withAiRequestSession {
+            val route = resolveAiRequestRoute(provider, modelName, apiAddress)
+            val headers = aiRequestHeaders(provider)
+            val response = if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
+                rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, 0.0,
+                    disableThinking = provider.trim().equals("deepseek", ignoreCase = true), recordUsage = false, headers = headers)
+            } else {
+                withTimeout(aiCompletionRequestTimeoutMillis()) {
+                    langChainClient.complete(prompt, route, apiToken.trim(), modelName.trim(), headers, systemPrompt, 0.0)
+                }
             }
+            require(response.isNotBlank() && response.length <= 100_000)
+            response
         }
-        require(response.isNotBlank() && response.length <= 100_000)
-        response
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
+        // Sanitize outside withContext so stack-trace recovery cannot attach even a sanitized cause.
         throw IllegalStateException("AI 请求失败，请检查配置或稍后重试")
     }
 
@@ -61,22 +75,23 @@ class AiService(private val client: HttpClient) {
         systemPrompt: String? = null,
         temperature: Double = 0.5,
         disableThinking: Boolean = false,
-    ): String = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
-        fields = mapOf("provider" to provider, "model" to modelName)) {
-        if (usesOpenAiCompatibleChatApi(provider)) {
-            return@operation rawOpenAiTextCompletion(
+    ): String = withAiOperation(provider, modelName) {
+        val route = resolveAiRequestRoute(provider, modelName, apiAddress)
+        val headers = aiRequestHeaders(provider)
+        if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
+            return@withAiOperation rawOpenAiTextCompletion(
                 apiAddress, apiToken, modelName, prompt, systemPrompt, temperature,
-                disableThinking = disableThinking && provider.trim().equals("deepseek", ignoreCase = true),
+                disableThinking = disableThinking && provider.trim().equals("deepseek", ignoreCase = true), headers = headers,
             )
         }
         val response = try {
             withTimeout(aiCompletionRequestTimeoutMillis()) {
                 langChainClient.complete(
                     prompt = prompt,
-                    apiAddress = apiAddress.trim().trimEnd('/'),
+                    route = route,
                     apiToken = apiToken.trim(),
                     modelName = modelName.trim(),
-                    provider = provider.trim(),
+                    headers = headers,
                     systemPrompt = systemPrompt,
                     temperature = temperature,
                 )
@@ -98,6 +113,7 @@ class AiService(private val client: HttpClient) {
         temperature: Double,
         disableThinking: Boolean,
         recordUsage: Boolean = true,
+        headers: Map<String, String> = emptyMap(),
     ): String {
         val response = rawOpenAiChatCompletion(
             apiAddress = apiAddress,
@@ -108,6 +124,7 @@ class AiService(private val client: HttpClient) {
             temperature = temperature,
             disableThinking = disableThinking,
             recordUsage = recordUsage,
+            headers = headers,
         )
         return extractOpenAiTextCompletionContent(response)
     }
@@ -138,18 +155,19 @@ class AiService(private val client: HttpClient) {
         provider: String = "openai",
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
-    ): JsonObject? = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
-        fields = mapOf("provider" to provider, "model" to modelName), isFailure = { it == null }) {
+    ): JsonObject? = withAiOperation(provider, modelName, isFailure = { it == null }) {
+        val route = resolveAiRequestRoute(provider, modelName, apiAddress)
+        val headers = aiRequestHeaders(provider)
         try {
-            if (usesOpenAiCompatibleChatApi(provider)) {
-                rawOpenAiChatCompletion(apiAddress, apiToken, modelName, messages, tools, temperature)
+            if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
+                rawOpenAiChatCompletion(apiAddress, apiToken, modelName, messages, tools, temperature, headers = headers)
             } else {
                 langChainClient.chatCompletion(
                     messages = messages,
-                    apiAddress = apiAddress.trim().trimEnd('/'),
+                    route = route,
                     apiToken = apiToken.trim(),
                     modelName = modelName.trim(),
-                    provider = provider.trim(),
+                    headers = headers,
                     tools = tools,
                     temperature = temperature,
                 )
@@ -169,11 +187,12 @@ class AiService(private val client: HttpClient) {
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
         onChunk: suspend (String) -> Unit,
-    ): JsonObject? = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
-        fields = mapOf("provider" to provider, "model" to modelName), isFailure = { it == null }) {
+    ): JsonObject? = withAiOperation(provider, modelName, isFailure = { it == null }) {
+        val route = resolveAiRequestRoute(provider, modelName, apiAddress)
+        val headers = aiRequestHeaders(provider)
         try {
-            if (usesOpenAiCompatibleChatApi(provider)) {
-                rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk)
+            if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
+                rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk, headers)
             } else {
                 chatCompletion(messages, apiAddress, apiToken, modelName, provider, tools, temperature)
             }
@@ -192,7 +211,8 @@ class AiService(private val client: HttpClient) {
         temperature: Double,
         disableThinking: Boolean = false,
         recordUsage: Boolean = true,
-    ): JsonObject {
+        headers: Map<String, String> = emptyMap(),
+    ): JsonObject = withSafeGoResponse(headers) {
         val response = client.post(openAiChatCompletionEndpoint(apiAddress.trim())) {
             timeout {
                 requestTimeoutMillis = aiChatRequestTimeoutMillis()
@@ -200,12 +220,14 @@ class AiService(private val client: HttpClient) {
             }
             contentType(ContentType.Application.Json)
             bearerAuth(apiToken.trim())
+            headers.forEach { (name, value) -> header(name, value) }
             setBody(buildOpenAiChatCompletionRequest(
                 modelName.trim(), messages, tools, temperature, disableThinking = disableThinking,
             ).toString())
         }
         val body = response.bodyAsText()
         if (response.status.value !in 200..299) {
+            if (headers.containsKey("x-opencode-session")) throw openCodeGoHttpError(response.status.value)
             throw IllegalStateException(body.ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
         }
         val parsed = json.parseToJsonElement(body) as JsonObject
@@ -216,7 +238,7 @@ class AiService(private val client: HttpClient) {
                 "outputTokens" to ((usage["completion_tokens"] as? JsonPrimitive)?.contentOrNull ?: ""),
             ))
         }
-        return parsed
+        parsed
     }
 
     private suspend fun rawOpenAiChatCompletionStreaming(
@@ -227,7 +249,8 @@ class AiService(private val client: HttpClient) {
         tools: List<JsonObject>,
         temperature: Double,
         onChunk: suspend (String) -> Unit,
-    ): JsonObject? {
+        headers: Map<String, String>,
+    ): JsonObject? = withSafeGoResponse(headers) {
         val fullText = StringBuilder()
         val started = DiagnosticLog.elapsed()
         var firstChunk = true
@@ -238,9 +261,11 @@ class AiService(private val client: HttpClient) {
             }
             contentType(ContentType.Application.Json)
             bearerAuth(apiToken.trim())
+            headers.forEach { (name, value) -> header(name, value) }
             setBody(buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature, stream = true).toString())
         }.execute { response ->
             if (response.status.value !in 200..299) {
+                if (headers.containsKey("x-opencode-session")) throw openCodeGoHttpError(response.status.value)
                 throw IllegalStateException(response.bodyAsText().ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
             }
             val channel = response.bodyAsChannel()
@@ -255,7 +280,7 @@ class AiService(private val client: HttpClient) {
                 onChunk(chunk)
             }
         }
-        return if (fullText.isEmpty()) null else buildOpenAiStreamingResponse(fullText.toString())
+        if (fullText.isEmpty()) null else buildOpenAiStreamingResponse(fullText.toString())
     }
 
     suspend fun translate(

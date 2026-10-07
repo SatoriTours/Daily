@@ -905,6 +905,9 @@ ai_config:
   name_required: 请输入配置名称
   save_failed: 保存失败
   save_success: 保存成功
+  go_usage_notice: OpenCode Go 主要面向编程 Agent，Daily 的非编程用途可用性不能保证。请使用已订阅 Go 的 API Key。
+  responses_unsupported: 暂不支持 Responses 协议
+  model_unadapted: 模型协议尚未适配，请选择已支持的模型
 
 # 周报总结
 weekly_summary:

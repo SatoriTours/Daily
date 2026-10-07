@@ -32,6 +32,7 @@ internal fun addReminderDraftIfNew(drafts: MutableList<ReminderDraft>, draft: Re
     if (drafts.none { it.id == draft.id || it.copy(id = "") == draft.copy(id = "") }) drafts += draft
 }
 
+// Session scope spans tool rounds, retries, final-answer generation and streaming fallback.
 class McpAgentService(
     private val aiService: AiService,
     private val aiConfigService: AiConfigService,
@@ -52,23 +53,28 @@ class McpAgentService(
         onChunk: suspend (String) -> Unit,
         explicitContext: DiaryThoughtChatContext? = null,
         includeThoughts: Boolean = true,
-    ): McpAgentResult = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
-        val reminderDrafts = mutableListOf<ReminderDraft>()
-        try {
-            processQueryWithStreamingFinalAnswer(query, onStep, onChunk, reminderDrafts, explicitContext, includeThoughts)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.w(e) { "Streaming AI chat failed, falling back to non-streaming path" }
-            processQuery(query, onStep, reminderDrafts, explicitContext, includeThoughts)
+        sessionId: String? = null,
+    ): McpAgentResult = com.dailysatori.service.ai.withAiRequestSession(sessionId) {
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
+            val reminderDrafts = mutableListOf<ReminderDraft>()
+            try {
+                processQueryWithStreamingFinalAnswer(query, onStep, onChunk, reminderDrafts, explicitContext, includeThoughts)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.w(e) { "Streaming AI chat failed, falling back to non-streaming path" }
+                processQuery(query, onStep, reminderDrafts, explicitContext, includeThoughts)
+            }
         }
     }
 
     suspend fun processQuery(
         query: String,
         onStep: (String, String) -> Unit,
-    ): McpAgentResult = DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
-        processQuery(query, onStep, mutableListOf())
+    ): McpAgentResult = com.dailysatori.service.ai.withAiRequestSession {
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.AI) {
+            processQuery(query, onStep, mutableListOf())
+        }
     }
 
     private suspend fun processQuery(

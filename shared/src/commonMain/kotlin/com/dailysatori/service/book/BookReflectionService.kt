@@ -2,6 +2,8 @@ package com.dailysatori.service.book
 
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.AiConversationSessionStore
+import com.dailysatori.service.ai.withAiRequestSession
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -21,6 +23,7 @@ data class BookReflectionAiResult(
 class BookReflectionService(
     private val aiService: AiService,
     private val aiConfigService: AiConfigService,
+    private val sessionStore: AiConversationSessionStore,
 ) {
     suspend fun answer(
         bookTitle: String,
@@ -32,11 +35,12 @@ class BookReflectionService(
         recentMessages: List<BookReflectionPromptMessage>,
         userQuestion: String,
         onChunk: suspend (String) -> Unit,
-    ): BookReflectionAiResult {
+        conversationId: Long? = null,
+    ): BookReflectionAiResult = withAiRequestSession(conversationId?.let { sessionStore.getOrCreate("book-reflection:$it") }) {
         val config = aiConfigService.getDefaultConfig()
-            ?: return BookReflectionAiResult(bookReflectionAiNotConfiguredMessage())
+            ?: return@withAiRequestSession BookReflectionAiResult(bookReflectionAiNotConfiguredMessage())
         if (config.api_address.isBlank() || config.api_token.isBlank()) {
-            return BookReflectionAiResult(bookReflectionAiNotConfiguredMessage())
+            return@withAiRequestSession BookReflectionAiResult(bookReflectionAiNotConfiguredMessage())
         }
 
         val messages = listOf(
@@ -73,14 +77,15 @@ class BookReflectionService(
         val content = response?.get("choices")?.jsonArray?.firstOrNull()
             ?.jsonObject?.get("message")?.jsonObject?.get("content")
             ?.jsonPrimitive?.contentOrNull.orEmpty()
-        return BookReflectionAiResult(content.ifBlank { bookReflectionBlankResponseMessage() })
+        BookReflectionAiResult(content.ifBlank { bookReflectionBlankResponseMessage() })
     }
 
     suspend fun summarize(
         bookTitle: String,
         viewpointTitle: String,
         messages: List<BookReflectionPromptMessage>,
-    ): String {
+        conversationId: Long? = null,
+    ): String = withAiRequestSession(conversationId?.let { sessionStore.getOrCreate("book-reflection:$it") }) {
         val config = aiConfigService.getDefaultConfig()
             ?: throw IllegalStateException(bookReflectionAiNotConfiguredMessage())
         if (config.api_address.isBlank() || config.api_token.isBlank()) {
@@ -92,7 +97,7 @@ class BookReflectionService(
             appendLine("交流过程：")
             messages.forEach { appendLine("${it.role}：${it.content}") }
         }
-        return aiService.complete(
+        aiService.complete(
             prompt = content,
             apiAddress = config.api_address,
             apiToken = config.api_token,

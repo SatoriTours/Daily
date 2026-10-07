@@ -146,6 +146,7 @@ class BookReflectionViewModel(
                     BookReflectionPromptMessage(it.role, it.content)
                 },
                 userQuestion = question,
+                conversationId = sessionId,
                 onChunk = { chunk ->
                     streamed.append(chunk)
                     reflectionRepo.updateMessage(assistantId, streamed.toString(), "streaming")
@@ -198,7 +199,7 @@ class BookReflectionViewModel(
                 val messages = reflectionRepo.getMessagesBySession(session.id).map {
                     BookReflectionPromptMessage(it.role, it.content)
                 }
-                val summary = reflectionService.summarize(snapshot.bookTitle, snapshot.viewpointTitle, messages)
+                val summary = reflectionService.summarize(snapshot.bookTitle, snapshot.viewpointTitle, messages, conversationId = session.id)
                 reflectionRepo.updateSummary(session.id, bookReflectionTitleFromSummary(summary), summary)
             } catch (error: Exception) {
                 reflectionRepo.updateSummaryStatus(session.id, "failed", error.message.orEmpty())

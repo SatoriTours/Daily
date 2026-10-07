@@ -217,9 +217,26 @@ class ArticleAiProcessorTest {
         }
     }
 
+    @Test fun goLongArticleRequestsShareOneSessionButOtherArticlesDoNot() = runBlocking {
+        val sessions = java.util.Collections.synchronizedList(mutableListOf<String>())
+        withProcessor({ request ->
+            if (system(request).contains("只提取资料中的事实")) factsResponse() else briefResponse()
+        }, observeRequest = { sessions += it.headers["x-opencode-session"].orEmpty() }) { processor, requests, _ ->
+            val go = config.copy(apiAddress = "https://opencode.ai/zen/go/v1", provider = "opencode-go", modelName = "glm-5.2")
+            processor.process(100, "详细的技术事实。".repeat(1_000), "长文", go)
+            assertTrue(requests.size >= 3)
+            assertEquals(1, sessions.distinct().size)
+            val first = sessions.first()
+            assertTrue(first.isNotBlank())
+            processor.process(101, "另一篇文章。", "短文", go)
+            assertNotEquals(first, sessions.last())
+        }
+    }
+
     private suspend fun withProcessor(
         respondText: suspend (JsonObject) -> String,
         prepare: (SettingRepository) -> Unit = {},
+        observeRequest: (io.ktor.client.request.HttpRequestData) -> Unit = {},
         test: suspend (ArticleAiProcessor, MutableList<JsonObject>, () -> ArticleAiProcessor) -> Unit,
     ) {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
@@ -228,6 +245,7 @@ class ArticleAiProcessorTest {
             prepare(settings)
             val requests = mutableListOf<JsonObject>()
             HttpClient(MockEngine { request ->
+                observeRequest(request)
                 val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
                 requests += body
                 val content = respondText(body)

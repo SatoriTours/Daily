@@ -159,15 +159,17 @@ class ExternalFavoriteAiOrganizer(
         entry: ExternalFavoriteAiWork,
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
-    ): ExternalFavoriteAiResult = try {
-        withTimeoutOrNull(itemTimeoutMs.coerceAtLeast(1)) {
-            analyzeItem(entry, httpLogger, taskId)
-        } ?: ExternalFavoriteAiResult(entry.item, entry.article, null, null, IllegalStateException("单条收藏整理超时，已跳过，可稍后重试"))
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        logAiFailure(httpLogger, taskId, entry.item, error)
-        ExternalFavoriteAiResult(entry.item, entry.article, null, null, error)
+    ): ExternalFavoriteAiResult = com.dailysatori.service.ai.withAiRequestSession {
+        try {
+            withTimeoutOrNull(itemTimeoutMs.coerceAtLeast(1)) {
+                analyzeItem(entry, httpLogger, taskId)
+            } ?: ExternalFavoriteAiResult(entry.item, entry.article, null, null, IllegalStateException("单条收藏整理超时，已跳过，可稍后重试"))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            logAiFailure(httpLogger, taskId, entry.item, error)
+            ExternalFavoriteAiResult(entry.item, entry.article, null, null, error)
+        }
     }
 
     private suspend fun analyzeItem(
@@ -481,6 +483,10 @@ internal fun isRetryableExternalFavoriteAiFailure(error: Throwable): Boolean {
 internal fun externalFavoriteAiRequestLogUrl(config: Ai_config): String {
     val apiAddress = config.api_address.trim().trimEnd('/')
     if (apiAddress.isBlank()) return "ai://external-favorite/organize"
+    if (config.provider.trim().equals(com.dailysatori.service.ai.OpenCodeGoProviderId, ignoreCase = true)) {
+        return runCatching { com.dailysatori.service.ai.resolveAiRequestRoute(config.provider, config.model_name, apiAddress).endpoint }
+            .getOrDefault(apiAddress)
+    }
     return if (usesOpenAiCompatibleChatApi(config.provider)) {
         openAiChatCompletionEndpoint(apiAddress)
     } else {

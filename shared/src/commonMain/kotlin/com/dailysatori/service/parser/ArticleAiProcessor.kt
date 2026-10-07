@@ -70,7 +70,7 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         onProgress: (String) -> Unit = {},
         ensureCurrent: () -> Unit = {},
         sourceUrl: String = "",
-    ) {
+    ) = com.dailysatori.service.ai.withAiRequestSession {
         require(original.isNotBlank()) { "文章没有可处理的正文" }
         val fingerprint = sha256Hex("article-v4-brief\n$original\n$title\n$sourceUrl\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
         val session = ArticleAiSession(settings, "article.ai.v3:$articleId", fingerprint, ensureCurrent)

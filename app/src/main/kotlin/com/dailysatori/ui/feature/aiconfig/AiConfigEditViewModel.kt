@@ -7,6 +7,9 @@ import com.dailysatori.config.AiProvider
 import com.dailysatori.config.findProvider
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.service.ai.AiModelCatalogService
+import com.dailysatori.service.ai.AiModelAvailability
+import com.dailysatori.service.ai.aiModelAvailability
+import com.dailysatori.service.ai.mergeAiModels
 import com.dailysatori.service.ai.AiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -48,6 +51,10 @@ data class AiConfigEditState(
         currentModelId(customModelName, selectedModel), apiToken, isDefault)
     val hasChanges: Boolean get() = draft != savedDraft
     val editable: Boolean get() = !isLoading && !isSaving && !isTesting
+    val modelAvailability: AiModelAvailability get() =
+        aiModelAvailability(selectedProvider?.id.orEmpty(), currentModelId(customModelName, selectedModel).orEmpty())
+    val canUseModel: Boolean get() = selectedProvider != null &&
+        currentModelId(customModelName, selectedModel) != null && modelAvailability == AiModelAvailability.Supported
 }
 
 class AiConfigEditViewModel(
@@ -135,7 +142,7 @@ class AiConfigEditViewModel(
 
     fun testConnection() {
         val snapshot = _state.value
-        if (!snapshot.editable) return
+        if (!snapshot.editable || !snapshot.canUseModel) return
         val provider = snapshot.selectedProvider ?: return
         val modelId = currentModelId(snapshot.customModelName, snapshot.selectedModel) ?: return
         val token = snapshot.apiToken
@@ -171,7 +178,7 @@ class AiConfigEditViewModel(
 
     fun save(configId: Long?, onSaved: () -> Unit) {
         val snapshot = _state.value
-        if (!snapshot.editable || !snapshot.hasChanges) return
+        if (!snapshot.editable || !snapshot.hasChanges || !snapshot.canUseModel) return
         val provider = snapshot.selectedProvider ?: return
         val modelId = currentModelId(snapshot.customModelName, snapshot.selectedModel) ?: return
         val token = snapshot.apiToken
@@ -234,7 +241,7 @@ class AiConfigEditViewModel(
                     current.copy(isRefreshingModels = false)
                 } else {
                     val refreshedModels = result.getOrNull().orEmpty()
-                    val models = mergeModels(refreshedModels, provider.models)
+                    val models = mergeAiModels(provider, refreshedModels)
                     current.copy(
                         availableModels = models,
                         selectedModel = current.selectedModel?.takeIf { selected -> models.any { it.id == selected.id } },
@@ -252,7 +259,7 @@ class AiConfigEditViewModel(
     }
 
     private fun modelsForProvider(provider: AiProvider): List<AiModel> =
-        mergeModels(modelCatalogService.cachedModels(provider.id), provider.models)
+        mergeAiModels(provider, modelCatalogService.cachedModels(provider.id))
 }
 
 private fun currentModelId(
@@ -261,6 +268,3 @@ private fun currentModelId(
 ): String? {
     return customModelName.ifBlank { selectedModel?.id.orEmpty() }.trim().takeIf { it.isNotBlank() }
 }
-
-private fun mergeModels(primary: List<AiModel>, fallback: List<AiModel>): List<AiModel> =
-    (primary + fallback).distinctBy { it.id }

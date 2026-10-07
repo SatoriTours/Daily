@@ -19,6 +19,9 @@ import dev.langchain4j.model.chat.request.json.JsonNumberSchema
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema
 import dev.langchain4j.model.chat.request.json.JsonSchemaElement
 import dev.langchain4j.model.chat.request.json.JsonStringSchema
+import com.dailysatori.config.AiRequestProtocol
+import dev.langchain4j.exception.HttpException
+import kotlinx.coroutines.CancellationException
 import dev.langchain4j.model.anthropic.AnthropicChatModel
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel
 import dev.langchain4j.model.openai.OpenAiChatModel
@@ -42,78 +45,79 @@ import java.time.Duration
 internal actual class LangChainAiClient actual constructor() {
     actual suspend fun complete(
         prompt: String,
-        apiAddress: String,
+        route: AiRequestRoute,
         apiToken: String,
         modelName: String,
-        provider: String,
+        headers: Map<String, String>,
         systemPrompt: String?,
         temperature: Double,
     ): String = withContext(Dispatchers.IO) {
-        val normalizedPrompt = if (systemPrompt.isNullOrBlank()) {
-            prompt
-        } else {
-            "${systemPrompt.trim()}\n\n${prompt.trim()}"
+        withSafeGoErrors(headers) {
+            val messages = buildOpenAiTextCompletionMessages(prompt, systemPrompt).mapNotNull { toChatMessage(it, mutableMapOf()) }
+            createModel(route, apiToken, modelName, headers, temperature)
+                .chat(ChatRequest.builder().messages(messages).temperature(temperature).build()).aiMessage().text().orEmpty()
         }
-        createModel(apiAddress, apiToken, modelName, provider, temperature).chat(normalizedPrompt)
     }
 
     actual suspend fun chatCompletion(
         messages: List<JsonObject>,
-        apiAddress: String,
+        route: AiRequestRoute,
         apiToken: String,
         modelName: String,
-        provider: String,
+        headers: Map<String, String>,
         tools: List<JsonObject>,
         temperature: Double,
     ): JsonObject = withContext(Dispatchers.IO) {
-        val toolNames = mutableMapOf<String, String>()
-        val chatMessages = messages.mapNotNull { toChatMessage(it, toolNames) }
-        val toolSpecifications = tools.mapNotNull { toToolSpecification(it) }
-        val requestBuilder = ChatRequest.builder()
-            .messages(chatMessages)
-            .temperature(temperature)
-        if (toolSpecifications.isNotEmpty()) {
-            requestBuilder.toolSpecifications(toolSpecifications)
-            requestBuilder.toolChoice(ToolChoice.AUTO)
+        withSafeGoErrors(headers) {
+            val toolNames = mutableMapOf<String, String>()
+            val chatMessages = messages.mapNotNull { toChatMessage(it, toolNames) }
+            val toolSpecifications = tools.mapNotNull { toToolSpecification(it) }
+            val requestBuilder = ChatRequest.builder()
+                .messages(chatMessages)
+                .temperature(temperature)
+            if (toolSpecifications.isNotEmpty()) {
+                requestBuilder.toolSpecifications(toolSpecifications)
+                requestBuilder.toolChoice(ToolChoice.AUTO)
+            }
+            val response = createModel(route, apiToken, modelName, headers, temperature)
+                .chat(requestBuilder.build())
+            toOpenAiResponse(response.aiMessage())
         }
-        val response = createModel(apiAddress, apiToken, modelName, provider, temperature)
-            .chat(requestBuilder.build())
-        toOpenAiResponse(response.aiMessage())
     }
 
     private fun createModel(
-        apiAddress: String,
+        route: AiRequestRoute,
         apiToken: String,
         modelName: String,
-        provider: String,
+        headers: Map<String, String>,
         temperature: Double,
-    ): ChatModel {
-        return when (provider.lowercase()) {
-            "anthropic" -> AnthropicChatModel.builder()
-                .httpClientBuilder(langChainHttpClientBuilder())
-                .baseUrl(apiAddress)
-                .apiKey(apiToken)
-                .modelName(modelName)
-                .temperature(temperature)
-                .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
-                .build()
-            "gemini" -> GoogleAiGeminiChatModel.builder()
-                .httpClientBuilder(langChainHttpClientBuilder())
-                .baseUrl(apiAddress)
-                .apiKey(apiToken)
-                .modelName(modelName)
-                .temperature(temperature)
-                .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
-                .build()
-            else -> OpenAiChatModel.builder()
-                .httpClientBuilder(langChainHttpClientBuilder())
-                .baseUrl(apiAddress)
-                .apiKey(apiToken)
-                .modelName(modelName)
-                .temperature(temperature)
-                .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
-                .build()
-        }
+    ): ChatModel = when (route.protocol) {
+        AiRequestProtocol.AnthropicMessages -> AnthropicChatModel.builder()
+            .httpClientBuilder(langChainHttpClientBuilder(headers))
+            .baseUrl(route.clientBaseUrl)
+            .apiKey(apiToken)
+            .modelName(modelName)
+            .temperature(temperature)
+            .apply { if (headers.containsKey("x-opencode-session")) maxRetries(0) }
+            .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
+            .build()
+        AiRequestProtocol.Gemini -> GoogleAiGeminiChatModel.builder()
+            .httpClientBuilder(langChainHttpClientBuilder())
+            .baseUrl(route.clientBaseUrl)
+            .apiKey(apiToken)
+            .modelName(modelName)
+            .temperature(temperature)
+            .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
+            .build()
+        AiRequestProtocol.OpenAiChatCompletions -> OpenAiChatModel.builder()
+            .httpClientBuilder(langChainHttpClientBuilder(headers))
+            .baseUrl(route.clientBaseUrl)
+            .apiKey(apiToken)
+            .modelName(modelName)
+            .temperature(temperature)
+            .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
+            .build()
+        AiRequestProtocol.OpenAiResponses -> error("Responses API is not implemented")
     }
 
     private fun toChatMessage(message: JsonObject, toolNames: MutableMap<String, String>): ChatMessage? {
@@ -211,6 +215,24 @@ internal actual class LangChainAiClient actual constructor() {
 }
 
 // LangChain4j 1.14's public builder preserves timeout configuration on this client.
-internal fun langChainHttpClientBuilder(): HttpClientBuilder = OkHttpClient.builder()
+internal fun langChainHttpClientBuilder(headers: Map<String, String> = emptyMap()): HttpClientBuilder = OkHttpClient.builder()
     .okHttpClientBuilder(okhttp3.OkHttpClient.Builder()
+        .apply {
+            if (headers.isNotEmpty()) addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                headers.forEach { (name, value) -> request.header(name, value) }
+                chain.proceed(request.build())
+            }
+        }
         .eventListenerFactory(diagnosticEventListenerFactory(DiagnosticSource.AI)))
+
+private inline fun <T> withSafeGoErrors(headers: Map<String, String>, block: () -> T): T = try {
+    block()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    if (!headers.containsKey("x-opencode-session")) throw error
+    val httpError = generateSequence(error as Throwable) { it.cause }.take(8).filterIsInstance<HttpException>().firstOrNull()
+    throw httpError?.let { openCodeGoHttpError(it.statusCode()) }
+        ?: openCodeGoUnknownError()
+}

@@ -184,6 +184,7 @@ fun generateChatMessageId(now: Long): String {
 class AiChatViewModel(
     private val mcpAgentService: McpAgentService,
     private val chatConversationRepo: ChatConversationRepository,
+    private val sessionStore: com.dailysatori.service.ai.AiConversationSessionStore,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AiChatState())
     val state: StateFlow<AiChatState> = _state.asStateFlow()
@@ -247,6 +248,7 @@ class AiChatViewModel(
             currentStep = "",
         ) }
         persistMessage(userMessage)
+        val conversationId = _state.value.sessionId
 
         val assistantMessageId = generateId()
         activeAssistantMessageId = assistantMessageId
@@ -255,6 +257,7 @@ class AiChatViewModel(
                 val steps = mutableListOf<String>()
                 val result = mcpAgentService.processQueryStreaming(
                     query = content,
+                    sessionId = sessionStore.getOrCreate("ai-chat:$conversationId"),
                     explicitContext = explicitContext,
                     includeThoughts = includeThoughts,
                     onStep = { step, status ->

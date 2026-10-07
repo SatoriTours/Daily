@@ -1994,6 +1994,15 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun goFavoriteDiagnosticsUseTheSelectedModelsProtocol() {
+        val config = testAiConfig(provider = "opencode-go", apiAddress = "https://opencode.ai/zen/go/v1")
+        assertEquals("https://opencode.ai/zen/go/v1/messages",
+            externalFavoriteAiRequestLogUrl(config.copy(model_name = "minimax-m2.7")))
+        assertEquals("https://opencode.ai/zen/go/v1/chat/completions",
+            externalFavoriteAiRequestLogUrl(config.copy(model_name = "glm-5.2")))
+    }
+
+    @Test
     fun organizerRunsAiAnalysisConcurrentlyUpToConfiguredLimit() = runBlocking {
         withRepositories { _, sources, items, articles ->
             val sourceId = saveXSource(sources)

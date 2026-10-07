@@ -169,6 +169,7 @@ val sharedModule: Module = module {
     single { I18nService(get()) }
     single { AiConfigService(get()) }
     single { AiService(get()) }
+    single { com.dailysatori.service.ai.AiConversationSessionStore(get()) }
     single<OpportunityAnalyzer> { AiNewsOpportunityAnalyzer(get(), get()) }
     single<NewsOpportunityContext> { DiaryThoughtOpportunityContext(get(), get()) }
     single<com.dailysatori.service.opportunity.OpportunityCandidateSource> {
@@ -251,7 +252,7 @@ val sharedModule: Module = module {
     single<BookAiFallbackGenerator> { DefaultBookAiFallbackGenerator(get(), get(), get(), get()) }
     single { WeReadSkillService(get(), get(), get(), get(), get()) }
     single<BookIntelligenceSource> { get<WeReadSkillService>() }
-    single { BookReflectionService(get(), get()) }
+    single { BookReflectionService(get(), get(), get()) }
     single { RemoteMcpClient(get()) }
     single { LocalSqlQueryService(get()) }
     single { BookIntelligenceService(get<BookIntelligenceSource>()) }

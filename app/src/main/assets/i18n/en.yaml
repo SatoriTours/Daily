@@ -905,6 +905,9 @@ ai_config:
   name_required: Please enter configuration name
   save_failed: Save failed
   save_success: Save successful
+  go_usage_notice: OpenCode Go primarily serves coding agents; availability for Daily's non-coding use is not guaranteed. Use an API key with an active Go subscription.
+  responses_unsupported: Responses API is not supported yet
+  model_unadapted: Model protocol is not adapted yet; select a supported model
 
 # Weekly Summary
 weekly_summary:

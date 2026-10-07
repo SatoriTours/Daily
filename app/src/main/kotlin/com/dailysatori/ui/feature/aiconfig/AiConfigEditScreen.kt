@@ -36,6 +36,9 @@ import android.widget.Toast
 import com.dailysatori.R
 import com.dailysatori.config.AiModel
 import com.dailysatori.config.aiProviders
+import com.dailysatori.service.ai.AiModelAvailability
+import com.dailysatori.service.ai.OpenCodeGoProviderId
+import com.dailysatori.service.ai.aiModelAvailability
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
@@ -76,7 +79,7 @@ fun AiConfigEditScreen(
     val testSuccess = state.testSuccess
     val models = state.availableModels
     val currentModel = currentModelId(customModelName, selectedModel)
-    val canTest = state.editable && selectedProvider != null && apiToken.isNotBlank() && currentModel != null
+    val canTest = state.editable && state.canUseModel && apiToken.isNotBlank()
     val canSave = canTest && state.hasChanges
     val requestBack = rememberSettingsEditorBack(state.hasChanges, !state.editable, onBack)
 
@@ -141,6 +144,13 @@ fun AiConfigEditScreen(
                                 )
                             }
                         }
+                    }
+                    if (selectedProvider?.id == OpenCodeGoProviderId) {
+                        Text(
+                            i18n.t("ai_config.go_usage_notice"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Text("API Token", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(Spacing.xs))
@@ -216,8 +226,15 @@ fun AiConfigEditScreen(
                                 onDismissRequest = { modelExpanded = false },
                             ) {
                                 models.forEach { model ->
+                                    val availability = aiModelAvailability(selectedProvider.id, model.id)
+                                    val suffix = when (availability) {
+                                        AiModelAvailability.Supported -> ""
+                                        AiModelAvailability.RequiresResponses -> " · ${i18n.t("ai_config.responses_unsupported")}"
+                                        AiModelAvailability.Unknown -> " · ${i18n.t("ai_config.model_unadapted")}"
+                                    }
                                     DropdownMenuItem(
-                                        text = { Text(model.name) },
+                                        enabled = availability == AiModelAvailability.Supported,
+                                        text = { Text(model.name + suffix) },
                                         onClick = {
                                             viewModel.selectModel(model)
                                             modelExpanded = false
@@ -237,6 +254,14 @@ fun AiConfigEditScreen(
                         singleLine = true,
                         enabled = state.editable && selectedProvider != null,
                     )
+                    if (currentModel != null && state.modelAvailability != AiModelAvailability.Supported) {
+                        Text(
+                            i18n.t(if (state.modelAvailability == AiModelAvailability.RequiresResponses)
+                                "ai_config.responses_unsupported" else "ai_config.model_unadapted"),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                     if (modelRefreshMessage != null) {
                         Spacer(modifier = Modifier.height(Spacing.xs))
                         Text(
