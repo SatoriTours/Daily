@@ -39,7 +39,10 @@ class DiaryThreadRepository(
     fun rootId(recordId: Long): Long? = q.selectDiaryById(recordId).executeAsOneOrNull()
         ?.let { it.parent_diary_id ?: it.id }
 
-    fun getSnapshot(rootId: Long): DiaryThreadSnapshot? {
+    fun getSnapshot(rootId: Long): DiaryThreadSnapshot? = q.transactionWithResult { readSnapshot(rootId) }
+
+    /** 同步快照必须在一次事务里读完原文、附件、版本与汇总。 */
+    private fun readSnapshot(rootId: Long): DiaryThreadSnapshot? {
         val root = q.selectDiaryById(rootId).executeAsOneOrNull() ?: return null
         if (root.parent_diary_id != null) return null
         val entries = listOf(root) + q.selectDiaryRepliesForRoot(rootId).executeAsList()
@@ -99,7 +102,9 @@ class DiaryThreadRepository(
         true
     }
 
-    fun getSource(rootId: Long): DiaryThreadSource? {
+    fun getSource(rootId: Long): DiaryThreadSource? = q.transactionWithResult { readSource(rootId) }
+
+    private fun readSource(rootId: Long): DiaryThreadSource? {
         val root = q.selectDiaryById(rootId).executeAsOneOrNull() ?: return null
         if (root.parent_diary_id != null) return null
         val entries = listOf(root) + q.selectDiaryRepliesForRoot(rootId).executeAsList()
@@ -123,7 +128,16 @@ class DiaryThreadRepository(
     }
 
     /** 同步读取所有主日记的整串原文，供聊天上下文等非 Flow 调用。 */
-    fun sources(): List<DiaryThreadSource> = sourcesOf(readCatalog())
+    fun sources(): List<DiaryThreadSource> = q.transactionWithResult { sourcesOf(readCatalog()) }
+
+    /** 记录 ID → 主日记 ID 的轻量映射，供界面按可见串过滤附件分组，不逐卡查询。 */
+    fun rootIdsByRecord(): Map<Long, Long> =
+        q.selectDiaryRootIds().executeAsList().associate { it.id to (it.parent_diary_id ?: it.id) }
+
+    fun observeRootIdsByRecord(): Flow<Map<Long, Long>> =
+        q.selectDiaryRootIds().asFlow().mapToList(Dispatchers.IO).map { rows ->
+            rows.associate { it.id to (it.parent_diary_id ?: it.id) }
+        }
 
     fun observeSources(): Flow<List<DiaryThreadSource>> = observeCatalog().map { catalog -> sourcesOf(catalog) }
 

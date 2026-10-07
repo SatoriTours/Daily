@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -165,15 +166,19 @@ class DiaryViewModel(
 
     private fun observeAttachments() {
         val repository = attachmentRepo ?: return
+        val rootsByRecord = threadRepo?.observeRootIdsByRecord() ?: flowOf(emptyMap())
         viewModelScope.launch(Dispatchers.IO) {
-            repository.observeAll()
-                .map { attachments -> attachments.groupBy { it.diary_id } }
-                .combine(visibleDiaryIds) { attachments, diaryIds ->
-                    diaryIds.associateWith { attachments[it].orEmpty() }
-                }
-                .collect { attachmentsByDiary ->
-                    _state.update { it.copy(attachmentsByDiary = attachmentsByDiary) }
-                }
+            combine(
+                repository.observeAll().map { attachments -> attachments.groupBy { it.diary_id } },
+                visibleDiaryIds,
+                rootsByRecord,
+            ) { grouped, diaryIds, rootByRecord ->
+                // 保留可见主日记及其续写的附件，界面才能展示续写的录音与转写。
+                val visible = diaryIds.toSet()
+                grouped.filterKeys { diaryId -> diaryId in visible || rootByRecord[diaryId] in visible }
+            }.collect { attachmentsByDiary ->
+                _state.update { it.copy(attachmentsByDiary = attachmentsByDiary) }
+            }
         }
     }
 
@@ -363,11 +368,13 @@ class DiaryViewModel(
                 return@withContext null
             }
             val replyId = if (existingReplyId != null) {
-                if (repository.rootId(existingReplyId) != rootId) {
-                    _state.update { it.copy(error = "续写不属于该日记") }
+                // 必须确认这是一条属于该主日记的续写；传主日记 ID 不能当成续写覆盖。
+                val existing = diaryRepo.getById(existingReplyId)
+                if (existing?.parent_diary_id != rootId) {
+                    _state.update { it.copy(error = "只能更新这条日记的续写") }
                     return@withContext null
                 }
-                diaryRepo.update(existingReplyId, content, null, mood, images)
+                diaryRepo.update(existingReplyId, content, existing.tags, mood, images)
                 existingReplyId
             } else {
                 repository.createReply(rootId, content, mood, images)
@@ -394,39 +401,61 @@ class DiaryViewModel(
             }
             runPostSaveOperation(::refreshAvailableTags)
             replyId
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // 数据库失败不能泄漏到调用方，草稿由界面保留。
+            _state.update { it.copy(error = error.message ?: "保存续写失败") }
+            null
         } finally {
             _state.update { it.copy(isSaving = false) }
         }
     }
 
     /**
-     * 录音前先建立这条续写及附件，返回 (replyId, attachmentId) 供现有录音控制器使用。
-     * 占位正文不会进入汇总，也不会覆盖主日记。
+     * 录音前先建立或复用这条续写及附件，返回 (replyId, attachmentId) 供现有录音控制器使用。
+     * existingReplyId 必须是该主日记下已存在的续写（通常是先保存的手写/图片草稿）；
+     * 占位正文不会进入汇总，也不会覆盖主日记。新建续写在附件创建失败时清理。
      */
-    suspend fun prepareReplyRecording(rootId: Long): Pair<Long, Long>? = withContext(Dispatchers.IO) {
-        try {
-            val repository = threadRepo ?: return@withContext null
-            val attachments = attachmentRepo ?: return@withContext null
-            if (repository.getSnapshot(rootId) == null) {
-                _state.update { it.copy(error = "日记串不存在") }
-                return@withContext null
+    suspend fun prepareReplyRecording(rootId: Long, existingReplyId: Long? = null): Pair<Long, Long>? =
+        withContext(Dispatchers.IO) {
+            var createdReplyId: Long? = null
+            try {
+                val repository = threadRepo ?: return@withContext null
+                val attachments = attachmentRepo ?: return@withContext null
+                if (repository.getSnapshot(rootId) == null) {
+                    _state.update { it.copy(error = "日记串不存在") }
+                    return@withContext null
+                }
+                val replyId = if (existingReplyId != null) {
+                    if (diaryRepo.getById(existingReplyId)?.parent_diary_id != rootId) {
+                        _state.update { it.copy(error = "只能为这条日记的续写录音") }
+                        return@withContext null
+                    }
+                    existingReplyId
+                } else {
+                    repository.createReply(rootId, DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+                        .also { createdReplyId = it }
+                }
+                val attachmentId = attachments.create(
+                    replyId,
+                    DiaryAttachmentDraft(
+                        kind = DiaryAttachmentKind.audio,
+                        localPath = "",
+                        displayName = "语音续写.m4a",
+                        mimeType = "audio/mp4",
+                    ),
+                )
+                replyId to attachmentId
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                // 只有新建且未拿到附件成果的空续写可以清理，已有草稿保持不动。
+                createdReplyId?.let { replyId -> runCatching { threadRepo?.discardEmptyReply(replyId) } }
+                _state.update { it.copy(error = error.message ?: "无法开始录音") }
+                null
             }
-            val replyId = repository.createReply(rootId, DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
-            val attachmentId = attachments.create(
-                replyId,
-                DiaryAttachmentDraft(
-                    kind = DiaryAttachmentKind.audio,
-                    localPath = "",
-                    displayName = "语音续写.m4a",
-                    mimeType = "audio/mp4",
-                ),
-            )
-            replyId to attachmentId
-        } catch (error: Exception) {
-            _state.update { it.copy(error = error.message) }
-            null
         }
-    }
 
     /** 取消未保存草稿：只清理无正文、无图片且无附件的空续写，有录音成果的记录不会被删。 */
     suspend fun discardDraftReply(replyId: Long): Boolean = withContext(Dispatchers.IO) {
@@ -453,7 +482,9 @@ class DiaryViewModel(
                     onStopRecording()
                     val stopped = withTimeoutOrNull(15_000) {
                         store.state.first { state ->
-                            state is DiaryRecordingState.Idle || state.diaryId != id
+                            // 续写录音的 diaryId 是子记录：只有回到 Idle 或真正切到别的串才算停止。
+                            val stateRoot = state.diaryId?.let { diaryId -> threadRepo?.rootId(diaryId) ?: diaryId }
+                            state is DiaryRecordingState.Idle || stateRoot != id
                         }
                     } != null
                     if (!stopped) {

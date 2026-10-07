@@ -35,9 +35,13 @@ class DiaryThreadSummaryCoordinator(
 
     /** 单篇无续写的日记不排队；相同日记相同版本复用同一任务。 */
     fun enqueue(rootId: Long, force: Boolean = false): Long? {
-        if (!configured()) return null
         val snapshot = threads.getSnapshot(rootId) ?: return null
         if (snapshot.entries.size <= 1 && !force) return null
+        if (!configured()) {
+            // 配置缺失也必须留下同版本可解释状态，否则界面只能无限显示生成中。
+            threads.markSummaryState(rootId, snapshot.revision, DiaryThreadSummaryStatus.failed, MISSING_AI_MESSAGE)
+            return null
+        }
         return tasks.enqueue(
             type = type,
             payloadJson = Json.encodeToString(SummaryPayload(rootId, snapshot.revision)),
@@ -46,18 +50,40 @@ class DiaryThreadSummaryCoordinator(
         )
     }
 
-    /** 启动恢复入口：只补有续写且待汇总的主日记。 */
-    fun recoverPending(): List<Long> = if (!configured()) emptyList() else threads.pendingSummaryRootIds()
+    /** 启动恢复入口：只补有续写且待汇总的主日记；配置缺失时写入可重试的失败状态。 */
+    fun recoverPending(): List<Long> {
+        val pending = threads.pendingSummaryRootIds()
+        if (configured()) return pending
+        pending.forEach { rootId ->
+            threads.getSnapshot(rootId)?.let { snapshot ->
+                threads.markSummaryState(rootId, snapshot.revision, DiaryThreadSummaryStatus.failed, MISSING_AI_MESSAGE)
+            }
+        }
+        return emptyList()
+    }
 
     fun start(scope: CoroutineScope, schedule: (Long) -> Unit) {
         if (observer?.isActive == true) return
         observer = scope.launch(Dispatchers.IO) {
-            threads.observeSources().map { sources -> sources.map { it.rootId to it.revision } }
-                .distinctUntilChanged().collect {
-                    recoverPending().forEach { rootId ->
-                        enqueue(rootId)?.let { taskId -> runCatching { schedule(taskId) } }
+            try {
+                threads.observeSources().map { sources -> sources.map { it.rootId to it.revision } }
+                    .distinctUntilChanged().collect {
+                        recoverPending().forEach { rootId ->
+                            try {
+                                enqueue(rootId)?.let { taskId -> schedule(taskId) }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                // 排队或唤醒失败保留待生成事实，后续原文变化或下次启动再补。
+                                log.w { "Diary thread summary enqueue failed for $rootId (${error::class.simpleName})" }
+                            }
+                        }
                     }
-                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                log.w { "Diary thread summary observation failed (${error::class.simpleName})" }
+            }
         }
     }
 
@@ -115,3 +141,5 @@ class DiaryThreadSummaryCoordinator(
 
 @Serializable
 private data class SummaryPayload(val rootId: Long, val revision: Long)
+
+internal const val MISSING_AI_MESSAGE = "未配置默认 AI 模型，配置后可重试"

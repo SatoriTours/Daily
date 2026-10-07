@@ -76,6 +76,8 @@ class DiaryThreadMigrationTest {
             "diary_thread_revision_after_insert",
             "diary_thread_revision_after_content_update",
             "diary_thread_root_updated_after_insert",
+            "diary_thread_root_updated_after_content_update",
+            "diary_thread_child_updated_after_content_update",
         ).forEach { driver.execute(null, "DROP TRIGGER IF EXISTS $it", 0) }
         driver.execute(null, "DROP TABLE IF EXISTS diary_thread_summary", 0)
         driver.execute(null, "DROP TABLE IF EXISTS diary_thread_revision", 0)

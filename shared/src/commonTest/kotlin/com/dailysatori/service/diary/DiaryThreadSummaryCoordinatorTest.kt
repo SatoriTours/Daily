@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -131,13 +132,9 @@ class DiaryThreadSummaryCoordinatorTest {
     fun enqueueFailureIsRecoveredOnStart() = withFixture { fixture ->
         val rootId = fixture.root("原始想法")
         fixture.reply(rootId, "续写")
-        val unconfigured = DiaryThreadSummaryCoordinator(
-            fixture.threads,
-            fixture.tasks,
-            DiaryThreadSummaryGenerator { _, _ -> """{"summary":"汇总"}""" },
-        ) { false }
-        assertNull(unconfigured.enqueue(rootId))
-        assertTrue(fixture.threads.pendingSummaryRootIds().contains(rootId), "配置缺失不清除待汇总状态")
+        // 模拟上次排队/唤醒失败：数据库里没有任何汇总任务。
+        assertTrue(fixture.threads.pendingSummaryRootIds().contains(rootId))
+        assertTrue(fixture.tasks.runnableTasksByType(SUMMARY_TYPE, Long.MAX_VALUE).isEmpty())
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val job = scope.coroutineContext[kotlinx.coroutines.Job]!!
@@ -146,6 +143,7 @@ class DiaryThreadSummaryCoordinatorTest {
             coordinator(fixture) { _, _ -> """{"summary":"汇总"}""" }.start(scope) { scheduled.trySend(it) }
             val taskId = withTimeout(5_000) { scheduled.receive() }
             assertEquals(rootId, fixture.rootIdOf(taskId))
+            assertTrue(fixture.tasks.runnableTasksByType(SUMMARY_TYPE, Long.MAX_VALUE).isNotEmpty())
         } finally {
             job.cancelAndJoin()
         }
@@ -203,6 +201,92 @@ class DiaryThreadSummaryCoordinatorTest {
         assertTrue(fixture.threads.pendingSummaryRootIds().contains(rootId))
     }
 
+    @Test
+    fun missingConfigurationRecordsExplainableFailureWithoutTouchingOriginal() = withFixture { fixture ->
+        val rootId = fixture.root("原始想法")
+        fixture.reply(rootId, "续写")
+        val unconfigured = DiaryThreadSummaryCoordinator(
+            fixture.threads,
+            fixture.tasks,
+            DiaryThreadSummaryGenerator { _, _ -> error("不应调用 AI") },
+        ) { false }
+
+        assertNull(unconfigured.enqueue(rootId))
+
+        val summary = requireNotNull(fixture.threads.getSnapshot(rootId)!!.summary)
+        assertEquals(DiaryThreadSummaryStatus.failed, summary.status)
+        assertTrue(summary.errorMessage.orEmpty().contains("配置"), "必须说明缺少默认 AI：${summary.errorMessage}")
+        assertEquals("原始想法", fixture.diaries.getById(rootId)!!.content, "原文不能被汇总状态影响")
+        assertFalse(fixture.threads.pendingSummaryRootIds().contains(rootId), "显式重试前不自动重排")
+    }
+
+    @Test
+    fun startupWithoutConfigurationMarksThreadsInsteadOfSpinningForever() = withFixture { fixture ->
+        val rootId = fixture.root("原始想法")
+        fixture.reply(rootId, "续写")
+        val unconfigured = DiaryThreadSummaryCoordinator(
+            fixture.threads,
+            fixture.tasks,
+            DiaryThreadSummaryGenerator { _, _ -> error("不应调用 AI") },
+        ) { false }
+
+        assertEquals(emptyList(), unconfigured.recoverPending())
+
+        val summary = requireNotNull(fixture.threads.getSnapshot(rootId)!!.summary)
+        assertEquals(DiaryThreadSummaryStatus.failed, summary.status)
+        assertTrue(summary.errorMessage.orEmpty().contains("配置"))
+    }
+
+    @Test
+    fun configuredRetryAfterMissingConfigurationCompletes() = withFixture { fixture ->
+        val rootId = fixture.root("原始想法")
+        fixture.reply(rootId, "续写")
+        val unconfigured = DiaryThreadSummaryCoordinator(
+            fixture.threads,
+            fixture.tasks,
+            DiaryThreadSummaryGenerator { _, _ -> error("不应调用 AI") },
+        ) { false }
+        assertNull(unconfigured.enqueue(rootId))
+
+        val configured = coordinator(fixture) { _, _ -> """{"summary":"配置后的汇总"}""" }
+        val taskId = requireNotNull(configured.enqueue(rootId))
+        val result = configured.execute(taskId, fixture.payload(taskId), "", NoopReporter)
+
+        assertTrue(result is AsyncTaskExecutionResult.Success)
+        val summary = requireNotNull(fixture.threads.getSnapshot(rootId)!!.summary)
+        assertEquals("配置后的汇总", summary.text)
+        assertEquals(DiaryThreadSummaryStatus.ready, summary.status)
+    }
+
+    @Test
+    fun queueFailureDoesNotKillThreadObservation() = withFixture { fixture ->
+        val rootId = fixture.root("原始想法")
+        fixture.reply(rootId, "续写")
+        fixture.driver.execute(
+            null,
+            "CREATE TRIGGER fail_summary_queue BEFORE INSERT ON async_task " +
+                "WHEN NEW.type = 'diary_thread_summarize' BEGIN SELECT RAISE(ABORT, 'queue down'); END",
+            0,
+        )
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val job = scope.coroutineContext[kotlinx.coroutines.Job]!!
+        val scheduled = Channel<Long>(Channel.UNLIMITED)
+        try {
+            coordinator(fixture) { _, _ -> """{"summary":"汇总"}""" }.start(scope) { scheduled.trySend(it) }
+            delay(300)
+            assertTrue(fixture.tasks.runnableTasksByType(SUMMARY_TYPE, Long.MAX_VALUE).isEmpty())
+
+            fixture.driver.execute(null, "DROP TRIGGER fail_summary_queue", 0)
+            fixture.threads.createReply(rootId, "再来一条续写")
+
+            val taskId = withTimeout(5_000) { scheduled.receive() }
+            assertTrue(taskId > 0, "一次排队失败后观察必须能继续工作")
+            assertTrue(fixture.tasks.runnableTasksByType(SUMMARY_TYPE, Long.MAX_VALUE).isNotEmpty())
+        } finally {
+            job.cancelAndJoin()
+        }
+    }
+
     private fun coordinator(
         fixture: Fixture,
         complete: suspend (String, String) -> String,
@@ -220,6 +304,7 @@ class DiaryThreadSummaryCoordinatorTest {
             val db = DailySatoriDatabase(driver)
             block(
                 Fixture(
+                    driver = driver,
                     db = db,
                     diaries = DiaryRepository(db, driver),
                     threads = DiaryThreadRepository(db, driver),
@@ -233,6 +318,7 @@ class DiaryThreadSummaryCoordinatorTest {
     }
 
     private class Fixture(
+        val driver: JdbcSqliteDriver,
         val db: DailySatoriDatabase,
         val diaries: DiaryRepository,
         val threads: DiaryThreadRepository,
@@ -257,5 +343,9 @@ class DiaryThreadSummaryCoordinatorTest {
 
     private object NoopReporter : AsyncTaskProgressReporter {
         override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) = Unit
+    }
+
+    private companion object {
+        const val SUMMARY_TYPE = "diary_thread_summarize"
     }
 }

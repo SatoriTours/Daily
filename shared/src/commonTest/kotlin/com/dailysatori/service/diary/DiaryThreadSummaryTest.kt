@@ -113,6 +113,22 @@ class DiaryThreadSummaryTest {
         assertEquals(chunks.size + 1, calls, "old revision checkpoint must not be reused")
     }
 
+    @Test
+    fun expandingSummariesFailInBoundedCalls() {
+        var calls = 0
+        val generator = DiaryThreadSummaryGenerator { _, _ ->
+            calls++
+            """{"summary":"${"长".repeat(12_000)}"}"""
+        }
+        val entries = listOf(diary(1, "甲".repeat(9_000)), diary(2, "乙".repeat(9_000), parentId = 1))
+
+        assertFailsWith<IllegalArgumentException> {
+            runBlocking { generator.generate(snapshot(*entries.toTypedArray())) }
+        }
+
+        assertTrue(calls in 1..12, "合并不收敛必须在有限请求内失败，实际 $calls 次")
+    }
+
     private fun diary(id: Long, content: String, createdAt: Long = id * 1_000, parentId: Long? = null) =
         Diary(id, content, null, null, null, createdAt, createdAt, parentId)
 

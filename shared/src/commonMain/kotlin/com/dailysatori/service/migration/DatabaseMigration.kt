@@ -1217,25 +1217,39 @@ class DatabaseMigration(
                 "CREATE INDEX IF NOT EXISTS idx_diary_parent_created ON diary(parent_diary_id, created_at ASC, id ASC)",
                 """CREATE TABLE IF NOT EXISTS diary_thread_revision (root_diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE, revision INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0)""",
                 """CREATE TABLE IF NOT EXISTS diary_thread_summary (diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE, source_revision INTEGER NOT NULL DEFAULT 0, summary_revision INTEGER NOT NULL DEFAULT 0, summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', error_message TEXT NOT NULL DEFAULT '', generated_at INTEGER, updated_at INTEGER NOT NULL DEFAULT 0)""",
-                """CREATE TRIGGER IF NOT EXISTS diary_thread_revision_after_insert AFTER INSERT ON diary BEGIN
+                "DROP TRIGGER IF EXISTS diary_thread_revision_after_insert",
+                "DROP TRIGGER IF EXISTS diary_thread_revision_after_content_update",
+                "DROP TRIGGER IF EXISTS diary_thread_root_updated_after_insert",
+                "DROP TRIGGER IF EXISTS diary_thread_root_updated_after_content_update",
+                "DROP TRIGGER IF EXISTS diary_thread_child_updated_after_content_update",
+                """CREATE TRIGGER diary_thread_revision_after_insert AFTER INSERT ON diary BEGIN
                     INSERT INTO diary_thread_revision(root_diary_id, revision, updated_at)
                     VALUES (COALESCE(new.parent_diary_id, new.id), 1, new.updated_at)
                     ON CONFLICT(root_diary_id) DO UPDATE SET
                         revision = revision + 1,
                         updated_at = MAX(excluded.updated_at, updated_at + 1);
                 END""".trimIndent(),
-                """CREATE TRIGGER IF NOT EXISTS diary_thread_revision_after_content_update
+                """CREATE TRIGGER diary_thread_revision_after_content_update
                 AFTER UPDATE OF content, images ON diary
                 WHEN new.content IS NOT old.content OR new.images IS NOT old.images
                 BEGIN
                     UPDATE diary_thread_revision
                     SET revision = revision + 1, updated_at = MAX(new.updated_at, updated_at + 1)
                     WHERE root_diary_id = COALESCE(new.parent_diary_id, new.id);
-                    UPDATE diary
-                    SET updated_at = MAX(new.updated_at, old.updated_at + 1)
-                    WHERE id = COALESCE(new.parent_diary_id, new.id);
                 END""".trimIndent(),
-                """CREATE TRIGGER IF NOT EXISTS diary_thread_root_updated_after_insert AFTER INSERT ON diary
+                """CREATE TRIGGER diary_thread_root_updated_after_content_update
+                AFTER UPDATE OF content, images ON diary
+                WHEN new.parent_diary_id IS NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+                BEGIN
+                    UPDATE diary SET updated_at = MAX(new.updated_at, old.updated_at + 1) WHERE id = new.id;
+                END""".trimIndent(),
+                """CREATE TRIGGER diary_thread_child_updated_after_content_update
+                AFTER UPDATE OF content, images ON diary
+                WHEN new.parent_diary_id IS NOT NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+                BEGIN
+                    UPDATE diary SET updated_at = MAX(new.updated_at, updated_at + 1) WHERE id = new.parent_diary_id;
+                END""".trimIndent(),
+                """CREATE TRIGGER diary_thread_root_updated_after_insert AFTER INSERT ON diary
                 WHEN new.parent_diary_id IS NOT NULL
                 BEGIN
                     UPDATE diary SET updated_at = MAX(new.created_at, updated_at + 1) WHERE id = new.parent_diary_id;

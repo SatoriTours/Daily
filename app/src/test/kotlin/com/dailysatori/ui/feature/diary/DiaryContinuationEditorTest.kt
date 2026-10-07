@@ -4,6 +4,8 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.core.recording.DiaryRecordingStore
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.data.repository.DiaryAttachmentDraft
+import com.dailysatori.data.repository.DiaryAttachmentKind
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.data.repository.DiaryAttachmentRepository
@@ -21,6 +23,7 @@ import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -38,6 +41,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -221,6 +225,153 @@ class DiaryContinuationEditorTest {
     }
 
     @Test
+    fun prepareReplyRecordingReusesExistingDraftReply() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            val replyId = requireNotNull(fixture.viewModel.saveReplyAndGetId(rootId, "写好的草稿"))
+
+            val first = requireNotNull(fixture.viewModel.prepareReplyRecording(rootId, replyId))
+            val second = requireNotNull(fixture.viewModel.prepareReplyRecording(rootId, replyId))
+
+            assertEquals(replyId, first.first)
+            assertEquals(replyId, second.first)
+            assertEquals(2, fixture.threadRepo.getSnapshot(rootId)!!.entries.size, "复用草稿不得新增续写")
+            assertEquals(2, fixture.attachmentRepo.getForDiary(replyId).size)
+            assertEquals(
+                listOf(replyId, replyId),
+                fixture.threadRepo.getSnapshot(rootId)!!.attachments.map { it.diary_id },
+            )
+            assertEquals("写好的草稿", fixture.diaryRepo.getById(replyId)!!.content, "占位正文不得覆盖草稿")
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun prepareReplyRecordingRejectsRootOrForeignRecord() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            val otherId = fixture.diaryRepo.create("别的日记")
+
+            assertNull(fixture.viewModel.prepareReplyRecording(rootId, rootId))
+            assertNull(fixture.viewModel.prepareReplyRecording(rootId, otherId))
+
+            assertNotNull(fixture.viewModel.state.value.error)
+            assertEquals(1, fixture.threadRepo.getSnapshot(rootId)!!.entries.size)
+            assertEquals(1, fixture.threadRepo.getSnapshot(otherId)!!.entries.size)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun deleteRootWaitsForReplyRecordingToActuallyStop() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            val (replyId, attachmentId) = requireNotNull(fixture.viewModel.prepareReplyRecording(rootId))
+            fixture.recordingStore.publish(
+                DiaryRecordingState.Recording(diaryId = replyId, attachmentId = attachmentId, elapsedMs = 0),
+            )
+            val stopCalled = CompletableDeferred<Unit>()
+
+            fixture.viewModel.deleteDiary(rootId) { stopCalled.complete(Unit) }
+            withTimeout(5_000) { stopCalled.await() }
+            delay(300)
+
+            assertNotNull(fixture.diaryRepo.getById(replyId), "录音未真正停止前不得删除整串")
+            assertEquals(replyId, fixture.recordingStore.state.value.diaryId)
+
+            fixture.recordingStore.publish(DiaryRecordingState.Idle)
+            withTimeout(5_000) { while (fixture.diaryRepo.getById(rootId) != null) delay(20) }
+            assertNull(fixture.diaryRepo.getById(replyId))
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun replyAttachmentsAreVisibleInStateForEditor() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            val replyId = fixture.threadRepo.createReply(rootId, "续写")
+            fixture.attachmentRepo.create(replyId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/reply.m4a"))
+
+            val state = withTimeout(5_000) {
+                fixture.viewModel.state.first { it.attachmentsByDiary[replyId]?.isNotEmpty() == true }
+            }
+
+            assertEquals("/audio/reply.m4a", state.attachmentsByDiary.getValue(replyId).single().local_path)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun rootCannotBeSavedAsReply() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+
+            val saved = fixture.viewModel.saveReplyAndGetId(rootId, "覆盖尝试", existingReplyId = rootId)
+
+            assertNull(saved)
+            assertEquals("原始日记", fixture.diaryRepo.getById(rootId)!!.content)
+            assertTrue(fixture.viewModel.state.value.error != null)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun replyDatabaseFailureReturnsNullInsteadOfLeaking() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            fixture.driver.execute(
+                null,
+                "CREATE TRIGGER fail_reply_insert BEFORE INSERT ON diary WHEN NEW.content = 'fail reply' " +
+                    "BEGIN SELECT RAISE(ABORT, 'disk full'); END",
+                0,
+            )
+
+            val attempt = runCatching { fixture.viewModel.saveReplyAndGetId(rootId, "fail reply") }
+
+            assertTrue(attempt.isSuccess, "保存失败不能把异常泄漏到调用方")
+            assertNull(attempt.getOrNull())
+            assertNotNull(fixture.viewModel.state.value.error)
+            assertEquals(1, fixture.threadRepo.getSnapshot(rootId)!!.entries.size)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun prepareReplyRecordingCleansUpWhenAttachmentCannotBeCreated() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            fixture.driver.execute(
+                null,
+                "CREATE TRIGGER fail_attachment_insert BEFORE INSERT ON diary_attachment " +
+                    "BEGIN SELECT RAISE(ABORT, 'attachment storage full'); END",
+                0,
+            )
+
+            val prepared = fixture.viewModel.prepareReplyRecording(rootId)
+
+            assertNull(prepared)
+            assertNotNull(fixture.viewModel.state.value.error)
+            assertEquals(1, fixture.threadRepo.getSnapshot(rootId)!!.entries.size, "失败的空续写必须清理")
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun retryThreadSummaryEnqueuesExplicitTask() = runBlocking {
         val fixture = diaryFixture()
         try {
@@ -280,7 +431,7 @@ class DiaryContinuationEditorTest {
 
     private class DiaryFixture(
         private val directory: File,
-        private val driver: JdbcSqliteDriver,
+        val driver: JdbcSqliteDriver,
         private val httpClient: HttpClient,
         val diaryRepo: DiaryRepository,
         val attachmentRepo: DiaryAttachmentRepository,

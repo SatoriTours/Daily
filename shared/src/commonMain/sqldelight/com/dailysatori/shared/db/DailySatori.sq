@@ -255,7 +255,7 @@ CREATE TRIGGER diary_thread_revision_after_insert AFTER INSERT ON diary BEGIN
         updated_at = MAX(excluded.updated_at, updated_at + 1);
 END;
 
--- 转写、自动标题等直接 SQL 回写同样递增版本，并让主日记更新时间单调前移。
+-- 转写、自动标题等直接 SQL 回写同样递增版本。
 CREATE TRIGGER diary_thread_revision_after_content_update
 AFTER UPDATE OF content, images ON diary
 WHEN new.content IS NOT old.content OR new.images IS NOT old.images
@@ -264,9 +264,26 @@ BEGIN
     SET revision = revision + 1,
         updated_at = MAX(new.updated_at, updated_at + 1)
     WHERE root_diary_id = COALESCE(new.parent_diary_id, new.id);
+END;
+
+-- 主日记自身正文变化：以其旧更新时间为基准，保证严格前移。
+CREATE TRIGGER diary_thread_root_updated_after_content_update
+AFTER UPDATE OF content, images ON diary
+WHEN new.parent_diary_id IS NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+BEGIN
     UPDATE diary
     SET updated_at = MAX(new.updated_at, old.updated_at + 1)
-    WHERE id = COALESCE(new.parent_diary_id, new.id);
+    WHERE id = new.id;
+END;
+
+-- 续写正文变化：以主日记当前更新时间为基准；旧续写回写不得把主时间拖回。
+CREATE TRIGGER diary_thread_child_updated_after_content_update
+AFTER UPDATE OF content, images ON diary
+WHEN new.parent_diary_id IS NOT NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+BEGIN
+    UPDATE diary
+    SET updated_at = MAX(new.updated_at, updated_at + 1)
+    WHERE id = new.parent_diary_id;
 END;
 
 CREATE TRIGGER diary_thread_root_updated_after_insert AFTER INSERT ON diary
@@ -1574,6 +1591,9 @@ SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC;
 
 selectDiaryRepliesForRoot:
 SELECT * FROM diary WHERE parent_diary_id = ? ORDER BY created_at ASC, id ASC;
+
+selectDiaryRootIds:
+SELECT id, parent_diary_id FROM diary;
 
 selectDiaryThreadEntries:
 SELECT * FROM diary

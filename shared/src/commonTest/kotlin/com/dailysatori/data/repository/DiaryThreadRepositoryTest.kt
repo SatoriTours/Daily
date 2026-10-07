@@ -233,6 +233,20 @@ class DiaryThreadRepositoryTest {
     }
 
     @Test
+    fun olderReplyWriteNeverRollsBackRootUpdatedAt() = withThreads { fixture ->
+        val rootId = fixture.createRoot(content = "原始")
+        val replyId = fixture.reply(rootId, "续写")
+        // 主日记因其他变化被推到远更新的时间，旧续写回写不能把它拖回去。
+        fixture.db.dailySatoriQueries.updateDiary("原始", null, null, null, 9_000_000_000_000, rootId)
+        val before = fixture.diaries.getById(rootId)!!.updated_at
+
+        fixture.db.dailySatoriQueries.updateDiary("续写补充", null, null, null, 2_000, replyId)
+
+        val after = fixture.diaries.getById(rootId)!!.updated_at
+        assertTrue(after > before, "root updated_at $after 必须严格大于 $before")
+    }
+
+    @Test
     fun overviewRevisionMarksOldSummaryAsStale() = withThreads { fixture ->
         val rootId = fixture.createRoot(content = "原始")
         fixture.reply(rootId, "续写")
