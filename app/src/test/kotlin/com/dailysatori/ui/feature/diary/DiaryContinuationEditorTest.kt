@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.diary
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.core.recording.DiaryRecordingState
+import com.dailysatori.core.recording.DiaryRecordingStore
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
@@ -23,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -190,6 +193,32 @@ class DiaryContinuationEditorTest {
     }
 
     @Test
+    fun deleteRootStopsRecordingStartedFromReply() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            val (replyId, attachmentId) = requireNotNull(fixture.viewModel.prepareReplyRecording(rootId))
+            fixture.recordingStore.publish(
+                DiaryRecordingState.Recording(diaryId = replyId, attachmentId = attachmentId, elapsedMs = 0),
+            )
+            var stopCalled = false
+
+            fixture.viewModel.deleteDiary(rootId) {
+                stopCalled = true
+                fixture.recordingStore.publish(DiaryRecordingState.Idle)
+            }
+
+            withTimeout(5_000) {
+                while (fixture.diaryRepo.getById(rootId) != null) delay(20)
+            }
+            assertTrue(stopCalled, "续写录音也必须触发停止保护")
+            assertNull(fixture.diaryRepo.getById(replyId))
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun retryThreadSummaryEnqueuesExplicitTask() = runBlocking {
         val fixture = diaryFixture()
         try {
@@ -221,6 +250,7 @@ class DiaryContinuationEditorTest {
         val threadRepo = DiaryThreadRepository(database, driver)
         val tasks = AsyncTaskRepository(database)
         val monthSummaryRepo = DiaryMonthSummaryRepository(database)
+        val recordingStore = DiaryRecordingStore()
         val httpClient = HttpClient()
         val coordinator = DiaryThreadSummaryCoordinator(
             threadRepo,
@@ -239,10 +269,11 @@ class DiaryContinuationEditorTest {
                 threads = threadRepo,
             ),
             attachmentRepo = attachmentRepo,
+            recordingStore = recordingStore,
             threadRepo = threadRepo,
             threadSummaryCoordinator = coordinator,
         )
-        return DiaryFixture(directory, driver, httpClient, diaryRepo, attachmentRepo, threadRepo, tasks, viewModel)
+        return DiaryFixture(directory, driver, httpClient, diaryRepo, attachmentRepo, threadRepo, tasks, recordingStore, viewModel)
     }
 
     private class DiaryFixture(
@@ -253,6 +284,7 @@ class DiaryContinuationEditorTest {
         val attachmentRepo: DiaryAttachmentRepository,
         val threadRepo: DiaryThreadRepository,
         val tasks: AsyncTaskRepository,
+        val recordingStore: DiaryRecordingStore,
         val viewModel: DiaryViewModel,
     ) {
         fun close() {

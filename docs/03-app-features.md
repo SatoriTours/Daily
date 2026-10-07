@@ -89,6 +89,7 @@ CREATE TABLE article (
 - **我的思想**：日记页顶部入口，基于已保存的日记正文持续整理价值观、做事准则、思维方式和变化；每条附可点击的原文依据，并区分明确表达与 AI 归纳。支持保存自己的补充与修正、手动重试更新。
 - **思想档案更新**：应用运行时观察日记变化，由持久后台任务分段读取全部正文，缓存未改变的提取结果；退到后台或锁屏不主动暂停，通知显示整理进度，系统中断后从已保存断点续作。修改、删除日记时移除失去依据的条目。使用默认 AI 配置，失败保留仍有依据的旧内容，应用重启后补做更新；档案与用户修正保存在本地键值存储。
 - **用于 AI 对话**：思想档案页可开关（默认开启）。流式和普通回答均可参考最新且有日记依据的归纳，并显示可打开的原日记引用；最新用户修正单独提供，旧档案不会覆盖当前表达。日记变化导致档案过期时跳过旧归纳；统计查询保持原有 SQL 检索流程。
+- **日记续写与 AI 汇总**：一篇已有日记可继续追加多次续写，续写作为独立原始记录保存（`diary.parent_diary_id` 归属主日记），原文、时间、图片与录音各自独立，不拼接也不改写主日记正文。顶部由「日记续写汇总」持久后台任务基于整串原文生成 AI 汇总：保存续写后自动排队，失败保留最近一次成功汇总并标记待更新，可手动重试；单篇无续写不调用 AI。汇总输入使用带记录 ID 和时间边界的完整原文，不把旧汇总当事实，不执行原文中的提示词，尚无结论时不替用户下结论。原文版本由数据库触发器维护，覆盖转写、自动标题等直接写入；过期任务与旧结果不能覆盖新版本。搜索、自动标签、我的思想、思想聊天、月度汇总与知识提取都读取整串原文并归属主日记，续写不重复计入日记篇数，列表仍按主日记日期排序。删除主日记会级联清理全部续写、附件与整理历史，串内任一录音的停止保护对整串生效。旧数据库升级新增 `diary.parent_diary_id`、`diary_thread_revision`、`diary_thread_summary`，续写关系、汇总与版本随备份保留。
 
 ### 数据模型
 
@@ -100,7 +101,25 @@ CREATE TABLE diary (
     mood TEXT,
     images TEXT,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    parent_diary_id INTEGER REFERENCES diary(id) ON DELETE CASCADE
+);
+
+CREATE TABLE diary_thread_revision (
+    root_diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE,
+    revision INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE diary_thread_summary (
+    diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE,
+    source_revision INTEGER NOT NULL DEFAULT 0,
+    summary_revision INTEGER NOT NULL DEFAULT 0,
+    summary TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error_message TEXT NOT NULL DEFAULT '',
+    generated_at INTEGER,
+    updated_at INTEGER NOT NULL DEFAULT 0
 );
 ```
 
