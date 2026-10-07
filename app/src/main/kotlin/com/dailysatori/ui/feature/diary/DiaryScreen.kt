@@ -115,11 +115,29 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             viewModel.setError("录音通知已关闭，无法在后台或锁屏时提示录音状态")
         }
     }
-    val startContinuationVoiceIfNotificationsVisible: (Long) -> Unit = { rootId ->
+    val startContinuationVoiceIfNotificationsVisible: (Long, Long?, DiaryContinuationDraftSnapshot?) -> Unit = { rootId, existingReplyId, draft ->
         if (DiaryRecordingNotification.canShow(context)) {
             showNotificationSettingsAction = false
             viewModel.viewModelScope.launch {
-                val pair = viewModel.prepareReplyRecording(rootId)
+                // 若已有手写正文或图片，先持久化到该 reply，再关联录音（F4）
+                val targetReplyId = if (draft != null && draft.hasContentOrMedia) {
+                    val savedId = viewModel.saveReplyAndGetId(
+                        rootId = rootId,
+                        content = draft.content,
+                        mood = draft.mood,
+                        images = draft.images,
+                        existingReplyId = existingReplyId,
+                        polishedTranscripts = draft.polishedTranscripts,
+                    )
+                    if (savedId == null) {
+                        return@launch
+                    }
+                    savedId
+                } else {
+                    existingReplyId
+                }
+
+                val pair = viewModel.prepareReplyRecording(rootId, targetReplyId)
                 if (pair != null) {
                     continuationRootId = rootId
                     continuationReplyId = pair.first
@@ -145,7 +163,11 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             pendingVoiceAction = null
             val resolution = resolveVoiceRecordingAction(action)
             if (resolution.isContinuation) {
-                startContinuationVoiceIfNotificationsVisible(checkNotNull(resolution.targetRootId))
+                startContinuationVoiceIfNotificationsVisible(
+                    checkNotNull(resolution.targetRootId),
+                    resolution.existingReplyId,
+                    resolution.draft,
+                )
             } else {
                 startVoiceDiaryIfNotificationsVisible()
             }
@@ -170,8 +192,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         if (missingPermissions.isEmpty()) startVoiceDiaryIfNotificationsVisible()
         else permissionLauncher.launch(missingPermissions.toTypedArray())
     }
-    val requestContinuationVoicePermissions: (Long) -> Unit = { rootId ->
-        pendingVoiceAction = PendingVoiceRecordingAction.Continuation(rootId)
+    val requestContinuationVoicePermissions: (Long, Long?, DiaryContinuationDraftSnapshot?) -> Unit = { rootId, existingReplyId, draft ->
+        pendingVoiceAction = PendingVoiceRecordingAction.Continuation(rootId, existingReplyId, draft)
         val missingPermissions = buildList {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 add(Manifest.permission.RECORD_AUDIO)
@@ -184,7 +206,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             }
         }
         if (missingPermissions.isEmpty()) {
-            startContinuationVoiceIfNotificationsVisible(rootId)
+            startContinuationVoiceIfNotificationsVisible(rootId, existingReplyId, draft)
         } else {
             permissionLauncher.launch(missingPermissions.toTypedArray())
         }
@@ -520,12 +542,16 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     }
                 }
             },
-            onStartRecording = {
+            onStartRecording = if (continuationRootId != null) { draft ->
                 val rootId = continuationRootId
                 if (rootId != null && state.recordingState is DiaryRecordingState.Idle) {
-                    requestContinuationVoicePermissions(rootId)
+                    requestContinuationVoicePermissions(
+                        rootId,
+                        continuationReplyId,
+                        draft,
+                    )
                 }
-            },
+            } else null,
         )
     }
 
@@ -545,7 +571,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             onVoiceContinue = {
                 val rootId = snapshot.root.id
                 viewModel.closeThread()
-                requestContinuationVoicePermissions(rootId)
+                requestContinuationVoicePermissions(rootId, null, null)
             },
             onEditOriginal = {
                 val root = snapshot.root

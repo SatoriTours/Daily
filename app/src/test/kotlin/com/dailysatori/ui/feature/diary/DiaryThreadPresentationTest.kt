@@ -348,15 +348,39 @@ class DiaryThreadPresentationTest {
     @Test
     fun resolveVoiceRecordingActionPreservesIntent() {
         val newDiaryAction = PendingVoiceRecordingAction.NewDiary
-        val continuationAction = PendingVoiceRecordingAction.Continuation(rootId = 555L)
+        val draft = DiaryContinuationDraftSnapshot(content = "手写正文", mood = "平静", images = null)
+        val continuationAction = PendingVoiceRecordingAction.Continuation(
+            rootId = 555L,
+            existingReplyId = 777L,
+            draft = draft,
+        )
 
         val newResolution = resolveVoiceRecordingAction(newDiaryAction)
         assertFalse(newResolution.isContinuation)
         assertNull(newResolution.targetRootId)
+        assertNull(newResolution.existingReplyId)
+        assertNull(newResolution.draft)
 
         val contResolution = resolveVoiceRecordingAction(continuationAction)
         assertTrue(contResolution.isContinuation)
         assertEquals(555L, contResolution.targetRootId)
+        assertEquals(777L, contResolution.existingReplyId)
+        assertEquals("手写正文", contResolution.draft?.content)
+    }
+
+    @Test
+    fun draftSnapshotDetectsContentOrMedia() {
+        val emptyDraft = DiaryContinuationDraftSnapshot(content = "", mood = null, images = null)
+        assertFalse(emptyDraft.hasContentOrMedia)
+
+        val blankDraft = DiaryContinuationDraftSnapshot(content = "   ", mood = "开心", images = "")
+        assertFalse(blankDraft.hasContentOrMedia)
+
+        val textDraft = DiaryContinuationDraftSnapshot(content = "已有手写记录", mood = null, images = null)
+        assertTrue(textDraft.hasContentOrMedia)
+
+        val imageDraft = DiaryContinuationDraftSnapshot(content = "", mood = null, images = "diary_images/photo.jpg")
+        assertTrue(imageDraft.hasContentOrMedia)
     }
 
     @Test

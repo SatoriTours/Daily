@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
+import com.dailysatori.service.diary.DiaryPolishedTranscript
 import com.dailysatori.service.diary.DiaryThreadOverview
 import com.dailysatori.service.diary.DiaryThreadSummary
 import com.dailysatori.service.diary.DiaryThreadSummaryStatus
@@ -251,18 +252,37 @@ fun resolveDiaryEditorRouteTarget(diary: Diary): DiaryEditorRouteTarget {
 }
 
 /**
- * 待执行的语音录音动作模型（F1）。
- * 保证麦克风/通知权限授予后分别正确恢复主日记录音与续写录音，避免权限通过后跑错主日记。
+ * 续写草稿快照（F4）：包含正文、心情、图片与转写整理版本。
+ */
+data class DiaryContinuationDraftSnapshot(
+    val content: String,
+    val mood: String? = null,
+    val images: String? = null,
+    val polishedTranscripts: Map<Long, DiaryPolishedTranscript>? = null,
+) {
+    val hasContentOrMedia: Boolean
+        get() = content.isNotBlank() || !images.isNullOrBlank()
+}
+
+/**
+ * 待执行的语音录音动作模型（F1/F4）。
+ * 保证麦克风/通知权限授予后分别正确恢复主日记录音与续写录音，并保留草稿快照与已有续写 ID。
  */
 sealed interface PendingVoiceRecordingAction {
     data object NewDiary : PendingVoiceRecordingAction
-    data class Continuation(val rootId: Long) : PendingVoiceRecordingAction
+    data class Continuation(
+        val rootId: Long,
+        val existingReplyId: Long? = null,
+        val draft: DiaryContinuationDraftSnapshot? = null,
+    ) : PendingVoiceRecordingAction
 }
 
 data class VoiceRecordingResolution(
     val action: PendingVoiceRecordingAction,
     val isContinuation: Boolean,
     val targetRootId: Long?,
+    val existingReplyId: Long?,
+    val draft: DiaryContinuationDraftSnapshot?,
 )
 
 fun resolveVoiceRecordingAction(action: PendingVoiceRecordingAction): VoiceRecordingResolution {
@@ -271,11 +291,15 @@ fun resolveVoiceRecordingAction(action: PendingVoiceRecordingAction): VoiceRecor
             action = action,
             isContinuation = false,
             targetRootId = null,
+            existingReplyId = null,
+            draft = null,
         )
         is PendingVoiceRecordingAction.Continuation -> VoiceRecordingResolution(
             action = action,
             isContinuation = true,
             targetRootId = action.rootId,
+            existingReplyId = action.existingReplyId,
+            draft = action.draft,
         )
     }
 }

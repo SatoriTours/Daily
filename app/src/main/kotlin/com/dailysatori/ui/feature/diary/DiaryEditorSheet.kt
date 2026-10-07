@@ -143,12 +143,13 @@ fun DiaryEditorSheet(
     continuationRootId: Long? = null,
     onSaveContinuation: ((content: String, mood: String?, images: String?,
         polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit)? = null,
-    onStartRecording: (() -> Unit)? = null,
+    onStartRecording: ((DiaryContinuationDraftSnapshot) -> Unit)? = null,
     isSaving: Boolean = false,
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
     val isContinuation = continuationRootId != null
+    val showRecording = isContinuation && onStartRecording != null
 
     var content by remember(existingDiary?.id ?: continuationRootId) {
         val rawText = existingDiary?.content.orEmpty()
@@ -438,10 +439,17 @@ fun DiaryEditorSheet(
                     MediaPickerButton("从相册选择") {
                         showMediaPicker = false; galleryLauncher.launch("image/*")
                     }
-                    if (onStartRecording != null && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
+                    if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
                         MediaPickerButton(stringResource(R.string.diary_feed_record_voice)) {
                             showMediaPicker = false
-                            onStartRecording()
+                            onStartRecording?.invoke(
+                                DiaryContinuationDraftSnapshot(
+                                    content = content.text,
+                                    mood = moodText.ifBlank { null },
+                                    images = images.joinToString(",").ifBlank { null },
+                                    polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
+                                ),
+                            )
                         }
                     }
                 }
@@ -534,9 +542,18 @@ fun DiaryEditorSheet(
                             mood = moodText,
                             colors = editorColors,
                             onMood = { showMoodEditor = true },
-                            onStartRecording = onStartRecording.takeIf {
-                                recordingState == null || recordingState is DiaryRecordingState.Idle
-                            },
+                            onStartRecording = if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
+                                {
+                                    onStartRecording?.invoke(
+                                        DiaryContinuationDraftSnapshot(
+                                            content = content.text,
+                                            mood = moodText.ifBlank { null },
+                                            images = images.joinToString(",").ifBlank { null },
+                                            polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
+                                        ),
+                                    )
+                                }
+                            } else null,
                         )
                         val canSave = canSaveDiaryEntry(
                             isContinuation = isContinuation,
