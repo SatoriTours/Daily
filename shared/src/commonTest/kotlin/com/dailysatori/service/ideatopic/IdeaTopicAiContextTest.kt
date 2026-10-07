@@ -86,6 +86,7 @@ class IdeaTopicAiContextTest {
             currentMessages = completeMessages(2, 10),
             userPrompt = "继续",
         )
+        assertTrue("topic-1" in context.allowedReferenceIds)
         assertTrue("source-1" in context.allowedReferenceIds)
         assertTrue("event-1" in context.allowedReferenceIds)
         assertTrue("session-0" in context.allowedReferenceIds)

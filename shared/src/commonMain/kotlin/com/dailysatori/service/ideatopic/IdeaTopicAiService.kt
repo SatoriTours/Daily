@@ -45,6 +45,10 @@ class IdeaTopicAiService(
     private val sessionStore: AiConversationSessionStore,
 ) : IdeaTopicAiPort {
 
+    /** Last raw draft payload; diagnostics only, never persisted or logged. */
+    internal var lastRawDraftResponse: String? = null
+        private set
+
     override suspend fun reply(context: IdeaAiContext, onChunk: suspend (String) -> Unit): String =
         withAiRequestSession(context.sessionId?.let { sessionStore.getOrCreate("idea-topic:$it") }) {
             val config = requireConfig()
@@ -105,6 +109,7 @@ class IdeaTopicAiService(
                 systemPrompt = context.systemPrompt,
                 temperature = 0.2,
             )
+            lastRawDraftResponse = raw
             parseIdeaDraftResponse(raw, context.allowedReferenceIds)
         }
 

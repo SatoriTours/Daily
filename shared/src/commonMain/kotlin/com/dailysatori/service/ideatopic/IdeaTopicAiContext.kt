@@ -116,6 +116,7 @@ fun buildIdeaAiContext(
     }
 
     val allowedReferenceIds = buildSet {
+        add(detail.topic.id)
         detail.sources.forEach { add(it.id); add(it.snapshot.key.recordId) }
         detail.events.forEach { add(it.id) }
         detail.sessions.forEach { add(it.id) }
@@ -200,7 +201,10 @@ private inline fun <reified T> decodeEvent(event: IdeaTopicEvent): T? = try {
 
 private fun buildSummaryBlock(session: IdeaTopicSession): String = buildString {
     appendLine("· 会话 ${session.id}「${session.title}」：${session.summary.truncateForContext(1_500)}")
-    session.summaryThroughMessageId?.let { append("（覆盖到消息 $it）") }
+    // Only ids that the caller can actually reference may appear in the context.
+    if (session.summaryCoveredMessageIds.isNotEmpty()) {
+        append("（覆盖 ${session.summaryCoveredMessageIds.size} 条消息）")
+    }
 }
 
 private fun String.truncateForContext(limit: Int): String =
