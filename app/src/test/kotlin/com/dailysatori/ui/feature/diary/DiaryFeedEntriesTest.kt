@@ -65,7 +65,7 @@ class DiaryFeedEntriesTest {
             clear()
             set(year, month, day, hour, 0, 0)
         }.timeInMillis
-        return Diary(id, "diary $id", null, null, null, timestamp, timestamp)
+        return Diary(id, "diary $id", null, null, null, timestamp, timestamp, null)
     }
 
     private inline fun withDefaultTimeZone(id: String, block: () -> Unit) {
