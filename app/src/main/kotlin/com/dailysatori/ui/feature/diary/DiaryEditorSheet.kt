@@ -889,7 +889,7 @@ private fun DiaryEditorMetaRow(
                     Icon(
                         Icons.Default.MicNone,
                         contentDescription = stringResource(R.string.diary_feed_record_voice),
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(IconSize.xs),
                         tint = colors.primary,
                     )
                     Text(

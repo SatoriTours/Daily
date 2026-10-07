@@ -52,7 +52,14 @@ class DiaryThreadSummaryAiLiveTest {
                 listOf("没有", "还没", "尚未", "仍在", "还在", "未定", "不确定", "比较", "考虑").any { it in summary },
                 "尚无结论时必须如实说明：$summary",
             )
-            assertTrue("已经决定" !in summary && "最终决定" !in summary, "不得替用户强行下结论：$summary")
+            val decision = Regex("已经决定|最终决定")
+            val negation = Regex("(?:尚未|并未|未|没有|还没|不曾|尚无)[^，。；！？\\n]{0,8}$")
+            val inventedDecision = summary.split(Regex("[，。；！？\\n]")).any { clause ->
+                decision.findAll(clause).any { match ->
+                    !negation.containsMatchIn(clause.substring(0, match.range.first).takeLast(12))
+                }
+            }
+            assertTrue(!inventedDecision, "不得替用户强行下结论：$summary")
         }
     }
 
