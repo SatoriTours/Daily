@@ -2,6 +2,7 @@ package com.dailysatori.service.parser
 
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.externalfavorites.sha256Hex
 import com.dailysatori.service.mapConcurrently
@@ -142,7 +143,7 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
 
     private suspend fun request(input: String, prompt: String, config: NormalizedAiConfigValues): String = requests.withPermit {
         ai.complete(input, config.apiAddress, config.apiToken, config.modelName, config.provider,
-            systemPrompt = prompt, temperature = 0.0, disableThinking = true)
+            systemPrompt = prompt, temperature = 0.0, purpose = AiPurpose.EXTERNAL_CONTENT)
     }
 
     private fun parseOverview(response: String): ArticleAiOverview {

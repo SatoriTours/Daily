@@ -935,6 +935,31 @@ ai_config:
   go_usage_notice: OpenCode Go primarily serves coding agents; availability for Daily's non-coding use is not guaranteed. Use an API key with an active Go subscription.
   responses_unsupported: Responses API is not supported yet
   model_unadapted: Model protocol is not adapted yet; select a supported model
+  delete_confirm_with_purpose: "Are you sure you want to delete this non-default configuration? Any feature assigned to this model will automatically revert to following the default model."
+
+ai_purpose:
+  title: "Purpose Models"
+  subtitle: "Assign tailored models to different scenarios. Unassigned tasks automatically use the default model."
+  no_configs_title: "No AI Models Configured"
+  no_configs_desc: "Please configure AI models first before assigning them to different scenarios."
+  go_to_config: "Go to Model Settings"
+  follow_default: "Follow Default Model"
+  default_badge: "Default"
+  current_default: "Current Default"
+  select_model_title: "Select Model"
+  save_failed: "Failed to save model assignment, please try again"
+  card_default_fallback: "Follow Default"
+  card_no_default: "No default model configured"
+  deep_effect_notice: "Quality depends on the model. Official DeepSeek and DeepSeek on OpenCode Go use purpose-specific thinking controls; other models keep provider defaults."
+  interactive_title: "Interactive Tasks"
+  interactive_desc: "For real-time responses: chat, idea dialogue, input structuring, reminder parsing, reference filing, diary polishing."
+  interactive_highlight: "Optimized for fast response and low latency"
+  external_title: "Economic Background"
+  external_desc: "For batch and async tasks: URL/news summaries, translation, X and external bookmarking."
+  external_highlight: "Optimized for cost-effective background processing"
+  reflection_title: "Deep Reflection"
+  reflection_desc: "For comprehensive synthesis: idea project synthesis, thought induction, reading insights, weekly summaries, monthly reviews."
+  reflection_highlight: "Optimized for deep reasoning and structural synthesis"
 
 # Weekly Summary
 weekly_summary:
@@ -1269,6 +1294,8 @@ settings_design:
   reminder_access_hint: "Reminders · System permissions"
   speech: "Speech transcription"
   speech_hint: "Provider, model and API key"
+  ai_purpose: "Purpose Models"
+  ai_purpose_hint: "Interactive · Background · Deep"
   plugins: "Prompt plugins"
   plugins_hint: "Manage prompt plugins"
   web: "Web service"

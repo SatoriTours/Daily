@@ -1,6 +1,7 @@
 package com.dailysatori.service.opportunity
 
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -16,7 +17,7 @@ class AiNewsOpportunityAnalyzer(
     private val configService: AiConfigService,
 ) : OpportunityAnalyzer {
     override suspend fun analyze(input: OpportunityAnalysisInput): OpportunityDraft? {
-        val config = configService.getDefaultConfig() ?: error("AI configuration unavailable")
+        val config = configService.getConfig(AiPurpose.EXTERNAL_CONTENT) ?: error("AI configuration unavailable")
         suspend fun request(invalidQuote: String? = null) = parseOpportunityResponse(aiService.complete(
             prompt = opportunityPrompt(input, invalidQuote),
             apiAddress = config.api_address,
@@ -25,6 +26,7 @@ class AiNewsOpportunityAnalyzer(
             provider = config.provider,
             systemPrompt = SYSTEM_PROMPT,
             temperature = 0.1,
+            purpose = AiPurpose.EXTERNAL_CONTENT,
         ))
         val draft = request() ?: return null
         val originalQuote = resolveOpportunityQuote(input.article.content, draft.quote)

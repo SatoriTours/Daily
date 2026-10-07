@@ -64,6 +64,12 @@ DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*ReminderAiLiv
 DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*ArticleAiLiveTest' --rerun
 ```
 
+功能模型分配的真实基础验证使用同一配置，分别执行资料整理、文章摘要和读书总结（每类一次），并设置不可用的全局默认配置以验证请求确实使用用途分配。这里只验证已配置接口，不代表所有服务商、价格或网络延迟都已验证：
+
+```bash
+DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*AiPurposeLiveTest' --rerun
+```
+
 ### Android 模拟器
 
 仅发布代码前，或用户明确要求真机／UI 测试时，才启动模拟器进行 UI 验证。

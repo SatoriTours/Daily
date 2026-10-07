@@ -3,6 +3,7 @@ package com.dailysatori.service.weekly
 import co.touchlab.kermit.Logger
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.AiPurpose
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.*
 
@@ -99,7 +100,7 @@ class WeeklySummaryService(
                 appIdeas = summary.app_ideas,
                 status = WEEKLY_STATUS_GENERATING,
             )
-            val config = aiConfigService.getDefaultConfig()
+            val config = aiConfigService.getConfig(AiPurpose.REFLECTION)
                 ?: throw IllegalStateException("AI config not set")
             if (config.api_address.isBlank() || config.api_token.isBlank() || config.model_name.isBlank()) {
                 throw IllegalStateException("AI config not set")
@@ -111,6 +112,7 @@ class WeeklySummaryService(
                 apiToken = config.api_token.trim(),
                 modelName = config.model_name.trim(),
                 provider = config.provider.trim(),
+                purpose = AiPurpose.REFLECTION,
             ).trim()
             if (content.isBlank()) throw IllegalStateException("AI returned empty weekly summary")
             weeklySummaryRepo.update(

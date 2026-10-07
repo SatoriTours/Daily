@@ -35,6 +35,7 @@ import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.adblock.AdBlockService
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiModelCatalogService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.backup.BackupService
@@ -142,7 +143,7 @@ val sharedModule: Module = module {
     }
     single { DiaryMonthSummaryRepository(get()) }
     single { DiaryThoughtRepository(get()) }
-    single { DiaryThoughtGenerator(diaryAssistantCompletion(get(), get())) }
+    single { DiaryThoughtGenerator(diaryAssistantCompletion(get(), get(), AiPurpose.REFLECTION)) }
     single { DiaryThoughtService(get(), get(), get()) }
     single { DiaryThoughtChatContextProvider(get(), get()) }
     single { ExternalFavoriteSourceRepository(get(), get()) }
@@ -253,7 +254,7 @@ val sharedModule: Module = module {
         )
     }
     single<DiaryAssistantService> {
-        val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get())
+        val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get(), AiPurpose.EXTERNAL_CONTENT)
         DiaryAssistantService(get(), get(), complete)
     }
 

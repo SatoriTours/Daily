@@ -26,6 +26,7 @@ import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.settings.*
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
+import com.dailysatori.ui.feature.aiconfig.AiPurposeScreen
 import com.dailysatori.ui.feature.profile.DataPrivacyScreen
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
@@ -71,6 +72,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
         when (currentPage) {
             SettingsPage.MAIN -> SettingsMainPage(state, scrollState, navigate, onBack)
             SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = childBack)
+            SettingsPage.AI_PURPOSE -> AiPurposeScreen(
+                onBack = childBack,
+                onNavigateToAiConfig = { navigate(SettingsDestination(SettingsPage.AI_CONFIG)) },
+            )
             SettingsPage.SPEECH -> SpeechSettingsScreen(onBack = childBack)
             SettingsPage.DIARY_TAGS -> com.dailysatori.ui.feature.diary.DiaryTagSettingsScreen(onBack = childBack)
             SettingsPage.MCP_SERVER -> McpServerScreen(onBack = childBack)
@@ -167,7 +172,7 @@ private fun settingsEntryIcon(page: SettingsPage) = when (page) {
     SettingsPage.REMINDERS -> Icons.Default.Notifications
     SettingsPage.PHONE_ASSISTANT, SettingsPage.SMS_REMINDERS -> Icons.Default.Sms
     SettingsPage.DIARY_TAGS -> Icons.Default.Label
-    SettingsPage.AI_CONFIG, SettingsPage.SPEECH -> Icons.Default.AutoAwesome
+    SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH -> Icons.Default.AutoAwesome
     SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER -> Icons.Default.Extension
     SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE -> Icons.Default.Hub
     SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES -> Icons.Default.Article

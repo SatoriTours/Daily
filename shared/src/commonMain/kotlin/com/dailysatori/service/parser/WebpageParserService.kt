@@ -19,6 +19,7 @@ import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.mapConcurrently
 import com.dailysatori.service.retryTransientFailure
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.externalfavorites.ExternalFavoriteItemDraft
 import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
@@ -849,7 +850,7 @@ class WebpageParserService(
             setProcessingState(articleId, "webContentFetched", "Original saved")
             articleRepo.updateStatus(articleId, "aiProcessing")
             scheduleCover(articleId)
-            val config = aiConfigService.getDefaultConfig()
+            val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
             if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
                 throw IllegalStateException("AI config not set")
             }

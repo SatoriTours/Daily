@@ -1,6 +1,7 @@
 package com.dailysatori.service.diary
 
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -100,7 +101,7 @@ fun diaryTranscriptPolishCompletion(
     configService: AiConfigService,
     aiService: AiService,
 ): suspend (String, String) -> String = { prompt, system ->
-    val config = requireDiaryAssistantAiConfiguration(configService.getDefaultConfig())
+    val config = requireDiaryAssistantAiConfiguration(configService.getConfig(AiPurpose.INTERACTIVE))
     aiService.completePrivate(prompt, config.api_address.trim().trimEnd('/'), config.api_token.trim(),
-        config.model_name.trim(), config.provider.trim(), system)
+        config.model_name.trim(), config.provider.trim(), system, purpose = AiPurpose.INTERACTIVE)
 }

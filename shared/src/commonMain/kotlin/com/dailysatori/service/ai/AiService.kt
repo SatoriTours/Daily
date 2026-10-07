@@ -43,14 +43,14 @@ class AiService(private val client: HttpClient) {
     /** Private archives must not expose provider error bodies through logging or exception causes. */
     suspend fun completePrivate(
         prompt: String, apiAddress: String, apiToken: String, modelName: String,
-        provider: String, systemPrompt: String,
+        provider: String, systemPrompt: String, purpose: AiPurpose? = null,
     ): String = try {
         withAiRequestSession {
             val route = resolveAiRequestRoute(provider, modelName, apiAddress)
             val headers = aiRequestHeaders(provider)
             val response = if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
                 rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, 0.0,
-                    disableThinking = provider.trim().equals("deepseek", ignoreCase = true), recordUsage = false, headers = headers)
+                    thinkingMode = aiPurposeThinkingMode(provider, modelName, purpose, disableThinking = true), recordUsage = false, headers = headers)
             } else {
                 withTimeout(aiCompletionRequestTimeoutMillis()) {
                     langChainClient.complete(prompt, route, apiToken.trim(), modelName.trim(), headers, systemPrompt, 0.0)
@@ -75,13 +75,14 @@ class AiService(private val client: HttpClient) {
         systemPrompt: String? = null,
         temperature: Double = 0.5,
         disableThinking: Boolean = false,
+        purpose: AiPurpose? = null,
     ): String = withAiOperation(provider, modelName) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
             return@withAiOperation rawOpenAiTextCompletion(
                 apiAddress, apiToken, modelName, prompt, systemPrompt, temperature,
-                disableThinking = disableThinking && provider.trim().equals("deepseek", ignoreCase = true), headers = headers,
+                thinkingMode = aiPurposeThinkingMode(provider, modelName, purpose, disableThinking), headers = headers,
             )
         }
         val response = try {
@@ -111,7 +112,7 @@ class AiService(private val client: HttpClient) {
         prompt: String,
         systemPrompt: String?,
         temperature: Double,
-        disableThinking: Boolean,
+        thinkingMode: AiThinkingMode,
         recordUsage: Boolean = true,
         headers: Map<String, String> = emptyMap(),
     ): String {
@@ -122,7 +123,7 @@ class AiService(private val client: HttpClient) {
             messages = buildOpenAiTextCompletionMessages(prompt, systemPrompt),
             tools = emptyList(),
             temperature = temperature,
-            disableThinking = disableThinking,
+            thinkingMode = thinkingMode,
             recordUsage = recordUsage,
             headers = headers,
         )
@@ -155,12 +156,14 @@ class AiService(private val client: HttpClient) {
         provider: String = "openai",
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
+        purpose: AiPurpose? = null,
     ): JsonObject? = withAiOperation(provider, modelName, isFailure = { it == null }) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         try {
             if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
-                rawOpenAiChatCompletion(apiAddress, apiToken, modelName, messages, tools, temperature, headers = headers)
+                rawOpenAiChatCompletion(apiAddress, apiToken, modelName, messages, tools, temperature,
+                    thinkingMode = aiPurposeThinkingMode(provider, modelName, purpose), headers = headers)
             } else {
                 langChainClient.chatCompletion(
                     messages = messages,
@@ -186,15 +189,17 @@ class AiService(private val client: HttpClient) {
         provider: String = "openai",
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
+        purpose: AiPurpose? = null,
         onChunk: suspend (String) -> Unit,
     ): JsonObject? = withAiOperation(provider, modelName, isFailure = { it == null }) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         try {
             if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
-                rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk, headers)
+                rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk, headers,
+                    aiPurposeThinkingMode(provider, modelName, purpose))
             } else {
-                chatCompletion(messages, apiAddress, apiToken, modelName, provider, tools, temperature)
+                chatCompletion(messages, apiAddress, apiToken, modelName, provider, tools, temperature, purpose)
             }
         } catch (e: Exception) {
             log.e(e) { "AI streaming chat completion failed" }
@@ -209,7 +214,7 @@ class AiService(private val client: HttpClient) {
         messages: List<JsonObject>,
         tools: List<JsonObject>,
         temperature: Double,
-        disableThinking: Boolean = false,
+        thinkingMode: AiThinkingMode = AiThinkingMode.DEFAULT,
         recordUsage: Boolean = true,
         headers: Map<String, String> = emptyMap(),
     ): JsonObject = withSafeGoResponse(headers) {
@@ -222,7 +227,7 @@ class AiService(private val client: HttpClient) {
             bearerAuth(apiToken.trim())
             headers.forEach { (name, value) -> header(name, value) }
             setBody(buildOpenAiChatCompletionRequest(
-                modelName.trim(), messages, tools, temperature, disableThinking = disableThinking,
+                modelName.trim(), messages, tools, temperature, thinkingMode = thinkingMode,
             ).toString())
         }
         val body = response.bodyAsText()
@@ -250,6 +255,7 @@ class AiService(private val client: HttpClient) {
         temperature: Double,
         onChunk: suspend (String) -> Unit,
         headers: Map<String, String>,
+        thinkingMode: AiThinkingMode,
     ): JsonObject? = withSafeGoResponse(headers) {
         val fullText = StringBuilder()
         val started = DiagnosticLog.elapsed()
@@ -262,7 +268,8 @@ class AiService(private val client: HttpClient) {
             contentType(ContentType.Application.Json)
             bearerAuth(apiToken.trim())
             headers.forEach { (name, value) -> header(name, value) }
-            setBody(buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature, stream = true).toString())
+            setBody(buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature,
+                stream = true, thinkingMode = thinkingMode).toString())
         }.execute { response ->
             if (response.status.value !in 200..299) {
                 if (headers.containsKey("x-opencode-session")) throw openCodeGoHttpError(response.status.value)
@@ -302,8 +309,10 @@ class AiService(private val client: HttpClient) {
         modelName: String,
         provider: String = "openai",
         disableThinking: Boolean = false,
+        purpose: AiPurpose? = null,
     ): String {
-        return complete(content, apiAddress, apiToken, modelName, provider, systemPrompt, disableThinking = disableThinking)
+        return complete(content, apiAddress, apiToken, modelName, provider, systemPrompt,
+            disableThinking = disableThinking, purpose = purpose)
     }
 
     suspend fun htmlToMarkdown(
@@ -325,11 +334,17 @@ fun buildOpenAiChatCompletionRequest(
     temperature: Double,
     stream: Boolean = false,
     disableThinking: Boolean = false,
+    thinkingMode: AiThinkingMode = AiThinkingMode.DEFAULT,
 ): JsonObject = buildJsonObject {
     put("model", JsonPrimitive(modelName))
     put("messages", JsonArray(messages))
     put("temperature", JsonPrimitive(temperature))
-    if (disableThinking) put("thinking", buildJsonObject { put("type", JsonPrimitive("disabled")) })
+    if (thinkingMode == AiThinkingMode.DEEP) {
+        put("thinking", buildJsonObject { put("type", JsonPrimitive("enabled")) })
+        if (modelName.startsWith("deepseek-v4", ignoreCase = true)) put("reasoning_effort", JsonPrimitive("high"))
+    } else if (disableThinking || thinkingMode == AiThinkingMode.FAST) {
+        put("thinking", buildJsonObject { put("type", JsonPrimitive("disabled")) })
+    }
     if (stream) put("stream", JsonPrimitive(true))
     if (tools.isNotEmpty()) {
         put("tools", JsonArray(tools))

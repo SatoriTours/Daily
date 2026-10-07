@@ -2,6 +2,7 @@ package com.dailysatori.service.lifearchive
 
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.AiPurpose
 import kotlinx.serialization.json.*
 
 interface LifeArchiveAi {
@@ -41,9 +42,9 @@ class LifeArchiveAiService(private val ai: AiService, private val configs: AICon
     }
 
     internal suspend fun request(input: JsonObject, extraRules: String = ""): String {
-        val config = configs.getDefault() ?: throw LifeArchiveAiNotConfigured()
+        val config = configs.getForPurpose(AiPurpose.INTERACTIVE) ?: throw LifeArchiveAiNotConfigured()
         return ai.completePrivate(input.toString(), config.api_address, config.api_token, config.model_name,
-            config.provider, ARCHIVE_SYSTEM_PROMPT + extraRules)
+            config.provider, ARCHIVE_SYSTEM_PROMPT + extraRules, purpose = AiPurpose.INTERACTIVE)
     }
 }
 
