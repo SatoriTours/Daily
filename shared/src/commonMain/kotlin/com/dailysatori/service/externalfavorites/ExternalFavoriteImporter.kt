@@ -12,6 +12,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+data class XArticleRepairBatch(val queued: Int, val nextCursor: Long)
+
 class ExternalFavoriteImporter(
     private val itemRepo: ExternalFavoriteItemRepository,
     private val articleRepo: ArticleRepository,
@@ -21,6 +23,27 @@ class ExternalFavoriteImporter(
 
     fun importPendingForSource(sourceId: Long, limit: Long = 50): Int =
         importItems(itemRepo.pendingImportBySource(sourceId, limit))
+
+    fun repairIncompleteXArticles(sourceId: Long, afterId: Long = 0, limit: Long = 50): XArticleRepairBatch {
+        val batch = itemRepo.importedXArticleRepairBatch(sourceId, afterId, limit)
+        var queued = 0
+        batch.forEach { item ->
+            val cache = cachedFavoriteContent(item)
+            val expired = cachedFavoriteContent(item, allowExpired = true)?.articleContentComplete == true && cache == null
+            if (!expired && (!xArticleNeedsBody(item.canonical_url, item.normalized_json) || cache != null ||
+                !xArticleItemContainsOnlyMetadata(item))) return@forEach
+            val changed = itemRepo.saveAiResultIfUnchanged(item) {
+                val article = item.article_id?.let(articleRepo::getById) ?: return@saveAiResultIfUnchanged false
+                val placeholder = xArticleOriginalIsPlaceholder(article.original_markdown_content, item)
+                if (!expired && !placeholder) return@saveAiResultIfUnchanged false
+                if (expired) itemRepo.markContentRefreshPending(item)
+                else itemRepo.markAiState(item.id, ExternalItemAiStatus.pending.name)
+                true
+            }
+            if (changed) queued++
+        }
+        return XArticleRepairBatch(queued, if (batch.size.toLong() < limit) 0 else batch.last().id)
+    }
 
     fun repairImportedArticleCovers(limit: Long = 50): Int {
         var repaired = 0

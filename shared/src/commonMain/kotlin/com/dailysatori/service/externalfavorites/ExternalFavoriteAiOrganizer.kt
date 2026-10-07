@@ -48,7 +48,7 @@ data class ExternalFavoriteAiAnalysis(
     val markdown: String,
 )
 
-data class ExternalFavoriteAiProgress(val processed: Int, val total: Int, val failed: Int, val itemId: Long)
+data class ExternalFavoriteAiProgress(val processed: Int, val total: Int, val failed: Int, val itemId: Long, val deferred: Int = 0)
 
 class ExternalFavoriteAiOrganizer(
     private val itemRepo: ExternalFavoriteItemRepository,
@@ -61,6 +61,7 @@ class ExternalFavoriteAiOrganizer(
     private val retryDelayMs: Long = DEFAULT_AI_RETRY_DELAY_MS,
     private val itemTimeoutMs: Long = 90_000L,
     private val settingRepo: com.dailysatori.data.repository.SettingRepository? = null,
+    private val sourceRepo: com.dailysatori.data.repository.ExternalFavoriteSourceRepository? = null,
 ) {
     private val articleProcessor = if (aiService != null && settingRepo != null)
         com.dailysatori.service.parser.ArticleAiProcessor(aiService, settingRepo) else null
@@ -89,9 +90,23 @@ class ExternalFavoriteAiOrganizer(
         httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
         taskId: Long? = null,
         onProgress: suspend (ExternalFavoriteAiProgress) -> Unit = {},
+    ): Int = withXContentFetchSession(
+        items.filter { it.provider == ExternalFavoriteProvider.X.id }.map { it.source_id }.distinct()
+            .map { xOfficialContentRequestLimit(sourceRepo?.getById(it)?.config_json.orEmpty()) }.minOrNull()
+            ?: DEFAULT_X_OFFICIAL_CONTENT_LIMIT, httpLogger, taskId,
+    ) {
+        organizeItemsInSession(items, httpLogger, taskId, onProgress)
+    }
+
+    private suspend fun organizeItemsInSession(
+        items: List<External_favorite_item>,
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+        onProgress: suspend (ExternalFavoriteAiProgress) -> Unit,
     ): Int {
         var processed = 0
         var failed = 0
+        var deferred = 0
         val progressLock = Mutex()
         val work = items.mapNotNull { item ->
             val article = item.article_id?.let(articleRepo::getById)
@@ -108,9 +123,11 @@ class ExternalFavoriteAiOrganizer(
 
         analyzeWorkItems(work, httpLogger, taskId) { result ->
             progressLock.withLock {
-                if (!itemRepo.saveAiResultIfUnchanged(result.item) { saveResult(result) }) failed += 1
+                if (!itemRepo.saveAiResultIfUnchanged(result.item) { saveResult(result) }) {
+                    if (result.error is XContentDeferredException) deferred += 1 else failed += 1
+                }
                 processed += 1
-                onProgress(ExternalFavoriteAiProgress(processed, items.size, failed, result.item.id))
+                onProgress(ExternalFavoriteAiProgress(processed, items.size, failed, result.item.id, deferred))
             }
         }
         return processed
@@ -121,9 +138,15 @@ class ExternalFavoriteAiOrganizer(
         val article = result.article
         val input = result.input
         val analysis = result.analysis
+        if (result.unchangedRefresh) {
+            itemRepo.clearContentRefreshFlag(item)
+            itemRepo.markAiState(item.id, ExternalItemAiStatus.completed.name)
+            return true
+        }
         if (result.error != null || input == null || analysis == null) {
-            itemRepo.markAiState(item.id, ExternalItemAiStatus.failed.name, "ai_failed",
-                result.error?.message.orEmpty().ifBlank { "External favorite AI organization failed." })
+            val deferred = result.error as? XContentDeferredException
+            itemRepo.markAiState(item.id, if (deferred == null) ExternalItemAiStatus.failed.name else ExternalItemAiStatus.pending.name,
+                deferred?.reason ?: "ai_failed", result.error?.message.orEmpty().ifBlank { "External favorite AI organization failed." })
             return false
         }
         val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "外部收藏" } }
@@ -133,6 +156,7 @@ class ExternalFavoriteAiOrganizer(
         articleRepo.updateAiContent(article.id, summary, aiTitle, article.cover_image_url)
         articleRepo.updateAiMarkdownContent(article.id, markdown)
         articleRepo.updateStatus(article.id, "completed")
+        itemRepo.clearContentRefreshFlag(item)
         itemRepo.markAiState(item.id, ExternalItemAiStatus.completed.name)
         return true
     }
@@ -179,6 +203,9 @@ class ExternalFavoriteAiOrganizer(
     ): ExternalFavoriteAiResult {
         val item = entry.item
         val input = item.toAiInput().withSupplementIfNeeded(item, httpLogger, taskId)
+        if (favoriteRefreshIsUnchanged(item, input.supplementTitle ?: input.title, input.supplementText ?: input.text)) {
+            return ExternalFavoriteAiResult(item, entry.article, input, null, null, unchangedRefresh = true)
+        }
         logAiRequest(httpLogger, taskId, item, input, aiRequestLogConfig())
         val analysis = retryTransientFailure(
             maxAttempts = AI_MAX_ATTEMPTS,
@@ -300,31 +327,70 @@ class ExternalFavoriteAiOrganizer(
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
     ): ExternalFavoriteAiInput {
-        val resolver = supplementResolver ?: return this
-        if (hasEnoughExistingFavoriteText(text)) return this
+        val missingArticleBody = xArticleNeedsBody(item.canonical_url, item.normalized_json) || favoriteHasArticleCache(item)
+        val confirmedArticleBody = item.normalizedJsonObject()?.textValue("article_content_complete") == "true"
+        cachedFavoriteContent(item)?.let {
+            currentXContentFetchSession()?.record("cache_hit")
+            return if (confirmedArticleBody && item.text == it.text && title == it.title) this else withFetchedContent(it)
+        }
+        val expiredArticle = cachedFavoriteContent(item, allowExpired = true)?.articleContentComplete == true
+        if (confirmedArticleBody && !expiredArticle) {
+            persistFetchedContent(item, ExternalFavoriteSupplement(canonicalUrl, title, item.text, "x_article", true,
+                favoriteMetadata(item.normalized_json).textValue("article_modified_at")))
+            return this
+        }
+        val requireArticleBody = missingArticleBody || expiredArticle
+        if (!requireArticleBody && hasEnoughExistingFavoriteText(item.text)) return this
+        val resolver = supplementResolver ?: if (requireArticleBody) error("未配置 X 文章正文抓取") else return this
         val supplement = try {
             resolver.resolve(item, this, httpLogger, taskId)
         } catch (error: CancellationException) {
             throw error
-        } catch (_: Exception) {
+        } catch (error: XContentDeferredException) {
+            throw error
+        } catch (error: Exception) {
+            if (requireArticleBody) throw IllegalStateException("未能获取 X 文章完整正文，请稍后重试", error)
             null
-        } ?: return this
-        val supplementText = supplement.text.trim()
-        if (supplementText.isBlank()) return this
-        return copy(
+        }
+        val supplementText = supplement?.text?.trim().orEmpty()
+        if (supplement == null || supplementText.isBlank() || (requireArticleBody && !supplement.articleContentComplete)) {
+            if (requireArticleBody) throw IllegalStateException("未能获取 X 文章完整正文，请稍后重试")
+            return this
+        }
+        persistFetchedContent(item, supplement.copy(text = supplementText))
+        return withFetchedContent(supplement.copy(text = supplementText))
+    }
+
+    private fun persistFetchedContent(item: External_favorite_item, content: ExternalFavoriteSupplement) {
+        val saved = itemRepo.cacheContentIfUnchanged(item, content) {
+            val article = item.article_id?.let(articleRepo::getById) ?: return@cacheContentIfUnchanged false
+            val original = article.original_markdown_content
+            if (original.isNullOrBlank() || original == previousCachedFavoriteBody(item) ||
+                (content.articleContentComplete && xArticleOriginalIsPlaceholder(original, item))) {
+                articleRepo.updateOriginalMarkdownContent(article.id, content.text)
+            }
+            true
+        }
+        if (!saved) throw CancellationException("正文抓取期间收藏来源已更新，将使用新版本重试")
+    }
+
+    private fun ExternalFavoriteAiInput.withFetchedContent(supplement: ExternalFavoriteSupplement): ExternalFavoriteAiInput =
+        copy(
+            title = if (supplement.articleContentComplete) supplement.title?.takeIf { it.isNotBlank() } ?: title else title,
+            text = if (supplement.articleContentComplete) "" else text,
             supplementUrl = supplement.url.trim().takeIf { it.isNotBlank() },
             supplementTitle = supplement.title?.trim()?.takeIf { it.isNotBlank() },
-            supplementText = supplementText,
+            supplementText = supplement.text,
             supplementSourceType = supplement.sourceType.trim().takeIf { it.isNotBlank() },
         )
-    }
 
     private fun External_favorite_item.toAiInput(): ExternalFavoriteAiInput {
         val metadata = normalizedJsonObject()
+        val completeArticle = metadata?.textValue("article_content_complete") == "true"
         val textParts = listOf(
             text.trim(),
-            metadata?.stringValue("url_title")?.trim(),
-            metadata?.stringValue("url_description")?.trim(),
+            metadata?.stringValue("url_title")?.trim()?.takeUnless { completeArticle },
+            metadata?.stringValue("url_description")?.trim()?.takeUnless { completeArticle },
         )
             .mapNotNull { it?.takeIf(String::isNotBlank) }
             .distinct()
@@ -511,4 +577,5 @@ private data class ExternalFavoriteAiResult(
     val input: ExternalFavoriteAiInput?,
     val analysis: ExternalFavoriteAiAnalysis?,
     val error: Throwable?,
+    val unchangedRefresh: Boolean = false,
 )

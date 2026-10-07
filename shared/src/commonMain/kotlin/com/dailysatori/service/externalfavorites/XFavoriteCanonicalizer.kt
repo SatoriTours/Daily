@@ -55,6 +55,9 @@ internal fun isXStatusLikeUrl(url: String): Boolean {
 internal fun isXArticleUrl(url: String): Boolean =
     xArticleUrlPattern.matches(url.trim())
 
+internal fun canonicalizeXArticleUrl(url: String): String? =
+    xArticleUrlPattern.matchEntire(url.trim())?.groupValues?.get(1)?.let { "https://x.com/i/article/$it" }
+
 fun xStatusUrl(statusId: String, username: String?): String {
     val cleanedUsername = username?.trim()?.trim('@').orEmpty()
     return if (cleanedUsername.isBlank()) {

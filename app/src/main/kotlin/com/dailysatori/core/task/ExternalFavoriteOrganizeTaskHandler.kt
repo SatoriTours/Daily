@@ -35,21 +35,24 @@ class ExternalFavoriteOrganizeTaskHandler(
             ?: return AsyncTaskExecutionResult.PermanentFailure("missing_source", "收藏来源已删除")
         if (source.enabled == 0L) return AsyncTaskExecutionResult.PermanentFailure("source_disabled", "收藏来源已停用")
         var failed = 0
+        var deferred = 0
         reporter.report(0, 0, "收藏已保存，准备 AI 整理（每批最多 20 条，单条最多 90 秒）")
         val processed = organizer.organizePendingForSource(
             payload.sourceId, limit = 20,
             httpLogger = httpLogger, taskId = taskId,
         ) { progress ->
             failed = progress.failed
+            deferred = progress.deferred
             reporter.report(progress.processed.toLong(), progress.total.toLong(),
-                "已整理 ${progress.processed - failed} 条，失败 $failed 条 · 最近处理收藏 #${progress.itemId}",
-                checkpointJson = """{"processed":${progress.processed},"failed":$failed,"itemId":${progress.itemId}}""",
+                "已整理 ${progress.processed - failed - deferred} 条，失败 $failed 条，暂缓 $deferred 条 · 最近处理收藏 #${progress.itemId}",
+                checkpointJson = """{"processed":${progress.processed},"failed":$failed,"deferred":$deferred,"itemId":${progress.itemId}}""",
             )
         }
         val hasMore = items.pendingAiBySource(payload.sourceId, 1).isNotEmpty()
-        if (hasMore) scheduler.enqueueOrganization(payload.sourceId, afterTaskId = taskId)
-        val suffix = if (hasMore) "，剩余内容已安排下一批" else ""
-        reporter.report(processed.toLong(), processed.toLong(), "本批整理结束：成功 ${processed - failed} 条，失败 $failed 条$suffix")
-        return AsyncTaskExecutionResult.Success("""{"processed":$processed,"failed":$failed}""")
+        val paused = items.hasDeferredContentBySource(payload.sourceId)
+        if (hasMore && !paused) scheduler.enqueueOrganization(payload.sourceId, afterTaskId = taskId)
+        val suffix = if (paused) "，正文抓取已暂缓，等待下次同步或手动重试" else if (hasMore) "，剩余内容已安排下一批" else ""
+        reporter.report(processed.toLong(), processed.toLong(), "本批整理结束：成功 ${processed - failed - deferred} 条，失败 $failed 条，暂缓 $deferred 条$suffix")
+        return AsyncTaskExecutionResult.Success("""{"processed":$processed,"failed":$failed,"deferred":$deferred}""")
     }
 }

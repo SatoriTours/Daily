@@ -4,6 +4,18 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteItemDraft
 import com.dailysatori.service.externalfavorites.ExternalItemAiStatus
 import com.dailysatori.service.externalfavorites.ExternalItemImportStatus
 import com.dailysatori.service.externalfavorites.ExternalItemSyncStatus
+import com.dailysatori.service.externalfavorites.ExternalFavoriteSupplement
+import com.dailysatori.service.externalfavorites.favoriteContentCacheJson
+import com.dailysatori.service.externalfavorites.mergeFavoriteContentCache
+import com.dailysatori.service.externalfavorites.sourceFavoriteMetadata
+import com.dailysatori.service.externalfavorites.favoriteMetadata
+import com.dailysatori.service.externalfavorites.cachedFavoriteContent
+import com.dailysatori.service.externalfavorites.favoriteContentRefreshJson
+import com.dailysatori.service.externalfavorites.favoriteContentWithoutRefreshFlag
+import com.dailysatori.service.externalfavorites.canonicalizeXArticleUrl
+import com.dailysatori.service.externalfavorites.xArticleOwningPostId
+import com.dailysatori.service.externalfavorites.previousCachedArticleUrl
+import com.dailysatori.service.externalfavorites.textValue
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_item
 import kotlinx.datetime.Clock
@@ -51,7 +63,7 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
                 draft.authorName,
                 draft.sourceCreatedAt,
                 draft.favoritedAt,
-                draft.normalizedJson,
+                mergeFavoriteContentCache(existing.normalized_json, draft.normalizedJson, draft.contentHash.takeIf { !changed && cachedFavoriteContent(existing, allowExpired = true) != null }),
                 draft.debugJson,
                 draft.contentHash,
                 draft.aiInputHash,
@@ -98,10 +110,46 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
 
     fun saveAiResultIfUnchanged(item: External_favorite_item, save: () -> Boolean): Boolean = q.transactionWithResult {
         val current = getBySourceExternalId(item.source_id, item.external_id)
-        if (current?.ai_input_hash != item.ai_input_hash || current?.article_id != item.article_id ||
+        if (current?.content_hash != item.content_hash || current?.ai_input_hash != item.ai_input_hash || current?.article_id != item.article_id ||
             current?.import_status != item.import_status
         ) false else save()
     }
+
+    fun cacheContentIfUnchanged(item: External_favorite_item, content: ExternalFavoriteSupplement, saveOriginal: () -> Boolean): Boolean =
+        saveAiResultIfUnchanged(item) {
+            if (!saveOriginal()) false else {
+                q.updateExternalFavoriteItemContentCache(favoriteContentCacheJson(item, content), Clock.System.now().toEpochMilliseconds(), item.id)
+                true
+            }
+        }
+
+    fun markContentRefreshPending(item: External_favorite_item) {
+        q.updateExternalFavoriteItemContentCache(favoriteContentRefreshJson(item), Clock.System.now().toEpochMilliseconds(), item.id)
+        markAiState(item.id, ExternalItemAiStatus.pending.name)
+    }
+
+    fun clearContentRefreshFlag(item: External_favorite_item) {
+        val current = getBySourceExternalId(item.source_id, item.external_id) ?: return
+        val cleared = favoriteContentWithoutRefreshFlag(current.normalized_json)
+        if (cleared != current.normalized_json) q.updateExternalFavoriteItemContentCache(cleared, Clock.System.now().toEpochMilliseconds(), item.id)
+    }
+
+    fun findXArticleReference(url: String): External_favorite_item? {
+        val canonical = canonicalizeXArticleUrl(url) ?: return null
+        return q.selectExternalFavoriteXArticleReferences("%/i/article/${canonical.substringAfterLast('/')}%",
+            "%/i/article/${canonical.substringAfterLast('/')}%").executeAsList().firstOrNull {
+            xArticleOwningPostId(it) != null && (canonicalizeXArticleUrl(it.canonical_url.orEmpty()) == canonical ||
+                canonicalizeXArticleUrl(favoriteMetadata(it.normalized_json).textValue("primary_url").orEmpty()) == canonical ||
+                canonicalizeXArticleUrl(previousCachedArticleUrl(it).orEmpty()) == canonical)
+        }
+    }
+
+    fun findXPostReference(postId: String): External_favorite_item? =
+        q.selectExternalFavoriteXPostReferences(postId, "%/status/$postId\"%").executeAsList()
+            .firstOrNull { it.external_id == postId || xArticleOwningPostId(it) == postId }
+
+    fun importedXArticleRepairBatch(sourceId: Long, afterId: Long, limit: Long): List<External_favorite_item> =
+        q.selectExternalFavoriteItemsXArticleRepairBatch(sourceId, afterId, limit, ::externalFavoriteItemWithArticle).executeAsList()
 
     fun requeueFailedAiBySource(sourceId: Long) = q.transaction {
         retryableAiBySource(sourceId, Long.MAX_VALUE).filter { it.ai_status == ExternalItemAiStatus.failed.name }
@@ -135,6 +183,9 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
 
     fun pendingAiBySource(sourceId: Long, limit: Long): List<External_favorite_item> =
         q.selectExternalFavoriteItemsPendingAiBySource(sourceId, limit, ::externalFavoriteItemWithArticle).executeAsList()
+
+    fun hasDeferredContentBySource(sourceId: Long): Boolean =
+        q.countExternalFavoriteItemsDeferredContentBySource(sourceId).executeAsOne() > 0
 
     fun retryableAi(limit: Long): List<External_favorite_item> =
         q.selectExternalFavoriteItemsRetryableAi(limit, ::externalFavoriteItemWithArticle).executeAsList()
@@ -190,17 +241,20 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
         )
     }
 
-    private fun External_favorite_item.hasChangedDraftContent(draft: ExternalFavoriteItemDraft): Boolean =
-        content_hash != draft.contentHash ||
-            ai_input_hash != draft.aiInputHash ||
+    private fun External_favorite_item.hasChangedDraftContent(draft: ExternalFavoriteItemDraft): Boolean {
+        val bodyChanged = ai_input_hash != draft.aiInputHash ||
             canonical_url != draft.canonicalUrl ||
             title != draft.title ||
             text != draft.text ||
             author_name != draft.authorName ||
             source_created_at != draft.sourceCreatedAt ||
             favorited_at != draft.favoritedAt ||
-            normalized_json != draft.normalizedJson ||
+            sourceFavoriteMetadata(normalized_json) != sourceFavoriteMetadata(draft.normalizedJson) ||
             debug_json != draft.debugJson
+        val onlyMetricsChanged = provider == "x" && !bodyChanged &&
+            favoriteMetadata(normalized_json)["public_metrics"] != favoriteMetadata(draft.normalizedJson)["public_metrics"]
+        return bodyChanged || (content_hash != draft.contentHash && !onlyMetricsChanged)
+    }
 
     private fun externalFavoriteItemWithArticle(
         id: Long,

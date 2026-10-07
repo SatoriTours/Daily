@@ -1,6 +1,7 @@
 package com.dailysatori.core.task
 
 import android.content.ContextWrapper
+import io.ktor.client.engine.mock.respond
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.*
@@ -27,6 +28,48 @@ class ExternalFavoriteOrganizeTaskHandlerTest {
             assertEquals(next, scheduler.enqueueOrganization(2, afterTaskId = running))
         } finally {
             driver.close()
+        }
+    }
+
+    @Test fun exhaustedBudgetDoesNotAutomaticallyStartAnotherPaidBatch() = runBlocking {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
+            val items = ExternalFavoriteItemRepository(db)
+            val articles = ArticleRepository(db)
+            val tasks = AsyncTaskRepository(db)
+            val sourceId = sources.save(provider = "x", displayName = "test", accountId = "42", accountName = "test",
+                authJson = "{}", configJson = """{"x_official_content_request_limit":0}""")
+            items.upsertDraft(sourceId, ExternalFavoriteItemDraft("x", "123", "https://x.com/writer/status/123", "Article", "https://t.co/a", "Writer",
+                null, null, """{"is_article":true,"article_content_complete":false}""", contentHash = "hash", aiInputHash = "ai"))
+            ExternalFavoriteImporter(items, articles).importPendingForSource(sourceId)
+            io.ktor.client.HttpClient(io.ktor.client.engine.mock.MockEngine {
+                respond("{}", io.ktor.http.HttpStatusCode.NotFound)
+            }).use { client ->
+                val connector = XBookmarksConnector(client)
+                val resolver = object : ExternalFavoriteSupplementResolver {
+                    override suspend fun resolve(item: com.dailysatori.shared.db.External_favorite_item, input: ExternalFavoriteAiInput,
+                        httpLogger: FavoriteSyncHttpLogger, taskId: Long?): ExternalFavoriteSupplement? {
+                        connector.fetchPostById(sources.getById(sourceId), "123", expectedArticle = true)
+                        return null
+                    }
+                }
+                val scheduler = ExternalFavoriteSyncScheduler(ContextWrapper(null), tasks)
+                val taskId = scheduler.enqueueOrganization(sourceId)!!
+                val organizer = ExternalFavoriteAiOrganizer(items, articles, supplementResolver = resolver, sourceRepo = sources,
+                    generateAnalysis = { error("Incomplete article must not reach AI") })
+                val handler = ExternalFavoriteOrganizeTaskHandler(organizer, items, sources, scheduler, NoopFavoriteSyncHttpLogger)
+                val messages = mutableListOf<String>()
+                val reporter = object : AsyncTaskProgressReporter {
+                    override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) { messages += message }
+                }
+                assertIs<AsyncTaskExecutionResult.Success>(handler.execute(taskId, """{"sourceId":$sourceId}""", "", reporter))
+                assertEquals(1, items.pendingAiBySource(sourceId, 10).size)
+                assertEquals("official_budget", items.getBySource(sourceId).single().last_error_code)
+                assertTrue(tasks.runnableTasksByType(handler.type, Long.MAX_VALUE, 10).none { it.id != taskId })
+                assertTrue(messages.last().contains("暂缓"))
+            }
         }
     }
 

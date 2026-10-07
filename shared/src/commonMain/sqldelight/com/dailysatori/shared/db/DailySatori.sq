@@ -1847,6 +1847,11 @@ WHERE source_id = ? AND ai_status = 'pending' AND article_id IS NOT NULL
 ORDER BY first_seen_at DESC
 LIMIT ?;
 
+countExternalFavoriteItemsDeferredContentBySource:
+SELECT COUNT(*) FROM external_favorite_item
+WHERE source_id = ? AND ai_status = 'pending'
+  AND last_error_code IN ('official_budget', 'official_rate_limited');
+
 selectExternalFavoriteItemsRetryableAi:
 SELECT * FROM external_favorite_item
 WHERE ai_status IN ('pending', 'failed') AND article_id IS NOT NULL
@@ -1890,6 +1895,34 @@ WHERE external_favorite_item.article_id IS NOT NULL
   AND external_favorite_item.text != ''
 ORDER BY external_favorite_item.first_seen_at DESC
 LIMIT ?;
+
+selectExternalFavoriteItemsXArticleRepairBatch:
+SELECT external_favorite_item.* FROM external_favorite_item
+INNER JOIN article ON article.id = external_favorite_item.article_id
+WHERE external_favorite_item.source_id = ?
+  AND external_favorite_item.article_id IS NOT NULL
+  AND external_favorite_item.id > ?
+  AND external_favorite_item.provider = 'x'
+  AND external_favorite_item.import_status = 'imported'
+  AND external_favorite_item.ai_status IN ('completed', 'not_needed')
+  AND (external_favorite_item.canonical_url LIKE '%/i/article/%'
+       OR external_favorite_item.normalized_json LIKE '%/i/article/%'
+       OR external_favorite_item.normalized_json LIKE '%"is_article":true%')
+ORDER BY external_favorite_item.id ASC
+LIMIT ?;
+
+selectExternalFavoriteXArticleReferences:
+SELECT * FROM external_favorite_item
+WHERE provider = 'x' AND (canonical_url LIKE ? OR normalized_json LIKE ?)
+ORDER BY last_seen_at DESC, id DESC LIMIT 100;
+
+selectExternalFavoriteXPostReferences:
+SELECT * FROM external_favorite_item
+WHERE provider = 'x' AND (external_id = ? OR normalized_json LIKE ?)
+ORDER BY last_seen_at DESC, id DESC LIMIT 100;
+
+updateExternalFavoriteItemContentCache:
+UPDATE external_favorite_item SET normalized_json = ?, updated_at = ? WHERE id = ?;
 
 insertExternalFavoriteItem:
 INSERT INTO external_favorite_item (

@@ -89,6 +89,15 @@ class AsyncTaskHttpLogWriter(
         parameters: Map<String, String>,
     ) {
         val id = taskId ?: return
+        if (label == "x_content_fetch_summary" && method == "SUMMARY" && url == "local://x-content-fetch") {
+            val fields = listOf("fx_success", "fx_backoff", "fx_errors", "official_requests", "official_success",
+                "body_missing", "budget_deferred", "cache_hit")
+            val counts = fields.mapNotNull { key ->
+                parameters[key]?.toIntOrNull()?.takeIf { it >= 0 }?.let { key to it }
+            }.toMap()
+            store.append(id, "X content fetch summary $counts")
+            return
+        }
         val safe = DiagnosticRedactor.fields(mapOf("method" to method, "url" to url))
         store.append(id, "HTTP request $safe params=[omitted]")
     }

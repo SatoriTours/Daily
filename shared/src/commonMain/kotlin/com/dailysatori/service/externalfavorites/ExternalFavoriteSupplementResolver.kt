@@ -13,6 +13,8 @@ data class ExternalFavoriteSupplement(
     val title: String?,
     val text: String,
     val sourceType: String,
+    val articleContentComplete: Boolean = false,
+    val articleModifiedAt: String? = null,
 )
 
 interface ExternalFavoriteSupplementResolver {
@@ -26,8 +28,8 @@ interface ExternalFavoriteSupplementResolver {
 
 class DefaultExternalFavoriteSupplementResolver(
     private val fetchWebSupplement: suspend (String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
-    private val fetchXStatusSupplement: suspend (String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
-    private val fetchXArticleSupplement: suspend (String, String, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
+    private val fetchXStatusSupplement: suspend (String, Long, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
+    private val fetchXArticleSupplement: suspend (String, String, Long, FavoriteSyncHttpLogger, Long?) -> ExternalFavoriteSupplement?,
 ) : ExternalFavoriteSupplementResolver {
     constructor(
         sourceRepo: ExternalFavoriteSourceRepository,
@@ -59,30 +61,18 @@ class DefaultExternalFavoriteSupplementResolver(
                 supplement
             }
         },
-        fetchXStatusSupplement = { url, httpLogger, taskId ->
+        fetchXStatusSupplement = { url, sourceId, httpLogger, taskId ->
             val postId = xPostIdFromStatusLikeUrl(url)
-            val source = sourceRepo.getEnabled().firstOrNull { it.provider == ExternalFavoriteProvider.X.id }
-            if (postId == null || source == null) {
-                null
-            } else {
-                val refreshed = xBookmarksConnector.refreshAuth(source)
-                if (refreshed.auth_json != source.auth_json) {
-                    sourceRepo.updateAuthJson(source.id, refreshed.auth_json)
-                }
-                xBookmarksConnector.fetchPostById(refreshed, postId, httpLogger, taskId)?.toSupplement(url, "x_status")
+            postId?.let {
+                xBookmarksConnector.fetchPostById(null, it, httpLogger, taskId) {
+                    refreshedXSupplementSource(sourceRepo, xBookmarksConnector, sourceId)
+                }?.toSupplement(url, "x_status")
             }
         },
-        fetchXArticleSupplement = { url, postId, httpLogger, taskId ->
-            val source = sourceRepo.getEnabled().firstOrNull { it.provider == ExternalFavoriteProvider.X.id }
-            if (source == null) {
-                null
-            } else {
-                val refreshed = xBookmarksConnector.refreshAuth(source)
-                if (refreshed.auth_json != source.auth_json) {
-                    sourceRepo.updateAuthJson(source.id, refreshed.auth_json)
-                }
-                xBookmarksConnector.fetchPostById(refreshed, postId, httpLogger, taskId)?.toSupplement(url, "x_article")
-            }
+        fetchXArticleSupplement = { url, postId, sourceId, httpLogger, taskId ->
+            xBookmarksConnector.fetchPostById(null, postId, httpLogger, taskId, expectedArticle = true) {
+                refreshedXSupplementSource(sourceRepo, xBookmarksConnector, sourceId)
+            }?.toSupplement(url, "x_article")
         },
     )
 
@@ -94,11 +84,23 @@ class DefaultExternalFavoriteSupplementResolver(
     ): ExternalFavoriteSupplement? {
         val url = externalFavoriteSupplementUrl(item, input) ?: return null
         return when {
-            isXArticleUrl(url) -> xArticleOwningPostId(item)
-                ?.let { postId -> fetchXArticleSupplement(url, postId, httpLogger, taskId) }
-            isXStatusLikeUrl(url) -> fetchXStatusSupplement(url, httpLogger, taskId)
+            isXArticleUrl(url) || xArticleNeedsBody(item.canonical_url, item.normalized_json) || favoriteHasArticleCache(item) -> xArticleOwningPostId(item)
+                ?.let { postId -> fetchXArticleSupplement(url, postId, item.source_id, httpLogger, taskId) }
+            isXStatusLikeUrl(url) -> fetchXStatusSupplement(url, item.source_id, httpLogger, taskId)
             else -> fetchWebSupplement(url, httpLogger, taskId)
         }?.takeIf { it.text.isNotBlank() }
+    }
+}
+
+private suspend fun refreshedXSupplementSource(
+    sourceRepo: ExternalFavoriteSourceRepository,
+    connector: XBookmarksConnector,
+    sourceId: Long,
+): com.dailysatori.shared.db.External_favorite_source? {
+    val source = sourceRepo.getById(sourceId)?.takeIf { it.provider == ExternalFavoriteProvider.X.id && it.enabled == 1L }
+        ?: throw IllegalStateException("该收藏所属 X 来源已删除或停用，无法使用官方授权")
+    return connector.refreshAuth(source).also { refreshed ->
+        if (refreshed.auth_json != source.auth_json) sourceRepo.updateAuthJson(source.id, refreshed.auth_json)
     }
 }
 
@@ -111,12 +113,14 @@ internal fun xArticleOwningPostId(item: External_favorite_item): String? {
 
 internal fun externalFavoriteSupplementUrl(item: External_favorite_item, input: ExternalFavoriteAiInput): String? {
     val root = runCatching { supplementJson.parseToJsonElement(item.normalized_json).jsonObject }.getOrNull()
-    return listOf(
-        root?.stringValue("primary_url"),
-        input.canonicalUrl,
-    )
+    val urls = listOf(root?.stringValue("primary_url"), input.canonicalUrl, previousCachedArticleUrl(item))
         .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
-        .firstOrNull { url -> !isShortUrl(url) }
+    urls.firstOrNull(::isXArticleUrl)?.let { return it }
+    if (root?.textValue("is_article") == "true") {
+        return root.stringValue("canonical_tweet_url")?.takeIf(::isXStatusLikeUrl)
+            ?: input.canonicalUrl.takeIf(::isXStatusLikeUrl)
+    }
+    return urls.firstOrNull { url -> !isShortUrl(url) }
 }
 
 internal fun xPostIdFromStatusLikeUrl(url: String): String? =
@@ -127,10 +131,12 @@ internal fun xPostIdFromStatusLikeUrl(url: String): String? =
 
 private fun ExternalFavoriteItemDraft.toSupplement(url: String, sourceType: String): ExternalFavoriteSupplement =
     ExternalFavoriteSupplement(
-        url = url,
+        url = canonicalUrl?.takeIf(::isXArticleUrl) ?: url,
         title = title.takeIf { it.isNotBlank() },
         text = text,
         sourceType = sourceType,
+        articleContentComplete = favoriteMetadata(normalizedJson).textValue("article_content_complete") == "true",
+        articleModifiedAt = favoriteMetadata(normalizedJson).textValue("article_modified_at"),
     )
 
 private fun isShortUrl(url: String): Boolean =

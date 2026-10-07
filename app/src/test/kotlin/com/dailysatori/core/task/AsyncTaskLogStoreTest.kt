@@ -28,6 +28,22 @@ class AsyncTaskLogStoreTest {
         assertFalse(File(root, "DailySatori.db").exists())
     }
 
+    @Test fun contentFetchSummaryExposesOnlyWhitelistedNumericCounters() {
+        val root = kotlin.io.path.createTempDirectory("daily-content-summary").toFile()
+        try {
+            val store = AsyncTaskLogStore(root)
+            AsyncTaskHttpLogWriter(store).logRequest(9, "x_content_fetch_summary", "SUMMARY", "local://x-content-fetch",
+                mapOf("fx_success" to "2", "official_requests" to "1", "body_missing" to "private-canary",
+                    "access_token" to "secret-canary", "budget_deferred" to "-1"))
+            val log = store.read(9)
+            assertTrue(log.contains("fx_success=2"))
+            assertTrue(log.contains("official_requests=1"))
+            assertFalse(log.contains("canary"))
+            assertFalse(log.contains("access_token"))
+            assertFalse(log.contains("budget_deferred=-1"))
+        } finally { root.deleteRecursively() }
+    }
+
     @Test
     fun capsIndividualTaskLogSize() {
         val root = createTempDir(prefix = "daily-task-logs")

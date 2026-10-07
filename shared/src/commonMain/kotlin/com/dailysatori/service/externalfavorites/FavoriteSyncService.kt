@@ -61,7 +61,11 @@ class FavoriteSyncService(
     ) {
         DiagnosticLog.diagnostics.operation(DiagnosticSource.TASK, taskId) {
             sourceGuard(sourceId).withLock {
-                syncSourceGuarded(sourceId, mode, taskId, automatic, historyBatch, deferOrganization, onProgress)
+                val source = sourceRepo.getById(sourceId)
+                val run: suspend () -> Unit = { syncSourceGuarded(sourceId, mode, taskId, automatic, historyBatch, deferOrganization, onProgress) }
+                if (source?.provider == ExternalFavoriteProvider.X.id) {
+                    withXContentFetchSession(xOfficialContentRequestLimit(source.config_json), httpLogger, taskId, run)
+                } else run()
             }
         }
     }
@@ -153,6 +157,19 @@ class FavoriteSyncService(
         }
     }
 
+    private fun repairHistoricalXArticlesForSource(sourceId: Long): Int {
+        val source = sourceRepo.getById(sourceId) ?: return 0
+        if (source.provider != ExternalFavoriteProvider.X.id || importer == null) return 0
+        val root = favoriteMetadata(source.config_json)
+        val cursor = root.textValue("x_article_repair_cursor")?.toLongOrNull()?.coerceAtLeast(0) ?: 0
+        val repaired = importer.repairIncompleteXArticles(sourceId, cursor, IMPORT_RETRY_LIMIT)
+        sourceRepo.updateConfigJson(sourceId, buildJsonObject {
+            root.forEach { (key, value) -> put(key, value) }
+            put("x_article_repair_cursor", repaired.nextCursor)
+        }.toString())
+        return repaired.queued
+    }
+
     private suspend fun automaticXKnownProbeItemCount(
         sourceId: Long,
         connector: FavoriteConnector,
@@ -210,6 +227,7 @@ class FavoriteSyncService(
                 localWorkItems += importPendingForSource(sourceId, importLimit)
             }
         }
+        runLocalWorkStep { localWorkItems += repairHistoricalXArticlesForSource(sourceId) }
         if (deferOrganization) {
             if (policy.includeFailedAi) itemRepo.requeueFailedAiBySource(sourceId)
             reportLocalProgress("complete")

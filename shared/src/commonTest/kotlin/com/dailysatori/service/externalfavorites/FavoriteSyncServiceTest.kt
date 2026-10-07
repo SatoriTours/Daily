@@ -1922,11 +1922,13 @@ class FavoriteSyncServiceTest {
                     calls += "web:$url"
                     ExternalFavoriteSupplement(url, "Web", "网页正文", "web")
                 },
-                fetchXStatusSupplement = { url, _, _ ->
+                fetchXStatusSupplement = { url, owningSourceId, _, _ ->
+                    assertEquals(sourceId, owningSourceId)
                     calls += "status:$url"
                     ExternalFavoriteSupplement(url, "Status", "推文正文", "x_status")
                 },
-                fetchXArticleSupplement = { url, postId, _, _ ->
+                fetchXArticleSupplement = { url, postId, owningSourceId, _, _ ->
+                    assertEquals(sourceId, owningSourceId)
                     calls += "article:$url:$postId"
                     ExternalFavoriteSupplement(url, "Article", "X 文章正文", "x_article")
                 },

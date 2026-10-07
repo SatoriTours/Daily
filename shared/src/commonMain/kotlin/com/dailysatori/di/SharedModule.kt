@@ -198,7 +198,7 @@ val sharedModule: Module = module {
             webpageParserService = get(),
         )
     }
-    single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get(), settingRepo = get()) }
+    single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get(), settingRepo = get(), sourceRepo = get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }
@@ -226,7 +226,7 @@ val sharedModule: Module = module {
 
     // Webpage parser service (content processing pipeline)
     single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(),
-        settingRepo = get(), coverScheduler = get()) }
+        settingRepo = get(), coverScheduler = get(), externalFavoriteItemRepo = get()) }
     single<DiaryLinkContentExtractor> { DefaultDiaryLinkContentExtractor(get<WebpageParserService>()) }
     single<DiaryKnowledgeEnricher> {
         val mcpServers: McpServerRepository = get()

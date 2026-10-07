@@ -266,7 +266,7 @@ class XBookmarksConnectorTest {
         val item = XBookmarksResponseParser.parse(json).items.single()
 
         assertEquals("https://x.com/i/article/2068336874515734528", item.canonicalUrl)
-        assertEquals("卡片摘要不是完整正文。", item.text)
+        assertEquals("https://t.co/iAedHNUNSa", item.text)
     }
 
     @Test

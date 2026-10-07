@@ -6,6 +6,7 @@ import com.dailysatori.config.AIConfig
 import com.dailysatori.config.WebViewConfig
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.needsChineseReprocessing
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
@@ -23,6 +24,14 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteItemDraft
 import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.externalfavorites.xPostIdFromStatusUrl
+import com.dailysatori.service.externalfavorites.isXArticleUrl
+import com.dailysatori.service.externalfavorites.canonicalizeXArticleUrl
+import com.dailysatori.service.externalfavorites.xArticleOwningPostId
+import com.dailysatori.service.externalfavorites.xIsArticle
+import com.dailysatori.service.externalfavorites.favoriteMetadata
+import com.dailysatori.service.externalfavorites.favoriteHasArticleCache
+import com.dailysatori.service.externalfavorites.withXContentFetchSession
+import com.dailysatori.service.externalfavorites.xOfficialContentRequestLimit
 import com.dailysatori.shared.db.Article
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -189,12 +198,12 @@ internal fun usableArticleContentOrThrow(content: String?, url: String): String 
         throw IllegalStateException("Extracted content is an error page")
     }
     val compact = text.replace(Regex("\\s+"), "")
-    if (compact.length < MIN_USABLE_ARTICLE_CONTENT_CHARS && !isTwitterStatusUrl(url)) {
+    if (compact.length < MIN_USABLE_ARTICLE_CONTENT_CHARS && !isTwitterStatusUrl(url) && !isXArticleUrl(url)) {
         throw IllegalStateException("Extracted article content is too short")
     }
     val noiseLines = text.lines().map { it.trim().lowercase() }.filter { it.isNotBlank() }
     val noisy = noiseLines.count { it in contentNoiseLines }
-    if (noiseLines.isNotEmpty() && noisy.toDouble() / noiseLines.size > 0.6 && !isTwitterStatusUrl(url)) {
+    if (noiseLines.isNotEmpty() && noisy.toDouble() / noiseLines.size > 0.6 && !isTwitterStatusUrl(url) && !isXArticleUrl(url)) {
         throw IllegalStateException("Extracted content looks like navigation or login noise")
     }
     return text
@@ -406,7 +415,8 @@ internal fun xPostLookupDraftExtractedContent(draft: ExternalFavoriteItemDraft):
     val urlTitle = metadata?.string("url_title")
     val urlDescription = metadata?.string("url_description")
     val imageUrls = metadata.xPostLookupImageUrls()
-    val content = listOf(draft.text, urlTitle ?: draft.title, urlDescription)
+    val completeArticle = metadata?.string("article_content_complete") == "true"
+    val content = if (completeArticle) draft.text else listOf(draft.text, urlTitle ?: draft.title, urlDescription)
         .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
         .distinct()
         .joinToString("\n\n")
@@ -581,6 +591,7 @@ class WebpageParserService(
     private val remoteArticleSyncRepo: RemoteArticleSyncRepository? = null,
     private val settingRepo: SettingRepository,
     private val coverScheduler: ArticleCoverScheduler? = null,
+    private val externalFavoriteItemRepo: ExternalFavoriteItemRepository? = null,
 ) {
     private val log = Logger.withTag("WebpageParser")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -954,6 +965,7 @@ class WebpageParserService(
             } catch (e: Exception) {
                 if (!shouldPersistArticleProcessingError(e)) throw e
                 log.e { webpageExtractionFailureLogMessage(url, e) }
+                if (isXArticleUrl(url)) throw e
                 failedExtractionFallback(url)
             }
         }
@@ -971,7 +983,7 @@ class WebpageParserService(
     }
 
     private suspend fun extractContentOnce(url: String): ExtractedContent {
-        val extracted = fetchPublicPageOnce(url)
+        val extracted = if (isTwitterStatusUrl(url) || isXArticleUrl(url)) fetchXPostExtractedContent(url) else fetchPublicPageOnce(url)
         return extracted.copy(
             content = usableArticleContentOrThrow(extracted.content, url),
         )
@@ -1005,18 +1017,36 @@ class WebpageParserService(
     }
 
     private suspend fun fetchXPostExtractedContent(url: String): ExtractedContent {
-        val postId = xPostIdFromStatusUrl(url)
-            ?: throw IllegalArgumentException("Article URL is not an X status URL")
-        val source = externalFavoriteSourceRepo.getEnabled()
-            .firstOrNull { it.provider == ExternalFavoriteProvider.X.id }
-            ?: throw IllegalStateException("X favorite source is not enabled")
-        val refreshed = xBookmarksConnector.refreshAuth(source)
-        if (refreshed.auth_json != source.auth_json) {
-            externalFavoriteSourceRepo.updateAuthJson(source.id, refreshed.auth_json)
+        val articleUrl = canonicalizeXArticleUrl(url)
+        val reference = if (articleUrl != null) externalFavoriteItemRepo?.findXArticleReference(articleUrl)
+            ?: throw IllegalStateException("未找到 X 文章对应的父推文，请先同步收藏后重试")
+        else xPostIdFromStatusUrl(url)?.let { externalFavoriteItemRepo?.findXPostReference(it) }
+        val expectedArticle = articleUrl != null || reference?.let {
+            xIsArticle(it.canonical_url, favoriteMetadata(it.normalized_json)) || favoriteHasArticleCache(it)
+        } == true
+        val postId = if (expectedArticle && reference != null) xArticleOwningPostId(reference) else xPostIdFromStatusUrl(url)
+        if (postId == null) throw IllegalStateException("未找到有效的父推文，请先同步收藏后重试")
+        val config = reference?.source_id?.let { externalFavoriteSourceRepo.getById(it)?.config_json }.orEmpty()
+        return withXContentFetchSession(xOfficialContentRequestLimit(config)) {
+            val draft = xBookmarksConnector.fetchPostById(null, postId, expectedArticle = expectedArticle) {
+                resolveXSource(reference)
+            } ?: throw IllegalStateException("未能获取 X 完整正文，请稍后重试")
+            if (articleUrl != null && canonicalizeXArticleUrl(draft.canonicalUrl.orEmpty()) != articleUrl) {
+                throw IllegalStateException("文章与父推文映射不一致，请重新同步收藏")
+            }
+            xPostLookupDraftExtractedContent(draft)
         }
-        return xBookmarksConnector.fetchPostById(refreshed, postId)
-            ?.let(::xPostLookupDraftExtractedContent)
-            ?: throw IllegalStateException("X API did not return post content")
+    }
+
+    private suspend fun resolveXSource(reference: com.dailysatori.shared.db.External_favorite_item?): com.dailysatori.shared.db.External_favorite_source {
+        val source = if (reference != null) externalFavoriteSourceRepo.getById(reference.source_id)
+            ?.takeIf { it.provider == ExternalFavoriteProvider.X.id && it.enabled == 1L }
+            ?: throw IllegalStateException("该收藏所属 X 来源已删除或停用")
+        else externalFavoriteSourceRepo.getEnabled().filter { it.provider == ExternalFavoriteProvider.X.id }.singleOrNull()
+            ?: throw IllegalStateException("无法确定 X 授权来源，请先同步该链接的收藏")
+        return xBookmarksConnector.refreshAuth(source).also { refreshed ->
+            if (refreshed.auth_json != source.auth_json) externalFavoriteSourceRepo.updateAuthJson(source.id, refreshed.auth_json)
+        }
     }
 
     suspend fun refreshArticle(articleId: Long) {
