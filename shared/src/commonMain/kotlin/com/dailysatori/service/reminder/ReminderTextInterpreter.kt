@@ -2,6 +2,7 @@ package com.dailysatori.service.reminder
 
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.AiPurpose
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
@@ -46,7 +47,7 @@ class ReminderAiInterpretationRemote(
     private val configRepository: AIConfigRepository,
 ) : ReminderInterpretationRemote, TimedReminderInterpretationRemote {
     override suspend fun interpret(text: String, now: Instant, zone: TimeZone): String {
-        val config = configRepository.getDefault() ?: error("AI is not configured")
+        val config = configRepository.getForPurpose(AiPurpose.INTERACTIVE) ?: error("AI is not configured")
         return aiService.complete(
             prompt = """Convert this reminder into strict JSON only. Required fields: content, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), first_reminder_time (HH:MM), active_day_rule (daily), recurrence_rule (once|monthly:<day>|yearly:<month>:<day>:FEBRUARY_28). ${reminderDateInstructions(now, zone)} Text: $text""",
             apiAddress = config.api_address,
@@ -55,7 +56,7 @@ class ReminderAiInterpretationRemote(
             provider = config.provider,
             systemPrompt = REMINDER_JSON_SYSTEM_PROMPT,
             temperature = 0.0,
-            disableThinking = true,
+            purpose = AiPurpose.INTERACTIVE,
         )
     }
 
@@ -71,7 +72,7 @@ class ReminderAiInterpretationRemote(
         zone: TimeZone,
     ): ReminderBatchRemoteTiming {
         val configStarted = Clock.System.now().toEpochMilliseconds()
-        val config = runCatching { configRepository.getDefault() ?: error("AI is not configured") }
+        val config = runCatching { configRepository.getForPurpose(AiPurpose.INTERACTIVE) ?: error("AI is not configured") }
             .getOrElse { return ReminderBatchRemoteTiming(Clock.System.now().toEpochMilliseconds() - configStarted, 0, error = it) }
         val configMs = Clock.System.now().toEpochMilliseconds() - configStarted
         val input = buildJsonArray {
@@ -89,7 +90,7 @@ class ReminderAiInterpretationRemote(
                 apiAddress = config.api_address, apiToken = config.api_token, modelName = config.model_name,
                 provider = config.provider, temperature = 0.0,
                 systemPrompt = REMINDER_JSON_SYSTEM_PROMPT,
-                disableThinking = true,
+                purpose = AiPurpose.INTERACTIVE,
             )
         }.fold(
             onSuccess = { ReminderBatchRemoteTiming(configMs, Clock.System.now().toEpochMilliseconds() - requestStarted, response = it) },

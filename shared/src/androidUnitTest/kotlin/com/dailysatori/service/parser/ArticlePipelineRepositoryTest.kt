@@ -57,6 +57,7 @@ class ArticlePipelineRepositoryTest {
 
     @Test fun externalChineseFavoriteUsesOverviewOnlyAndPreservesOriginal() = runBlocking {
         withArticle { db, articles, _, _ ->
+            assignBackgroundModel(db)
             val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
             val sourceId = sources.save(provider = "x", displayName = "X", accountId = "test", accountName = "test", authJson = "{}")
             val items = ExternalFavoriteItemRepository(db)
@@ -68,6 +69,9 @@ class ArticlePipelineRepositoryTest {
             HttpClient(MockEngine { request ->
                 requests++
                 val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
+                assertEquals("background.example", request.url.host)
+                assertEquals("deepseek-v4-flash", body["model"]!!.jsonPrimitive.content)
+                assertEquals("disabled", body["thinking"]!!.jsonObject["type"]!!.jsonPrimitive.content)
                 val system = body["messages"]!!.jsonArray.first().jsonObject["content"]!!.jsonPrimitive.content
                 assertFalse(system.contains("\"markdown\""))
                 respondOverview("中文收藏处理优化", "先保存完整正文，然后生成标题和摘要。")
@@ -115,11 +119,16 @@ class ArticlePipelineRepositoryTest {
     }
     @Test fun savesFullOriginalAndOverviewWithoutWaitingForCover() = runBlocking {
         withArticle { db, articles, id, original ->
+            assignBackgroundModel(db)
             var scheduled = 0
             var requests = 0
             HttpClient(MockEngine {
                 requests++
                 assertEquals("/v1/chat/completions", it.url.encodedPath)
+                assertEquals("background.example", it.url.host)
+                val body = Json.parseToJsonElement(it.body.toByteArray().decodeToString()).jsonObject
+                assertEquals("deepseek-v4-flash", body["model"]!!.jsonPrimitive.content)
+                assertEquals("disabled", body["thinking"]!!.jsonObject["type"]!!.jsonPrimitive.content)
                 respondOverview("文章处理优化", "全文先保存，再生成标题和摘要。")
             }).use { client ->
                 articles.fillCoverImageUrlIfMissing(id, "https://example.com/cover.jpg")
@@ -213,6 +222,13 @@ class ArticlePipelineRepositoryTest {
         put("decision", "可先阅读原文，再查看处理结果。")
         put("isNews", false)
     }.toString())
+
+    private fun assignBackgroundModel(db: DailySatoriDatabase) {
+        val configs = AIConfigRepository(db, PlainCipher)
+        configs.insert("opencode-go", "https://background.example/v1", "test-token", "deepseek-v4-flash")
+        val id = configs.getAllSync().single { it.model_name == "deepseek-v4-flash" }.id
+        configs.setPurposeConfig(AiPurpose.EXTERNAL_CONTENT, id)
+    }
 
     private object PlainCipher : SecretValueCipher {
         override fun encrypt(value: String) = value

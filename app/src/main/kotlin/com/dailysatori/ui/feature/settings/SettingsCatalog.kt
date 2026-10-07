@@ -1,7 +1,7 @@
 package com.dailysatori.ui.feature.settings
 
 internal enum class SettingsPage {
-    MAIN, AI_CONFIG, SPEECH, DIARY_TAGS, MCP_SERVER, PLUGIN_CENTER,
+    MAIN, AI_CONFIG, AI_PURPOSE, SPEECH, DIARY_TAGS, MCP_SERVER, PLUGIN_CENTER,
     BACKUP_SETTINGS, BACKUP_RESTORE, DATA_IMPORT, SKILLS, DIAGNOSTICS,
     REMINDERS, SMS_REMINDERS, PHONE_ASSISTANT, BOOKKEEPING,
     REMOTE_NEWS, EXTERNAL_FAVORITES, PRIVACY, WEB_SERVICE, UPDATES,
@@ -40,6 +40,7 @@ private val settingsSearchEntries = settingsHomeEntries + listOf(
     entry("daily", "notification_access", SettingsPage.PHONE_ASSISTANT, "通知权限 应用选择 来源 notification access apps", "notification"),
     entry("daily", "reminder_access", SettingsPage.REMINDERS, "定时权限 准时提醒 exact alarm permission", "permissions"),
     entry("capabilities", "speech", SettingsPage.SPEECH, "语音 转写 录音 speech transcription audio API Key"),
+    entry("capabilities", "ai_purpose", SettingsPage.AI_PURPOSE, "功能 模型 分配 快速 经济 深度 交互 后台 总结 purpose model assignment"),
     entry("capabilities", "plugins", SettingsPage.PLUGIN_CENTER, "提示词插件 prompt plugins"),
     entry("capabilities", "web", SettingsPage.WEB_SERVICE, "Web 服务 地址 Token 令牌 token server address"),
     entry("data", "favorites", SettingsPage.EXTERNAL_FAVORITES, "外部 收藏 favorites external"),
@@ -59,7 +60,8 @@ internal fun searchSettings(query: String, translate: (String) -> String): List<
 internal fun SettingsPage.parent(): SettingsPage = SettingsPage.MAIN
 
 internal fun SettingsPage.groupPages(): List<SettingsPage> = when (this) {
-    SettingsPage.AI_CONFIG, SettingsPage.SPEECH -> listOf(SettingsPage.AI_CONFIG, SettingsPage.SPEECH)
+    SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH ->
+        listOf(SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH)
     SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER -> listOf(SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER)
     SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE -> listOf(SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE)
     SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES -> listOf(SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES)
@@ -70,6 +72,7 @@ internal fun SettingsPage.groupPages(): List<SettingsPage> = when (this) {
 
 internal fun SettingsPage.tabKey(): String = "settings_design." + when (this) {
     SettingsPage.AI_CONFIG -> "ai"
+    SettingsPage.AI_PURPOSE -> "ai_purpose"
     SettingsPage.SPEECH -> "speech"
     SettingsPage.SKILLS -> "skill_tab"
     SettingsPage.PLUGIN_CENTER -> "plugins"

@@ -5,6 +5,7 @@ import com.dailysatori.shared.db.Ai_config
 
 class AiConfigService(private val repo: AIConfigRepository) {
     fun getDefaultConfig(): Ai_config? = repo.getDefault()
+    fun getConfig(purpose: AiPurpose): Ai_config? = repo.getForPurpose(purpose)
     fun getById(id: Long) = repo.getById(id)
     fun delete(id: Long) = repo.delete(id)
 

@@ -3,6 +3,7 @@ package com.dailysatori.service.mcp
 import co.touchlab.kermit.Logger
 import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.book.BookSearchResult
 import com.dailysatori.service.reminder.ReminderDraft
@@ -103,7 +104,7 @@ class McpAgentService(
         }
 
         return try {
-            val config = aiConfigService.getDefaultConfig()
+            val config = aiConfigService.getConfig(AiPurpose.INTERACTIVE)
             if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
                 if (localSearch.references.isNotEmpty()) {
                     return McpAgentResult(
@@ -218,7 +219,7 @@ class McpAgentService(
             onStep("完成", "completed")
         }
 
-        val config = aiConfigService.getDefaultConfig()
+        val config = aiConfigService.getConfig(AiPurpose.INTERACTIVE)
         if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
             return processQuery(query, onStep, reminderDrafts)
         }
@@ -360,6 +361,7 @@ class McpAgentService(
             modelName = modelName,
             provider = provider,
             tools = emptyList(),
+            purpose = AiPurpose.INTERACTIVE,
             onChunk = { chunk ->
                 presenter.append(chunk).takeIf { it.isNotEmpty() }?.let { onChunk(it) }
             },
@@ -412,6 +414,7 @@ class McpAgentService(
                     provider = provider,
                     tools = tools,
                     temperature = 0.7,
+                    purpose = AiPurpose.INTERACTIVE,
                 )
             } catch (e: CancellationException) {
                 throw e

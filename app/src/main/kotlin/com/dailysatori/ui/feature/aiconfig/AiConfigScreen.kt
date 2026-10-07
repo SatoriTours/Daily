@@ -41,12 +41,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.ai.aiConfigDisplayName
 import com.dailysatori.service.ai.canDeleteAiConfig
+import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.matchesSettingsQuery
 import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 internal const val aiConfigDeleteActionSizeDp = 32
 internal const val aiConfigDeleteIconSizeDp = 18
@@ -60,6 +62,7 @@ fun AiConfigScreen(
     onEditConfig: ((Long?) -> Unit)? = null,
 ) {
     val viewModel: AiConfigViewModel = koinViewModel()
+    val i18n: I18nService = koinInject()
     val state by viewModel.state.collectAsState()
 
     var query by rememberSaveable { mutableStateOf("") }
@@ -239,7 +242,7 @@ fun AiConfigScreen(
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("删除 AI 配置") },
-            text = { Text("确定删除这个非默认模型配置吗？") },
+            text = { Text(i18n.t("ai_config.delete_confirm_with_purpose")) },
             confirmButton = {
                 TextButton(
                     onClick = {

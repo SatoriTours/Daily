@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.shared.db.Diary
 import kotlinx.datetime.Clock
@@ -34,7 +35,7 @@ class DiaryMonthSummaryService(
     private val log = Logger.withTag("DiaryMonthSummary")
 
     suspend fun refreshRecentMonthsIfNeeded(nowMs: Long = Clock.System.now().toEpochMilliseconds()) {
-        val config = aiConfigService.getDefaultConfig() ?: return
+        val config = aiConfigService.getConfig(AiPurpose.REFLECTION) ?: return
         recentDiaryMonthKeys(nowMs).forEachIndexed { index, monthKey ->
             val diaries = diariesForMonth(monthKey)
             if (diaries.isEmpty()) return@forEachIndexed
@@ -65,6 +66,7 @@ class DiaryMonthSummaryService(
                 apiToken = config.api_token,
                 modelName = config.model_name,
                 provider = config.provider,
+                purpose = AiPurpose.REFLECTION,
             ).lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
             summaryRepo.upsert(monthKey, summary, diaries.size.toLong(), latestUpdatedAt, DIARY_MONTH_SUMMARY_SUCCESS, null, nowMs)
         } catch (e: Exception) {

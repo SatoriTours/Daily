@@ -1,6 +1,7 @@
 package com.dailysatori.service.diary
 
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.shared.db.Ai_config
 
@@ -49,8 +50,9 @@ class DiaryAssistantService(
 fun diaryAssistantCompletion(
     aiConfigService: AiConfigService,
     aiService: AiService,
+    purpose: AiPurpose = AiPurpose.INTERACTIVE,
 ): suspend (prompt: String, systemPrompt: String) -> String = { prompt, systemPrompt ->
-    val config = requireDiaryAssistantAiConfiguration(aiConfigService.getDefaultConfig())
+    val config = requireDiaryAssistantAiConfiguration(aiConfigService.getConfig(purpose))
     aiService.complete(
         prompt = prompt,
         apiAddress = config.api_address.trim().trimEnd('/'),
@@ -59,6 +61,7 @@ fun diaryAssistantCompletion(
         provider = config.provider.trim(),
         systemPrompt = systemPrompt,
         temperature = 0.2,
+        purpose = purpose,
     )
 }
 

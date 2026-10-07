@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.needsChineseReprocessing
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.ai.openAiChatCompletionEndpoint
 import com.dailysatori.service.ai.usesOpenAiCompatibleChatApi
@@ -223,7 +224,7 @@ class ExternalFavoriteAiOrganizer(
     }
 
     private suspend fun generateWithAi(input: ExternalFavoriteAiInput, articleId: Long): ExternalFavoriteAiAnalysis {
-        val config = aiConfigService?.getDefaultConfig()
+        val config = aiConfigService?.getConfig(AiPurpose.EXTERNAL_CONTENT)
             ?: throw IllegalStateException("AI config not set")
         val ai = aiService ?: throw IllegalStateException("AI service not set")
         if (config.api_address.isBlank() || config.api_token.isBlank() || config.model_name.isBlank()) {
@@ -251,7 +252,7 @@ class ExternalFavoriteAiOrganizer(
             apiToken = config.api_token.trim(),
             modelName = config.model_name.trim(),
             provider = config.provider.trim(),
-            disableThinking = true,
+            purpose = AiPurpose.EXTERNAL_CONTENT,
         )
         return parseAiAnalysis(response)
     }
@@ -280,7 +281,7 @@ class ExternalFavoriteAiOrganizer(
     }
 
     private fun aiRequestLogConfig(): ExternalFavoriteAiLogConfig {
-        val config = aiConfigService?.getDefaultConfig()
+        val config = aiConfigService?.getConfig(AiPurpose.EXTERNAL_CONTENT)
             ?: return ExternalFavoriteAiLogConfig(url = FALLBACK_AI_LOG_URL, provider = "", modelName = "")
         return ExternalFavoriteAiLogConfig(
             url = externalFavoriteAiRequestLogUrl(config),

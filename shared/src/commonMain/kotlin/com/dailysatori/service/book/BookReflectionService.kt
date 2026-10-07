@@ -1,6 +1,7 @@
 package com.dailysatori.service.book
 
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.ai.AiConversationSessionStore
 import com.dailysatori.service.ai.withAiRequestSession
@@ -37,7 +38,7 @@ class BookReflectionService(
         onChunk: suspend (String) -> Unit,
         conversationId: Long? = null,
     ): BookReflectionAiResult = withAiRequestSession(conversationId?.let { sessionStore.getOrCreate("book-reflection:$it") }) {
-        val config = aiConfigService.getDefaultConfig()
+        val config = aiConfigService.getConfig(AiPurpose.REFLECTION)
             ?: return@withAiRequestSession BookReflectionAiResult(bookReflectionAiNotConfiguredMessage())
         if (config.api_address.isBlank() || config.api_token.isBlank()) {
             return@withAiRequestSession BookReflectionAiResult(bookReflectionAiNotConfiguredMessage())
@@ -73,6 +74,7 @@ class BookReflectionService(
             provider = config.provider,
             temperature = 0.5,
             onChunk = onChunk,
+            purpose = AiPurpose.REFLECTION,
         )
         val content = response?.get("choices")?.jsonArray?.firstOrNull()
             ?.jsonObject?.get("message")?.jsonObject?.get("content")
@@ -86,7 +88,7 @@ class BookReflectionService(
         messages: List<BookReflectionPromptMessage>,
         conversationId: Long? = null,
     ): String = withAiRequestSession(conversationId?.let { sessionStore.getOrCreate("book-reflection:$it") }) {
-        val config = aiConfigService.getDefaultConfig()
+        val config = aiConfigService.getConfig(AiPurpose.REFLECTION)
             ?: throw IllegalStateException(bookReflectionAiNotConfiguredMessage())
         if (config.api_address.isBlank() || config.api_token.isBlank()) {
             throw IllegalStateException(bookReflectionAiNotConfiguredMessage())
@@ -105,6 +107,7 @@ class BookReflectionService(
             provider = config.provider,
             systemPrompt = bookReflectionSummarySystemPrompt(),
             temperature = 0.3,
+            purpose = AiPurpose.REFLECTION,
         ).trim().ifBlank { bookReflectionBlankSummaryMessage() }
     }
 }

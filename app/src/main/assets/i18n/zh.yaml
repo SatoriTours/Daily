@@ -935,6 +935,31 @@ ai_config:
   go_usage_notice: OpenCode Go 主要面向编程 Agent，Daily 的非编程用途可用性不能保证。请使用已订阅 Go 的 API Key。
   responses_unsupported: 暂不支持 Responses 协议
   model_unadapted: 模型协议尚未适配，请选择已支持的模型
+  delete_confirm_with_purpose: "确定删除这个非默认模型配置吗？若已被指定为功能模型，删除后将自动恢复为跟随默认模型。"
+
+ai_purpose:
+  title: "功能模型分配"
+  subtitle: "为不同业务场景指定适合的模型配置。未专门指定时，将自动使用默认模型。"
+  no_configs_title: "暂无可用 AI 模型"
+  no_configs_desc: "请先添加并配置 AI 模型后，再在此处为不同场景分配模型。"
+  go_to_config: "前往模型配置"
+  follow_default: "跟随默认模型"
+  default_badge: "默认"
+  current_default: "当前默认"
+  select_model_title: "选择模型"
+  save_failed: "保存模型分配失败，请重试"
+  card_default_fallback: "跟随默认"
+  card_no_default: "未配置默认模型"
+  deep_effect_notice: "深度效果取决于模型能力；DeepSeek 官方与 OpenCode Go 的 DeepSeek 按场景控制思考，其他模型遵循服务商默认设置。"
+  interactive_title: "快速交互"
+  interactive_desc: "适用于日常即时响应场景，包括：聊天、点子对话、主动输入整理、待办解析、资料整理、日记润色。"
+  interactive_highlight: "突出快速响应与低延迟交互"
+  external_title: "经济后台处理"
+  external_desc: "适用于大批量非实时后台任务，包括：URL/新闻摘要、翻译、X等外部收藏整理。"
+  external_highlight: "突出经济实惠的后台批量处理"
+  reflection_title: "深度总结"
+  reflection_desc: "适用于长文沉淀与系统归纳，包括：点子方案沉淀、思想归纳、读书感悟、周报、日记月总结。"
+  reflection_highlight: "突出深度思考、推理与多维归纳"
 
 # 周报总结
 weekly_summary:
@@ -1219,6 +1244,8 @@ settings_design:
   reminder_access_hint: "提醒与通知 · 系统权限"
   speech: "语音转写"
   speech_hint: "语音服务商、模型与密钥"
+  ai_purpose: "功能模型分配"
+  ai_purpose_hint: "快速 · 后台 · 深度"
   plugins: "提示词插件"
   plugins_hint: "提示词插件管理"
   web: "Web 服务"

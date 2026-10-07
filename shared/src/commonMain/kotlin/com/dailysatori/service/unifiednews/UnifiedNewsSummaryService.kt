@@ -7,6 +7,7 @@ import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.REMOTE_PROCESSING_READY
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
@@ -48,7 +49,7 @@ class UnifiedNewsSummaryService(
         val preparedSources = prepareUnifiedNewsSources(sources)
         if (preparedSources.isEmpty()) return persistEmpty(window, warnings)
 
-        val config = aiConfigService.getDefaultConfig()
+        val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
         if (config == null) return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务")
 
         val content = try {
@@ -59,6 +60,7 @@ class UnifiedNewsSummaryService(
                 apiToken = config.api_token,
                 modelName = config.model_name,
                 provider = config.provider,
+                purpose = AiPurpose.EXTERNAL_CONTENT,
             )
         } catch (e: Exception) {
             log.w(e) { "Unified news AI generation failed" }

@@ -35,6 +35,7 @@ import com.dailysatori.ui.feature.aichat.AiReferenceDetailViewModel
 import com.dailysatori.ui.feature.aichat.MemorySearchViewModel
 import com.dailysatori.ui.feature.aiconfig.AiConfigEditViewModel
 import com.dailysatori.ui.feature.aiconfig.AiConfigViewModel
+import com.dailysatori.ui.feature.aiconfig.AiPurposeViewModel
 import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import com.dailysatori.ui.feature.article.ArticlesViewModel
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreViewModel
@@ -249,6 +250,11 @@ val viewModelModule: Module = module {
     }
     viewModel {
         AiConfigViewModel(
+            repo = get<AIConfigRepository>(),
+        )
+    }
+    viewModel {
+        AiPurposeViewModel(
             repo = get<AIConfigRepository>(),
         )
     }

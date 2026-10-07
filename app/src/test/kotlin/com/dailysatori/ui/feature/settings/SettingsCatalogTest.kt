@@ -20,7 +20,7 @@ class SettingsCatalogTest {
     @Test fun relatedPagesArePeersAndReturnDirectlyToSettings() {
         assertEquals(listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT),
             SettingsPage.BACKUP_RESTORE.groupPages())
-        assertEquals(listOf(SettingsPage.AI_CONFIG, SettingsPage.SPEECH), SettingsPage.SPEECH.groupPages())
+        assertEquals(listOf(SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH), SettingsPage.SPEECH.groupPages())
         SettingsPage.entries.forEach { assertEquals(SettingsPage.MAIN, it.parent()) }
     }
 

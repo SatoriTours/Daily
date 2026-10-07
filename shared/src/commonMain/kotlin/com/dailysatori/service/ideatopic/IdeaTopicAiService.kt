@@ -1,6 +1,7 @@
 package com.dailysatori.service.ideatopic
 
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiConversationSessionStore
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.ai.withAiRequestSession
@@ -51,7 +52,7 @@ class IdeaTopicAiService(
 
     override suspend fun reply(context: IdeaAiContext, onChunk: suspend (String) -> Unit): String =
         withAiRequestSession(context.sessionId?.let { sessionStore.getOrCreate("idea-topic:$it") }) {
-            val config = requireConfig()
+            val config = requireConfig(AiPurpose.INTERACTIVE)
             val messages = buildList {
                 add(message("system", context.systemPrompt))
                 context.messages.forEach { add(message(it.role, it.content)) }
@@ -65,6 +66,7 @@ class IdeaTopicAiService(
                 provider = config.provider,
                 temperature = 0.5,
                 onChunk = onChunk,
+                purpose = AiPurpose.INTERACTIVE,
             )
             val content = response?.get("choices")?.jsonArray?.firstOrNull()
                 ?.jsonObject?.get("message")?.jsonObject?.get("content")
@@ -75,7 +77,7 @@ class IdeaTopicAiService(
 
     override suspend fun summarize(context: IdeaAiContext): String =
         withAiRequestSession(context.sessionId?.let { sessionStore.getOrCreate("idea-topic:$it") }) {
-            val config = requireConfig()
+            val config = requireConfig(AiPurpose.REFLECTION)
             val prompt = buildString {
                 appendLine(context.userPrompt)
                 if (context.messages.isNotEmpty()) {
@@ -92,6 +94,7 @@ class IdeaTopicAiService(
                 provider = config.provider,
                 systemPrompt = context.systemPrompt,
                 temperature = 0.3,
+                purpose = AiPurpose.REFLECTION,
             ).trim()
             if (summary.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
             summary
@@ -99,7 +102,7 @@ class IdeaTopicAiService(
 
     override suspend fun propose(context: IdeaAiContext): IdeaDraftContent =
         withAiRequestSession(context.sessionId?.let { sessionStore.getOrCreate("idea-topic:$it") }) {
-            val config = requireConfig()
+            val config = requireConfig(AiPurpose.REFLECTION)
             val raw = aiService.complete(
                 prompt = context.userPrompt + "\n\n" + ideaDraftInstruction(),
                 apiAddress = config.api_address,
@@ -108,12 +111,13 @@ class IdeaTopicAiService(
                 provider = config.provider,
                 systemPrompt = context.systemPrompt,
                 temperature = 0.2,
+                purpose = AiPurpose.REFLECTION,
             )
             lastRawDraftResponse = raw
             parseIdeaDraftResponse(raw, context.allowedReferenceIds)
         }
 
-    private fun requireConfig() = aiConfigService.getDefaultConfig()
+    private fun requireConfig(purpose: AiPurpose) = aiConfigService.getConfig(purpose)
         ?.takeIf { it.api_address.isNotBlank() && it.api_token.isNotBlank() }
         ?: throw IdeaTopicException(IdeaTopicError.AiNotConfigured)
 
