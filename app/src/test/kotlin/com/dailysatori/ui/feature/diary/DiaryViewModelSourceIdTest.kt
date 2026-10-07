@@ -9,6 +9,7 @@ import com.dailysatori.data.repository.DiaryAttachmentDraft
 import com.dailysatori.data.repository.DiaryAttachmentKind
 import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.data.ObservationTrackingDriver
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
@@ -231,6 +232,7 @@ class DiaryViewModelSourceIdTest {
                     AIConfigRepository(database, PlainSecretCipher),
                 ),
                 aiService = AiService(httpClient),
+                threads = DiaryThreadRepository(database, driver),
             ),
             attachmentRepo = attachmentRepository,
         )

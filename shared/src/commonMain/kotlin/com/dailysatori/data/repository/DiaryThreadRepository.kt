@@ -112,17 +112,20 @@ class DiaryThreadRepository(
         )
     }
 
-    fun observeSources(): Flow<List<DiaryThreadSource>> = observeCatalog().map { catalog ->
-        catalog.roots.map { root ->
-            DiaryThreadSource(
-                rootId = root.id,
-                content = renderDiaryThreadContent(catalog.entriesByRoot[root.id].orEmpty()),
-                createdAt = root.created_at,
-                updatedAt = root.updated_at,
-                revision = catalog.revisions[root.id] ?: 0L,
-            )
-        }
+    private fun sourcesOf(catalog: ThreadCatalog): List<DiaryThreadSource> = catalog.roots.map { root ->
+        DiaryThreadSource(
+            rootId = root.id,
+            content = renderDiaryThreadContent(catalog.entriesByRoot[root.id].orEmpty()),
+            createdAt = root.created_at,
+            updatedAt = root.updated_at,
+            revision = catalog.revisions[root.id] ?: 0L,
+        )
     }
+
+    /** 同步读取所有主日记的整串原文，供聊天上下文等非 Flow 调用。 */
+    fun sources(): List<DiaryThreadSource> = sourcesOf(readCatalog())
+
+    fun observeSources(): Flow<List<DiaryThreadSource>> = observeCatalog().map { catalog -> sourcesOf(catalog) }
 
     fun observeOverviews(): Flow<List<DiaryThreadOverview>> = observeCatalog().map { catalog ->
         catalog.roots.map { root ->

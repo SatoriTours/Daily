@@ -17,7 +17,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /** Diary-only vocabulary and provenance live in the existing, backed-up settings table. */
-class DiaryTagRepository(private val db: DailySatoriDatabase) {
+class DiaryTagRepository(
+    private val db: DailySatoriDatabase,
+    private val threads: DiaryThreadRepository,
+) {
     private val settings = SettingRepository(db)
     private val q get() = db.dailySatoriQueries
     private val json = Json { ignoreUnknownKeys = true }
@@ -80,9 +83,10 @@ class DiaryTagRepository(private val db: DailySatoriDatabase) {
         .mapToOneOrNull(Dispatchers.IO).map { it?.value_ }.distinctUntilChanged()
 
     fun observeEditor(id: Long): Flow<DiaryTagEditorSnapshot> = combine(
-        q.selectDiaryById(id).asFlow().mapToOneOrNull(Dispatchers.IO), observeValue(stateKey(id)),
-    ) { diary, raw -> DiaryTagEditorSnapshot(id, diary?.tags, stateFor(decoded<DiaryTagState>(raw), diary?.content.orEmpty())) }
-        .distinctUntilChanged().flowOn(Dispatchers.IO)
+        q.selectDiaryThreadEntries(id).asFlow().mapToList(Dispatchers.IO), observeValue(stateKey(id)),
+    ) { entries, raw ->
+        DiaryTagEditorSnapshot(id, entries.firstOrNull()?.tags, stateFor(decoded<DiaryTagState>(raw), renderDiaryThreadContent(entries)))
+    }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     fun observeState(id: Long): Flow<DiaryTagState> = observeEditor(id).map { it.state }.distinctUntilChanged()
 
@@ -92,8 +96,7 @@ class DiaryTagRepository(private val db: DailySatoriDatabase) {
 
     fun state(id: Long): DiaryTagState {
         val stored = read<DiaryTagState>(stateKey(id)) ?: DiaryTagState()
-        val content = q.selectDiaryById(id).executeAsOneOrNull()?.content.orEmpty()
-        return stateFor(stored, content)
+        return stateFor(stored, threads.getSource(id)?.content.orEmpty())
     }
 
     private fun stateFor(storedValue: DiaryTagState?, content: String): DiaryTagState {
@@ -106,20 +109,24 @@ class DiaryTagRepository(private val db: DailySatoriDatabase) {
 
     fun prepare(id: Long, force: Boolean = false): DiaryTagSnapshot? = q.transactionWithResult {
         val diary = q.selectDiaryById(id).executeAsOneOrNull() ?: return@transactionWithResult null
-        val state = stateFor(read<DiaryTagState>(stateKey(id)), diary.content)
-        if (diary.content.isBlank() || (!force && (!enabled() || state.processedFingerprint == state.contentFingerprint))) {
+        if (diary.parent_diary_id != null) return@transactionWithResult null
+        val source = threads.getSource(id) ?: return@transactionWithResult null
+        val state = stateFor(read<DiaryTagState>(stateKey(id)), source.content)
+        if (source.content.isBlank() || (!force && (!enabled() || state.processedFingerprint == state.contentFingerprint))) {
             return@transactionWithResult null
         }
         val manual = parseDiaryTags(diary.tags).filterNot { it in state.automatic }
         if (manual.size >= DIARY_AUTO_TAG_LIMIT) return@transactionWithResult null
-        DiaryTagSnapshot(id, diary.content, diary.tags, state, settings.get(ENABLED_KEY))
+        DiaryTagSnapshot(id, source.content, diary.tags, state, settings.get(ENABLED_KEY), source.revision)
     }
 
     fun apply(snapshot: DiaryTagSnapshot, generated: List<String>): Boolean = q.transactionWithResult {
         val diary = q.selectDiaryById(snapshot.diaryId).executeAsOneOrNull() ?: return@transactionWithResult false
-        val current = stateFor(read<DiaryTagState>(stateKey(snapshot.diaryId)), diary.content)
-        if (diary.content != snapshot.content || diary.tags != snapshot.tags || current.revision != snapshot.state.revision ||
+        val source = threads.getSource(snapshot.diaryId) ?: return@transactionWithResult false
+        val current = stateFor(read<DiaryTagState>(stateKey(snapshot.diaryId)), source.content)
+        if (source.content != snapshot.content || diary.tags != snapshot.tags || current.revision != snapshot.state.revision ||
             settings.get(ENABLED_KEY) != snapshot.policy) return@transactionWithResult false
+        if (snapshot.threadRevision != null && source.revision != snapshot.threadRevision) return@transactionWithResult false
         val vocabulary = vocabulary()
         val manual = parseDiaryTags(diary.tags).filterNot { it in current.automatic }.map(vocabulary::canonical).distinct()
         val automatic = generated.mapNotNull(::cleanDiaryTag).map(vocabulary::canonical).distinct()
@@ -175,10 +182,11 @@ class DiaryTagRepository(private val db: DailySatoriDatabase) {
         if (draft.generatedFingerprint == current.contentFingerprint) suggestPending(draft.pendingTags)
     }
 
-    /** Enqueue inside this transaction before advancing the baseline, so restart cannot lose a change. */
+    /** 基线指纹覆盖整个日记串原文；续写变化也会触发主日记重新打标。 */
     fun changedDiaryIds(enqueue: (List<Long>) -> Unit = {}): List<Long> = q.transactionWithResult {
         val before = read<Map<Long, String>>(BASELINE_KEY)
-        val current = q.selectAllDiaries().executeAsList().associate { it.id to diaryTagFingerprint(it.content) }
+        val current = q.selectDiaryRoots().executeAsList()
+            .associate { it.id to diaryTagFingerprint(threads.getSource(it.id)?.content.orEmpty()) }
         val changed = if (before == null) emptyList() else current.filter { (id, hash) -> before[id] != hash }.keys.toList()
         enqueue(changed)
         write(BASELINE_KEY, current)

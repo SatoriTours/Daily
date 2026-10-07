@@ -1496,7 +1496,7 @@ SELECT * FROM diary ORDER BY created_at DESC;
 
 selectDiaryTagIndex:
 SELECT id, tags, CASE WHEN content = '' THEN 0 ELSE 1 END AS has_content
-FROM diary ORDER BY id;
+FROM diary WHERE parent_diary_id IS NULL ORDER BY id;
 
 selectDiariesPaginated:
 SELECT * FROM diary ORDER BY created_at DESC LIMIT ? OFFSET ?;
@@ -1574,6 +1574,11 @@ SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC;
 
 selectDiaryRepliesForRoot:
 SELECT * FROM diary WHERE parent_diary_id = ? ORDER BY created_at ASC, id ASC;
+
+selectDiaryThreadEntries:
+SELECT * FROM diary
+WHERE id = :rootId OR parent_diary_id = :rootId
+ORDER BY CASE WHEN id = :rootId THEN 0 ELSE 1 END, created_at ASC, id ASC;
 
 selectDiaryThreadAttachments:
 SELECT * FROM diary_attachment

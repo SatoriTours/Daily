@@ -2,6 +2,7 @@ package com.dailysatori.service.diary
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.data.repository.DiaryThoughtRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -23,7 +24,7 @@ class DiaryThoughtStartupTest {
         val uncaught = CompletableDeferred<Throwable>()
         val applicationJob = SupervisorJob()
         val scope = CoroutineScope(applicationJob + Dispatchers.IO + CoroutineExceptionHandler { _, error -> uncaught.complete(error) })
-        val service = DiaryThoughtService(repository, DiaryThoughtRepository(SettingRepository(db)),
+        val service = DiaryThoughtService(DiaryThreadRepository(db, driver), DiaryThoughtRepository(SettingRepository(db)),
             DiaryThoughtGenerator { _, _ -> error("不能调用 AI") })
         try {
             service.start(scope) { error("读取失败时不能调度任务") }
@@ -55,7 +56,7 @@ class DiaryThoughtStartupTest {
         val applicationJob = SupervisorJob()
         val scope = CoroutineScope(applicationJob + Dispatchers.IO + CoroutineExceptionHandler { _, error -> uncaught.complete(error) })
         val scheduled = Channel<Unit>(Channel.UNLIMITED)
-        val service = DiaryThoughtService(repository, DiaryThoughtRepository(SettingRepository(db)),
+        val service = DiaryThoughtService(DiaryThreadRepository(db, driver), DiaryThoughtRepository(SettingRepository(db)),
             DiaryThoughtGenerator { _, _ -> error("启动订阅不应调用 AI") })
         try {
             var failScheduling = true

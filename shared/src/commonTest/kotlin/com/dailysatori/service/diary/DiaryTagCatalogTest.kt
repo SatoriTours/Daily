@@ -54,7 +54,7 @@ class DiaryTagCatalogTest {
             f.tags.apply(assertNotNull(f.tags.prepare(id)), listOf("读书"))
             f.driver.statements.clear()
             assertEquals(listOf("读书"), f.tags.observeState(id).first().automatic)
-            assertTrue(f.driver.statements.size <= 4)
+            assertTrue(f.driver.statements.size <= 4, f.driver.statements.joinToString(" | "))
             assertFalse(f.driver.statements.any { it.contains("ORDER BY created_at", ignoreCase = true) })
         }
     }
@@ -66,7 +66,7 @@ class DiaryTagCatalogTest {
         init { DailySatoriDatabase.Schema.create(driver) }
         private val db = DailySatoriDatabase(driver)
         val diaries = DiaryRepository(db, driver)
-        val tags = DiaryTagRepository(db)
+        val tags = DiaryTagRepository(db, com.dailysatori.data.repository.DiaryThreadRepository(db, driver))
         override fun close() = driver.close()
     }
 

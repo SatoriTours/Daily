@@ -67,10 +67,10 @@ class DiaryTagCoordinatorTest {
         init { DailySatoriDatabase.Schema.create(driver) }
         private val db = DailySatoriDatabase(driver)
         val diaries = DiaryRepository(db, driver)
-        val tags = DiaryTagRepository(db)
+        val tags = DiaryTagRepository(db, com.dailysatori.data.repository.DiaryThreadRepository(db, driver))
         val tasks = AsyncTaskRepository(db)
         val id = runBlocking { diaries.create("私密正文") }
-        val coordinator = DiaryTagCoordinator(diaries, tags, tasks, DiaryTagGenerator(complete)) { true }
+        val coordinator = DiaryTagCoordinator(tags, tasks, DiaryTagGenerator(complete), com.dailysatori.data.repository.DiaryThreadRepository(db, driver)) { true }
         suspend fun execute(id: Long): AsyncTaskExecutionResult = coordinator.execute(id,
             assertNotNull(tasks.getById(id)).payload_json, "", object : AsyncTaskProgressReporter {
                 override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) {}

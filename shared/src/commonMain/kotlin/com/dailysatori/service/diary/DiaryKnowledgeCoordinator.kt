@@ -3,7 +3,7 @@ package com.dailysatori.service.diary
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.data.repository.DiaryAttachmentRepository
-import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
@@ -15,15 +15,18 @@ import kotlinx.serialization.json.Json
 
 class DiaryKnowledgeCoordinator(
     private val attachmentRepository: DiaryAttachmentRepository,
-    private val diaryRepository: DiaryRepository,
     private val taskRepository: AsyncTaskRepository,
     private val memoryExtractor: MemoryExtractor,
+    private val threads: DiaryThreadRepository,
 ) : AsyncTaskHandler {
     override val type: String = AsyncTaskType.diary_knowledge_extract.name
 
     fun enqueue(diaryId: Long, updatedAt: Long): Long {
         require(diaryId > 0)
-        attachmentRepository.getForDiary(diaryId)
+        val rootId = threads.rootId(diaryId) ?: diaryId
+        val snapshot = threads.getSnapshot(rootId)
+        val attachments = snapshot?.attachments ?: attachmentRepository.getForDiary(diaryId)
+        attachments
             .filter {
                 it.transcript_status == DiaryAttachmentProcessingStatus.completed &&
                     it.transcript.isNotBlank()
@@ -33,8 +36,8 @@ class DiaryKnowledgeCoordinator(
             }
         return taskRepository.enqueue(
             type = type,
-            payloadJson = Json.encodeToString(KnowledgePayload(diaryId)),
-            uniqueKey = "diary-knowledge:$diaryId:$updatedAt",
+            payloadJson = Json.encodeToString(KnowledgePayload(rootId)),
+            uniqueKey = "diary-knowledge:$rootId:${snapshot?.root?.updated_at ?: updatedAt}",
         )
     }
 
@@ -44,18 +47,20 @@ class DiaryKnowledgeCoordinator(
         checkpointJson: String,
         reporter: AsyncTaskProgressReporter,
     ): AsyncTaskExecutionResult {
-        val diaryId = runCatching { Json.decodeFromString<KnowledgePayload>(payloadJson).diaryId }
+        val recordId = runCatching { Json.decodeFromString<KnowledgePayload>(payloadJson).diaryId }
             .getOrElse { return AsyncTaskExecutionResult.PermanentFailure("invalid_payload", it.message.orEmpty()) }
-        val diary = diaryRepository.getById(diaryId)
-            ?: return AsyncTaskExecutionResult.PermanentFailure("diary_missing", "Diary $diaryId not found")
-        val participating = attachmentRepository.getForDiary(diaryId)
+        val rootId = threads.rootId(recordId)
+            ?: return AsyncTaskExecutionResult.PermanentFailure("diary_missing", "Diary $recordId not found")
+        val snapshot = threads.getSnapshot(rootId)
+            ?: return AsyncTaskExecutionResult.PermanentFailure("diary_missing", "Diary $rootId not found")
+        val participating = snapshot.attachments
             .filter { it.transcript_status == DiaryAttachmentProcessingStatus.completed && it.transcript.isNotBlank() }
         return try {
             participating.forEach { attachmentRepository.updateKnowledgeStatus(it.id, DiaryAttachmentProcessingStatus.processing) }
-            val content = (listOf(diary.content) + participating.map { it.transcript })
+            val content = (listOf(renderDiaryThreadContent(snapshot.entries)) + participating.map { it.transcript })
                 .filter { it.isNotBlank() }
                 .joinToString("\n\n")
-            memoryExtractor.extractAndSave("diary", diaryId, "日记", content)
+            memoryExtractor.extractAndSave("diary", rootId, "日记", content)
             participating.forEach { attachmentRepository.updateKnowledgeStatus(it.id, DiaryAttachmentProcessingStatus.completed) }
             AsyncTaskExecutionResult.Success()
         } catch (error: CancellationException) {

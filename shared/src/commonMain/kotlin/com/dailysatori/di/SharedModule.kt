@@ -125,7 +125,7 @@ val sharedModule: Module = module {
     single { DiaryAttachmentRepository(get(), get(), get()) }
     single { DiaryRepository(get(), get(), get()) }
     single { com.dailysatori.data.repository.DiaryThreadRepository(get(), get()) }
-    single { com.dailysatori.data.repository.DiaryTagRepository(get()) }
+    single { com.dailysatori.data.repository.DiaryTagRepository(get(), get()) }
     single {
         val configs = get<com.dailysatori.service.ai.AiConfigService>()
         val ai = get<com.dailysatori.service.ai.AiService>()
@@ -205,10 +205,10 @@ val sharedModule: Module = module {
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }
-    single { DiaryMonthSummaryService(get(), get(), get(), get()) }
+    single { DiaryMonthSummaryService(get(), get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }
-    single { DiaryKnowledgeCoordinator(get(), get(), get(), get<MemoryExtractor>()) }
+    single { DiaryKnowledgeCoordinator(get(), get(), get<MemoryExtractor>(), get()) }
     single { SpeechSettingsService(get(), get(), get()) }
     single { SpeechTranscriptionApi(get()) }
     single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }

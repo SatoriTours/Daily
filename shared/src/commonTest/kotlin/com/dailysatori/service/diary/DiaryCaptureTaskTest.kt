@@ -7,6 +7,7 @@ import com.dailysatori.data.repository.DiaryAttachmentKind
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.data.repository.DiaryAttachmentRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.memory.MemoryExtractor
@@ -357,7 +358,6 @@ class DiaryCaptureTaskTest {
             val calls = mutableListOf<Pair<Long, String>>()
             val coordinator = DiaryKnowledgeCoordinator(
                 fixture.attachments,
-                fixture.diaries,
                 fixture.tasks,
                 object : MemoryExtractor {
                     override suspend fun extractAndSave(sourceType: String, sourceId: Long, title: String, content: String) {
@@ -365,6 +365,7 @@ class DiaryCaptureTaskTest {
                         calls += sourceId to content
                     }
                 },
+                fixture.threads,
             )
 
             val taskId = coordinator.enqueue(diaryId, fixture.diaries.getById(diaryId)!!.updated_at)
@@ -393,13 +394,13 @@ class DiaryCaptureTaskTest {
             )
             val coordinator = DiaryKnowledgeCoordinator(
                 fixture.attachments,
-                fixture.diaries,
                 fixture.tasks,
                 object : MemoryExtractor {
                     override suspend fun extractAndSave(sourceType: String, sourceId: Long, title: String, content: String) {
                         error("AI unavailable")
                     }
                 },
+                fixture.threads,
             )
 
             val result = coordinator.execute(1, "{\"diaryId\":$diaryId}", "", NoopReporter)
@@ -422,6 +423,7 @@ class DiaryCaptureTaskTest {
                     DiaryRepository(db, driver),
                     DiaryAttachmentRepository(db, driver),
                     AsyncTaskRepository(db),
+                    DiaryThreadRepository(db, driver),
                 ),
             )
         } finally {
@@ -434,6 +436,7 @@ class DiaryCaptureTaskTest {
         val diaries: DiaryRepository,
         val attachments: DiaryAttachmentRepository,
         val tasks: AsyncTaskRepository,
+        val threads: DiaryThreadRepository,
     )
 
     private object NoopReporter : AsyncTaskProgressReporter {

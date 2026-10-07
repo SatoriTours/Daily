@@ -82,10 +82,10 @@ class DiaryTaggingTest {
             val db = DailySatoriDatabase(driver)
             val diaries = DiaryRepository(db, driver)
             val id = runBlocking { diaries.create("正文") }
-            val tags = DiaryTagRepository(db)
+            val tags = DiaryTagRepository(db, com.dailysatori.data.repository.DiaryThreadRepository(db, driver))
             tags.apply(assertNotNull(tags.prepare(id)), listOf("读书"))
             tags.edit(id, emptyList())
-            val reopened = DiaryTagRepository(DailySatoriDatabase(driver))
+            val reopened = DiaryTagRepository(DailySatoriDatabase(driver), com.dailysatori.data.repository.DiaryThreadRepository(DailySatoriDatabase(driver), driver))
             assertEquals(listOf("读书"), reopened.state(id).suppressed)
             assertNull(reopened.prepare(id))
             diaries.update(id, "新的正文", null, null, null)
@@ -233,7 +233,7 @@ class DiaryTaggingTest {
             val db = DailySatoriDatabase(driver)
             val diaries = DiaryRepository(db, driver)
             val id = runBlocking { diaries.create("今天思考职业选择，也读书和锻炼。") }
-            block(DiaryTagRepository(db), diaries, id)
+            block(DiaryTagRepository(db, com.dailysatori.data.repository.DiaryThreadRepository(db, driver)), diaries, id)
         } finally {
             driver.close()
         }
