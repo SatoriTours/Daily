@@ -374,4 +374,20 @@ val viewModelModule: Module = module {
             connectionTester = get(),
         )
     }
+    viewModel { com.dailysatori.ui.feature.ideatopic.IdeaTopicListViewModel(get()) }
+    viewModel { params ->
+        com.dailysatori.ui.feature.ideatopic.IdeaTopicDetailViewModel(
+            requestedTopicId = params.get<String>(),
+            service = get(),
+            workflow = get(),
+        )
+    }
+    viewModel { params ->
+        com.dailysatori.ui.feature.ideatopic.IdeaTopicSessionViewModel(
+            sessionId = params.get<String>(),
+            service = get(),
+            workflow = get(),
+        )
+    }
+    viewModel { com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureViewModel(get()) }
 }
