@@ -65,6 +65,8 @@ import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
 import com.dailysatori.service.diary.DiaryKnowledgeEnricher
 import com.dailysatori.service.diary.DiaryAssistantService
+import com.dailysatori.service.diary.DiaryTranscriptPolishService
+import com.dailysatori.service.diary.diaryTranscriptPolishCompletion
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.diary.DiaryLinkContentExtractor
 import com.dailysatori.service.diary.DefaultDiaryLinkContentExtractor
@@ -244,6 +246,8 @@ val sharedModule: Module = module {
         val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get())
         DiaryAssistantService(get(), get(), complete)
     }
+
+    single { DiaryTranscriptPolishService(diaryTranscriptPolishCompletion(get(), get())) }
 
     // Book search service
     single { DoubanSuggestSearchEngine(get()) }

@@ -231,6 +231,33 @@ sms:
   status_ignored: "已忽略"
   status_expired: "短信期限已过，未安排定时提醒"
   status_failed: "处理失败，可重试"
+diary_polish:
+  action: AI 整理
+  title: 语音日记整理
+  load_failed: 加载整理记录失败，请重新打开日记；仍可正常编辑和保存正文。
+  privacy: 将这段原始转写、选定的采用版本及相关修改意见发送给默认 AI，去重复、理顺表达并分段，不作摘要或扩写。原文始终保留；请核对后应用，再保存日记。
+  reference_version: "参考采用版本 %s"
+  version: "采用版本 %s"
+  feedback: 对此版本的修改意见
+  feedback_placeholder: 例如：不要删掉我的犹豫；金额应为28元，不是26元。
+  feedback_hint: 意见只作用本篇日记。关闭预览后点击日记“保存”，版本和意见会一起保留。重新整理以选定版意见优先，参考最近5条历史意见。
+  feedback_limit: "%s / 4,000 字"
+  loading: 正在整理原始转写…
+  draft: 整理结果（可编辑）
+  target: 确认替换以下正文
+  original: 查看原始转写
+  hide_original: 收起原始转写
+  restore: 使用原始转写恢复正文
+  regenerate: 重新整理
+  cancel: 取消
+  apply: 确认替换
+  conflict: 无法安全定位正文，或正文已更改。请关闭预览，选中要替换的录音文字，再打开；其他文字不会自动覆盖。
+  missing_config: 请先配置默认 AI。
+  settings: 打开 AI 设置
+  invalid_input: 原始转写不能为空，且不能超过 24,000 字；单版意见不能超过 4,000 字，参考版本不能超过 48,000 字。不会截断原文后整理。
+  invalid_response: AI 未返回有效正文，原文未改动，请重试。
+  failed: 整理失败，原文未改动，请检查配置或稍后重试。
+
 diary_tags:
   undo_step: 撤销上一步
   pending_draft: 新标签尚待确认，点选可手动添加。

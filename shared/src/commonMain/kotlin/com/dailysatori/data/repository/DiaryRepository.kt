@@ -85,7 +85,9 @@ class DiaryRepository(
 
     fun delete(id: Long) {
         val attachmentPaths = q.transactionWithResult {
-            val paths = q.selectAttachmentsForDiary(id).executeAsList().map { it.local_path }
+            val attachments = q.selectAttachmentsForDiary(id).executeAsList()
+            val paths = attachments.map { it.local_path }
+            attachments.forEach { SettingRepository(db).delete("diary_polished_transcript_v1:${it.id}") }
             q.deleteDiary(id)
             paths
         }

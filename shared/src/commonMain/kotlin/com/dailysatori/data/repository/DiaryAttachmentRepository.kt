@@ -5,6 +5,8 @@ import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.platform.FileManager
+import com.dailysatori.service.diary.DiaryPolishedTranscript
+import kotlinx.serialization.json.Json
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Diary_attachment
 import kotlinx.coroutines.Dispatchers
@@ -92,6 +94,28 @@ class DiaryAttachmentRepository(
 
     fun getForDiary(diaryId: Long): List<Diary_attachment> =
         q.selectAttachmentsForDiary(diaryId).executeAsList()
+
+    fun polishedTranscripts(diaryId: Long): Map<Long, DiaryPolishedTranscript> =
+        getForDiary(diaryId).mapNotNull { attachment ->
+            val raw = SettingRepository(db).get("diary_polished_transcript_v1:${attachment.id}")
+            val version = raw?.let { runCatching { Json.decodeFromString<DiaryPolishedTranscript>(it) }.getOrNull() }
+            version?.takeIf { it.original == attachment.transcript }?.let { attachment.id to it }
+        }.toMap()
+
+    /** Called only after saving the editor body, never when generating a preview. */
+    fun savePolishedTranscripts(diaryId: Long, versions: Map<Long, DiaryPolishedTranscript>) = q.transaction {
+        val body = q.selectDiaryById(diaryId).executeAsOneOrNull()?.content ?: return@transaction
+        val settings = SettingRepository(db)
+        getForDiary(diaryId).forEach { attachment ->
+            val key = "diary_polished_transcript_v1:${attachment.id}"
+            val version = versions[attachment.id]?.takeIf {
+                attachment.kind == "audio" && it.original == attachment.transcript &&
+                    it.content.isNotBlank() && (body.contains(it.content) || it.history.isNotEmpty())
+            }
+            if (version == null) settings.delete(key)
+            else settings.upsert(key, Json.encodeToString(version))
+        }
+    }
 
     fun persistTranscriptAndDiary(id: Long, transcript: String, autoBody: String, transcriptHeading: String) {
         q.transaction {
@@ -247,6 +271,7 @@ class DiaryAttachmentRepository(
         val localPath = q.transactionWithResult {
             val attachment = q.selectDiaryAttachmentById(id).executeAsOneOrNull()
             q.deleteDiaryAttachmentById(id)
+            SettingRepository(db).delete("diary_polished_transcript_v1:$id")
             attachment?.local_path
         }
         deleteAppOwnedFile(localPath)

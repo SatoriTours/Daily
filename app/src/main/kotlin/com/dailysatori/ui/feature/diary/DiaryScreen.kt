@@ -361,8 +361,9 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             onDeleteAttachment = viewModel::deleteAttachment,
             onRetryTranscription = viewModel::retryTranscription,
             onOpenTranscriptionSettings = onMyClick,
+            onLoadPolishedTranscripts = viewModel::loadPolishedTranscripts,
             onDismiss = { showEditor = false; editingDiary = null; editingTag = null },
-            onSave = { content, tags, mood, images, tagDraft ->
+            onSave = { content, tags, mood, images, tagDraft, polishedTranscripts ->
                 val existingId = editingDiary?.id
                 viewModel.saveDiary(
                     existingId = existingId,
@@ -371,6 +372,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                     mood = mood,
                     images = images,
                     tagDraft = tagDraft,
+                    polishedTranscripts = polishedTranscripts,
                 )
                 showEditor = false
                 editingDiary = null

@@ -18,6 +18,7 @@ import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.data.repository.DiaryTagRepository
 import com.dailysatori.service.diary.DiaryTagCoordinator
 import com.dailysatori.service.diary.DiaryTagDraft
+import com.dailysatori.service.diary.DiaryPolishedTranscript
 import com.dailysatori.service.diary.DiaryTagVocabulary
 import com.dailysatori.service.diary.matchesDiaryTag
 import com.dailysatori.shared.db.Diary
@@ -209,6 +210,9 @@ class DiaryViewModel(
         _state.update { it.copy(error = message) }
     }
 
+    suspend fun loadPolishedTranscripts(diaryId: Long): Map<Long, DiaryPolishedTranscript> =
+        withContext(Dispatchers.IO) { attachmentRepo?.polishedTranscripts(diaryId).orEmpty() }
+
     fun saveDiary(
         content: String,
         tags: String? = null,
@@ -216,6 +220,7 @@ class DiaryViewModel(
         images: String? = null,
         existingId: Long? = null,
         tagDraft: DiaryTagDraft? = null,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             saveDiaryAndGetId(
@@ -225,6 +230,7 @@ class DiaryViewModel(
                 images = images,
                 existingId = existingId,
                 tagDraft = tagDraft,
+                polishedTranscripts = polishedTranscripts,
             )
         }
     }
@@ -236,6 +242,7 @@ class DiaryViewModel(
         images: String? = null,
         existingId: Long? = null,
         tagDraft: DiaryTagDraft? = null,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>? = null,
     ): Long? = withContext(Dispatchers.IO) {
         _state.update { it.copy(isSaving = true, error = null) }
         try {
@@ -259,6 +266,7 @@ class DiaryViewModel(
             }
 
             runPostSaveOperation {
+                polishedTranscripts?.let { attachmentRepo?.savePolishedTranscripts(persistedId, it) }
                 if (existingId == null && tagDraft != null) tagRepo?.saveDraft(persistedId, tagDraft)
                 if (contentChanged) tagCoordinator?.enqueue(persistedId)?.let { taskScheduler?.enqueue(it) }
             }

@@ -231,6 +231,33 @@ sms:
   status_ignored: "Ignored"
   status_expired: "Deadline passed; no timed reminder scheduled"
   status_failed: "Processing failed; retry available"
+diary_polish:
+  action: AI tidy up
+  title: Tidy up voice diary
+  load_failed: Could not load tidy-up records. Reopen the diary to retry. You can still edit and save the diary text.
+  privacy: This original transcript, your selected adopted version and its related feedback are sent to your default AI to remove repetition, improve wording and add paragraphs, not to summarize or expand. The original is always retained. Review, apply, then save the diary.
+  reference_version: "Reference adopted version %s"
+  version: "Adopted version %s"
+  feedback: Feedback on this version
+  feedback_placeholder: "For example: keep my uncertainty; the amount should be 28, not 26."
+  feedback_hint: Feedback applies only to this diary. Close the preview and save the diary to keep versions and feedback together. Regeneration prioritizes the selected version's feedback and refers to the latest five earlier comments.
+  feedback_limit: "%s / 4,000 characters"
+  loading: Tidying up the original transcript…
+  draft: Result (editable)
+  target: Confirm replacing this diary text
+  original: View original transcript
+  hide_original: Hide original transcript
+  restore: Restore diary text from original
+  regenerate: Tidy up again
+  cancel: Cancel
+  apply: Confirm replacement
+  conflict: The target cannot be safely located, or the diary text has changed. Close this preview, select the recording text to replace, then reopen. Other text is never automatically overwritten.
+  missing_config: Configure a default AI first.
+  settings: Open AI settings
+  invalid_input: The transcript must not be empty or exceed 24,000 characters. Each version's feedback is limited to 4,000 characters and the reference version to 48,000. The original will not be truncated.
+  invalid_response: AI returned no valid diary text. The original is unchanged. Please retry.
+  failed: Tidy-up failed. The original is unchanged. Check your configuration or try again later.
+
 diary_tags:
   undo_step: Undo
   pending_draft: New tags need confirmation. Tap to add one manually.

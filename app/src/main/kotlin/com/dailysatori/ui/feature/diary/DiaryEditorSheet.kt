@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,8 @@ import androidx.core.content.FileProvider
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.service.diary.DiaryAssistantFallbackRequiredException
 import com.dailysatori.service.diary.DiaryAssistantService
+import com.dailysatori.service.diary.DiaryPolishedTranscript
+import com.dailysatori.service.diary.adoptDiaryPolishVersion
 import com.dailysatori.service.diary.DiaryTagDraft
 import com.dailysatori.service.diary.DiaryTagHistory
 import com.dailysatori.service.diary.DiaryTagResult
@@ -116,7 +119,8 @@ private fun sanitizeNull(value: String?): String {
 @Composable
 fun DiaryEditorSheet(
     onDismiss: () -> Unit,
-    onSave: (content: String, tags: String?, mood: String?, images: String?, tagDraft: DiaryTagDraft) -> Unit,
+    onSave: (content: String, tags: String?, mood: String?, images: String?, tagDraft: DiaryTagDraft,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit,
     existingDiary: Diary? = null,
     recordingState: DiaryRecordingState? = null,
     onPauseResumeRecording: () -> Unit = {},
@@ -125,6 +129,7 @@ fun DiaryEditorSheet(
     onDeleteAttachment: (Long) -> Unit = {},
     onRetryTranscription: (Long) -> Unit = {},
     onOpenTranscriptionSettings: () -> Unit = {},
+    onLoadPolishedTranscripts: suspend (Long) -> Map<Long, DiaryPolishedTranscript> = { emptyMap() },
     assistantService: DiaryAssistantService = koinInject(),
     tagVocabulary: DiaryTagVocabulary = DiaryTagVocabulary(),
     initialTagState: DiaryTagState? = null,
@@ -172,6 +177,24 @@ fun DiaryEditorSheet(
     var moodText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.mood)) }
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
     val redoStack = remember { mutableStateListOf<TextFieldValue>() }
+    var polishedTranscripts by remember(existingDiary?.id) { mutableStateOf(emptyMap<Long, DiaryPolishedTranscript>()) }
+    var polishVersionsLoaded by remember(existingDiary?.id) { mutableStateOf(existingDiary == null) }
+    var polishVersionsFailed by remember(existingDiary?.id) { mutableStateOf(false) }
+    val polishUndoStack = remember { mutableStateListOf<Map<Long, DiaryPolishedTranscript>>() }
+    val polishRedoStack = remember { mutableStateListOf<Map<Long, DiaryPolishedTranscript>>() }
+    var polishRequest by remember { mutableStateOf<DiaryTranscriptPolishRequest?>(null) }
+    LaunchedEffect(existingDiary?.id) {
+        existingDiary?.id?.let { id ->
+            try {
+                polishedTranscripts = onLoadPolishedTranscripts(id)
+                polishVersionsLoaded = true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                polishVersionsFailed = true
+            }
+        }
+    }
     val assistantCache = remember { DiaryAssistantSessionCache() }
     val assistantRequestGate = remember { DiaryAssistantRequestGate() }
     val assistantScope = rememberCoroutineScope()
@@ -199,9 +222,14 @@ fun DiaryEditorSheet(
         content.text.substring(content.selection.min, content.selection.max).isNotBlank()
 
     fun pushUndo() {
-        if (undoStack.size >= 50) undoStack.removeAt(0)
+        if (undoStack.size >= 50) {
+            undoStack.removeAt(0)
+            polishUndoStack.removeAt(0)
+        }
         undoStack.add(content)
+        polishUndoStack.add(polishedTranscripts)
         redoStack.clear()
+        polishRedoStack.clear()
     }
 
     fun assistantSnapshot(): DiaryAssistantSelectionSnapshot {
@@ -226,6 +254,7 @@ fun DiaryEditorSheet(
         allowModelKnowledgeFallback: Boolean = false,
         forceRefresh: Boolean = false,
     ) {
+        polishRequest = null
         assistantRequestGate.invalidate()
         assistantJob?.cancel()
         assistantJob = null
@@ -295,14 +324,20 @@ fun DiaryEditorSheet(
     fun performUndo() {
         if (undoStack.isNotEmpty()) {
             redoStack.add(content)
+            polishRedoStack.add(polishedTranscripts)
             content = undoStack.removeAt(undoStack.lastIndex)
+            polishedTranscripts = restoreDiaryPolishHistory(polishedTranscripts,
+                polishUndoStack.removeAt(polishUndoStack.lastIndex))
         }
     }
 
     fun performRedo() {
         if (redoStack.isNotEmpty()) {
             undoStack.add(content)
+            polishUndoStack.add(polishedTranscripts)
             content = redoStack.removeAt(redoStack.lastIndex)
+            polishedTranscripts = restoreDiaryPolishHistory(polishedTranscripts,
+                polishRedoStack.removeAt(polishRedoStack.lastIndex))
         }
     }
 
@@ -486,7 +521,8 @@ fun DiaryEditorSheet(
                         )
                         TextButton(
                             enabled = content.text.isNotBlank(),
-                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft) },
+                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft,
+                                polishedTranscripts.takeIf { polishVersionsLoaded }) },
                         ) {
                             Text(
                                 "保存",
@@ -506,7 +542,17 @@ fun DiaryEditorSheet(
                         attachments = attachments,
                         onDelete = { attachmentToDelete = it },
                         onRetryTranscription = onRetryTranscription,
+                        onOpenTranscript = if (polishVersionsLoaded) { attachment, generate ->
+                            cancelAssistantPreview()
+                            polishRequest = DiaryTranscriptPolishRequest(attachment.id, attachment.transcript,
+                                diaryTranscriptPolishSnapshot(content, attachment.transcript, polishedTranscripts[attachment.id]), generate)
+                        } else null,
                     )
+                    if (polishVersionsFailed) {
+                        val i18n: I18nService = koinInject()
+                        Text(i18n.t("diary_polish.load_failed"), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error)
+                    }
                     Spacer(modifier = Modifier.height(Spacing.s))
                     DiaryAssistantEditorViewport {
                         Box(
@@ -575,6 +621,36 @@ fun DiaryEditorSheet(
                             }
                         }
 
+                        polishRequest?.let { request ->
+                            val currentSource = attachments.firstOrNull { it.id == request.attachmentId }
+                            val canApply = currentSource?.transcript == request.original &&
+                                canReplaceDiaryAssistantSelection(content, request.snapshot)
+                            key(request) {
+                                DiaryTranscriptPolishPreview(
+                                    request = request,
+                                    applied = polishedTranscripts[request.attachmentId]?.takeIf { it.original == request.original },
+                                    onFeedbackChange = { versionId, feedback ->
+                                        polishedTranscripts[request.attachmentId]?.let { version ->
+                                            if (version.original == request.original) polishedTranscripts = polishedTranscripts +
+                                                (request.attachmentId to version.withFeedback(versionId, feedback))
+                                        }
+                                    },
+                                    canApply = canApply,
+                                    onClose = { polishRequest = null },
+                                    onOpenSettings = { polishRequest = null; onOpenTranscriptionSettings() },
+                                    onApply = { draft ->
+                                        if (canApply) {
+                                            pushUndo()
+                                            content = replaceDiaryAssistantSelection(content, request.snapshot, draft)
+                                            polishedTranscripts = polishedTranscripts +
+                                                (request.attachmentId to adoptDiaryPolishVersion(request.original, draft,
+                                                    polishedTranscripts[request.attachmentId]))
+                                            polishRequest = null
+                                        }
+                                    },
+                                )
+                            }
+                        }
                         assistantPreview?.let { preview ->
                             DiaryAssistantPreviewSheet(
                                 state = preview,

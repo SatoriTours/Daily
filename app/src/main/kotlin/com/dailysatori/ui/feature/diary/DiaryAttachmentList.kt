@@ -51,6 +51,8 @@ import androidx.core.content.ContextCompat
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.service.diary.TranscriptionErrorCode
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -61,6 +63,7 @@ fun DiaryAttachmentList(
     onDelete: ((Diary_attachment) -> Unit)? = null,
     onRetryTranscription: ((Long) -> Unit)? = null,
     compact: Boolean = false,
+    onOpenTranscript: ((Diary_attachment, Boolean) -> Unit)? = null,
 ) {
     val displayableAttachments = attachments.filterNot {
         it.kind == "audio" &&
@@ -77,6 +80,7 @@ fun DiaryAttachmentList(
                 onDelete = onDelete,
                 onRetryTranscription = onRetryTranscription,
                 compact = compact,
+                onOpenTranscript = onOpenTranscript,
             )
         }
         if (displayableAttachments.size > 2) {
@@ -93,6 +97,7 @@ private fun DiaryAttachmentRow(
     onDelete: ((Diary_attachment) -> Unit)?,
     onRetryTranscription: ((Long) -> Unit)?,
     compact: Boolean,
+    onOpenTranscript: ((Diary_attachment, Boolean) -> Unit)?,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = Spacing.xs),
@@ -132,6 +137,18 @@ private fun DiaryAttachmentRow(
                         contentDescription = if (attachment.kind == "audio") "删除录音" else "删除附件",
                         tint = MaterialTheme.colorScheme.error,
                     )
+                }
+            }
+        }
+        if (attachment.kind == "audio" && attachment.transcript.isNotBlank() && onOpenTranscript != null) {
+            val i18n: I18nService = koinInject()
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                TextButton(onClick = { onOpenTranscript(attachment, true) },
+                    enabled = attachment.transcript_status == DiaryAttachmentProcessingStatus.completed) {
+                    Text(i18n.t("diary_polish.action"))
+                }
+                TextButton(onClick = { onOpenTranscript(attachment, false) }) {
+                    Text(i18n.t("diary_polish.original"))
                 }
             }
         }
