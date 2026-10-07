@@ -61,6 +61,15 @@ class IdeaTopicService(
         return repository.draftsByTopicSync(main)
     }
 
+    fun observeDrafts(topicId: String): Flow<List<IdeaTopicDraft>> =
+        repository.observeDrafts(resolveTopicId(topicId) ?: topicId)
+
+    /** True while this topic owns an in-flight AI request (chat, summary or draft). */
+    fun isRequestActive(topicId: String): Boolean {
+        val main = resolveTopicId(topicId) ?: topicId
+        return main in activeRequests
+    }
+
     fun sessionOrThrow(sessionId: String): IdeaTopicSession =
         repository.getSessionSync(sessionId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
 
@@ -283,6 +292,46 @@ class IdeaTopicService(
                 .filter { it.status == IdeaMessageStatus.Pending }
                 .forEach { repository.updateMessageStatus(it.id, IdeaMessageStatus.Interrupted, null) }
         }
+    }
+
+    internal suspend fun saveDraft(
+        mainTopicId: String,
+        token: String,
+        draftId: String,
+        baseRevision: Long,
+        proposal: IdeaDraftContent,
+    ): IdeaTopicDraft = writeLock.withLock {
+        if (!ownsRequest(mainTopicId, token)) throw IdeaTopicException(IdeaTopicError.Busy)
+        if (repository.resolveMainTopicIdSync(mainTopicId) != mainTopicId) {
+            throw IdeaTopicException(IdeaTopicError.NotFound)
+        }
+        repository.insertDraft(
+            draftId = draftId,
+            topicId = mainTopicId,
+            originalTopicId = mainTopicId,
+            baseRevision = baseRevision,
+            content = proposal.content,
+            referenceIds = proposal.referenceIds,
+            originSessionId = null,
+            now = now(),
+        )
+        activeRequests.remove(mainTopicId)
+        repository.findDraftSync(draftId) ?: throw IdeaTopicException(IdeaTopicError.StorageFailure)
+    }
+
+    // ---------- Draft confirmation ----------
+
+    /** Applies a user-confirmed draft. Stale, discarded or already-applied drafts never overwrite content. */
+    suspend fun applyDraft(draftId: String, editedContent: IdeaTopicContent) = writeLock.withLock {
+        val trimmed = editedContent.copy(title = editedContent.title.trim())
+        if (trimmed.title.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidInput)
+        val draft = repository.findDraftSync(draftId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        assertNotBusy(draft.topicId)
+        repository.applyDraft(draftId, draft.topicId, trimmed, newId(), newId(), now())
+    }
+
+    suspend fun discardDraft(draftId: String) = writeLock.withLock {
+        repository.discardDraft(draftId, newId(), now())
     }
 
     private fun ownsRequest(mainTopicId: String, token: String): Boolean =

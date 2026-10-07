@@ -9,8 +9,11 @@ class IdeaTopicAiPortFake : IdeaTopicAiPort {
     var replyGate: CompletableDeferred<Unit>? = null
     var summarizeGate: CompletableDeferred<Unit>? = null
     var failure: IdeaTopicException? = null
+    var proposeResult: IdeaDraftContent = IdeaDraftContent(IdeaTopicContent(title = "草稿标题"))
+    var proposeGate: CompletableDeferred<Unit>? = null
     var lastReplyContext: IdeaAiContext? = null
     var lastSummaryContext: IdeaAiContext? = null
+    var lastProposeContext: IdeaAiContext? = null
 
     override suspend fun reply(context: IdeaAiContext, onChunk: suspend (String) -> Unit): String {
         lastReplyContext = context
@@ -28,5 +31,12 @@ class IdeaTopicAiPortFake : IdeaTopicAiPort {
         failure?.let { throw it }
         if (summarizeResult.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
         return summarizeResult
+    }
+
+    override suspend fun propose(context: IdeaAiContext): IdeaDraftContent {
+        lastProposeContext = context
+        proposeGate?.await()
+        failure?.let { throw it }
+        return proposeResult
     }
 }

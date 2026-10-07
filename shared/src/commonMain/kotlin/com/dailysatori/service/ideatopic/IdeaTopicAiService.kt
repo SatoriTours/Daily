@@ -20,10 +20,19 @@ interface IdeaTopicAiPort {
     suspend fun reply(context: IdeaAiContext, onChunk: suspend (String) -> Unit): String
 
     suspend fun summarize(context: IdeaAiContext): String
+
+    suspend fun propose(context: IdeaAiContext): IdeaDraftContent
 }
 
 fun ideaSummaryInstruction(): String =
     "请总结上面提供的这次沟通，覆盖给出的消息，输出简洁的要点式摘要（3-6 条）。不要修改主题正式内容。"
+
+fun ideaDraftInstruction(): String = """
+请基于上面的主题正式内容、来源与事件，生成一份主题更新稿。
+只输出一个 JSON 对象，且只包含这些字段：title、description、provenanceSummary、conclusions、nextAction、referenceIds。
+referenceIds 只能使用上文中实际出现的来源、事件、会话或消息 ID。
+不要输出 status、merge、delete 或其他可执行字段，也不要输出 JSON 之外的任何文字。
+""".trimIndent()
 
 /**
  * Production adapter. Reuses the configured AiService, AI config and per-conversation session store.
@@ -84,6 +93,21 @@ class IdeaTopicAiService(
             summary
         }
 
+    override suspend fun propose(context: IdeaAiContext): IdeaDraftContent =
+        withAiRequestSession(context.sessionId?.let { sessionStore.getOrCreate("idea-topic:$it") }) {
+            val config = requireConfig()
+            val raw = aiService.complete(
+                prompt = context.userPrompt + "\n\n" + ideaDraftInstruction(),
+                apiAddress = config.api_address,
+                apiToken = config.api_token,
+                modelName = config.model_name,
+                provider = config.provider,
+                systemPrompt = context.systemPrompt,
+                temperature = 0.2,
+            )
+            parseIdeaDraftResponse(raw, context.allowedReferenceIds)
+        }
+
     private fun requireConfig() = aiConfigService.getDefaultConfig()
         ?.takeIf { it.api_address.isNotBlank() && it.api_token.isNotBlank() }
         ?: throw IdeaTopicException(IdeaTopicError.AiNotConfigured)
@@ -92,4 +116,52 @@ class IdeaTopicAiService(
         put("role", role)
         put("content", content)
     }
+}
+
+@kotlinx.serialization.Serializable
+internal data class IdeaDraftResponse(
+    val title: String,
+    val description: String = "",
+    val provenanceSummary: String = "",
+    val conclusions: String = "",
+    val nextAction: String = "",
+    val referenceIds: List<String> = emptyList(),
+)
+
+private val ideaDraftJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = false }
+
+/**
+ * Strictly parses the structured update draft. Unknown fields (for example status/merge/delete),
+ * missing titles and references outside the allowed set are rejected as invalid AI responses.
+ */
+internal fun parseIdeaDraftResponse(raw: String, allowedReferenceIds: Set<String>): IdeaDraftContent {
+    val payload = extractJsonObject(raw) ?: throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+    val response = try {
+        ideaDraftJson.decodeFromString(IdeaDraftResponse.serializer(), payload)
+    } catch (_: Exception) {
+        throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+    }
+    val title = response.title.trim()
+    if (title.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+    if (response.referenceIds.any { it !in allowedReferenceIds }) {
+        throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+    }
+    return IdeaDraftContent(
+        content = IdeaTopicContent(
+            title = title,
+            description = response.description,
+            provenanceSummary = response.provenanceSummary,
+            conclusions = response.conclusions,
+            nextAction = response.nextAction,
+        ),
+        referenceIds = response.referenceIds.distinct(),
+    )
+}
+
+private fun extractJsonObject(raw: String): String? {
+    val trimmed = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+    val start = trimmed.indexOf('{')
+    val end = trimmed.lastIndexOf('}')
+    if (start < 0 || end <= start) return null
+    return trimmed.substring(start, end + 1)
 }

@@ -92,6 +92,40 @@ class IdeaTopicAiWorkflow(
         }
     }
 
+    /** Generates a structured update draft. It never touches the official topic content. */
+    suspend fun propose(topicId: String): IdeaTopicDraft {
+        val mainTopicId = service.resolveTopicId(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        val token = newId()
+        val baseRevision = service.beginRequest(mainTopicId, token)
+        registerJob(mainTopicId)
+        try {
+            val detail = service.getDetailSync(mainTopicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+            val context = buildIdeaAiContext(
+                detail = detail,
+                sessionId = null,
+                currentMessages = emptyList(),
+                userPrompt = ideaDraftInstruction(),
+            )
+            val proposal = port.propose(context)
+            if (proposal.content.title.trim().isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+            if (proposal.referenceIds.any { it !in context.allowedReferenceIds }) {
+                throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+            }
+            return service.saveDraft(mainTopicId, token, newId(), baseRevision, proposal)
+        } catch (cancellation: CancellationException) {
+            withContext(NonCancellable) { service.releaseRequest(mainTopicId, token) }
+            throw cancellation
+        } catch (failure: Exception) {
+            withContext(NonCancellable) { service.releaseRequest(mainTopicId, token) }
+            throw failure
+        } finally {
+            unregisterJob(mainTopicId)
+        }
+    }
+
+    /** True while this topic owns an in-flight AI request. */
+    fun isBusy(topicId: String): Boolean = service.isRequestActive(topicId)
+
     /** Cancels the in-flight request of the topic (chat or summary) and marks partial output interrupted. */
     suspend fun cancel(topicId: String) {
         val mainTopicId = service.resolveTopicId(topicId) ?: return

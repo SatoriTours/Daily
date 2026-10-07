@@ -159,8 +159,17 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
     fun sessionsByTopicSync(topicId: String): List<IdeaTopicSession> =
         q.selectIdeaTopicSessionsByTopic(topicId).executeAsList().map(::toSession)
 
-    fun draftsByTopicSync(topicId: String): List<IdeaTopicDraft> {
-        val events = q.selectIdeaTopicEventsByTopic(topicId).executeAsList()
+    fun observeDrafts(topicId: String): Flow<List<IdeaTopicDraft>> = combine(
+        q.selectIdeaTopicEventsByTopic(topicId).asFlow().mapToList(Dispatchers.IO),
+        q.selectIdeaTopicById(topicId).asFlow().mapToOneOrNull(Dispatchers.IO),
+    ) { events, topic -> computeDrafts(events, topic?.context_revision ?: 0L) }
+
+    fun draftsByTopicSync(topicId: String): List<IdeaTopicDraft> = computeDrafts(
+        events = q.selectIdeaTopicEventsByTopic(topicId).executeAsList(),
+        topicRevision = q.selectIdeaTopicById(topicId).executeAsOneOrNull()?.context_revision ?: 0L,
+    )
+
+    private fun computeDrafts(events: List<Idea_topic_event>, topicRevision: Long): List<IdeaTopicDraft> {
         val proposals = events.filter { it.kind == IdeaEventKinds.DraftProposed }
         if (proposals.isEmpty()) return emptyList()
         val resolutions = events.filter {
@@ -168,7 +177,6 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         }.mapNotNull { event ->
             decodeOrNull<IdeaDraftResolvedEventPayload>(event.payload_json)?.let { it.draftId to event }
         }.toMap()
-        val topicRevision = q.selectIdeaTopicById(topicId).executeAsOneOrNull()?.context_revision ?: 0L
         return proposals.mapNotNull { event ->
             val payload = decodeOrNull<IdeaDraftEventPayload>(event.payload_json) ?: return@mapNotNull null
             val resolution = resolutions[event.id]
@@ -180,7 +188,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             }
             IdeaTopicDraft(
                 id = event.id,
-                topicId = topicId,
+                topicId = event.topic_id,
                 baseRevision = payload.baseRevision,
                 proposal = com.dailysatori.service.ideatopic.IdeaDraftContent(payload.content, payload.referenceIds),
                 state = state,
@@ -508,7 +516,8 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         draftId: String,
         mainTopicId: String,
         editedContent: IdeaTopicContent,
-        eventId: String,
+        appliedEventId: String,
+        contentEventId: String,
         now: Long,
     ): IdeaTopicContent? = q.transactionWithResult {
         val draftEvent = q.selectIdeaTopicEventById(draftId).executeAsOneOrNull()
@@ -538,13 +547,24 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             id = owner,
         )
         q.insertIdeaTopicEvent(
-            id = eventId,
+            id = appliedEventId,
             topic_id = owner,
             original_topic_id = topic.originalOwnerId(),
             kind = IdeaEventKinds.DraftApplied,
             payload_json = json.encodeToString(
                 IdeaDraftResolvedEventPayload.serializer(),
                 IdeaDraftResolvedEventPayload(draftId, before, editedContent),
+            ),
+            created_at = now,
+        )
+        q.insertIdeaTopicEvent(
+            id = contentEventId,
+            topic_id = owner,
+            original_topic_id = topic.originalOwnerId(),
+            kind = IdeaEventKinds.ContentUpdated,
+            payload_json = json.encodeToString(
+                IdeaContentUpdatedEventPayload.serializer(),
+                IdeaContentUpdatedEventPayload(before, editedContent),
             ),
             created_at = now,
         )
