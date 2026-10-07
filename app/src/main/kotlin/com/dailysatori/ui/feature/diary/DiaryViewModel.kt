@@ -221,9 +221,10 @@ class DiaryViewModel(
         existingId: Long? = null,
         tagDraft: DiaryTagDraft? = null,
         polishedTranscripts: Map<Long, DiaryPolishedTranscript>? = null,
+        onSaved: ((Diary) -> Unit)? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            saveDiaryAndGetId(
+            val persistedId = saveDiaryAndGetId(
                 content = content,
                 tags = tags,
                 mood = mood,
@@ -232,6 +233,11 @@ class DiaryViewModel(
                 tagDraft = tagDraft,
                 polishedTranscripts = polishedTranscripts,
             )
+            if (persistedId != null && onSaved != null) runPostSaveOperation {
+                diaryRepo.getById(persistedId)?.let { diary ->
+                    withContext(Dispatchers.Main) { onSaved(diary) }
+                }
+            }
         }
     }
 

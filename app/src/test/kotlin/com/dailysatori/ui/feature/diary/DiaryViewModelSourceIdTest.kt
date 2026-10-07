@@ -17,6 +17,8 @@ import com.dailysatori.service.memory.MemoryExtractor
 import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CompletableDeferred
+import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,6 +51,31 @@ class DiaryViewModelSourceIdTest {
     @After
     fun tearDown() {
         kotlinx.coroutines.Dispatchers.resetMain()
+    }
+
+    @Test
+    fun captureCallbackReceivesOnlyTheSuccessfullyPersistedDiary() = runTest {
+        val fixture = diaryFixture()
+        try {
+            val saved = CompletableDeferred<Diary>()
+            fixture.viewModel.saveDiary(content = "manual product idea", onSaved = { saved.complete(it) })
+            val diary = saved.await()
+            assertEquals(1L, diary.id)
+            assertEquals("manual product idea", diary.content)
+            assertEquals(diary, fixture.diaryRepository.getById(diary.id))
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun captureCallbackIsNotDeliveredWhenPersistenceFails() = runTest {
+        val fixture = diaryFixture()
+        try {
+            fixture.driver.execute(null, "CREATE TRIGGER fail_idea_capture BEFORE INSERT ON diary BEGIN SELECT RAISE(ABORT, 'save failed'); END", 0)
+            var callbackCount = 0
+            fixture.viewModel.saveDiary(content = "cannot persist", onSaved = { callbackCount++ })
+            fixture.viewModel.state.first { it.error != null && !it.isSaving }
+            assertEquals(0, callbackCount)
+        } finally { fixture.close() }
     }
 
     @Test

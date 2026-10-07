@@ -150,6 +150,7 @@ fun HomeScreen(
     onOpportunity: (String) -> Unit = {},
     onChat: () -> Unit = {},
     onIdeaTopics: () -> Unit = {},
+    onIdeaTopic: (String) -> Unit = {},
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -193,7 +194,7 @@ fun HomeScreen(
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
                             onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
-                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick)
+                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick) { onIdeaTopic(it) }
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,

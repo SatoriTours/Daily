@@ -2520,6 +2520,9 @@ SELECT * FROM idea_topic_session WHERE topic_id = ? ORDER BY updated_at DESC, id
 selectIdeaTopicSessionById:
 SELECT * FROM idea_topic_session WHERE id = ?;
 
+selectPendingIdeaTopicSessions:
+SELECT * FROM idea_topic_session WHERE summary_status = 'pending';
+
 insertIdeaTopicSession:
 INSERT INTO idea_topic_session (id, topic_id, original_topic_id, title, summary,
     summary_through_message_id, summary_covered_message_ids, summary_status, created_at, updated_at)

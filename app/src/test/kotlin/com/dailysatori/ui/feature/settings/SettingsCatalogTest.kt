@@ -44,8 +44,10 @@ class SettingsCatalogTest {
             val keySets = listOf("zh", "en").map { lang ->
                 val asset = File("src/main/assets/i18n/$lang.yaml").readText()
                 val shared = File("../shared/src/commonMain/resources/i18n/$lang.yaml").readText()
-                val section = asset.substringAfter("\nsettings_design:\n")
-                assertEquals(section, shared.substringAfter("\nsettings_design:\n"))
+                fun settingsSection(content: String) = content.substringAfter("\nsettings_design:\n")
+                    .lineSequence().takeWhile { it.isBlank() || it.startsWith(" ") }.joinToString("\n")
+                val section = settingsSection(asset)
+                assertEquals(section, settingsSection(shared))
                 service.loadTranslation(lang, asset)
                 service.init(lang)
                 Regex("^  ([a-z_]+):", RegexOption.MULTILINE).findAll(section).map { match ->

@@ -1,6 +1,10 @@
 package com.dailysatori.ui.feature.ideatopic
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.service.ideatopic.IdeaAiContext
 import com.dailysatori.service.ideatopic.IdeaCaptureInput
@@ -37,6 +41,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class IdeaTopicViewModelTest {
     @Before
     fun setUp() {
@@ -49,10 +54,81 @@ class IdeaTopicViewModelTest {
     }
 
     @Test
+    fun openingAnotherCaptureClearsThePreviousCompletion() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val vm = IdeaTopicCaptureViewModel(fixture.service).also(fixture::track)
+            val source = IdeaSourceSnapshot(IdeaSourceKey(IdeaSourceTypes.Diary, "101"), "来源一", "正文一")
+            vm.lookupExisting(source.key)
+            vm.submit(IdeaCaptureInput(source, IdeaTopicContent(title = "主题一")))
+            withTimeout(5_000) { vm.state.first { it.capturedTopicId != null } }
+            vm.lookupExisting(IdeaSourceKey(IdeaSourceTypes.Diary, "102"))
+            assertNull(vm.state.value.capturedTopicId, "another sheet must not navigate to the previous topic")
+            assertNull(vm.state.value.existingTopicId)
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun mergingAnOpenDetailFollowsTheTargetAndItsFutureUpdates() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val from = fixture.captureTopic("合并前")
+            val target = fixture.captureTopic("目标内容")
+            val vm = IdeaTopicDetailViewModel(from, fixture.service, fixture.workflow).also(fixture::track)
+            withTimeout(5_000) { vm.state.first { it.detail != null } }
+            vm.merge(target)
+            withTimeout(5_000) { vm.state.first { it.mergedInto == target } }
+            assertEquals(target, vm.state.value.topicId)
+            withTimeout(5_000) { vm.state.first { it.detail?.topic?.id == target } }
+            fixture.service.updateContent(target, IdeaTopicContent(title = "继续更新目标"))
+            withTimeout(5_000) { vm.state.first { it.detail?.topic?.content?.title == "继续更新目标" } }
+            assertEquals(from, vm.state.value.requestedTopicId)
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun anAlreadyOpenDetailObservesRequestsStartedElsewhere() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        val gate = CompletableDeferred<Unit>()
+        try {
+            val topicId = fixture.captureTopic("活跃请求")
+            val vm = IdeaTopicDetailViewModel(topicId, fixture.service, fixture.workflow).also(fixture::track)
+            withTimeout(5_000) { vm.state.first { it.detail != null } }
+            fixture.port.proposeGate = gate
+            val job = launch { fixture.workflow.propose(topicId) }
+            withTimeout(5_000) { while (!fixture.workflow.isBusy(topicId)) delay(10) }
+            delay(30)
+            val observedBusy = vm.state.value.busy
+            fixture.workflow.cancel(topicId)
+            gate.complete(Unit)
+            job.join()
+            assertTrue(observedBusy, "busy state must update without reopening the detail")
+            withTimeout(5_000) { vm.state.first { !it.busy } }
+        } finally { gate.complete(Unit); fixture.close() }
+    }
+
+    @Test
+    fun theFirstConversationExposesSummaryActionBeforeAnySummaryExists() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val topic = fixture.captureTopic("首次总结")
+            val session = fixture.service.createSession(topic, "沟通")
+            val vm = IdeaTopicSessionViewModel(session, fixture.service, fixture.workflow).also(fixture::track)
+            assertFalse(vm.state.value.canSummarize)
+            vm.send("先讨论问题")
+            withTimeout(5_000) { vm.state.first { it.messages.size == 2 && !it.busy } }
+            assertEquals("", vm.state.value.summary)
+            assertTrue(vm.state.value.canSummarize)
+            vm.summarize()
+            withTimeout(5_000) { vm.state.first { it.summary.isNotBlank() } }
+        } finally { fixture.close() }
+    }
+
+    @Test
     fun listSortsFiltersAndSearchesMainTopicsOnly() = runBlocking {
         val fixture = ViewModelFixture()
         try {
-            val vm = IdeaTopicListViewModel(fixture.service)
+            val vm = IdeaTopicListViewModel(fixture.service).also(fixture::track)
             withTimeout(5_000) { vm.state.first { !it.isLoading } }
             assertEquals(emptyList(), vm.state.value.topics)
 
@@ -84,7 +160,7 @@ class IdeaTopicViewModelTest {
         val fixture = ViewModelFixture()
         try {
             fixture.driver.execute(null, "DROP TABLE idea_topic", 0)
-            val vm = IdeaTopicListViewModel(fixture.service)
+            val vm = IdeaTopicListViewModel(fixture.service).also(fixture::track)
             withTimeout(5_000) { vm.state.first { it.error != null } }
             assertEquals(IdeaTopicError.StorageFailure, vm.state.value.error)
             assertFalse(vm.state.value.isLoading)
@@ -101,12 +177,12 @@ class IdeaTopicViewModelTest {
             val intoTopic = fixture.captureTopic("主主题")
             fixture.service.merge(fromTopic, intoTopic)
 
-            val mergedVm = IdeaTopicDetailViewModel(fromTopic, fixture.service, fixture.workflow)
+            val mergedVm = IdeaTopicDetailViewModel(fromTopic, fixture.service, fixture.workflow).also(fixture::track)
             withTimeout(5_000) { mergedVm.state.first { it.detail != null } }
             assertEquals(intoTopic, mergedVm.state.value.topicId)
             assertEquals(intoTopic, mergedVm.state.value.mergedInto)
 
-            val deletedVm = IdeaTopicDetailViewModel(fromTopic, fixture.service, fixture.workflow)
+            val deletedVm = IdeaTopicDetailViewModel(fromTopic, fixture.service, fixture.workflow).also(fixture::track)
             fixture.service.delete(intoTopic)
             withTimeout(5_000) { deletedVm.state.first { it.deleted } }
             assertEquals(IdeaTopicError.NotFound, deletedVm.state.value.error)
@@ -127,7 +203,7 @@ class IdeaTopicViewModelTest {
             val job = launch { fixture.workflow.propose(topicId) }
             withTimeout(5_000) { while (!fixture.workflow.isBusy(topicId)) delay(10) }
 
-            val vm = IdeaTopicDetailViewModel(topicId, fixture.service, fixture.workflow)
+            val vm = IdeaTopicDetailViewModel(topicId, fixture.service, fixture.workflow).also(fixture::track)
             withTimeout(5_000) { vm.state.first { it.detail != null } }
             assertTrue(vm.state.value.busy)
             assertFalse(vm.state.value.canMergeOrDelete)
@@ -148,7 +224,7 @@ class IdeaTopicViewModelTest {
         val fixture = ViewModelFixture()
         try {
             val topicId = fixture.captureTopic("草稿主题", description = "原始描述")
-            val vm = IdeaTopicDetailViewModel(topicId, fixture.service, fixture.workflow)
+            val vm = IdeaTopicDetailViewModel(topicId, fixture.service, fixture.workflow).also(fixture::track)
             withTimeout(5_000) { vm.state.first { it.detail != null } }
 
             fixture.port.proposeResult = IdeaDraftContent(
@@ -182,7 +258,7 @@ class IdeaTopicViewModelTest {
         try {
             val mainTopic = fixture.captureTopic("主主题")
             val targetTopic = fixture.captureTopic("候选合并目标")
-            val vm = IdeaTopicDetailViewModel(mainTopic, fixture.service, fixture.workflow)
+            val vm = IdeaTopicDetailViewModel(mainTopic, fixture.service, fixture.workflow).also(fixture::track)
             withTimeout(5_000) { vm.state.first { it.detail != null && it.mergeCandidates.isNotEmpty() } }
 
             assertEquals(listOf(targetTopic), vm.state.value.mergeCandidates.map { it.id })
@@ -217,7 +293,7 @@ class IdeaTopicViewModelTest {
                 )
             }
 
-            val vm = IdeaTopicSessionViewModel(sessionId, fixture.service, fixture.workflow)
+            val vm = IdeaTopicSessionViewModel(sessionId, fixture.service, fixture.workflow).also(fixture::track)
             withTimeout(5_000) { vm.state.first { it.messages.size == 30 } }
             assertEquals(0, fixture.port.replyCalls, "opening a session must not call the AI")
             assertEquals(30, vm.state.value.messages.map { it.id }.toSet().size)
@@ -244,7 +320,7 @@ class IdeaTopicViewModelTest {
                 originalContent = "来源内容",
                 originalRecordId = diaryId.toString(),
             )
-            val vm = IdeaTopicCaptureViewModel(fixture.service)
+            val vm = IdeaTopicCaptureViewModel(fixture.service).also(fixture::track)
             vm.lookupExisting(snapshot.key)
             assertNull(vm.state.value.existingTopicId)
 
@@ -252,7 +328,7 @@ class IdeaTopicViewModelTest {
             withTimeout(5_000) { vm.state.first { it.capturedTopicId != null } }
             val captured = assertNotNull(vm.state.value.capturedTopicId)
 
-            val second = IdeaTopicCaptureViewModel(fixture.service)
+            val second = IdeaTopicCaptureViewModel(fixture.service).also(fixture::track)
             second.lookupExisting(snapshot.key)
             assertEquals(captured, second.state.value.existingTopicId)
 
@@ -273,6 +349,9 @@ private class ViewModelFixture {
     val repository: IdeaTopicRepository
     val service: IdeaTopicService
     val port = ViewModelAiPort()
+    private val models = mutableListOf<ViewModel>()
+
+    fun track(model: ViewModel) { models += model }
     val workflow: IdeaTopicAiWorkflow
     private var clockMs = 1_000L
     private var idSeq = 0
@@ -319,6 +398,12 @@ private class ViewModelFixture {
     ).value
 
     fun close() {
+        val jobs = models.mapNotNull { it.viewModelScope.coroutineContext[Job] }
+        ViewModelStore().run {
+            models.forEachIndexed { index, model -> put(index.toString(), model) }
+            clear()
+        }
+        runBlocking { withTimeout(5_000) { jobs.forEach { it.join() } } }
         driver.close()
     }
 }

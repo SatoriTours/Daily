@@ -116,6 +116,30 @@ class IdeaTopicAiContextTest {
         assertFalse(context.userPrompt.contains("别的主题的来源"))
     }
 
+    @Test
+    fun oversizedOfficialContentIsClippedWithoutDroppingTheQuestion() {
+        val detail = sampleDetail().let { it.copy(topic = it.topic.copy(content = it.topic.content.copy(description = "正文".repeat(20_000)))) }
+        val context = buildIdeaAiContext(detail, null, emptyList(), "继续分析风险")
+        assertTrue(ideaAiContextCharacterCount(context) <= IdeaAiMaxContextCharacters)
+        assertTrue(context.userPrompt.contains("继续分析风险"))
+        assertTrue(context.userPrompt.contains(IdeaAiTruncationMarker))
+    }
+
+    @Test
+    fun currentSessionSummaryAndEventIdsRemainAvailableToLongConversations() {
+        val context = buildIdeaAiContext(sampleDetail(), "session-0", completeMessages(40, 800), "继续", 5_000)
+        assertTrue(context.userPrompt.contains("以前沟通的摘要"))
+        assertTrue(context.userPrompt.contains("event-1"))
+        assertTrue(ideaAiContextCharacterCount(context) <= 5_000)
+    }
+
+    @Test
+    fun omittedMaterialsCannotBeCitedByAnUpdateDraft() {
+        val context = buildIdeaAiContext(sampleDetail(sourceContent = "原文".repeat(4_000)), null, emptyList(), "继续", 1_200)
+        if (!context.userPrompt.contains("source-1")) assertFalse("source-1" in context.allowedReferenceIds)
+        assertEquals(context.messages.map { it.id }.toSet(), context.allowedReferenceIds.filter { it.startsWith("msg-") }.toSet())
+    }
+
     private fun message(
         id: String,
         role: String,

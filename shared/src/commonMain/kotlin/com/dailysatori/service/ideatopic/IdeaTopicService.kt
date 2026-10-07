@@ -2,7 +2,17 @@ package com.dailysatori.service.ideatopic
 
 import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.service.diagnostics.DiagnosticLog
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
@@ -17,15 +27,26 @@ class IdeaTopicService(
     private val now: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val newId: () -> String = { DiagnosticLog.newId() },
 ) {
+    private data class ActiveRequest(val token: String, val job: Job?, val cancelling: Boolean = false)
+
     private val writeLock = Mutex()
-    private val activeRequests = mutableMapOf<String, String>()
+    private val activeRequests = mutableMapOf<String, ActiveRequest>()
+    private val requestTopics = MutableStateFlow<Set<String>>(emptySet())
+
+    init { recoverPendingWork() }
 
     // ---------- Reads ----------
 
     fun observeSummaries(): Flow<List<IdeaTopicSummary>> = repository.observeSummaries()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeDetail(topicId: String): Flow<IdeaTopicDetail?> =
-        repository.observeDetail(resolveTopicId(topicId) ?: topicId)
+        observeMainTopicId(topicId).flatMapLatest { main ->
+            if (main == null) flowOf(null) else repository.observeDetail(main)
+        }
+
+    private fun observeMainTopicId(topicId: String): Flow<String?> =
+        repository.observeSummaries().map { resolveTopicId(topicId) }.distinctUntilChanged()
 
     fun getDetailSync(topicId: String): IdeaTopicDetail? {
         val main = resolveTopicId(topicId) ?: return null
@@ -61,14 +82,19 @@ class IdeaTopicService(
         return repository.draftsByTopicSync(main)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeDrafts(topicId: String): Flow<List<IdeaTopicDraft>> =
-        repository.observeDrafts(resolveTopicId(topicId) ?: topicId)
+        observeMainTopicId(topicId).flatMapLatest { main ->
+            if (main == null) flowOf(emptyList()) else repository.observeDrafts(main)
+        }
 
-    /** True while this topic owns an in-flight AI request (chat, summary or draft). */
-    fun isRequestActive(topicId: String): Boolean {
-        val main = resolveTopicId(topicId) ?: topicId
-        return main in activeRequests
-    }
+    fun observeBusy(topicId: String): Flow<Boolean> =
+        combine(requestTopics, observeMainTopicId(topicId)) { active, main -> main in active }
+            .distinctUntilChanged()
+
+    /** True until this topic's network job and cancellation cleanup have finished. */
+    fun isRequestActive(topicId: String): Boolean =
+        (resolveTopicId(topicId) ?: topicId) in requestTopics.value
 
     fun sessionOrThrow(sessionId: String): IdeaTopicSession =
         repository.getSessionSync(sessionId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
@@ -168,12 +194,17 @@ class IdeaTopicService(
     }
 
     /** Marks leftover in-flight replies from a previous process as interrupted without retrying them. */
-    suspend fun recoverInterruptedRequests() = writeLock.withLock {
+    suspend fun recoverInterruptedRequests() = writeLock.withLock { recoverPendingWork() }
+
+    private fun recoverPendingWork() {
         repository.pendingMessagesSync().forEach { message ->
             val session = repository.getSessionRowSync(message.session_id) ?: return@forEach
             val main = repository.resolveMainTopicIdSync(session.topic_id) ?: return@forEach
-            if (main in activeRequests) return@forEach
-            repository.updateMessageStatus(message.id, IdeaMessageStatus.Interrupted, null)
+            if (main !in activeRequests) repository.updateMessageStatus(message.id, IdeaMessageStatus.Interrupted, null)
+        }
+        repository.pendingSessionsSync().forEach { session ->
+            val main = resolveTopicId(session.topicId) ?: return@forEach
+            if (main !in activeRequests) repository.updateSessionSummaryStatus(session.id, IdeaSessionSummaryStatus.Failed, now())
         }
     }
 
@@ -190,7 +221,7 @@ class IdeaTopicService(
         repository.markSummaryNeedsUpdateIfReady(sessionId, now())
     }
 
-    internal suspend fun savePendingReply(sessionId: String, messageId: String) {
+    internal suspend fun savePendingReply(sessionId: String, messageId: String) = writeLock.withLock {
         repository.insertMessage(
             messageId = messageId,
             sessionId = sessionId,
@@ -202,9 +233,10 @@ class IdeaTopicService(
         )
     }
 
-    internal fun updateReplyContent(messageId: String, content: String) {
-        repository.updateMessage(messageId, content, IdeaMessageStatus.Pending, null)
-    }
+    internal suspend fun updateReplyContent(mainTopicId: String, token: String, messageId: String, content: String) =
+        writeLock.withLock {
+            if (ownsRequest(mainTopicId, token)) repository.updateMessage(messageId, content, IdeaMessageStatus.Pending, null)
+        }
 
     /** Writes the final reply only while this request still owns the topic and the topic still exists. */
     internal suspend fun completeReply(mainTopicId: String, token: String, messageId: String, content: String) =
@@ -212,7 +244,6 @@ class IdeaTopicService(
             if (!ownsRequest(mainTopicId, token)) return@withLock
             if (repository.resolveMainTopicIdSync(mainTopicId) != mainTopicId) return@withLock
             repository.updateMessage(messageId, content, IdeaMessageStatus.Complete, null)
-            activeRequests.remove(mainTopicId)
         }
 
     internal suspend fun failReply(
@@ -230,25 +261,28 @@ class IdeaTopicService(
             payloadJson = "{\"reason\":\"$errorCode\"}",
             now = now(),
         )
-        activeRequests.remove(mainTopicId)
     }
 
     internal suspend fun interruptReply(mainTopicId: String, token: String, messageId: String) = writeLock.withLock {
-        if (!ownsRequest(mainTopicId, token)) return@withLock
-        repository.updateMessageStatus(messageId, IdeaMessageStatus.Interrupted, null)
-        activeRequests.remove(mainTopicId)
+        if (activeRequests[mainTopicId]?.token == token) {
+            repository.updateMessageStatus(messageId, IdeaMessageStatus.Interrupted, null)
+        }
     }
 
     internal suspend fun beginRequest(mainTopicId: String, token: String): Long = writeLock.withLock {
         if (activeRequests.containsKey(mainTopicId)) throw IdeaTopicException(IdeaTopicError.Busy)
         val revision = repository.getTopicRowSync(mainTopicId)?.context_revision
             ?: throw IdeaTopicException(IdeaTopicError.NotFound)
-        activeRequests[mainTopicId] = token
+        activeRequests[mainTopicId] = ActiveRequest(token, currentCoroutineContext()[Job])
+        requestTopics.value = activeRequests.keys.toSet()
         revision
     }
 
     internal suspend fun releaseRequest(mainTopicId: String, token: String) = writeLock.withLock {
-        if (ownsRequest(mainTopicId, token)) activeRequests.remove(mainTopicId)
+        if (activeRequests[mainTopicId]?.token == token) {
+            activeRequests.remove(mainTopicId)
+            requestTopics.value = activeRequests.keys.toSet()
+        }
     }
 
     internal suspend fun saveSessionSummary(
@@ -270,28 +304,25 @@ class IdeaTopicService(
             now = now(),
         )
         repository.bumpRevision(mainTopicId, now())
-        activeRequests.remove(mainTopicId)
     }
 
     internal suspend fun failSessionSummary(mainTopicId: String, token: String, sessionId: String) =
         writeLock.withLock {
-            if (!ownsRequest(mainTopicId, token)) return@withLock
+            if (activeRequests[mainTopicId]?.token != token) return@withLock
             repository.updateSessionSummaryStatus(sessionId, IdeaSessionSummaryStatus.Failed, now())
-            activeRequests.remove(mainTopicId)
         }
 
     internal suspend fun markSessionSummaryPending(sessionId: String) = writeLock.withLock {
         repository.updateSessionSummaryStatus(sessionId, IdeaSessionSummaryStatus.Pending, now())
     }
 
-    /** Releases a request without a token (explicit user cancel) and marks partial output interrupted. */
-    internal suspend fun forceCancelRequest(mainTopicId: String) = writeLock.withLock {
-        if (activeRequests.remove(mainTopicId) == null) return@withLock
-        repository.sessionsByTopicSync(mainTopicId).forEach { session ->
-            repository.getMessagesSync(session.id)
-                .filter { it.status == IdeaMessageStatus.Pending }
-                .forEach { repository.updateMessageStatus(it.id, IdeaMessageStatus.Interrupted, null) }
-        }
+    /** Request ownership remains busy while cancellation waits for its network job to finish. */
+    internal suspend fun forceCancelRequest(mainTopicId: String) {
+        val request = writeLock.withLock {
+            activeRequests[mainTopicId]?.also { activeRequests[mainTopicId] = it.copy(cancelling = true) }
+        } ?: return
+        request.job?.cancelAndJoin()
+        releaseRequest(mainTopicId, request.token)
     }
 
     internal suspend fun saveDraft(
@@ -315,7 +346,6 @@ class IdeaTopicService(
             originSessionId = null,
             now = now(),
         )
-        activeRequests.remove(mainTopicId)
         repository.findDraftSync(draftId) ?: throw IdeaTopicException(IdeaTopicError.StorageFailure)
     }
 
@@ -335,5 +365,5 @@ class IdeaTopicService(
     }
 
     private fun ownsRequest(mainTopicId: String, token: String): Boolean =
-        activeRequests[mainTopicId] == token
+        activeRequests[mainTopicId]?.let { it.token == token && !it.cancelling } == true
 }

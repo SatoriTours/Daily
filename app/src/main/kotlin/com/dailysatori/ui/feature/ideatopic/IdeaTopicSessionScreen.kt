@@ -70,7 +70,7 @@ fun IdeaTopicSessionScreen(
                     shape = RoundedCornerShape(Radius.m),
                 ) {
                     Text(
-                        text = i18n.t("idea_topic.error.${state.error!!.name.lowercase()}"),
+                        text = i18n.t(ideaTopicErrorLabelKey(state.error!!)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.padding(Spacing.s),
@@ -82,7 +82,8 @@ fun IdeaTopicSessionScreen(
             SessionSummaryCard(
                 summary = state.summary,
                 summaryStatus = state.summaryStatus,
-                busy = state.busy,
+                canSummarize = state.canSummarize,
+                partial = state.summaryPartial,
                 onSummarize = viewModel::summarize,
             )
 
@@ -188,14 +189,11 @@ fun IdeaTopicSessionScreen(
 private fun SessionSummaryCard(
     summary: String,
     summaryStatus: String,
-    busy: Boolean,
+    canSummarize: Boolean,
+    partial: Boolean,
     onSummarize: () -> Unit,
 ) {
     val i18n: I18nService = koinInject()
-
-    if (summary.isBlank() && summaryStatus == IdeaSessionSummaryStatus.None) {
-        return
-    }
 
     Surface(
         modifier = Modifier
@@ -234,6 +232,7 @@ private fun SessionSummaryCard(
                 }
             }
 
+            if (partial) Text(i18n.t("idea_topic.session_summary_partial"), style = MaterialTheme.typography.labelSmall)
             if (summary.isNotBlank()) {
                 Text(
                     text = summary,
@@ -253,7 +252,7 @@ private fun SessionSummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    TextButton(onClick = onSummarize, enabled = !busy) {
+                    TextButton(onClick = onSummarize, enabled = canSummarize) {
                         Text(i18n.t("idea_topic.session_summarize"), style = MaterialTheme.typography.labelMedium)
                     }
                 }

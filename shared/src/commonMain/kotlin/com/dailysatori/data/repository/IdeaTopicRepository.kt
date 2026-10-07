@@ -150,6 +150,9 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.sortedWith(messageOrder).map(::toMessage) }
 
+    fun pendingSessionsSync(): List<IdeaTopicSession> =
+        q.selectPendingIdeaTopicSessions().executeAsList().map(::toSession)
+
     fun pendingMessagesSync(): List<Idea_topic_message> =
         q.selectIdeaTopicMessagesByStatus(com.dailysatori.service.ideatopic.IdeaMessageStatus.Pending).executeAsList()
 

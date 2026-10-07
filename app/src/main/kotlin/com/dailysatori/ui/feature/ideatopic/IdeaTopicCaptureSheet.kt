@@ -43,10 +43,8 @@ fun IdeaTopicCaptureSheet(
         viewModel.lookupExisting(source.key)
     }
 
-    LaunchedEffect(state.capturedTopicId) {
-        state.capturedTopicId?.let { id ->
-            onCaptured(id)
-        }
+    LaunchedEffect(source.key, state.capturedTopicId) {
+        if (state.sourceKey == source.key) viewModel.consumeCapturedTopicId()?.let(onCaptured)
     }
 
     ModalBottomSheet(
@@ -94,7 +92,7 @@ fun IdeaTopicCaptureSheet(
                             )
                         }
                         Text(
-                            text = "该来源已收录为主点子主题，可直接前往查看或推进。",
+                            text = i18n.t("idea_topic.capture_existing_hint"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -119,7 +117,7 @@ fun IdeaTopicCaptureSheet(
             // Error display
             if (state.error != null) {
                 Text(
-                    text = i18n.t("idea_topic.error.${state.error!!.name.lowercase()}"),
+                    text = i18n.t(ideaTopicErrorLabelKey(state.error!!)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )

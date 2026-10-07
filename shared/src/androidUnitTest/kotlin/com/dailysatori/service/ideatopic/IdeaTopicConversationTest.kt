@@ -15,6 +15,47 @@ import kotlin.test.assertTrue
 class IdeaTopicConversationTest {
 
     @Test
+    fun cancellingSummaryStopsItsJobAndClearsPendingStatus() = runBlocking {
+        val fixture = IdeaTopicTestFixture()
+        val gate = CompletableDeferred<Unit>()
+        try {
+            val topicId = fixture.captureTopic("摘要取消主题")
+            val sessionId = fixture.service.createSession(topicId, "沟通")
+            fixture.workflow.send(sessionId, "讨论")
+            fixture.aiPort.summarizeGate = gate
+            val job = launch { fixture.workflow.summarize(sessionId) }
+            withTimeout(5_000) { while (fixture.aiPort.lastSummaryContext == null) yield() }
+            fixture.workflow.cancel(topicId)
+            val stoppedBeforeReturn = job.isCompleted
+            gate.complete(Unit)
+            job.join()
+            assertTrue(stoppedBeforeReturn, "stop must wait for the summary request to finish")
+            assertTrue(fixture.service.sessionOrThrow(sessionId).summaryStatus != IdeaSessionSummaryStatus.Pending)
+            assertTrue(!fixture.service.isRequestActive(topicId))
+        } finally {
+            gate.complete(Unit)
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun constructingTheWriteOwnerRecoversPersistedPendingWork() = runBlocking {
+        val fixture = IdeaTopicTestFixture()
+        try {
+            val topicId = fixture.captureTopic("恢复主题")
+            val sessionId = fixture.service.createSession(topicId, "沟通")
+            fixture.repository.insertMessage("unfinished", sessionId, IdeaMessageRoles.Assistant, "保留半截回复", IdeaMessageStatus.Pending, null, 1_000L)
+            fixture.repository.updateSessionSummaryStatus(sessionId, IdeaSessionSummaryStatus.Pending, 1_000L)
+            val restarted = IdeaTopicService(fixture.repository)
+            assertEquals(IdeaMessageStatus.Interrupted, restarted.messagesSync(sessionId).single().status)
+            assertEquals("保留半截回复", restarted.messagesSync(sessionId).single().content)
+            assertTrue(restarted.sessionOrThrow(sessionId).summaryStatus != IdeaSessionSummaryStatus.Pending)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun sessionsAndMessagesStayIsolatedAndComplete() = runBlocking {
         val fixture = IdeaTopicTestFixture()
         try {

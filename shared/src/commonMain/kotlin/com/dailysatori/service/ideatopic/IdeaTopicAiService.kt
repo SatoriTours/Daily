@@ -29,8 +29,10 @@ fun ideaSummaryInstruction(): String =
 
 fun ideaDraftInstruction(): String = """
 请基于上面的主题正式内容、来源与事件，生成一份主题更新稿。
-只输出一个 JSON 对象，且只包含这些字段：title、description、provenanceSummary、conclusions、nextAction、referenceIds。
-referenceIds 只能使用上文中实际出现的来源、事件、会话或消息 ID。
+只输出一个 JSON 对象，结构如下：
+{"title":"标题","description":"描述","provenanceSummary":"来龙去脉","conclusions":"研究结论","nextAction":"下一步","referenceIds":[]}
+前六个字段必须全部是字符串；多条结论使用字符串内的换行，不得返回数组或对象。referenceIds 必须是字符串数组。
+referenceIds 只能从上下文明确列出的「允许引用的ID白名单」选择；正文中的原始记录ID、摘要转述的消息ID不自动具有引用资格，不确定时用空数组。
 不要输出 status、merge、delete 或其他可执行字段，也不要输出 JSON 之外的任何文字。
 """.trimIndent()
 
@@ -54,7 +56,7 @@ class IdeaTopicAiService(
             val config = requireConfig()
             val messages = buildList {
                 add(message("system", context.systemPrompt))
-                context.messages.forEach { add(message(it.role, it.content)) }
+                context.messages.forEach { add(message(it.role, "【消息 ${it.id}】\n${it.content}")) }
                 add(message("user", context.userPrompt))
             }
             val response = aiService.chatCompletionStreaming(
@@ -81,7 +83,7 @@ class IdeaTopicAiService(
                 if (context.messages.isNotEmpty()) {
                     appendLine()
                     appendLine("【需要总结的消息】")
-                    context.messages.forEach { appendLine("${it.role}: ${it.content}") }
+                    context.messages.forEach { appendLine("[${it.id}] ${it.role}: ${it.content}") }
                 }
             }
             val summary = aiService.complete(
@@ -101,7 +103,7 @@ class IdeaTopicAiService(
         withAiRequestSession(context.sessionId?.let { sessionStore.getOrCreate("idea-topic:$it") }) {
             val config = requireConfig()
             val raw = aiService.complete(
-                prompt = context.userPrompt + "\n\n" + ideaDraftInstruction(),
+                prompt = context.userPrompt,
                 apiAddress = config.api_address,
                 apiToken = config.api_token,
                 modelName = config.model_name,

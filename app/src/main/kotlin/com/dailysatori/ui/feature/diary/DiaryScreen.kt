@@ -47,7 +47,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +57,6 @@ import com.dailysatori.R
 import com.dailysatori.ui.feature.profile.localDayTicker
 import kotlinx.datetime.Clock
 import kotlinx.datetime.todayIn
-import kotlinx.coroutines.launch
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.component.card.DiaryCard
 import com.dailysatori.service.ideatopic.diaryIdeaCaptureInput
@@ -78,7 +76,7 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun DiaryScreen(onMyClick: () -> Unit = {}) {
+fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
     val tagViewModel: DiaryTagViewModel = koinViewModel()
     val tagState by tagViewModel.state.collectAsState()
     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
@@ -98,7 +96,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val recordingController = remember(context) { DiaryRecordingController(context) }
     var showNotificationSettingsAction by remember { mutableStateOf(false) }
     val startVoiceDiary: () -> Unit = {
@@ -386,27 +383,21 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 editingTag = null
             },
             onCaptureIdea = { content, tags, mood, images, tagDraft, polishedTranscripts ->
-                scope.launch {
-                    val existingId = editingDiary?.id
-                    val persistedId = viewModel.saveDiaryAndGetId(
-                        content = content,
-                        tags = tags,
-                        mood = mood,
-                        images = images,
-                        existingId = existingId,
-                        tagDraft = tagDraft,
-                        polishedTranscripts = polishedTranscripts,
-                    )
-                    showEditor = false
-                    editingDiary = null
-                    editingTag = null
-                    if (persistedId != null && persistedId > 0) {
-                        val savedDiary = viewModel.getDiaryById(persistedId)
-                        if (savedDiary != null) {
-                            capturingDiary = savedDiary
-                        }
-                    }
-                }
+                viewModel.saveDiary(
+                    content = content,
+                    tags = tags,
+                    mood = mood,
+                    images = images,
+                    existingId = editingDiary?.id,
+                    tagDraft = tagDraft,
+                    polishedTranscripts = polishedTranscripts,
+                    onSaved = { savedDiary ->
+                        showEditor = false
+                        editingDiary = null
+                        editingTag = null
+                        capturingDiary = savedDiary
+                    },
+                )
             },
         )
     }
@@ -416,7 +407,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
         IdeaTopicCaptureSheet(
             source = input.source,
             initialContent = input.content,
-            onCaptured = { capturingDiary = null },
+            onCaptured = { topicId -> capturingDiary = null; onTopic(topicId) },
             onDismiss = { capturingDiary = null },
         )
     }

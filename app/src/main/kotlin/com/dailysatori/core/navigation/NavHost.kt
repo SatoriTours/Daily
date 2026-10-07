@@ -96,6 +96,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
                 onChat = { navController.navigate(PersonalChatRoute()) },
                 onIdeaTopics = { navController.navigate(IdeaTopicListRoute) },
+                onIdeaTopic = { navController.navigate(IdeaTopicDetailRoute(it)) },
                 settingsViewModel = settingsViewModel,
             )
         }
@@ -383,6 +384,14 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onBack = { navController.popBackStack() },
                 onSession = { topicId, sessionId ->
                     navController.navigate(IdeaTopicSessionRoute(topicId, sessionId))
+                },
+                onSource = { snapshot ->
+                    snapshot.originalRecordId?.toLongOrNull()?.let { recordId ->
+                        if (snapshot.key.type == com.dailysatori.service.ideatopic.IdeaSourceTypes.Diary) {
+                            com.dailysatori.core.recording.DiaryRecordingOpenRequest.open(recordId)
+                            navController.popBackStack(HomeRoute, inclusive = false)
+                        } else navController.navigate(ArticleDetailRoute(recordId))
+                    }
                 },
             )
         }

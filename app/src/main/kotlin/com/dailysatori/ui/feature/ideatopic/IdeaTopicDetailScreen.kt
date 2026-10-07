@@ -109,7 +109,7 @@ fun IdeaTopicDetailScreen(
                     ) {
                         Icon(Icons.Default.Merge, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(IconSize.m))
                         Text(
-                            text = i18n.t("idea_topic.merged_redirect_notice", detail.topic.content.title),
+                            text = i18n.t("idea_topic.merged_redirect_notice", *arrayOf(detail.topic.content.title)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.weight(1f),
@@ -131,7 +131,7 @@ fun IdeaTopicDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
                     ) {
                         Text(
-                            text = i18n.t("idea_topic.error.${state.error!!.name.lowercase()}"),
+                            text = i18n.t(ideaTopicErrorLabelKey(state.error!!)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f),
@@ -182,7 +182,6 @@ fun IdeaTopicDetailScreen(
                     state = state,
                     onSourceClick = { snapshot ->
                         viewingSnapshot = snapshot
-                        onSource(snapshot)
                     },
                 )
                 2 -> ConversationsTabContent(
@@ -258,6 +257,7 @@ fun IdeaTopicDetailScreen(
         IdeaSourceDetailDialog(
             snapshot = snapshot,
             onDismiss = { viewingSnapshot = null },
+            onOpenOriginal = onSource,
         )
     }
 
@@ -619,7 +619,7 @@ private fun ProvenanceTabContent(
 
         // Event timeline items
         items(detail.events, key = { it.id }) { event ->
-            val presentation = formatIdeaTopicEvent(event, state.topicId)
+            val presentation = formatIdeaTopicEvent(event, state.topicId, translate = { i18n.t(it) })
             EventTimelineItem(presentation = presentation)
         }
     }
@@ -669,7 +669,7 @@ private fun SourceCard(
             }
 
             Text(
-                text = source.snapshot.originalTitle.ifBlank { "未命名来源" },
+                text = source.snapshot.originalTitle.ifBlank { i18n.t("idea_topic.source_untitled") },
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
@@ -1098,24 +1098,28 @@ private fun NewSessionDialog(
 internal fun IdeaSourceDetailDialog(
     snapshot: IdeaSourceSnapshot,
     onDismiss: () -> Unit,
+    onOpenOriginal: (IdeaSourceSnapshot) -> Unit,
 ) {
     val context = LocalContext.current
     val i18n: I18nService = koinInject()
     val isDiary = snapshot.key.type == IdeaSourceTypes.Diary
     val hasUrl = snapshot.originalUrl?.startsWith("http://") == true || snapshot.originalUrl?.startsWith("https://") == true
+    val hasLocalId = (snapshot.originalRecordId?.toLongOrNull() ?: 0) > 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(snapshot.originalTitle.ifBlank { if (isDiary) "日记来源" else "新闻来源" }) },
+        title = { Text(snapshot.originalTitle.ifBlank { i18n.t(if (isDiary) "idea_topic.source_type_diary" else "idea_topic.source_type_opportunity") }) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 // Link availability or snapshot notice
-                if (hasUrl) {
-                    TextButton(onClick = { openArticleUrl(context, snapshot.originalUrl) }) {
-                        Text("打开原始链接")
+                if (hasUrl || hasLocalId) {
+                    TextButton(onClick = {
+                        if (hasUrl) openArticleUrl(context, snapshot.originalUrl) else onOpenOriginal(snapshot)
+                    }) {
+                        Text(i18n.t("idea_topic.open_original"))
                     }
                 } else {
                     Surface(

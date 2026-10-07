@@ -18,6 +18,7 @@ import com.dailysatori.service.ideatopic.IdeaTopicMessage
 import com.dailysatori.service.ideatopic.IdeaTopicService
 import com.dailysatori.service.ideatopic.IdeaTopicStatus
 import com.dailysatori.service.ideatopic.IdeaTopicSummary
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -147,6 +148,8 @@ class IdeaTopicDetailViewModel(
                         _state.update {
                             it.copy(
                                 detail = detail,
+                                topicId = detail?.topic?.id ?: it.topicId,
+                                mergedInto = detail?.topic?.id?.takeIf { target -> target != requestedTopicId },
                                 deleted = detail == null,
                                 error = if (detail == null) IdeaTopicError.NotFound else it.error,
                                 draftPreviews = draftPreviews(currentDrafts, detail?.topic?.content ?: IdeaTopicContent()),
@@ -169,10 +172,16 @@ class IdeaTopicDetailViewModel(
                     .catch { failure -> _state.update { it.copy(error = failure.toIdeaTopicError()) } }
                     .collect { summaries ->
                         _state.update { state ->
-                            state.copy(mergeCandidates = summaries.filter { it.id != mainTopicId })
+                            state.copy(mergeCandidates = summaries.filter { it.id != state.topicId })
                         }
                     }
             }
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            service.observeBusy(requestedTopicId).collect { busy -> _state.update { it.copy(busy = busy) } }
         }
     }
 
@@ -189,7 +198,8 @@ class IdeaTopicDetailViewModel(
 
     fun merge(intoTopicId: String) = runAction {
         val finalTarget = service.merge(requireTopicId(), intoTopicId)
-        _state.update { it.copy(mergedInto = finalTarget) }
+        val detail = service.getDetailSync(finalTarget)
+        _state.update { it.copy(topicId = finalTarget, mergedInto = finalTarget, detail = detail, deleted = detail == null) }
     }
 
     fun delete() = runAction {
@@ -223,6 +233,8 @@ class IdeaTopicDetailViewModel(
             try {
                 block()
                 _state.update { it.copy(error = null) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 _state.update { it.copy(error = failure.toIdeaTopicError()) }
             } finally {
@@ -261,10 +273,13 @@ data class IdeaTopicSessionState(
     val messages: List<IdeaTopicMessage> = emptyList(),
     val summary: String = "",
     val summaryStatus: String = IdeaSessionSummaryStatus.None,
+    val summaryPartial: Boolean = false,
     val busy: Boolean = false,
     val isLoadingOlder: Boolean = false,
     val error: IdeaTopicError? = null,
-)
+) {
+    val canSummarize: Boolean get() = !busy && messages.any { it.status == com.dailysatori.service.ideatopic.IdeaMessageStatus.Complete }
+}
 
 class IdeaTopicSessionViewModel(
     private val sessionId: String,
@@ -299,6 +314,16 @@ class IdeaTopicSessionViewModel(
                     .catch { failure -> _state.update { it.copy(error = failure.toIdeaTopicError()) } }
                     .collect { messages -> _state.update { it.copy(messages = messages) } }
             }
+            viewModelScope.launch {
+                service.observeBusy(mainTopicId).collect { busy -> _state.update { it.copy(busy = busy) } }
+            }
+            viewModelScope.launch {
+                service.observeDetail(mainTopicId).collect { detail ->
+                    val session = detail?.sessions?.firstOrNull { it.id == sessionId }
+                    if (session == null) _state.update { it.copy(error = IdeaTopicError.NotFound) }
+                    else refreshSession(detail.topic.id)
+                }
+            }
         }
     }
 
@@ -313,6 +338,8 @@ class IdeaTopicSessionViewModel(
             try {
                 workflow.send(sessionId, text)
                 _state.update { it.copy(error = null) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 _state.update { it.copy(error = failure.toIdeaTopicError()) }
             } finally {
@@ -328,6 +355,8 @@ class IdeaTopicSessionViewModel(
             try {
                 workflow.summarize(sessionId)
                 _state.update { it.copy(error = null) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 _state.update { it.copy(error = failure.toIdeaTopicError()) }
             } finally {
@@ -381,9 +410,11 @@ class IdeaTopicSessionViewModel(
         val session = runCatching { service.sessionOrThrow(sessionId) }.getOrNull()
         _state.update {
             it.copy(
+                topicId = service.resolveTopicId(topicId),
                 title = session?.title ?: it.title,
                 summary = session?.summary ?: it.summary,
                 summaryStatus = session?.summaryStatus ?: it.summaryStatus,
+                summaryPartial = session?.let { s -> s.summary.isNotBlank() && s.summaryCoveredMessageIds.size < service.messagesSync(sessionId).count { message -> message.status == com.dailysatori.service.ideatopic.IdeaMessageStatus.Complete } } ?: false,
                 busy = service.isRequestActive(topicId),
             )
         }
@@ -408,7 +439,7 @@ class IdeaTopicCaptureViewModel(private val service: IdeaTopicService) : ViewMod
     init {
         viewModelScope.launch {
             service.observeSummaries()
-                .catch { /* ignore */ }
+                .catch { _state.update { it.copy(error = IdeaTopicError.StorageFailure) } }
                 .collect { summaries ->
                     _state.update { it.copy(existingTopics = summaries) }
                 }
@@ -417,7 +448,13 @@ class IdeaTopicCaptureViewModel(private val service: IdeaTopicService) : ViewMod
 
     fun lookupExisting(key: IdeaSourceKey) {
         val existing = service.findBySourceSync(key)
-        _state.update { it.copy(sourceKey = key, existingTopicId = existing) }
+        _state.update { it.copy(sourceKey = key, existingTopicId = existing, capturedTopicId = null, busy = false, error = null) }
+    }
+
+    fun consumeCapturedTopicId(): String? {
+        val topicId = _state.value.capturedTopicId ?: return null
+        _state.update { it.copy(capturedTopicId = null) }
+        return topicId
     }
 
     fun submit(input: IdeaCaptureInput) {

@@ -1,5 +1,11 @@
 package com.dailysatori.ui.feature.ideatopic
 
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.i18n.I18nService
+import com.dailysatori.service.ideatopic.IdeaTopicError
+import com.dailysatori.shared.db.DailySatoriDatabase
+import java.io.File
 import com.dailysatori.service.ideatopic.IdeaCapturedEventPayload
 import com.dailysatori.service.ideatopic.IdeaContentUpdatedEventPayload
 import com.dailysatori.service.ideatopic.IdeaDraftEventPayload
@@ -26,6 +32,35 @@ class IdeaTopicPresentationTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
+    fun timelineAndErrorsUseTheSelectedLanguage() {
+        withTranslations("en") { i18n ->
+            val event = IdeaTopicEvent("event", "main", "old", IdeaEventKinds.Progress, "{\"text\":\"Research done\"}", 1)
+            val presentation = formatIdeaTopicEvent(event, "main", translate = { i18n.t(it) })
+            assertEquals("Progress update", presentation.title)
+            assertTrue(presentation.originalAttribution!!.contains("old"))
+            IdeaTopicError.entries.forEach { error ->
+                val key = ideaTopicErrorLabelKey(error)
+                assertTrue(i18n.t(key) != key, "an error must show a translated explanation: $error")
+            }
+        }
+    }
+
+    private fun <T> withTranslations(language: String, block: (I18nService) -> T): T {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val i18n = I18nService(SettingRepository(DailySatoriDatabase(driver)))
+            val path = listOf(File("../shared/src/commonMain/resources/i18n/$language.yaml"), File("shared/src/commonMain/resources/i18n/$language.yaml")).first { it.exists() }
+            i18n.loadTranslation(language, path.readText())
+            i18n.init(language)
+            return block(i18n)
+        } finally { driver.close() }
+    }
+
+    private fun localizedEvent(event: IdeaTopicEvent, currentTopicId: String): IdeaEventPresentation =
+        withTranslations("zh") { i18n -> formatIdeaTopicEvent(event, currentTopicId, translate = { i18n.t(it) }) }
+
+    @Test
     fun capturedEventFormatsReadableTitleAndPreservesOriginalAttribution() {
         val payload = IdeaCapturedEventPayload(
             snapshot = IdeaSourceSnapshot(
@@ -45,7 +80,7 @@ class IdeaTopicPresentationTest {
             createdAt = 1_000L,
         )
 
-        val presentation = formatIdeaTopicEvent(event, currentTopicId = "topic-main")
+        val presentation = localizedEvent(event, currentTopicId = "topic-main")
         assertTrue(presentation.title.contains("日记"))
         assertTrue(presentation.description.contains("日记原始想法"))
         assertNotNull(presentation.originalAttribution)
@@ -65,7 +100,7 @@ class IdeaTopicPresentationTest {
             createdAt = 2_000L,
         )
 
-        val presentation = formatIdeaTopicEvent(event, currentTopicId = "topic-main")
+        val presentation = localizedEvent(event, currentTopicId = "topic-main")
         assertTrue(presentation.title.contains("推进") || presentation.title.contains("进展"))
         assertEquals("完成了技术选型与原型验证", presentation.description)
     }
@@ -89,7 +124,7 @@ class IdeaTopicPresentationTest {
             createdAt = 3_000L,
         )
 
-        val presentation = formatIdeaTopicEvent(event, currentTopicId = "topic-b")
+        val presentation = localizedEvent(event, currentTopicId = "topic-b")
         assertTrue(presentation.title.contains("合并"))
         assertTrue(presentation.description.contains("待合并主题A"))
     }
@@ -109,7 +144,7 @@ class IdeaTopicPresentationTest {
             createdAt = 4_000L,
         )
 
-        val presentation = formatIdeaTopicEvent(event, currentTopicId = "topic-1")
+        val presentation = localizedEvent(event, currentTopicId = "topic-1")
         assertTrue(presentation.title.contains("更新") || presentation.title.contains("修订"))
         assertTrue(presentation.description.contains("标题") || presentation.description.contains("新标题"))
     }

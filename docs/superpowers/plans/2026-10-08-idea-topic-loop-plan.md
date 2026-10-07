@@ -43,8 +43,8 @@
 - 「Gemini」负责任务 5–6 的 Compose 页面、入口交互和文案；共享层 API 和 ViewModel 状态先定稿，不允许其修改数据库／共享服务。
 - 「方案设计，架构思考」负责最终验收；协调 Agent 若正在承担此角色直接验收，不重复创建同职责 Agent。
 - 常规问题集中修复一次；仅遇到不能解决的复杂问题才使用「高消耗工作」。不每个任务派新审查 Agent。
-- 编码需要隔离时仅创建一个 Paseo 功能 workspace，建议名称「【自动】点子主题闭环」，分支 `feat/idea-topic-loop`；创建前向原会话说明基线和执行去向，实际主分支从仓库确认。
-- 主工作区已有日记标题／转录改动，隔离 workspace 默认以已提交基线开始；若入口依赖这些改动，先协调，不复制或提交未授权成果。
+- 执行裁定：项目 AGENTS.md 禁止 worktree，故在当前 `/home/jimxl/projects/Daily` 串行执行，不新建分支／workspace。任何开发代理同时只能有一名写入者。
+- 已协调日记续写任务：对方确认不写主 checkout，仅在其独立执行目录开发；主目录当前无待保留未提交改动。日记分支暂用 schema 33，本任务仍从主目录实际版本递增；最终集成时双方重新协调迁移版本，不覆盖对方修改。
 - 本计划只是待评审文档，不代表已经创建 workspace、派发任务或执行测试；未经授权不合并／推送／归档。
 
 ## 共用类型与接口约定
@@ -215,4 +215,16 @@ assertEquals(IdeaTopicStatus.PendingResearch, service.getDetailSync(first.topicI
 - 类型与接口使用本计划共用约定；不以全局聊天作为主题对话归属，不双写 saved 代表选入。
 - 五项 Review Focus 已各自加入拥有该行为的任务测试；预算数值为本计划的实现约定，用户评审可调整。
 - 本计划写成后仅做文档检查，不运行开发测试；以上复选项尚未执行。
-- 待用户评审本计划。执行方式采用上文的既定 Paseo 分工；计划确认前不开始业务编码／派发实现任务。
+- 用户已确认实施计划；2026-10-08 开始执行。主目录基线为 80bf1520，schema=32；规格、计划与独立日记任务的文档提交均保留。执行方式采用上文的既定 Paseo 分工。
+- 原协调 Agent：3929957d-e6ec-4737-8370-68bd70fd6716；原 local workspace：wks_0fb0b3aaf0585dc4，不归档。
+- 共享层开发 Agent：aa518599-3828-43ba-82e6-fc834041bd2f，使用「日常工作」实际配置 pi / opencode-go/deepseek-v4.1-flash / high，未指定 profile 中不存在的 mode。已提交 a09e65b5、9689ccd2、a5bf3b76、ac0bc58a、fdefaa22、05533b3a、b30ceb4c；当前 idle，停止写入。schema=33；已实现任务 1–4、来源适配和 ViewModel，尚待集中复核，不能等同完整功能验收。
+- 共享阶段测试记录 build/idea-topic/final-verification.txt：57 项聚焦单测通过，日常调用中的真实测试 1 项跳过；开发 Agent 另报告显式 DAILY_AI_LIVE_TEST=1 真实基础场景 1 项通过，产物 .local/idea-topic-live-results.json。编译通过为开发阶段报告，最终界面集成后仍须必要验收。
+- 界面开发 Agent：72056a74-3737-4871-b9af-43001ef96306，使用「Gemini」实际配置 pi / antigravity/gemini-3.8-flash / high；已完成任务 5–6，提交 9d78aaee，当前 idle。开发报告主题 app 聚焦测试、compileDebugKotlin、assembleDebug 通过；未做 UI／设备验证。未修改备份任务文件。
+- 任务 1–6：实现已完成。任务 7 集中审查由协调 Agent 本身承担「方案设计，架构思考」，不重复派审查代理。收录弹窗残留状态、动态合并、响应式 busy、摘要取消／重启恢复、长内容预算、当前会话摘要及引用边界已集中修复；app 的 3 项与 shared 的 5 项回归均观察 RED→GREEN，日志 acceptance-app-red.log、acceptance-shared-red.log、acceptance-green.log。
+- 同次审查的首次摘要入口、日记查看主题导航、保存失败不关闭编辑器、正式更新草稿和错误文案国际化也已修复。请求 Job 与 token 统一归 TopicService 所有，取消等待原 Job 收尾，网络不持有事务；不新增第二状态机。
+- 最终完整检查暴露新增 ViewModel 测试未清理订阅，以及 settings_design 测试越界解析后来新增 YAML 节；已修正测试生命周期和节边界。日记收录保存改为原 DiaryViewModel.saveDiary 的可选 onSaved 回调，由 ViewModel 生命周期执行；两项真实数据库回调测试确认保存成功才交付快照、失败不回调。
+- 备份测试由现有备份协调 Agent f1710cd6-967c-44c7-8522-5b4cb069fd04 拥有并补点子往返种子，本 Agent 未改其文件。对方回报备份 shared 75／app 40、BackupRoundTripTest 13 项通过；本 Agent 完整 shared 验证也覆盖了该类。加密跨设备还原验证来源／分析快照、真实合并的重复快照、主主题／指针／事件、多会话摘要／消息与 pending 草稿；恢复快照保留 pending，首次构造 TopicService 再标为中断。
+- 主题真实 AI：首次因模型把 conclusions 返回数组并引用非白名单记录 ID 而失败；保持严格解析，补齐字符串字段示例和有界引用白名单，随后 1 个场景（聊天／摘要／草稿三次请求）无 skip 通过。证据 build/idea-topic/acceptance-live-evidence.json。
+- 最终验证：shared 1189 项，0 failure、9 项可选真实测试 skip；受影响 app 聚焦 57 项，0 failure／skip；compileDebugKotlin 与 assembleDebug 均通过。App 全量 1276 项仍有 1 项 NewsRecommendationContextTest 的 UncaughtExceptionsBeforeTest：栈来源既有 ArticlesViewModelFailureTest 临时改 article 表时的 getDailyCounts 异常，非主题测试失败，不扩大到文章模块修复，也不记为全量通过。证据 acceptance-final-counts.json、acceptance-app-focused-evidence.json、acceptance-app-final.log。
+- 未做模拟器／UI 验证，未合并续写／AI 分流分支，未推送。代码级主题闭环验证完成，但 App 全量无故障门槛尚受上述既有测试污染影响。
+- 日记续写兼容协调：对方回报隔离分支提交 92c17206、436ca691、63a61829、8482f5eb，schema 暂为 33，未合并／推送。未来 DiaryThreadRepository.rootId(recordId: Long): Long? 可归一化来源 ID，getSnapshot/getSource 提供线程快照／有边界原文。本任务不提前导入未合并 API，继续单条日记捕获和独立来源适配；最终串行集成时再接根 ID、全文和重新编号迁移。信息已转发开发 Agent，不构成对方代码已经在主目录验证的声明。

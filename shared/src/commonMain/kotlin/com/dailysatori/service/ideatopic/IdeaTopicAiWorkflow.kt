@@ -2,149 +2,97 @@ package com.dailysatori.service.ideatopic
 
 import com.dailysatori.service.diagnostics.DiagnosticLog
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/**
- * Coordinates one AI request at a time per main topic. Writes stay behind [IdeaTopicService]:
- * this class only builds context, calls the network port and reports request lifecycle events.
- */
+/** Network orchestration; TopicService alone owns writes, jobs and request state. */
 class IdeaTopicAiWorkflow(
     private val service: IdeaTopicService,
     private val port: IdeaTopicAiPort,
     private val newId: () -> String = { DiagnosticLog.newId() },
 ) {
-    private val jobs = mutableMapOf<String, Job>()
-    private val jobMutex = Mutex()
-
-    /** Sends one user message in [sessionId] and stores the streaming reply. */
     suspend fun send(sessionId: String, text: String) {
         val question = text.trim()
         if (question.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidInput)
         if (question.length > IdeaAiMaxUserPromptCharacters) throw IdeaTopicException(IdeaTopicError.InputTooLong)
-
         val session = service.sessionOrThrow(sessionId)
-        val mainTopicId = service.resolveTopicId(session.topicId)
-            ?: throw IdeaTopicException(IdeaTopicError.NotFound)
-
+        val main = service.resolveTopicId(session.topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
         val token = newId()
         val userMessageId = newId()
         val replyMessageId = newId()
-        service.beginRequest(mainTopicId, token)
-        registerJob(mainTopicId)
+        service.beginRequest(main, token)
         try {
             service.saveUserMessage(sessionId, userMessageId, question)
             service.savePendingReply(sessionId, replyMessageId)
-            val detail = service.getDetailSync(mainTopicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+            val detail = service.getDetailSync(main) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
             val history = service.messagesSync(sessionId).filter { it.id != userMessageId }
             val context = buildIdeaAiContext(detail, sessionId, history, question)
             val buffer = StringBuilder()
             val reply = port.reply(context) { chunk ->
                 buffer.append(chunk)
-                service.updateReplyContent(replyMessageId, buffer.toString())
+                service.updateReplyContent(main, token, replyMessageId, buffer.toString())
             }
-            service.completeReply(mainTopicId, token, replyMessageId, reply)
+            service.completeReply(main, token, replyMessageId, reply)
         } catch (cancellation: CancellationException) {
-            withContext(NonCancellable) { service.interruptReply(mainTopicId, token, replyMessageId) }
+            withContext(NonCancellable) { service.interruptReply(main, token, replyMessageId) }
             throw cancellation
         } catch (failure: Exception) {
             val code = (failure as? IdeaTopicException)?.code?.name ?: IdeaTopicError.StorageFailure.name
-            withContext(NonCancellable) { service.failReply(mainTopicId, token, replyMessageId, code) }
+            withContext(NonCancellable) { service.failReply(main, token, replyMessageId, code) }
             throw failure
         } finally {
-            unregisterJob(mainTopicId)
+            withContext(NonCancellable) { service.releaseRequest(main, token) }
         }
     }
 
-    /** Summarizes the messages actually included in the built context and records their coverage. */
     suspend fun summarize(sessionId: String) {
         val session = service.sessionOrThrow(sessionId)
-        val mainTopicId = service.resolveTopicId(session.topicId)
-            ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        val main = service.resolveTopicId(session.topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
         val completed = service.messagesSync(sessionId).filter { it.status == IdeaMessageStatus.Complete }
         if (completed.isEmpty()) throw IdeaTopicException(IdeaTopicError.InvalidInput)
-
         val token = newId()
-        service.beginRequest(mainTopicId, token)
+        service.beginRequest(main, token)
         try {
             service.markSessionSummaryPending(sessionId)
-            val detail = service.getDetailSync(mainTopicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+            val detail = service.getDetailSync(main) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
             val context = buildIdeaAiContext(detail, sessionId, completed, ideaSummaryInstruction())
             val summary = port.summarize(context)
             service.saveSessionSummary(
-                sessionId = sessionId,
-                token = token,
-                mainTopicId = mainTopicId,
-                summary = summary,
+                sessionId, token, main, summary,
                 coveredMessageIds = context.messages.map { it.id },
                 throughMessageId = context.messages.lastOrNull()?.id,
             )
-        } catch (cancellation: CancellationException) {
-            withContext(NonCancellable) { service.releaseRequest(mainTopicId, token) }
-            throw cancellation
         } catch (failure: Exception) {
-            withContext(NonCancellable) { service.failSessionSummary(mainTopicId, token, sessionId) }
-            throw failure
-        }
-    }
-
-    /** Generates a structured update draft. It never touches the official topic content. */
-    suspend fun propose(topicId: String): IdeaTopicDraft {
-        val mainTopicId = service.resolveTopicId(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
-        val token = newId()
-        val baseRevision = service.beginRequest(mainTopicId, token)
-        registerJob(mainTopicId)
-        try {
-            val detail = service.getDetailSync(mainTopicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
-            val context = buildIdeaAiContext(
-                detail = detail,
-                sessionId = null,
-                currentMessages = emptyList(),
-                userPrompt = ideaDraftInstruction(),
-            )
-            val proposal = port.propose(context)
-            if (proposal.content.title.trim().isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
-            if (proposal.referenceIds.any { it !in context.allowedReferenceIds }) {
-                throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
-            }
-            return service.saveDraft(mainTopicId, token, newId(), baseRevision, proposal)
-        } catch (cancellation: CancellationException) {
-            withContext(NonCancellable) { service.releaseRequest(mainTopicId, token) }
-            throw cancellation
-        } catch (failure: Exception) {
-            withContext(NonCancellable) { service.releaseRequest(mainTopicId, token) }
+            withContext(NonCancellable) { service.failSessionSummary(main, token, sessionId) }
             throw failure
         } finally {
-            unregisterJob(mainTopicId)
+            withContext(NonCancellable) { service.releaseRequest(main, token) }
         }
     }
 
-    /** True while this topic owns an in-flight AI request. */
+    suspend fun propose(topicId: String): IdeaTopicDraft {
+        val main = service.resolveTopicId(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        val token = newId()
+        val revision = service.beginRequest(main, token)
+        try {
+            val detail = service.getDetailSync(main) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+            val context = buildIdeaAiContext(detail, null, emptyList(), ideaDraftInstruction())
+            val proposal = port.propose(context)
+            if (proposal.content.title.trim().isBlank() || proposal.referenceIds.any { it !in context.allowedReferenceIds }) {
+                throw IdeaTopicException(IdeaTopicError.InvalidAiResponse)
+            }
+            return service.saveDraft(main, token, newId(), revision, proposal)
+        } finally {
+            withContext(NonCancellable) { service.releaseRequest(main, token) }
+        }
+    }
+
     fun isBusy(topicId: String): Boolean = service.isRequestActive(topicId)
 
-    /** Cancels the in-flight request of the topic (chat or summary) and marks partial output interrupted. */
     suspend fun cancel(topicId: String) {
-        val mainTopicId = service.resolveTopicId(topicId) ?: return
-        val job = jobMutex.withLock { jobs[mainTopicId] }
-        job?.cancel()
-        service.forceCancelRequest(mainTopicId)
+        val main = service.resolveTopicId(topicId) ?: return
+        service.forceCancelRequest(main)
     }
 
-    /** Marks replies left pending by a previous process as interrupted; never retries them. */
-    suspend fun recoverInterruptedRequests() {
-        service.recoverInterruptedRequests()
-    }
-
-    private suspend fun registerJob(mainTopicId: String) {
-        val job = currentCoroutineContext()[Job] ?: return
-        jobMutex.withLock { jobs[mainTopicId] = job }
-    }
-
-    private suspend fun unregisterJob(mainTopicId: String) {
-        jobMutex.withLock { jobs.remove(mainTopicId) }
-    }
+    suspend fun recoverInterruptedRequests() { service.recoverInterruptedRequests() }
 }
