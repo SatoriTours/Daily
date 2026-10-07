@@ -66,6 +66,8 @@ import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
 import com.dailysatori.service.diary.DiaryKnowledgeEnricher
 import com.dailysatori.service.diary.DiaryAssistantService
 import com.dailysatori.service.diary.DiaryTranscriptPolishService
+import com.dailysatori.service.diary.DiaryTitleGenerator
+import com.dailysatori.service.diary.diaryTitleCompletion
 import com.dailysatori.service.diary.diaryTranscriptPolishCompletion
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
 import com.dailysatori.service.diary.DiaryLinkContentExtractor
@@ -209,7 +211,8 @@ val sharedModule: Module = module {
     single { SpeechSettingsService(get(), get(), get()) }
     single { SpeechTranscriptionApi(get()) }
     single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
-    single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get()) }
+    single { DiaryTitleGenerator(diaryTitleCompletion(get(), get())) }
+    single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }
     single<SkillConnectionTester> { DefaultSkillConnectionTester(get()) }

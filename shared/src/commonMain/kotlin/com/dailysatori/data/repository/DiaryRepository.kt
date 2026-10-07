@@ -83,6 +83,17 @@ class DiaryRepository(
         q.updateDiary(content, tags, mood, images, now, id)
     }
 
+    /** Compare and save in one transaction so an AI request cannot overwrite editor changes. */
+    fun prependGeneratedTitleIfUnchanged(expected: Diary, title: String): Boolean = q.transactionWithResult {
+        val current = q.selectDiaryById(expected.id).executeAsOneOrNull() ?: return@transactionWithResult false
+        if (current.content != expected.content || current.updated_at != expected.updated_at) {
+            return@transactionWithResult false
+        }
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateDiary("# $title\n\n${current.content}", current.tags, current.mood, current.images, now, current.id)
+        true
+    }
+
     fun delete(id: Long) {
         val attachmentPaths = q.transactionWithResult {
             val attachments = q.selectAttachmentsForDiary(id).executeAsList()

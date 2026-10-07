@@ -14,6 +14,7 @@ import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -157,6 +158,186 @@ class DiaryCaptureTaskTest {
             coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter)
 
             assertEquals("只有转写", fixture.diaries.getById(diaryId)?.content)
+        }
+    }
+
+    @Test
+    fun autoTranscribedDiaryGetsTitleWithoutChangingRawTranscript() = runBlocking {
+        withFixture { fixture ->
+            val transcript = "今天去公园散步，感觉轻松了很多。"
+            val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = fixture.attachments.create(
+                diaryId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/test.m4a"),
+            )
+            val coordinator = DiaryTranscriptionCoordinator(
+                fixture.attachments, fixture.diaries, fixture.tasks,
+                SpeechTranscriptionClient { transcript },
+                titleGenerator = DiaryTitleGenerator { _, _ -> "{\"title\":\"公园散步后的轻松\"}" },
+            )
+
+            val result = coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter)
+
+            assertIs<AsyncTaskExecutionResult.Success>(result)
+            val body = fixture.diaries.getById(diaryId)!!.content
+            assertEquals("# 公园散步后的轻松\n\n$transcript", body)
+            assertEquals(transcript, fixture.attachments.getById(attachmentId)?.transcript)
+            coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter)
+            assertEquals(body, fixture.diaries.getById(diaryId)?.content)
+        }
+    }
+
+    @Test
+    fun titleFailureDoesNotFailTranscriptionOrLoseAudio() = runBlocking {
+        for (response in listOf<suspend (String, String) -> String>(
+            { _, _ -> error("AI unavailable") },
+            { _, _ -> "{\"title\":\"\"}" },
+        )) {
+            withFixture { fixture ->
+                val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+                val attachmentId = fixture.attachments.create(
+                    diaryId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/keep.m4a"),
+                )
+                val coordinator = DiaryTranscriptionCoordinator(
+                    fixture.attachments, fixture.diaries, fixture.tasks, SpeechTranscriptionClient { "原始转写" },
+                    titleGenerator = DiaryTitleGenerator(response),
+                )
+
+                val result = coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter)
+
+                assertIs<AsyncTaskExecutionResult.Success>(result)
+                assertEquals("原始转写", fixture.diaries.getById(diaryId)?.content)
+                val attachment = fixture.attachments.getById(attachmentId)!!
+                assertEquals("原始转写", attachment.transcript)
+                assertEquals(DiaryAttachmentProcessingStatus.completed, attachment.transcript_status)
+                assertEquals("/audio/keep.m4a", attachment.local_path)
+                assertEquals("", attachment.error_message)
+            }
+        }
+    }
+
+    @Test
+    fun existingTitlesAndUserBodiesAreNotAutomaticallyTitled() = runBlocking {
+        for (body in listOf("# 我的标题\n\n我的正文", "我自己编辑的正文")) {
+            withFixture { fixture ->
+                val diaryId = fixture.diaries.create(body)
+                val attachmentId = fixture.attachments.create(
+                    diaryId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/test.m4a"),
+                )
+                var titleRequests = 0
+                val coordinator = DiaryTranscriptionCoordinator(
+                    fixture.attachments, fixture.diaries, fixture.tasks, SpeechTranscriptionClient { "新录音" },
+                    titleGenerator = DiaryTitleGenerator { _, _ ->
+                        titleRequests++
+                        "{\"title\":\"不该生成的标题\"}"
+                    },
+                )
+
+                assertIs<AsyncTaskExecutionResult.Success>(
+                    coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter),
+                )
+                assertEquals("$body\n\n## 语音转写\n\n新录音", fixture.diaries.getById(diaryId)?.content)
+                assertEquals(0, titleRequests)
+            }
+        }
+    }
+
+    @Test
+    fun transcriptWithAnExistingHeadingIsNotRetitled() = runBlocking {
+        withFixture { fixture ->
+            val transcript = "# 已有标题\n\n转写正文"
+            val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = fixture.attachments.create(
+                diaryId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/test.m4a"),
+            )
+            var titleRequests = 0
+            val coordinator = DiaryTranscriptionCoordinator(
+                fixture.attachments, fixture.diaries, fixture.tasks, SpeechTranscriptionClient { transcript },
+                titleGenerator = DiaryTitleGenerator { _, _ -> titleRequests++; "{\"title\":\"不应生成\"}" },
+            )
+            assertIs<AsyncTaskExecutionResult.Success>(
+                coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter),
+            )
+            assertEquals(transcript, fixture.diaries.getById(diaryId)?.content)
+            assertEquals(0, titleRequests)
+        }
+    }
+
+    @Test
+    fun userEditsDuringTitleGenerationWin() = runBlocking {
+        withFixture { fixture ->
+            val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = fixture.attachments.create(
+                diaryId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/test.m4a"),
+            )
+            val coordinator = DiaryTranscriptionCoordinator(
+                fixture.attachments, fixture.diaries, fixture.tasks, SpeechTranscriptionClient { "原始转写" },
+                titleGenerator = DiaryTitleGenerator { _, _ ->
+                    fixture.diaries.update(diaryId, "# 我自己的标题\n\n修改后的正文", "自选标签", "开心", "照片")
+                    "{\"title\":\"AI 标题\"}"
+                },
+            )
+
+            assertIs<AsyncTaskExecutionResult.Success>(
+                coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter),
+            )
+            val diary = fixture.diaries.getById(diaryId)!!
+            assertEquals("# 我自己的标题\n\n修改后的正文", diary.content)
+            assertEquals("自选标签", diary.tags)
+            assertEquals("开心", diary.mood)
+            assertEquals("照片", diary.images)
+            assertEquals("原始转写", fixture.attachments.getById(attachmentId)?.transcript)
+        }
+    }
+
+    @Test
+    fun cancellationAfterTranscriptionCanResumeTitleGenerationWithoutRetranscribing() = runBlocking {
+        withFixture { fixture ->
+            val diaryId = fixture.diaries.create(DiaryTranscriptionCoordinator.AUTO_TRANSCRIBING_BODY)
+            val attachmentId = fixture.attachments.create(
+                diaryId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/test.m4a"),
+            )
+            var cancelled = true
+            var transcriptions = 0
+            val coordinator = DiaryTranscriptionCoordinator(
+                fixture.attachments, fixture.diaries, fixture.tasks,
+                SpeechTranscriptionClient { transcriptions++; "散步的原文" },
+                titleGenerator = DiaryTitleGenerator { _, _ ->
+                    if (cancelled) throw kotlinx.coroutines.CancellationException("cancelled")
+                    "{\"title\":\"散步时的思考\"}"
+                },
+            )
+            assertFailsWith<kotlinx.coroutines.CancellationException> {
+                coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter)
+            }
+            assertEquals("散步的原文", fixture.diaries.getById(diaryId)?.content)
+            assertEquals(DiaryAttachmentProcessingStatus.completed, fixture.attachments.getById(attachmentId)?.transcript_status)
+
+            cancelled = false
+            assertIs<AsyncTaskExecutionResult.Success>(
+                coordinator.execute(1, "{\"attachmentId\":$attachmentId}", "", NoopReporter),
+            )
+            assertEquals(1, transcriptions)
+            assertEquals("# 散步时的思考\n\n散步的原文", fixture.diaries.getById(diaryId)?.content)
+        }
+    }
+
+    @Test
+    fun titleSavePreservesMetadataAndRejectsStaleVersions() = runBlocking {
+        withFixture { fixture ->
+            val diaryId = fixture.diaries.create("原文", "标签", "开心", "图片")
+            val original = fixture.diaries.getById(diaryId)!!
+            fixture.db.dailySatoriQueries.updateDiary(
+                original.content, "新标签", original.mood, original.images, original.updated_at + 1, diaryId,
+            )
+            assertEquals(false, fixture.diaries.prependGeneratedTitleIfUnchanged(original, "旧标题"))
+            val current = fixture.diaries.getById(diaryId)!!
+            assertEquals(true, fixture.diaries.prependGeneratedTitleIfUnchanged(current, "新标题"))
+            val titled = fixture.diaries.getById(diaryId)!!
+            assertEquals("# 新标题\n\n原文", titled.content)
+            assertEquals("新标签", titled.tags)
+            assertEquals("开心", titled.mood)
+            assertEquals("图片", titled.images)
+            assertEquals(original.created_at, titled.created_at)
         }
     }
 

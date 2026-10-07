@@ -8,6 +8,7 @@ import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.asynctask.AsyncTaskType
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -18,6 +19,7 @@ class DiaryTranscriptionCoordinator(
     private val taskRepository: AsyncTaskRepository,
     private val transcriptionClient: SpeechTranscriptionClient,
     private val knowledgeCoordinator: DiaryKnowledgeCoordinator? = null,
+    private val titleGenerator: DiaryTitleGenerator? = null,
 ) : AsyncTaskHandler {
     override val type: String = AsyncTaskType.diary_attachment_transcribe.name
 
@@ -68,6 +70,7 @@ class DiaryTranscriptionCoordinator(
             attachment.transcript_status == DiaryAttachmentProcessingStatus.completed &&
             attachment.transcript.isNotBlank()
         ) {
+            generateTitleIfUnedited(attachment.diary_id, attachment.transcript)
             diaryRepository.getById(attachment.diary_id)?.let { diary ->
                 knowledgeCoordinator?.enqueue(diary.id, diary.updated_at)
             }
@@ -87,6 +90,7 @@ class DiaryTranscriptionCoordinator(
                 autoBody = AUTO_TRANSCRIBING_BODY,
                 transcriptHeading = TRANSCRIPT_HEADING,
             )
+            generateTitleIfUnedited(attachment.diary_id, transcript)
             diaryRepository.getById(attachment.diary_id)?.let { diary ->
                 knowledgeCoordinator?.enqueue(diary.id, diary.updated_at)
             }
@@ -112,6 +116,23 @@ class DiaryTranscriptionCoordinator(
             } else {
                 AsyncTaskExecutionResult.PermanentFailure(failure.code, failure.message.orEmpty())
             }
+        }
+    }
+
+    private suspend fun generateTitleIfUnedited(diaryId: Long, transcript: String) {
+        val generator = titleGenerator ?: return
+        val diary = diaryRepository.getById(diaryId) ?: return
+        // Only untouched, automatically populated bodies belong to this task; never retitle user content.
+        if (transcript.isBlank() || diary.content != transcript ||
+            Regex("^#{1,6}\\s+\\S").containsMatchIn(diary.content.trimStart())) return
+        try {
+            val title = generator.generate(transcript)
+            diaryRepository.prependGeneratedTitleIfUnchanged(diary, title)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            // A title is optional enrichment. The transcript and audio have already been saved.
+            Logger.withTag("DiaryTranscription").w { "Diary title generation skipped; transcription remains saved" }
         }
     }
 
