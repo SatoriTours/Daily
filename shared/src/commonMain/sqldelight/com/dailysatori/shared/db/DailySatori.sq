@@ -2368,3 +2368,206 @@ DELETE FROM reminder_event WHERE reminder_id = ? AND id NOT IN (
 
 selectChatSessions:
 SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;
+
+-- Idea topics: manual capture, provenance snapshots, append-only events, multi-session AI chat.
+CREATE TABLE idea_topic (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    provenance_summary TEXT NOT NULL DEFAULT '',
+    conclusions TEXT NOT NULL DEFAULT '',
+    next_action TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    merged_into_topic_id TEXT,
+    context_revision INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_idea_topic_merged ON idea_topic(merged_into_topic_id);
+CREATE INDEX idx_idea_topic_updated ON idea_topic(updated_at);
+
+CREATE TABLE idea_topic_source (
+    id TEXT PRIMARY KEY NOT NULL,
+    topic_id TEXT NOT NULL,
+    original_topic_id TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_record_id TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    captured_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX idx_idea_topic_source_key ON idea_topic_source(topic_id, source_type, source_record_id);
+CREATE INDEX idx_idea_topic_source_lookup ON idea_topic_source(source_type, source_record_id);
+CREATE INDEX idx_idea_topic_source_topic ON idea_topic_source(topic_id, captured_at, id);
+
+CREATE TABLE idea_topic_event (
+    id TEXT PRIMARY KEY NOT NULL,
+    topic_id TEXT NOT NULL,
+    original_topic_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_idea_topic_event_topic ON idea_topic_event(topic_id, created_at, id);
+CREATE INDEX idx_idea_topic_event_kind ON idea_topic_event(topic_id, kind, created_at, id);
+
+CREATE TABLE idea_topic_session (
+    id TEXT PRIMARY KEY NOT NULL,
+    topic_id TEXT NOT NULL,
+    original_topic_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    summary_through_message_id TEXT,
+    summary_covered_message_ids TEXT NOT NULL DEFAULT '[]',
+    summary_status TEXT NOT NULL DEFAULT 'none',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_idea_topic_session_topic ON idea_topic_session(topic_id, updated_at, id);
+
+CREATE TABLE idea_topic_message (
+    id TEXT PRIMARY KEY NOT NULL,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_idea_topic_message_session ON idea_topic_message(session_id, created_at, id);
+CREATE INDEX idx_idea_topic_message_status ON idea_topic_message(status, created_at, id);
+
+selectMainIdeaTopics:
+SELECT t.id, t.title, t.description, t.provenance_summary, t.conclusions, t.next_action,
+       t.status, t.merged_into_topic_id, t.context_revision, t.created_at, t.updated_at,
+       (SELECT COUNT(*) FROM idea_topic_source s WHERE s.topic_id = t.id) AS source_count,
+       IFNULL((SELECT e.payload_json FROM idea_topic_event e WHERE e.topic_id = t.id AND e.kind = 'progress'
+        ORDER BY e.created_at DESC, e.id DESC LIMIT 1), '') AS latest_progress
+FROM idea_topic t
+WHERE t.merged_into_topic_id IS NULL
+ORDER BY t.updated_at DESC, t.id DESC;
+
+selectIdeaTopicById:
+SELECT * FROM idea_topic WHERE id = ?;
+
+selectIdeaTopicIdsMergedInto:
+SELECT id FROM idea_topic WHERE merged_into_topic_id = ? ORDER BY id ASC;
+
+insertIdeaTopic:
+INSERT INTO idea_topic (id, title, description, provenance_summary, conclusions, next_action, status,
+    merged_into_topic_id, context_revision, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateIdeaTopicContent:
+UPDATE idea_topic SET title = ?, description = ?, provenance_summary = ?, conclusions = ?, next_action = ?,
+    context_revision = ?, updated_at = ? WHERE id = ?;
+
+updateIdeaTopicStatus:
+UPDATE idea_topic SET status = ?, context_revision = ?, updated_at = ? WHERE id = ?;
+
+bumpIdeaTopicRevision:
+UPDATE idea_topic SET context_revision = ?, updated_at = ? WHERE id = ?;
+
+markIdeaTopicMergedInto:
+UPDATE idea_topic SET merged_into_topic_id = ?, updated_at = ? WHERE id = ?;
+
+selectIdeaTopicSourcesByTopic:
+SELECT * FROM idea_topic_source WHERE topic_id = ? ORDER BY captured_at ASC, id ASC;
+
+selectIdeaTopicSourceById:
+SELECT * FROM idea_topic_source WHERE id = ?;
+
+selectIdeaTopicSourceByKey:
+SELECT * FROM idea_topic_source WHERE source_type = ? AND source_record_id = ?
+ORDER BY captured_at ASC, id ASC LIMIT 1;
+
+insertIdeaTopicSource:
+INSERT INTO idea_topic_source (id, topic_id, original_topic_id, source_type, source_record_id,
+    snapshot_json, captured_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+moveIdeaTopicSource:
+UPDATE idea_topic_source SET topic_id = ?, updated_at = ? WHERE id = ?;
+
+deleteIdeaTopicSource:
+DELETE FROM idea_topic_source WHERE id = ?;
+
+selectIdeaTopicEventsByTopic:
+SELECT * FROM idea_topic_event WHERE topic_id = ? ORDER BY created_at ASC, id ASC;
+
+selectIdeaTopicEventById:
+SELECT * FROM idea_topic_event WHERE id = ?;
+
+insertIdeaTopicEvent:
+INSERT INTO idea_topic_event (id, topic_id, original_topic_id, kind, payload_json, created_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+moveIdeaTopicEvent:
+UPDATE idea_topic_event SET topic_id = ? WHERE id = ?;
+
+deleteIdeaTopicEvent:
+DELETE FROM idea_topic_event WHERE id = ?;
+
+selectIdeaTopicSessionsByTopic:
+SELECT * FROM idea_topic_session WHERE topic_id = ? ORDER BY updated_at DESC, id DESC;
+
+selectIdeaTopicSessionById:
+SELECT * FROM idea_topic_session WHERE id = ?;
+
+insertIdeaTopicSession:
+INSERT INTO idea_topic_session (id, topic_id, original_topic_id, title, summary,
+    summary_through_message_id, summary_covered_message_ids, summary_status, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateIdeaTopicSessionTitle:
+UPDATE idea_topic_session SET title = ?, updated_at = ? WHERE id = ?;
+
+updateIdeaTopicSessionSummary:
+UPDATE idea_topic_session SET summary = ?, summary_through_message_id = ?,
+    summary_covered_message_ids = ?, summary_status = ?, updated_at = ? WHERE id = ?;
+
+updateIdeaTopicSessionSummaryStatus:
+UPDATE idea_topic_session SET summary_status = ?, updated_at = ? WHERE id = ?;
+
+moveIdeaTopicSession:
+UPDATE idea_topic_session SET topic_id = ?, updated_at = ? WHERE id = ?;
+
+deleteIdeaTopicSession:
+DELETE FROM idea_topic_session WHERE id = ?;
+
+selectIdeaTopicMessagesBySession:
+SELECT * FROM idea_topic_message WHERE session_id = ? ORDER BY created_at ASC, id ASC;
+
+selectRecentIdeaTopicMessages:
+SELECT * FROM idea_topic_message WHERE session_id = ?
+ORDER BY created_at DESC, id DESC LIMIT ?;
+
+selectIdeaTopicMessagesBefore:
+SELECT * FROM idea_topic_message WHERE session_id = ?
+AND (created_at < ? OR (created_at = ? AND id < ?))
+ORDER BY created_at DESC, id DESC LIMIT ?;
+
+selectIdeaTopicMessagesByStatus:
+SELECT * FROM idea_topic_message WHERE status = ? ORDER BY created_at ASC, id ASC;
+
+insertIdeaTopicMessage:
+INSERT INTO idea_topic_message (id, session_id, role, content, status, error, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+updateIdeaTopicMessage:
+UPDATE idea_topic_message SET content = ?, status = ?, error = ? WHERE id = ?;
+
+updateIdeaTopicMessageStatus:
+UPDATE idea_topic_message SET status = ?, error = ? WHERE id = ?;
+
+deleteIdeaTopicMessage:
+DELETE FROM idea_topic_message WHERE id = ?;
+
+deleteIdeaTopic:
+DELETE FROM idea_topic WHERE id = ?;

@@ -140,6 +140,9 @@ class DatabaseMigration(
         if (currentVersion < 32) {
             migrateV31ToV32()
         }
+        if (currentVersion < 33) {
+            migrateV32ToV33()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1090,6 +1093,81 @@ class DatabaseMigration(
             addColumnIfMissing("reminder", "notes", "TEXT NOT NULL DEFAULT ''")
         } catch (e: Exception) {
             log.w(e) { "Could not add reminder notes" }
+        }
+    }
+
+    /** V32 -> V33: idea topic persistence (topics, sources, events, sessions, messages). */
+    private fun migrateV32ToV33() {
+        listOf(
+            """CREATE TABLE IF NOT EXISTS idea_topic (
+                id TEXT PRIMARY KEY NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                provenance_summary TEXT NOT NULL DEFAULT '',
+                conclusions TEXT NOT NULL DEFAULT '',
+                next_action TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL,
+                merged_into_topic_id TEXT,
+                context_revision INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS idea_topic_source (
+                id TEXT PRIMARY KEY NOT NULL,
+                topic_id TEXT NOT NULL,
+                original_topic_id TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_record_id TEXT NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                captured_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS idea_topic_event (
+                id TEXT PRIMARY KEY NOT NULL,
+                topic_id TEXT NOT NULL,
+                original_topic_id TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                payload_json TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS idea_topic_session (
+                id TEXT PRIMARY KEY NOT NULL,
+                topic_id TEXT NOT NULL,
+                original_topic_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL DEFAULT '',
+                summary_through_message_id TEXT,
+                summary_covered_message_ids TEXT NOT NULL DEFAULT '[]',
+                summary_status TEXT NOT NULL DEFAULT 'none',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS idea_topic_message (
+                id TEXT PRIMARY KEY NOT NULL,
+                session_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                status TEXT NOT NULL,
+                error TEXT,
+                created_at INTEGER NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_merged ON idea_topic(merged_into_topic_id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_updated ON idea_topic(updated_at)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_idea_topic_source_key ON idea_topic_source(topic_id, source_type, source_record_id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_source_lookup ON idea_topic_source(source_type, source_record_id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_source_topic ON idea_topic_source(topic_id, captured_at, id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_event_topic ON idea_topic_event(topic_id, created_at, id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_event_kind ON idea_topic_event(topic_id, kind, created_at, id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_session_topic ON idea_topic_session(topic_id, updated_at, id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_message_session ON idea_topic_message(session_id, created_at, id)",
+            "CREATE INDEX IF NOT EXISTS idx_idea_topic_message_status ON idea_topic_message(status, created_at, id)",
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                log.w(e) { "Could not create idea topic storage" }
+            }
         }
     }
 

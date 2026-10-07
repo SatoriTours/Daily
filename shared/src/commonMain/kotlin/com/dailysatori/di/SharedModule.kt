@@ -17,6 +17,7 @@ import com.dailysatori.service.diary.DiaryThoughtChatContextProvider
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.ImageRepository
+import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
@@ -147,6 +148,8 @@ val sharedModule: Module = module {
     single { ExternalFavoriteSourceRepository(get(), get()) }
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
+    single { IdeaTopicRepository(get()) }
+    single { com.dailysatori.service.ideatopic.IdeaTopicService(get()) }
     single { MemoryRepository(get()) }
     single { RemoteArticleSyncRepository(get()) }
     single { ReminderRepository(get()) }
