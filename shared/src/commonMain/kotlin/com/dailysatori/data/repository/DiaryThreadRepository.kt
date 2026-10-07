@@ -134,6 +134,7 @@ class DiaryThreadRepository(
                 replyCount = (catalog.entriesByRoot[root.id]?.size ?: 1).toLong() - 1L,
                 pendingAttachmentCount = pendingThreadAttachmentCount(catalog.attachmentsByRoot[root.id].orEmpty()),
                 summary = catalog.summaries[root.id],
+                revision = catalog.revisions[root.id] ?: 0L,
             )
         }
     }

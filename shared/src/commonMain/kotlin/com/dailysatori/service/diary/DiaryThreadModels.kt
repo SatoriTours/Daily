@@ -46,6 +46,8 @@ data class DiaryThreadOverview(
     val replyCount: Long,
     val pendingAttachmentCount: Long,
     val summary: DiaryThreadSummary?,
+    /** 当前原文版本；卡片据此判断旧汇总是否待更新（summary.summaryRevision != revision）。 */
+    val revision: Long = 0L,
 )
 
 /** 真实正文判定：排除空的以及录音自动写入的占位文案，但保留真实转写与自动标题。 */

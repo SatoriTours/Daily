@@ -233,6 +233,29 @@ class DiaryThreadRepositoryTest {
     }
 
     @Test
+    fun overviewRevisionMarksOldSummaryAsStale() = withThreads { fixture ->
+        val rootId = fixture.createRoot(content = "原始")
+        fixture.reply(rootId, "续写")
+        val revision = fixture.threads.getSnapshot(rootId)!!.revision
+        assertTrue(fixture.threads.commitSummary(rootId, revision, "旧汇总"))
+
+        val fresh = runBlocking { fixture.threads.observeOverviews().first() }.single()
+        assertEquals(revision, fresh.revision)
+        assertEquals(revision, fresh.summary!!.summaryRevision)
+        assertEquals(1L, fresh.replyCount)
+
+        fixture.reply(rootId, "新续写")
+        val stale = runBlocking { fixture.threads.observeOverviews().first() }.single()
+        assertTrue(stale.revision > stale.summary!!.summaryRevision, "旧汇总必须显示为待更新")
+
+        assertTrue(fixture.threads.markSummaryState(rootId, stale.revision, DiaryThreadSummaryStatus.running))
+        val running = runBlocking { fixture.threads.observeOverviews().first() }.single()
+        assertEquals(stale.revision, running.summary!!.sourceRevision)
+        assertEquals(revision, running.summary!!.summaryRevision, "旧 summaryRevision 必须保留")
+        assertTrue(running.revision > running.summary!!.summaryRevision)
+    }
+
+    @Test
     fun observesSnapshotWithAttachmentsGroupedByDiary() = withThreads { fixture ->
         val rootId = fixture.createRoot(content = "原始")
         val replyId = fixture.reply(rootId, "续写")
