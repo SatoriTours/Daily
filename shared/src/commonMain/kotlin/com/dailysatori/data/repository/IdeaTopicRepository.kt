@@ -101,6 +101,9 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
     fun getSessionSync(sessionId: String): IdeaTopicSession? =
         q.selectIdeaTopicSessionById(sessionId).executeAsOneOrNull()?.let(::toSession)
 
+    fun discussionSessionSync(topicId: String): IdeaTopicSession? =
+        q.selectIdeaTopicDiscussionSession(topicId).executeAsOneOrNull()?.let(::toSession)
+
     /** Owner topic currently holding the source key, without resolving the merge chain. */
     fun findBySourceSync(key: IdeaSourceKey): String? =
         q.selectIdeaTopicSourceByKey(key.type, key.recordId).executeAsOneOrNull()?.topic_id

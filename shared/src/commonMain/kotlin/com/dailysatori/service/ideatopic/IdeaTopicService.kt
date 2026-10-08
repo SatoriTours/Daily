@@ -65,6 +65,9 @@ class IdeaTopicService(
         return repository.sessionsByTopicSync(main)
     }
 
+    fun discussionSessionSync(topicId: String): IdeaTopicSession? =
+        resolveTopicId(topicId)?.let(repository::discussionSessionSync)
+
     fun messagesSync(sessionId: String): List<IdeaTopicMessage> = repository.getMessagesSync(sessionId)
 
     fun observeMessages(sessionId: String, limit: Int = 30): Flow<List<IdeaTopicMessage>> =
@@ -182,6 +185,16 @@ class IdeaTopicService(
 
     suspend fun createSession(topicId: String, title: String): String = writeLock.withLock {
         val main = repository.resolveMainTopicIdSync(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        createSessionLocked(main, title)
+    }
+
+    /** First feedback creates a discussion; concurrent openings and sends reuse the same one. */
+    suspend fun getOrCreateDiscussionSession(topicId: String): String = writeLock.withLock {
+        val main = repository.resolveMainTopicIdSync(topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        repository.discussionSessionSync(main)?.id ?: createSessionLocked(main, "")
+    }
+
+    private fun createSessionLocked(main: String, title: String): String {
         val sessionId = newId()
         repository.createSession(
             sessionId = sessionId,
@@ -190,7 +203,7 @@ class IdeaTopicService(
             title = title.trim().ifBlank { "新的沟通" },
             now = now(),
         )
-        sessionId
+        return sessionId
     }
 
     /** Marks leftover in-flight replies from a previous process as interrupted without retrying them. */
@@ -216,7 +229,7 @@ class IdeaTopicService(
             content = content,
             status = IdeaMessageStatus.Complete,
             error = null,
-            now = now(),
+            now = nextMessageTime(sessionId),
         )
         repository.markSummaryNeedsUpdateIfReady(sessionId, now())
     }
@@ -229,8 +242,25 @@ class IdeaTopicService(
             content = "",
             status = IdeaMessageStatus.Pending,
             error = null,
-            now = now(),
+            now = nextMessageTime(sessionId),
         )
+    }
+
+    /** Preserve feedback/reply ordering even when clock resolution or correction ties timestamps. */
+    private fun nextMessageTime(sessionId: String): Long {
+        val latest = repository.getMessagesBeforeSync(sessionId, Long.MAX_VALUE, "\uFFFF", 1).lastOrNull()?.createdAt
+        return maxOf(now(), latest?.let { it + 1 } ?: Long.MIN_VALUE)
+    }
+
+    internal suspend fun resetReplyForRetry(sessionId: String, messageId: String) = writeLock.withLock {
+        val reply = repository.getMessagesSync(sessionId).firstOrNull { it.id == messageId }
+            ?: throw IdeaTopicException(IdeaTopicError.NotFound)
+        if (reply.role != IdeaMessageRoles.Assistant ||
+            reply.status !in listOf(IdeaMessageStatus.Failed, IdeaMessageStatus.Interrupted)) {
+            throw IdeaTopicException(IdeaTopicError.InvalidInput)
+        }
+        repository.updateMessage(messageId, "", IdeaMessageStatus.Pending, null)
+        repository.markSummaryNeedsUpdateIfReady(sessionId, now())
     }
 
     internal suspend fun updateReplyContent(mainTopicId: String, token: String, messageId: String, content: String) =

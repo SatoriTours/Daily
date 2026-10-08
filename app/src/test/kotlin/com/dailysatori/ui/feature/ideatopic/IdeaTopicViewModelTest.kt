@@ -43,6 +43,105 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class IdeaTopicViewModelTest {
+    @Test
+    fun openingATopicStartsAnEmptyDiscussionWithoutCreatingOrCallingAi() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val topic = fixture.captureTopic("直接反馈")
+            val vm = IdeaTopicSessionViewModel(topic, fixture.service, fixture.workflow).also(fixture::track)
+            assertNull(vm.state.value.error)
+            assertEquals(topic, vm.state.value.topicId)
+            assertTrue(fixture.service.sessionsSync(topic).isEmpty())
+            assertEquals(0, fixture.port.replyCalls)
+            assertEquals(0, fixture.port.summaryCalls)
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun topicFeedbackCreatesOneDiscussionAndReopeningRetainsItsSummaryAndContext() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val topic = fixture.captureTopic("持续反馈")
+            val vm = IdeaTopicSessionViewModel(topic, fixture.service, fixture.workflow).also(fixture::track)
+            vm.send("访谈整理有用，但权限边界还没验证")
+            withTimeout(5_000) { vm.state.first { it.messages.size == 2 && !it.busy } }
+            val session = vm.state.value.sessionId
+            vm.summarize()
+            withTimeout(5_000) { vm.state.first { it.summary == "摘要" && !it.busy } }
+            fixture.tick()
+            vm.send("我补充了权限限制，还是不合适，先搁置")
+            withTimeout(5_000) { vm.state.first { it.messages.size == 4 && !it.busy } }
+            assertTrue(fixture.port.lastReplyContext!!.messages.any { it.content == "访谈整理有用，但权限边界还没验证" })
+            assertTrue(fixture.port.lastReplyContext!!.userPrompt.contains("摘要"))
+            val reopened = IdeaTopicSessionViewModel(topic, fixture.service, fixture.workflow).also(fixture::track)
+            withTimeout(5_000) { reopened.state.first { it.messages.size == 4 } }
+            assertEquals(session, reopened.state.value.sessionId)
+            assertEquals("摘要", reopened.state.value.summary)
+            assertEquals(com.dailysatori.service.ideatopic.IdeaSessionSummaryStatus.NeedsUpdate, reopened.state.value.summaryStatus)
+            assertEquals(1, fixture.service.sessionsSync(topic).size)
+            assertEquals(2, fixture.port.replyCalls)
+            assertEquals(1, fixture.port.summaryCalls)
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun openingATopicContinuesLatestUserDiscussionNotLatestSummaryOrEmptySession() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val topic = fixture.captureTopic("多个旧讨论")
+            val first = fixture.service.createSession(topic, "旧讨论")
+            fixture.workflow.send(first, "旧反馈")
+            fixture.tick()
+            val latest = fixture.service.createSession(topic, "最近讨论")
+            fixture.workflow.send(latest, "最近反馈")
+            fixture.tick()
+            fixture.workflow.summarize(first)
+            fixture.tick()
+            fixture.service.createSession(topic, "更晚的空讨论")
+            val vm = IdeaTopicSessionViewModel(topic, fixture.service, fixture.workflow).also(fixture::track)
+            assertEquals(latest, vm.state.value.sessionId)
+            withTimeout(5_000) { vm.state.first { it.messages.isNotEmpty() } }
+            assertEquals("最近反馈", vm.state.value.messages.single { it.role == IdeaMessageRoles.User }.content)
+            assertEquals(3, fixture.service.sessionsSync(topic).size)
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun retryingAFailedReplyKeepsOneSavedFeedbackAndOneReply() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val topic = fixture.captureTopic("反馈不会丢")
+            val session = fixture.service.createSession(topic, "讨论")
+            val vm = IdeaTopicSessionViewModel(session, fixture.service, fixture.workflow).also(fixture::track)
+            fixture.port.failReply = true
+            vm.send("这个方向暂时行不通")
+            withTimeout(5_000) { vm.state.first { it.messages.any { m -> m.status == IdeaMessageStatus.Failed } && !it.busy } }
+            val failedReplyId = vm.state.value.messages.last().id
+            assertEquals("这个方向暂时行不通", fixture.service.messagesSync(session).first().content)
+            fixture.port.failReply = false
+            vm.retry(failedReplyId)
+            withTimeout(5_000) { vm.state.first { fixture.port.replyCalls == 2 && !it.busy } }
+            val saved = fixture.service.messagesSync(session)
+            assertEquals(2, saved.size)
+            assertEquals(1, saved.count { it.role == IdeaMessageRoles.User })
+            assertEquals(failedReplyId, saved.last().id)
+            assertEquals(IdeaMessageStatus.Complete, saved.last().status)
+        } finally { fixture.close() }
+    }
+
+    @Test
+    fun feedbackAndRepliesKeepTheirCausalOrderWhenTheClockDoesNotAdvance() = runBlocking<Unit> {
+        val fixture = ViewModelFixture()
+        try {
+            val topic = fixture.captureTopic("同一时刻继续聊")
+            val session = fixture.service.createSession(topic, "讨论")
+            repeat(6) { fixture.workflow.send(session, "反馈 $it") }
+            val saved = fixture.service.messagesSync(session)
+            assertEquals(List(6) { listOf(IdeaMessageRoles.User, IdeaMessageRoles.Assistant) }.flatten(), saved.map { it.role })
+            assertEquals((0..5).map { "反馈 $it" }, saved.filter { it.role == IdeaMessageRoles.User }.map { it.content })
+        } finally { fixture.close() }
+    }
+
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -410,15 +509,23 @@ private class ViewModelFixture {
 
 private class ViewModelAiPort : IdeaTopicAiPort {
     var replyCalls = 0
+    var summaryCalls = 0
+    var failReply = false
+    var lastReplyContext: IdeaAiContext? = null
     var proposeGate: CompletableDeferred<Unit>? = null
     var proposeResult: IdeaDraftContent = IdeaDraftContent(IdeaTopicContent(title = "草稿"))
 
     override suspend fun reply(context: IdeaAiContext, onChunk: suspend (String) -> Unit): String {
         replyCalls++
+        lastReplyContext = context
+        if (failReply) throw com.dailysatori.service.ideatopic.IdeaTopicException(IdeaTopicError.AiNotConfigured)
         return "回复"
     }
 
-    override suspend fun summarize(context: IdeaAiContext): String = "摘要"
+    override suspend fun summarize(context: IdeaAiContext): String {
+        summaryCalls++
+        return "摘要"
+    }
 
     override suspend fun propose(context: IdeaAiContext): IdeaDraftContent {
         proposeGate?.await()

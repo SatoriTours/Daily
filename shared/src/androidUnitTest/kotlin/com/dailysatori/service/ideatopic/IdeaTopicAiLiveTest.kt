@@ -100,6 +100,17 @@ class IdeaTopicAiLiveTest {
         assertTrue(summary.summaryCoveredMessageIds.all { it in completedIds })
         assertEquals(summary.summaryCoveredMessageIds.last(), summary.summaryThroughMessageId)
 
+        // Continue the same persisted discussion with feedback, rather than creating a new session.
+        assertEquals(sessionId, fixture.service.getOrCreateDiscussionSession(topicId))
+        workflow.send(sessionId, "补充试用反馈：手动收录有用，但权限边界仍未验证，我现在先搁置整体方案。请只简短确认我的最新判断，不制定下一步。")
+        val followUp = fixture.service.messagesSync(sessionId).last { it.role == IdeaMessageRoles.Assistant }
+        assertEquals(IdeaMessageStatus.Complete, followUp.status)
+        assertTrue(followUp.content.isNotBlank())
+        assertTrue(followUp.content.contains("权限") || followUp.content.contains("搁置"), "reply should acknowledge the new feedback")
+        assertEquals(IdeaSessionSummaryStatus.NeedsUpdate, fixture.service.sessionOrThrow(sessionId).summaryStatus)
+        assertEquals(summary.summary, fixture.service.sessionOrThrow(sessionId).summary, "new feedback must preserve the saved recap")
+        assertEquals(1, fixture.service.sessionsSync(topicId).size)
+
         val draft = try {
             workflow.propose(topicId)
         } catch (failure: IdeaTopicException) {
@@ -131,6 +142,7 @@ class IdeaTopicAiLiveTest {
                     put("model", required("modelName"))
                     put("replyLength", reply.content.length)
                     put("summaryLength", summary.summary.length)
+                    put("followUpReplyLength", followUp.content.length)
                     put("coveredMessages", summary.summaryCoveredMessageIds.size)
                     put("draftTitle", draft.proposal.content.title)
                     put("draftReferenceCount", draft.proposal.referenceIds.size)

@@ -2679,6 +2679,12 @@ DELETE FROM idea_topic_event WHERE id = ?;
 selectIdeaTopicSessionsByTopic:
 SELECT * FROM idea_topic_session WHERE topic_id = ? ORDER BY updated_at DESC, id DESC;
 
+selectIdeaTopicDiscussionSession:
+SELECT * FROM idea_topic_session WHERE topic_id = ?
+ORDER BY COALESCE((SELECT MAX(created_at) FROM idea_topic_message
+    WHERE session_id = idea_topic_session.id AND role = 'user'), -1) DESC,
+    created_at DESC, id DESC LIMIT 1;
+
 selectIdeaTopicSessionById:
 SELECT * FROM idea_topic_session WHERE id = ?;
 

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +52,9 @@ fun IdeaTopicDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val i18n: I18nService = koinInject()
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable(id) { mutableIntStateOf(0) }
+    var showResources by rememberSaveable(id) { mutableStateOf(false) }
+    val discussionStateHolder = rememberSaveableStateHolder()
 
     var showEditContentDialog by rememberSaveable { mutableStateOf(false) }
     var showProgressDialog by rememberSaveable { mutableStateOf(false) }
@@ -63,7 +66,14 @@ fun IdeaTopicDetailScreen(
 
     AppScaffold(
         title = state.detail?.topic?.content?.title?.ifBlank { i18n.t("idea_topic.title") } ?: i18n.t("idea_topic.title"),
-        onBack = onBack,
+        onBack = { if (showResources) showResources = false else onBack() },
+        actions = {
+            if (state.detail != null && !state.deleted) {
+                TextButton(onClick = { showResources = !showResources }) {
+                    Text(i18n.t(if (showResources) "idea_topic.back_to_discussion" else "idea_topic.topic_materials"))
+                }
+            }
+        },
     ) { modifier ->
         if (state.deleted) {
             Box(
@@ -143,56 +153,73 @@ fun IdeaTopicDetailScreen(
                 }
             }
 
-            // Tab row
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text(i18n.t("idea_topic.tab_overview")) },
+            if (!showResources) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatusDropdownSelector(current = detail.topic.status, onSelected = viewModel::setStatus)
+                    TextButton(onClick = { selectedTab = 2; showResources = true }) {
+                        Text(i18n.t("idea_topic.discussion_history"))
+                    }
+                }
+                val mainId = state.topicId ?: id
+                val discussionViewModel: IdeaTopicSessionViewModel = koinViewModel(
+                    key = "topic-discussion:$mainId", parameters = { parametersOf(mainId) },
                 )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text(i18n.t("idea_topic.tab_provenance")) },
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text(i18n.t("idea_topic.tab_conversations")) },
-                )
-            }
+                discussionStateHolder.SaveableStateProvider("topic:$mainId") {
+                    IdeaTopicDiscussionContent("topic:$mainId", discussionViewModel, Modifier.weight(1f))
+                }
+            } else {
+                // Existing materials and historical sessions remain accessible off the main discussion.
+                TabRow(selectedTabIndex = selectedTab) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = { Text(i18n.t("idea_topic.tab_overview")) },
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = { Text(i18n.t("idea_topic.tab_provenance")) },
+                    )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = { Text(i18n.t("idea_topic.discussion_history")) },
+                    )
+                }
 
-            // Tab content
-            when (selectedTab) {
-                0 -> OverviewTabContent(
-                    detail = detail,
-                    state = state,
-                    onEditContent = { showEditContentDialog = true },
-                    onAppendProgress = { showProgressDialog = true },
-                    onMerge = { showMergeDialog = true },
-                    onDelete = { showDeleteDialog = true },
-                    onPropose = viewModel::propose,
-                    onCancelAi = viewModel::cancel,
-                    onStatusChange = viewModel::setStatus,
-                    onEditDraft = { preview -> editingDraftPreview = preview },
-                    onDiscardDraft = viewModel::discardDraft,
-                )
-                1 -> ProvenanceTabContent(
-                    detail = detail,
-                    state = state,
-                    onSourceClick = { snapshot ->
-                        viewingSnapshot = snapshot
-                    },
-                )
-                2 -> ConversationsTabContent(
-                    detail = detail,
-                    state = state,
-                    onNewSession = { showNewSessionDialog = true },
-                    onOpenSession = { sessionId ->
-                        val targetTopicId = state.topicId ?: id
-                        onSession(targetTopicId, sessionId)
-                    },
-                )
+                when (selectedTab) {
+                    0 -> OverviewTabContent(
+                        detail = detail,
+                        state = state,
+                        onEditContent = { showEditContentDialog = true },
+                        onAppendProgress = { showProgressDialog = true },
+                        onMerge = { showMergeDialog = true },
+                        onDelete = { showDeleteDialog = true },
+                        onPropose = viewModel::propose,
+                        onCancelAi = viewModel::cancel,
+                        onStatusChange = viewModel::setStatus,
+                        onEditDraft = { preview -> editingDraftPreview = preview },
+                        onDiscardDraft = viewModel::discardDraft,
+                    )
+                    1 -> ProvenanceTabContent(
+                        detail = detail,
+                        state = state,
+                        onSourceClick = { snapshot -> viewingSnapshot = snapshot },
+                    )
+                    2 -> ConversationsTabContent(
+                        detail = detail,
+                        state = state,
+                        onNewSession = { showNewSessionDialog = true },
+                        onOpenSession = { sessionId ->
+                            val targetTopicId = state.topicId ?: id
+                            onSession(targetTopicId, sessionId)
+                        },
+                    )
+                }
             }
         }
     }
@@ -421,9 +448,6 @@ private fun OverviewTabContent(
                     }
                     if (content.conclusions.isNotBlank()) {
                         ContentFieldRow(i18n.t("idea_topic.overview_conclusions"), content.conclusions)
-                    }
-                    if (content.nextAction.isNotBlank()) {
-                        ContentFieldRow(i18n.t("idea_topic.overview_next_action"), content.nextAction)
                     }
                 }
             }

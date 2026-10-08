@@ -19,6 +19,9 @@ import com.dailysatori.service.ideatopic.IdeaTopicService
 import com.dailysatori.service.ideatopic.IdeaTopicStatus
 import com.dailysatori.service.ideatopic.IdeaTopicSummary
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -281,8 +284,10 @@ data class IdeaTopicSessionState(
     val canSummarize: Boolean get() = !busy && messages.any { it.status == com.dailysatori.service.ideatopic.IdeaMessageStatus.Complete }
 }
 
+/** Accepts either a legacy session id or a topic id for its ongoing discussion. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class IdeaTopicSessionViewModel(
-    private val sessionId: String,
+    sessionId: String,
     private val service: IdeaTopicService,
     private val workflow: IdeaTopicAiWorkflow,
 ) : ViewModel() {
@@ -290,70 +295,80 @@ class IdeaTopicSessionViewModel(
     val state: StateFlow<IdeaTopicSessionState> = _state.asStateFlow()
 
     private val olderMessages = MutableStateFlow<List<IdeaTopicMessage>>(emptyList())
+    private val activeSession = MutableStateFlow<String?>(null)
 
     init {
-        val session = runCatching { service.sessionOrThrow(sessionId) }.getOrNull()
-        val mainTopicId = session?.let { service.resolveTopicId(it.topicId) }
+        val legacySession = runCatching { service.sessionOrThrow(sessionId) }.getOrNull()
+        val mainTopicId = service.resolveTopicId(legacySession?.topicId ?: sessionId)
+        val session = legacySession ?: mainTopicId?.let(service::discussionSessionSync)
+        activeSession.value = session?.id
         _state.update {
             it.copy(
+                sessionId = session?.id.orEmpty(),
                 topicId = mainTopicId,
                 title = session?.title.orEmpty(),
                 summary = session?.summary.orEmpty(),
                 summaryStatus = session?.summaryStatus ?: IdeaSessionSummaryStatus.None,
                 busy = mainTopicId?.let(service::isRequestActive) ?: false,
-                error = if (session == null) IdeaTopicError.NotFound else null,
+                error = if (mainTopicId == null) IdeaTopicError.NotFound else null,
             )
         }
-        if (mainTopicId != null) {
-            // Loading a screen never triggers an AI request.
-            viewModelScope.launch {
-                combine(service.observeMessages(sessionId), olderMessages) { latest, older ->
-                    (older + latest).distinctBy { it.id }
-                        .sortedWith(compareBy({ it.createdAt }, { it.id }))
+        if (mainTopicId != null) observeDiscussion(mainTopicId)
+    }
+
+    private fun observeDiscussion(topicId: String) {
+        // Opening a discussion neither creates a session nor starts an AI request.
+        viewModelScope.launch {
+            activeSession.flatMapLatest { id ->
+                if (id == null) flowOf(emptyList()) else {
+                    combine(service.observeMessages(id), olderMessages) { latest, older ->
+                        (older + latest).distinctBy { it.id }.sortedWith(compareBy({ it.createdAt }, { it.id }))
+                    }
                 }
-                    .catch { failure -> _state.update { it.copy(error = failure.toIdeaTopicError()) } }
-                    .collect { messages -> _state.update { it.copy(messages = messages) } }
-            }
-            viewModelScope.launch {
-                service.observeBusy(mainTopicId).collect { busy -> _state.update { it.copy(busy = busy) } }
-            }
-            viewModelScope.launch {
-                service.observeDetail(mainTopicId).collect { detail ->
-                    val session = detail?.sessions?.firstOrNull { it.id == sessionId }
-                    if (session == null) _state.update { it.copy(error = IdeaTopicError.NotFound) }
-                    else refreshSession(detail.topic.id)
+            }.catch { failure -> _state.update { it.copy(error = failure.toIdeaTopicError()) } }
+                .collect { messages -> _state.update { it.copy(messages = messages) } }
+        }
+        viewModelScope.launch {
+            service.observeBusy(topicId).collect { busy -> _state.update { it.copy(busy = busy) } }
+        }
+        viewModelScope.launch {
+            service.observeDetail(topicId).collect { detail ->
+                if (detail == null) _state.update { it.copy(error = IdeaTopicError.NotFound) }
+                else {
+                    if (activeSession.value == null) activeSession.value = service.discussionSessionSync(detail.topic.id)?.id
+                    refreshSession(detail.topic.id)
                 }
             }
         }
     }
 
-    fun send(text: String) {
-        val topicId = _state.value.topicId ?: return
+    fun send(text: String, onSaved: () -> Unit = {}) {
+        if (text.isBlank()) return
         if (text.length > IdeaAiMaxUserPromptCharacters) {
             _state.update { it.copy(error = IdeaTopicError.InputTooLong) }
             return
         }
-        viewModelScope.launch {
-            _state.update { it.copy(busy = true) }
-            try {
-                workflow.send(sessionId, text)
-                _state.update { it.copy(error = null) }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                _state.update { it.copy(error = failure.toIdeaTopicError()) }
-            } finally {
+        runRequest { topicId ->
+            val id = activeSession.value ?: service.getOrCreateDiscussionSession(topicId).also {
+                activeSession.value = it
                 refreshSession(topicId)
             }
+            workflow.send(id, text, onSaved)
         }
     }
 
     fun summarize() {
+        val id = activeSession.value ?: return
+        runRequest { workflow.summarize(id) }
+    }
+
+    private fun runRequest(block: suspend (String) -> Unit) {
         val topicId = _state.value.topicId ?: return
+        if (_state.value.busy) return
+        _state.update { it.copy(busy = true) }
         viewModelScope.launch {
-            _state.update { it.copy(busy = true) }
             try {
-                workflow.summarize(sessionId)
+                block(topicId)
                 _state.update { it.copy(error = null) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -374,6 +389,7 @@ class IdeaTopicSessionViewModel(
     }
 
     fun loadOlder() {
+        val sessionId = activeSession.value ?: return
         val oldest = _state.value.messages.firstOrNull() ?: return
         if (_state.value.isLoadingOlder) return
         viewModelScope.launch {
@@ -392,29 +408,26 @@ class IdeaTopicSessionViewModel(
     }
 
     fun retry(failedMessageId: String? = null) {
-        val list = _state.value.messages
-        val target = if (failedMessageId != null) {
-            val msg = list.firstOrNull { it.id == failedMessageId }
-            if (msg?.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.User) msg
-            else {
-                val idx = list.indexOfFirst { it.id == failedMessageId }
-                if (idx > 0) list.subList(0, idx).lastOrNull { it.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.User } else null
-            }
-        } else {
-            list.lastOrNull { it.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.User }
-        }
-        target?.let { send(it.content) }
+        val sessionId = activeSession.value ?: return
+        val target = _state.value.messages.lastOrNull { message ->
+            (failedMessageId == null || message.id == failedMessageId) &&
+                message.role == com.dailysatori.service.ideatopic.IdeaMessageRoles.Assistant &&
+                message.status in listOf(com.dailysatori.service.ideatopic.IdeaMessageStatus.Failed,
+                    com.dailysatori.service.ideatopic.IdeaMessageStatus.Interrupted)
+        } ?: return
+        runRequest { workflow.retry(sessionId, target.id) }
     }
 
     private fun refreshSession(topicId: String) {
-        val session = runCatching { service.sessionOrThrow(sessionId) }.getOrNull()
+        val session = activeSession.value?.let { runCatching { service.sessionOrThrow(it) }.getOrNull() }
         _state.update {
             it.copy(
+                sessionId = session?.id.orEmpty(),
                 topicId = service.resolveTopicId(topicId),
                 title = session?.title ?: it.title,
                 summary = session?.summary ?: it.summary,
                 summaryStatus = session?.summaryStatus ?: it.summaryStatus,
-                summaryPartial = session?.let { s -> s.summary.isNotBlank() && s.summaryCoveredMessageIds.size < service.messagesSync(sessionId).count { message -> message.status == com.dailysatori.service.ideatopic.IdeaMessageStatus.Complete } } ?: false,
+                summaryPartial = session?.let { s -> s.summary.isNotBlank() && s.summaryCoveredMessageIds.size < service.messagesSync(s.id).count { message -> message.status == com.dailysatori.service.ideatopic.IdeaMessageStatus.Complete } } ?: false,
                 busy = service.isRequestActive(topicId),
             )
         }

@@ -11,21 +11,41 @@ class IdeaTopicAiWorkflow(
     private val port: IdeaTopicAiPort,
     private val newId: () -> String = { DiagnosticLog.newId() },
 ) {
-    suspend fun send(sessionId: String, text: String) {
+    suspend fun send(sessionId: String, text: String, onSaved: () -> Unit = {}) {
         val question = text.trim()
         if (question.isBlank()) throw IdeaTopicException(IdeaTopicError.InvalidInput)
         if (question.length > IdeaAiMaxUserPromptCharacters) throw IdeaTopicException(IdeaTopicError.InputTooLong)
+        requestReply(sessionId, question, newId(), newId(), retry = false, onSaved = onSaved)
+    }
+
+    suspend fun retry(sessionId: String, replyMessageId: String) {
+        val messages = service.messagesSync(sessionId)
+        val index = messages.indexOfFirst { it.id == replyMessageId && it.role == IdeaMessageRoles.Assistant }
+        val feedback = if (index >= 0) messages.take(index).lastOrNull { it.role == IdeaMessageRoles.User } else null
+        if (feedback == null || messages.drop(index + 1).any { it.role == IdeaMessageRoles.User }) {
+            throw IdeaTopicException(IdeaTopicError.InvalidInput)
+        }
+        requestReply(sessionId, feedback.content, feedback.id, replyMessageId, retry = true)
+    }
+
+    private suspend fun requestReply(
+        sessionId: String, question: String, userMessageId: String, replyMessageId: String,
+        retry: Boolean, onSaved: () -> Unit = {},
+    ) {
         val session = service.sessionOrThrow(sessionId)
         val main = service.resolveTopicId(session.topicId) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
         val token = newId()
-        val userMessageId = newId()
-        val replyMessageId = newId()
         service.beginRequest(main, token)
+        var replyPrepared = false
         try {
-            service.saveUserMessage(sessionId, userMessageId, question)
-            service.savePendingReply(sessionId, replyMessageId)
+            if (retry) service.resetReplyForRetry(sessionId, replyMessageId) else {
+                service.saveUserMessage(sessionId, userMessageId, question)
+                onSaved()
+                service.savePendingReply(sessionId, replyMessageId)
+            }
+            replyPrepared = true
             val detail = service.getDetailSync(main) ?: throw IdeaTopicException(IdeaTopicError.NotFound)
-            val history = service.messagesSync(sessionId).filter { it.id != userMessageId }
+            val history = service.messagesSync(sessionId).takeWhile { it.id != userMessageId }
             val context = buildIdeaAiContext(detail, sessionId, history, question)
             val buffer = StringBuilder()
             val reply = port.reply(context) { chunk ->
@@ -34,11 +54,11 @@ class IdeaTopicAiWorkflow(
             }
             service.completeReply(main, token, replyMessageId, reply)
         } catch (cancellation: CancellationException) {
-            withContext(NonCancellable) { service.interruptReply(main, token, replyMessageId) }
+            if (replyPrepared) withContext(NonCancellable) { service.interruptReply(main, token, replyMessageId) }
             throw cancellation
         } catch (failure: Exception) {
             val code = (failure as? IdeaTopicException)?.code?.name ?: IdeaTopicError.StorageFailure.name
-            withContext(NonCancellable) { service.failReply(main, token, replyMessageId, code) }
+            if (replyPrepared) withContext(NonCancellable) { service.failReply(main, token, replyMessageId, code) }
             throw failure
         } finally {
             withContext(NonCancellable) { service.releaseRequest(main, token) }
