@@ -44,6 +44,9 @@
     <string name="my_space_analysis_confirm">Fetch recent news and use your default AI model to find buildable software product opportunities. Article text and enabled personal context will be sent to your configured AI service.</string>
     <string name="my_space_pending">To review</string>
     <string name="my_space_saved">Saved</string>
+    <string name="my_space_legacy_saved">To Organize</string>
+    <string name="my_space_legacy_saved_hint">Opportunities saved previously that are not yet captured as idea topics. Capturing them allows advancing them in idea topics and removes them from here.</string>
+    <string name="my_space_no_legacy_saved">No legacy saved opportunities to organize</string>
     <string name="my_space_acted">Acted on</string>
     <string name="my_space_ignored">Hidden</string>
     <string name="my_space_none">Nothing here yet</string>

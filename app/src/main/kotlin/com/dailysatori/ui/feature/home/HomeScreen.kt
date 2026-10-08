@@ -193,7 +193,7 @@ fun HomeScreen(
                     when (index) {
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
                             onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
-                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
+                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic)
                         DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick) { onIdeaTopic(it) }
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
@@ -218,7 +218,7 @@ fun HomeScreen(
                             onIdeaTopics = onIdeaTopics,
                         )
                         else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
-                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity)
+                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic)
                     }
                 }
             }

@@ -7,9 +7,9 @@
     <string name="news_focus_past_headlines">当日要闻</string>
     <string name="news_focus_read_more">查看详细新闻 →</string>
     <string name="news_focus_more">查看更多</string>
-    <string name="news_focus_continuous">持续更新 · 收藏优先</string>
+    <string name="news_focus_continuous">持续更新 · 点子推进</string>
     <string name="news_focus_continuous_detail">持续根据新闻更新，跨日期保留</string>
-    <string name="news_focus_ranking_hint">收藏优先，加入待办后移出推荐</string>
+    <string name="news_focus_ranking_hint">收录为点子持续推进，加入待办后移出推荐</string>
     <string name="news_focus_recommended">推荐</string>
     <string name="news_focus_recommended_count">为你推荐 · %1$d 个机会</string>
     <string name="news_focus_direction">关注方向：%1$s</string>

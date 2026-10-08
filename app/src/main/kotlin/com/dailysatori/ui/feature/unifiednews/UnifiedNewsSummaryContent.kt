@@ -26,6 +26,8 @@ import com.dailysatori.R
 import com.dailysatori.shared.db.Unified_news_summary
 import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.ui.feature.myspace.*
+import com.dailysatori.service.ideatopic.opportunityIdeaCaptureInput
+import com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureSheet
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
@@ -69,9 +71,12 @@ internal fun UnifiedNewsSummaryContent(
     onBriefing: (Long) -> Unit,
     onOpportunities: () -> Unit,
     onOpportunity: (String) -> Unit,
+    onTopic: (String) -> Unit = {},
 ) {
     val opportunities: MySpaceViewModel = koinViewModel()
     val opportunityState by opportunities.state.collectAsStateWithLifecycle()
+    val topicLinks by opportunities.opportunityTopicLinks.collectAsStateWithLifecycle()
+    var capturingOpportunity by remember { mutableStateOf<com.dailysatori.service.opportunity.NewsOpportunity?>(null) }
     val operationFailed by opportunities.operationFailed.collectAsStateWithLifecycle()
     val task by opportunities.task.collectAsStateWithLifecycle()
     val analysisError = recommendationError(opportunityState, task, stringResource(R.string.my_space_error))
@@ -123,8 +128,34 @@ internal fun UnifiedNewsSummaryContent(
                 stringResource(R.string.news_focus_more), onOpportunities)
         }
         itemsIndexed(recommendations, key = { _, item -> item.id }) { index, item ->
-            NewsOpportunityCard(item, index + 1, { onOpportunity(item.id) }, { opportunities.setSaved(item.id, !item.saved) })
+            val topicId = topicLinks[item.id]
+            val isCaptured = topicId != null
+            NewsOpportunityCard(
+                item = item,
+                rank = index + 1,
+                onOpen = { onOpportunity(item.id) },
+                isCaptured = isCaptured,
+                onTopicAction = {
+                    if (topicId != null) {
+                        onTopic(topicId)
+                    } else {
+                        capturingOpportunity = item
+                    }
+                },
+            )
         }
+    }
+    capturingOpportunity?.let { opp ->
+        val input = opportunityIdeaCaptureInput(opp)
+        IdeaTopicCaptureSheet(
+            source = input.source,
+            initialContent = input.content,
+            onCaptured = { capturedTopicId ->
+                capturingOpportunity = null
+                onTopic(capturedTopicId)
+            },
+            onDismiss = { capturingOpportunity = null },
+        )
     }
 }
 

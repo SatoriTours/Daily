@@ -4,18 +4,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import com.dailysatori.R
 import com.dailysatori.service.opportunity.NewsOpportunity
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
 
 @Composable
@@ -23,12 +21,14 @@ internal fun NewsOpportunityCard(
     item: NewsOpportunity,
     rank: Int,
     onOpen: () -> Unit,
-    onSave: () -> Unit,
-    onCaptureIdea: (() -> Unit)? = null,
+    isCaptured: Boolean = false,
+    onTopicAction: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
+    val i18n: I18nService = koinInject()
     Surface(
         onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.m),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant),
@@ -45,19 +45,14 @@ internal fun NewsOpportunityCard(
                 Text(item.article.source, style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            IconButton(onClick = onSave) {
-                Icon(if (item.saved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                    contentDescription = stringResource(if (item.saved) R.string.my_space_unsave else R.string.my_space_save),
-                    tint = if (item.saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(IconSize.m))
-            }
-            if (onCaptureIdea != null) {
-                IconButton(onClick = onCaptureIdea) {
-                    Icon(Icons.Outlined.Lightbulb,
-                        contentDescription = "收为点子",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(IconSize.m))
-                }
+            TextButton(onClick = onTopicAction) {
+                Icon(
+                    imageVector = Icons.Outlined.Lightbulb,
+                    contentDescription = null,
+                    modifier = Modifier.size(IconSize.s),
+                )
+                Spacer(Modifier.width(Spacing.xs))
+                Text(i18n.t(opportunityActionLabelKey(isCaptured)), style = MaterialTheme.typography.labelMedium)
             }
         }
     }

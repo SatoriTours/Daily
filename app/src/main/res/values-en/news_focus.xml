@@ -7,9 +7,9 @@
     <string name="news_focus_past_headlines">Headlines</string>
     <string name="news_focus_read_more">Read the news →</string>
     <string name="news_focus_more">View more</string>
-    <string name="news_focus_continuous">Continuously updated · Saved first</string>
+    <string name="news_focus_continuous">Continuously updated · Idea advancing</string>
     <string name="news_focus_continuous_detail">Updated from news, retained across dates</string>
-    <string name="news_focus_ranking_hint">Saved first; added tasks leave recommendations</string>
+    <string name="news_focus_ranking_hint">Capture as ideas to advance; added tasks leave recommendations</string>
     <string name="news_focus_recommended">Recommended</string>
     <string name="news_focus_recommended_count">For you · %1$d opportunities</string>
     <string name="news_focus_direction">Focus: %1$s</string>

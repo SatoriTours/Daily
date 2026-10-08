@@ -22,6 +22,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.opportunity.NewsOpportunity
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import com.dailysatori.service.ideatopic.opportunityIdeaCaptureInput
 import com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureSheet
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -42,6 +44,11 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     var confirming by rememberSaveable { mutableStateOf(false) }
     var choosingContext by rememberSaveable { mutableStateOf(false) }
     var capturingOpportunity by remember { mutableStateOf<NewsOpportunity?>(null) }
+    val topicLinks by viewModel.opportunityTopicLinks.collectAsStateWithLifecycle()
+    val visibleFilters = remember(state.items, topicLinks) { visibleOpportunityFilters(state.items, topicLinks) }
+    LaunchedEffect(visibleFilters) {
+        if (filter !in visibleFilters) filter = OpportunityFilter.PENDING
+    }
     val action = recommendationAction(state.hasAnalysisContext, state.isUpdating, task?.status)
     val busy = action == RecommendationAction.WAIT
     val analysisError = recommendationError(state, task, stringResource(R.string.my_space_error))
@@ -71,12 +78,26 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                     Text(stringResource(R.string.news_focus_continuous_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(stringResource(R.string.news_focus_ranking_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TabRow(selectedTabIndex = filter.ordinal, containerColor = MaterialTheme.colorScheme.background) {
-                    OpportunityFilter.entries.forEach { value ->
+                TabRow(selectedTabIndex = visibleFilters.indexOf(filter).coerceAtLeast(0), containerColor = MaterialTheme.colorScheme.background) {
+                    visibleFilters.forEach { value ->
                         Tab(selected = filter == value, onClick = { filter = value }, text = {
                             Text(opportunityFilterLabel(value), style = MaterialTheme.typography.labelLarge)
                         })
                     }
+                }
+            }
+            if (filter == OpportunityFilter.SAVED) item {
+                Surface(
+                    shape = RoundedCornerShape(Radius.m),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.s),
+                ) {
+                    Text(
+                        stringResource(R.string.my_space_legacy_saved_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(Spacing.m),
+                    )
                 }
             }
             item { RecommendationContextCard(state.hasAnalysisContext, state.focus, thoughts, busy, { editingFocus = true }, organizeThoughts) }
@@ -96,7 +117,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                 }
             }
             if (state.hasAnalysisContext || state.items.isNotEmpty()) {
-                val entries = opportunityItems(state.items, filter)
+                val entries = opportunityItems(state.items, filter, topicLinks)
                 item { Text(
                     if (filter == OpportunityFilter.PENDING) stringResource(R.string.news_focus_recommended_count, entries.size)
                     else opportunityFilterLabel(filter),
@@ -112,18 +133,26 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                     }) else ""
                     MyEmptyBlock(stringResource(when (filter) {
                         OpportunityFilter.PENDING -> R.string.my_space_no_pending
-                        OpportunityFilter.SAVED -> R.string.my_space_no_saved
+                        OpportunityFilter.SAVED -> R.string.my_space_no_legacy_saved
                         OpportunityFilter.ACTED -> R.string.my_space_no_acted
                         OpportunityFilter.IGNORED -> R.string.my_space_no_ignored
                     }), hint, "", {})
                 }
                 itemsIndexed(entries, key = { _, it -> it.id }) { index, entry ->
+                    val topicId = topicLinks[entry.id]
+                    val isCaptured = topicId != null
                     NewsOpportunityCard(
-                        entry,
-                        index + 1,
-                        { onOpen(entry.id) },
-                        { viewModel.setSaved(entry.id, !entry.saved) },
-                        onCaptureIdea = { capturingOpportunity = entry },
+                        item = entry,
+                        rank = index + 1,
+                        onOpen = { onOpen(entry.id) },
+                        isCaptured = isCaptured,
+                        onTopicAction = {
+                            if (topicId != null) {
+                                onTopic(topicId)
+                            } else {
+                                capturingOpportunity = entry
+                            }
+                        },
                     )
                 }
             }
@@ -191,7 +220,7 @@ private fun RecommendationContextCard(
 @Composable
 private fun opportunityFilterLabel(filter: OpportunityFilter) = stringResource(when (filter) {
     OpportunityFilter.PENDING -> R.string.news_focus_recommended
-    OpportunityFilter.SAVED -> R.string.my_space_saved
+    OpportunityFilter.SAVED -> R.string.my_space_legacy_saved
     OpportunityFilter.ACTED -> R.string.my_space_acted
     OpportunityFilter.IGNORED -> R.string.my_space_ignored
 })
@@ -220,7 +249,11 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
     var evidence by rememberSaveable(id) { mutableStateOf(false) }
     var reminder by rememberSaveable(id) { mutableStateOf(false) }
     var capturingOpportunity by remember { mutableStateOf<NewsOpportunity?>(null) }
+    val topicLinks by viewModel.opportunityTopicLinks.collectAsStateWithLifecycle()
+    val topicId = topicLinks[id]
+    val isCaptured = topicId != null
     val context = LocalContext.current
+    val i18n: I18nService = koinInject()
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_useful), onBack = onBack, bottomBar = {
         if (item != null) Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -231,9 +264,18 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
         if (item == null) Text(stringResource(R.string.my_space_unavailable), modifier.padding(Spacing.l)) else LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
             item { Text(item.category, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium); Text(item.title, style = MaterialTheme.typography.headlineSmall) }
             item { Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                TextButton(onClick = { viewModel.setSaved(id, !item.saved) }) { Text(stringResource(if (item.saved) R.string.my_space_unsave else R.string.my_space_save)) }
-                TextButton(onClick = { viewModel.setIgnored(id, !item.ignored) }) { Text(stringResource(if (item.ignored) R.string.my_space_restore else R.string.my_space_irrelevant)) }
-                TextButton(onClick = { capturingOpportunity = item }) { Text("收为点子") }
+                TextButton(onClick = {
+                    if (topicId != null) {
+                        onTopic(topicId)
+                    } else {
+                        capturingOpportunity = item
+                    }
+                }) {
+                    Text(i18n.t(opportunityActionLabelKey(isCaptured)))
+                }
+                TextButton(onClick = { viewModel.setIgnored(id, !item.ignored) }) {
+                    Text(stringResource(if (item.ignored) R.string.my_space_restore else R.string.my_space_irrelevant))
+                }
             } }
             if (failure) item { Text(stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error) }
             item { OpportunityParagraph(stringResource(R.string.my_space_fact), item.fact) }

@@ -44,6 +44,9 @@
     <string name="my_space_analysis_confirm">将获取最新新闻，使用默认 AI 模型寻找可做的软件产品机会。正文和已启用的个人分析会发送到你配置的 AI 服务。</string>
     <string name="my_space_pending">待看</string>
     <string name="my_space_saved">已收藏</string>
+    <string name="my_space_legacy_saved">待整理</string>
+    <string name="my_space_legacy_saved_hint">此前已收藏但尚未收录为点子的机会。收录为点子后可在点子主题中持续推进，并从此处移出。</string>
+    <string name="my_space_no_legacy_saved">没有待整理的旧收藏</string>
     <string name="my_space_acted">已行动</string>
     <string name="my_space_ignored">已忽略</string>
     <string name="my_space_none">这里暂时没有内容</string>

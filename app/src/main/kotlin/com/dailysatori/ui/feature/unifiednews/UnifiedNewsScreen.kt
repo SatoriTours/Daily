@@ -84,6 +84,7 @@ fun UnifiedNewsScreen(
     onBriefing: (Long) -> Unit = {},
     onOpportunities: () -> Unit = {},
     onOpportunity: (String) -> Unit = {},
+    onTopic: (String) -> Unit = {},
 ) {
     val viewModel: UnifiedNewsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -107,6 +108,7 @@ fun UnifiedNewsScreen(
         onBriefing = onBriefing,
         onOpportunities = onOpportunities,
         onOpportunity = onOpportunity,
+        onTopic = onTopic,
     )
 }
 
@@ -169,6 +171,7 @@ private fun UnifiedNewsMainPageRoute(
     onBriefing: (Long) -> Unit,
     onOpportunities: () -> Unit,
     onOpportunity: (String) -> Unit,
+    onTopic: (String) -> Unit = {},
 ) {
     BackHandler(enabled = state.page != UnifiedNewsPage.SUMMARY) {
         viewModel.switchPage(UnifiedNewsPage.SUMMARY)
@@ -178,7 +181,7 @@ private fun UnifiedNewsMainPageRoute(
     }
 
     when (state.page) {
-        UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick, avatarBadgeCount, onBriefing, onOpportunities, onOpportunity)
+        UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onArticleClick, onMyClick, avatarBadgeCount, onBriefing, onOpportunities, onOpportunity, onTopic)
         UnifiedNewsPage.LOCAL_ARTICLES -> ArticleListScreen(
             onArticleClick = onArticleClick,
             onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
@@ -203,6 +206,7 @@ private fun UnifiedNewsSummaryPage(
     onBriefing: (Long) -> Unit,
     onOpportunities: () -> Unit,
     onOpportunity: (String) -> Unit,
+    onTopic: (String) -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     val runningMessage by rememberUpdatedState(stringResource(R.string.news_focus_background_running))
@@ -263,7 +267,7 @@ private fun UnifiedNewsSummaryPage(
                 val pageKey = unifiedNewsSourcePageKey(selection)
                 val pageState = unifiedNewsSourcePageState(state, selection, scrollRequests[pageKey] ?: 0, refreshRequests[pageKey] ?: 0)
                 when (selection) {
-                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(pageState, viewModel, onBriefing, onOpportunities, onOpportunity)
+                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(pageState, viewModel, onBriefing, onOpportunities, onOpportunity, onTopic)
                     is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(pageState, selection, viewModel, isActive = pageKey == selectedKey)
                     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
                         onArticleClick = onArticleClick,

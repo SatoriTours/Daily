@@ -34,10 +34,34 @@ internal fun recommendationAction(hasAnalysisContext: Boolean, isUpdating: Boole
 
 enum class OpportunityFilter { PENDING, SAVED, ACTED, IGNORED }
 
-fun opportunityItems(items: List<NewsOpportunity>, filter: OpportunityFilter): List<NewsOpportunity> =
+fun opportunityActionLabelKey(isCaptured: Boolean): String =
+    if (isCaptured) "idea_topic.capture_view_topic" else "idea_topic.capture_title"
+
+fun hasLegacySavedOpportunities(
+    items: List<NewsOpportunity>,
+    topicLinks: Map<String, String> = emptyMap(),
+): Boolean = items.any { it.saved && !it.ignored && it.id !in topicLinks }
+
+fun visibleOpportunityFilters(
+    items: List<NewsOpportunity>,
+    topicLinks: Map<String, String> = emptyMap(),
+): List<OpportunityFilter> = buildList {
+    add(OpportunityFilter.PENDING)
+    if (hasLegacySavedOpportunities(items, topicLinks)) {
+        add(OpportunityFilter.SAVED)
+    }
+    add(OpportunityFilter.ACTED)
+    add(OpportunityFilter.IGNORED)
+}
+
+fun opportunityItems(
+    items: List<NewsOpportunity>,
+    filter: OpportunityFilter,
+    topicLinks: Map<String, String> = emptyMap(),
+): List<NewsOpportunity> =
     items.filter { item -> when (filter) {
         OpportunityFilter.PENDING -> !item.ignored && item.reminderId == null
-        OpportunityFilter.SAVED -> item.saved && !item.ignored
+        OpportunityFilter.SAVED -> item.saved && !item.ignored && item.id !in topicLinks
         OpportunityFilter.ACTED -> item.reminderId != null && !item.ignored
         OpportunityFilter.IGNORED -> item.ignored
     } }.let { filtered ->

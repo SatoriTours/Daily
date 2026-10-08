@@ -15,11 +15,17 @@ import com.dailysatori.service.diagnostics.DiagnosticLevel
 import com.dailysatori.service.diagnostics.DiagnosticLog
 import com.dailysatori.service.diagnostics.DiagnosticSource
 import com.dailysatori.service.opportunity.NewsOpportunityService
+import com.dailysatori.service.opportunity.OpportunityState
 import com.dailysatori.service.opportunity.ReadNewsArticle
+import com.dailysatori.service.ideatopic.IdeaSourceKey
+import com.dailysatori.service.ideatopic.IdeaSourceTypes
+import com.dailysatori.service.ideatopic.IdeaTopicService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +40,7 @@ class MySpaceViewModel(
     private val scheduler: AsyncTaskScheduler,
     private val reminders: ReminderRepository,
     private val thoughts: DiaryThoughtService,
+    private val ideaTopics: IdeaTopicService,
 ) : ViewModel() {
     val state = service.state
     val thoughtState = thoughts.state
@@ -45,6 +52,9 @@ class MySpaceViewModel(
     val activeReminderIds = reminders.observeAll().map { entries -> entries.map { it.id }.toSet() }
         .withUiObservationError { _operationFailed.value = true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+    val opportunityTopicLinks = observeOpportunityTopicLinks(service.state, ideaTopics)
+        .withUiObservationError { _operationFailed.value = true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init { refresh() }
 
@@ -121,6 +131,16 @@ internal suspend fun observeRecommendationContext(
         refreshRecommendationsIfReady(it, service, onReady)
     }
 }
+
+internal fun observeOpportunityTopicLinks(
+    opportunities: Flow<OpportunityState>,
+    ideaTopics: IdeaTopicService,
+): Flow<Map<String, String>> = combine(opportunities, ideaTopics.observeSummaries()) { oppState, _ ->
+    oppState.items.mapNotNull { item ->
+        val topicId = ideaTopics.findBySourceSync(IdeaSourceKey(IdeaSourceTypes.NewsOpportunity, item.id))
+        topicId?.let { item.id to it }
+    }.toMap()
+}.flowOn(Dispatchers.IO)
 
 internal suspend fun refreshRecommendationsIfReady(
     thoughts: DiaryThoughtState,

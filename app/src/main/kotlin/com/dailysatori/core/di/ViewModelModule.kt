@@ -83,7 +83,7 @@ val viewModelModule: Module = module {
     viewModel { com.dailysatori.ui.feature.settings.sms.SmsCreationNoticeViewModel(get()) }
     viewModel { com.dailysatori.ui.feature.reminder.SmsReminderSourceViewModel(get()) }
     viewModel { com.dailysatori.ui.feature.lifearchive.LifeArchiveViewModel(get(), get(), get(), get()) }
-    viewModel { com.dailysatori.ui.feature.myspace.MySpaceViewModel(get(), get(), get(), get(), get()) }
+    viewModel { com.dailysatori.ui.feature.myspace.MySpaceViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.myspace.PersonalChatViewModel(get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsViewModel(get(), androidContext()) }
     single { DiaryRecordingStore() }
