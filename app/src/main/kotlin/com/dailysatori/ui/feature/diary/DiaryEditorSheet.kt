@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -533,80 +535,82 @@ fun DiaryEditorSheet(
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.m, vertical = Spacing.s),
                 ) {
-                    Row(
+                    val canSave = canSaveDiaryEntry(
+                        isContinuation = isContinuation,
+                        content = content.text,
+                        hasImages = images.isNotEmpty(),
+                        isSaving = isSaving,
+                    )
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                     ) {
-                        TextButton(onClick = onDismiss) { Text("取消", color = editorColors.primary) }
-                        DiaryEditorMetaRow(
-                            dateText = diaryEditorDateText(existingDiary, continuationRootId),
-                            mood = moodText,
-                            colors = editorColors,
-                            onMood = { showMoodEditor = true },
-                            onStartRecording = if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
-                                {
-                                    onStartRecording?.invoke(
-                                        DiaryContinuationDraftSnapshot(
-                                            content = content.text,
-                                            mood = moodText.ifBlank { null },
-                                            images = images.joinToString(",").ifBlank { null },
-                                            polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
-                                        ),
-                                    )
-                                }
-                            } else null,
-                        )
-                        val canSave = canSaveDiaryEntry(
-                            isContinuation = isContinuation,
-                            content = content.text,
-                            hasImages = images.isNotEmpty(),
-                            isSaving = isSaving,
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (onCaptureIdea != null && !isContinuation) {
-                                TextButton(
-                                    enabled = canSave,
-                                    onClick = {
-                                        onCaptureIdea(
-                                            content.text,
-                                            tagsText.ifBlank { null },
-                                            moodText.ifBlank { null },
-                                            images.joinToString(",").ifBlank { null },
-                                            tagDraft,
-                                            polishedTranscripts.takeIf { polishVersionsLoaded },
-                                        )
-                                    },
-                                ) {
-                                    Text("收为点子", color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
-                                }
-                            }
+                        TextButton(onClick = onDismiss) {
+                            Text("取消", color = editorColors.primary, maxLines = 1, softWrap = false)
+                        }
+                        if (onCaptureIdea != null && !isContinuation) {
                             TextButton(
                                 enabled = canSave,
                                 onClick = {
-                                    if (isContinuation && onSaveContinuation != null) {
-                                        onSaveContinuation(
-                                            content.text,
-                                            moodText.ifBlank { null },
-                                            images.joinToString(",").ifBlank { null },
-                                            polishedTranscripts.takeIf { polishVersionsLoaded },
-                                        )
-                                    } else {
-                                        onSave(
-                                            content.text,
-                                            tagsText.ifBlank { null },
-                                            moodText.ifBlank { null },
-                                            images.joinToString(",").ifBlank { null },
-                                            tagDraft,
-                                            polishedTranscripts.takeIf { polishVersionsLoaded },
-                                        )
-                                    }
+                                    onCaptureIdea(
+                                        content.text,
+                                        tagsText.ifBlank { null },
+                                        moodText.ifBlank { null },
+                                        images.joinToString(",").ifBlank { null },
+                                        tagDraft,
+                                        polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    )
                                 },
                             ) {
-                                Text("保存", color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
+                                Text("收为点子", maxLines = 1, softWrap = false,
+                                    color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
                             }
                         }
+                        TextButton(
+                            enabled = canSave,
+                            onClick = {
+                                if (isContinuation && onSaveContinuation != null) {
+                                    onSaveContinuation(
+                                        content.text,
+                                        moodText.ifBlank { null },
+                                        images.joinToString(",").ifBlank { null },
+                                        polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    )
+                                } else {
+                                    onSave(
+                                        content.text,
+                                        tagsText.ifBlank { null },
+                                        moodText.ifBlank { null },
+                                        images.joinToString(",").ifBlank { null },
+                                        tagDraft,
+                                        polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    )
+                                }
+                            },
+                        ) {
+                            Text("保存", maxLines = 1, softWrap = false,
+                                color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
+                        }
                     }
+                    DiaryEditorMetaRow(
+                        dateText = diaryEditorDateText(existingDiary, continuationRootId),
+                        mood = moodText,
+                        colors = editorColors,
+                        onMood = { showMoodEditor = true },
+                        onStartRecording = if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
+                            {
+                                onStartRecording?.invoke(
+                                    DiaryContinuationDraftSnapshot(
+                                        content = content.text,
+                                        mood = moodText.ifBlank { null },
+                                        images = images.joinToString(",").ifBlank { null },
+                                        polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    ),
+                                )
+                            }
+                        } else null,
+                    )
                     recordingState?.let {
                         DiaryRecordingControls(
                             state = it,
@@ -843,6 +847,7 @@ private fun DiaryPastedUrlPrompt(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DiaryEditorMetaRow(
     dateText: String,
@@ -851,11 +856,13 @@ private fun DiaryEditorMetaRow(
     onMood: () -> Unit,
     onStartRecording: (() -> Unit)? = null,
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier
-            .padding(horizontal = Spacing.xs),
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.xs, vertical = Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
@@ -864,11 +871,13 @@ private fun DiaryEditorMetaRow(
             Icon(
                 Icons.Default.CalendarToday,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(IconSize.xs),
                 tint = colors.muted,
             )
             Text(
                 text = dateText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelMedium,
                 color = colors.muted,
             )
@@ -884,6 +893,8 @@ private fun DiaryEditorMetaRow(
         ) {
             Text(
                 text = mood.ifBlank { "心情" },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (mood.isBlank()) {
@@ -912,6 +923,8 @@ private fun DiaryEditorMetaRow(
                     )
                     Text(
                         text = stringResource(R.string.diary_feed_record_voice),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.primary,
                     )

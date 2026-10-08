@@ -70,6 +70,21 @@ class DiaryEditorSheetBehaviorTest {
     }
 
     @Test
+    fun diaryEditorSeparatesActionsFromMetadataToAvoidSqueezingSave() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText()
+        val header = source.substringAfter(".padding(horizontal = Spacing.m, vertical = Spacing.s),")
+            .substringBefore("recordingState?.let")
+        val metadataIndex = header.indexOf("DiaryEditorMetaRow(")
+
+        assertTrue(header.indexOf("Text(\"保存\"") < metadataIndex,
+            "Date and mood must follow the complete action row rather than consume button width")
+        assertTrue(header.substringBefore("DiaryEditorMetaRow(").contains("FlowRow("),
+            "Actions must wrap as whole buttons on narrow screens")
+        assertTrue(source.substringAfter("private fun DiaryEditorMetaRow(").substringBefore("private fun MediaPickerButton(")
+            .contains("FlowRow("), "Metadata must also allow whole items to wrap")
+    }
+
+    @Test
     fun diaryEditorMetadataAndTagsMatchRedesignHierarchy() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText()
         val toolbarSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorToolbar.kt").readText()
