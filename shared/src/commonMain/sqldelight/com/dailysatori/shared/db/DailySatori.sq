@@ -2116,6 +2116,17 @@ SELECT * FROM setting WHERE key = ?;
 selectAllSettings:
 SELECT * FROM setting;
 
+-- Project only a bounded piece: legacy archives can exceed Android's CursorWindow.
+selectSettingValuePart:
+SELECT coalesce(substr(value, CAST(:part_offset AS INTEGER), CAST(:part_size AS INTEGER)), '') AS value_part
+FROM setting WHERE key = :setting_key AND value IS NOT NULL;
+
+selectSettingKeys:
+SELECT coalesce(key, '') AS setting_key FROM setting WHERE key IS NOT NULL;
+
+deleteSettingsByKeyPrefix:
+DELETE FROM setting WHERE key LIKE :prefix ESCAPE '\';
+
 insertSetting:
 INSERT INTO setting (key, value, created_at, updated_at) VALUES (?, ?, ?, ?);
 
