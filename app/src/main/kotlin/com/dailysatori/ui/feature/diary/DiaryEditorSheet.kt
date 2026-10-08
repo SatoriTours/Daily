@@ -31,6 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.MicNone
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -139,12 +142,20 @@ fun DiaryEditorSheet(
     latestTags: List<String>? = null,
     onCaptureIdea: ((content: String, tags: String?, mood: String?, images: String?, tagDraft: DiaryTagDraft,
         polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit)? = null,
+    continuationRootId: Long? = null,
+    onSaveContinuation: ((content: String, mood: String?, images: String?,
+        polishedTranscripts: Map<Long, DiaryPolishedTranscript>?) -> Unit)? = null,
+    onStartRecording: ((DiaryContinuationDraftSnapshot) -> Unit)? = null,
+    isSaving: Boolean = false,
 ) {
     val context = LocalContext.current
     val editorColors = diaryEditorColors()
+    val isContinuation = continuationRootId != null
+    val showRecording = isContinuation && onStartRecording != null
 
-    var content by remember(existingDiary) {
-        mutableStateOf(TextFieldValue(existingDiary?.content ?: ""))
+    var content by remember(existingDiary?.id ?: continuationRootId) {
+        val rawText = existingDiary?.content.orEmpty()
+        mutableStateOf(TextFieldValue(filterDisplayableDiaryContent(rawText)))
     }
     val editorScrollState = rememberScrollState()
     var showMediaPicker by remember { mutableStateOf(false) }
@@ -430,6 +441,19 @@ fun DiaryEditorSheet(
                     MediaPickerButton("从相册选择") {
                         showMediaPicker = false; galleryLauncher.launch("image/*")
                     }
+                    if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
+                        MediaPickerButton(stringResource(R.string.diary_feed_record_voice)) {
+                            showMediaPicker = false
+                            onStartRecording?.invoke(
+                                DiaryContinuationDraftSnapshot(
+                                    content = content.text,
+                                    mood = moodText.ifBlank { null },
+                                    images = images.joinToString(",").ifBlank { null },
+                                    polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
+                                ),
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {},
@@ -516,15 +540,33 @@ fun DiaryEditorSheet(
                     ) {
                         TextButton(onClick = onDismiss) { Text("取消", color = editorColors.primary) }
                         DiaryEditorMetaRow(
-                            dateText = diaryEditorDateText(existingDiary),
+                            dateText = diaryEditorDateText(existingDiary, continuationRootId),
                             mood = moodText,
                             colors = editorColors,
                             onMood = { showMoodEditor = true },
+                            onStartRecording = if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
+                                {
+                                    onStartRecording?.invoke(
+                                        DiaryContinuationDraftSnapshot(
+                                            content = content.text,
+                                            mood = moodText.ifBlank { null },
+                                            images = images.joinToString(",").ifBlank { null },
+                                            polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
+                                        ),
+                                    )
+                                }
+                            } else null,
+                        )
+                        val canSave = canSaveDiaryEntry(
+                            isContinuation = isContinuation,
+                            content = content.text,
+                            hasImages = images.isNotEmpty(),
+                            isSaving = isSaving,
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (onCaptureIdea != null) {
+                            if (onCaptureIdea != null && !isContinuation) {
                                 TextButton(
-                                    enabled = content.text.isNotBlank(),
+                                    enabled = canSave,
                                     onClick = {
                                         onCaptureIdea(
                                             content.text,
@@ -536,21 +578,32 @@ fun DiaryEditorSheet(
                                         )
                                     },
                                 ) {
-                                    Text(
-                                        "收为点子",
-                                        color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
-                                    )
+                                    Text("收为点子", color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
                                 }
                             }
                             TextButton(
-                                enabled = content.text.isNotBlank(),
-                                onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }, tagDraft,
-                                    polishedTranscripts.takeIf { polishVersionsLoaded }) },
+                                enabled = canSave,
+                                onClick = {
+                                    if (isContinuation && onSaveContinuation != null) {
+                                        onSaveContinuation(
+                                            content.text,
+                                            moodText.ifBlank { null },
+                                            images.joinToString(",").ifBlank { null },
+                                            polishedTranscripts.takeIf { polishVersionsLoaded },
+                                        )
+                                    } else {
+                                        onSave(
+                                            content.text,
+                                            tagsText.ifBlank { null },
+                                            moodText.ifBlank { null },
+                                            images.joinToString(",").ifBlank { null },
+                                            tagDraft,
+                                            polishedTranscripts.takeIf { polishVersionsLoaded },
+                                        )
+                                    }
+                                },
                             ) {
-                                Text(
-                                    "保存",
-                                    color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
-                                )
+                                Text("保存", color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
                             }
                         }
                     }
@@ -624,23 +677,25 @@ fun DiaryEditorSheet(
                                         innerTextField()
                                     },
                                 )
-                                DiaryEditorTagRow(
-                                    tagsText = tagsText,
-                                    showAddEntry = showTagEntry,
-                                    colors = editorColors,
-                                    onAddTag = { tagToEdit = null; showTagEditor = true },
-                                    onEditTag = { tagToEdit = it; showTagEditor = true },
-                                    onRemoveTag = { changeTags(tagDraft.remove(it)) },
-                                )
-                                val tagStatusKey = when (tagStatus) {
-                                    "queued", "running", "retrying" -> "diary_tags.$tagStatus"
-                                    "failed" -> "diary_tags.failed_status"
-                                    else -> null
-                                }
-                                if (tagStatusKey != null) {
-                                    val i18n: I18nService = koinInject()
-                                    Text(i18n.t(tagStatusKey), style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (!isContinuation) {
+                                    DiaryEditorTagRow(
+                                        tagsText = tagsText,
+                                        showAddEntry = showTagEntry,
+                                        colors = editorColors,
+                                        onAddTag = { tagToEdit = null; showTagEditor = true },
+                                        onEditTag = { tagToEdit = it; showTagEditor = true },
+                                        onRemoveTag = { changeTags(tagDraft.remove(it)) },
+                                    )
+                                    val tagStatusKey = when (tagStatus) {
+                                        "queued", "running", "retrying" -> "diary_tags.$tagStatus"
+                                        "failed" -> "diary_tags.failed_status"
+                                        else -> null
+                                    }
+                                    if (tagStatusKey != null) {
+                                        val i18n: I18nService = koinInject()
+                                        Text(i18n.t(tagStatusKey), style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                             }
                         }
@@ -794,6 +849,7 @@ private fun DiaryEditorMetaRow(
     mood: String,
     colors: DiaryEditorColors,
     onMood: () -> Unit,
+    onStartRecording: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
@@ -836,6 +892,31 @@ private fun DiaryEditorMetaRow(
                     colors.primary
                 },
             )
+        }
+        if (onStartRecording != null) {
+            Surface(
+                onClick = onStartRecording,
+                shape = RoundedCornerShape(Radius.circular),
+                color = colors.chip,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                ) {
+                    Icon(
+                        Icons.Default.MicNone,
+                        contentDescription = stringResource(R.string.diary_feed_record_voice),
+                        modifier = Modifier.size(IconSize.xs),
+                        tint = colors.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.diary_feed_record_voice),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.primary,
+                    )
+                }
+            }
         }
     }
 }
@@ -965,7 +1046,10 @@ private fun DiaryTextEditDialog(
     )
 }
 
-private fun diaryEditorDateText(existingDiary: Diary?): String {
+private fun diaryEditorDateText(existingDiary: Diary?, continuationRootId: Long? = null): String {
+    if (continuationRootId != null) {
+        return diaryEditorHeaderTitle(existingDiary, continuationRootId)
+    }
     val time = existingDiary?.created_at ?: System.currentTimeMillis()
     return SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(Date(time))
 }

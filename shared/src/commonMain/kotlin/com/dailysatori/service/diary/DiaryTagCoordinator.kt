@@ -1,8 +1,8 @@
 package com.dailysatori.service.diary
 
 import com.dailysatori.data.repository.AsyncTaskRepository
-import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryTagRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.service.asynctask.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -18,10 +18,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 class DiaryTagCoordinator(
-    private val diaries: DiaryRepository,
     private val tags: DiaryTagRepository,
     private val tasks: AsyncTaskRepository,
     private val generator: DiaryTagGenerator,
+    private val threads: DiaryThreadRepository,
     private val configured: () -> Boolean,
 ) : AsyncTaskHandler {
     override val type = AsyncTaskType.diary_tag_generate.name
@@ -40,7 +40,7 @@ class DiaryTagCoordinator(
     fun start(scope: CoroutineScope, schedule: (Long) -> Unit) {
         if (observer?.isActive == true) return
         observer = scope.launch(Dispatchers.IO) {
-            diaries.getAll().map { entries -> entries.map { it.id to it.content } }
+            threads.observeSources().map { sources -> sources.map { it.rootId to it.revision } }
                 .distinctUntilChanged().collect {
                     val pending = mutableListOf<Long>()
                     tags.changedDiaryIds { ids -> ids.mapNotNullTo(pending) { id -> enqueue(id) } }

@@ -1,7 +1,7 @@
 package com.dailysatori.service.diary
 
-import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryThoughtRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import co.touchlab.kermit.Logger
 import com.dailysatori.service.diagnostics.*
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.coroutineContext
 
 class DiaryThoughtService(
-    private val diaryRepository: DiaryRepository,
+    private val threads: DiaryThreadRepository,
     private val repository: DiaryThoughtRepository,
     private val generator: DiaryThoughtGenerator,
 ) {
@@ -49,8 +49,9 @@ class DiaryThoughtService(
         job = scope.launch(Dispatchers.IO) {
             try {
                 _state.value = DiaryThoughtState(corrections = repository.corrections(), useInChat = repository.useInChat())
-                diaryRepository.getAll().map { diaries ->
-                    diaries.filter { it.content.isNotBlank() }.map { DiaryThoughtSource(it.id, it.content, it.created_at) }
+                threads.observeSources().map { sources ->
+                    sources.filter { it.content.isNotBlank() }
+                        .map { DiaryThoughtSource(it.rootId, it.content, it.createdAt) }
                 }.distinctUntilChanged().combine(requests) { sources, revision -> sources to revision }
                     .collectLatest { (sources, revision) -> updatePendingRefresh(sources, revision, scheduleRefresh) }
             } catch (cancelled: CancellationException) {

@@ -3,6 +3,7 @@ package com.dailysatori.service.diary
 import co.touchlab.kermit.Logger
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
@@ -31,6 +32,7 @@ class DiaryMonthSummaryService(
     private val summaryRepo: DiaryMonthSummaryRepository,
     private val aiConfigService: AiConfigService,
     private val aiService: AiService,
+    private val threads: DiaryThreadRepository,
 ) {
     private val log = Logger.withTag("DiaryMonthSummary")
 
@@ -60,7 +62,12 @@ class DiaryMonthSummaryService(
         val latestUpdatedAt = diaries.maxOf { it.updated_at }
         try {
             val summary = aiService.summarize(
-                content = buildDiaryMonthSummaryPrompt(monthKey, diaries.map { it.content }, diaryTags(diaries), diaryMoods(diaries)),
+                content = buildDiaryMonthSummaryPrompt(
+                    monthKey,
+                    diaryMonthPromptTexts(threads, diaries),
+                    diaryTags(diaries),
+                    diaryMoods(diaries),
+                ),
                 systemPrompt = "你是 Daily Satori 的日记整理助手，只根据用户日记内容写克制、温柔、真实的一句中文月度总结。",
                 apiAddress = config.api_address,
                 apiToken = config.api_token,
@@ -89,6 +96,10 @@ class DiaryMonthSummaryService(
         diary.mood?.trim()?.takeIf { it.isNotBlank() && it != "null" }
     }.distinct().take(8)
 }
+
+/** 月度汇总使用整串原文（主记录创建月份归属），续写也会进入当月内容。 */
+internal fun diaryMonthPromptTexts(threads: DiaryThreadRepository, diaries: List<Diary>): List<String> =
+    diaries.map { threads.getSource(it.id)?.content ?: it.content }
 
 fun recentDiaryMonthKeys(nowMs: Long, timeZone: TimeZone = TimeZone.currentSystemDefault()): List<String> {
     val today = Instant.fromEpochMilliseconds(nowMs).toLocalDateTime(timeZone).date

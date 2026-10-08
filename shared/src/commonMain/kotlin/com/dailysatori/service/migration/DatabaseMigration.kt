@@ -143,6 +143,9 @@ class DatabaseMigration(
         if (currentVersion < 33) {
             migrateV32ToV33()
         }
+        if (currentVersion < 34) {
+            migrateV33ToV34()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1171,6 +1174,21 @@ class DatabaseMigration(
         }
     }
 
+    /** V33 -> V34: 日记续写归属、原文版本与汇总存储。 */
+    private fun migrateV33ToV34() {
+        log.i { "Migration V33 -> V34: diary thread continuation" }
+        try {
+            addColumnIfMissing("diary", "parent_diary_id", "INTEGER REFERENCES diary(id) ON DELETE CASCADE")
+        } catch (e: Exception) {
+            log.w(e) { "Could not add diary parent_diary_id" }
+        }
+        try {
+            migrateDiaryThreadSchema { sql -> runSql(sql) }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create diary thread storage" }
+        }
+    }
+
     private fun addColumnIfMissing(table: String, column: String, definition: String) {
         var exists = false
         driver.executeQuery<Unit>(null, "PRAGMA table_info($table)", { cursor ->
@@ -1269,6 +1287,53 @@ class DatabaseMigration(
 
         internal fun migrateReminderRecurrenceSchema(runSql: (String) -> Unit) {
             runSql("ALTER TABLE reminder ADD COLUMN recurrence_rule TEXT NOT NULL DEFAULT 'once'")
+        }
+
+        /** 日记续写存储；可重复执行，供新库与旧库升级共用。 */
+        internal fun migrateDiaryThreadSchema(runSql: (String) -> Unit) {
+            listOf(
+                "CREATE INDEX IF NOT EXISTS idx_diary_parent_created ON diary(parent_diary_id, created_at ASC, id ASC)",
+                """CREATE TABLE IF NOT EXISTS diary_thread_revision (root_diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE, revision INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0)""",
+                """CREATE TABLE IF NOT EXISTS diary_thread_summary (diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE, source_revision INTEGER NOT NULL DEFAULT 0, summary_revision INTEGER NOT NULL DEFAULT 0, summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', error_message TEXT NOT NULL DEFAULT '', generated_at INTEGER, updated_at INTEGER NOT NULL DEFAULT 0)""",
+                "DROP TRIGGER IF EXISTS diary_thread_revision_after_insert",
+                "DROP TRIGGER IF EXISTS diary_thread_revision_after_content_update",
+                "DROP TRIGGER IF EXISTS diary_thread_root_updated_after_insert",
+                "DROP TRIGGER IF EXISTS diary_thread_root_updated_after_content_update",
+                "DROP TRIGGER IF EXISTS diary_thread_child_updated_after_content_update",
+                """CREATE TRIGGER diary_thread_revision_after_insert AFTER INSERT ON diary BEGIN
+                    INSERT INTO diary_thread_revision(root_diary_id, revision, updated_at)
+                    VALUES (COALESCE(new.parent_diary_id, new.id), 1, new.updated_at)
+                    ON CONFLICT(root_diary_id) DO UPDATE SET
+                        revision = revision + 1,
+                        updated_at = MAX(excluded.updated_at, updated_at + 1);
+                END""".trimIndent(),
+                """CREATE TRIGGER diary_thread_revision_after_content_update
+                AFTER UPDATE OF content, images ON diary
+                WHEN new.content IS NOT old.content OR new.images IS NOT old.images
+                BEGIN
+                    UPDATE diary_thread_revision
+                    SET revision = revision + 1, updated_at = MAX(new.updated_at, updated_at + 1)
+                    WHERE root_diary_id = COALESCE(new.parent_diary_id, new.id);
+                END""".trimIndent(),
+                """CREATE TRIGGER diary_thread_root_updated_after_content_update
+                AFTER UPDATE OF content, images ON diary
+                WHEN new.parent_diary_id IS NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+                BEGIN
+                    UPDATE diary SET updated_at = MAX(new.updated_at, old.updated_at + 1) WHERE id = new.id;
+                END""".trimIndent(),
+                """CREATE TRIGGER diary_thread_child_updated_after_content_update
+                AFTER UPDATE OF content, images ON diary
+                WHEN new.parent_diary_id IS NOT NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+                BEGIN
+                    UPDATE diary SET updated_at = MAX(new.updated_at, updated_at + 1) WHERE id = new.parent_diary_id;
+                END""".trimIndent(),
+                """CREATE TRIGGER diary_thread_root_updated_after_insert AFTER INSERT ON diary
+                WHEN new.parent_diary_id IS NOT NULL
+                BEGIN
+                    UPDATE diary SET updated_at = MAX(new.created_at, updated_at + 1) WHERE id = new.parent_diary_id;
+                END""".trimIndent(),
+                "INSERT OR IGNORE INTO diary_thread_revision(root_diary_id, revision, updated_at) SELECT id, 1, updated_at FROM diary WHERE parent_diary_id IS NULL",
+            ).forEach(runSql)
         }
 
         internal fun migrateReminderAiBatchSchema(runSql: (String) -> Unit) {

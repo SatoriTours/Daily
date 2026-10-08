@@ -1,7 +1,7 @@
 package com.dailysatori.service.diary
 
-import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryThoughtRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.service.mcp.McpSearchResult
 import kotlinx.datetime.Instant
 import kotlinx.serialization.json.buildJsonArray
@@ -12,12 +12,12 @@ data class DiaryThoughtChatContext(val prompt: String, val references: List<McpS
 
 class DiaryThoughtChatContextProvider(
     private val repository: DiaryThoughtRepository,
-    private val diaryRepository: DiaryRepository,
+    private val threads: DiaryThreadRepository,
 ) {
     fun getContext(): DiaryThoughtChatContext? {
         if (!repository.useInChat()) return null
-        val sources = diaryRepository.getAllSync().filter { it.content.isNotBlank() }
-            .map { DiaryThoughtSource(it.id, it.content, it.created_at) }
+        val sources = threads.sources().filter { it.content.isNotBlank() }
+            .map { DiaryThoughtSource(it.rootId, it.content, it.createdAt) }
         val archive = repository.load()
         val corrections = repository.corrections().take(2_000)
         val thoughts = if (archive.fingerprint == diaryThoughtFingerprint(sources, corrections)) {

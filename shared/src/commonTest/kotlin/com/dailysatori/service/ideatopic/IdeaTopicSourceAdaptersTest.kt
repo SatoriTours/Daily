@@ -22,6 +22,7 @@ class IdeaTopicSourceAdaptersTest {
             images = null,
             created_at = 111L,
             updated_at = 222L,
+            parent_diary_id = null,
         )
 
         val input = diaryIdeaCaptureInput(diary)
@@ -50,6 +51,7 @@ class IdeaTopicSourceAdaptersTest {
             images = null,
             created_at = 0L,
             updated_at = 0L,
+            parent_diary_id = null,
         )
         assertFailsWith<IllegalArgumentException> { diaryIdeaCaptureInput(unsaved) }
     }
@@ -131,7 +133,7 @@ class IdeaTopicSourceAdaptersTest {
 
     @Test
     fun captureKeysAreStableAndDoNotCollideAcrossSourceTypes() {
-        val diary = Diary(7L, "内容", null, null, null, 1L, 1L)
+        val diary = Diary(7L, "内容", null, null, null, 1L, 1L, null)
         val opportunity = NewsOpportunity(
             id = "7",
             article = ReadNewsArticle("k", "标题", "正文", null, "src", null, 1L, null),

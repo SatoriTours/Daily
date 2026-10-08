@@ -1,5 +1,6 @@
 package com.dailysatori.service.diary
 
+import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -30,7 +31,7 @@ class DiaryTagAiLiveTest {
             val generator = DiaryTagGenerator { prompt, system ->
                 try {
                     ai.completePrivate(prompt, required("apiAddress"), required("apiToken"),
-                        required("modelName"), required("provider"), system)
+                        required("modelName"), required("provider"), system, purpose = AiPurpose.INTERACTIVE)
                 } catch (error: Exception) {
                     error("Live diary-tag request failed: ${error::class.simpleName}")
                 }

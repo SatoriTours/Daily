@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.service.reminder.ReminderDraftCodec
@@ -15,6 +16,7 @@ import kotlinx.serialization.json.*
 
 class McpToolRegistry(
     private val diaryRepo: DiaryRepository,
+    private val threads: DiaryThreadRepository,
     private val articleRepo: ArticleRepository,
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
@@ -171,7 +173,7 @@ class McpToolRegistry(
     private fun getLatestDiary(args: JsonObject): McpToolResult {
         val limit = intParam(args, "limit", 5)
         val diaries = diaryRepo.getLatestSync(limit)
-        return successResult("diaries" to diaryListToJson(diaries))
+        return successResult("diaries" to diaryListToJson(diaries) { threadContent(it.id) })
     }
 
     private fun getDiaryByDate(args: JsonObject): McpToolResult {
@@ -182,7 +184,7 @@ class McpToolRegistry(
         val diaries = diaryRepo.getByDateRangeSync(startMs, endMs)
         return successResult(
             "date" to JsonPrimitive(dateStr),
-            "diaries" to diaryListToJson(diaries),
+            "diaries" to diaryListToJson(diaries) { threadContent(it.id) },
         )
     }
 
@@ -192,7 +194,9 @@ class McpToolRegistry(
         val results = searchWithKeywords(keyword) { kw -> diaryRepo.searchSync(kw) }
         return successResult(
             "keyword" to JsonPrimitive(keyword),
-            "diaries" to diaryListToJson(results.take(limit)),
+            "diaries" to diaryListToJson(results.take(limit)) { root ->
+                diarySearchPassage(threadContent(root.id), keyword)
+            },
         )
     }
 
@@ -205,9 +209,13 @@ class McpToolRegistry(
         }
         return successResult(
             "tag" to JsonPrimitive(tag),
-            "diaries" to diaryListToJson(filtered.take(limit)),
+            "diaries" to diaryListToJson(filtered.take(limit)) { threadContent(it.id) },
         )
     }
+
+    /** 非搜索工具读取整串原文，搜索工具再从该原文中取命中附近片段。 */
+    private fun threadContent(rootId: Long): String =
+        threads.getSource(rootId)?.content ?: diaryRepo.getById(rootId)?.content.orEmpty()
 
     private fun getDiaryCount(): McpToolResult =
         successResult("count" to JsonPrimitive(diaryRepo.count()))

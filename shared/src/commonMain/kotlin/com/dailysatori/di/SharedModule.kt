@@ -126,19 +126,21 @@ val sharedModule: Module = module {
     single { ChatConversationRepository(get()) }
     single { DiaryAttachmentRepository(get(), get(), get()) }
     single { DiaryRepository(get(), get(), get()) }
-    single { com.dailysatori.data.repository.DiaryTagRepository(get()) }
+    single { com.dailysatori.data.repository.DiaryThreadRepository(get(), get()) }
+    single { com.dailysatori.data.repository.DiaryTagRepository(get(), get()) }
     single {
         val configs = get<com.dailysatori.service.ai.AiConfigService>()
         val ai = get<com.dailysatori.service.ai.AiService>()
         com.dailysatori.service.diary.DiaryTagGenerator { prompt, system ->
-            val config = configs.getDefaultConfig() ?: error("请先配置默认 AI")
-            ai.completePrivate(prompt, config.api_address, config.api_token, config.model_name, config.provider, system)
+            val config = configs.getConfig(AiPurpose.INTERACTIVE) ?: error("请先配置默认 AI")
+            ai.completePrivate(prompt, config.api_address, config.api_token, config.model_name, config.provider, system,
+                purpose = AiPurpose.INTERACTIVE)
         }
     }
     single {
         val configs = get<com.dailysatori.service.ai.AiConfigService>()
         com.dailysatori.service.diary.DiaryTagCoordinator(get(), get(), get(), get()) {
-            configs.getDefaultConfig()?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
+            configs.getConfig(AiPurpose.INTERACTIVE)?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
         }
     }
     single { DiaryMonthSummaryRepository(get()) }
@@ -146,6 +148,21 @@ val sharedModule: Module = module {
     single { DiaryThoughtGenerator(diaryAssistantCompletion(get(), get(), AiPurpose.REFLECTION)) }
     single { DiaryThoughtService(get(), get(), get()) }
     single { DiaryThoughtChatContextProvider(get(), get()) }
+    single {
+        val configs = get<com.dailysatori.service.ai.AiConfigService>()
+        val ai = get<com.dailysatori.service.ai.AiService>()
+        com.dailysatori.service.diary.DiaryThreadSummaryGenerator { prompt, system ->
+            val config = configs.getConfig(AiPurpose.INTERACTIVE) ?: error("请先配置默认 AI")
+            ai.completePrivate(prompt, config.api_address, config.api_token, config.model_name, config.provider, system,
+                purpose = AiPurpose.INTERACTIVE)
+        }
+    }
+    single {
+        val configs = get<com.dailysatori.service.ai.AiConfigService>()
+        com.dailysatori.service.diary.DiaryThreadSummaryCoordinator(get(), get(), get()) {
+            configs.getConfig(AiPurpose.INTERACTIVE)?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
+        }
+    }
     single { ExternalFavoriteSourceRepository(get(), get()) }
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
@@ -212,10 +229,10 @@ val sharedModule: Module = module {
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }
-    single { DiaryMonthSummaryService(get(), get(), get(), get()) }
+    single { DiaryMonthSummaryService(get(), get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }
-    single { DiaryKnowledgeCoordinator(get(), get(), get(), get<MemoryExtractor>()) }
+    single { DiaryKnowledgeCoordinator(get(), get(), get<MemoryExtractor>(), get()) }
     single { SpeechSettingsService(get(), get(), get()) }
     single { SpeechTranscriptionApi(get()) }
     single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
@@ -289,7 +306,7 @@ val sharedModule: Module = module {
     single { ReminderBatchCodec(get()) }
     single { ReminderAiInterpretationRemote(get(), get()) }
     single { ReminderTextInterpreter(get(), get<ReminderAiInterpretationRemote>()) }
-    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Agent service
     single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }

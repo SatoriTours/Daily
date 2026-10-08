@@ -47,7 +47,7 @@ class IdeaTopicMigrationTest {
             DatabaseMigration(driver, settings, TestCipher).runMigrations()
 
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
-            assertEquals(33L, DatabaseConfig.currentSchemaVersion)
+            assertTrue(DatabaseConfig.currentSchemaVersion >= 33L)
 
             assertEquals("旧日记正文", db.dailySatoriQueries.selectDiaryById(1L).executeAsOne().content)
             assertEquals("旧聊天", db.dailySatoriQueries.selectChatBySession("global-session").executeAsList().single().content)
@@ -93,7 +93,7 @@ class IdeaTopicMigrationTest {
             assertTrue(ideaTableNames(driver).containsAll(
                 listOf("idea_topic", "idea_topic_source", "idea_topic_event", "idea_topic_session", "idea_topic_message"),
             ))
-            assertEquals("33", settings.get(SettingKeys.schemaVersion))
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
         } finally {
             driver.close()
         }

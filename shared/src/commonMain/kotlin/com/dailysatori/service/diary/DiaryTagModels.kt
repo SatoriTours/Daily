@@ -33,6 +33,8 @@ data class DiaryTagSnapshot(
     val tags: String?,
     val state: DiaryTagState,
     val policy: String?,
+    /** 日记串原文版本；为 null 表示未验证版本（兼容旧调用）。 */
+    val threadRevision: Long? = null,
 )
 
 data class DiaryTagResult(val tags: List<String>, val merges: List<DiaryTagMerge> = emptyList(),

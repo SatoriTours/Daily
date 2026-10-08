@@ -22,6 +22,7 @@ class IdeaTopicEntryTest {
             images = null,
             created_at = 1_000L,
             updated_at = 1_000L,
+            parent_diary_id = null,
         )
         assertFailsWith<IllegalArgumentException> {
             diaryIdeaCaptureInput(unsaved)
@@ -92,6 +93,7 @@ class IdeaTopicEntryTest {
                 images = null,
                 created_at = 1_000L,
                 updated_at = 1_000L,
+                parent_diary_id = null,
             )
             val input = diaryIdeaCaptureInput(diary)
             val captured1 = service.capture(input)

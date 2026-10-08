@@ -23,16 +23,16 @@ class DiaryRepository(
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Diary>> =
-        q.selectAllDiaries().asFlow().mapToList(Dispatchers.IO)
+        q.selectDiaryRoots().asFlow().mapToList(Dispatchers.IO)
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Diary>> =
-        q.selectDiariesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
+        q.selectDiaryRootsPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
 
     fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()
 
     fun search(query: String): Flow<List<Diary>> {
         val matches = if (query.isBlank()) {
-            q.searchDiaries(query, query).asFlow().mapToList(Dispatchers.IO)
+            q.searchDiaries(query).asFlow().mapToList(Dispatchers.IO)
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
         }
@@ -43,7 +43,7 @@ class DiaryRepository(
     }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Diary>> =
-        q.selectDiariesByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
+        q.selectDiaryRootsByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
 
     fun insert(
         content: String,
@@ -94,24 +94,40 @@ class DiaryRepository(
         true
     }
 
+    /**
+     * 删除整串：主记录、全部续写、附件、图片与整理历史键一起收集，事务成功后才清理应用拥有的文件。
+     * 子记录与附件在事务内显式删除，不依赖外键开关；任何失败都不会提前删除文件。
+     */
     fun delete(id: Long) {
         val attachmentPaths = q.transactionWithResult {
-            val attachments = q.selectAttachmentsForDiary(id).executeAsList()
-            val paths = attachments.map { it.local_path }
-            attachments.forEach { SettingRepository(db).delete("diary_polished_transcript_v1:${it.id}") }
+            val root = q.selectDiaryById(id).executeAsOneOrNull()
+            val replies = q.selectDiaryRepliesForRoot(id).executeAsList()
+            val attachments = (listOfNotNull(root) + replies).flatMap { record ->
+                q.selectAttachmentsForDiary(record.id).executeAsList()
+            }
+            val settings = SettingRepository(db)
+            attachments.forEach { attachment ->
+                settings.delete("diary_polished_transcript_v1:${attachment.id}")
+                q.deleteDiaryAttachmentById(attachment.id)
+            }
+            val paths = attachments.map { it.local_path } + (listOfNotNull(root) + replies).flatMap { diaryImagePaths(it.images) }
+            replies.forEach { reply -> q.deleteDiary(reply.id) }
             q.deleteDiary(id)
             paths
         }
-        attachmentPaths.forEach { path -> fileManager?.deleteAppOwnedFile(path) }
+        attachmentPaths.filter { it.isNotBlank() }.forEach { path -> fileManager?.deleteAppOwnedFile(path) }
     }
 
-    fun count(): Long = q.diaryCount().executeAsOne()
+    private fun diaryImagePaths(images: String?): List<String> =
+        images.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
-    fun getAllSync(): List<Diary> = q.selectAllDiaries().executeAsList()
+    fun count(): Long = q.diaryRootCount().executeAsOne()
+
+    fun getAllSync(): List<Diary> = q.selectDiaryRoots().executeAsList()
 
     fun searchSync(query: String): List<Diary> {
         val matches = if (query.isBlank()) {
-            q.searchDiaries(query, query).executeAsList()
+            q.searchDiaries(query).executeAsList()
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).executeAsList()
         }
@@ -127,8 +143,8 @@ class DiaryRepository(
     }
 
     fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
-        q.selectDiariesByDateRange(startMs, endMs).executeAsList()
+        q.selectDiaryRootsByDateRange(startMs, endMs).executeAsList()
 
     fun getLatestSync(limit: Int = 5): List<Diary> =
-        q.selectDiariesPaginated(limit.toLong(), 0).executeAsList()
+        q.selectDiaryRootsPaginated(limit.toLong(), 0).executeAsList()
 }

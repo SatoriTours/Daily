@@ -43,5 +43,5 @@ class DiaryMonthReviewContentTest {
         assertEquals("October 2026", diaryReviewMonthLabel("2026-10", Locale.US))
     }
 
-    private fun diary(id: Long, content: String, tags: String?) = Diary(id, content, tags, null, null, 0, 0)
+    private fun diary(id: Long, content: String, tags: String?) = Diary(id, content, tags, null, null, 0, 0, null)
 }

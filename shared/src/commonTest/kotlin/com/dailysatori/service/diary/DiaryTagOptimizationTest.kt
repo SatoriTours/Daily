@@ -78,7 +78,7 @@ class DiaryTagOptimizationTest {
         init { DailySatoriDatabase.Schema.create(driver) }
         private val db = DailySatoriDatabase(driver)
         val diaries = DiaryRepository(db, driver)
-        val tags = DiaryTagRepository(db)
+        val tags = DiaryTagRepository(db, com.dailysatori.data.repository.DiaryThreadRepository(db, driver))
         val id = runBlocking { diaries.create("原正文") }
         override fun close() = driver.close()
     }

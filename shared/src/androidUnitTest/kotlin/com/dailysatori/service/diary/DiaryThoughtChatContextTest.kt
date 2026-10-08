@@ -2,6 +2,7 @@ package com.dailysatori.service.diary
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.data.repository.DiaryThoughtRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -68,6 +69,7 @@ class DiaryThoughtChatContextTest {
             DailySatoriDatabase.Schema.create(driver)
             val database = DailySatoriDatabase(driver)
             val diaries = DiaryRepository(database, driver)
+            val threads = DiaryThreadRepository(database, driver)
             val settings = SettingRepository(database)
             val repository = DiaryThoughtRepository(settings)
             val id = diaries.create("我决定先做重要的事情")
@@ -77,7 +79,7 @@ class DiaryThoughtChatContextTest {
                 fingerprint = diaryThoughtFingerprint(listOf(DiaryThoughtSource(id, diary.content, diary.created_at)), ""),
                 thoughts = listOf(thought), diaryCount = 1, generatedAt = 123,
             ))
-            block(Fixture(id, diaries, repository, settings, DiaryThoughtChatContextProvider(repository, diaries)))
+            block(Fixture(id, diaries, repository, settings, DiaryThoughtChatContextProvider(repository, threads)))
         } finally {
             driver.close()
         }

@@ -73,6 +73,9 @@ class DailySatoriApplication : Application() {
         }
         get<com.dailysatori.service.diary.DiaryTagCoordinator>(com.dailysatori.service.diary.DiaryTagCoordinator::class.java)
             .start(applicationScope) { get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).enqueue(it) }
+        get<com.dailysatori.service.diary.DiaryThreadSummaryCoordinator>(
+            com.dailysatori.service.diary.DiaryThreadSummaryCoordinator::class.java,
+        ).start(applicationScope) { get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).enqueue(it) }
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
         BackupScheduler(this).ensureScheduled()

@@ -87,7 +87,11 @@ class MainContentRhythmTest {
         assertFalse(diaryScreen.contains("DiaryDateHeader("))
         assertTrue(diary.contains("diaryCardDateTime("))
         assertTrue(diary.contains("maxLines = 3"))
-        assertTrue(diary.contains("if (tags.isEmpty() && !isLongContent) return"))
+        val diaryFooter = diary.extractCallBlock("private fun DiaryCardFooter(")
+        assertFalse(diaryFooter.contains("if (tags.isEmpty() && !isLongContent) return"),
+            "续写入口不能因日记无标签或正文较短而隐藏")
+        assertTrue(diaryFooter.contains("R.string.diary_card_action_continue"))
+        assertTrue(diaryFooter.contains(".clickable(onClick = onContinue)"))
         assertFalse(diary.contains("Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest)"))
         assertTrue(diary.contains("horizontalArrangement = Arrangement.spacedBy(Spacing.s)"))
         assertTrue(diary.contains("itemsIndexed(imagePaths)"))

@@ -1,5 +1,7 @@
 package com.dailysatori.service.ideatopic
 
+import com.dailysatori.service.diary.DiaryThreadSnapshot
+import com.dailysatori.service.diary.renderDiaryThreadContent
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.shared.db.Diary
 
@@ -26,6 +28,12 @@ fun diaryIdeaCaptureInput(diary: Diary): IdeaCaptureInput {
             description = "",
         ),
     )
+}
+
+/** A diary thread keeps the root source identity and all original entries, never its AI summary. */
+fun diaryIdeaCaptureInput(thread: DiaryThreadSnapshot): IdeaCaptureInput {
+    val input = diaryIdeaCaptureInput(thread.root)
+    return input.copy(source = input.source.copy(originalContent = renderDiaryThreadContent(thread.entries)))
 }
 
 /** News opportunity capture: raw article snapshot and the existing AI analysis stay separate. */
