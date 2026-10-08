@@ -31,8 +31,25 @@ class BookkeepingService(private val repository: BookkeepingRepository, private 
         val preferences = preferences()
         if (!preferences.enabled || source !in preferences.sources) return@withLock false
         if (parser.parse(text) == null) return@withLock false
-        repository.ingestChanged(source, eventKey, text, receivedAt)
+        repository.ingestChanged(source, eventKey, text, receivedAt, rules())
     }
+
+    /** Merchant→category rules remembered from user corrections. */
+    fun rules(): CategoryRules = LedgerRules.of(settings)
+
+    /** Sets the category of one entry and optionally remembers the merchant rule for next time. */
+    suspend fun setCategory(id: String, category: LedgerCategory, remember: Boolean) = mutex.withLock {
+        val merchant = repository.snapshot().entries.firstOrNull { it.id == id }?.merchant.orEmpty().trim()
+        if (remember && merchant.isNotEmpty()) {
+            val rules = rules()
+            settings.upsert(LedgerRules.KEY, CategoryRules.encode(rules.copy(merchants = rules.merchants + (merchant to category))))
+        }
+        repository.setCategory(id, category)
+    }
+
+    suspend fun setNote(id: String, text: String) = mutex.withLock { repository.setNote(id, text) }
+
+    suspend fun setExcluded(id: String, excluded: Boolean) = mutex.withLock { repository.setExcluded(id, excluded) }
 
     suspend fun edit(id: String, amount: String, currency: String, kind: LedgerKind, merchant: String) = mutex.withLock {
         repository.edit(id, amount, currency, kind, merchant)

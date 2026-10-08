@@ -2,6 +2,7 @@ package com.dailysatori.service.phone
 
 import com.dailysatori.bookkeeping.*
 import com.dailysatori.data.repository.*
+import com.dailysatori.service.bookkeeping.LedgerRules
 import com.dailysatori.service.sms.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -11,7 +12,7 @@ import kotlinx.datetime.*
 class PhoneAssistantService(
     private val messages: PhoneMessageRepository, private val smsSources: SmsSourceRepository,
     private val sms: SmsReminderService, private val ledger: BookkeepingRepository,
-    settings: SettingRepository, private val clock: Clock = Clock.System,
+    private val settings: SettingRepository, private val clock: Clock = Clock.System,
 ) {
     private val mutex = Mutex()
     private val policies = PhonePolicies(settings)
@@ -72,7 +73,7 @@ class PhoneAssistantService(
         if (!policies.optionsFor(row.event).ledger || row.ledgerState != PhoneResultState.QUEUED) return row
         return try {
             messages.transaction {
-                val state = ledger.ingest(source(row), row.id, row.event.text, row.event.receivedAt)
+                val state = ledger.ingest(source(row), row.id, row.event.text, row.event.receivedAt, LedgerRules.of(settings))
                 val entry = state.entries.firstOrNull { it.source == source(row) && row.id in it.eventKeys }
                 val next = row.copy(ledgerId = entry?.id.orEmpty(), ledgerState = when (entry?.status) {
                     LedgerStatus.POSTED -> PhoneResultState.DONE

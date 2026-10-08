@@ -151,6 +151,7 @@ fun HomeScreen(
     onChat: () -> Unit = {},
     onIdeaTopics: () -> Unit = {},
     onIdeaTopic: (String) -> Unit = {},
+    onLedger: () -> Unit = {},
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -216,6 +217,7 @@ fun HomeScreen(
                             onFavorites = onFavorites,
                             onTasks = onTasks,
                             onIdeaTopics = onIdeaTopics,
+                            onLedger = onLedger,
                         )
                         else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic)

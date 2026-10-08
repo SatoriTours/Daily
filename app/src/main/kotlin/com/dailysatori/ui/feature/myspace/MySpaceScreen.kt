@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Add
 import com.dailysatori.ui.feature.profile.localDayTicker
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -33,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.bookkeeping.*
+import com.dailysatori.data.repository.BookkeepingRepository
 import com.dailysatori.R
 import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.service.diary.DiaryThoughtState
@@ -72,6 +75,7 @@ fun MySpaceScreen(
     onTasks: () -> Unit,
     onLifeArchive: () -> Unit = {},
     onIdeaTopics: () -> Unit = {},
+    onLedger: () -> Unit = {},
 ) {
     val thoughts: DiaryThoughtViewModel = koinViewModel()
     val reminders: ReminderViewModel = koinViewModel()
@@ -102,6 +106,24 @@ fun MySpaceScreen(
         }
         item(key = "quick-actions") {
             MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
+        }
+        item(key = "ledger") {
+            val i18n: I18nService = koinInject()
+            val repository: BookkeepingRepository = koinInject()
+            val ledger by produceState(initialValue = LedgerState(), key1 = Unit) { repository.observe().collect { value = it } }
+            val monthExpense = remember(ledger, today) {
+                val range = LedgerEngine().range(LedgerPeriod.MONTH, today, TimeZone.currentSystemDefault())
+                LedgerEngine().totals(ledger, range.first, range.second).firstOrNull { it.currency == "CNY" }?.expense ?: 0L
+            }
+            val pendingCount = ledger.entries.count { it.status == LedgerStatus.PENDING }
+            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                .clickable(role = Role.Button, onClick = onLedger)) {
+                MySectionHeading(i18n.t("ledger.title"), Icons.Outlined.AccountBalanceWallet, onLedger, titleClickable = false)
+                Text(
+                    if (ledger.entries.isEmpty() && pendingCount == 0) i18n.t("myspace.ledger_empty")
+                    else i18n.t("myspace.ledger_hint", LedgerMoney.format(monthExpense, "CNY"), pendingCount),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         item(key = "life-archive") {
             MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))

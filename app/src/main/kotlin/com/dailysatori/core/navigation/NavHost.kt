@@ -97,6 +97,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onChat = { navController.navigate(PersonalChatRoute()) },
                 onIdeaTopics = { navController.navigate(IdeaTopicListRoute) },
                 onIdeaTopic = { navController.navigate(IdeaTopicDetailRoute(it)) },
+                onLedger = { navController.navigate(LedgerRoute) },
                 settingsViewModel = settingsViewModel,
             )
         }
@@ -141,6 +142,7 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                 onBack = { navController.popBackStack() },
             )
         }
+        composable<LedgerRoute> { com.dailysatori.ui.feature.ledger.LedgerScreen(onBack = { navController.popBackStack() }) }
         composable<DataPrivacyRoute> { DataPrivacyScreen(onBack = { navController.popBackStack() }) }
         composable<ProfileFavoritesRoute> {
             ArticleListScreen(

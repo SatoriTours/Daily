@@ -135,6 +135,7 @@ internal fun periodLabel(period: LedgerPeriod, bucket: LedgerBucket): String = w
     LedgerPeriod.MONTH -> "${bucket.start.year}-${bucket.start.monthNumber.toString().padStart(2, '0')}"
     LedgerPeriod.WEEK -> "${bucket.start} ~ ${bucket.end.monthNumber.toString().padStart(2, '0')}-${bucket.end.dayOfMonth.toString().padStart(2, '0')}"
     LedgerPeriod.DAY -> bucket.start.toString()
+    else -> bucket.start.toString()
 }
 
 @OptIn(ExperimentalLayoutApi::class)
