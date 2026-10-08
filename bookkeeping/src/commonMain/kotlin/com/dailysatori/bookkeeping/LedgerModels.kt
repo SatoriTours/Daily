@@ -1,5 +1,6 @@
 package com.dailysatori.bookkeeping
 
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 
 @Serializable enum class LedgerKind { EXPENSE, INCOME, REFUND, TRANSFER, REPAYMENT, UNKNOWN }
@@ -34,6 +35,17 @@ data class LedgerEntry(
 
 @Serializable data class LedgerState(val version: Int = 1, val entries: List<LedgerEntry> = emptyList())
 @Serializable data class LedgerTotal(val currency: String, val income: Long, val expense: Long, val refund: Long)
+
+/** Aggregation window used by the ledger summary. */
+enum class LedgerPeriod { DAY, WEEK, MONTH }
+
+/** Posted entries and per-currency totals of one day, week or month. */
+data class LedgerBucket(
+    val start: LocalDate,
+    val end: LocalDate,
+    val totals: List<LedgerTotal>,
+    val entries: List<LedgerEntry>,
+)
 
 data class TransactionDraft(
     val amountMinor: Long?,

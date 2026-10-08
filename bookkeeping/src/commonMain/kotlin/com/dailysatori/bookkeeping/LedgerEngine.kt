@@ -1,5 +1,7 @@
 package com.dailysatori.bookkeeping
 
+import kotlinx.datetime.*
+
 class LedgerEngine {
     private val parser = TransactionParser()
 
@@ -85,6 +87,39 @@ class LedgerEngine {
                 }
                 LedgerTotal(currency, sum(LedgerKind.INCOME), sum(LedgerKind.EXPENSE), sum(LedgerKind.REFUND))
             }.sortedBy { it.currency }
+    }
+
+    /** Moves the summary anchor by [delta] days, weeks or months. */
+    fun shift(anchor: LocalDate, period: LedgerPeriod, delta: Int): LocalDate = when (period) {
+        LedgerPeriod.DAY -> anchor.plus(delta, DateTimeUnit.DAY)
+        LedgerPeriod.WEEK -> anchor.plus(delta * 7, DateTimeUnit.DAY)
+        LedgerPeriod.MONTH -> anchor.plus(delta, DateTimeUnit.MONTH)
+    }
+
+    /** Recent days, weeks or months ending at the period containing [anchor], newest first. */
+    fun buckets(state: LedgerState, period: LedgerPeriod, anchor: LocalDate, zone: TimeZone): List<LedgerBucket> {
+        val first = span(period, anchor).first
+        return (0 until bucketCount(period)).map { index -> bucket(state, span(period, shift(first, period, -index)), zone) }
+    }
+
+    private fun bucketCount(period: LedgerPeriod): Int = if (period == LedgerPeriod.DAY) 7 else 6
+
+    private fun span(period: LedgerPeriod, date: LocalDate): Pair<LocalDate, LocalDate> = when (period) {
+        LedgerPeriod.DAY -> date to date
+        LedgerPeriod.WEEK -> weekStart(date).let { it to it.plus(6, DateTimeUnit.DAY) }
+        LedgerPeriod.MONTH -> LocalDate(date.year, date.monthNumber, 1)
+            .let { it to it.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY) }
+    }
+
+    private fun weekStart(date: LocalDate): LocalDate = date.minus(date.dayOfWeek.isoDayNumber - 1, DateTimeUnit.DAY)
+
+    private fun bucket(state: LedgerState, span: Pair<LocalDate, LocalDate>, zone: TimeZone): LedgerBucket {
+        val (start, end) = span
+        val from = start.atStartOfDayIn(zone).toEpochMilliseconds()
+        val to = end.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone).toEpochMilliseconds()
+        return LedgerBucket(start, end, totals(state, from, to), state.entries
+            .filter { it.status == LedgerStatus.POSTED && it.receivedAt in from until to }
+            .sortedByDescending { it.receivedAt })
     }
 
     private fun distance(a: Long, b: Long): Long = if (a >= b) a - b else b - a

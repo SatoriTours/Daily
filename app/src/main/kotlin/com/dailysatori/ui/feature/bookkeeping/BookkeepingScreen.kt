@@ -5,12 +5,16 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -37,10 +41,6 @@ fun BookkeepingScreen(onBack: () -> Unit, viewModel: BookkeepingViewModel = koin
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     val pending = state.ledger.entries.filter { it.status == LedgerStatus.PENDING }.sortedByDescending { it.receivedAt }
-    val posted = state.ledger.entries.filter { entry ->
-        val date = Instant.fromEpochMilliseconds(entry.receivedAt).toLocalDateTime(TimeZone.currentSystemDefault()).date
-        entry.status == LedgerStatus.POSTED && date.year == state.month.year && date.monthNumber == state.month.monthNumber
-    }.sortedByDescending { it.receivedAt }
     SettingsScaffold(title = i18n.t("bookkeeping.title"), onBack = onBack) { modifier ->
         LazyColumn(modifier.padding(horizontal = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m),
             contentPadding = PaddingValues(vertical = Spacing.m)) {
@@ -53,15 +53,14 @@ fun BookkeepingScreen(onBack: () -> Unit, viewModel: BookkeepingViewModel = koin
                     color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = { viewModel.refreshAccess() }, enabled = !state.busy) { Text(i18n.t("bookkeeping.refresh")) }
             }
-            item { BookkeepingMonth(state, viewModel::changeMonth) }
+            item {
+                LedgerSummary(state, viewModel::changePeriod, viewModel::changeAnchor,
+                    onEdit = { editing = it }, onDismiss = { entry, status -> viewModel.dismiss(entry.id, status) })
+            }
             if (pending.isNotEmpty()) item { Text(i18n.t("bookkeeping.pending", pending.size), style = MaterialTheme.typography.titleMedium) }
             items(pending, key = { it.id }) { entry -> LedgerEntryCard(entry, state, onEdit = { editing = entry }, onIgnore = {
                 viewModel.dismiss(entry.id, LedgerStatus.IGNORED)
             }, onDelete = { viewModel.dismiss(entry.id, LedgerStatus.DELETED) }) }
-            item { Text(i18n.t("bookkeeping.posted"), style = MaterialTheme.typography.titleMedium) }
-            if (posted.isEmpty()) item { Text(i18n.t("bookkeeping.empty"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(posted, key = { it.id }) { entry -> LedgerEntryCard(entry, state, onEdit = { editing = entry }, onIgnore = {},
-                onDelete = { viewModel.dismiss(entry.id, LedgerStatus.DELETED) }) }
         }
     }
     if (showSources) BookkeepingSourcesDialog(state, onSelect = viewModel::selectSource, onDismiss = { showSources = false })
@@ -95,20 +94,47 @@ private fun BookkeepingAccessCard(state: BookkeepingUiState, onEnabled: (Boolean
 }
 
 @Composable
-internal fun BookkeepingMonth(state: BookkeepingUiState, onMonth: (Int) -> Unit) {
+internal fun LedgerSummary(state: BookkeepingUiState, onPeriod: (LedgerPeriod) -> Unit, onAnchor: (Int) -> Unit,
+    onEdit: (LedgerEntry) -> Unit, onDismiss: (LedgerEntry, LedgerStatus) -> Unit) {
     val i18n: I18nService = koinInject()
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            LedgerPeriod.entries.forEach { period ->
+                Surface(modifier = Modifier.weight(1f).selectable(period == state.period, role = Role.Tab, onClick = { onPeriod(period) }),
+                    shape = RoundedCornerShape(Radius.m),
+                    color = if (period == state.period) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer) {
+                    Text(i18n.t("bookkeeping.period.${period.name.lowercase()}"), Modifier.padding(vertical = Spacing.s),
+                        textAlign = TextAlign.Center, style = MaterialTheme.typography.titleSmall)
+                }
+            }
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { onMonth(-1) }) { Text(i18n.t("bookkeeping.previous_month")) }
-            Text("${state.month.year}-${state.month.monthNumber.toString().padStart(2, '0')}", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = { onMonth(1) }) { Text(i18n.t("bookkeeping.next_month")) }
+            TextButton(onClick = { onAnchor(-1) }) { Text(i18n.t("bookkeeping.previous_period")) }
+            Text(state.buckets.firstOrNull()?.let { periodLabel(state.period, it) } ?: state.anchor.toString(),
+                style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = { onAnchor(1) }) { Text(i18n.t("bookkeeping.next_period")) }
         }
-        state.totals.forEach { total ->
-            Text(i18n.t("bookkeeping.month_totals", total.currency, LedgerMoney.format(total.income, total.currency),
-                LedgerMoney.format(total.expense, total.currency), LedgerMoney.format(total.refund, total.currency)))
-        }
+        state.totals.forEach { Text(totalLine(i18n, it)) }
         Text(i18n.t("bookkeeping.totals_notice"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        state.buckets.forEach { bucket ->
+            Text(periodLabel(state.period, bucket), style = MaterialTheme.typography.titleSmall)
+            if (bucket.entries.isEmpty()) Text(i18n.t("bookkeeping.bucket_empty"), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            bucket.totals.forEach { Text(totalLine(i18n, it), style = MaterialTheme.typography.bodySmall) }
+            bucket.entries.forEach { entry -> LedgerEntryCard(entry, state, onEdit = { onEdit(entry) },
+                onIgnore = { onDismiss(entry, LedgerStatus.IGNORED) }, onDelete = { onDismiss(entry, LedgerStatus.DELETED) }) }
+        }
     }
+}
+
+private fun totalLine(i18n: I18nService, total: LedgerTotal): String = i18n.t("bookkeeping.month_totals", total.currency,
+    LedgerMoney.format(total.income, total.currency), LedgerMoney.format(total.expense, total.currency),
+    LedgerMoney.format(total.refund, total.currency))
+
+internal fun periodLabel(period: LedgerPeriod, bucket: LedgerBucket): String = when (period) {
+    LedgerPeriod.MONTH -> "${bucket.start.year}-${bucket.start.monthNumber.toString().padStart(2, '0')}"
+    LedgerPeriod.WEEK -> "${bucket.start} ~ ${bucket.end.monthNumber.toString().padStart(2, '0')}-${bucket.end.dayOfMonth.toString().padStart(2, '0')}"
+    LedgerPeriod.DAY -> bucket.start.toString()
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -125,7 +151,8 @@ internal fun LedgerEntryCard(entry: LedgerEntry, state: BookkeepingUiState, onEd
                 entry.accountTail.takeIf { it.isNotEmpty() }?.let { i18n.t("bookkeeping.account_tail", *arrayOf(it)) }.orEmpty())
                 .filter { it.isNotBlank() }.joinToString(" · "))
             val source = state.sources.firstOrNull { it.packageName == entry.source }?.label ?: entry.source
-            val time = Instant.fromEpochMilliseconds(entry.receivedAt).toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace('T', ' ')
+            val time = Instant.fromEpochMilliseconds(entry.receivedAt).toLocalDateTime(TimeZone.currentSystemDefault())
+                .toString().replace('T', ' ').take(16)
             Text(i18n.t("bookkeeping.received_time", source, time), style = MaterialTheme.typography.bodySmall)
             if (entry.status == LedgerStatus.PENDING) Text(i18n.t("bookkeeping.reason.${entry.reason}"), color = MaterialTheme.colorScheme.error)
             if (showText) Text(entry.text, style = MaterialTheme.typography.bodySmall)

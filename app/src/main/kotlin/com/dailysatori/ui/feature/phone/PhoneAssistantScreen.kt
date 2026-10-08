@@ -70,11 +70,7 @@ import org.koin.compose.koinInject
     val legacy = state.smsRecords.filter { !it.id.startsWith("ph_") && if (tab == 1) it.status == SmsSourceStatus.CREATED
         else it.status !in setOf(SmsSourceStatus.CREATED, SmsSourceStatus.IGNORED) }
     val pendingEntries = state.bookkeeping.ledger.entries.filter { it.status == LedgerStatus.PENDING }.sortedByDescending { it.receivedAt }
-    val postedEntries = state.bookkeeping.ledger.entries.filter { entry ->
-        val date = Instant.fromEpochMilliseconds(entry.receivedAt).toLocalDateTime(TimeZone.currentSystemDefault()).date
-        entry.status == LedgerStatus.POSTED && date.year == state.bookkeeping.month.year && date.monthNumber == state.bookkeeping.month.monthNumber
-    }.sortedByDescending { it.receivedAt }
-    val entries = if (tab == 0) pendingEntries else postedEntries
+    val bucketEntries = state.bookkeeping.buckets.sumOf { it.entries.size }
     val pendingCount = state.messages.sumOf { row -> row.todos.count { it.state !in setOf(PhoneResultState.DONE, PhoneResultState.IGNORED) } } +
         state.smsRecords.count { !it.id.startsWith("ph_") && it.status !in setOf(SmsSourceStatus.CREATED, SmsSourceStatus.IGNORED) } + pendingEntries.size
     val todoCount = state.messages.sumOf { row -> row.todos.count { it.state == PhoneResultState.DONE } } +
@@ -98,7 +94,7 @@ import org.koin.compose.koinInject
         Column(modifier.fillMaxSize()) {
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 if (!history) item { PhoneOverview(state) { settings = true } }
-                if (!history) item { PhoneTabs(tab, listOf(pendingCount, todoCount, postedEntries.size)) { tab = it } }
+                if (!history) item { PhoneTabs(tab, listOf(pendingCount, todoCount, bucketEntries)) { tab = it } }
                 if (state.failed || state.bookkeeping.capture.failed) item {
                     Text(i18n.t("phone.operation_failed"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
@@ -118,21 +114,24 @@ import org.koin.compose.koinInject
                         items(legacy, key = { "legacy:${it.id}" }) { record -> SmsSourceCard(record, state.busy,
                             onRetry = { vm.retryLegacy(record) }, onIgnore = { vm.ignoreLegacy(record) }, onBlock = { vm.blockLegacy(record) }) }
                     }
-                    if (tab != 1) {
-                        if (tab == 2) item {
-                            Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
-                                Column(Modifier.padding(Spacing.m)) { BookkeepingMonth(state.bookkeeping, vm::changeMonth) }
+                    if (tab == 2) item {
+                        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+                            Column(Modifier.padding(Spacing.m)) {
+                                LedgerSummary(state.bookkeeping, vm::changePeriod, vm::changeAnchor,
+                                    onEdit = { ledgerEdit = it }, onDismiss = { entry, status -> vm.dismissLedger(entry.id, status) })
                             }
                         }
-                        if (tab == 0 && entries.isNotEmpty()) item { Text(i18n.t("phone.ledger"), style = MaterialTheme.typography.titleSmall) }
-                        items(entries, key = { "ledger:${it.id}" }) { entry -> LedgerEntryCard(entry, state.bookkeeping.copy(busy = state.busy),
+                    }
+                    if (tab == 0) {
+                        if (pendingEntries.isNotEmpty()) item { Text(i18n.t("phone.ledger"), style = MaterialTheme.typography.titleSmall) }
+                        items(pendingEntries, key = { "ledger:${it.id}" }) { entry -> LedgerEntryCard(entry, state.bookkeeping.copy(busy = state.busy),
                             onEdit = { ledgerEdit = entry }, onIgnore = { vm.dismissLedger(entry.id, LedgerStatus.IGNORED) },
                             onDelete = { vm.dismissLedger(entry.id, LedgerStatus.DELETED) }) }
                     }
                     val empty = when (tab) {
-                        0 -> todos.isEmpty() && legacy.isEmpty() && entries.isEmpty()
+                        0 -> todos.isEmpty() && legacy.isEmpty() && pendingEntries.isEmpty()
                         1 -> todos.isEmpty() && legacy.isEmpty()
-                        else -> entries.isEmpty()
+                        else -> bucketEntries == 0 && needsSetup
                     }
                     if (empty) item { PhoneEmptyState(listOf("pending", "todos", "ledger")[tab], needsSetup) { settings = true } }
                 }

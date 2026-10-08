@@ -89,7 +89,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
             SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack, initialSection = section)
             SettingsPage.SMS_REMINDERS, SettingsPage.BOOKKEEPING, SettingsPage.PHONE_ASSISTANT ->
                 com.dailysatori.ui.feature.phone.PhoneAssistantScreen(onBack = childBack,
-                    initialSettings = true, initialSection = section)
+                    initialSettings = section != null, initialSection = section)
             SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(onBack = childBack)
             SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = childBack)
             SettingsPage.PRIVACY -> DataPrivacyScreen(onBack = childBack)

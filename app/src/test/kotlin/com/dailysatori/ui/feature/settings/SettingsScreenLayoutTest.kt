@@ -21,9 +21,12 @@ class SettingsScreenLayoutTest {
     }
 
     @Test
-    fun phoneEntryOpensConfigurationWithoutPassingThroughTheBusinessDashboard() {
+    fun phoneEntryOpensTheLedgerDashboardWhilePermissionShortcutsOpenConfiguration() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
-        assertTrue(source.contains("initialSettings = true, initialSection = section"))
+        assertTrue(source.contains("initialSettings = section != null, initialSection = section"))
+        val phone = File("src/main/kotlin/com/dailysatori/ui/feature/phone/PhoneAssistantScreen.kt").readText()
+        assertTrue(phone.contains("LedgerSummary(state.bookkeeping"))
+        assertTrue(phone.contains("if (settings) PhoneSettingsScreen("))
     }
 
     @Test

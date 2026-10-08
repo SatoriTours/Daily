@@ -21,8 +21,10 @@ data class BookkeepingSource(val packageName: String, val label: String)
 data class BookkeepingUiState(
     val enabled: Boolean = false, val granted: Boolean = false, val capture: BookkeepingCaptureStatus = BookkeepingCaptureStatus(),
     val selectedSources: Set<String> = emptySet(), val sources: List<BookkeepingSource> = emptyList(),
-    val ledger: LedgerState = LedgerState(), val month: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
-    val totals: List<LedgerTotal> = emptyList(), val busy: Boolean = false, val error: Boolean = false,
+    val ledger: LedgerState = LedgerState(), val period: LedgerPeriod = LedgerPeriod.DAY,
+    val anchor: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
+    val totals: List<LedgerTotal> = emptyList(), val buckets: List<LedgerBucket> = emptyList(),
+    val busy: Boolean = false, val error: Boolean = false,
 )
 
 class BookkeepingViewModel(
@@ -37,7 +39,7 @@ class BookkeepingViewModel(
         refreshAccess()
         viewModelScope.launch(Dispatchers.IO) {
             repository.observe().catch { mutableState.update { it.copy(error = true) } }.collect { ledger ->
-                mutableState.update { it.copy(ledger = ledger, totals = totals(ledger, it.month)) }
+                mutableState.update { withSummary(it, ledger) }
             }
         }
         viewModelScope.launch { monitor.state.collect { capture -> mutableState.update { it.copy(capture = capture) } } }
@@ -51,8 +53,8 @@ class BookkeepingViewModel(
             context.getSystemService(NotificationManager::class.java).isNotificationListenerAccessGranted(component)
         else context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
         val ledger = repository.snapshot()
-        mutableState.update { it.copy(enabled = preferences.enabled, selectedSources = preferences.sources,
-            sources = sources, granted = granted, ledger = ledger, totals = totals(ledger, it.month), error = false) }
+        mutableState.update { withSummary(it.copy(enabled = preferences.enabled, selectedSources = preferences.sources,
+            sources = sources, granted = granted, error = false), ledger) }
     }
 
     fun setEnabled(enabled: Boolean) = action {
@@ -73,16 +75,18 @@ class BookkeepingViewModel(
 
     fun dismiss(id: String, status: LedgerStatus) = action { service.dismiss(id, status) }
 
-    fun changeMonth(delta: Int) {
-        val month = state.value.month.let { LocalDate(it.year, it.monthNumber, 1).plus(delta, DateTimeUnit.MONTH) }
-        mutableState.update { it.copy(month = month, totals = totals(it.ledger, month)) }
+    fun changePeriod(period: LedgerPeriod) = mutableState.update { withSummary(it.copy(period = period), it.ledger) }
+
+    fun changeAnchor(delta: Int) = mutableState.update {
+        withSummary(it.copy(anchor = engine.shift(it.anchor, it.period, delta)), it.ledger)
     }
 
-    private fun totals(ledger: LedgerState, month: LocalDate): List<LedgerTotal> {
-        val start = LocalDate(month.year, month.monthNumber, 1)
+    private fun withSummary(state: BookkeepingUiState, ledger: LedgerState): BookkeepingUiState {
         val zone = TimeZone.currentSystemDefault()
-        return engine.totals(ledger, start.atStartOfDayIn(zone).toEpochMilliseconds(),
-            start.plus(1, DateTimeUnit.MONTH).atStartOfDayIn(zone).toEpochMilliseconds())
+        val start = LocalDate(state.anchor.year, state.anchor.monthNumber, 1)
+        return state.copy(ledger = ledger, totals = engine.totals(ledger, start.atStartOfDayIn(zone).toEpochMilliseconds(),
+            start.plus(1, DateTimeUnit.MONTH).atStartOfDayIn(zone).toEpochMilliseconds()),
+            buckets = engine.buckets(ledger, state.period, state.anchor, zone))
     }
 
     private fun availableSources(selected: Set<String>): List<BookkeepingSource> {

@@ -58,7 +58,7 @@ class PhoneAssistantViewModel(
         }
         viewModelScope.launch(Dispatchers.IO) { smsSources.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(smsRecords = rows) } } }
         viewModelScope.launch(Dispatchers.IO) { reminders.observeAll().catch { fail() }.collect { rows -> mutableState.update { it.copy(reminders = rows) } } }
-        viewModelScope.launch(Dispatchers.IO) { ledger.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(bookkeeping = withLedger(it.bookkeeping, rows)) } } }
+        viewModelScope.launch(Dispatchers.IO) { ledger.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(bookkeeping = withSummary(it.bookkeeping, rows)) } } }
         viewModelScope.launch { monitor.state.collect { capture -> mutableState.update { it.copy(bookkeeping = it.bookkeeping.copy(capture = capture)) } } }
     }
     fun refreshAccess() = action {
@@ -70,7 +70,7 @@ class PhoneAssistantViewModel(
             smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED,
             canNotify = NotificationManagerCompat.from(context).areNotificationsEnabled(),
             exactAlarms = Build.VERSION.SDK_INT < 31 || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms(),
-            bookkeeping = withLedger(it.bookkeeping.copy(granted = granted, sources = availableSources(prefs.sources),
+            bookkeeping = withSummary(it.bookkeeping.copy(granted = granted, sources = availableSources(prefs.sources),
                 selectedSources = prefs.sources, enabled = prefs.notification.enabled), ledger.snapshot())) }
     }
     fun configure(channel: PhoneChannel, options: PhoneOptions) = action {
@@ -115,17 +115,21 @@ class PhoneAssistantViewModel(
     }
     fun ignoreLegacy(row: SmsSourceRecord) = action { legacy.ignore(row.id) }
     fun blockLegacy(row: SmsSourceRecord) = action { legacy.blockSender(row.source.sender) }
-    fun changeMonth(delta: Int) {
-        mutableState.update { current ->
-            val month = current.bookkeeping.month.let { LocalDate(it.year, it.monthNumber, 1).plus(delta, DateTimeUnit.MONTH) }
-            current.copy(bookkeeping = withLedger(current.bookkeeping.copy(month = month), current.bookkeeping.ledger))
-        }
+    fun changePeriod(period: LedgerPeriod) = mutableState.update { current ->
+        current.copy(bookkeeping = withSummary(current.bookkeeping.copy(period = period), current.bookkeeping.ledger))
     }
-    private fun withLedger(state: BookkeepingUiState, ledger: LedgerState): BookkeepingUiState {
+
+    fun changeAnchor(delta: Int) = mutableState.update { current ->
+        val anchor = engine.shift(current.bookkeeping.anchor, current.bookkeeping.period, delta)
+        current.copy(bookkeeping = withSummary(current.bookkeeping.copy(anchor = anchor), current.bookkeeping.ledger))
+    }
+
+    private fun withSummary(state: BookkeepingUiState, ledger: LedgerState): BookkeepingUiState {
         val zone = TimeZone.currentSystemDefault()
-        val start = LocalDate(state.month.year, state.month.monthNumber, 1)
+        val start = LocalDate(state.anchor.year, state.anchor.monthNumber, 1)
         return state.copy(ledger = ledger, totals = engine.totals(ledger, start.atStartOfDayIn(zone).toEpochMilliseconds(),
-            start.plus(1, DateTimeUnit.MONTH).atStartOfDayIn(zone).toEpochMilliseconds()))
+            start.plus(1, DateTimeUnit.MONTH).atStartOfDayIn(zone).toEpochMilliseconds()),
+            buckets = engine.buckets(ledger, state.period, state.anchor, zone))
     }
     private fun availableSources(selected: Set<String>): List<BookkeepingSource> {
         val manager = context.packageManager

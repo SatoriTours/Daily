@@ -9,7 +9,10 @@ kotlin {
         compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
     }
     sourceSets {
-        commonMain.dependencies { implementation(libs.kotlinx.serialization.json) }
+        commonMain.dependencies {
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+        }
         commonTest.dependencies { implementation(kotlin("test")) }
     }
 }
