@@ -2,7 +2,7 @@ package com.dailysatori.ui.feature.settings.backup
 
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import com.dailysatori.core.storage.BackupDirectoryPicker
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +33,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     val grouped = LocalSettingsGroupNavigation.current != null
-    val directoryPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+    val directoryPicker = rememberLauncherForActivityResult(remember { BackupDirectoryPicker() }) { uri ->
         val activity = context as? Activity ?: return@rememberLauncherForActivityResult
         uri?.let { viewModel.saveBackupDirectory(it, activity) }
     }
@@ -58,7 +58,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
             SettingsSectionCard(i18n.t("settings_design.backup_location")) {
                 SettingsRow(Icons.Default.Folder, i18n.t("settings_design.backup_directory"),
                     state.backupDirectory.ifBlank { i18n.t("settings_design.choose_directory_hint") },
-                    onClick = { directoryPicker.launch(null) }, enabled = !busy, showDivider = false)
+                    onClick = { directoryPicker.launch(state.backupDirectory) }, enabled = !busy, showDivider = false)
             }
             SettingsSectionCard(i18n.t("settings_design.backup_encryption")) {
                 Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {

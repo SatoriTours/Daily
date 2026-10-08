@@ -117,4 +117,5 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.sqldelight.sqlite.driver)
     testImplementation(libs.ktor.client.mock)
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }

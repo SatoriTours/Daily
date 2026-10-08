@@ -1,7 +1,7 @@
 package com.dailysatori.ui.feature.settings.diagnostics
 
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import com.dailysatori.core.storage.DiagnosticCreateDocument
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
 import com.dailysatori.core.diagnostics.DiagnosticExportPhase
@@ -16,6 +17,7 @@ import com.dailysatori.ui.theme.*
 
 @Composable
 fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onInstall: () -> Unit, onContinue: () -> Unit) {
+    val context = LocalContext.current
     val state by viewModel.state.collectAsState()
     val export by viewModel.exportState.collectAsState()
     val update by viewModel.updateState.collectAsState()
@@ -23,7 +25,7 @@ fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onInstall: 
     val exporting = export.phase in setOf(DiagnosticExportPhase.PREPARING,
         DiagnosticExportPhase.AWAITING_DESTINATION, DiagnosticExportPhase.SAVING)
     val busy = state.checking || exporting || update.busy
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+    val picker = rememberLauncherForActivityResult(remember(context) { DiagnosticCreateDocument(context) }) { uri ->
         token?.let { viewModel.save(it, uri) }
         token = null
     }

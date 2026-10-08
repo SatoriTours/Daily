@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import com.dailysatori.core.storage.DiagnosticCreateDocument
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,7 +35,7 @@ fun DiagnosticSettingsScreen(onBack: () -> Unit, viewModel: DiagnosticSettingsVi
     var confirmClear by remember { mutableStateOf(false) }
     val busy = export.phase in setOf(DiagnosticExportPhase.PREPARING, DiagnosticExportPhase.AWAITING_DESTINATION, DiagnosticExportPhase.SAVING)
     val back: () -> Unit = { if (export.phase != DiagnosticExportPhase.SAVING) onBack() }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+    val picker = rememberLauncherForActivityResult(remember(context) { DiagnosticCreateDocument(context) }) { uri ->
         pendingToken?.let { viewModel.onDestinationChosen(it, uri) }
         pendingToken = null
     }
