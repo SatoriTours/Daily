@@ -1195,6 +1195,8 @@ speech_test:
 
 
 settings_design:
+  auth: "Authorizations"
+  auth_hint: "SMS and notification permissions and sources"
   search_list_hint: "Search names or keywords"
   service_access: "Service & access"
   model_selection: "Model selection"
@@ -1491,7 +1493,7 @@ ledger:
     year: "This year"
   previous_period: "Previous"
   next_period: "Next"
-  change: "%s vs previous"
+  change: "vs previous"
   summary:
     line: "%s · Income %s · Expenses %s · Refunds %s"
   pending: "%d pending · amount or currency unclear"
@@ -1543,3 +1545,20 @@ ledger:
 myspace:
   ledger_empty: "No entries yet"
   ledger_hint: "%s spent this month · %d pending"
+
+auth:
+  title: "Authorizations"
+  intro_title: "What these authorizations are for"
+  intro_todos: "Turns bills, pickups and appointments into todos in My reminders"
+  intro_ledger: "Turns payments and refunds into ledger entries"
+  intro_note: "Only new messages after enabling are processed; everything is parsed on this device and financial text is never uploaded. You can turn it off anytime."
+  read: "Read %s"
+  read_hint: "Message history is not read; only new messages after enabling are processed"
+  todo_hint: "Actionable items in %s become todos"
+  ledger_hint: "Payments and refunds in %s become ledger entries"
+  section:
+    data: "Data"
+  records: "Processing history"
+  records_hint: "Recent messages, their sources and results"
+  retention: "Message retention"
+  retention_hint: "Candidate texts are stored encrypted on this device; clear them one by one in the processing history without affecting generated todos and entries."

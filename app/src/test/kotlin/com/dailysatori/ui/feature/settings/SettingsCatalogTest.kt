@@ -26,7 +26,7 @@ class SettingsCatalogTest {
 
     @Test fun searchFindsPermissionSectionAndEnglishKeywords() {
         val sms = searchSettings(" 短信权限 ") { it }.single()
-        assertEquals(SettingsDestination(SettingsPage.PHONE_ASSISTANT, "sms"), sms.destination)
+        assertEquals(SettingsDestination(SettingsPage.AUTHORIZATION, "sms"), sms.destination)
         assertTrue(searchSettings("API KEY") { it }.any { it.destination.page == SettingsPage.AI_CONFIG })
         assertTrue(searchSettings("restore") { it }.any { it.destination.page == SettingsPage.BACKUP_RESTORE })
         assertTrue(searchSettings("zz-not-a-setting") { it }.isEmpty())

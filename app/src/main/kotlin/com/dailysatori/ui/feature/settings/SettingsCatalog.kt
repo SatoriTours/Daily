@@ -3,7 +3,7 @@ package com.dailysatori.ui.feature.settings
 internal enum class SettingsPage {
     MAIN, AI_CONFIG, AI_PURPOSE, SPEECH, DIARY_TAGS, MCP_SERVER, PLUGIN_CENTER,
     BACKUP_SETTINGS, BACKUP_RESTORE, DATA_IMPORT, SKILLS, DIAGNOSTICS,
-    REMINDERS, SMS_REMINDERS, PHONE_ASSISTANT, BOOKKEEPING,
+    REMINDERS, SMS_REMINDERS, PHONE_ASSISTANT, BOOKKEEPING, AUTHORIZATION,
     REMOTE_NEWS, EXTERNAL_FAVORITES, PRIVACY, WEB_SERVICE, UPDATES,
 }
 
@@ -23,7 +23,7 @@ private fun entry(group: String, title: String, page: SettingsPage, keywords: St
 
 internal val settingsHomeEntries = listOf(
     entry("daily", "reminders", SettingsPage.REMINDERS, "提醒 通知 声音 振动 勿扰 reminder notification sound vibration quiet"),
-    entry("daily", "phone", SettingsPage.PHONE_ASSISTANT, "手机助手 短信 通知 记账 权限 sms phone notification ledger"),
+    entry("daily", "auth", SettingsPage.AUTHORIZATION, "授权管理 授权 目的 短信 通知 来源 权限 authorization permission sms notification sources"),
     entry("daily", "tags", SettingsPage.DIARY_TAGS, "日记 标签 同义词 diary tags synonyms"),
     entry("capabilities", "models", SettingsPage.AI_CONFIG, "模型 AI 默认 服务商 API Key model provider default"),
     entry("capabilities", "skills", SettingsPage.SKILLS, "提示词 技能 插件 prompt skills plugins"),
@@ -36,8 +36,8 @@ internal val settingsHomeEntries = listOf(
 )
 
 private val settingsSearchEntries = settingsHomeEntries + listOf(
-    entry("daily", "sms", SettingsPage.PHONE_ASSISTANT, "短信权限 sms permission restricted", "sms"),
-    entry("daily", "notification_access", SettingsPage.PHONE_ASSISTANT, "通知权限 应用选择 来源 notification access apps", "notification"),
+    entry("daily", "sms", SettingsPage.AUTHORIZATION, "短信权限 sms permission restricted", "sms"),
+    entry("daily", "notification_access", SettingsPage.AUTHORIZATION, "通知权限 应用选择 来源 notification access apps", "notification"),
     entry("daily", "reminder_access", SettingsPage.REMINDERS, "定时权限 准时提醒 exact alarm permission", "permissions"),
     entry("capabilities", "speech", SettingsPage.SPEECH, "语音 转写 录音 speech transcription audio API Key"),
     entry("capabilities", "ai_purpose", SettingsPage.AI_PURPOSE, "功能 模型 分配 快速 经济 深度 交互 后台 总结 purpose model assignment"),

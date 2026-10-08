@@ -110,11 +110,8 @@ class LedgerViewModel(
     private fun trend(ledger: LedgerState, period: LedgerPeriod, anchor: LocalDate, zone: TimeZone): List<LedgerBucket> = when (period) {
         LedgerPeriod.QUARTER -> engine.buckets(ledger, LedgerPeriod.WEEK, anchor, zone, count = 13)
         LedgerPeriod.YEAR -> engine.buckets(ledger, LedgerPeriod.MONTH, anchor, zone, count = 12)
-        else -> engine.buckets(ledger, LedgerPeriod.DAY, anchor, zone, count = daysInMonth(anchor))
+        else -> engine.buckets(ledger, LedgerPeriod.DAY, anchor, zone, count = anchor.dayOfMonth)
     }.reversed()
-
-    private fun daysInMonth(anchor: LocalDate): Int = LocalDate(anchor.year, anchor.monthNumber, 1)
-        .plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY).dayOfMonth
 
     private fun action(block: suspend () -> Unit) {
         if (state.value.busy) return

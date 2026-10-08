@@ -141,8 +141,8 @@ private fun LedgerSummaryCard(state: LedgerUiState) {
     val expense = state.expense()
     val change = when {
         state.previousExpense <= 0 -> ""
-        else -> i18n.t("ledger.change", "${if (expense >= state.previousExpense) "+" else "-"}${
-            kotlin.math.abs(expense - state.previousExpense) * 100 / state.previousExpense}%")
+        else -> "${i18n.t("ledger.change")} ${if (expense >= state.previousExpense) "+" else "-"}${
+            kotlin.math.abs(expense - state.previousExpense) * 100 / state.previousExpense}%"
     }
     Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -196,7 +196,7 @@ private fun LedgerRow(entry: LedgerEntry, onClick: () -> Unit) {
     val time = Instant.fromEpochMilliseconds(entry.receivedAt).toLocalDateTime(zone)
     val meta = listOf(time.hour.toString().padStart(2, '0') + ":" + time.minute.toString().padStart(2, '0'),
         i18n.t("ledger.category.${entry.category.name.lowercase()}"),
-        entry.accountTail.takeIf { it.isNotEmpty() }?.let { i18n.t("bookkeeping.account_tail", it) }.orEmpty(),
+        entry.accountTail.takeIf { it.isNotEmpty() }?.let { i18n.t("bookkeeping.account_tail", *arrayOf(it)) }.orEmpty(),
         entry.note).filter { it.isNotBlank() }.joinToString(" · ")
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(Spacing.m),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -244,15 +244,14 @@ private fun TrendCard(state: LedgerUiState) {
                             else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)))
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-                val step = (state.trend.size / 6).coerceAtLeast(1)
-                state.trend.forEachIndexed { index, bucket ->
-                    Text(if (index % step == 0) axisLabel(state.period, bucket) else "", Modifier.weight(1f),
-                        textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                listOfNotNull(state.trend.firstOrNull(), state.trend.getOrNull(state.trend.size / 2), state.trend.lastOrNull())
+                    .distinctBy { it.start }.forEach { bucket ->
+                        Text(axisLabel(state.period, bucket), maxLines = 1, softWrap = false,
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
             }
-            if (max > 0) Text(i18n.t("ledger.trend_max", LedgerMoney.format(max, "CNY")), style = MaterialTheme.typography.bodySmall,
+            if (max > 0) Text(i18n.t("ledger.trend_max", *arrayOf(LedgerMoney.format(max, "CNY"))), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

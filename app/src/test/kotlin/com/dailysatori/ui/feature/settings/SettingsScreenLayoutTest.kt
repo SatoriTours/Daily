@@ -21,12 +21,17 @@ class SettingsScreenLayoutTest {
     }
 
     @Test
-    fun phoneEntryOpensTheLedgerDashboardWhilePermissionShortcutsOpenConfiguration() {
+    fun authorizationEntriesOpenThePermissionPageAndTheDashboardIsRetired() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
-        assertTrue(source.contains("initialSettings = section != null, initialSection = section"))
-        val phone = File("src/main/kotlin/com/dailysatori/ui/feature/phone/PhoneAssistantScreen.kt").readText()
-        assertTrue(phone.contains("LedgerSummary(state.bookkeeping"))
-        assertTrue(phone.contains("if (settings) PhoneSettingsScreen("))
+        assertTrue(source.contains("SettingsPage.PHONE_ASSISTANT, SettingsPage.AUTHORIZATION ->"))
+        assertTrue(source.contains("AuthorizationScreen(onBack = childBack, initialSection = section)"))
+        val catalog = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsCatalog.kt").readText()
+        assertTrue(catalog.contains("entry(\"daily\", \"auth\", SettingsPage.AUTHORIZATION"))
+        assertFalse(catalog.contains("SettingsPage.PHONE_ASSISTANT"))
+        val ledger = File("src/main/kotlin/com/dailysatori/ui/feature/ledger/LedgerScreen.kt").readText()
+        assertTrue(ledger.contains("fun LedgerScreen("))
+        val myspace = File("src/main/kotlin/com/dailysatori/ui/feature/myspace/MySpaceScreen.kt").readText()
+        assertTrue(myspace.contains("onLedger"))
     }
 
     @Test
