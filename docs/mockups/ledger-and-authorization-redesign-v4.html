@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>账目模块 + 授权管理 设计稿 v4</title>
+<style>
+  :root{
+    --bg:#F5F5F7; --surface:#FFFFFF; --high:#EFEFF4; --highest:#E5E5EA;
+    --text:#1D1D1F; --muted:#6E6E73; --line:rgba(60,60,67,.12); --line2:rgba(60,60,67,.08);
+    --primary:#006EDB; --pc:#D8ECFF; --opc:#003A66;
+    --purple:#E9D7F5; --opurple:#351047;
+    --warn-bg:#FFF3E0; --warn-fg:#8A5300;
+    --green:#1E9E52; --red:#C0342C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#DDE3EA;color:var(--text);padding:40px 44px 56px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+  h1{font-size:26px;font-weight:650}
+  .sub{margin-top:8px;color:#46535F;font-size:14px;line-height:1.65;max-width:1700px}
+  .sub b{color:#12303F}
+  .row{display:flex;gap:28px;margin-top:28px;align-items:flex-start}
+  .col{width:390px}
+  .cap{font-size:13px;font-weight:650;color:#22303C;margin-bottom:10px;min-height:34px}
+  .cap em{font-style:normal;color:#5B6B78;font-weight:500}
+  .phone{width:390px;height:844px;background:var(--bg);border-radius:36px;overflow:hidden;
+    box-shadow:0 22px 60px rgba(20,32,44,.24);display:flex;flex-direction:column}
+  .statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:600}
+  .appbar{height:54px;display:flex;align-items:center;gap:4px;padding:0 10px}
+  .appbar .title{flex:1;text-align:center;font-size:17px;font-weight:650}
+  .appbar .title.left{text-align:left;padding-left:10px;font-size:24px;font-weight:700}
+  .ibtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#3A3A3C;flex:none}
+  .content{flex:1;overflow:hidden;padding:10px 16px 0}
+  .grow{flex:1}
+  .card{background:var(--surface);border-radius:18px;padding:15px 16px;margin-bottom:10px}
+  .row1{display:flex;align-items:center;gap:10px}
+  .t1{font-size:15px;font-weight:600}
+  .t2{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+  .chev{color:#C1C1C6;display:flex}
+  .link{font-size:12.5px;color:var(--primary);font-weight:600;white-space:nowrap}
+  .quick{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+
+  .group{background:var(--surface);border-radius:16px;overflow:hidden;margin-bottom:14px}
+  .srow{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:52px}
+  .srow + .srow{border-top:1px solid var(--line2)}
+
+  /* 授权提示条（出现在提醒/账目页，缺授权时） */
+  .hint{background:var(--warn-bg);border-radius:14px;padding:11px 13px;margin-bottom:12px;color:var(--warn-fg);
+    display:flex;align-items:flex-start;gap:9px}
+  .hint .t{flex:1;font-size:12.5px;line-height:1.5}
+  .hint .act{font-size:12.5px;font-weight:650;white-space:nowrap}
+  .hint .x{font-size:13px;color:#B58A4A}
+
+  .seg2{display:flex;background:var(--high);border-radius:10px;padding:3px;margin-bottom:12px}
+  .seg2 span{flex:1;text-align:center;padding:7px 0;border-radius:8px;font-size:13.5px;color:#3A3A3C}
+  .seg2 span.on{background:var(--surface);color:var(--primary);font-weight:650;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .periodbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .seg3{display:flex;background:var(--high);border-radius:9px;padding:2px}
+  .seg3 span{padding:4px 11px;border-radius:7px;font-size:13px;color:#3A3A3C}
+  .seg3 span.on{background:var(--surface);color:var(--primary);font-weight:650;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .nav{display:flex;align-items:center;color:var(--muted)}
+  .period{font-size:14px;font-weight:650;min-width:84px;text-align:center}
+
+  .sum{background:var(--surface);border-radius:18px;padding:13px 16px;margin-bottom:12px}
+  .sum .h{display:flex;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .sum .big{display:flex;align-items:baseline;gap:8px}
+  .sum .big .v{font-size:24px;font-weight:700}
+  .sum .big .lab{font-size:12px;color:var(--muted)}
+  .sum .grid{display:flex;gap:16px;border-top:1px solid var(--line2);padding-top:9px;margin-top:9px}
+  .sum .grid div{font-size:12px;color:var(--muted)}
+  .sum .grid b{display:block;font-size:14px;font-weight:650;color:var(--text);margin-top:2px}
+  .sum .grid b.pos{color:var(--green)}
+
+  .sectT{display:flex;align-items:baseline;gap:8px;padding:2px 2px 8px}
+  .sectT .d{font-size:13px;font-weight:650;color:#3A3A3C}
+  .sectT .t{font-size:12px;color:var(--muted);margin-left:auto}
+
+  /* 柱状图 */
+  .chart{background:var(--surface);border-radius:18px;padding:14px 14px 10px;margin-bottom:14px}
+  .bars{display:flex;align-items:flex-end;gap:5px;height:104px}
+  .bars i{flex:1;background:var(--pc);border-radius:4px 4px 2px 2px}
+  .bars i.hi{background:var(--primary)}
+  .axis{display:flex;gap:5px;margin-top:6px}
+  .axis span{flex:1;text-align:center;font-size:9.5px;color:var(--muted);white-space:nowrap}
+  .axis b{flex:1;text-align:center;font-size:10px;color:var(--text);font-weight:650}
+  .chart .foot{display:flex;gap:12px;font-size:11.5px;color:var(--muted);margin-top:8px;border-top:1px solid var(--line2);padding-top:8px}
+
+  /* 环图 */
+  .donutWrap{display:flex;align-items:center;gap:16px}
+  .donut{width:104px;height:104px;border-radius:50%;position:relative;flex:none;
+    background:conic-gradient(var(--primary) 0 38%, #5AA9F0 38% 63%, #9ACBF7 63% 85%, #D8ECFF 85% 100%)}
+  .donut::after{content:"";position:absolute;inset:27px;background:var(--surface);border-radius:50%}
+  .donut .mid{position:absolute;inset:0;display:grid;place-content:center;text-align:center;z-index:2}
+  .donut .mid b{font-size:13px;font-weight:700;display:block}
+  .donut .mid span{font-size:10px;color:var(--muted)}
+  .legend{flex:1}
+  .legend div{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:7px}
+  .legend i{width:9px;height:9px;border-radius:3px;flex:none}
+  .legend .v{margin-left:auto;font-weight:650}
+
+  .rank{display:flex;align-items:center;gap:12px;padding:11px 14px}
+  .rank + .rank{border-top:1px solid var(--line2)}
+  .rank .no{width:18px;font-size:12.5px;color:var(--muted)}
+  .rank .barbg{width:64px;height:6px;border-radius:3px;background:var(--high);overflow:hidden}
+  .rank .barbg i{display:block;height:100%;background:var(--primary);border-radius:3px}
+
+  .notes{margin-top:34px;display:flex;gap:24px;flex-wrap:wrap}
+  .note{width:430px;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 8px 22px rgba(20,32,44,.1)}
+  .note h3{font-size:14px;font-weight:650;margin-bottom:8px}
+  .note ul{margin-left:16px;font-size:12.5px;line-height:1.8;color:#3C4A56}
+</style>
+</head>
+<body>
+
+<h1>设计稿 v4 · 授权入口归位 + 授权提示 + 年/季统计图</h1>
+<div class="sub">
+  按你这次的三个意见改：<b>①</b> 授权管理移到<b>设置</b>里，我的页面不再放它；<b>②</b> 授权仍走“用到时提醒”的方式——在<b>我的提醒</b>和<b>账目</b>页缺授权时出现可关闭提示，设置里的授权管理作为统一配置口；<b>③</b> 账目分析新增<b>季度／年度</b>，并补统计图（柱状趋势、分类环图、商户排行条）。
+</div>
+
+<div class="row">
+
+  <!-- A 我的 -->
+  <section class="col">
+    <div class="cap">A · 我的 <em>只留「账目」入口，授权管理不在这一层</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span style="letter-spacing:2px;color:#3A3A3C">▮▮ ⚡</span></div>
+      <div class="appbar"><div class="title left">我的</div><div class="ibtn"><svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></div></div>
+      <div class="content">
+        <div style="display:flex;gap:4px;padding:2px 0 16px">
+          <div class="quick"><div style="width:46px;height:46px;border-radius:50%;background:var(--high);display:grid;place-items:center;color:var(--primary)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></div>添加提醒</div>
+          <div class="quick"><div style="width:46px;height:46px;border-radius:50%;background:var(--high);display:grid;place-items:center;color:var(--primary)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4.5 5h15v11h-9l-6 4.5z"/></svg></div>与我聊聊</div>
+          <div class="quick"><div style="width:46px;height:46px;border-radius:50%;background:var(--high);display:grid;place-items:center;color:var(--primary)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M6.5 4h11v16l-5.5-3.6L6.5 20z"/></svg></div>我的收藏</div>
+          <div class="quick"><div style="width:46px;height:46px;border-radius:50%;background:var(--high);display:grid;place-items:center;color:var(--primary)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.6"/><path d="M8.4 12.3l2.5 2.5 4.7-5"/></svg></div>任务中心</div>
+        </div>
+        <div class="card" style="outline:1.5px dashed var(--primary);outline-offset:-1px">
+          <div class="row1"><span style="color:var(--primary);display:flex"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h9"/></svg></span>
+            <span class="t1" style="margin-right:auto">账目</span><span class="link">查看全部</span>
+            <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="t2">本月支出 ¥1,286.00 · 收入 ¥8,000.00 · 待确认 1 笔</div>
+        </div>
+        <div class="card">
+          <div class="row1"><span style="color:var(--primary);display:flex"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6.5 4h11v16l-5.5-3.6L6.5 20z"/></svg></span><span class="t1" style="margin-right:auto">生活档案</span><span class="link">查看全部</span><span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="t2">整理域名、订阅和支付资料</div>
+        </div>
+        <div class="card">
+          <div class="row1"><span style="color:var(--primary);display:flex"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 3.5 10.9c-.3.3-.5.7-.5 1.1H9c0-.4-.2-.8-.5-1.1A6 6 0 0 1 12 3z"/></svg></span><span class="t1" style="margin-right:auto">我的点子</span><span class="link">查看全部</span><span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="t2">从日记和产品机会持续收录、研究与推进点子</div>
+        </div>
+        <div class="card">
+          <div class="row1"><span style="color:var(--primary);display:flex"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.4 5.3 1.8 5.7H4.2C4.6 14.3 6 13 6 9zM10 18.5a2 2 0 0 0 4 0"/></svg></span><span class="t1" style="margin-right:auto">我的提醒</span><span class="link">查看全部</span><span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="t2">5 条待办 · 其中 3 条来自短信/通知</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B 设置 -->
+  <section class="col">
+    <div class="cap">B · 设置 <em>新增「授权管理」，移除旧「手机助手／自动记账」</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span style="letter-spacing:2px;color:#3A3A3C">▮▮ ⚡</span></div>
+      <div class="appbar"><div class="ibtn">←</div><div class="title">设置</div><div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.2 16.2L21 21"/></svg></div></div>
+      <div class="content">
+        <div class="sectT"><span class="d" style="color:var(--muted);font-weight:650">日常使用</span></div>
+        <div class="group">
+          <div class="srow"><div style="flex:1"><div class="t1" style="font-weight:400">提醒与通知</div><div class="t2">声音 · 勿扰</div></div><span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="srow" style="background:var(--pc)"><div style="flex:1"><div class="t1" style="font-weight:600;color:var(--opc)">授权管理</div><div class="t2" style="color:var(--opc);opacity:.8">短信、通知的读取授权与来源</div></div>
+            <span class="t2" style="margin:0;color:var(--warn-fg);font-weight:650">短信未授权</span>
+            <span class="chev" style="color:var(--opc)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="srow"><div style="flex:1"><div class="t1" style="font-weight:400">日记标签</div><div class="t2">自动整理</div></div><span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+        </div>
+        <div class="sectT"><span class="d" style="color:var(--muted);font-weight:650">模型与能力</span></div>
+        <div class="group">
+          <div class="srow"><div style="flex:1"><div class="t1" style="font-weight:400">模型与语音</div><div class="t2">模型 · 转写</div></div><span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="srow"><div style="flex:1"><div class="t1" style="font-weight:400">提示词与技能</div><div class="t2">技能 · 插件</div></div><span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+        </div>
+        <div class="sectT"><span class="d" style="color:var(--muted);font-weight:650">内容与数据</span></div>
+        <div class="group">
+          <div class="srow"><div style="flex:1"><div class="t1" style="font-weight:400">数据管理</div><div class="t2">备份 · 导入</div></div><span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="srow"><div style="flex:1"><div class="t1" style="font-weight:400">隐私说明</div><div class="t2">数据使用</div></div><span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+        </div>
+        <div class="card" style="background:var(--high);border-radius:14px">
+          <div class="t2" style="margin:0">旧「手机助手／自动记账」入口已并入「授权管理」与「账目」，不再单独保留。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C 提醒页授权提示 -->
+  <section class="col">
+    <div class="cap">C · 我的提醒 <em>用到时提醒授权（可关闭，不改原列表）</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span style="letter-spacing:2px;color:#3A3A3C">▮▮ ⚡</span></div>
+      <div class="appbar"><div class="ibtn">←</div><div class="title">我的提醒</div><div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      <div class="content">
+        <div class="hint">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-top:1px"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg>
+          <span class="t">开启短信授权后，缴费、取件这类短信会自动变成待办（不会读取历史短信）</span>
+          <span class="act">去开启</span><span class="x">✕</span>
+        </div>
+        <div class="sectT"><span class="d">今天</span><span class="t">3 条</span></div>
+        <div class="group">
+          <div class="srow"><span style="width:20px;height:20px;border-radius:50%;border:1.6px solid #C7C7CC;flex:none"></span>
+            <div style="flex:1"><div class="t1" style="font-weight:400">取件码 1234，丰巢快递柜</div><div class="t2">18:00 前 · 来自短信</div></div>
+            <span style="font-size:11.5px;color:var(--muted);background:var(--high);border-radius:6px;padding:2px 6px">短信</span></div>
+          <div class="srow"><span style="width:20px;height:20px;border-radius:50%;border:1.6px solid #C7C7CC;flex:none"></span>
+            <div style="flex:1"><div class="t1" style="font-weight:400">交房租</div><div class="t2">20:30</div></div>
+            <span style="font-size:11.5px;color:var(--muted);background:var(--high);border-radius:6px;padding:2px 6px">手动</span></div>
+        </div>
+        <div class="sectT"><span class="d">本周</span><span class="t">2 条</span></div>
+        <div class="group">
+          <div class="srow"><span style="width:20px;height:20px;border-radius:50%;border:1.6px solid #C7C7CC;flex:none"></span>
+            <div style="flex:1"><div class="t1" style="font-weight:400">预约体检</div><div class="t2">周五 14:00 · 来自通知</div></div>
+            <span style="font-size:11.5px;color:var(--muted);background:var(--high);border-radius:6px;padding:2px 6px">通知</span></div>
+          <div class="srow"><span style="width:20px;height:20px;border-radius:50%;border:1.6px solid #C7C7CC;flex:none"></span>
+            <div style="flex:1"><div class="t1" style="font-weight:400">续费云盘会员</div><div class="t2">周六</div></div>
+            <span style="font-size:11.5px;color:var(--muted);background:var(--high);border-radius:6px;padding:2px 6px">通知</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D 账目页授权提示 -->
+  <section class="col">
+    <div class="cap">D · 账目 · 明细 <em>账目页同样只在缺授权时提示</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span style="letter-spacing:2px;color:#3A3A3C">▮▮ ⚡</span></div>
+      <div class="appbar"><div class="ibtn">←</div><div class="title">账目</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.2 16.2L21 21"/></svg></div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h8"/><circle cx="17" cy="17" r="2.2"/></svg></div></div>
+      <div class="content">
+        <div class="seg2"><span class="on">明细</span><span>分析</span></div>
+        <div class="hint">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-top:1px"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg>
+          <span class="t">短信未授权，银行短信不会被记成账目</span>
+          <span class="act">去开启</span><span class="x">✕</span>
+        </div>
+        <div class="sum">
+          <div class="h"><span>2026-10</span><span class="grow"></span><span>较上月 +12%</span></div>
+          <div class="big"><span class="v">-1,286.00</span><span class="lab">本月支出</span></div>
+          <div class="grid"><div>收入<b class="pos">+8,000.00</b></div><div>退款<b>+128.00</b></div><div>结余<b class="pos">+6,842.00</b></div></div>
+        </div>
+        <div class="periodbar">
+          <div class="seg3"><span class="on">日</span><span>周</span><span>月</span></div>
+          <div class="grow"></div>
+          <span class="nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg></span>
+          <span class="period">2026-10-08</span>
+          <span class="nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+        </div>
+        <div class="sectT"><span class="d">2026-10-08 周四</span><span class="t">支出 56.00</span></div>
+        <div class="group">
+          <div class="srow"><div style="width:30px;height:30px;border-radius:9px;background:var(--pc);display:grid;place-items:center;color:var(--opc);font-size:13px">餐</div>
+            <div style="flex:1"><div class="t1" style="font-weight:400">便利店</div><div class="t2">10:12 · 餐饮 · 尾号 1238</div></div>
+            <span style="font-size:15.5px;font-weight:650">-56.00</span></div>
+        </div>
+        <div class="sectT"><span class="d">2026-10-06 周二</span><span class="t">支出 68.00</span></div>
+        <div class="group">
+          <div class="srow"><div style="width:30px;height:30px;border-radius:9px;background:var(--pc);display:grid;place-items:center;color:var(--opc);font-size:13px">餐</div>
+            <div style="flex:1"><div class="t1" style="font-weight:400">美团外卖</div><div class="t2">12:31 · 餐饮 · 尾号 1238</div></div>
+            <span style="font-size:15.5px;font-weight:650">-38.00</span></div>
+          <div class="srow"><div style="width:30px;height:30px;border-radius:9px;background:#E4EEDC;display:grid;place-items:center;color:#2E5A20;font-size:13px">行</div>
+            <div style="flex:1"><div class="t1" style="font-weight:400">地铁</div><div class="t2">08:12 · 交通 · 尾号 1238</div></div>
+            <span style="font-size:15.5px;font-weight:650">-30.00</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- E 分析 年 -->
+  <section class="col">
+    <div class="cap">E · 分析 · 年 <em>12 个月柱状趋势 + 分类环图 + 商户排行</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span style="letter-spacing:2px;color:#3A3A3C">▮▮ ⚡</span></div>
+      <div class="appbar"><div class="ibtn">←</div><div class="title">账目</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.2 16.2L21 21"/></svg></div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h8"/><circle cx="17" cy="17" r="2.2"/></svg></div></div>
+      <div class="content">
+        <div class="seg2"><span>明细</span><span class="on">分析</span></div>
+        <div class="periodbar">
+          <div class="seg3"><span>月</span><span>季</span><span class="on">年</span></div>
+          <div class="grow"></div>
+          <span class="nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg></span>
+          <span class="period">2026 年</span>
+          <span class="nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+        </div>
+        <div class="sum" style="padding:12px 16px">
+          <div class="big"><span class="v">-15,432.00</span><span class="lab">全年支出</span><span class="grow"></span><span class="t2" style="margin:0">较去年 -8%</span></div>
+          <div class="grid"><div>收入<b class="pos">+96,000.00</b></div><div>月均支出<b>1,286.00</b></div><div>结余<b class="pos">+80,568.00</b></div></div>
+        </div>
+        <div class="sectT"><span class="d">月度支出趋势</span><span class="t">近 12 个月</span></div>
+        <div class="chart">
+          <div class="bars">
+            <i style="height:38%"></i><i style="height:26%"></i><i style="height:52%"></i><i style="height:20%"></i>
+            <i style="height:74%"></i><i style="height:56%"></i><i style="height:33%"></i><i style="height:62%"></i>
+            <i style="height:44%"></i><i style="height:29%"></i><i style="height:58%"></i><i class="hi" style="height:96%"></i>
+          </div>
+          <div class="axis"><span>11</span><span>12</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><b>10</b></div>
+          <div class="foot"><span>最高 10 月 1,286</span><span>最低 2 月 320</span><span class="grow"></span><span>点击柱查看该月</span></div>
+        </div>
+        <div class="sectT"><span class="d">分类占比</span><span class="t">全年</span></div>
+        <div class="chart" style="padding:14px">
+          <div class="donutWrap">
+            <div class="donut"><div class="mid"><b>15,432</b><span>支出</span></div></div>
+            <div class="legend">
+              <div><i style="background:var(--primary)"></i>餐饮<span class="v">38%</span></div>
+              <div><i style="background:#5AA9F0"></i>购物<span class="v">25%</span></div>
+              <div><i style="background:#9ACBF7"></i>交通<span class="v">22%</span></div>
+              <div><i style="background:#D8ECFF"></i>其他<span class="v">15%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- F 分析 季 -->
+  <section class="col">
+    <div class="cap">F · 分析 · 季 <em>13 周柱状 + 环比；月/季/年三种粒度同结构</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span style="letter-spacing:2px;color:#3A3A3C">▮▮ ⚡</span></div>
+      <div class="appbar"><div class="ibtn">←</div><div class="title">账目</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.2 16.2L21 21"/></svg></div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h8"/><circle cx="17" cy="17" r="2.2"/></svg></div></div>
+      <div class="content">
+        <div class="seg2"><span>明细</span><span class="on">分析</span></div>
+        <div class="periodbar">
+          <div class="seg3"><span>月</span><span class="on">季</span><span>年</span></div>
+          <div class="grow"></div>
+          <span class="nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg></span>
+          <span class="period">2026 Q4</span>
+          <span class="nav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+        </div>
+        <div class="sum" style="padding:12px 16px">
+          <div class="big"><span class="v">-3,246.00</span><span class="lab">本季支出</span><span class="grow"></span><span class="t2" style="margin:0">环比 +6%</span></div>
+          <div class="grid"><div>收入<b class="pos">+24,000.00</b></div><div>周均支出<b>250.00</b></div><div>结余<b class="pos">+20,754.00</b></div></div>
+        </div>
+        <div class="sectT"><span class="d">周度支出</span><span class="t">2026 Q4 · 13 周</span></div>
+        <div class="chart">
+          <div class="bars">
+            <i style="height:34%"></i><i style="height:58%"></i><i style="height:22%"></i><i style="height:46%"></i>
+            <i style="height:30%"></i><i style="height:72%"></i><i style="height:40%"></i><i style="height:28%"></i>
+            <i style="height:52%"></i><i style="height:36%"></i><i style="height:64%"></i><i style="height:44%"></i><i class="hi" style="height:88%"></i>
+          </div>
+          <div class="axis"><span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>W7</span><span>W8</span><span>W9</span><span>W10</span><span>W11</span><span>W12</span><b>W13</b></div>
+          <div class="foot"><span>最高 W13 486</span><span>最低 W3 120</span></div>
+        </div>
+        <div class="sectT"><span class="d">分类占比</span><span class="t">本季</span></div>
+        <div class="chart" style="padding:14px">
+          <div class="donutWrap">
+            <div class="donut" style="background:conic-gradient(var(--primary) 0 42%, #5AA9F0 42% 66%, #9ACBF7 66% 87%, #D8ECFF 87% 100%)">
+              <div class="mid"><b>3,246</b><span>支出</span></div></div>
+            <div class="legend">
+              <div><i style="background:var(--primary)"></i>餐饮<span class="v">42%</span></div>
+              <div><i style="background:#5AA9F0"></i>交通<span class="v">24%</span></div>
+              <div><i style="background:#9ACBF7"></i>购物<span class="v">21%</span></div>
+              <div><i style="background:#D8ECFF"></i>其他<span class="v">13%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="sectT"><span class="d">商户排行</span><span class="t">本季</span></div>
+        <div class="group">
+          <div class="rank"><span class="no">1</span><div style="flex:1"><div class="t1" style="font-weight:400">美团外卖</div><div class="t2">14 笔</div></div>
+            <span class="barbg" style="width:64px"><i style="width:100%"></i></span><span style="font-size:14px;font-weight:650">1,260</span></div>
+          <div class="rank"><span class="no">2</span><div style="flex:1"><div class="t1" style="font-weight:400">超市</div><div class="t2">4 笔</div></div>
+            <span class="barbg"><i style="width:68%"></i></span><span style="font-size:14px;font-weight:650">860</span></div>
+          <div class="rank"><span class="no">3</span><div style="flex:1"><div class="t1" style="font-weight:400">地铁</div><div class="t2">22 笔</div></div>
+            <span class="barbg"><i style="width:48%"></i></span><span style="font-size:14px;font-weight:650">600</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="notes">
+  <div class="note">
+    <h3>本轮改动</h3>
+    <ul>
+      <li><b>授权管理归位</b>：从「我的」移到<b>设置</b>，与提醒、日记标签并列；我的页只留「账目」一张新卡。</li>
+      <li><b>授权仍走“用到时提醒”</b>：缺授权时，<b>我的提醒</b>页与<b>账目</b>页各出一条可关闭提示，文案说明开启后会得到什么（图 C、D）；设置里的授权管理是统一配置口，「我的」页不放。</li>
+      <li><b>提示出现规则</b>：只在该页真正受影响时出现（提醒页＝短信/通知的待办用途关闭或未授权；账目页＝账目用途关闭或未授权），开启后不再出现；关掉后本次不再打扰，改配置时可再触发。</li>
+      <li><b>分析加统计图</b>：月/季/年三粒度同一结构——区间汇总卡（含环比）＋柱状趋势（年＝近 12 个月，季＝13 周，月＝每日/每周）＋分类环图＋商户排行条。</li>
+      <li>柱状图可点柱查看该月/该周明细；环图点击某分类直接筛选明细。</li>
+      <li>设置里旧的「手机助手／自动记账」入口并入「授权管理」与「账目」，不再单独保留。</li>
+    </ul>
+  </div>
+  <div class="note">
+    <h3>实现范围（确认后开工）</h3>
+    <ul>
+      <li><b>账目模块</b>：新页面（明细/分析/详情）+ 从「我的」进入；引擎补区间汇总、分类、季度/年度聚合与趋势数据。</li>
+      <li><b>提醒模块</b>：接住短信/通知提取的待办（带来源标签与原文），删掉手机助手里那份待办 UI。</li>
+      <li><b>授权管理</b>：设置项 + 目的说明 + 来源选择；<b>旧手机助手页面移除</b>。</li>
+      <li><b>分类</b>：先做本地关键词自动分类 + 手动改并记住规则；预算这版不做，只在分析页保留入口。</li>
+      <li>验证：单测（聚合/分类/季度年度）＋ 编译；装机后用模拟器短信与通知各跑一遍真实流程截图。</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

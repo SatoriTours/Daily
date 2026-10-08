@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>手机助手 Tab 重排设计稿 v1</title>
+<style>
+  :root{
+    --bg:#F5F5F7; --surface:#FFFFFF; --surface-high:#EFEFF4; --surface-highest:#E5E5EA;
+    --text:#1D1D1F; --muted:#6E6E73; --line:rgba(60,60,67,0.12);
+    --primary:#006EDB; --primary-container:#D8ECFF; --on-primary-container:#003A66;
+    --purple-container:#E9D7F5; --on-purple-container:#351047;
+    --error-container:#FFE3E0; --on-error-container:#5C100B; --warn:#FF9500; --green:#34C759;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#DDE3EA; color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+    padding:40px 44px 56px;
+  }
+  h1{font-size:26px;font-weight:650;letter-spacing:.2px}
+  .sub{margin-top:8px;color:#4A5560;font-size:14px;line-height:1.6;max-width:1500px}
+  .row{display:flex;gap:34px;margin-top:30px;align-items:flex-start}
+  .col{width:390px}
+  .cap{font-size:13px;font-weight:650;color:#22303C;margin-bottom:10px;letter-spacing:.2px}
+  .cap em{font-style:normal;color:#5B6B78;font-weight:500}
+
+  /* ---------- phone ---------- */
+  .phone{
+    width:390px;height:844px;background:var(--bg);border-radius:36px;overflow:hidden;
+    box-shadow:0 22px 60px rgba(20,32,44,.24);position:relative;display:flex;flex-direction:column;
+  }
+  .statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:13px;font-weight:600;color:var(--text)}
+  .statusbar .glyphs{letter-spacing:2px;color:#3A3A3C}
+  .appbar{height:54px;display:flex;align-items:center;gap:6px;padding:0 10px}
+  .appbar .title{flex:1;text-align:center;font-size:17px;font-weight:650}
+  .ibtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#3A3A3C}
+
+  /* status strip : 48dp 一条 */
+  .strip{margin:0 16px 8px;height:52px;background:var(--surface);border-radius:22px;
+    display:flex;align-items:center;gap:10px;padding:0 14px}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .dot.ok{background:var(--green)} .dot.off{background:#C7C7CC} .dot.warn{background:var(--warn)}
+  .strip .ch{font-size:15px}
+  .strip .st{font-size:12px;color:var(--muted)}
+  .strip .sep{width:1px;height:18px;background:var(--line);margin:0 2px}
+  .strip .grow{flex:1}
+  .strip .set{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--primary);font-weight:550}
+
+  /* underline tabs */
+  .tabs{display:flex;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .tab{position:relative;padding:11px 14px 10px;font-size:15px;color:var(--muted);
+    display:flex;align-items:center;gap:6px}
+  .tab.active{color:var(--primary);font-weight:650}
+  .tab.active::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;
+    background:var(--primary);border-radius:2px}
+  .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--surface-highest);
+    color:#3A3A3C;font-size:11px;font-weight:600;display:grid;place-items:center}
+  .tab.active .badge{background:var(--primary-container);color:var(--on-primary-container)}
+
+  .content{flex:1;overflow:hidden;padding:12px 16px 0}
+
+  /* cards */
+  .card{background:var(--surface);border-radius:18px;padding:13px 14px;margin-bottom:10px}
+  .line1{display:flex;align-items:center;gap:8px}
+  .tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px}
+  .tag.todo{background:var(--primary-container);color:var(--on-primary-container)}
+  .tag.ledger{background:var(--purple-container);color:var(--on-purple-container)}
+  .tag.warn{background:var(--error-container);color:var(--on-error-container)}
+  .grow{flex:1}
+  .big{font-size:17px;font-weight:650}
+  .meta{font-size:13px;color:var(--muted);margin-top:5px}
+  .acts{display:flex;gap:6px;margin-top:10px}
+  .btn{height:34px;padding:0 14px;border-radius:17px;display:grid;place-items:center;
+    font-size:13px;font-weight:550}
+  .btn.ghost{background:var(--surface-high);color:#3A3A3C}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.ghostred{background:var(--surface-high);color:#C0342C}
+
+  /* ledger period bar */
+  .periodbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .seg{display:flex;background:var(--surface-high);border-radius:9px;padding:2px}
+  .seg span{padding:4px 11px;border-radius:7px;font-size:13px;color:#3A3A3C}
+  .seg span.on{background:var(--surface);color:var(--primary);font-weight:650;
+    box-shadow:0 1px 3px rgba(0,0,0,.10)}
+  .periodbar .grow{flex:1}
+  .nav{display:flex;align-items:center;gap:2px;color:var(--muted)}
+  .period{font-size:14px;font-weight:650;color:var(--text);min-width:96px;text-align:center}
+  .summary{background:var(--surface);border-radius:14px;padding:11px 14px;margin-bottom:12px}
+  .summary .srow{display:flex;align-items:baseline;gap:16px}
+  .summary .srow1{justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .summary .v{font-size:15px;font-weight:650;white-space:nowrap}
+  .summary .v.exp{color:#C0342C}
+
+  /* buckets */
+  .bucket{margin-bottom:12px}
+  .bhead{display:flex;align-items:baseline;gap:8px;padding:0 2px 7px}
+  .bhead .d{font-size:13px;font-weight:650;color:#3A3A3C}
+  .bhead .t{font-size:12px;color:var(--muted)}
+  .bhead .grow{flex:1}
+  .erow{background:var(--surface);border-radius:14px;padding:11px 13px;margin-bottom:8px;
+    display:flex;align-items:center;gap:10px}
+  .erow .amt{font-size:16px;font-weight:650;min-width:78px}
+  .erow .what{flex:1;min-width:0}
+  .erow .what .t1{font-size:14px}
+  .erow .what .t2{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .empty{font-size:13px;color:#9A9AA0;padding:3px 2px 4px}
+
+  /* todo groups */
+  .ghead{font-size:13px;font-weight:650;color:var(--muted);padding:6px 2px 8px;
+    display:flex;align-items:center;gap:7px}
+  .trow{background:var(--surface);border-radius:14px;padding:12px 13px;margin-bottom:8px;
+    display:flex;align-items:center;gap:11px}
+  .circle{width:20px;height:20px;border-radius:50%;border:1.6px solid #C7C7CC;flex:none}
+  .trow .body{flex:1;min-width:0}
+  .trow .t1{font-size:14px}
+  .trow .t2{font-size:12px;color:var(--muted);margin-top:3px}
+  .src{font-size:11px;color:var(--muted);background:var(--surface-high);border-radius:6px;padding:2px 6px}
+
+  .emptybox{margin-top:44px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .emptybox .ic{width:44px;height:44px;border-radius:14px;background:var(--primary-container);
+    display:grid;place-items:center;color:var(--primary)}
+  .emptybox .t{font-size:15px;font-weight:600}
+  .emptybox .h{font-size:12.5px;color:var(--muted);text-align:center;line-height:1.6;max-width:260px}
+  .emptybox .btn{margin-top:2px}
+
+  /* notes */
+  .notes{margin-top:34px;display:flex;gap:26px;flex-wrap:wrap}
+  .note{width:400px;background:#fff;border-radius:14px;padding:16px 18px;
+    box-shadow:0 8px 22px rgba(20,32,44,.10)}
+  .note h3{font-size:14px;font-weight:650;margin-bottom:8px}
+  .note ul{margin-left:16px;font-size:12.5px;line-height:1.85;color:#3C4A56}
+  .n1{color:#006EDB;font-weight:700}
+</style>
+</head>
+<body>
+
+<h1>手机助手 · Tab 重排设计稿 v1</h1>
+<div class="sub">
+  现状：顶部「信息接入」标题＋说明＋两张各含 48dp 图标的大卡片（约 500px 高，不承载内容），下面又是大图标空态卡，首屏基本被占满。<br>
+  改法：状态压成一条 52px 状态条 → 三层 tab 改成下划线式并吸顶 → 内容用行式卡片；账目把「粒度切换＋期次导航」并成一行，合计改为整段区间小计。
+</div>
+
+<div class="row">
+
+  <!-- A 待确认 -->
+  <section class="col">
+    <div class="cap">A · 待确认 <em>（待办与账目混排，一条一卡）</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span class="glyphs">▮▮ ⚡</span></div>
+      <div class="appbar">
+        <div class="ibtn">←</div><div class="title">手机助手</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/></svg></div><div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.2M12 18.4v2.2M4.9 7.9l1.9 1.1M17.2 15l1.9 1.1M4.9 16.1l1.9-1.1M17.2 9l1.9-1.1"/></svg></div>
+      </div>
+      <div class="strip">
+        <span class="dot ok"></span><span class="ch">通知</span><span class="st">已接通</span>
+        <span class="sep"></span>
+        <span class="dot off"></span><span class="ch">短信</span><span class="st">未开启</span>
+        <span class="grow"></span><span class="set">设置</span>
+      </div>
+      <div class="tabs">
+        <div class="tab active">待确认 <span class="badge">2</span></div>
+        <div class="tab">待办 <span class="badge">5</span></div>
+        <div class="tab">账目</div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="line1">
+            <span class="tag todo">待办</span>
+            <span class="grow"></span><span class="meta" style="margin:0">明天 09:00 截止</span>
+          </div>
+          <div class="big" style="margin-top:9px">取件码 1234，丰巢快递柜</div>
+          <div class="meta">短信 · 今天 10:12 · 未确认</div>
+          <div class="acts"><span class="btn primary">确认</span><span class="btn ghost">改时间</span><span class="btn ghost">忽略</span></div>
+        </div>
+        <div class="card">
+          <div class="line1">
+            <span class="tag ledger">账目</span>
+            <span class="grow"></span><span class="meta" style="margin:0">可能需要核对</span>
+          </div>
+          <div class="big" style="margin-top:9px">CNY 56.00 <span style="font-weight:400;font-size:15px">支出</span></div>
+          <div class="meta">便利店 · 尾号 1238 · Messages · 今天 10:12</div>
+          <div class="acts"><span class="btn primary">确认</span><span class="btn ghost">编辑</span><span class="btn ghost">忽略</span></div>
+        </div>
+        <div class="card">
+          <div class="line1">
+            <span class="tag ledger">账目</span>
+            <span class="grow"></span><span class="meta" style="margin:0">币种待确认</span>
+          </div>
+          <div class="big" style="margin-top:9px">$ 12.50 <span style="font-weight:400;font-size:15px">支出</span></div>
+          <div class="meta">未知商户 · 尾号 0000 · 通知 · 昨天 21:40</div>
+          <div class="acts"><span class="btn primary">确认</span><span class="btn ghost">编辑</span><span class="btn ghost">忽略</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B 待办 -->
+  <section class="col">
+    <div class="cap">B · 待办 <em>（按时间分组，行式，不再用大卡）</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span class="glyphs">▮▮ ⚡</span></div>
+      <div class="appbar">
+        <div class="ibtn">←</div><div class="title">手机助手</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/></svg></div><div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.2M12 18.4v2.2M4.9 7.9l1.9 1.1M17.2 15l1.9 1.1M4.9 16.1l1.9-1.1M17.2 9l1.9-1.1"/></svg></div>
+      </div>
+      <div class="strip">
+        <span class="dot ok"></span><span class="ch">通知</span><span class="st">已接通</span>
+        <span class="sep"></span>
+        <span class="dot off"></span><span class="ch">短信</span><span class="st">未开启</span>
+        <span class="grow"></span><span class="set">设置</span>
+      </div>
+      <div class="tabs">
+        <div class="tab">待确认 <span class="badge">2</span></div>
+        <div class="tab active">待办 <span class="badge">5</span></div>
+        <div class="tab">账目</div>
+      </div>
+      <div class="content">
+        <div class="ghead">今天<span class="grow"></span><span style="font-weight:500">2</span></div>
+        <div class="trow">
+          <span class="circle"></span>
+          <div class="body"><div class="t1">取件码 1234，丰巢快递柜</div><div class="t2">18:00 前 · 短信</div></div>
+          <span class="src">短信</span>
+        </div>
+        <div class="trow">
+          <span class="circle"></span>
+          <div class="body"><div class="t1">交房租</div><div class="t2">20:30 · 手动创建</div></div>
+          <span class="src">手动</span>
+        </div>
+        <div class="ghead" style="margin-top:14px">本周<span class="grow"></span><span style="font-weight:500">2</span></div>
+        <div class="trow">
+          <span class="circle"></span>
+          <div class="body"><div class="t1">预约体检</div><div class="t2">周五 14:00 · 短信</div></div>
+          <span class="src">短信</span>
+        </div>
+        <div class="trow">
+          <span class="circle"></span>
+          <div class="body"><div class="t1">续费云盘会员</div><div class="t2">周六 · 通知</div></div>
+          <span class="src">通知</span>
+        </div>
+        <div class="ghead" style="margin-top:14px">更晚 · 无期限<span class="grow"></span><span style="font-weight:500">1</span></div>
+        <div class="trow">
+          <span class="circle"></span>
+          <div class="body"><div class="t1">整理报税材料</div><div class="t2">没有截止时间</div></div>
+          <span class="src">手动</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C 账目 日 -->
+  <section class="col">
+    <div class="cap">C · 账目 · 日 <em>（粒度＋期次一行，合计＝整段区间）</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span class="glyphs">▮▮ ⚡</span></div>
+      <div class="appbar">
+        <div class="ibtn">←</div><div class="title">手机助手</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/></svg></div><div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.2M12 18.4v2.2M4.9 7.9l1.9 1.1M17.2 15l1.9 1.1M4.9 16.1l1.9-1.1M17.2 9l1.9-1.1"/></svg></div>
+      </div>
+      <div class="strip">
+        <span class="dot ok"></span><span class="ch">通知</span><span class="st">已接通</span>
+        <span class="sep"></span>
+        <span class="dot off"></span><span class="ch">短信</span><span class="st">未开启</span>
+        <span class="grow"></span><span class="set">设置</span>
+      </div>
+      <div class="tabs">
+        <div class="tab">待确认</div>
+        <div class="tab">待办</div>
+        <div class="tab active">账目 <span class="badge">7</span></div>
+      </div>
+      <div class="content">
+        <div class="periodbar">
+          <div class="seg"><span class="on">日</span><span>周</span><span>月</span></div>
+          <div class="grow"></div>
+          <span class="nav">‹</span><span class="period">2026-10-08</span><span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+        </div>
+        <div class="summary">
+          <div class="srow srow1"><span>近 7 天</span><span>CNY</span></div>
+          <div class="srow"><span class="v exp">支出 56.00</span><span class="v">收入 0.00</span><span class="v">退款 0.00</span></div>
+        </div>
+        <div class="bucket">
+          <div class="bhead"><span class="d">2026-10-08 周四</span><span class="grow"></span><span class="t">支出 56.00</span></div>
+          <div class="erow">
+            <span class="amt">¥56.00</span>
+            <div class="what"><div class="t1">支出 · 便利店</div><div class="t2">尾号 1238 · Messages · 10:12</div></div>
+            <span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+          </div>
+        </div>
+        <div class="bucket">
+          <div class="bhead"><span class="d">2026-10-07 周三</span><span class="grow"></span><span class="t">无记录</span></div>
+        </div>
+        <div class="bucket">
+          <div class="bhead"><span class="d">2026-10-06 周二</span><span class="grow"></span><span class="t">支出 68.00</span></div>
+          <div class="erow">
+            <span class="amt">¥38.00</span>
+            <div class="what"><div class="t1">支出 · 美团外卖</div><div class="t2">尾号 1238 · 通知 · 12:31</div></div>
+            <span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+          </div>
+          <div class="erow">
+            <span class="amt">¥30.00</span>
+            <div class="what"><div class="t1">支出 · 地铁</div><div class="t2">尾号 1238 · 通知 · 08:12</div></div>
+            <span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D 账目 月 -->
+  <section class="col">
+    <div class="cap">D · 账目 · 月 <em>（同一结构换粒度，区间合计随之变化）</em></div>
+    <div class="phone">
+      <div class="statusbar"><span>10:15</span><span class="glyphs">▮▮ ⚡</span></div>
+      <div class="appbar">
+        <div class="ibtn">←</div><div class="title">手机助手</div>
+        <div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.6V12l3.1 1.9"/></svg></div><div class="ibtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.2M12 18.4v2.2M4.9 7.9l1.9 1.1M17.2 15l1.9 1.1M4.9 16.1l1.9-1.1M17.2 9l1.9-1.1"/></svg></div>
+      </div>
+      <div class="strip">
+        <span class="dot ok"></span><span class="ch">通知</span><span class="st">已接通</span>
+        <span class="sep"></span>
+        <span class="dot off"></span><span class="ch">短信</span><span class="st">未开启</span>
+        <span class="grow"></span><span class="set">设置</span>
+      </div>
+      <div class="tabs">
+        <div class="tab">待确认</div>
+        <div class="tab">待办</div>
+        <div class="tab active">账目 <span class="badge">7</span></div>
+      </div>
+      <div class="content">
+        <div class="periodbar">
+          <div class="seg"><span>日</span><span>周</span><span class="on">月</span></div>
+          <div class="grow"></div>
+          <span class="nav">‹</span><span class="period">2026-10</span><span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span>
+        </div>
+        <div class="summary">
+          <div class="srow srow1"><span>近 6 个月</span><span>CNY</span></div>
+          <div class="srow"><span class="v exp">支出 3,246.00</span><span class="v">收入 24,000.00</span><span class="v">退款 128.00</span></div>
+        </div>
+        <div class="bucket">
+          <div class="bhead"><span class="d">2026-10</span><span class="grow"></span><span class="t">支出 1,286.00</span></div>
+          <div class="erow"><span class="amt">¥56.00</span>
+            <div class="what"><div class="t1">支出 · 便利店</div><div class="t2">10-08 10:12</div></div><span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="erow"><span class="amt">¥1,180.00</span>
+            <div class="what"><div class="t1">支出 · 超市</div><div class="t2">10-06 19:02</div></div><span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+          <div class="erow"><span class="amt">¥50.00</span>
+            <div class="what"><div class="t1">支出 · 打车</div><div class="t2">10-03 22:41</div></div><span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+        </div>
+        <div class="bucket">
+          <div class="bhead"><span class="d">2026-09</span><span class="grow"></span><span class="t">支出 1,120.00</span></div>
+          <div class="erow"><span class="amt">¥1,120.00</span>
+            <div class="what"><div class="t1">支出 · 房租</div><div class="t2">09-28 09:00</div></div><span class="nav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></div>
+        </div>
+        <div class="bucket">
+          <div class="bhead"><span class="d">2026-08</span><span class="grow"></span><span class="t">无记录</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="notes">
+  <div class="note">
+    <h3>改动点</h3>
+    <ul>
+      <li><span class="n1">①</span> 删「信息接入」大标题与说明，两个频道压成 <b>52px 状态条</b>：圆点颜色表示状态（绿＝已接通、橙＝需处理、灰＝未开启），整条可点进配置。</li>
+      <li><span class="n1">②</span> 三层 tab 改 <b>下划线式并吸顶</b>：计数做成徽标，滚动时始终可见。</li>
+      <li><span class="n1">③</span> 待办改 <b>按 今天／本周／更晚 分组的行式列表</b>，右侧一个完成圆钮，不再每条都套大卡。</li>
+      <li><span class="n1">④</span> 账目把 <b>粒度切换与期次导航并成一行</b>；合计从「锚点月」改为 <b>整段区间小计</b>（近 7 天／6 周／6 个月），与分桶不再重复。</li>
+      <li><span class="n1">⑤</span> 分桶头与条目拆成「日期行 + 条目行」，条目只留金额、商户、来源时间，点行进入编辑。</li>
+      <li><span class="n1">⑥</span> 常驻底部隐私说明移到设置页顶部，首屏多出约 60px。</li>
+    </ul>
+  </div>
+  <div class="note">
+    <h3>对比（首屏可用高度 844px）</h3>
+    <ul>
+      <li>现在：顶栏 98 + 信息接入块 500 + tab 62 + 内容区 ≈ 180 → 列表只露一行。</li>
+      <li>改后：顶栏 98 + 状态条 60 + tab 44 + 内容区 ≈ 640 → 待办可见 5 行、账目可见 3 个分桶。</li>
+      <li>空态卡同时瘦身：图标 44px 无容器、文案两行封顶、保留主按钮。</li>
+      <li>配色与间距全部沿用现有主题（背景 #F5F5F7、卡片 #FFFFFF、主色 #006EDB、圆角 14/18/22、间距 8/16）。</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
