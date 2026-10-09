@@ -86,6 +86,9 @@ class PhoneAssistantViewModel(
         mutableState.update { it.copy(preferences = prefs, bookkeeping = it.bookkeeping.copy(selectedSources = prefs.sources)) }
     }
     fun retry(row: PhoneMessage) = action { service.retry(row.id)?.let(scheduler::enqueue) }
+    fun reprocess(row: PhoneMessage) = action { service.reprocess(row.id)?.let(scheduler::enqueue) }
+    fun aiReprocess(row: PhoneMessage) = action { service.aiReprocess(row.id)?.let(scheduler::enqueue) }
+    fun moveLedgerToTodo(entry: LedgerEntry) = action { service.moveLedgerToTodo(entry.id) }
     fun loadMoreHistory() { if (state.value.historyHasMore) historyLimit.update { it + 50 } }
     fun ignoreTodo(row: PhoneMessage, todo: PhoneTodo) = action { service.ignoreTodo(row.id, todo.id) }
     fun clearText(row: PhoneMessage) = action { service.clearText(row.id) }

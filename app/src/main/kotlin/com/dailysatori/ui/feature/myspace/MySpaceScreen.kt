@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Add
 import com.dailysatori.ui.feature.profile.localDayTicker
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -33,6 +34,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.bookkeeping.*
+import com.dailysatori.data.repository.BookkeepingRepository
+import com.dailysatori.data.repository.PhoneMessageRepository
 import com.dailysatori.R
 import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.service.diary.DiaryThoughtState
@@ -72,6 +76,7 @@ fun MySpaceScreen(
     onTasks: () -> Unit,
     onLifeArchive: () -> Unit = {},
     onIdeaTopics: () -> Unit = {},
+    onLedger: () -> Unit = {},
 ) {
     val thoughts: DiaryThoughtViewModel = koinViewModel()
     val reminders: ReminderViewModel = koinViewModel()
@@ -80,6 +85,11 @@ fun MySpaceScreen(
     val thoughtState by thoughts.state.collectAsStateWithLifecycle()
     val allReminders by reminders.reminders.collectAsStateWithLifecycle()
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
+    val phoneMessages: PhoneMessageRepository = koinInject()
+    val intake by produceState(initialValue = emptyList<com.dailysatori.service.phone.PhoneMessage>(), key1 = Unit) {
+        phoneMessages.observe().collect { value = it }
+    }
+    val reminderSources = remember(intake) { com.dailysatori.ui.feature.reminder.ReminderSources.labels(intake) }
     val upcoming = myUpcomingReminders(allReminders, today)
     val todayPendingCount = ReminderSummary.todayPendingCount(allReminders, today)
     // The home screen owns the saved seed and scroll state across detail navigation.
@@ -102,6 +112,24 @@ fun MySpaceScreen(
         }
         item(key = "quick-actions") {
             MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
+        }
+        item(key = "ledger") {
+            val i18n: I18nService = koinInject()
+            val repository: BookkeepingRepository = koinInject()
+            val ledger by produceState(initialValue = LedgerState(), key1 = Unit) { repository.observe().collect { value = it } }
+            val monthExpense = remember(ledger, today) {
+                val range = LedgerEngine().range(LedgerPeriod.MONTH, today, TimeZone.currentSystemDefault())
+                LedgerEngine().totals(ledger, range.first, range.second).firstOrNull { it.currency == "CNY" }?.expense ?: 0L
+            }
+            val pendingCount = ledger.entries.count { it.status == LedgerStatus.PENDING }
+            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                .clickable(role = Role.Button, onClick = onLedger)) {
+                MySectionHeading(i18n.t("ledger.title"), Icons.Outlined.AccountBalanceWallet, onLedger, titleClickable = false)
+                Text(
+                    if (ledger.entries.isEmpty() && pendingCount == 0) i18n.t("myspace.ledger_empty")
+                    else i18n.t("myspace.ledger_hint", LedgerMoney.format(monthExpense, "CNY"), pendingCount),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         item(key = "life-archive") {
             MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
@@ -131,7 +159,7 @@ fun MySpaceScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else upcoming.forEachIndexed { index, item ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    MyReminderRow(item, today) { onReminder(item.id) }
+                    MyReminderRow(item, today, reminderSources[item.id]) { onReminder(item.id) }
                 }
             }
         }
@@ -256,7 +284,7 @@ internal fun MyEmptyBlock(title: String, hint: String, action: String, onClick: 
 }
 
 @Composable
-private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: () -> Unit) {
+private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, sourceKey: String?, onClick: () -> Unit) {
     val day = when (item.daysUntil) {
         0 -> stringResource(R.string.reminder_list_today)
         1 -> stringResource(R.string.reminder_list_tomorrow)
@@ -274,6 +302,13 @@ private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, onClick: (
         }
         VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
         MyReminderBody(item, Modifier.weight(1f))
+        if (sourceKey != null) {
+            val i18n: I18nService = koinInject()
+            Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                Text(i18n.t(sourceKey), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         if (item.isTodayPending) ReminderPendingDot()
         Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }

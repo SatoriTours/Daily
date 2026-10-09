@@ -21,30 +21,47 @@ class BookkeepingRepository(private val db: DailySatoriDatabase, private val cip
 
     fun observe(): Flow<LedgerState> = q.selectBookkeepingEntries().asFlow().mapToList(Dispatchers.IO).map(::rowsToState)
 
-    fun ingest(source: String, eventKey: String, text: String, receivedAt: Long): LedgerState =
-        update { engine.ingest(it, source, eventKey, text, receivedAt) }.state
+    fun ingest(source: String, eventKey: String, text: String, receivedAt: Long,
+        rules: CategoryRules = CategoryRules()): LedgerState =
+        update { engine.ingest(it, source, eventKey, text, receivedAt, rules) }.state
 
-    fun ingestChanged(source: String, eventKey: String, text: String, receivedAt: Long): Boolean =
-        update { engine.ingest(it, source, eventKey, text, receivedAt) }.changed
+    fun ingestChanged(source: String, eventKey: String, text: String, receivedAt: Long,
+        rules: CategoryRules = CategoryRules()): Boolean =
+        update { engine.ingest(it, source, eventKey, text, receivedAt, rules) }.changed
 
     fun edit(id: String, amount: String, currency: String, kind: LedgerKind, merchant: String): LedgerState =
         update { engine.edit(it, id, amount, currency, kind, merchant) }.state
 
     fun dismiss(id: String, status: LedgerStatus): LedgerState = update { engine.dismiss(it, id, status) }.state
 
+    fun setCategory(id: String, category: LedgerCategory): LedgerState = update { engine.categorize(it, id, category) }.state
+
+    fun setNote(id: String, text: String): LedgerState = update { engine.note(it, id, text) }.state
+
+    fun setExcluded(id: String, excluded: Boolean): LedgerState = update { engine.exclude(it, id, excluded) }.state
+
     fun clearText(id: String): LedgerState = update { state ->
         state.copy(entries = state.entries.map { if (it.id == id) it.copy(text = "") else it })
     }.state
 
     fun addManual(source: String, eventKey: String, text: String, receivedAt: Long,
-        amount: String, currency: String, kind: LedgerKind, merchant: String): LedgerEntry {
+        amount: String, currency: String, kind: LedgerKind, merchant: String,
+        rules: CategoryRules = CategoryRules()): LedgerEntry {
         val minor = requireNotNull(LedgerMoney.parse(amount, currency))
         require(kind != LedgerKind.UNKNOWN)
         val entry = LedgerEntry("$source:$eventKey", listOf(eventKey), source, text, receivedAt,
-            minor, currency, kind, merchant.trim(), status = LedgerStatus.POSTED, reason = "", userConfirmed = true)
+            minor, currency, kind, merchant.trim(), category = engine.category(merchant, rules),
+            status = LedgerStatus.POSTED, reason = "", userConfirmed = true)
         update { state -> state.copy(entries = state.entries.filterNot { it.id == entry.id } + entry) }
         return entry
     }
+
+    /** Re-applies the built-in classifier to entries stored before categories existed. */
+    fun backfillCategories(): Boolean = update { state ->
+        state.copy(entries = state.entries.map {
+            if (it.category == LedgerCategory.OTHER && it.merchant.isNotBlank()) it.copy(category = engine.category(it.merchant)) else it
+        })
+    }.changed
 
     private fun rowsToState(rows: List<com.dailysatori.shared.db.Bookkeeping_entry>): LedgerState =
         LedgerState(entries = rows.map { row ->

@@ -54,6 +54,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -94,6 +96,11 @@ fun ReminderListScreen(
 ) {
     val ui by viewModel.state.collectAsState()
     val all by viewModel.reminders.collectAsState()
+    val phoneMessages: com.dailysatori.data.repository.PhoneMessageRepository = org.koin.compose.koinInject()
+    val intake by produceState(initialValue = emptyList<com.dailysatori.service.phone.PhoneMessage>(), key1 = Unit) {
+        phoneMessages.observe().collect { value = it }
+    }
+    val reminderSources = remember(intake) { ReminderSources.labels(intake) }
     val listState by viewModel.listState.collectAsState()
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
@@ -158,6 +165,7 @@ fun ReminderListScreen(
                             today = today,
                             isFinished = ui.listMode == ReminderListMode.FINISHED,
                             showDivider = index > 0,
+                            sourceKey = reminderSources[item.id],
                             onClick = { viewModel.selectReminder(item.id) },
                         )
                     }
@@ -451,6 +459,7 @@ private fun ReminderStoryRow(
     today: LocalDate,
     isFinished: Boolean,
     showDivider: Boolean,
+    sourceKey: String?,
     onClick: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
@@ -479,6 +488,14 @@ private fun ReminderStoryRow(
                     verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
                 ) {
                     ReminderStoryMeta(item, isFinished)
+                    if (sourceKey != null) {
+                        val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+                        Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                            Text(i18n.t(sourceKey), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
             }
             if (item.isTodayPending) ReminderPendingDot(Modifier.align(Alignment.CenterVertically))

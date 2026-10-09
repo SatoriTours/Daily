@@ -31,43 +31,6 @@ internal fun phoneChannelStatus(state: PhoneUiState, channel: PhoneChannel): Str
     }
 }
 
-@Composable internal fun PhoneOverview(state: PhoneUiState, onSettings: () -> Unit) {
-    val i18n: I18nService = koinInject()
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(i18n.t("phone.intake_title"), style = MaterialTheme.typography.titleLarge)
-                Text(i18n.t("phone.intake_hint"), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            IconButton(onClick = onSettings) { Icon(Icons.Default.Tune, i18n.t("phone.settings")) }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            PhoneChannel.entries.forEach { channel ->
-                Surface(onClick = onSettings, modifier = Modifier.weight(1f), shape = RoundedCornerShape(Radius.l),
-                    color = MaterialTheme.colorScheme.surface) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.l),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                        Icon(if (channel == PhoneChannel.SMS) Icons.Default.Sms else Icons.Default.Notifications,
-                            null, Modifier.size(IconSize.xl), tint = MaterialTheme.colorScheme.primary)
-                        Text(i18n.t("phone.${channel.name.lowercase()}"), style = MaterialTheme.typography.titleSmall)
-                        PhoneStatusLabel(phoneChannelStatus(state, channel))
-                    }
-                }
-            }
-        }
-        if (!state.canNotify || !state.exactAlarms) Surface(onClick = onSettings,
-            shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.secondaryContainer) {
-            Row(Modifier.fillMaxWidth().padding(Spacing.m), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Icon(Icons.Default.Alarm, null, Modifier.size(IconSize.m))
-                Text(i18n.t("phone.reminder_setup"), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
-            }
-        }
-    }
-}
-
 @Composable internal fun PhoneStatusLabel(status: String) {
     val i18n: I18nService = koinInject()
     Surface(shape = RoundedCornerShape(Radius.circular), color = if (status == "connected")
@@ -75,26 +38,6 @@ internal fun phoneChannelStatus(state: PhoneUiState, channel: PhoneChannel): Str
         Text(i18n.t("phone.access.$status"), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
             style = MaterialTheme.typography.labelMedium, color = if (status == "connected")
                 MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable internal fun PhoneTabs(tab: Int, counts: List<Int>, onTab: (Int) -> Unit) {
-    val i18n: I18nService = koinInject()
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.padding(Spacing.xs), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            listOf("pending", "todos", "ledger").forEachIndexed { index, key ->
-                Surface(modifier = Modifier.weight(1f).selectable(tab == index, role = Role.Tab, onClick = { onTab(index) }),
-                    shape = RoundedCornerShape(Radius.m), color = if (tab == index) MaterialTheme.colorScheme.surfaceContainerLow
-                        else MaterialTheme.colorScheme.surfaceContainer) {
-                    Column(Modifier.padding(vertical = Spacing.s), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(i18n.t("phone.$key"), style = MaterialTheme.typography.titleSmall,
-                            color = if (tab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(counts[index].toString(), style = MaterialTheme.typography.labelMedium,
-                            color = if (tab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
     }
 }
 

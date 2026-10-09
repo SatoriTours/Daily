@@ -2,6 +2,7 @@ package com.dailysatori.service.phone
 
 import com.dailysatori.bookkeeping.*
 import com.dailysatori.data.repository.*
+import com.dailysatori.service.bookkeeping.LedgerRules
 import com.dailysatori.service.sms.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -11,7 +12,7 @@ import kotlinx.datetime.*
 class PhoneAssistantService(
     private val messages: PhoneMessageRepository, private val smsSources: SmsSourceRepository,
     private val sms: SmsReminderService, private val ledger: BookkeepingRepository,
-    settings: SettingRepository, private val clock: Clock = Clock.System,
+    private val settings: SettingRepository, private val clock: Clock = Clock.System,
 ) {
     private val mutex = Mutex()
     private val policies = PhonePolicies(settings)
@@ -45,17 +46,50 @@ class PhoneAssistantService(
             hasLedger -> PhoneResultState.QUEUED
             else -> old?.ledgerState ?: PhoneResultState.SKIPPED
         }
-        if (todos.isEmpty() && ledgerState == PhoneResultState.SKIPPED) return@withLock null
+        // Messages without any result are still stored so the raw text stays available for later algorithms.
+        val pending = todos.any { it.state in setOf(PhoneResultState.QUEUED, PhoneResultState.PENDING) } ||
+            ledgerState == PhoneResultState.QUEUED
         val record = PhoneMessage(event, revision, options.generation, todos, ledgerState, old?.ledgerId.orEmpty())
-        messages.transaction {
+        return messages.transaction {
             old?.todos?.filter { prior -> todos.none { it.id == prior.id } && prior.state != PhoneResultState.DONE }
                 ?.forEach { sms.ignore(it.id) }
             todos.filter { it.state in setOf(PhoneResultState.QUEUED, PhoneResultState.PENDING) }.forEach {
                 sms.stageLocal(it.id, SmsSource(event.origin, it.text), instant(event), zone(event), localDraft(event, it.text))
             }
             messages.save(record)
-            messages.enqueue(record)
+            if (pending) messages.enqueue(record) else null
         }
+    }
+
+    /** Re-runs the current pipeline over a stored message so kept texts can be processed again. */
+    /** Moves one ledger entry into the reminder list and drops it from the ledger. */
+    suspend fun moveLedgerToTodo(id: String): String? = mutex.withLock {
+        val entry = ledger.snapshot().entries.firstOrNull { it.id == id } ?: return@withLock null
+        val amount = entry.amountMinor?.let { LedgerMoney.format(it, entry.currency) }.orEmpty()
+        val content = listOf(entry.merchant, amount).filter { it.isNotBlank() }.joinToString(" \u00b7 ").ifBlank { entry.text.lineSequence().first() }
+        val reminderId = sms.createFromLedger(entry.id, content, TimeZone.currentSystemDefault())
+        ledger.dismiss(entry.id, LedgerStatus.DELETED)
+        reminderId
+    }
+
+    /** Second pass with the configured AI over a stored message that produced no result. */
+    suspend fun aiReprocess(id: String): Long? = mutex.withLock {
+        val row = messages.get(id) ?: return@withLock null
+        if (!policies.accepts(row.event) || row.textErased) return@withLock null
+        if (!policies.optionsFor(row.event).cloud) return@withLock null
+        val todo = planTodo(row.event, row.revision + 1, row.todos.size, row.event.text)
+        val next = row.copy(revision = row.revision + 1, todos = row.todos + todo)
+        messages.transaction { messages.save(next); messages.enqueue(next) }
+    }
+
+    suspend fun reprocess(id: String): Long? = mutex.withLock {
+        val row = messages.get(id) ?: return@withLock null
+        if (!policies.accepts(row.event) || row.textErased) return@withLock null
+        val options = policies.optionsFor(row.event)
+        val next = row.copy(revision = row.revision + 1, generation = options.generation,
+            todos = row.todos.map { if (options.todos && it.state == PhoneResultState.FAILED) it.copy(state = PhoneResultState.QUEUED, reason = "") else it },
+            ledgerState = if (options.ledger && row.ledgerState in setOf(PhoneResultState.FAILED, PhoneResultState.SKIPPED)) PhoneResultState.QUEUED else row.ledgerState)
+        messages.transaction { messages.save(next); messages.enqueue(next) }
     }
 
     suspend fun process(id: String): PhoneMessage? {
@@ -72,7 +106,7 @@ class PhoneAssistantService(
         if (!policies.optionsFor(row.event).ledger || row.ledgerState != PhoneResultState.QUEUED) return row
         return try {
             messages.transaction {
-                val state = ledger.ingest(source(row), row.id, row.event.text, row.event.receivedAt)
+                val state = ledger.ingest(source(row), row.id, row.event.text, row.event.receivedAt, LedgerRules.of(settings))
                 val entry = state.entries.firstOrNull { it.source == source(row) && row.id in it.eventKeys }
                 val next = row.copy(ledgerId = entry?.id.orEmpty(), ledgerState = when (entry?.status) {
                     LedgerStatus.POSTED -> PhoneResultState.DONE

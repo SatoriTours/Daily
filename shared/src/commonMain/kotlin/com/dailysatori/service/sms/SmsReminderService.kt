@@ -102,6 +102,14 @@ class SmsReminderService(
             reminders.get(it.reminderId)?.status !in setOf(null, ReminderStatus.COMPLETED, ReminderStatus.EXPIRED)
     }
 
+    /** Creates an active reminder from an entry the user moved out of the ledger. */
+    fun createFromLedger(entryId: String, content: String, zone: TimeZone): String = sources.transaction {
+        val now = clock.now().toLocalDateTime(zone)
+        val reminderId = "ledger:$entryId"
+        reminders.createConfirmedOnce(ReminderDraft(reminderId, content, now.date, now.date, now.time, timeZone = zone), defaultProfile())
+        reminderId
+    }
+
     fun confirm(id: String, draft: SmsReminderDraft, checkDuplicates: Boolean = true): String? = sources.transaction {
         val row = sources.get(id) ?: return@transaction null
         if (row.status == SmsSourceStatus.CREATED) return@transaction row.reminderId
@@ -114,7 +122,8 @@ class SmsReminderService(
         val reminderId = "sms:$id"
         reminders.createConfirmedOnce(ReminderDraft(reminderId, content, now.date, deadline?.toLocalDateTime(row.zone)?.date ?: now.date,
             now.time, timeZone = row.zone, deadlineAt = deadline), defaultProfile())
-        if (deadline == null) reminders.pause(reminderId, clock.now())
+        // Reminders without a deadline stay active: intake writes results in by default and the
+        // user deletes or moves anything that was captured by mistake.
         val count = settings.get(CREATED_COUNT_KEY)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
         settings.upsert(CREATED_COUNT_KEY, (count + 1).toString())
         sources.update(id, SmsSourceStatus.CREATED, draft.copy(deadlineMs = deadline?.toEpochMilliseconds()), reminderId)

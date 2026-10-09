@@ -30,6 +30,24 @@ class BookkeepingStorageTest {
         }
     }
 
+    @Test fun backfillReclassifiesLegacyEntriesOnceByMerchant() = runBlocking {
+        withDatabase { db, _ ->
+            val repo = BookkeepingRepository(db, Cipher)
+            val entry = repo.ingest("bank", "one", "消费56元，商户：美团外卖", 1000).entries.single()
+            assertEquals(LedgerCategory.FOOD, entry.category)
+            // An entry stored before categories existed looks like an uncategorised merchant entry.
+            repo.setCategory(entry.id, LedgerCategory.OTHER)
+            assertEquals(LedgerCategory.OTHER, repo.snapshot().entries.single().category)
+            assertTrue(repo.backfillCategories())
+            assertEquals(LedgerCategory.FOOD, repo.snapshot().entries.single().category)
+            assertFalse(repo.backfillCategories())
+            // A merchant the built-in keywords do not know stays uncategorised.
+            val unknown = repo.ingest("bank", "two", "消费12元，商户：某某科技", 2000).entries.last()
+            repo.setCategory(unknown.id, LedgerCategory.OTHER)
+            assertFalse(repo.backfillCategories())
+        }
+    }
+
     @Test fun encryptsWholeEntryAndRetainsDeletionIdentity() {
         withDatabase { db, _ ->
             val repo = BookkeepingRepository(db, Cipher)

@@ -42,12 +42,13 @@ class BookkeepingTest {
         assertEquals(state, engine.ingest(state, "bank", "event1", payment, 1001))
     }
 
-    @Test fun sameAmountSeparateTransactionsAreKeptForReview() {
+    @Test fun sameAmountSeparateTransactionsAreWrittenInAndLinkedToTheDuplicate() {
         val state = engine.ingest(LedgerState(), "bank", "event1", payment, 1000)
         val second = engine.ingest(state, "wechat", "event2", "支付成功56元", 2000)
         assertEquals(2, second.entries.size)
-        assertEquals(LedgerStatus.PENDING, second.entries.last().status)
-        assertEquals("possible_duplicate", second.entries.last().reason)
+        // Suspected duplicates are recorded by default; the user deletes or edits them afterwards.
+        assertEquals(LedgerStatus.POSTED, second.entries.last().status)
+        assertEquals(second.entries.first().id, second.entries.last().duplicateOf)
         assertEquals(LedgerStatus.POSTED, engine.ingest(state, "bank", "event3", payment, 400000).entries.last().status)
     }
 
@@ -186,13 +187,15 @@ class BookkeepingTest {
         }
     }
 
-    @Test fun automaticEntryWithConflictingAmountStillRequiresReview() {
+    @Test fun sameTransactionIdIsNeverAddedTwiceEvenWhenTheAmountChanges() {
         val original = engine.ingest(LedgerState(), "bank", "one", "消费56元，交易单号：AB123456", 1000)
-        val conflict = engine.ingest(original, "bank", "two", "消费57元，交易单号：AB123456", 2000)
-        assertEquals(2, conflict.entries.size)
-        assertEquals(original.entries.single(), conflict.entries.first())
-        assertEquals("possible_duplicate", conflict.entries.last().reason)
-        assertEquals(original.entries.single().id, conflict.entries.last().duplicateOf)
+        val refreshed = engine.ingest(original, "bank", "two", "消费57元，交易单号：AB123456", 2000)
+        // Same source plus same transaction id is the same transaction: one entry, no confirmation needed.
+        assertEquals(1, refreshed.entries.size)
+        assertEquals(original.entries.single().id, refreshed.entries.single().id)
+        assertEquals(5600L, refreshed.entries.single().amountMinor)
+        assertEquals(LedgerStatus.POSTED, refreshed.entries.single().status)
+        assertEquals(listOf("one", "two"), refreshed.entries.single().eventKeys)
     }
 
     @Test fun differentExplicitAccountTailsDoNotMergeEvenAfterManualConfirmation() {
@@ -208,7 +211,7 @@ class BookkeepingTest {
         state = engine.ingest(state, "bank", "two", "尾号9999消费56元，交易单号：AB123456", 400000)
         val unknown = engine.ingest(state, "bank", "three", "消费56元，交易单号：AB123456", 800000)
         assertEquals(3, unknown.entries.size)
-        assertEquals("possible_duplicate", unknown.entries.last().reason)
+        assertEquals(LedgerStatus.POSTED, unknown.entries.last().status)
     }
 
     @Test fun enrichingNotificationKeepsPreviouslyKnownAccountAndTransactionId() {
@@ -223,12 +226,11 @@ class BookkeepingTest {
         var state = engine.ingest(LedgerState(), "bank", "one", "消费56元，交易单号：AB123456", 1000)
         state = engine.ingest(state, "bank", "two", "消费57元，交易单号：AB123456", 2000)
         val originalAgain = engine.ingest(state, "bank", "three", "消费56元，交易单号：AB123456", 3000)
-        assertEquals(2, originalAgain.entries.size)
-        assertEquals(listOf("one", "three"), originalAgain.entries.first().eventKeys)
+        assertEquals(1, originalAgain.entries.size)
+        assertEquals(listOf("one", "two", "three"), originalAgain.entries.single().eventKeys)
         val conflictAgain = engine.ingest(originalAgain, "bank", "four", "消费57元，交易单号：AB123456", 4000)
-        assertEquals(2, conflictAgain.entries.size)
-        assertEquals(listOf("two", "four"), conflictAgain.entries.last().eventKeys)
-        assertEquals("possible_duplicate", conflictAgain.entries.last().reason)
+        assertEquals(1, conflictAgain.entries.size)
+        assertEquals(listOf("one", "two", "three", "four"), conflictAgain.entries.single().eventKeys)
     }
 
     @Test fun mergingAnEnrichedEventRetainsAllEventAliases() {
