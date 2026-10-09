@@ -46,17 +46,30 @@ class PhoneAssistantService(
             hasLedger -> PhoneResultState.QUEUED
             else -> old?.ledgerState ?: PhoneResultState.SKIPPED
         }
-        if (todos.isEmpty() && ledgerState == PhoneResultState.SKIPPED) return@withLock null
+        // Messages without any result are still stored so the raw text stays available for later algorithms.
+        val pending = todos.any { it.state in setOf(PhoneResultState.QUEUED, PhoneResultState.PENDING) } ||
+            ledgerState == PhoneResultState.QUEUED
         val record = PhoneMessage(event, revision, options.generation, todos, ledgerState, old?.ledgerId.orEmpty())
-        messages.transaction {
+        return messages.transaction {
             old?.todos?.filter { prior -> todos.none { it.id == prior.id } && prior.state != PhoneResultState.DONE }
                 ?.forEach { sms.ignore(it.id) }
             todos.filter { it.state in setOf(PhoneResultState.QUEUED, PhoneResultState.PENDING) }.forEach {
                 sms.stageLocal(it.id, SmsSource(event.origin, it.text), instant(event), zone(event), localDraft(event, it.text))
             }
             messages.save(record)
-            messages.enqueue(record)
+            if (pending) messages.enqueue(record) else null
         }
+    }
+
+    /** Re-runs the current pipeline over a stored message so kept texts can be processed again. */
+    suspend fun reprocess(id: String): Long? = mutex.withLock {
+        val row = messages.get(id) ?: return@withLock null
+        if (!policies.accepts(row.event) || row.textErased) return@withLock null
+        val options = policies.optionsFor(row.event)
+        val next = row.copy(revision = row.revision + 1, generation = options.generation,
+            todos = row.todos.map { if (options.todos && it.state == PhoneResultState.FAILED) it.copy(state = PhoneResultState.QUEUED, reason = "") else it },
+            ledgerState = if (options.ledger && row.ledgerState in setOf(PhoneResultState.FAILED, PhoneResultState.SKIPPED)) PhoneResultState.QUEUED else row.ledgerState)
+        messages.transaction { messages.save(next); messages.enqueue(next) }
     }
 
     suspend fun process(id: String): PhoneMessage? {

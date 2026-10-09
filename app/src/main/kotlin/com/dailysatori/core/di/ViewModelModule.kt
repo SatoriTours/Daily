@@ -78,7 +78,6 @@ import kotlinx.coroutines.asCoroutineDispatcher
 
 val viewModelModule: Module = module {
     viewModel { com.dailysatori.ui.feature.phone.PhoneAssistantViewModel(androidContext(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    viewModel { com.dailysatori.ui.feature.bookkeeping.BookkeepingViewModel(androidContext(), get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.settings.sms.SmsSettingsViewModel(androidContext(), get(), get(), get(), get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.settings.sms.SmsCreationNoticeViewModel(get()) }
     viewModel { com.dailysatori.ui.feature.reminder.SmsReminderSourceViewModel(get()) }

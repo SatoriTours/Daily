@@ -138,7 +138,7 @@ internal fun periodLabel(period: LedgerPeriod, anchor: LocalDate): String = when
 @Composable
 private fun LedgerSummaryCard(state: LedgerUiState) {
     val i18n: I18nService = koinInject()
-    val expense = state.expense()
+    val expense = state.expense(state.primaryCurrency)
     val change = when {
         state.previousExpense <= 0 -> ""
         else -> "${i18n.t("ledger.change")} ${if (expense >= state.previousExpense) "+" else "-"}${
@@ -152,7 +152,7 @@ private fun LedgerSummaryCard(state: LedgerUiState) {
                 if (change.isNotEmpty()) Text(change, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(LedgerMoney.format(expense, "CNY"), style = MaterialTheme.typography.headlineSmall)
+            Text(LedgerMoney.format(expense, state.primaryCurrency), style = MaterialTheme.typography.headlineSmall)
             state.totals.forEach { total ->
                 Text(i18n.t("ledger.summary.line", total.currency, LedgerMoney.format(total.income, total.currency),
                     LedgerMoney.format(total.expense, total.currency), LedgerMoney.format(total.refund, total.currency)),
@@ -175,10 +175,10 @@ private fun PendingPill(count: Int, onClick: () -> Unit) {
 @Composable
 private fun BucketHeader(state: LedgerUiState, bucket: LedgerBucket) {
     val i18n: I18nService = koinInject()
-    val expense = state.bucketExpense(bucket)
+    val expense = state.bucketExpense(bucket, state.primaryCurrency)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(bucketLabel(state.period, bucket), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-        Text(if (expense == 0L) i18n.t("ledger.no_records") else LedgerMoney.format(expense, "CNY"),
+        Text(if (expense == 0L) i18n.t("ledger.no_records") else LedgerMoney.format(expense, state.primaryCurrency),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -226,7 +226,7 @@ private fun signed(entry: LedgerEntry): String {
 @Composable
 private fun TrendCard(state: LedgerUiState) {
     val i18n: I18nService = koinInject()
-    val values = state.trend.map { state.bucketExpense(it) }
+    val values = state.trend.map { state.bucketExpense(it, state.primaryCurrency) }
     val max = values.maxOrNull() ?: 0L
     Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -238,7 +238,7 @@ private fun TrendCard(state: LedgerUiState) {
             Row(Modifier.fillMaxWidth().height(96.dp), verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
                 state.trend.forEachIndexed { index, bucket ->
-                    val fraction = if (max == 0L) 0.02f else (state.bucketExpense(bucket).toFloat() / max).coerceIn(0.02f, 1f)
+                    val fraction = if (max == 0L) 0.02f else (state.bucketExpense(bucket, state.primaryCurrency).toFloat() / max).coerceIn(0.02f, 1f)
                     Box(Modifier.weight(1f).fillMaxHeight(fraction).clip(RoundedCornerShape(topStart = Radius.xs, topEnd = Radius.xs))
                         .background(if (index == state.trend.lastIndex) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)))
@@ -251,7 +251,7 @@ private fun TrendCard(state: LedgerUiState) {
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
             }
-            if (max > 0) Text(i18n.t("ledger.trend_max", *arrayOf(LedgerMoney.format(max, "CNY"))), style = MaterialTheme.typography.bodySmall,
+            if (max > 0) Text(i18n.t("ledger.trend_max", *arrayOf(LedgerMoney.format(max, state.primaryCurrency))), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -272,7 +272,7 @@ private fun CategoryCard(state: LedgerUiState) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(i18n.t("ledger.by_category"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                Text(LedgerMoney.format(total, "CNY"), style = MaterialTheme.typography.bodySmall,
+                Text(LedgerMoney.format(total, state.primaryCurrency), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (state.categories.isEmpty()) Text(i18n.t("ledger.no_records"), style = MaterialTheme.typography.bodySmall,
@@ -289,7 +289,7 @@ private fun CategoryCard(state: LedgerUiState) {
                             Text(if (total == 0L) "0%" else "${item.amount * 100 / total}%", style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.width(Spacing.s))
-                            Text(LedgerMoney.format(item.amount, "CNY"), style = MaterialTheme.typography.bodySmall)
+                            Text(LedgerMoney.format(item.amount, state.primaryCurrency), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -344,7 +344,7 @@ private fun MerchantCard(state: LedgerUiState) {
                         Box(Modifier.fillMaxWidth(item.amount.toFloat() / max).fillMaxHeight()
                             .background(MaterialTheme.colorScheme.primary))
                     }
-                    Text(LedgerMoney.format(item.amount, "CNY"), style = MaterialTheme.typography.bodyMedium)
+                    Text(LedgerMoney.format(item.amount, state.primaryCurrency), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

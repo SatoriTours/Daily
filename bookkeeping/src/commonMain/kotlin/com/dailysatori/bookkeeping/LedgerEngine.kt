@@ -155,19 +155,20 @@ class LedgerEngine {
     }
 
     /** Expenses of the period, grouped by category, biggest first. */
-    fun categoryTotals(state: LedgerState, period: LedgerPeriod, anchor: LocalDate, zone: TimeZone): List<LedgerCategoryTotal> {
+    fun categoryTotals(state: LedgerState, period: LedgerPeriod, anchor: LocalDate, zone: TimeZone,
+        currency: String = "CNY"): List<LedgerCategoryTotal> {
         val (from, to) = range(period, anchor, zone)
-        return expenses(state, from, to).groupBy { it.category }.map { (category, entries) ->
+        return expenses(state, from, to).filter { it.currency == currency }.groupBy { it.category }.map { (category, entries) ->
             LedgerCategoryTotal(category, entries.sumOf { requireNotNull(it.amountMinor) }, entries.size)
         }.sortedWith(compareByDescending<LedgerCategoryTotal> { it.amount }.thenBy { it.category.ordinal })
     }
 
     /** Expense ranking by merchant for the period. */
     fun merchantTotals(state: LedgerState, period: LedgerPeriod, anchor: LocalDate, zone: TimeZone,
-        limit: Int = 10): List<LedgerMerchantTotal> {
+        limit: Int = 10, currency: String = "CNY"): List<LedgerMerchantTotal> {
         require(limit > 0)
         val (from, to) = range(period, anchor, zone)
-        return expenses(state, from, to).filter { it.merchant.isNotBlank() }.groupBy { it.merchant.trim() }
+        return expenses(state, from, to).filter { it.currency == currency && it.merchant.isNotBlank() }.groupBy { it.merchant.trim() }
             .map { (merchant, entries) -> LedgerMerchantTotal(merchant, entries.sumOf { requireNotNull(it.amountMinor) }, entries.size) }
             .sortedWith(compareByDescending<LedgerMerchantTotal> { it.amount }.thenBy { it.merchant })
             .take(limit)

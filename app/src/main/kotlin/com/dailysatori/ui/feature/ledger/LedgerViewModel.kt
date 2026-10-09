@@ -28,6 +28,7 @@ data class LedgerUiState(
     val categories: List<LedgerCategoryTotal> = emptyList(),
     val merchants: List<LedgerMerchantTotal> = emptyList(),
     val pending: List<LedgerEntry> = emptyList(),
+    val primaryCurrency: String = "CNY",
     val entry: LedgerEntry? = null,
     val busy: Boolean = false,
     val failed: Boolean = false,
@@ -48,6 +49,7 @@ class LedgerViewModel(
     private val engine = LedgerEngine()
 
     init {
+        viewModelScope.launch(Dispatchers.IO) { repository.backfillCategories() }
         viewModelScope.launch(Dispatchers.IO) {
             repository.observe().catch { mutableState.update { it.copy(failed = true) } }
                 .collect { ledger -> mutableState.update { summary(it, ledger) } }
@@ -92,14 +94,18 @@ class LedgerViewModel(
         val zone = TimeZone.currentSystemDefault()
         val scope = if (state.tab == LedgerTab.DETAIL) state.detail else state.analysis
         val (from, to) = engine.range(scope, state.anchor, zone)
+        val totals = engine.totals(ledger, from, to)
+        val currency = totals.maxByOrNull { it.expense }?.takeIf { it.expense > 0L }?.currency
+            ?: totals.firstOrNull()?.currency ?: "CNY"
         return state.copy(
             ledger = ledger,
+            primaryCurrency = currency,
             buckets = if (state.tab == LedgerTab.DETAIL) engine.buckets(ledger, state.detail, state.anchor, zone) else emptyList(),
             trend = if (state.tab == LedgerTab.ANALYSIS) trend(ledger, state.analysis, state.anchor, zone) else emptyList(),
-            totals = engine.totals(ledger, from, to),
-            previousExpense = engine.previousExpense(ledger, scope, state.anchor, zone),
-            categories = if (state.tab == LedgerTab.ANALYSIS) engine.categoryTotals(ledger, state.analysis, state.anchor, zone) else emptyList(),
-            merchants = if (state.tab == LedgerTab.ANALYSIS) engine.merchantTotals(ledger, state.analysis, state.anchor, zone, limit = 5) else emptyList(),
+            totals = totals,
+            previousExpense = engine.previousExpense(ledger, scope, state.anchor, zone, currency),
+            categories = if (state.tab == LedgerTab.ANALYSIS) engine.categoryTotals(ledger, state.analysis, state.anchor, zone, currency) else emptyList(),
+            merchants = if (state.tab == LedgerTab.ANALYSIS) engine.merchantTotals(ledger, state.analysis, state.anchor, zone, limit = 5, currency = currency) else emptyList(),
             pending = ledger.entries.filter { it.status == LedgerStatus.PENDING }.sortedByDescending { it.receivedAt },
             entry = state.entry?.let { open -> ledger.entries.firstOrNull { it.id == open.id } },
             failed = false,

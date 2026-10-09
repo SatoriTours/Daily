@@ -56,6 +56,13 @@ class BookkeepingRepository(private val db: DailySatoriDatabase, private val cip
         return entry
     }
 
+    /** Re-applies the built-in classifier to entries stored before categories existed. */
+    fun backfillCategories(): Boolean = update { state ->
+        state.copy(entries = state.entries.map {
+            if (it.category == LedgerCategory.OTHER && it.merchant.isNotBlank()) it.copy(category = engine.category(it.merchant)) else it
+        })
+    }.changed
+
     private fun rowsToState(rows: List<com.dailysatori.shared.db.Bookkeeping_entry>): LedgerState =
         LedgerState(entries = rows.map { row ->
             val entry = json.decodeFromString<LedgerEntry>(cipher.decrypt(row.encrypted_payload))

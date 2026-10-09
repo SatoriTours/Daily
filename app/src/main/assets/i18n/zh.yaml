@@ -47,6 +47,7 @@ phone:
   row_hint: "从短信和通知提取待办与账目"
   settings: "来源与识别设置"
   history: "最近处理"
+  reprocess: "重新识别"
   load_more: "加载更早记录"
   sms: "短信"
   notification: "通知"
@@ -1561,4 +1562,4 @@ auth:
   records: "处理记录"
   records_hint: "查看最近处理过的信息、来源与结果"
   retention: "原文保留"
-  retention_hint: "候选原文加密保存在本机；处理记录里可以逐条清除，清除后不影响已生成的待办与账目。"
+  retention_hint: "收到的新信息原文会加密保存在本机，包括暂时没有识别结果的内容，便于以后用新算法重新识别；处理记录里可以查看和逐条清除，清除后不影响已生成的待办与账目。"

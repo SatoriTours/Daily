@@ -47,6 +47,7 @@ phone:
   row_hint: "Extract tasks and entries from SMS and notifications"
   settings: "Sources and recognition"
   history: "Recent processing"
+  reprocess: "Re-run recognition"
   load_more: "Load earlier records"
   sms: "SMS"
   notification: "Notifications"
@@ -1561,4 +1562,4 @@ auth:
   records: "Processing history"
   records_hint: "Recent messages, their sources and results"
   retention: "Message retention"
-  retention_hint: "Candidate texts are stored encrypted on this device; clear them one by one in the processing history without affecting generated todos and entries."
+  retention_hint: "Received texts are stored encrypted on this device, including messages without any result yet, so later algorithms can process them again. You can review and clear them in the processing history without affecting generated todos and entries."
