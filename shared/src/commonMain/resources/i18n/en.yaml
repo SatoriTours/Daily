@@ -48,6 +48,7 @@ phone:
   settings: "Sources and recognition"
   history: "Recent processing"
   reprocess: "Re-run recognition"
+  ai_reprocess: "Send to AI again"
   load_more: "Load earlier records"
   sms: "SMS"
   notification: "Notifications"
@@ -1561,6 +1562,6 @@ auth:
   section:
     data: "Data"
   records: "Processing history"
-  records_hint: "Recent messages, their sources and results"
+  records_hint: "Everything that produced no result or was ignored lives here: rebuild a todo or entry, re-run recognition, or send it to AI again"
   retention: "Message retention"
   retention_hint: "Received texts are stored encrypted on this device, including messages without any result yet, so later algorithms can process them again. You can review and clear them in the processing history without affecting generated todos and entries."

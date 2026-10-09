@@ -187,13 +187,15 @@ class BookkeepingTest {
         }
     }
 
-    @Test fun conflictingAmountIsWrittenInAndKeepsTheDuplicateLink() {
+    @Test fun sameTransactionIdIsNeverAddedTwiceEvenWhenTheAmountChanges() {
         val original = engine.ingest(LedgerState(), "bank", "one", "消费56元，交易单号：AB123456", 1000)
-        val conflict = engine.ingest(original, "bank", "two", "消费57元，交易单号：AB123456", 2000)
-        assertEquals(2, conflict.entries.size)
-        assertEquals(original.entries.single(), conflict.entries.first())
-        assertEquals(LedgerStatus.POSTED, conflict.entries.last().status)
-        assertEquals(original.entries.single().id, conflict.entries.last().duplicateOf)
+        val refreshed = engine.ingest(original, "bank", "two", "消费57元，交易单号：AB123456", 2000)
+        // Same source plus same transaction id is the same transaction: one entry, no confirmation needed.
+        assertEquals(1, refreshed.entries.size)
+        assertEquals(original.entries.single().id, refreshed.entries.single().id)
+        assertEquals(5600L, refreshed.entries.single().amountMinor)
+        assertEquals(LedgerStatus.POSTED, refreshed.entries.single().status)
+        assertEquals(listOf("one", "two"), refreshed.entries.single().eventKeys)
     }
 
     @Test fun differentExplicitAccountTailsDoNotMergeEvenAfterManualConfirmation() {
@@ -224,12 +226,11 @@ class BookkeepingTest {
         var state = engine.ingest(LedgerState(), "bank", "one", "消费56元，交易单号：AB123456", 1000)
         state = engine.ingest(state, "bank", "two", "消费57元，交易单号：AB123456", 2000)
         val originalAgain = engine.ingest(state, "bank", "three", "消费56元，交易单号：AB123456", 3000)
-        assertEquals(2, originalAgain.entries.size)
-        assertEquals(listOf("one", "three"), originalAgain.entries.first().eventKeys)
+        assertEquals(1, originalAgain.entries.size)
+        assertEquals(listOf("one", "two", "three"), originalAgain.entries.single().eventKeys)
         val conflictAgain = engine.ingest(originalAgain, "bank", "four", "消费57元，交易单号：AB123456", 4000)
-        assertEquals(2, conflictAgain.entries.size)
-        assertEquals(listOf("two", "four"), conflictAgain.entries.last().eventKeys)
-        assertEquals(conflictAgain.entries.first().id, conflictAgain.entries.last().duplicateOf)
+        assertEquals(1, conflictAgain.entries.size)
+        assertEquals(listOf("one", "two", "three", "four"), conflictAgain.entries.single().eventKeys)
     }
 
     @Test fun mergingAnEnrichedEventRetainsAllEventAliases() {

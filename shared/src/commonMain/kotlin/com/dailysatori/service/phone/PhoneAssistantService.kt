@@ -72,6 +72,16 @@ class PhoneAssistantService(
         reminderId
     }
 
+    /** Second pass with the configured AI over a stored message that produced no result. */
+    suspend fun aiReprocess(id: String): Long? = mutex.withLock {
+        val row = messages.get(id) ?: return@withLock null
+        if (!policies.accepts(row.event) || row.textErased) return@withLock null
+        if (!policies.optionsFor(row.event).cloud) return@withLock null
+        val todo = planTodo(row.event, row.revision + 1, row.todos.size, row.event.text)
+        val next = row.copy(revision = row.revision + 1, todos = row.todos + todo)
+        messages.transaction { messages.save(next); messages.enqueue(next) }
+    }
+
     suspend fun reprocess(id: String): Long? = mutex.withLock {
         val row = messages.get(id) ?: return@withLock null
         if (!policies.accepts(row.event) || row.textErased) return@withLock null

@@ -17,11 +17,23 @@ class LedgerEngine {
                 (it.accountTail.isEmpty() || draft.accountTail.isEmpty() || it.accountTail == draft.accountTail)
         }
         val byTransaction = selectTransaction(matchingTransactions, draft)
-        if (byTransaction != null && shouldRetain(byTransaction, draft)) {
+        // A matching explicit transaction id from the same source is the same transaction: never ask the
+        // user about it and never add a second entry, whatever the refreshed notification says.
+        if (byTransaction != null) {
             val aliases = (byTransaction.eventKeys + byEvent?.eventKeys.orEmpty() + eventKey).distinct()
+            // A pending entry with the same id is completed by the refreshed notification; an already
+            // posted entry is kept untouched so user edits survive.
+            val enrich = byTransaction.status == LedgerStatus.PENDING && canEnrich(byTransaction, draft)
             return state.copy(entries = state.entries.filterNot { it.id == byEvent?.id && it.id != byTransaction.id }.map {
-                if (it.id == byTransaction.id) it.copy(eventKeys = aliases,
-                    accountTail = it.accountTail.ifEmpty { draft.accountTail }) else it
+                if (it.id != byTransaction.id) it
+                else if (!enrich) it.copy(eventKeys = aliases, accountTail = it.accountTail.ifEmpty { draft.accountTail })
+                else {
+                    val merchant = draft.merchant.ifEmpty { it.merchant }
+                    it.copy(eventKeys = aliases, amountMinor = draft.amountMinor, currency = draft.currency, kind = draft.kind,
+                        merchant = merchant, category = category(merchant, rules), status = LedgerStatus.POSTED, reason = "",
+                        accountTail = it.accountTail.ifEmpty { draft.accountTail },
+                        transactionId = it.transactionId.ifEmpty { draft.transactionId })
+                }
             })
         }
         val previous = byEvent ?: byTransaction?.takeIf { it.status == LedgerStatus.PENDING && canEnrich(it, draft) }

@@ -70,8 +70,11 @@ import org.koin.compose.koinInject
             if (row.todos.any { it.state in setOf(PhoneResultState.FAILED, PhoneResultState.QUEUED) } || row.ledgerState in setOf(PhoneResultState.FAILED, PhoneResultState.QUEUED))
                 TextButton(onClick = { vm.retry(row) }, enabled = !state.busy) { Text(i18n.t("phone.retry")) }
             if (!row.textErased && row.todos.none { it.state == PhoneResultState.DONE } && row.ledgerId.isEmpty() &&
-                row.ledgerState != PhoneResultState.QUEUED) TextButton(onClick = { vm.reprocess(row) }, enabled = !state.busy) {
-                Text(i18n.t("phone.reprocess"))
+                row.ledgerState != PhoneResultState.QUEUED) {
+                TextButton(onClick = { vm.reprocess(row) }, enabled = !state.busy) { Text(i18n.t("phone.reprocess")) }
+                if (state.preferences.forChannel(row.event.channel).cloud) {
+                    TextButton(onClick = { vm.aiReprocess(row) }, enabled = !state.busy) { Text(i18n.t("phone.ai_reprocess")) }
+                }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 TextButton(onClick = onAddTodo, enabled = !state.busy) { Text(i18n.t("phone.add_todo")) }
