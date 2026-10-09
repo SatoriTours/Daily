@@ -110,7 +110,9 @@ class LedgerViewModel(
         return state.copy(
             ledger = ledger,
             primaryCurrency = currency,
-            buckets = if (state.tab == LedgerTab.DETAIL) engine.buckets(ledger, state.detail, state.anchor, zone) else emptyList(),
+            // Only days/weeks/months that actually have entries are listed.
+            buckets = if (state.tab == LedgerTab.DETAIL)
+                engine.buckets(ledger, state.detail, state.anchor, zone).filter { it.entries.isNotEmpty() } else emptyList(),
             trend = if (state.tab == LedgerTab.ANALYSIS) trend(ledger, state.analysis, state.anchor, zone) else emptyList(),
             totals = totals,
             previousExpense = engine.previousExpense(ledger, scope, state.anchor, zone, currency),

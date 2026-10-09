@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -122,10 +125,14 @@ private fun LedgerPeriodBar(state: LedgerUiState, onPeriod: (LedgerPeriod) -> Un
             }
         }
         Spacer(Modifier.weight(1f))
-        TextButton(onClick = { onShift(-1) }) { Text(i18n.t("ledger.previous_period")) }
+        IconButton(onClick = { onShift(-1) }) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, i18n.t("ledger.previous_period"), Modifier.size(IconSize.l))
+        }
         Text(periodLabel(state.period, state.anchor), style = MaterialTheme.typography.titleSmall)
-        TextButton(onClick = { onShift(1) }, enabled = state.anchor < Clock.System.now()
-            .toLocalDateTime(TimeZone.currentSystemDefault()).date) { Text(i18n.t("ledger.next_period")) }
+        IconButton(onClick = { onShift(1) }, enabled = state.anchor < Clock.System.now()
+            .toLocalDateTime(TimeZone.currentSystemDefault()).date) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, i18n.t("ledger.next_period"), Modifier.size(IconSize.l))
+        }
     }
 }
 
@@ -154,10 +161,20 @@ private fun LedgerSummaryCard(state: LedgerUiState) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(LedgerMoney.format(expense, state.primaryCurrency), style = MaterialTheme.typography.headlineSmall)
-            state.totals.forEach { total ->
-                Text(i18n.t("ledger.summary.line", total.currency, LedgerMoney.format(total.income, total.currency),
-                    LedgerMoney.format(total.expense, total.currency), LedgerMoney.format(total.refund, total.currency)),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val total = state.totals.firstOrNull { it.currency == state.primaryCurrency }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(Modifier.fillMaxWidth()) {
+                listOf(
+                    i18n.t("ledger.summary.income") to LedgerMoney.format(total?.income ?: 0L, state.primaryCurrency),
+                    i18n.t("ledger.summary.refund") to LedgerMoney.format(total?.refund ?: 0L, state.primaryCurrency),
+                    i18n.t("ledger.summary.balance") to LedgerMoney.format(
+                        (total?.income ?: 0L) + (total?.refund ?: 0L) - (total?.expense ?: 0L), state.primaryCurrency),
+                ).forEach { (label, value) ->
+                    Column(Modifier.weight(1f)) {
+                        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(value, style = MaterialTheme.typography.titleSmall)
+                    }
+                }
             }
         }
     }
@@ -178,7 +195,8 @@ private fun BucketHeader(state: LedgerUiState, bucket: LedgerBucket) {
     val i18n: I18nService = koinInject()
     val expense = state.bucketExpense(bucket, state.primaryCurrency)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(bucketLabel(state.period, bucket), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        Text(bucketLabel(state.period, bucket) + weekdaySuffix(state.period, bucket, i18n),
+            style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
         Text(if (expense == 0L) i18n.t("ledger.no_records") else LedgerMoney.format(expense, state.primaryCurrency),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -189,6 +207,9 @@ internal fun bucketLabel(period: LedgerPeriod, bucket: LedgerBucket): String = w
     LedgerPeriod.MONTH -> "${bucket.start.year}-${bucket.start.monthNumber.toString().padStart(2, '0')}"
     else -> bucket.start.toString()
 }
+
+private fun weekdaySuffix(period: LedgerPeriod, bucket: LedgerBucket, i18n: I18nService): String =
+    if (period == LedgerPeriod.DAY) " " + i18n.t("ledger.weekday.${bucket.start.dayOfWeek.name.lowercase()}") else ""
 
 @Composable
 private fun LedgerRow(entry: LedgerEntry, onClick: () -> Unit) {
@@ -212,6 +233,8 @@ private fun LedgerRow(entry: LedgerEntry, onClick: () -> Unit) {
         Text(signed(entry), style = MaterialTheme.typography.titleSmall,
             color = if (entry.kind == LedgerKind.INCOME || entry.kind == LedgerKind.REFUND) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurface)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(IconSize.s),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
