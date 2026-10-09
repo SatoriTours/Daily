@@ -10,11 +10,40 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackupSettingsViewModelTest {
     @Test
+    fun verificationRequiresFreshInputAndNeverSavesOrReusesIt() = runTest {
+        val client = Client()
+        var checks = 0
+        client.verificationBody = { password, _ ->
+            assertEquals("manually entered password", password)
+            checks++
+            verificationResult()
+        }
+        val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
+        runCurrent()
+        vm.verifyLatestBackup()
+        runCurrent()
+        assertEquals(0, checks)
+        assertFalse(vm.state.value.isVerifying)
+        vm.updatePasswordInput("unchanged saved-password editor")
+        vm.updateVerificationPassword("manually entered password")
+        vm.verifyLatestBackup()
+        assertEquals("", vm.state.value.verificationPasswordInput)
+        runCurrent()
+        assertEquals(1, checks)
+        assertEquals(BackupVerificationStatus.PASSED, vm.state.value.verificationResult?.status)
+        assertEquals("unchanged saved-password editor", vm.state.value.passwordInput)
+        assertTrue(client.savedPasswords.isEmpty())
+        vm.verifyLatestBackup()
+        runCurrent()
+        assertEquals(1, checks)
+    }
+
+    @Test
     fun queuedVerificationImmediatelyBlocksBackupAndDirectoryChanges() = runTest {
         val client = Client()
         val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         assertTrue(vm.state.value.isVerifying)
         vm.startBackup()
         vm.saveBackupDirectory("new", {}, {})
@@ -31,7 +60,7 @@ class BackupSettingsViewModelTest {
         client.verificationBody = { _, _ -> verificationResult(BackupVerificationStatus.FAILED, BackupVerificationStage.DECRYPTING) }
         val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         runCurrent()
         client.verificationBody = { password, name ->
             assertEquals("previous password", password)
@@ -52,7 +81,7 @@ class BackupSettingsViewModelTest {
         client.verificationBody = { _, _ -> awaitCancellation() }
         val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         runCurrent()
         vm.cancelVerification()
         runCurrent()
@@ -70,7 +99,7 @@ class BackupSettingsViewModelTest {
         client.verificationBody = { _, _ -> error("private diary content") }
         val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         runCurrent()
         assertFalse(vm.state.value.isVerifying)
         assertEquals(BackupVerificationStatus.FAILED, vm.state.value.verificationResult?.status)
@@ -83,11 +112,11 @@ class BackupSettingsViewModelTest {
         val client = Client()
         val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
-        vm.verifyLatestBackup(); runCurrent()
+        vm.verifyWithPassword(); runCurrent()
         assertNotNull(vm.state.value.verificationResult)
         vm.startBackup(); runCurrent()
         assertNull(vm.state.value.verificationResult)
-        vm.verifyLatestBackup(); runCurrent()
+        vm.verifyWithPassword(); runCurrent()
         vm.saveBackupDirectory("new", {}, {}); runCurrent()
         assertNull(vm.state.value.verificationResult)
     }
@@ -96,7 +125,7 @@ class BackupSettingsViewModelTest {
     fun cancellationBeforeDispatchStillReleasesBusyState() = runTest {
         val vm = BackupSettingsViewModel(Client(), backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         vm.cancelVerification()
         runCurrent()
         assertFalse(vm.state.value.isVerifying)
@@ -108,7 +137,7 @@ class BackupSettingsViewModelTest {
         val vm = BackupSettingsViewModel(Client(), backgroundScope, StandardTestDispatcher(testScheduler))
         runCurrent()
         vm.saveBackupDirectory("new", {}, {})
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         assertFalse(vm.state.value.isVerifying)
         runCurrent()
         assertNull(vm.state.value.verificationResult)
@@ -122,7 +151,7 @@ class BackupSettingsViewModelTest {
         runCurrent()
         vm.updatePasswordInput("new backup password")
         vm.saveBackupPassword()
-        vm.verifyLatestBackup()
+        vm.verifyWithPassword()
         runCurrent()
         assertTrue(client.savedPasswords.isEmpty())
         assertEquals("new backup password", vm.state.value.passwordInput)
@@ -210,6 +239,11 @@ class BackupSettingsViewModelTest {
         runCurrent()
         assertEquals("new", vm.state.value.backupDirectory)
         assertNull(vm.state.value.error)
+    }
+
+    private fun BackupSettingsViewModel.verifyWithPassword() {
+        updateVerificationPassword("test verification password")
+        verifyLatestBackup()
     }
 
     private companion object {

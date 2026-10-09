@@ -168,7 +168,11 @@ class BackupSettingsViewModel internal constructor(
         }
     }
 
-    fun verifyLatestBackup() = startVerification(null, null)
+    fun verifyLatestBackup() {
+        val password = _state.value.verificationPasswordInput
+        if (password.isBlank()) return
+        startVerification(password, null)
+    }
 
     fun retryVerification() {
         val snapshot = _state.value
@@ -195,9 +199,10 @@ class BackupSettingsViewModel internal constructor(
                     verificationStage = result.stage) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (failure: Exception) {
+                val diagnostics = com.dailysatori.service.backup.backupVerificationFailureLog(failure)
                 _state.update { it.copy(verificationResult = verificationFailure(it, BackupVerificationStatus.FAILED,
-                    BackupVerificationIssue.CHECK_FAILED)) }
+                    BackupVerificationIssue.CHECK_FAILED).copy(diagnosticLog = diagnostics)) }
             }
         }
         verificationJob = job

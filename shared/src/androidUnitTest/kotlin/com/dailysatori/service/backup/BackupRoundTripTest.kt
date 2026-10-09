@@ -23,7 +23,7 @@ class BackupRoundTripTest {
             val database = File(files.getDatabasePath()).readBytes()
             val voice = File(files.getAppDataDir(), "diary/audio/23/voice.m4a").readBytes()
             val originalArchive = backup.readBytes()
-            val result = service.verifyLatestBackup()
+            val result = service.verifyLatestBackup("correct horse battery")
             assertEquals(BackupVerificationStatus.PASSED, result.status)
             assertEquals(1L, result.summary["diary"])
             assertEquals(1L, result.summary["bookkeeping_entry"])
@@ -126,7 +126,7 @@ class BackupRoundTripTest {
             }
             val publishedBytes = backup.readBytes()
             val source = File(files.getDatabasePath()).readBytes()
-            val result = service.verifyLatestBackup()
+            val result = service.verifyLatestBackup("correct horse battery")
             assertEquals(BackupVerificationStatus.LIMITED, result.status)
             assertEquals(1L, result.summary["diary"])
             assertEquals(1L, result.summary["bookkeeping_entry"])
@@ -147,7 +147,7 @@ class BackupRoundTripTest {
 
     private suspend fun assertVerificationFailure(files: DiskFiles, service: BackupService, stage: BackupVerificationStage) {
         val source = File(files.getDatabasePath()).readBytes()
-        val result = service.verifyLatestBackup()
+        val result = service.verifyLatestBackup("correct horse battery")
         assertEquals(BackupVerificationStatus.FAILED, result.status)
         assertEquals(stage, result.stage)
         assertContentEquals(source, File(files.getDatabasePath()).readBytes())

@@ -93,11 +93,13 @@ class BackupService internal constructor(
         var selected: Pair<String, Instant>? = null
         var temporary: String? = null
         var cleanupFailed = false
+        val diagnostics = BackupVerificationLog()
+        diagnostics.start("select_backup")
         val result = try {
             val directory = selectedBackupDir()
             selected = directory?.let { latestBackup(it) }
             _verificationFileName.value = selected?.first
-            val effectivePassword = password ?: passwords.get()
+            val effectivePassword = password // Verification must never read or change the saved password.
             val issue = when {
                 directory == null -> BackupVerificationIssue.NO_DIRECTORY
                 selected == null -> BackupVerificationIssue.NO_BACKUP
@@ -105,29 +107,45 @@ class BackupService internal constructor(
                 effectivePassword.isNullOrBlank() -> BackupVerificationIssue.NO_PASSWORD
                 else -> null
             }
-            if (issue != null) incomplete(issue).copy(fileName = selected?.first, backupTime = selected?.second?.toString())
-            else {
+            diagnostics.ok()
+            if (issue != null) {
+                diagnostics.note("INCOMPLETE $issue")
+                incomplete(issue).copy(fileName = selected?.first, backupTime = selected?.second?.toString())
+            } else {
+                diagnostics.start("create_private_copy")
                 val chosen = checkNotNull(selected)
                 temporary = "${files.getCacheDir()}/verify_temp"
                 files.deleteFile(temporary)
                 check(!files.exists(temporary))
                 check(files.createDirectory(temporary)) { "Cannot create private verification directory" }
-                verifyArchive(checkNotNull(directory), chosen, checkNotNull(effectivePassword), temporary, checkedAt)
+                diagnostics.ok()
+                verifyArchive(checkNotNull(directory), chosen, checkNotNull(effectivePassword), temporary, checkedAt, diagnostics)
             }
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            diagnostics.failure(failure)
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.BACKUP,
+                DiagnosticLevel.ERROR, error = failure)
             BackupVerificationResult(BackupVerificationStatus.FAILED, _verificationStage.value, checkedAt,
                 selected?.first, selected?.second?.toString(), BackupVerificationIssue.CHECK_FAILED)
         } finally {
             temporary?.let { path ->
-                cleanupFailed = runCatching { files.deleteFile(path); check(!files.exists(path)) }.isFailure
+                diagnostics.start("cleanup")
+                runCatching {
+                    files.deleteFile(path)
+                    check(!files.exists(path)) { "Private verification directory was not removed" }
+                }.onSuccess { diagnostics.ok() }.onFailure {
+                    cleanupFailed = true
+                    diagnostics.failure(it)
+                }
             }
             _isBackingUp.value = false
             operationMutex.unlock()
         }
-        return if (cleanupFailed) result.copy(status = BackupVerificationStatus.FAILED,
+        val finalResult = if (cleanupFailed) result.copy(status = BackupVerificationStatus.FAILED,
             stage = BackupVerificationStage.CLEANUP, issue = BackupVerificationIssue.CHECK_FAILED) else result
+        return finalResult.copy(diagnosticLog = diagnostics.text())
     }
 
     private fun latestBackup(directory: String): Pair<String, Instant>? =
@@ -135,7 +153,7 @@ class BackupService internal constructor(
             .maxByOrNull { it.second }
 
     private suspend fun verifyArchive(directory: String, selected: Pair<String, Instant>, password: String,
-        temporary: String, checkedAt: String): BackupVerificationResult {
+        temporary: String, checkedAt: String, diagnostics: BackupVerificationLog): BackupVerificationResult {
         val context = currentCoroutineContext()
         fun stage(value: BackupVerificationStage, progress: Double) {
             context.ensureActive()
@@ -149,27 +167,41 @@ class BackupService internal constructor(
         val zip = "$temporary/backup.zip"
         val content = "$temporary/content"
         stage(BackupVerificationStage.READING, 0.0)
-        check(files.readFileFromDirectory(directory, selected.first, encrypted))
+        verificationStep(diagnostics, "read_archive") { check(files.readFileFromDirectory(directory, selected.first, encrypted)) }
         stage(BackupVerificationStage.DECRYPTING, 0.1)
-        files.decryptFile(encrypted, zip, password, progress(0.1, 0.3))
+        verificationStep(diagnostics, "decrypt_archive") { files.decryptFile(encrypted, zip, password, progress(0.1, 0.3)) }
         stage(BackupVerificationStage.EXTRACTING, 0.4)
-        files.extractZip(zip, content, progress(0.4, 0.2))
-        val actual = files.listFilesRecursively(content).map { it.removePrefix("$content/") }.toSet()
+        val actual = verificationStep(diagnostics, "extract_archive") {
+            files.extractZip(zip, content, progress(0.4, 0.2))
+            files.listFilesRecursively(content).map { it.removePrefix("$content/") }.toSet()
+        }
+        diagnostics.note("archiveFiles=${actual.size}")
         stage(BackupVerificationStage.FILES, 0.6)
-        val manifest = validateManifest(content, actual) { context.ensureActive() }
+        val manifest = verificationStep(diagnostics, "validate_manifest_and_hashes") {
+            validateManifest(content, actual) { context.ensureActive() }
+        }
+        diagnostics.note("manifestSchemaVersion=${manifest?.schemaVersion ?: "legacy"}")
         stage(BackupVerificationStage.DATABASE, 0.7)
         val database = "$content/${DatabaseConfig.name}"
-        check(files.exists(database))
-        secrets.checkBackupDatabase(database)
+        verificationStep(diagnostics, "check_database_integrity") {
+            check(files.exists(database)) { "备份中未找到数据库文件" }
+            secrets.checkBackupDatabase(database)
+        }
         stage(BackupVerificationStage.PREPARING, 0.75)
-        secrets.prepareRestoredSecrets(database)
-        secrets.relocateRestoredData(database, files.getAppDataDir(), directory, actual)
-        val summary = secrets.backupDatabaseSummary(database).toMutableMap()
+        verificationStep(diagnostics, "migrate_and_prepare_secrets") { secrets.prepareRestoredSecrets(database) }
+        verificationStep(diagnostics, "relocate_and_check_attachments") {
+            secrets.relocateRestoredData(database, files.getAppDataDir(), directory, actual)
+        }
+        val summary = verificationStep(diagnostics, "check_schema_and_read_counts") {
+            secrets.backupDatabaseSummary(database).toMutableMap()
+        }
         stage(BackupVerificationStage.LIFE_ARCHIVE, 0.9)
         if (LifeArchiveBackupName in actual) {
-            val snapshot = files.readFile("$content/$LifeArchiveBackupName").decodeToString()
-            lifeArchive.prepareRestore(snapshot) // Validate and encrypt a copy, never commit it.
-            summary["life_archive"] = Json.parseToJsonElement(snapshot).jsonObject["records"]?.jsonArray?.size?.toLong() ?: 0
+            verificationStep(diagnostics, "prepare_life_archive") {
+                val snapshot = files.readFile("$content/$LifeArchiveBackupName").decodeToString()
+                lifeArchive.prepareRestore(snapshot) // Validate and encrypt a copy, never commit it.
+                summary["life_archive"] = Json.parseToJsonElement(snapshot).jsonObject["records"]?.jsonArray?.size?.toLong() ?: 0
+            }
         }
         summary["files"] = actual.count(::isBackupUserFile).toLong()
         summary["images"] = actual.count { it.substringAfterLast('.').lowercase() in setOf("jpg", "jpeg", "png", "webp", "gif", "heic") }.toLong()
@@ -177,6 +209,12 @@ class BackupService internal constructor(
         stage(BackupVerificationStage.COMPLETE, 1.0)
         return BackupVerificationResult(if (manifest == null) BackupVerificationStatus.LIMITED else BackupVerificationStatus.PASSED,
             BackupVerificationStage.COMPLETE, checkedAt, selected.first, selected.second.toString(), summary = summary)
+    }
+
+    private suspend fun <T> verificationStep(diagnostics: BackupVerificationLog, name: String, block: suspend () -> T): T {
+        currentCoroutineContext().ensureActive()
+        diagnostics.start(name)
+        return block().also { diagnostics.ok() }
     }
 
     suspend fun backupNow(): Boolean = DiagnosticLog.diagnostics.operation(

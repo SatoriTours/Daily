@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Folder
@@ -15,6 +16,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.dailysatori.ui.component.settings.*
@@ -99,18 +102,19 @@ private fun BackupVerificationCard(state: BackupSettingsState, busy: Boolean, i1
                 }
             } else {
                 state.verificationResult?.let { BackupVerificationResultView(it, i18n) }
-                OutlinedButton(onClick = viewModel::verifyLatestBackup, enabled = !busy,
+                OutlinedTextField(state.verificationPasswordInput, viewModel::updateVerificationPassword,
+                    modifier = Modifier.fillMaxWidth(), label = { Text(i18n.t("settings_design.backup_verify_password")) },
+                    supportingText = { Text(i18n.t("settings_design.backup_verify_password_manual")) },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true, enabled = !busy)
+                OutlinedButton(onClick = viewModel::verifyLatestBackup,
+                    enabled = !busy && state.verificationPasswordInput.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = Height.button)) {
                     Text(i18n.t("settings_design.backup_verify_start"))
                 }
                 val result = state.verificationResult
-                if (result?.issue == BackupVerificationIssue.NO_PASSWORD ||
-                    (result?.status == BackupVerificationStatus.FAILED && result.stage == BackupVerificationStage.DECRYPTING)) {
-                    OutlinedTextField(state.verificationPasswordInput, viewModel::updateVerificationPassword,
-                        modifier = Modifier.fillMaxWidth(), label = { Text(i18n.t("settings_design.backup_verify_password")) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        singleLine = true, enabled = !busy)
+                if (result?.status == BackupVerificationStatus.FAILED && result.stage == BackupVerificationStage.DECRYPTING) {
                     OutlinedButton(onClick = viewModel::retryVerification,
                         enabled = !busy && state.verificationPasswordInput.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
                         Text(i18n.t("settings_design.backup_verify_retry"))
@@ -139,5 +143,31 @@ private fun BackupVerificationResultView(result: BackupVerificationResult, i18n:
         color = MaterialTheme.colorScheme.onSurfaceVariant)
     result.summary.forEach { (kind, count) ->
         Text(i18n.t("settings_design.backup_verify_summary_$kind", count), style = MaterialTheme.typography.bodySmall)
+    }
+    if (result.status == BackupVerificationStatus.FAILED || result.status == BackupVerificationStatus.INCOMPLETE) {
+        BackupVerificationDiagnostics(result, i18n)
+    }
+}
+
+@Composable
+private fun BackupVerificationDiagnostics(result: BackupVerificationResult, i18n: I18nService) {
+    val clipboard = LocalClipboardManager.current
+    var expanded by remember(result) { mutableStateOf(false) }
+    var copied by remember(result) { mutableStateOf(false) }
+    val report = remember(result) {
+        "appVersion=${com.dailysatori.BuildConfig.VERSION_NAME} (${com.dailysatori.BuildConfig.VERSION_CODE})\n" +
+            "androidSdk=${android.os.Build.VERSION.SDK_INT}\n" + result.diagnosticReport()
+    }
+    OutlinedButton(onClick = {
+        clipboard.setText(AnnotatedString(report))
+        copied = true
+    }, modifier = Modifier.fillMaxWidth()) {
+        Text(i18n.t(if (copied) "settings_design.backup_verify_log_copied" else "settings_design.backup_verify_copy_log"))
+    }
+    TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
+        Text(i18n.t(if (expanded) "settings_design.backup_verify_hide_log" else "settings_design.backup_verify_show_log"))
+    }
+    if (expanded) SelectionContainer {
+        Text(report, style = MaterialTheme.typography.bodySmall)
     }
 }

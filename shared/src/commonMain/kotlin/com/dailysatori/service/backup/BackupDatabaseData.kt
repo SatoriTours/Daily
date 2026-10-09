@@ -30,7 +30,9 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
     fun verifiedSummary(expectedSchema: Map<String, Set<String>>): Map<String, Long> {
         val actual = schemaColumns()
         expectedSchema.forEach { (table, columns) ->
-            check(actual[table]?.containsAll(columns) == true) { "备份数据库缺少应用所需的表或字段" }
+            val found = actual[table] ?: throw BackupValidationException("Missing required table: $table")
+            val missing = columns - found
+            if (missing.isNotEmpty()) throw BackupValidationException("Missing required columns: $table.${missing.sorted().joinToString(",")}")
         }
         checkBackupDatabase()
         // Read every application table, not merely the SQLite header or schema.

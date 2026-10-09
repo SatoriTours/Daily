@@ -19,6 +19,55 @@ import kotlinx.serialization.json.Json
 
 class BackupServiceTest {
     @Test
+    fun verificationNeverFallsBackToSavedPassword() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        val result = fixture.service.verifyLatestBackup()
+        assertEquals(BackupVerificationIssue.NO_PASSWORD, result.issue)
+        assertEquals(BackupVerificationStatus.INCOMPLETE, result.status)
+        assertTrue(fixture.secrets.preparedRestoredDatabases.isEmpty())
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+        fixture.files.seedFile(fixture.files.databasePathValue, "live database")
+        assertTrue(fixture.service.backupNow()) // Saved password still works for normal backup.
+        assertEquals("correct horse battery", fixture.files.encryptPasswords.single())
+    }
+
+    @Test
+    fun verificationFailureRetainsStepsCauseAndCleanupWithoutPrivateExceptionText() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        fixture.secrets.onPrepare = {
+            throw IllegalStateException("private diary token password", IllegalArgumentException("private SQL value"))
+        }
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
+        assertEquals(BackupVerificationStage.PREPARING, result.stage)
+        val report = result.toString()
+        assertTrue(report.contains("FAIL migrate_and_prepare_secrets"))
+        assertTrue(report.contains("IllegalStateException"))
+        assertTrue(report.contains("IllegalArgumentException"))
+        assertTrue(report.contains("OK cleanup"))
+        assertFalse(report.contains("private diary"))
+        assertFalse(report.contains("private SQL"))
+        assertFalse(report.contains("correct horse battery"))
+    }
+
+    @Test
+    fun cleanupFailureRetainsTheOriginalFailureAsWellAsCleanupDiagnostics() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
+        fixture.secrets.onPrepare = {
+            fixture.files.failCleanup = true
+            error("备份缺少附件，已取消恢复")
+        }
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
+        assertEquals(BackupVerificationStage.CLEANUP, result.stage)
+        assertTrue(result.diagnosticLog.contains("FAIL migrate_and_prepare_secrets"))
+        assertTrue(result.diagnosticLog.contains("备份缺少附件，已取消恢复"))
+        assertTrue(result.diagnosticLog.contains("FAIL cleanup"))
+        assertFalse(fixture.service.isBackingUp.value)
+    }
+
+    @Test
     fun verificationChecksLatestBackupWithoutStagingRestartingOrChangingLiveData() = runBlocking {
         val fixture = backupFixture()
         fixture.files.seedFile(fixture.files.databasePathValue, "live database")
@@ -27,7 +76,7 @@ class BackupServiceTest {
         val name = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
         fixture.files.seedCurrentBackup(name)
 
-        val result = fixture.service.verifyLatestBackup()
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
 
         assertEquals(BackupVerificationStatus.PASSED, result.status)
         assertEquals(name, result.fileName)
@@ -49,7 +98,7 @@ class BackupServiceTest {
         val latest = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
         fixture.files.seedCurrentBackup(latest, damaged = true)
 
-        val result = fixture.service.verifyLatestBackup()
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
 
         assertEquals(BackupVerificationStatus.FAILED, result.status)
         assertEquals(latest, result.fileName)
@@ -63,15 +112,17 @@ class BackupServiceTest {
         val fixture = backupFixture()
         val name = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
         fixture.files.seedCurrentBackup(name, password = "previous password")
-        val failed = fixture.service.verifyLatestBackup()
+        val failed = fixture.service.verifyLatestBackup("wrong password")
         assertEquals(BackupVerificationStage.DECRYPTING, failed.stage)
         assertEquals(BackupVerificationStatus.FAILED, failed.status)
         assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
 
         assertEquals(BackupVerificationStatus.PASSED,
             fixture.service.verifyLatestBackup("previous password", name).status)
-        // The stored password is still used by the next ordinary verification.
-        assertEquals(BackupVerificationStatus.FAILED, fixture.service.verifyLatestBackup().status)
+        assertEquals(BackupVerificationIssue.NO_PASSWORD, fixture.service.verifyLatestBackup().issue)
+        fixture.files.seedFile(fixture.files.databasePathValue, "live database")
+        assertTrue(fixture.service.backupNow())
+        assertEquals("correct horse battery", fixture.files.encryptPasswords.single())
     }
 
     @Test
@@ -88,7 +139,7 @@ class BackupServiceTest {
     fun legacyBackupOnlyReceivesLimitedValidation() = runBlocking {
         val fixture = backupFixture()
         fixture.files.seedRestorableBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc", "correct horse battery")
-        val result = fixture.service.verifyLatestBackup()
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
         assertEquals(BackupVerificationStatus.LIMITED, result.status)
         assertFalse(fixture.files.exists("/pending"))
         assertFalse(fixture.files.restartCalled)
@@ -117,11 +168,11 @@ class BackupServiceTest {
         val fixture = backupFixture()
         fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
         fixture.secrets.onPrepare = { throw kotlinx.coroutines.CancellationException("cancel") }
-        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { fixture.service.verifyLatestBackup() }
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { fixture.service.verifyLatestBackup("correct horse battery") }
         assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
         assertFalse(fixture.service.isBackingUp.value)
         fixture.secrets.onPrepare = null
-        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup().status)
+        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup("correct horse battery").status)
     }
 
     @Test
@@ -138,7 +189,7 @@ class BackupServiceTest {
         })
         val name = "daily_satori_backup_2026-05-21-12-00-00.zip.enc"
         fixture.files.seedCurrentBackup(name)
-        val first = async { fixture.service.verifyLatestBackup() }
+        val first = async { fixture.service.verifyLatestBackup("correct horse battery") }
         entered.await()
         assertTrue(fixture.service.isBackingUp.value)
         assertEquals(BackupVerificationIssue.BUSY, fixture.service.verifyLatestBackup().issue)
@@ -155,7 +206,7 @@ class BackupServiceTest {
     fun directoryAccessFailureIsNotMisreportedAsAnEmptyBackupList() = runBlocking {
         val fixture = backupFixture()
         fixture.files.failList = true
-        val result = fixture.service.verifyLatestBackup()
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
         assertEquals(BackupVerificationStatus.FAILED, result.status)
         assertEquals(BackupVerificationStage.SELECTING, result.stage)
         assertFalse(fixture.service.isBackingUp.value)
@@ -166,7 +217,7 @@ class BackupServiceTest {
         val fixture = backupFixture()
         fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
         fixture.files.failRead = true
-        assertEquals(BackupVerificationStage.READING, fixture.service.verifyLatestBackup().stage)
+        assertEquals(BackupVerificationStage.READING, fixture.service.verifyLatestBackup("correct horse battery").stage)
         assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
     }
 
@@ -175,12 +226,12 @@ class BackupServiceTest {
         val fixture = backupFixture()
         fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
         fixture.secrets.onPrepare = { fixture.files.failCleanup = true }
-        val result = fixture.service.verifyLatestBackup()
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
         assertEquals(BackupVerificationStatus.FAILED, result.status)
         assertEquals(BackupVerificationStage.CLEANUP, result.stage)
         fixture.secrets.onPrepare = null
         fixture.files.failCleanup = false
-        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup().status)
+        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup("correct horse battery").status)
         assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
     }
 
@@ -191,7 +242,7 @@ class BackupServiceTest {
         fixture.files.seedBackup("zzz.zip.enc")
         val name = "daily_satori_backup_2026-05-21-12-00-00_hint_abc.zip.enc"
         fixture.files.seedCurrentBackup(name)
-        assertEquals(name, fixture.service.verifyLatestBackup().fileName)
+        assertEquals(name, fixture.service.verifyLatestBackup("correct horse battery").fileName)
     }
 
     @Test

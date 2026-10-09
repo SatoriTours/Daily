@@ -11,6 +11,32 @@ import kotlin.test.assertFailsWith
 
 class SecretFieldProcessorTest {
     @Test
+    fun backupProcessesDistinctSecretsWithAndroidStyleStatementCaching() {
+        val database = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(database)
+            val q = DailySatoriDatabase(database).dailySatoriQueries
+            q.insertAiConfig("openai", "https://ai", "enc:v1:nekot-ia", "model", 1, 1, 1)
+            q.insertMcpServer("mcp", "https://mcp", "enc:v1:yek-pcm", 1, 1, 1)
+            q.upsertSetting(SettingKeys.weReadApiKey, "enc:v1:yek-daerew", 1, 1)
+            q.upsertSetting(SettingKeys.speechConfig, "enc:v1:hceeps", 1, 1)
+
+            val processor = SecretFieldProcessor(IdentifierCachingDriver(database), TestSecretCipher())
+            processor.decryptSecretsForBackup()
+
+            assertEquals("ai-token", q.selectAllAiConfigs().executeAsOne().api_token)
+            assertEquals("mcp-key", q.selectAllMcpServers().executeAsOne().api_key)
+            assertEquals("weread-key", q.selectSettingByKey(SettingKeys.weReadApiKey).executeAsOne().value_)
+            assertEquals("speech", q.selectSettingByKey(SettingKeys.speechConfig).executeAsOne().value_)
+            processor.prepareRestoredSecrets(strict = true)
+            assertEquals("enc:v1:nekot-ia", q.selectAllAiConfigs().executeAsOne().api_token)
+            assertEquals("enc:v1:yek-pcm", q.selectAllMcpServers().executeAsOne().api_key)
+            assertEquals("enc:v1:yek-daerew", q.selectSettingByKey(SettingKeys.weReadApiKey).executeAsOne().value_)
+            assertEquals("enc:v1:hceeps", q.selectSettingByKey(SettingKeys.speechConfig).executeAsOne().value_)
+        } finally { database.close() }
+    }
+
+    @Test
     fun backupRejectsUnrecoverableSecretsInsteadOfProducingAnIncompleteBackup() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
@@ -151,6 +177,16 @@ private class SecretFixture(
     fun updateSecretValue(table: String, column: String, value: String) {
         driver.execute(null, "UPDATE $table SET $column = '${value.replace("'", "''")}'", 0, null)
     }
+}
+
+/** AndroidSqliteDriver caches prepared SQL by identifier, not by SQL text; JDBC does not. */
+private class IdentifierCachingDriver(private val delegate: app.cash.sqldelight.db.SqlDriver) :
+    app.cash.sqldelight.db.SqlDriver by delegate {
+    private val queries = mutableMapOf<Int, String>()
+    override fun <R> executeQuery(identifier: Int?, sql: String,
+        mapper: (app.cash.sqldelight.db.SqlCursor) -> app.cash.sqldelight.db.QueryResult<R>,
+        parameters: Int, binders: (app.cash.sqldelight.db.SqlPreparedStatement.() -> Unit)?): app.cash.sqldelight.db.QueryResult<R> =
+        delegate.executeQuery(null, identifier?.let { queries.getOrPut(it) { sql } } ?: sql, mapper, parameters, binders)
 }
 
 private class TestSecretCipher(

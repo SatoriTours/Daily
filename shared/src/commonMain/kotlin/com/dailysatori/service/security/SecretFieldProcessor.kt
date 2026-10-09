@@ -121,7 +121,8 @@ class SecretFieldProcessor(
             "${field.quotedColumn()} <> ''",
         ).joinToString(" AND ")
         val sql = "SELECT rowid, ${field.quotedColumn()} FROM ${field.quotedTable()} WHERE $where"
-        return driver.executeQuery(0, sql, { cursor ->
+        // SQL varies by field; a shared identifier reuses another field's query on Android.
+        return driver.executeQuery(null, sql, { cursor ->
             val rows = mutableListOf<SecretRow>()
             while (cursor.next().value) {
                 rows.add(SecretRow(cursor.getLong(0) ?: 0L, cursor.getString(1).orEmpty()))
