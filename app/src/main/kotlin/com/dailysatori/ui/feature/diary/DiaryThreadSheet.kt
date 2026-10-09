@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -127,38 +128,45 @@ private fun DiaryThreadHeader(
     onEditOriginal: () -> Unit,
     onVoiceContinue: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Text(
-            text = stringResource(R.string.diary_thread_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = stringResource(R.string.diary_thread_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(IconSize.s))
+            }
+        }
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
             OutlinedButton(onClick = onEditOriginal) {
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(IconSize.xs))
                 Spacer(modifier = Modifier.size(Spacing.xxs))
-                Text(stringResource(R.string.diary_thread_action_edit_original))
+                Text(stringResource(R.string.diary_thread_action_edit_original), maxLines = 1, softWrap = false)
             }
             OutlinedButton(onClick = onVoiceContinue) {
                 Icon(Icons.Default.MicNone, contentDescription = null, modifier = Modifier.size(IconSize.xs))
                 Spacer(modifier = Modifier.size(Spacing.xxs))
-                Text(stringResource(R.string.diary_feed_record_voice))
+                Text(stringResource(R.string.diary_feed_record_voice), maxLines = 1, softWrap = false)
             }
             Button(onClick = onContinue) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(IconSize.xs))
                 Spacer(modifier = Modifier.size(Spacing.xxs))
-                Text(stringResource(R.string.diary_thread_action_continue))
-            }
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(IconSize.s))
+                Text(stringResource(R.string.diary_thread_action_continue), maxLines = 1, softWrap = false)
             }
         }
     }
