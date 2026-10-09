@@ -89,12 +89,12 @@ class SmsReminderServiceTest {
             service.accept("ambiguous", SmsSource("Skinny", "Top-Up tomorrow or your credit will expire"), now, TimeZone.UTC)
             service.process("ambiguous")
             assertEquals(SmsSourceStatus.CREATED, sources.get("ambiguous")!!.status)
-            assertEquals(ReminderStatus.PAUSED, reminders.get("sms:ambiguous")!!.status)
+            assertEquals(ReminderStatus.ACTIVE, reminders.get("sms:ambiguous")!!.status)
             assertNull(reminders.get("sms:ambiguous")!!.deadlineAt)
             service.accept("late", SmsSource("Skinny", text), Instant.parse("2026-10-01T15:00:00Z"), TimeZone.UTC)
             service.process("late")
             assertEquals(SmsSourceStatus.CREATED, sources.get("late")!!.status)
-            assertEquals(ReminderStatus.PAUSED, reminders.get("sms:late")!!.status)
+            assertEquals(ReminderStatus.ACTIVE, reminders.get("sms:late")!!.status)
             assertNull(reminders.get("sms:late")!!.deadlineAt)
             assertEquals(2, db.dailySatoriQueries.selectAllReminders().executeAsList().size)
             assertEquals("2", settings.get("sms_reminder.created_count"))
@@ -118,16 +118,16 @@ class SmsReminderServiceTest {
         }
     }
 
-    @Test fun addingDeadlineActivatesUnscheduledTodoAndKeepsItVisibleUntilThen() = runBlocking {
+    @Test fun unscheduledTodoIsWrittenInActiveAndAcceptsADeadlineLater() = runBlocking {
         withService { service, _, reminders, _, _, _ ->
             service.accept("local", SmsSource("Skinny", "Top-Up tomorrow or your credit will expire"), now, TimeZone.UTC)
             val reminder = assertNotNull(reminders.get("sms:local"))
-            val later = LocalDate(2026, 11, 5)
-            assertEquals(later, reminder.nextOccurrenceOnOrAfter(later))
-            assertEquals(1, ReminderSummary.todayPendingCount(listOf(reminder), later))
-            assertFalse(reminders.resume(reminder.id, now))
+            // No confirmation step: todos are active right away and can be deleted or rescheduled.
+            assertEquals(ReminderStatus.ACTIVE, reminder.status)
+            assertNull(reminder.deadlineAt)
             assertTrue(reminders.update(reminder.id, ReminderEdit(reminder.version, deadlineAt = Instant.parse("2026-10-07T15:00:00Z")), now))
             assertEquals(ReminderStatus.ACTIVE, reminders.get(reminder.id)!!.status)
+            assertEquals(Instant.parse("2026-10-07T15:00:00Z"), reminders.get(reminder.id)!!.deadlineAt)
         }
     }
 

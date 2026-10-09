@@ -1524,6 +1524,7 @@ ledger:
     excluded: "Exclude from statistics"
     excluded_hint: "Turn on for transfers, repayments or advances; they stay out of income, expenses and analysis."
     delete: "Delete this entry"
+    move_to_todo: "Move to reminders"
   category:
     food: "Food"
     transport: "Transport"

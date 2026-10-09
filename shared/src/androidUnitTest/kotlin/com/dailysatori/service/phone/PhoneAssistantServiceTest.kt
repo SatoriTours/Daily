@@ -35,6 +35,20 @@ class PhoneAssistantServiceTest {
         }
     }
 
+    @Test fun ledgerEntryCanBeMovedIntoTheReminderList() = runBlocking {
+        withService { service, _, ledger, _, _ ->
+            service.configure(PhoneChannel.SMS, PhoneOptions(enabled = true, ledger = true))
+            val event = event(PhoneChannel.SMS, "move", "尾号1238消费人民币38.00元，余额1,200.00元。商户：美团外卖")
+            service.accept(event); service.process(event.id)
+            val entry = ledger.snapshot().entries.single()
+            assertEquals(LedgerStatus.POSTED, entry.status)
+            val reminderId = assertNotNull(service.moveLedgerToTodo(entry.id))
+            assertEquals("ledger:" + entry.id, reminderId)
+            // The ledger copy is dropped so the amount is not counted twice.
+            assertEquals(LedgerStatus.DELETED, ledger.snapshot().entries.single().status)
+        }
+    }
+
     @Test fun unrelatedTextsAreKeptForLaterAlgorithmsWhileVerificationCodesAreNot() = runBlocking {
         withService { service, records, _, _, _ ->
             service.configure(PhoneChannel.SMS, PhoneOptions(enabled = true))

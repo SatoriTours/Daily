@@ -396,6 +396,6 @@ val viewModelModule: Module = module {
             workflow = get(),
         )
     }
-    viewModel { com.dailysatori.ui.feature.ledger.LedgerViewModel(get(), get()) }
+    viewModel { com.dailysatori.ui.feature.ledger.LedgerViewModel(get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureViewModel(get()) }
 }

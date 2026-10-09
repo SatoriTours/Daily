@@ -79,6 +79,7 @@ fun LedgerScreen(onBack: () -> Unit, viewModel: LedgerViewModel = koinViewModel(
             onCategory = { category, remember -> viewModel.setCategory(entry.id, category, remember) },
             onNote = { viewModel.setNote(entry.id, it) },
             onExcluded = { viewModel.setExcluded(entry.id, it) },
+            onMoveToTodo = { viewModel.moveToTodo(entry) },
             onDelete = { viewModel.dismiss(entry.id, LedgerStatus.DELETED) })
     }
     editing?.let { entry ->
@@ -381,7 +382,8 @@ private fun PendingSheet(state: LedgerUiState, viewModel: LedgerViewModel, onDis
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun LedgerDetailSheet(entry: LedgerEntry, busy: Boolean, onDismiss: () -> Unit,
-    onCategory: (LedgerCategory, Boolean) -> Unit, onNote: (String) -> Unit, onExcluded: (Boolean) -> Unit, onDelete: () -> Unit) {
+    onCategory: (LedgerCategory, Boolean) -> Unit, onNote: (String) -> Unit, onExcluded: (Boolean) -> Unit,
+    onMoveToTodo: () -> Unit, onDelete: () -> Unit) {
     val i18n: I18nService = koinInject()
     var note by remember(entry.id) { mutableStateOf(entry.note) }
     var remember_rule by remember(entry.id) { mutableStateOf(true) }
@@ -435,6 +437,7 @@ private fun LedgerDetailSheet(entry: LedgerEntry, busy: Boolean, onDismiss: () -
                 }
                 Switch(entry.excluded, onCheckedChange = onExcluded, enabled = !busy)
             }
+            TextButton(onClick = onMoveToTodo, enabled = !busy) { Text(i18n.t("ledger.detail.move_to_todo")) }
             TextButton(onClick = onDelete, enabled = !busy) {
                 Text(i18n.t("ledger.detail.delete"), color = MaterialTheme.colorScheme.error)
             }

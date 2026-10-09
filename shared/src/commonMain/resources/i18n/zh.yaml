@@ -1524,6 +1524,7 @@ ledger:
     excluded: "不计入统计"
     excluded_hint: "转账、还款或垫付可以打开，不计入收支与分类分析。"
     delete: "删除这笔账目"
+    move_to_todo: "移到待办"
   category:
     food: "餐饮"
     transport: "交通"

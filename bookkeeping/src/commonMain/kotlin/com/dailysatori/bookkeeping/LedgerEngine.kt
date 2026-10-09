@@ -32,14 +32,16 @@ class LedgerEngine {
         }
         val conflicting = matchingTransactions.firstOrNull { it.id != previous?.id }
         val reason = if (similar != null || conflicting != null) "possible_duplicate" else draft.reason
+        // Duplicates and unknown-but-defaulted currencies are written in by default; the user deletes or edits them.
+        val postable = reason.isEmpty() || reason == "possible_duplicate" || reason == "ambiguous_currency"
         val entry = LedgerEntry(id = previous?.id ?: "$source:$eventKey",
             eventKeys = (previous?.eventKeys.orEmpty() + eventKey).distinct(), source = source, text = text,
             receivedAt = previous?.receivedAt ?: receivedAt, amountMinor = draft.amountMinor, currency = draft.currency,
             kind = draft.kind, merchant = draft.merchant, category = category(draft.merchant, rules),
             accountTail = draft.accountTail.ifEmpty { previous?.accountTail.orEmpty() },
             transactionId = draft.transactionId.ifEmpty { previous?.transactionId.orEmpty() },
-            status = if (reason.isEmpty()) LedgerStatus.POSTED else LedgerStatus.PENDING,
-            reason = reason, duplicateOf = (similar ?: conflicting)?.id.orEmpty(),
+            status = if (postable) LedgerStatus.POSTED else LedgerStatus.PENDING,
+            reason = if (postable) "" else reason, duplicateOf = (similar ?: conflicting)?.id.orEmpty(),
             userConfirmed = previous?.userConfirmed ?: false)
         return state.copy(entries = if (previous == null) state.entries + entry else state.entries.map {
             if (it.id == previous.id) entry else it

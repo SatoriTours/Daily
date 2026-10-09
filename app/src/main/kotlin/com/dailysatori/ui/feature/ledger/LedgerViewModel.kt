@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.bookkeeping.*
 import com.dailysatori.data.repository.BookkeepingRepository
 import com.dailysatori.service.bookkeeping.BookkeepingService
+import com.dailysatori.service.phone.PhoneAssistantService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.*
@@ -43,6 +44,7 @@ data class LedgerUiState(
 class LedgerViewModel(
     private val repository: BookkeepingRepository,
     private val service: BookkeepingService,
+    private val phone: PhoneAssistantService,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(LedgerUiState())
     val state = mutableState.asStateFlow()
@@ -76,6 +78,14 @@ class LedgerViewModel(
     fun setNote(id: String, text: String) = action { service.setNote(id, text) }
 
     fun setExcluded(id: String, excluded: Boolean) = action { service.setExcluded(id, excluded) }
+
+    /** Moving a wrong entry into the reminder list; the ledger entry is dropped afterwards. */
+    fun moveToTodo(entry: LedgerEntry) {
+        action {
+            phone.moveLedgerToTodo(entry.id)
+            mutableState.update { it.copy(entry = null) }
+        }
+    }
 
     fun edit(id: String, amount: String, currency: String, kind: LedgerKind, merchant: String, onSaved: () -> Unit) = action {
         service.edit(id, amount, currency, kind, merchant)

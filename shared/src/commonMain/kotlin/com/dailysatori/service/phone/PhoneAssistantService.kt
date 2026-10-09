@@ -62,6 +62,16 @@ class PhoneAssistantService(
     }
 
     /** Re-runs the current pipeline over a stored message so kept texts can be processed again. */
+    /** Moves one ledger entry into the reminder list and drops it from the ledger. */
+    suspend fun moveLedgerToTodo(id: String): String? = mutex.withLock {
+        val entry = ledger.snapshot().entries.firstOrNull { it.id == id } ?: return@withLock null
+        val amount = entry.amountMinor?.let { LedgerMoney.format(it, entry.currency) }.orEmpty()
+        val content = listOf(entry.merchant, amount).filter { it.isNotBlank() }.joinToString(" \u00b7 ").ifBlank { entry.text.lineSequence().first() }
+        val reminderId = sms.createFromLedger(entry.id, content, TimeZone.currentSystemDefault())
+        ledger.dismiss(entry.id, LedgerStatus.DELETED)
+        reminderId
+    }
+
     suspend fun reprocess(id: String): Long? = mutex.withLock {
         val row = messages.get(id) ?: return@withLock null
         if (!policies.accepts(row.event) || row.textErased) return@withLock null
