@@ -21,7 +21,6 @@ import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.migration.DatabaseMigration
-import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
@@ -41,15 +40,14 @@ class DailySatoriApplication : Application() {
         // The launcher/export process must remain usable even when DI, SQLite or workers crash.
         if (isDiagnosticProcess()) return
         DiagnosticRuntime.initialize(this)
-        com.dailysatori.platform.FileManager().apply { init(this@DailySatoriApplication) }
-            .applyPendingRestore()?.let { message -> android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show() }
+        com.dailysatori.service.security.DatabaseBootstrap.prepare(com.dailysatori.platform.PlatformContext(this))
+            ?.let { message -> android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show() }
         startKoin {
             androidLogger()
             androidContext(this@DailySatoriApplication)
             modules(sharedModule, platformModule, appModule, viewModelModule)
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
-        encryptStoredSecrets()
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
         I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
         applicationScope.launch { initializeBackgroundServices() }
@@ -94,9 +92,4 @@ class DailySatoriApplication : Application() {
         return processName == "$packageName:diagnostics"
     }
 
-    private fun encryptStoredSecrets() {
-        try {
-            get<SecretFieldProcessor>(SecretFieldProcessor::class.java).encryptPlaintextSecrets()
-        } catch (_: Exception) {}
-    }
 }

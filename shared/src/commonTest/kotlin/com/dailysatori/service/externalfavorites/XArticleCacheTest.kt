@@ -248,7 +248,7 @@ class XArticleCacheTest {
     private class Env : AutoCloseable {
         private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         private val db = DailySatoriDatabase(driver).also { DailySatoriDatabase.Schema.create(driver) }
-        val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
+        val sources = ExternalFavoriteSourceRepository(db)
         val items = ExternalFavoriteItemRepository(db)
         val articles = ArticleRepository(db)
         val sourceId = sources.save(provider = "x", displayName = "X", accountId = "42", accountName = "Writer", authJson = "{}", enabled = true)

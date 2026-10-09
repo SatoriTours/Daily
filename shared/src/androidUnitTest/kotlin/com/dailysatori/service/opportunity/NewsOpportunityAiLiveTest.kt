@@ -30,7 +30,7 @@ class NewsOpportunityAiLiveTest {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val database = DailySatoriDatabase(driver)
-            val configs = AIConfigRepository(database, PlainCipher)
+            val configs = AIConfigRepository(database)
             configs.insert(required("provider"), required("apiAddress"), required("apiToken"), required("modelName"), isDefault = 1)
             HttpClient(OkHttp) {
                 install(HttpTimeout) { requestTimeoutMillis = 120_000; connectTimeoutMillis = 15_000 }

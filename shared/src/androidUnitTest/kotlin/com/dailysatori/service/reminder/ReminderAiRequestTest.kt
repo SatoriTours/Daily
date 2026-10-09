@@ -94,7 +94,7 @@ class ReminderAiRequestTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val configs = AIConfigRepository(DailySatoriDatabase(driver), PlainCipher)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
             configs.insert(provider, "https://example.com/v1", "test-key", "deepseek-flash", isDefault = 1)
             HttpClient(MockEngine { request ->
                 requests += Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject

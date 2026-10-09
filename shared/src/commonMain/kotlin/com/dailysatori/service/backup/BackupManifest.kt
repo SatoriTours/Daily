@@ -21,9 +21,12 @@ internal data class BackupManifestFile(val path: String, val size: Long, val sha
 
 internal const val BackupManifestName = "manifest.json"
 internal const val LifeArchiveBackupName = "life_archive.json"
+internal const val DatabaseKeyBackupName = "database_key.json"
 
 internal fun isBackupUserFile(path: String): Boolean =
     path.isNotBlank() && !path.startsWith('/') && '\\' !in path &&
-        path.split('/').none { it.isBlank() || it == "." || it == ".." } &&
+        path.split('/').none { it.isBlank() || it == "." || it == ".." ||
+            it in setOf(DatabaseKeyBackupName, "database_key.sec", "backup_password.sec") } &&
         path.substringBefore('/') !in setOf("backups", "restore_temp", BackupManifestName,
-            LifeArchiveBackupName, "daily_satori.db", "_restore")
+            LifeArchiveBackupName, DatabaseKeyBackupName, "database_key.sec", "backup_password.sec", "database-install",
+            "pending-restore", "database-init.lock", "daily_satori.db", "_restore")

@@ -38,7 +38,7 @@ class DiaryThreadSummaryPurposeIntegrationTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val configs = AIConfigRepository(db, TestCipher)
+            val configs = AIConfigRepository(db)
             configs.insert("openai", "https://example.com/v1", "synthetic-token", "fallback-model", 1)
             configs.insert("opencode-go", "https://example.com/v1", "synthetic-token", "deepseek-v4-flash")
             val assigned = configs.getAllSync().single { it.model_name == "deepseek-v4-flash" }

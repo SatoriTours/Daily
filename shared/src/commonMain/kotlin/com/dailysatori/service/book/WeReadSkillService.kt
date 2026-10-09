@@ -8,7 +8,6 @@ import com.dailysatori.data.repository.SkillConfigRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.mcp.RemoteMcpClient
-import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretCipherPrefix
 import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.shared.db.Ai_config
@@ -278,7 +277,6 @@ class DefaultBookAiFallbackGenerator(
 class WeReadSkillService(
     private val client: HttpClient,
     private val settingRepository: SettingRepository,
-    private val secretCipher: SecretCipher,
     private val aiFallbackGenerator: BookAiFallbackGenerator,
     private val skillConfigRepository: SkillConfigRepository,
 ) : BookIntelligenceSource {
@@ -334,14 +332,9 @@ class WeReadSkillService(
     private fun readStoredWeReadApiKey(): String {
         val skill = skillConfigRepository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
         val legacyStored = settingRepository.get(SettingKeys.weReadApiKey).orEmpty()
-        return resolveWeReadTokenFromSkillOrLegacy(
-            skillToken = skill?.api_token,
-            skillEnabled = skill?.enabled == 1L,
-            legacyStored = legacyStored,
-            isEncrypted = secretCipher::isEncrypted,
-            decrypt = secretCipher::decrypt,
-            onLegacyPlaintext = { key -> settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(key)) },
-        )
+        return if (skill != null) {
+            if (skill.enabled == 1L) skill.api_token.trim() else ""
+        } else legacyStored.trim()
     }
 }
 

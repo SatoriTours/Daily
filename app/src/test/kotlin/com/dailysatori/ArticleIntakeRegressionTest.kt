@@ -118,12 +118,8 @@ class ArticleIntakeRegressionTest {
             db.dailySatoriQueries.updateArticleOriginalMarkdownContent(original, 1L, id)
             HttpClient(MockEngine { error("已保存原文时不应访问网络") }).use { client ->
                 val parser = WebpageParserService(articles, TagRepository(db), ImageRepository(db),
-                    AiService(client), AiConfigService(AIConfigRepository(db, object : SecretValueCipher {
-                        override fun encrypt(value: String) = value
-                        override fun decrypt(value: String) = value
-                        override fun isEncrypted(value: String) = false
-                    })), WebViewLoader(), FileManager(),
-                    client, ExternalFavoriteSourceRepository(db, { it }, { it }), XBookmarksConnector(),
+                    AiService(client), AiConfigService(AIConfigRepository(db)), WebViewLoader(), FileManager(),
+                    client, ExternalFavoriteSourceRepository(db), XBookmarksConnector(),
                     settingRepo = com.dailysatori.data.repository.SettingRepository(db))
                 val taskId = tasks.enqueue("save_article", saveArticleTaskPayloadJson(url),
                     uniqueKey = "save_article:$url", maxAttempts = 2)

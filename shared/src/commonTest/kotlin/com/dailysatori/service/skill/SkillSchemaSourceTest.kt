@@ -45,14 +45,22 @@ class SkillSchemaSourceTest {
     }
 
     @Test
-    fun databaseMigrationEncryptsLegacyWeReadToken() {
-        val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
-        val sharedModule = File("src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
-
-        assertTrue(migration.contains("private val secretCipher: SecretValueCipher"))
-        assertTrue(migration.contains("migratedWeReadTokenValue(legacyToken)"))
-        assertTrue(migration.contains("secretCipher.isEncrypted"))
-        assertTrue(migration.contains("secretCipher.encrypt"))
-        assertTrue(sharedModule.contains("DatabaseMigration(get(), get(), get())"))
+    fun databaseMigrationPreservesLegacyWeReadTokenWithoutFieldEncryption() {
+        val driver = app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver(app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver.IN_MEMORY)
+        try {
+            com.dailysatori.shared.db.DailySatoriDatabase.Schema.create(driver)
+            val db = com.dailysatori.shared.db.DailySatoriDatabase(driver)
+            val settings = com.dailysatori.data.repository.SettingRepository(db)
+            settings.upsert("schema_version", "8")
+            settings.upsert("weread_api_key", "ordinary-token")
+            val cipher = object : com.dailysatori.service.security.SecretValueCipher {
+                override fun encrypt(value: String): String = error("must not encrypt")
+                override fun decrypt(value: String): String = error("must not decrypt")
+                override fun isEncrypted(value: String): Boolean = error("must not inspect")
+            }
+            val migration = com.dailysatori.service.migration.DatabaseMigration(driver, settings)
+            migration.javaClass.getDeclaredMethod("migrateV8ToV9").apply { isAccessible = true }.invoke(migration)
+            kotlin.test.assertEquals("ordinary-token", db.dailySatoriQueries.selectBuiltInSkillConfigByTemplateId("weread").executeAsOne().api_token)
+        } finally { driver.close() }
     }
 }

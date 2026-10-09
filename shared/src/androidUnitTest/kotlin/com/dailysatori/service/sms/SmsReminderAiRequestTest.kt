@@ -17,7 +17,7 @@ class SmsReminderAiRequestTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val configs = AIConfigRepository(DailySatoriDatabase(driver), Cipher)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
             configs.insert("openai", "https://example.com/v1", "test-token", "test-model", isDefault = 1)
             val requests = mutableListOf<String>()
             HttpClient(MockEngine { request ->
@@ -38,7 +38,7 @@ class SmsReminderAiRequestTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val configs = AIConfigRepository(DailySatoriDatabase(driver), Cipher)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
             configs.insert("openai", "https://example.com/v1", "test-token", "test-model", isDefault = 1)
             HttpClient(MockEngine { respond("private-provider-error-content", HttpStatusCode.BadRequest) }).use { client ->
                 val input = assertNotNull(SmsAiInput.from(SmsSource("", "Top-Up within 24 hours"), Instant.parse("2026-10-05T15:00:00Z"), TimeZone.UTC))

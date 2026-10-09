@@ -6,6 +6,7 @@ import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.service.ideatopic.*
 import com.dailysatori.platform.FileManager
+import com.dailysatori.service.security.DatabaseKey
 import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -92,6 +93,19 @@ class BackupRoundTripTest {
     }
 
     @Test
+    fun restorationRejectsMissingApplicationTablesWithoutChangingActiveData() = runBlocking {
+        withVerificationFixture { files, service, backup ->
+            val original = File(files.getDatabasePath()).readBytes()
+            rewriteBackup(backup) { content ->
+                withDatabase(File(content, DatabaseConfig.name).path) { driver -> driver.execute(null, "DROP TABLE phone_message", 0) }
+            }
+            assertFalse(service.restoreFile(backup.path, "correct horse battery"))
+            assertContentEquals(original, File(files.getDatabasePath()).readBytes())
+            assertFalse(files.pending.exists())
+        }
+    }
+
+    @Test
     fun verificationRejectsMissingRequiredDatabaseColumns() = runBlocking {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup) { content -> withDatabase(content.resolve(DatabaseConfig.name).path) {
@@ -116,6 +130,7 @@ class BackupRoundTripTest {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup, updateManifest = false) { content ->
                 content.resolve(BackupManifestName).delete()
+                content.resolve(DatabaseKeyBackupName).delete()
                 content.resolve(LifeArchiveBackupName).delete()
                 withDatabase(content.resolve(DatabaseConfig.name).path) {
                     it.execute(null, "UPDATE setting SET value = '32' WHERE key = 'schema_version'", 0)
@@ -384,27 +399,32 @@ class BackupRoundTripTest {
             override fun get() = if (configured) "correct horse battery" else null
             override fun encryptedPassword(password: String) = "secured:$password".toByteArray()
         }
-        val secrets = object : BackupSecrets {
-            override fun decryptSecretsForBackup(databasePath: String) = withDatabase(databasePath) {
-                SecretFieldProcessor(it, cipher).decryptSecretsForBackup(); Unit
+        // JDBC exercises archive/storage semantics only; native encryption has separate host probes.
+        val secrets = object : BackupDatabaseAccess {
+            override fun exportSnapshot(databasePath: String): DatabaseKey {
+                files.createDatabaseSnapshot(databasePath)
+                withDatabase(databasePath) { SecretFieldProcessor(it, cipher).decryptLegacyFields() }
+                return DatabaseKey.fromHex("ab".repeat(32))
             }
-            override fun prepareRestoredSecrets(databasePath: String) = withDatabase(databasePath) {
-                BackupDatabaseData(it).prepareSecrets(cipher)
+            override fun prepareRestoredDatabase(databasePath: String, key: DatabaseKey?): DatabaseKey {
+                withDatabase(databasePath) { BackupDatabaseData(it).prepareSecrets(cipher) }
+                return key ?: DatabaseKey.fromHex("cd".repeat(32))
             }
-            override fun checkBackupDatabase(databasePath: String) = withDatabase(databasePath) {
+            override fun wrapRestoredKey(key: DatabaseKey) = cipher.encrypt(key.portableJson()).toByteArray()
+            override fun checkBackupDatabase(databasePath: String, key: DatabaseKey?) = withDatabase(databasePath) {
                 BackupDatabaseData(it).checkBackupDatabase()
             }
-            override fun backupDatabaseSummary(databasePath: String): Map<String, Long> {
+            override fun backupDatabaseSummary(databasePath: String, key: DatabaseKey): Map<String, Long> {
                 val reference = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
                 return try {
                     DailySatoriDatabase.Schema.create(reference)
                     withDatabase(databasePath) { BackupDatabaseData(it).verifiedSummary(BackupDatabaseData(reference).schemaColumns()) }
                 } finally { reference.close() }
             }
-            override fun requiredUserFiles(databasePath: String, appDataDir: String) = withDatabase(databasePath) {
+            override fun requiredUserFiles(databasePath: String, appDataDir: String, key: DatabaseKey) = withDatabase(databasePath) {
                 BackupDatabaseData(it).userFiles(appDataDir)
             }
-            override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>) =
+            override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey) =
                 withDatabase(databasePath) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }
         }
         val life = object : LifeArchiveBackup {
@@ -427,7 +447,8 @@ class BackupRoundTripTest {
         val password = root.resolve("backup_password.sec")
         var restoreResult: String? = null
         val pending get() = root.resolve("pending")
-        private val installer get() = BackupRestoreTransaction(pending, File(getAppDataDir()), File(getDatabasePath()), life, password)
+        private val installer get() = BackupRestoreTransaction(pending, File(getAppDataDir()), File(getDatabasePath()), life, password,
+            databaseKey = root.resolve("database_key.sec"))
         init { root.mkdirs() }
         override fun getAppDataDir() = root.resolve("DailySatori").apply { mkdirs() }.path
         override fun getDatabasePath() = root.resolve(DatabaseConfig.name).path

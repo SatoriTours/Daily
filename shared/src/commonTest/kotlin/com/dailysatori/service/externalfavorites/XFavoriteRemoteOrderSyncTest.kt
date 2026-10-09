@@ -21,11 +21,7 @@ class XFavoriteRemoteOrderSyncTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
         val db = DailySatoriDatabase(driver)
-        val sources = ExternalFavoriteSourceRepository(
-            db = db,
-            encryptSecret = { it },
-            decryptSecret = { it },
-        )
+        val sources = ExternalFavoriteSourceRepository(db = db)
         val items = ExternalFavoriteItemRepository(db)
         val articles = ArticleRepository(db)
         val sourceId = sources.save(

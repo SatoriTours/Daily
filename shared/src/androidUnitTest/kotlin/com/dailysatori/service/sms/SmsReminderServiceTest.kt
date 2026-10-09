@@ -27,7 +27,7 @@ class SmsReminderServiceTest {
             assertEquals(Instant.parse("2026-10-06T15:00:00Z"), reminders.get("sms:one")!!.deadlineAt)
             assertEquals(1, inputs.size)
             assertFalse(inputs.single().text.any(Char::isDigit))
-            assertFalse(db.dailySatoriQueries.selectSmsSource("one").executeAsOne().encrypted_source.contains("123456789"))
+            assertTrue(db.dailySatoriQueries.selectSmsSource("one").executeAsOne().encrypted_source.contains("123456789"))
             assertEquals(text, sources.get("one")!!.source.body)
         }
     }
@@ -155,7 +155,7 @@ class SmsReminderServiceTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val sources = SmsSourceRepository(db, TestCipher)
+            val sources = SmsSourceRepository(db)
             val reminders = ReminderRepository(db)
             val settings = SettingRepository(db)
             val inputs = mutableListOf<SmsAiInput>()

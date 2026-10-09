@@ -3,7 +3,6 @@ package com.dailysatori.data.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
-import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.service.sms.*
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -14,12 +13,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class SmsSourceRepository(private val db: DailySatoriDatabase, private val cipher: SecretValueCipher) {
+class SmsSourceRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
     private val tasks = AsyncTaskRepository(db)
 
     fun accept(id: String, source: SmsSource, received: Instant, zone: TimeZone, cloudEligible: Boolean): Long? = q.transactionWithResult {
-        if (get(id) == null) q.insertSmsSource(id, cipher.encrypt(Json.encodeToString(source)), received.toEpochMilliseconds(), zone.id,
+        if (get(id) == null) q.insertSmsSource(id, Json.encodeToString(source), received.toEpochMilliseconds(), zone.id,
             if (cloudEligible) SmsSourceStatus.QUEUED.name else SmsSourceStatus.LOCAL_ONLY.name)
         if (get(id)?.status != SmsSourceStatus.QUEUED) return@transactionWithResult null
         enqueue(id)
@@ -31,7 +30,7 @@ class SmsSourceRepository(private val db: DailySatoriDatabase, private val ciphe
     fun get(id: String): SmsSourceRecord? = q.selectSmsSource(id).executeAsOneOrNull()?.toRecord()
     fun clearText(id: String) {
         val row = get(id) ?: return
-        q.updateSmsSourceBody(cipher.encrypt(Json.encodeToString(row.source.copy(body = ""))), id)
+        q.updateSmsSourceBody(Json.encodeToString(row.source.copy(body = "")), id)
     }
     fun forReminder(id: String): SmsSourceRecord? = q.selectSmsSourceByReminder(id).executeAsOneOrNull()?.toRecord()
     fun all(): List<SmsSourceRecord> = q.selectSmsSources().executeAsList().mapNotNull { runCatching { it.toRecord() }.getOrNull() }
@@ -52,9 +51,9 @@ class SmsSourceRepository(private val db: DailySatoriDatabase, private val ciphe
     fun resetNotification(id: String) = q.resetSmsSourceNotification(id)
     fun <T> transaction(block: () -> T): T = q.transactionWithResult { block() }
     fun blockedSenders(): Set<String> = SettingRepository(db).get(SmsReminderService.BLOCKED_KEY)?.let {
-        runCatching { Json.decodeFromString<Set<String>>(cipher.decrypt(it)) }.getOrNull()
+        runCatching { Json.decodeFromString<Set<String>>(it) }.getOrNull()
     }.orEmpty()
-    fun saveBlockedSenders(senders: Set<String>) = SettingRepository(db).upsert(SmsReminderService.BLOCKED_KEY, cipher.encrypt(Json.encodeToString(senders)))
+    fun saveBlockedSenders(senders: Set<String>) = SettingRepository(db).upsert(SmsReminderService.BLOCKED_KEY, Json.encodeToString(senders))
 
     private fun com.dailysatori.shared.db.Sms_reminder_source.toRecord(): SmsSourceRecord {
         val savedDraft = draft_json.takeIf { it.isNotBlank() }?.let { Json.decodeFromString<SmsReminderDraft>(it) }
@@ -64,7 +63,7 @@ class SmsSourceRepository(private val db: DailySatoriDatabase, private val ciphe
             estimated = savedDraft.estimated && savedDraft.deadlineMs == reminder.deadline_at,
         ) else savedDraft
         return SmsSourceRecord(
-            id, Json.decodeFromString<SmsSource>(cipher.decrypt(encrypted_source)), Instant.fromEpochMilliseconds(received_at),
+            id, Json.decodeFromString<SmsSource>(encrypted_source), Instant.fromEpochMilliseconds(received_at),
             TimeZone.of(time_zone_id), SmsSourceStatus.valueOf(status),
             displayedDraft, reminder_id,
         )

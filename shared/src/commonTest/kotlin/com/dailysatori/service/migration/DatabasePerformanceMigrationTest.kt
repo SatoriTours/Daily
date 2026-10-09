@@ -36,7 +36,7 @@ class DatabasePerformanceMigrationTest {
         val tasks = AsyncTaskRepository(db)
         val taskId = tasks.enqueue("external_favorite_sync", "{\"sourceId\":7}")
         val settings = SettingRepository(db)
-        val migration = DatabaseMigration(driver, settings, PlainCipher)
+        val migration = DatabaseMigration(driver, settings)
         repeat(2) {
             settings.upsert(SettingKeys.schemaVersion, "27")
             migration.runMigrations()

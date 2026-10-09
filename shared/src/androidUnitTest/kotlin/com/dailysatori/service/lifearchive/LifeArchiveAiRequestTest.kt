@@ -70,7 +70,7 @@ class LifeArchiveAiRequestTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val configs = AIConfigRepository(DailySatoriDatabase(driver), PlainCipher)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
             configs.insert("openai", "https://example.com/v1", "test", "test-model", isDefault = 1)
             val requests = mutableListOf<JsonObject>()
             HttpClient(MockEngine { request ->

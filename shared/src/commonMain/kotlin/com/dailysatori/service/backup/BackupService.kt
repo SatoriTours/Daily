@@ -8,6 +8,8 @@ import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.platform.DatabaseDriverFactory
 import com.dailysatori.platform.FileManager
+import com.dailysatori.service.security.DatabaseKey
+import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretFieldProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +45,7 @@ class BackupService internal constructor(
     private val files: BackupFiles,
     private val settings: BackupSettings,
     private val passwords: BackupPasswords,
-    private val secrets: BackupSecrets,
+    private val secrets: BackupDatabaseAccess,
     private val clock: Clock = Clock.System,
     private val lifeArchive: LifeArchiveBackup,
 ) {
@@ -58,7 +60,7 @@ class BackupService internal constructor(
         files = FileManagerBackupFiles(fileManager),
         settings = SettingRepositoryBackupSettings(settingRepo),
         passwords = BackupPasswordStorePasswords(passwordStore),
-        secrets = DatabaseBackupSecrets(databaseDriverFactory, secretCipher),
+        secrets = DatabaseBackupAccess(databaseDriverFactory, secretCipher),
         lifeArchive = lifeArchive,
     )
 
@@ -183,17 +185,18 @@ class BackupService internal constructor(
         diagnostics.note("manifestSchemaVersion=${manifest?.schemaVersion ?: "legacy"}")
         stage(BackupVerificationStage.DATABASE, 0.7)
         val database = "$content/${DatabaseConfig.name}"
+        val portableKey = readPortableKey(content, manifest, actual)
         verificationStep(diagnostics, "check_database_integrity") {
             check(files.exists(database)) { "备份中未找到数据库文件" }
-            secrets.checkBackupDatabase(database)
+            secrets.checkBackupDatabase(database, portableKey)
         }
         stage(BackupVerificationStage.PREPARING, 0.75)
-        verificationStep(diagnostics, "migrate_and_prepare_secrets") { secrets.prepareRestoredSecrets(database) }
+        val key = verificationStep(diagnostics, "migrate_and_prepare_secrets") { secrets.prepareRestoredDatabase(database, portableKey) }
         verificationStep(diagnostics, "relocate_and_check_attachments") {
-            secrets.relocateRestoredData(database, files.getAppDataDir(), directory, actual)
+            secrets.relocateRestoredData(database, files.getAppDataDir(), directory, actual, key)
         }
         val summary = verificationStep(diagnostics, "check_schema_and_read_counts") {
-            secrets.backupDatabaseSummary(database).toMutableMap()
+            secrets.backupDatabaseSummary(database, key).toMutableMap()
         }
         stage(BackupVerificationStage.LIFE_ARCHIVE, 0.9)
         if (LifeArchiveBackupName in actual) {
@@ -263,11 +266,12 @@ class BackupService internal constructor(
         _progress.value = 0.05
         _lastMessage.value = "Preparing backup..."
         val database = "$directory/${DatabaseConfig.name}"
-        files.createDatabaseSnapshot(database)
-        secrets.decryptSecretsForBackup(database)
+        val key = secrets.exportSnapshot(database)
+        val keyPath = "$directory/$DatabaseKeyBackupName"
+        files.writeFile(keyPath, key.portableJson().encodeToByteArray())
         _progress.value = 0.1
         _lastMessage.value = "Collecting user files..."
-        val content = mutableListOf(database)
+        val content = mutableListOf(database, keyPath)
         val appDataDir = files.getAppDataDir()
         val userFiles = files.listFilesRecursively(appDataDir).filter { isBackupUserFile(it.removePrefix("$appDataDir/")) }
         userFiles.forEachIndexed { index, path ->
@@ -288,9 +292,9 @@ class BackupService internal constructor(
                 _progress.value = 0.35 + 0.15 * (index + 1) / content.size
             }
         }
-        val required = secrets.requiredUserFiles(database, appDataDir)
+        val required = secrets.requiredUserFiles(database, appDataDir, key)
         check(entries.map { it.path }.containsAll(required)) { "存在缺失的附件，无法创建完整备份" }
-        val manifest = BackupManifest(schemaVersion = DatabaseConfig.currentSchemaVersion, sourceAppDataDir = appDataDir, files = entries)
+        val manifest = BackupManifest(formatVersion = 2, schemaVersion = DatabaseConfig.currentSchemaVersion, sourceAppDataDir = appDataDir, files = entries)
         val manifestPath = "$directory/$BackupManifestName"
         files.writeFile(manifestPath, Json.encodeToString(manifest).encodeToByteArray())
         _progress.value = 0.5
@@ -338,6 +342,7 @@ class BackupService internal constructor(
             files.createDirectory(tempDir)
             if (!extractRestore(backupDir, name, password, tempDir, fileUri)) return false
             val prepared = prepareRestoreData(tempDir, backupDir, password)
+            currentCoroutineContext().ensureActive()
             val preservesLifeArchive = files.exists("$prepared/preserve-life-archive")
             _lastMessage.value = "Staging restore..."
             files.stageRestore(prepared)
@@ -389,16 +394,20 @@ class BackupService internal constructor(
     private suspend fun prepareRestoreData(tempDir: String, backupDir: String, password: String): String {
         val restoredFiles = files.listFilesRecursively(tempDir).map { it.removePrefix("$tempDir/") }.toSet()
         _lastMessage.value = "Validating backup..."
-        validateManifest(tempDir, restoredFiles)
+        val manifest = validateManifest(tempDir, restoredFiles)
+        val portableKey = readPortableKey(tempDir, manifest, restoredFiles)
         _lastMessage.value = "Preparing restore..."
         val database = "$tempDir/${DatabaseConfig.name}"
         check(files.exists(database)) { "备份中未找到数据库文件" }
-        secrets.prepareRestoredSecrets(database)
-        secrets.relocateRestoredData(database, files.getAppDataDir(), backupDir, restoredFiles)
+        secrets.checkBackupDatabase(database, portableKey)
+        val key = secrets.prepareRestoredDatabase(database, portableKey)
+        secrets.relocateRestoredData(database, files.getAppDataDir(), backupDir, restoredFiles, key)
+        secrets.backupDatabaseSummary(database, key)
         _progress.value = 0.7
         val prepared = "$tempDir/_restore"
         deleteRecursive(prepared)
         files.createDirectory("$prepared/app_data")
+        files.writeFile("$prepared/database_key.sec", secrets.wrapRestoredKey(key))
         files.moveFile(database, "$prepared/database.db")
         restoredFiles.filter(::isBackupUserFile).forEach { relative ->
             files.moveFile("$tempDir/$relative", "$prepared/app_data/$relative")
@@ -417,20 +426,31 @@ class BackupService internal constructor(
     private fun validateManifest(directory: String, actualFiles: Set<String>, checkpoint: () -> Unit = {}): BackupManifest? {
         if (BackupManifestName !in actualFiles) return null // Legacy encrypted backups have no content manifest.
         val manifest = Json.decodeFromString<BackupManifest>(files.readFile("$directory/$BackupManifestName").decodeToString())
-        require(manifest.formatVersion == 1 && manifest.schemaVersion in 0..DatabaseConfig.currentSchemaVersion) {
+        require(manifest.formatVersion in 1..2 && manifest.schemaVersion in 0..DatabaseConfig.currentSchemaVersion) {
             "备份版本较新，请先升级应用"
         }
         val names = manifest.files.map { it.path }
         require(names.size == names.distinct().size && DatabaseConfig.name in names && LifeArchiveBackupName in names)
+        require((DatabaseKeyBackupName in names) == (manifest.formatVersion == 2)) { "备份密钥描述缺失或格式不匹配" }
         require(actualFiles == names.toSet() + BackupManifestName) { "备份内容不完整或包含未登记文件" }
         manifest.files.forEachIndexed { index, entry ->
             checkpoint()
-            require(entry.path == DatabaseConfig.name || entry.path == LifeArchiveBackupName || isBackupUserFile(entry.path))
+            require(entry.path == DatabaseConfig.name || entry.path == LifeArchiveBackupName ||
+                (manifest.formatVersion == 2 && entry.path == DatabaseKeyBackupName) || isBackupUserFile(entry.path))
             val path = "$directory/${entry.path}"
             require(files.fileSize(path) == entry.size && files.sha256(path) == entry.sha256) { "备份文件校验失败" }
             _progress.value = 0.6 + 0.1 * (index + 1) / manifest.files.size
         }
         return manifest
+    }
+
+    private fun readPortableKey(directory: String, manifest: BackupManifest?, actual: Set<String>): DatabaseKey? {
+        require(actual.all { it == DatabaseConfig.name || it == LifeArchiveBackupName || it == BackupManifestName ||
+            (manifest?.formatVersion == 2 && it == DatabaseKeyBackupName) || isBackupUserFile(it) }) { "备份包含不允许恢复的文件" }
+        if (manifest?.formatVersion != 2) return null
+        val path = "$directory/$DatabaseKeyBackupName"
+        require(DatabaseKeyBackupName in actual && files.fileSize(path) in 1..1024) { "无效数据库密钥描述" }
+        return DatabaseKey.fromPortableJson(files.readFile(path).decodeToString())
     }
 
     fun listBackups(): List<BackupEntry> {
@@ -572,13 +592,14 @@ internal interface BackupPasswords {
     fun encryptedPassword(password: String): ByteArray
 }
 
-internal interface BackupSecrets {
-    fun decryptSecretsForBackup(databasePath: String)
-    fun prepareRestoredSecrets(databasePath: String)
-    fun requiredUserFiles(databasePath: String, appDataDir: String): List<String>
-    fun checkBackupDatabase(databasePath: String)
-    fun backupDatabaseSummary(databasePath: String): Map<String, Long>
-    fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>)
+internal interface BackupDatabaseAccess {
+    fun exportSnapshot(databasePath: String): DatabaseKey
+    fun prepareRestoredDatabase(databasePath: String, key: DatabaseKey?): DatabaseKey
+    fun wrapRestoredKey(key: DatabaseKey): ByteArray
+    fun requiredUserFiles(databasePath: String, appDataDir: String, key: DatabaseKey): List<String>
+    fun checkBackupDatabase(databasePath: String, key: DatabaseKey?)
+    fun backupDatabaseSummary(databasePath: String, key: DatabaseKey): Map<String, Long>
+    fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey)
 }
 
 private class FileManagerBackupFiles(private val fileManager: FileManager) : BackupFiles {
@@ -632,54 +653,51 @@ private class BackupPasswordStorePasswords(private val passwordStore: BackupPass
     override fun encryptedPassword(password: String): ByteArray = passwordStore.encryptedPassword(password)
 }
 
-private class DatabaseBackupSecrets(
-    private val databaseDriverFactory: DatabaseDriverFactory,
-    private val secretCipher: SecretCipher,
-) : BackupSecrets {
-    override fun decryptSecretsForBackup(databasePath: String) {
-        val driver = databaseDriverFactory.createDriver(databasePath)
-        try {
-            SecretFieldProcessor(driver, secretCipher).decryptSecretsForBackup()
-        } finally {
-            driver.close()
+private class DatabaseBackupAccess(
+    private val factory: DatabaseDriverFactory,
+    private val legacyCipher: SecretValueCipher,
+) : BackupDatabaseAccess {
+    override fun exportSnapshot(databasePath: String): DatabaseKey {
+        val key = factory.readDatabaseKey()
+        withDatabase(DatabaseConfig.name, key) { exportEncryptedDatabase(it, databasePath, key) }
+        checkBackupDatabase(databasePath, key)
+        return key
+    }
+
+    override fun prepareRestoredDatabase(databasePath: String, key: DatabaseKey?): DatabaseKey {
+        val restoredKey = key ?: DatabaseKey.generate().also { factory.encryptLegacyDatabase(databasePath, it) }
+        withDatabase(databasePath, restoredKey) { BackupDatabaseData(it).prepareSecrets(legacyCipher, legacyFields = false) }
+        checkBackupDatabase(databasePath, restoredKey)
+        return restoredKey
+    }
+
+    override fun wrapRestoredKey(key: DatabaseKey): ByteArray = factory.wrapDatabaseKey(key)
+    override fun requiredUserFiles(databasePath: String, appDataDir: String, key: DatabaseKey): List<String> =
+        withDatabase(databasePath, key) { BackupDatabaseData(it).userFiles(appDataDir) }
+
+    override fun checkBackupDatabase(databasePath: String, key: DatabaseKey?) {
+        withDatabase(databasePath, key) { driver ->
+            BackupDatabaseData(driver).checkBackupDatabase()
+            if (key != null) check(driver.executeQuery(null, "PRAGMA cipher_integrity_check", { cursor ->
+                app.cash.sqldelight.db.QueryResult.Value(!cursor.next().value)
+            }, 0).value) { "数据库加密完整性检查失败" }
         }
     }
 
-    override fun prepareRestoredSecrets(databasePath: String) {
-        val driver = databaseDriverFactory.createDriver(databasePath)
-        try {
-            BackupDatabaseData(driver).prepareSecrets(secretCipher)
-        } finally {
-            driver.close()
-        }
-    }
-
-    override fun requiredUserFiles(databasePath: String, appDataDir: String): List<String> =
-        withDatabase(databasePath) { BackupDatabaseData(it).userFiles(appDataDir) }
-
-    override fun checkBackupDatabase(databasePath: String) {
-        withBackupDatabase(databasePath) { BackupDatabaseData(it).checkBackupDatabase() }
-    }
-
-    override fun backupDatabaseSummary(databasePath: String): Map<String, Long> {
-        val reference = databaseDriverFactory.createInMemoryDriver()
+    override fun backupDatabaseSummary(databasePath: String, key: DatabaseKey): Map<String, Long> {
+        val reference = factory.createInMemoryDriver()
         return try {
             val schema = BackupDatabaseData(reference).schemaColumns()
-            withBackupDatabase(databasePath) { BackupDatabaseData(it).verifiedSummary(schema) }
+            withDatabase(databasePath, key) { BackupDatabaseData(it).verifiedSummary(schema) }
         } finally { reference.close() }
     }
 
-    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>) {
-        withDatabase(databasePath) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }
+    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey) {
+        withDatabase(databasePath, key) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }
     }
 
-    private fun <T> withBackupDatabase(path: String, block: (app.cash.sqldelight.db.SqlDriver) -> T): T {
-        val driver = databaseDriverFactory.createBackupDriver(path)
-        return try { block(driver) } finally { driver.close() }
-    }
-
-    private fun <T> withDatabase(path: String, block: (app.cash.sqldelight.db.SqlDriver) -> T): T {
-        val driver = databaseDriverFactory.createDriver(path)
+    private fun <T> withDatabase(path: String, key: DatabaseKey?, block: (app.cash.sqldelight.db.SqlDriver) -> T): T {
+        val driver = factory.createBackupDriver(path, key)
         return try { block(driver) } finally { driver.close() }
     }
 }

@@ -27,10 +27,10 @@ class PhoneAiLiveTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val configs = AIConfigRepository(db, PlainCipher)
+            val configs = AIConfigRepository(db)
             configs.insert(required("provider"), required("apiAddress"), required("apiToken"), required("modelName"), 1)
             HttpClient(OkHttp) { install(HttpTimeout) { requestTimeoutMillis = 90_000; connectTimeoutMillis = 15_000 } }.use { client ->
-                val service = SmsReminderService(SmsSourceRepository(db, PlainCipher), ReminderRepository(db), SettingRepository(db),
+                val service = SmsReminderService(SmsSourceRepository(db), ReminderRepository(db), SettingRepository(db),
                     SmsReminderAi(AiService(client), configs))
                 for ((text, category) in listOf("请领取包裹" to "pickup", "Please renew service" to "renewal")) {
                     val draft = assertNotNull(service.analyzeDraft(SmsSource("synthetic", text), Clock.System.now(), TimeZone.UTC))

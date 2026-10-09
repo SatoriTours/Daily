@@ -2,7 +2,6 @@ package com.dailysatori.data.repository
 
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
-import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_source
 import app.cash.sqldelight.coroutines.asFlow
@@ -12,38 +11,27 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 
-class ExternalFavoriteSourceRepository(
-    private val db: DailySatoriDatabase,
-    private val encryptSecret: (String) -> String,
-    private val decryptSecret: (String) -> String,
-    private val isSecretEncrypted: (String) -> Boolean = { false },
-) {
-    constructor(db: DailySatoriDatabase, secretCipher: SecretCipher) : this(
-        db = db,
-        encryptSecret = { value -> secretCipher.encrypt(value) },
-        decryptSecret = { value -> secretCipher.decrypt(value) },
-        isSecretEncrypted = { value -> secretCipher.isEncrypted(value) },
-    )
+class ExternalFavoriteSourceRepository(private val db: DailySatoriDatabase) {
 
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): List<External_favorite_source> =
-        q.selectExternalFavoriteSources().executeAsList().map(::decryptSource)
+        q.selectExternalFavoriteSources().executeAsList()
 
     fun observeAll(): Flow<List<External_favorite_source>> =
-        q.selectExternalFavoriteSources().asFlow().mapToList(Dispatchers.IO).map { it.map(::decryptSource) }
+        q.selectExternalFavoriteSources().asFlow().mapToList(Dispatchers.IO)
 
     fun getEnabled(): List<External_favorite_source> =
-        q.selectEnabledExternalFavoriteSources().executeAsList().map(::decryptSource)
+        q.selectEnabledExternalFavoriteSources().executeAsList()
 
     fun observeEnabled(): Flow<List<External_favorite_source>> =
-        q.selectEnabledExternalFavoriteSources().asFlow().mapToList(Dispatchers.IO).map { it.map(::decryptSource) }
+        q.selectEnabledExternalFavoriteSources().asFlow().mapToList(Dispatchers.IO)
 
     fun getById(id: Long): External_favorite_source? =
-        q.selectExternalFavoriteSourceById(id).executeAsOneOrNull()?.let(::decryptSource)
+        q.selectExternalFavoriteSourceById(id).executeAsOneOrNull()
 
     fun getByProviderAccount(provider: String, accountId: String): External_favorite_source? =
-        q.selectExternalFavoriteSourceByProviderAccount(provider, accountId).executeAsOneOrNull()?.let(::decryptSource)
+        q.selectExternalFavoriteSourceByProviderAccount(provider, accountId).executeAsOneOrNull()
 
     fun save(
         id: Long? = null,
@@ -60,7 +48,7 @@ class ExternalFavoriteSourceRepository(
     ): Long {
         val now = Clock.System.now().toEpochMilliseconds()
         val enabledValue = if (enabled) 1L else 0L
-        val encryptedAuth = encryptSecret(authJson.trim())
+        val auth = authJson.trim()
         val resolvedId = id ?: q.selectExternalFavoriteSourceByProviderAccount(provider.trim(), accountId.trim())
             .executeAsOneOrNull()
             ?.id
@@ -73,7 +61,7 @@ class ExternalFavoriteSourceRepository(
                 enabledValue,
                 syncIntervalMinutes,
                 status,
-                encryptedAuth,
+                auth,
                 configJson,
                 capabilitiesJson,
                 now,
@@ -88,7 +76,7 @@ class ExternalFavoriteSourceRepository(
             enabledValue,
             syncIntervalMinutes,
             status,
-            encryptedAuth,
+            auth,
             configJson,
             capabilitiesJson,
             now,
@@ -123,7 +111,7 @@ class ExternalFavoriteSourceRepository(
             source.enabled,
             source.sync_interval_minutes,
             source.status,
-            encryptSecret(authJson.trim()),
+            authJson.trim(),
             source.config_json,
             source.capabilities_json,
             Clock.System.now().toEpochMilliseconds(),
@@ -147,24 +135,6 @@ class ExternalFavoriteSourceRepository(
         )
     }
 
-    fun encryptStoredSecrets() {
-        q.selectExternalFavoriteSources().executeAsList()
-            .filter { it.auth_json.isNotBlank() && !isSecretEncrypted(it.auth_json) }
-            .forEach { source ->
-                q.updateExternalFavoriteSource(
-                    source.display_name,
-                    source.account_name,
-                    source.enabled,
-                    source.sync_interval_minutes,
-                    source.status,
-                    encryptSecret(source.auth_json),
-                    source.config_json,
-                    source.capabilities_json,
-                    Clock.System.now().toEpochMilliseconds(),
-                    source.id,
-                )
-            }
-    }
 
     fun markAuthCheckRequiredAfterRestore() {
         q.selectExternalFavoriteSources().executeAsList()
@@ -274,6 +244,4 @@ class ExternalFavoriteSourceRepository(
         )
     }
 
-    private fun decryptSource(source: External_favorite_source): External_favorite_source =
-        source.copy(auth_json = decryptSecret(source.auth_json))
 }

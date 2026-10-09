@@ -3,15 +3,16 @@ package com.dailysatori.data.repository
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class SkillConfigRepositorySourceTest {
     @Test
-    fun repositoryEncryptsTokensAndProtectsBuiltIns() {
+    fun repositoryUsesDatabaseProtectionAndProtectsBuiltIns() {
         val source = File("src/commonMain/kotlin/com/dailysatori/data/repository/SkillConfigRepository.kt").readText()
 
-        assertTrue(source.contains("SecretCipher"))
-        assertTrue(source.contains("secretCipher.encrypt(apiToken)"))
-        assertTrue(source.contains("secretCipher.decrypt"))
+        assertFalse(source.contains("SecretCipher"))
+        assertFalse(source.contains("secretCipher.encrypt"))
+        assertFalse(source.contains("secretCipher.decrypt"))
         assertTrue(source.contains("deleteSkillConfig"))
         assertTrue(source.contains("canDeleteSkill"))
     }

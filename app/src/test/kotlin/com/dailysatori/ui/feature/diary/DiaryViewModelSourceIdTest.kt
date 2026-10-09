@@ -256,7 +256,7 @@ class DiaryViewModelSourceIdTest {
                 diaryRepo = diaryRepository,
                 summaryRepo = monthSummaryRepository,
                 aiConfigService = AiConfigService(
-                    AIConfigRepository(database, PlainSecretCipher),
+                    AIConfigRepository(database),
                 ),
                 aiService = AiService(httpClient),
                 threads = DiaryThreadRepository(database, driver),

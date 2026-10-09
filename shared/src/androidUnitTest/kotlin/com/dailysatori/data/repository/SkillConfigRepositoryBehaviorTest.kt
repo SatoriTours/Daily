@@ -5,12 +5,11 @@ import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class SkillConfigRepositoryBehaviorTest {
     @Test
-    fun insertStoresEncryptedTokenButReadsDecrypted() = withRepository { db, repository ->
+    fun insertStoresOrdinaryTokenInsideProtectedDatabase() = withRepository { db, repository ->
         repository.insert(
             name = "Custom",
             description = "",
@@ -23,13 +22,12 @@ class SkillConfigRepositoryBehaviorTest {
         val raw = db.dailySatoriQueries.selectAllSkillConfigs().executeAsList().single()
         val decrypted = repository.getById(raw.id)
 
-        assertNotEquals("plain-token", raw.api_token)
-        assertEquals("test-encrypted:plain-token", raw.api_token)
+        assertEquals("plain-token", raw.api_token)
         assertEquals("plain-token", decrypted?.api_token)
     }
 
     @Test
-    fun updateReEncryptsTokenButReadsDecrypted() = withRepository { db, repository ->
+    fun updatePreservesOrdinaryTokenOnReload() = withRepository { db, repository ->
         repository.insert("Custom", "", "https://example.com/gateway", "first", "1.0.0", enabled = 1)
         val id = db.dailySatoriQueries.selectAllSkillConfigs().executeAsList().single().id
 
@@ -49,7 +47,7 @@ class SkillConfigRepositoryBehaviorTest {
         val raw = db.dailySatoriQueries.selectSkillConfigById(id).executeAsOne()
         val decrypted = repository.getById(id)
 
-        assertEquals("test-encrypted:second", raw.api_token)
+        assertEquals("second", raw.api_token)
         assertEquals("second", decrypted?.api_token)
         assertEquals("Updated", decrypted?.name)
     }
@@ -128,11 +126,7 @@ class SkillConfigRepositoryBehaviorTest {
         DailySatoriDatabase.Schema.create(driver)
         try {
             val db = DailySatoriDatabase(driver)
-            val repository = SkillConfigRepository(
-                db = db,
-                encryptSecret = { value -> if (value.isBlank()) value else "test-encrypted:$value" },
-                decryptSecret = { value -> value.removePrefix("test-encrypted:") },
-            )
+            val repository = SkillConfigRepository(db = db)
             test(db, repository)
         } finally {
             driver.close()

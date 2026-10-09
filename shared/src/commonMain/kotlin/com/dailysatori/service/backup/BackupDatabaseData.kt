@@ -45,12 +45,12 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         return counts.filterKeys { it in setOf("diary", "article", "book", "bookkeeping_entry", "reminder", "setting") }
     }
 
-    fun prepareSecrets(cipher: SecretValueCipher) {
+    fun prepareSecrets(cipher: SecretValueCipher, legacyFields: Boolean = true) {
         val settings = SettingRepository(DailySatoriDatabase(driver))
         val version = settings.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0
         check(version <= DatabaseConfig.currentSchemaVersion) { "备份版本较新，请先升级应用" }
-        DatabaseMigration(driver, settings, cipher).runMigrations()
-        SecretFieldProcessor(driver, cipher).prepareRestoredSecrets(strict = true)
+        if (legacyFields) SecretFieldProcessor(driver, cipher).decryptLegacyFields()
+        DatabaseMigration(driver, settings).runMigrations()
     }
 
     fun userFiles(appDataDir: String): List<String> {

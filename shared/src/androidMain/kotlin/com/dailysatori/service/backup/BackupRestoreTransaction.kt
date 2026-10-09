@@ -14,6 +14,8 @@ internal class BackupRestoreTransaction(
     private val database: File,
     private val lifeArchive: File,
     private val password: File,
+    private val databaseKey: File? = null,
+    private val prepareIncoming: (File) -> Unit = {},
     private val move: (File, File) -> Unit = { source, target ->
         target.parentFile?.mkdirs()
         Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
@@ -29,6 +31,7 @@ internal class BackupRestoreTransaction(
     fun stage(prepared: File) {
         check(!ready.exists() && !journal.exists()) { "已有待恢复数据，请重启应用" }
         check(File(prepared, "database.db").isFile && File(prepared, "app_data").isDirectory)
+        if (databaseKey != null) check(File(prepared, "database_key.sec").isFile) { "缺少待恢复数据库密钥" }
         root.deleteRecursively()
         check(root.mkdirs())
         try {
@@ -64,6 +67,14 @@ internal class BackupRestoreTransaction(
         if (!ready.exists()) {
             root.deleteRecursively()
             return null
+        }
+        try { prepareIncoming(incoming) }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            val message = "恢复失败，原有数据已保留"
+            durableWrite(rolledBack, message)
+            discardFinished()
+            return message
         }
         val plan = RestoreJournal(targets().map { (key, file) -> RestoreItem(key, file.exists()) })
         durableWrite(journal, Json.encodeToString(plan))
@@ -103,6 +114,7 @@ internal class BackupRestoreTransaction(
             "database.db-journal" to File("${database.path}-journal")) +
             names.map { "app_data/$it" to File(appData, it) } +
             listOfNotNull(
+                databaseKey?.let { "database_key.sec" to it },
                 ("life_archive" to lifeArchive).takeIf { File(incoming, "life_archive").exists() },
                 ("backup_password.sec" to password).takeIf { File(incoming, "backup_password.sec").exists() },
             )
@@ -115,6 +127,7 @@ internal class BackupRestoreTransaction(
         "database.db-journal" -> File("${database.path}-journal")
         "life_archive" -> lifeArchive
         "backup_password.sec" -> password
+        "database_key.sec" -> checkNotNull(databaseKey)
         else -> {
             require(key.startsWith("app_data/") && isBackupUserFile(key.removePrefix("app_data/")) &&
                 '/' !in key.removePrefix("app_data/"))

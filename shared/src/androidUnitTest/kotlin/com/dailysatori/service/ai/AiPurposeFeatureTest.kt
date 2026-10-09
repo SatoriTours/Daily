@@ -55,7 +55,7 @@ class AiPurposeFeatureTest {
     private suspend fun withServices(status: HttpStatusCode = HttpStatusCode.OK, test: suspend (AIConfigRepository, AiService, AiConfigService, AiConversationSessionStore, List<Pair<String, JsonObject>>) -> Unit) {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
-            val repo = AIConfigRepository(DailySatoriDatabase(driver), PlainCipher)
+            val repo = AIConfigRepository(DailySatoriDatabase(driver))
             repo.insert("openai", "https://default.example/v1", "test-token", "default-model", 1)
             repo.insert("opencode-go", "https://fast.example/v1", "test-token", "deepseek-v4-flash")
             repo.insert("opencode-go", "https://deep.example/v1", "test-token", "deepseek-v4-pro")

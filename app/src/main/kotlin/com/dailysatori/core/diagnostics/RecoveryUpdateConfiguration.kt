@@ -1,7 +1,6 @@
 package com.dailysatori.core.diagnostics
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.service.InstalledBuild
 import com.dailysatori.core.service.UpdateChannel
@@ -21,21 +20,15 @@ internal fun resolveRecoveryUpdateConfiguration(
             (settings[SettingKeys.schemaVersion] != null && schema == null))
 }
 
-/** No SQLDelight driver, migrations, secrets or business services are opened in recovery. */
-internal fun readRecoveryUpdateConfiguration(context: Context, installed: InstalledBuild): RecoveryUpdateConfiguration {
-    val file = context.getDatabasePath("daily_satori.db")
-    if (!file.isFile) return resolveRecoveryUpdateConfiguration(emptyMap(), installed)
-    return try {
-        val values = SQLiteDatabase.openDatabase(file.path, null,
-            SQLiteDatabase.OPEN_READONLY or SQLiteDatabase.NO_LOCALIZED_COLLATORS).use { database ->
-            database.rawQuery("SELECT key, value FROM setting WHERE key IN (?, ?)",
-                arrayOf("update_channel", SettingKeys.schemaVersion)).use { cursor ->
-                buildMap<String, String?> {
-                    while (cursor.moveToNext()) put(cursor.getString(0), cursor.getString(1))
-                }
-            }
-        }
-        resolveRecoveryUpdateConfiguration(values, installed)
-    } catch (cancelled: CancellationException) { throw cancelled }
-    catch (_: Exception) { resolveRecoveryUpdateConfiguration(emptyMap(), installed, unavailable = true) }
-}
+/** No SQLDelight driver, migrations or business services are opened in recovery. */
+internal fun readRecoveryUpdateConfiguration(context: Context, installed: InstalledBuild): RecoveryUpdateConfiguration =
+    loadRecoveryUpdateConfiguration(installed) {
+        com.dailysatori.platform.readRecoverySettings(com.dailysatori.platform.PlatformContext(context))
+    }
+
+internal fun loadRecoveryUpdateConfiguration(installed: InstalledBuild,
+    readSettings: () -> Map<String, String?>): RecoveryUpdateConfiguration = try {
+    resolveRecoveryUpdateConfiguration(readSettings(), installed)
+} catch (cancelled: CancellationException) { throw cancelled }
+catch (_: Exception) { resolveRecoveryUpdateConfiguration(emptyMap(), installed, unavailable = true) }
+catch (_: LinkageError) { resolveRecoveryUpdateConfiguration(emptyMap(), installed, unavailable = true) }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.async
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -18,6 +19,36 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 
 class BackupServiceTest {
+    @Test fun portableRestoreUsesTheProvidedKeyAndRejectsMissingDescriptorsBeforeStaging() = runBlocking {
+        val key = com.dailysatori.service.security.DatabaseKey.fromHex("12".repeat(32))
+        val content = mapOf("daily_satori.db" to "restored-db", "life_archive.json" to "{\"records\":[]}",
+            "database_key.json" to key.portableJson())
+        val manifest = BackupManifest(formatVersion = 2, schemaVersion = DatabaseConfig.currentSchemaVersion,
+            sourceAppDataDir = "/old", files = content.map { BackupManifestFile(it.key, it.value.encodeToByteArray().size.toLong(), it.value) })
+        val extra = content.filterKeys { it != "daily_satori.db" } + ("manifest.json" to Json.encodeToString(manifest))
+        val fixture = backupFixture()
+        fixture.files.seedRestorableBackup("portable.enc", "password", extraFiles = extra)
+        assertTrue(fixture.service.restore("portable.enc", "password"))
+        assertContentEquals(key.sqlCipherPassword(), fixture.secrets.restoredKeys.single()!!.sqlCipherPassword())
+        assertTrue(fixture.files.exists("/pending/database_key.sec"))
+        val missing = backupFixture()
+        missing.files.seedRestorableBackup("missing.enc", "password", extraFiles = extra - "database_key.json")
+        assertFalse(missing.service.restore("missing.enc", "password"))
+        assertTrue(missing.secrets.preparedRestoredDatabases.isEmpty())
+        assertFalse(missing.files.exists("/pending/database.db"))
+    }
+
+    @Test fun backupCarriesPortableDatabaseKeyButNeverDeviceKeyEnvelopes() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.getDatabasePath(), "database")
+        fixture.files.seedFile("/app/database_key.sec", "must not export")
+        fixture.files.seedFile("/app/backup_password.sec", "must not export")
+        assertTrue(fixture.service.backupNow())
+        val entries = fixture.files.zipEntries.single()
+        assertTrue("database_key.json" in entries)
+        assertFalse("database_key.sec" in entries)
+        assertFalse("backup_password.sec" in entries)
+    }
     @Test
     fun verificationNeverFallsBackToSavedPassword() = runBlocking {
         val fixture = backupFixture()
@@ -359,6 +390,7 @@ class BackupServiceTest {
                 "images/cover.jpg",
                 "diary_images/mood.png",
                 "life_archive.json",
+                "database_key.json",
                 "manifest.json",
             ),
             fixture.files.zipEntries.single().toSet(),
@@ -642,7 +674,7 @@ private fun backupFixture(password: String? = "correct horse battery", life: Lif
     val files = FakeBackupFiles()
     val settings = mutableMapOf(SettingKeys.backupDir to "content://selected-backup-dir")
     val passwords = FakeBackupPasswords(password)
-    val secrets = FakeBackupSecrets()
+    val secrets = FakeBackupSecrets(files)
     val clock = FakeBackupClock(Instant.parse("2026-05-21T12:00:00Z"))
     return BackupFixture(
         files = files,
@@ -680,23 +712,30 @@ private class FakeBackupPasswords(private val value: String?) : BackupPasswords 
     override fun encryptedPassword(password: String) = "secured:$password".encodeToByteArray()
 }
 
-private class FakeBackupSecrets : BackupSecrets {
-    val decryptedBackupDatabases = mutableListOf<String>()
+private class FakeBackupSecrets(private val files: FakeBackupFiles) : BackupDatabaseAccess {
+    val decryptedBackupDatabases = mutableListOf<String>() // Export tracking, not field decryption.
     val preparedRestoredDatabases = mutableListOf<String>()
+    val restoredKeys = mutableListOf<com.dailysatori.service.security.DatabaseKey?>()
     var onPrepare: (() -> Unit)? = null
+    private val fixtureKey = com.dailysatori.service.security.DatabaseKey.fromHex("ab".repeat(32))
 
-    override fun decryptSecretsForBackup(databasePath: String) {
+    override fun exportSnapshot(databasePath: String): com.dailysatori.service.security.DatabaseKey {
+        files.createDatabaseSnapshot(databasePath)
         decryptedBackupDatabases += databasePath
+        return fixtureKey
     }
 
-    override fun prepareRestoredSecrets(databasePath: String) {
+    override fun prepareRestoredDatabase(databasePath: String, key: com.dailysatori.service.security.DatabaseKey?): com.dailysatori.service.security.DatabaseKey {
         onPrepare?.invoke()
         preparedRestoredDatabases += databasePath
+        restoredKeys += key
+        return key ?: fixtureKey
     }
-    override fun checkBackupDatabase(databasePath: String) = Unit
-    override fun backupDatabaseSummary(databasePath: String) = emptyMap<String, Long>()
-    override fun requiredUserFiles(databasePath: String, appDataDir: String) = emptyList<String>()
-    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>) = Unit
+    override fun wrapRestoredKey(key: com.dailysatori.service.security.DatabaseKey) = "device-wrapped-key".encodeToByteArray()
+    override fun checkBackupDatabase(databasePath: String, key: com.dailysatori.service.security.DatabaseKey?) = Unit
+    override fun backupDatabaseSummary(databasePath: String, key: com.dailysatori.service.security.DatabaseKey) = emptyMap<String, Long>()
+    override fun requiredUserFiles(databasePath: String, appDataDir: String, key: com.dailysatori.service.security.DatabaseKey) = emptyList<String>()
+    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: com.dailysatori.service.security.DatabaseKey) = Unit
 }
 
 private class FakeBackupFiles : BackupFiles {

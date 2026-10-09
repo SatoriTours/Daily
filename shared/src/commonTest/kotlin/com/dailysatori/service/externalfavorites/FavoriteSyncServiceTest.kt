@@ -2158,12 +2158,7 @@ class FavoriteSyncServiceTest {
         driver.execute(null, "PRAGMA foreign_keys=ON", 0)
         DailySatoriDatabase.Schema.create(driver)
         val db = DailySatoriDatabase(driver)
-        val sources = ExternalFavoriteSourceRepository(
-            db = db,
-            encryptSecret = { value -> if (value.isBlank()) value else "enc:v1:$value" },
-            decryptSecret = { value -> value.removePrefix("enc:v1:") },
-            isSecretEncrypted = { value -> value.startsWith("enc:v1:") },
-        )
+        val sources = ExternalFavoriteSourceRepository(db = db)
         val items = ExternalFavoriteItemRepository(db)
         val articles = ArticleRepository(db)
         block(db, sources, items, articles)

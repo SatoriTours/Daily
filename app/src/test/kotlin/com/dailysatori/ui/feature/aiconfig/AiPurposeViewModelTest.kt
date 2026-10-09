@@ -53,7 +53,7 @@ class AiPurposeViewModelTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
         val db = DailySatoriDatabase(driver)
-        val repo = AIConfigRepository(db, NoOpCipher)
+        val repo = AIConfigRepository(db)
         var vm: AiPurposeViewModel? = null
 
         try {

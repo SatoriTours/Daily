@@ -32,7 +32,7 @@ class ReminderAiLiveTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val configs = AIConfigRepository(DailySatoriDatabase(driver), PlainCipher)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
             configs.insert(config.required("provider"), config.required("apiAddress"),
                 config.required("apiToken"), config.required("modelName"), isDefault = 1)
             HttpClient(OkHttp) {

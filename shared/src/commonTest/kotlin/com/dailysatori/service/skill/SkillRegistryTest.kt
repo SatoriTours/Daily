@@ -138,11 +138,7 @@ class SkillRegistryTest {
         DailySatoriDatabase.Schema.create(driver)
         try {
             val db = DailySatoriDatabase(driver)
-            val repository = SkillConfigRepository(
-                db = db,
-                encryptSecret = { value -> if (value.isBlank()) value else "test-encrypted:$value" },
-                decryptSecret = { value -> value.removePrefix("test-encrypted:") },
-            )
+            val repository = SkillConfigRepository(db = db)
             test(SkillRegistry(repository), repository)
         } finally {
             driver.close()

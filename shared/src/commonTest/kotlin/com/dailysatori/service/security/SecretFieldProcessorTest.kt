@@ -10,6 +10,24 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 
 class SecretFieldProcessorTest {
+    @Test fun legacyConversionIsStrictAtomicAndSkipsMissingColumns() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.execute(null, "CREATE TABLE old(value TEXT)", 0)
+            driver.execute(null, "INSERT INTO old VALUES ('enc:v1:good'), ('enc:v1:lost')", 0)
+            val cipher = object : SecretValueCipher {
+                override fun encrypt(value: String) = error("must not re-encrypt")
+                override fun isEncrypted(value: String) = value.startsWith("enc:v1:")
+                override fun decrypt(value: String) = if (value.endsWith("good")) "plain'good" else value
+            }
+            val processor = SecretFieldProcessor(driver, cipher, listOf(SecretFieldSpec("old", "missing"), SecretFieldSpec("old", "value")))
+            assertFailsWith<IllegalStateException> { processor.decryptLegacyFields() }
+            val value = driver.executeQuery(null, "SELECT value FROM old LIMIT 1", { c -> c.next(); app.cash.sqldelight.db.QueryResult.Value(c.getString(0)) }, 0).value
+            assertEquals("enc:v1:good", value)
+            driver.execute(null, "DELETE FROM old WHERE value='enc:v1:lost'", 0)
+            assertEquals(1, processor.decryptLegacyFields().updated)
+        } finally { driver.close() }
+    }
     @Test
     fun backupProcessesDistinctSecretsWithAndroidStyleStatementCaching() {
         val database = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)

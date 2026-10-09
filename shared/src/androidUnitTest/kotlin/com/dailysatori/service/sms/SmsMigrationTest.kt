@@ -19,7 +19,7 @@ class SmsMigrationTest {
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
             settings.upsert(SettingKeys.schemaVersion, "28")
-            DatabaseMigration(driver, settings, Cipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
             val old = db.dailySatoriQueries.selectReminderById("old").executeAsOne()
             assertEquals("保留旧待办", old.content)
             assertNull(old.deadline_at)

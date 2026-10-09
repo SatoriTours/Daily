@@ -58,7 +58,7 @@ class ArticlePipelineRepositoryTest {
     @Test fun externalChineseFavoriteUsesOverviewOnlyAndPreservesOriginal() = runBlocking {
         withArticle { db, articles, _, _ ->
             assignBackgroundModel(db)
-            val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
+            val sources = ExternalFavoriteSourceRepository(db)
             val sourceId = sources.save(provider = "x", displayName = "X", accountId = "test", accountName = "test", authJson = "{}")
             val items = ExternalFavoriteItemRepository(db)
             val original = "中文收藏先保存原文，再用一次 AI 请求生成标题和摘要。"
@@ -76,7 +76,7 @@ class ArticlePipelineRepositoryTest {
                 assertFalse(system.contains("\"markdown\""))
                 respondOverview("中文收藏处理优化", "先保存完整正文，然后生成标题和摘要。")
             }).use { client ->
-                val organizer = ExternalFavoriteAiOrganizer(items, articles, AiConfigService(AIConfigRepository(db, PlainCipher)),
+                val organizer = ExternalFavoriteAiOrganizer(items, articles, AiConfigService(AIConfigRepository(db)),
                     AiService(client), settingRepo = SettingRepository(db))
                 assertEquals(1, organizer.organizePending())
                 assertEquals(1, requests)
@@ -196,7 +196,7 @@ class ArticlePipelineRepositoryTest {
             val id = articles.createPendingFromUrl("https://example.com/article")
             val original = "# 中文文章\n\n" + "完整保存正文。".repeat(500) + "\n\n末尾结论。"
             articles.updateOriginalMarkdownContent(id, original)
-            val configs = AIConfigRepository(db, PlainCipher)
+            val configs = AIConfigRepository(db)
             configs.insert("deepseek", "https://example.com/v1", "test-key", "deepseek-flash", isDefault = 1)
             test(db, articles, id, original)
         }
@@ -204,8 +204,8 @@ class ArticlePipelineRepositoryTest {
 
     private fun parser(db: DailySatoriDatabase, client: HttpClient, covers: ArticleCoverScheduler = ArticleCoverScheduler {}) =
         WebpageParserService(ArticleRepository(db), TagRepository(db), ImageRepository(db), AiService(client),
-            AiConfigService(AIConfigRepository(db, PlainCipher)), WebViewLoader(), FileManager(), client,
-            ExternalFavoriteSourceRepository(db, { it }, { it }), XBookmarksConnector(),
+            AiConfigService(AIConfigRepository(db)), WebViewLoader(), FileManager(), client,
+            ExternalFavoriteSourceRepository(db), XBookmarksConnector(),
             settingRepo = SettingRepository(db), coverScheduler = covers)
 
     private fun MockRequestHandleScope.respondCompletion(content: String) = respond(buildJsonObject {
@@ -224,7 +224,7 @@ class ArticlePipelineRepositoryTest {
     }.toString())
 
     private fun assignBackgroundModel(db: DailySatoriDatabase) {
-        val configs = AIConfigRepository(db, PlainCipher)
+        val configs = AIConfigRepository(db)
         configs.insert("opencode-go", "https://background.example/v1", "test-token", "deepseek-v4-flash")
         val id = configs.getAllSync().single { it.model_name == "deepseek-v4-flash" }.id
         configs.setPurposeConfig(AiPurpose.EXTERNAL_CONTENT, id)

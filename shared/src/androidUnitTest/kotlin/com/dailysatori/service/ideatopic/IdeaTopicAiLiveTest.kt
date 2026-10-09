@@ -44,7 +44,7 @@ class IdeaTopicAiLiveTest {
             install(HttpTimeout) { requestTimeoutMillis = 90_000; connectTimeoutMillis = 15_000 }
         }
         try {
-            val aiConfigRepository = AIConfigRepository(fixture.db, TestCipher)
+            val aiConfigRepository = AIConfigRepository(fixture.db)
             aiConfigRepository.insert(
                 provider = required("provider"),
                 apiAddress = required("apiAddress"),

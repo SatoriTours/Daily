@@ -44,7 +44,7 @@ class IdeaTopicMigrationTest {
             val settings = SettingRepository(db)
             settings.upsert(SettingKeys.schemaVersion, "32")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
             assertTrue(DatabaseConfig.currentSchemaVersion >= 33L)
@@ -87,8 +87,8 @@ class IdeaTopicMigrationTest {
             val settings = SettingRepository(db)
             settings.upsert(SettingKeys.schemaVersion, "32")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             assertTrue(ideaTableNames(driver).containsAll(
                 listOf("idea_topic", "idea_topic_source", "idea_topic_event", "idea_topic_session", "idea_topic_message"),

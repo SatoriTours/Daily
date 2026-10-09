@@ -1,7 +1,6 @@
 package com.dailysatori.data.repository
 
 import com.dailysatori.bookkeeping.*
-import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
@@ -12,7 +11,7 @@ import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class BookkeepingRepository(private val db: DailySatoriDatabase, private val cipher: SecretValueCipher) {
+class BookkeepingRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
     private val engine = LedgerEngine()
     private val json = Json { encodeDefaults = true }
@@ -65,7 +64,7 @@ class BookkeepingRepository(private val db: DailySatoriDatabase, private val cip
 
     private fun rowsToState(rows: List<com.dailysatori.shared.db.Bookkeeping_entry>): LedgerState =
         LedgerState(entries = rows.map { row ->
-            val entry = json.decodeFromString<LedgerEntry>(cipher.decrypt(row.encrypted_payload))
+            val entry = json.decodeFromString<LedgerEntry>(row.encrypted_payload)
             require(entry.id == row.id)
             entry
         })
@@ -80,7 +79,7 @@ class BookkeepingRepository(private val db: DailySatoriDatabase, private val cip
         before.entries.filterNot { it.id in retained }.forEach { q.deleteBookkeepingEntry(it.id) }
         val now = Clock.System.now().toEpochMilliseconds()
         after.entries.filter { it != old[it.id] }.forEach {
-            q.upsertBookkeepingEntry(it.id, cipher.encrypt(json.encodeToString(it)), now, now)
+            q.upsertBookkeepingEntry(it.id, json.encodeToString(it), now, now)
         }
         Update(after, after != before)
     }

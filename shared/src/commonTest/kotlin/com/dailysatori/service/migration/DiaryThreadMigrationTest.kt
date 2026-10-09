@@ -28,7 +28,7 @@ class DiaryThreadMigrationTest {
                 transcript_status = "completed", knowledge_status = "none", error_message = "",
                 created_at = 1_000, updated_at = 1_000,
             )
-            val migration = DatabaseMigration(driver, settings, TestCipher)
+            val migration = DatabaseMigration(driver, settings)
 
             repeat(2) {
                 settings.upsert(SettingKeys.schemaVersion, "32")
@@ -61,7 +61,7 @@ class DiaryThreadMigrationTest {
             db.dailySatoriQueries.insertDiary("根", null, null, null, 1_000, 1_000)
             settings.upsert(SettingKeys.schemaVersion, "32")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             db.dailySatoriQueries.insertDiaryReply("迁移后的续写", null, null, null, 2_000, 2_000, 1)
             assertEquals(1L, db.dailySatoriQueries.selectDiaryRepliesForRoot(1).executeAsOne().parent_diary_id)
@@ -84,7 +84,7 @@ class DiaryThreadMigrationTest {
             driver.execute(null, "INSERT INTO idea_topic(id,title,status,created_at,updated_at) VALUES('topic33','升级前点子','active',1,1)", 0)
             settings.upsert(SettingKeys.schemaVersion, "33")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             assertEquals("升级前点子", db.dailySatoriQueries.selectIdeaTopicById("topic33").executeAsOne().title)
             assertEquals("升级前日记", db.dailySatoriQueries.selectDiaryById(1).executeAsOne().content)

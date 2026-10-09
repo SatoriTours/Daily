@@ -67,7 +67,11 @@ actual class FileManager actual constructor() {
         val target = File(destination).apply { parentFile?.mkdirs() }
         check(!target.exists()) { "备份临时数据库已存在" }
         val driver = DatabaseDriverFactory(PlatformContext(appContext)).createDriver()
-        try { createSqliteBackupSnapshot(driver, getDatabasePath(), destination, ::copyFile) }
+        try {
+            val key = com.dailysatori.service.security.DatabaseKeyStore(PlatformContext(appContext)).readExisting()
+                ?: throw com.dailysatori.service.security.DatabaseSecurityException()
+            com.dailysatori.service.backup.exportEncryptedDatabase(driver, destination, key)
+        }
         finally { driver.close() }
     }
 
@@ -96,10 +100,32 @@ actual class FileManager actual constructor() {
     private fun restoreTransaction() = BackupRestoreTransaction(
         File(appContext.noBackupFilesDir, "pending-restore"), appDir(), File(getDatabasePath()),
         File(appContext.noBackupFilesDir, "life_archive"), File(appContext.filesDir, "backup_password.sec"),
+        databaseKey = File(com.dailysatori.service.security.DatabaseKeyStore(PlatformContext(appContext)).storagePath()),
+        prepareIncoming = ::preparePendingDatabase,
     )
 
     actual fun stageRestore(directory: String) = restoreTransaction().stage(File(directory))
     actual fun applyPendingRestore(): String? = restoreTransaction().applyPending()
+
+    private fun preparePendingDatabase(incoming: File) {
+        val database = File(incoming, "database.db")
+        val envelope = File(incoming, "database_key.sec")
+        val keys = com.dailysatori.service.security.DatabaseKeyStore(PlatformContext(appContext))
+        if (!envelope.exists()) {
+            check(isPlaintextDatabase(database)) { "待恢复数据库缺少密钥" }
+            val key = com.dailysatori.service.security.DatabaseKey.generate()
+            val temporary = File(incoming, "database_key.sec.tmp")
+            FileOutputStream(temporary).use { it.write(keys.wrap(key)); it.fd.sync() }
+            moveFile(temporary.path, envelope.path)
+        }
+        check(envelope.length() == 93L)
+        val key = keys.unwrap(envelope.readBytes())
+        val factory = DatabaseDriverFactory(PlatformContext(appContext))
+        if (isPlaintextDatabase(database)) factory.encryptLegacyDatabase(database.path, key)
+        factory.createBackupDriver(database.path, key).let { driver ->
+            try { com.dailysatori.service.security.validate(driver) } finally { driver.close() }
+        }
+    }
 
     actual fun extractZip(zipPath: String, destDir: String, progress: (Double) -> Unit) {
         val dest = File(destDir)
@@ -173,7 +199,8 @@ actual class FileManager actual constructor() {
                     } else {
                         file.name
                     }
-                    zos.setLevel(if (file.extension.lowercase() in CompressedExtensions) java.util.zip.Deflater.NO_COMPRESSION else java.util.zip.Deflater.BEST_SPEED)
+                    val alreadyCompressed = entryName == com.dailysatori.config.DatabaseConfig.name || file.extension.lowercase() in CompressedExtensions
+                    zos.setLevel(if (alreadyCompressed) java.util.zip.Deflater.NO_COMPRESSION else java.util.zip.Deflater.BEST_SPEED)
                     zos.putNextEntry(java.util.zip.ZipEntry(entryName))
                     ProgressInputStream(file.inputStream(), file.length().coerceAtLeast(1)) { fraction ->
                         progress(((processed + fraction * file.length()) / total).coerceIn(0.0, 1.0))
@@ -190,136 +217,11 @@ actual class FileManager actual constructor() {
         return appContext.assets.open(filename).bufferedReader().readText()
     }
 
-    actual fun encryptFile(inputPath: String, outputPath: String, password: String, progress: (Double) -> Unit) {
-        val salt = ByteArray(SaltSize).also { SecureRandom().nextBytes(it) }
-        val iv = ByteArray(CtrIvSize).also { SecureRandom().nextBytes(it) }
-        val (cipherKey, macKey) = deriveStreamingKeys(password, salt)
+    actual fun encryptFile(inputPath: String, outputPath: String, password: String, progress: (Double) -> Unit) =
+        com.dailysatori.service.backup.BackupFileCipher.encrypt(File(inputPath), File(outputPath), password, progress)
 
-        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, cipherKey, IvParameterSpec(iv))
-        val mac = hmac(macKey)
-
-        File(outputPath).parentFile?.mkdirs()
-        FileOutputStream(outputPath).buffered(DefaultBufferSize).use { output ->
-            output.write(StreamingMagic)
-            output.write(salt)
-            output.write(iv)
-            mac.update(StreamingMagic)
-            mac.update(salt)
-            mac.update(iv)
-
-            ProgressInputStream(FileInputStream(inputPath), File(inputPath).length(), progress).use { input ->
-                val buffer = ByteArray(DefaultBufferSize)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count == -1) break
-                    val encrypted = cipher.update(buffer, 0, count)
-                    if (encrypted.isNotEmpty()) {
-                        output.write(encrypted)
-                        mac.update(encrypted)
-                    }
-                }
-            }
-            val finalBytes = cipher.doFinal()
-            if (finalBytes.isNotEmpty()) {
-                output.write(finalBytes)
-                mac.update(finalBytes)
-            }
-            output.write(mac.doFinal())
-        }
-    }
-
-    actual fun decryptFile(inputPath: String, outputPath: String, password: String, progress: (Double) -> Unit) {
-        ProgressInputStream(FileInputStream(inputPath), File(inputPath).length(), progress).use { input ->
-            val magic = input.readExact(StreamingMagic.size)
-            if (magic.contentEquals(StreamingMagic)) decryptStreaming(input, outputPath, password, magic)
-            else decryptLegacy(inputPath, outputPath, password, progress)
-        }
-    }
-
-    private fun decryptLegacy(inputPath: String, outputPath: String, password: String, progress: (Double) -> Unit) {
-        val output = File(outputPath).apply { parentFile?.mkdirs() }
-        val temporary = File("$outputPath.tmp")
-        try {
-            ProgressInputStream(FileInputStream(inputPath), File(inputPath).length(), progress).use { input ->
-                val salt = input.readExact(SaltSize)
-                val iv = input.readExact(12)
-                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(deriveKeyBytes(password, salt, 256), "AES"), GCMParameterSpec(128, iv))
-                temporary.outputStream().use { stream ->
-                    val buffer = ByteArray(DefaultBufferSize)
-                    while (true) {
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        cipher.update(buffer, 0, count)?.let(stream::write)
-                    }
-                    stream.write(cipher.doFinal()) // Authenticate before exposing the plaintext ZIP.
-                }
-            }
-            moveFile(temporary.path, output.path)
-        } catch (failure: java.io.IOException) {
-            throw failure
-        } catch (_: Exception) {
-            error("Invalid backup password or corrupted backup")
-        } finally { temporary.delete() }
-    }
-
-    private fun decryptStreaming(input: InputStream, outputPath: String, password: String, magic: ByteArray) {
-        val salt = input.readExact(SaltSize)
-        val iv = input.readExact(CtrIvSize)
-        val (cipherKey, macKey) = deriveStreamingKeys(password, salt)
-        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, cipherKey, IvParameterSpec(iv))
-        val mac = hmac(macKey)
-        mac.update(magic)
-        mac.update(salt)
-        mac.update(iv)
-
-        val output = File(outputPath).apply { parentFile?.mkdirs() }
-        val tempOutput = File("$outputPath.tmp")
-        try {
-            FileOutputStream(tempOutput).use { outputStream ->
-                val expectedTag = decryptCipherTextWithTrailingTag(input, outputStream, cipher, mac)
-                if (!MessageDigest.isEqual(mac.doFinal(), expectedTag)) error("Invalid backup password or corrupted backup")
-                val finalBytes = cipher.doFinal()
-                if (finalBytes.isNotEmpty()) outputStream.write(finalBytes)
-            }
-            moveFile(tempOutput.path, output.path)
-        } finally {
-            tempOutput.delete()
-        }
-    }
-
-    private fun decryptCipherTextWithTrailingTag(
-        input: InputStream,
-        output: FileOutputStream,
-        cipher: Cipher,
-        mac: Mac,
-    ): ByteArray {
-        var pendingTag = input.readExact(HmacSize)
-        val buffer = ByteArray(DefaultBufferSize)
-        while (true) {
-            val count = input.read(buffer)
-            if (count == -1) return pendingTag
-            val combined = pendingTag + buffer.copyOf(count)
-            val cipherTextSize = combined.size - HmacSize
-            writeDecryptedChunk(combined, cipherTextSize, output, cipher, mac)
-            pendingTag = combined.copyOfRange(cipherTextSize, combined.size)
-        }
-    }
-
-    private fun writeDecryptedChunk(
-        bytes: ByteArray,
-        count: Int,
-        output: FileOutputStream,
-        cipher: Cipher,
-        mac: Mac,
-    ) {
-        if (count <= 0) return
-        mac.update(bytes, 0, count)
-        val decrypted = cipher.update(bytes, 0, count)
-        if (decrypted.isNotEmpty()) output.write(decrypted)
-    }
+    actual fun decryptFile(inputPath: String, outputPath: String, password: String, progress: (Double) -> Unit) =
+        com.dailysatori.service.backup.BackupFileCipher.decrypt(File(inputPath), File(outputPath), password, progress)
 
     actual fun displayNameForUri(uri: String): String {
         return directory(uri)?.name ?: uri
@@ -377,41 +279,11 @@ actual class FileManager actual constructor() {
         exitProcess(0)
     }
 
-    private fun deriveStreamingKeys(password: String, salt: ByteArray): Pair<SecretKeySpec, SecretKeySpec> {
-        val keys = deriveKeyBytes(password, salt, 512)
-        return SecretKeySpec(keys.copyOfRange(0, 32), "AES") to SecretKeySpec(keys.copyOfRange(32, 64), "HmacSHA256")
-    }
-
-    private fun deriveKeyBytes(password: String, salt: ByteArray, bits: Int): ByteArray {
-        val spec = PBEKeySpec(password.toCharArray(), salt, 10000, bits)
-        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        return factory.generateSecret(spec).encoded
-    }
-
-    private fun hmac(key: SecretKeySpec): Mac {
-        return Mac.getInstance("HmacSHA256").apply { init(key) }
-    }
-
-    private fun InputStream.readExact(size: Int): ByteArray {
-        val bytes = ByteArray(size)
-        var offset = 0
-        while (offset < size) {
-            val count = read(bytes, offset, size - offset)
-            if (count == -1) error("Invalid encrypted backup")
-            offset += count
-        }
-        return bytes
-    }
-
     private fun directory(uri: String): DocumentFile? {
         return DocumentFile.fromTreeUri(appContext, Uri.parse(uri))?.takeIf { it.isDirectory }
     }
 
     private companion object {
-        val StreamingMagic = byteArrayOf('D'.code.toByte(), 'S'.code.toByte(), 'B'.code.toByte(), '2'.code.toByte())
-        const val SaltSize = 16
-        const val CtrIvSize = 16
-        const val HmacSize = 32
         const val DefaultBufferSize = 256 * 1024
         val CompressedExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "avif", "heic", "m4a", "mp3", "mp4", "aac", "ogg", "flac", "zip", "gz", "enc", "pdf")
     }

@@ -2,7 +2,6 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
-import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.service.skill.builtInWeReadDescription
 import com.dailysatori.service.skill.builtInWeReadGatewayUrl
@@ -49,33 +48,22 @@ interface SkillConfigDataSource {
     fun ensureBuiltInWeRead()
 }
 
-class SkillConfigRepository internal constructor(
-    private val db: DailySatoriDatabase,
-    private val encryptSecret: (String) -> String,
-    private val decryptSecret: (String) -> String,
-) : SkillConfigDataSource {
-    constructor(db: DailySatoriDatabase, secretCipher: SecretCipher) : this(
-        db = db,
-        encryptSecret = { apiToken -> secretCipher.encrypt(apiToken) },
-        decryptSecret = { encryptedToken -> secretCipher.decrypt(encryptedToken) },
-    )
+class SkillConfigRepository(private val db: DailySatoriDatabase) : SkillConfigDataSource {
 
     private val q get() = db.dailySatoriQueries
 
     override fun getAll(): Flow<List<Skill_config>> =
-        q.selectAllSkillConfigs().asFlow().mapToList(Dispatchers.IO).map { skills ->
-            skills.map(::decryptSkill)
-        }
+        q.selectAllSkillConfigs().asFlow().mapToList(Dispatchers.IO)
 
-    override fun getById(id: Long): Skill_config? = q.selectSkillConfigById(id).executeAsOneOrNull()?.let(::decryptSkill)
+    override fun getById(id: Long): Skill_config? = q.selectSkillConfigById(id).executeAsOneOrNull()
 
     fun getByTemplateId(templateId: String): Skill_config? =
-        q.selectSkillConfigByTemplateId(templateId).executeAsOneOrNull()?.let(::decryptSkill)
+        q.selectSkillConfigByTemplateId(templateId).executeAsOneOrNull()
 
     fun getBuiltInByTemplateId(templateId: String): Skill_config? =
-        q.selectBuiltInSkillConfigByTemplateId(templateId).executeAsOneOrNull()?.let(::decryptSkill)
+        q.selectBuiltInSkillConfigByTemplateId(templateId).executeAsOneOrNull()
 
-    fun getEnabled(): List<Skill_config> = q.selectEnabledSkillConfigs().executeAsList().map(::decryptSkill)
+    fun getEnabled(): List<Skill_config> = q.selectEnabledSkillConfigs().executeAsList()
 
     fun insert(
         name: String,
@@ -91,7 +79,7 @@ class SkillConfigRepository internal constructor(
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.insertSkillConfig(
-            name, description, gatewayUrl, encryptSecret(apiToken), skillVersion, enabled,
+            name, description, gatewayUrl, apiToken, skillVersion, enabled,
             builtin, provider, templateId, toolSchemaJson, now, now,
         )
     }
@@ -126,7 +114,7 @@ class SkillConfigRepository internal constructor(
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateSkillConfig(
-            name, description, gatewayUrl, encryptSecret(apiToken), skillVersion,
+            name, description, gatewayUrl, apiToken, skillVersion,
             enabled, provider, templateId, toolSchemaJson, now, id,
         )
     }
@@ -172,6 +160,4 @@ class SkillConfigRepository internal constructor(
         }
     }
 
-    private fun decryptSkill(skill: Skill_config): Skill_config =
-        skill.copy(api_token = decryptSecret(skill.api_token))
 }

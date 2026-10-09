@@ -19,10 +19,10 @@ class PhoneStorageTest {
         val settings = SettingRepository(db)
         settings.upsert(SettingKeys.schemaVersion, "30")
         settings.upsert("existing.setting", "retained")
-        val ledger = BookkeepingRepository(db, Cipher)
+        val ledger = BookkeepingRepository(db)
         val before = ledger.ingest("bank", "one", "消费56元", 1000)
-        DatabaseMigration(driver, settings, Cipher).runMigrations()
-        val records = PhoneMessageRepository(db, Cipher)
+        DatabaseMigration(driver, settings).runMigrations()
+        val records = PhoneMessageRepository(db)
         records.save(message)
         assertEquals(message, records.get(message.id))
         assertEquals(before, ledger.snapshot())
@@ -30,34 +30,29 @@ class PhoneStorageTest {
         assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
     }
 
-    @Test fun sourceTextAndTaskDetailsAreEncryptedAndBackedUp() = withDatabase { db, driver ->
-        val records = PhoneMessageRepository(db, Cipher)
+    @Test fun sourceTextAndTaskDetailsAreOrdinaryJsonInsideProtectedDatabase() = withDatabase { db, _ ->
+        val records = PhoneMessageRepository(db)
         records.save(message)
         val stored = db.dailySatoriQueries.selectPhoneMessage(message.id).executeAsOne().encrypted_payload
-        assertTrue(Cipher.isEncrypted(stored))
-        assertFalse(stored.contains("消费56元"))
-        val secrets = SecretFieldProcessor(driver, Cipher)
-        secrets.decryptSecretsForBackup()
-        assertFalse(Cipher.isEncrypted(db.dailySatoriQueries.selectPhoneMessage(message.id).executeAsOne().encrypted_payload))
-        secrets.prepareRestoredSecrets()
-        assertEquals(message, records.get(message.id))
-        assertTrue(Cipher.isEncrypted(db.dailySatoriQueries.selectPhoneMessage(message.id).executeAsOne().encrypted_payload))
+        assertFalse(Cipher.isEncrypted(stored))
+        assertTrue(stored.contains("消费56元"))
+        assertEquals(message, PhoneMessageRepository(db).get(message.id))
     }
 
     @Test fun oldBackupCanPrepareSecretsBeforeSourceMigration() = withDatabase { db, driver ->
         driver.execute(null, "DROP TABLE phone_message", 0)
         SettingRepository(db).upsert(SettingKeys.schemaVersion, "30")
         SecretFieldProcessor(driver, Cipher).prepareRestoredSecrets()
-        DatabaseMigration(driver, SettingRepository(db), Cipher).runMigrations()
-        assertTrue(PhoneMessageRepository(db, Cipher).all().isEmpty())
+        DatabaseMigration(driver, SettingRepository(db)).runMigrations()
+        assertTrue(PhoneMessageRepository(db).all().isEmpty())
     }
 
     @Test fun failedLegacySettingWriteRollsBackPhonePreferences() = withDatabase { db, driver ->
         val settings = SettingRepository(db)
-        val sms = SmsSourceRepository(db, Cipher)
-        val service = PhoneAssistantService(PhoneMessageRepository(db, Cipher), sms,
+        val sms = SmsSourceRepository(db)
+        val service = PhoneAssistantService(PhoneMessageRepository(db), sms,
             SmsReminderService(sms, ReminderRepository(db), settings, SmsReminderRemote { error("No cloud request expected") }),
-            BookkeepingRepository(db, Cipher), settings)
+            BookkeepingRepository(db), settings)
         driver.execute(null, """
             CREATE TRIGGER reject_sms_settings BEFORE INSERT ON setting
             WHEN NEW.key = 'sms_reminder.enabled'
@@ -71,7 +66,7 @@ class PhoneStorageTest {
     }
 
     @Test fun olderTodoRemainsObservableBeyondTwoHundredNewerMessages() = withDatabase { db, _ ->
-        val records = PhoneMessageRepository(db, Cipher)
+        val records = PhoneMessageRepository(db)
         val old = message.copy(todos = listOf(PhoneTodo("old_todo", "请取件", PhoneResultState.PENDING)))
         records.save(old)
         repeat(205) { index -> records.save(message.copy(event = message.event.copy(key = "new_$index", receivedAt = 2000L + index))) }
@@ -81,7 +76,7 @@ class PhoneStorageTest {
     }
 
     @Test fun historyPagesKeepStableOrderingWithoutHidingResultRecords() = withDatabase { db, _ ->
-        val records = PhoneMessageRepository(db, Cipher)
+        val records = PhoneMessageRepository(db)
         repeat(205) { index -> records.save(message.copy(event = message.event.copy(key = "history_$index", receivedAt = 2000L + index))) }
         val pages = (0..4).flatMap { records.history(50, it * 50) }
         assertEquals(205, pages.size)

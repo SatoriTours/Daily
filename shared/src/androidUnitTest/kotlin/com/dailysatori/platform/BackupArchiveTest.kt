@@ -68,18 +68,19 @@ class BackupArchiveTest {
     }
 
     @Test
-    fun mediaAvoidsRecompressionWhileDatabaseStillCompressesAndAllFilesRoundTrip() {
+    fun mediaAndEncryptedDatabaseAvoidRecompressionAndAllFilesRoundTrip() {
         val root = Files.createTempDirectory("backup-archive").toFile()
         try {
             val source = root.resolve("source").apply { mkdirs() }
             val voice = source.resolve("diary/audio/voice.m4a").apply { parentFile?.mkdirs(); writeBytes(ByteArray(256 * 1024) { 7 }) }
+            // Compressible fixture reveals the selected ZIP level; actual SQLCipher ciphertext is not compressible.
             val database = source.resolve("daily_satori.db").apply { writeText("database record\n".repeat(20000)) }
             val zip = root.resolve("backup.zip")
             val manager = FileManager()
             manager.createZip(source.path, zip.path, listOf(voice.path, database.path))
             ZipFile(zip).use { archive ->
                 assertTrue(archive.getEntry("diary/audio/voice.m4a").compressedSize >= voice.length())
-                assertTrue(archive.getEntry("daily_satori.db").compressedSize < database.length() / 10)
+                assertTrue(archive.getEntry("daily_satori.db").compressedSize >= database.length())
             }
             val restored = root.resolve("restored")
             manager.extractZip(zip.path, restored.path)

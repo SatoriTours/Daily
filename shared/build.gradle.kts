@@ -35,6 +35,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.jsoup)
             implementation(libs.sqldelight.android.driver)
+            api(libs.sqlcipher.android)
             implementation(libs.androidx.documentfile)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.langchain4j.open.ai)

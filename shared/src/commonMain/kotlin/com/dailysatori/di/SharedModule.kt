@@ -118,7 +118,7 @@ val sharedModule: Module = module {
 
     // Repositories
     single { ArticleRepository(get()) }
-    single { AIConfigRepository(get(), get()) }
+    single { AIConfigRepository(get()) }
     single { AsyncTaskRepository(get()) }
     single { BookRepository(get()) }
     single { BookViewpointAiRepository(get()) }
@@ -163,7 +163,7 @@ val sharedModule: Module = module {
             configs.getConfig(AiPurpose.INTERACTIVE)?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
         }
     }
-    single { ExternalFavoriteSourceRepository(get(), get()) }
+    single { ExternalFavoriteSourceRepository(get()) }
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
     single { IdeaTopicRepository(get()) }
@@ -176,18 +176,18 @@ val sharedModule: Module = module {
     single { RemoteArticleSyncRepository(get()) }
     single { ReminderRepository(get()) }
     single { ReminderAiBatchRepository(get()) }
-    single { com.dailysatori.data.repository.SmsSourceRepository(get(), get()) }
-    single { com.dailysatori.data.repository.BookkeepingRepository(get(), get()) }
+    single { com.dailysatori.data.repository.SmsSourceRepository(get()) }
+    single { com.dailysatori.data.repository.BookkeepingRepository(get()) }
     single { com.dailysatori.service.bookkeeping.BookkeepingService(get(), get()) }
     single<com.dailysatori.service.sms.SmsReminderRemote> { com.dailysatori.service.sms.SmsReminderAi(get(), get()) }
     single { com.dailysatori.service.sms.SmsReminderService(get(), get(), get(), get()) }
-    single { com.dailysatori.data.repository.PhoneMessageRepository(get(), get()) }
+    single { com.dailysatori.data.repository.PhoneMessageRepository(get()) }
     single { com.dailysatori.service.phone.PhoneAssistantService(get(), get(), get(), get(), get()) }
-    single { RemoteNewsSourceRepository(get(), get()) }
+    single { RemoteNewsSourceRepository(get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
     single { NewsOpportunityStore(get()) }
-    single { SkillConfigRepository(get(), get()) }
+    single { SkillConfigRepository(get()) }
     single<SkillConfigDataSource> { get<SkillConfigRepository>() }
     single { TagRepository(get()) }
     single { UnifiedNewsSummaryRepository(get()) }
@@ -233,7 +233,7 @@ val sharedModule: Module = module {
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }
     single { DiaryKnowledgeCoordinator(get(), get(), get<MemoryExtractor>(), get()) }
-    single { SpeechSettingsService(get(), get(), get()) }
+    single { SpeechSettingsService(get(), get()) }
     single { SpeechTranscriptionApi(get()) }
     single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
     single { DiaryTitleGenerator(diaryTitleCompletion(get(), get())) }
@@ -282,7 +282,7 @@ val sharedModule: Module = module {
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<DoubanSuggestSearchEngine>(), get<WebSearchEngine>())) }
     single<BookAiFallbackGenerator> { DefaultBookAiFallbackGenerator(get(), get(), get(), get()) }
-    single { WeReadSkillService(get(), get(), get(), get(), get()) }
+    single { WeReadSkillService(get(), get(), get(), get()) }
     single<BookIntelligenceSource> { get<WeReadSkillService>() }
     single { BookReflectionService(get(), get(), get()) }
     single { RemoteMcpClient(get()) }
@@ -293,10 +293,10 @@ val sharedModule: Module = module {
     single { WeeklySummaryService(get(), get(), get(), get(), get(), get()) }
 
     // MCP server config
-    single { McpServerRepository(get(), get()) }
+    single { McpServerRepository(get()) }
 
     // Migration
-    single { DatabaseMigration(get(), get(), get()) }
+    single { DatabaseMigration(get(), get()) }
 
     // Import service
     single { ImportService(get(), get(), get()) }

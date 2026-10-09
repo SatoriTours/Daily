@@ -3,7 +3,6 @@ package com.dailysatori.service.diary
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiConfigService
-import com.dailysatori.service.security.SecretValueCipher
 import io.ktor.http.Url
 import io.ktor.http.URLProtocol
 import kotlinx.serialization.Serializable
@@ -30,13 +29,12 @@ data class SpeechConfig(val provider: String, val model: String, val apiAddress:
 
 class SpeechSettingsService(
     private val settings: SettingRepository,
-    private val cipher: SecretValueCipher,
     private val aiConfigs: AiConfigService,
 ) {
     fun load(): SpeechConfig? {
         val stored = settings.get(SettingKeys.speechConfig)
         if (stored != null) return runCatching {
-            Json.decodeFromString<SpeechConfig>(cipher.decrypt(stored))
+            Json.decodeFromString<SpeechConfig>(stored)
         }.getOrNull()
         val legacy = aiConfigs.getSpeechConfig() ?: return null
         val isGemini = legacy.provider.lowercase() in setOf("gemini", "google", "google-gemini")
@@ -62,7 +60,7 @@ class SpeechSettingsService(
             model = config.model.trim(), apiAddress = config.apiAddress.trim().trimEnd('/'), apiKey = config.apiKey.trim(),
         )
         require(normalized.validationError() == null) { normalized.validationError().orEmpty() }
-        // One encrypted value keeps provider, model and credentials atomic, including backup/restore.
-        settings.upsert(SettingKeys.speechConfig, cipher.encrypt(Json.encodeToString(normalized)))
+        // One JSON value keeps the independent provider and credentials atomic inside the encrypted database.
+        settings.upsert(SettingKeys.speechConfig, Json.encodeToString(normalized))
     }
 }

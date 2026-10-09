@@ -417,7 +417,7 @@ class DiaryContinuationEditorTest {
             monthSummaryService = DiaryMonthSummaryService(
                 diaryRepo = diaryRepo,
                 summaryRepo = monthSummaryRepo,
-                aiConfigService = AiConfigService(AIConfigRepository(database, PlainSecretCipher)),
+                aiConfigService = AiConfigService(AIConfigRepository(database)),
                 aiService = AiService(httpClient),
                 threads = threadRepo,
             ),

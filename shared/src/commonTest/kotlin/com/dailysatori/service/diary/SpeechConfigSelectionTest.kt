@@ -14,7 +14,7 @@ class SpeechConfigSelectionTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val repository = AIConfigRepository(db = DailySatoriDatabase(driver), secretCipher = PlainCipher)
+            val repository = AIConfigRepository(db = DailySatoriDatabase(driver))
             repository.insert("deepseek", "https://api.deepseek.com", "deep-token", "deepseek-chat", 1)
             repository.insert("gemini", "https://generativelanguage.googleapis.com", "gemini-token", "gemini-2.5-flash", 0)
 

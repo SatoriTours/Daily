@@ -333,10 +333,10 @@ class PhoneAssistantServiceTest {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
-            val sms = SmsSourceRepository(db, Cipher)
+            val sms = SmsSourceRepository(db)
             val reminder = SmsReminderService(sms, ReminderRepository(db), settings, remote, object : Clock { override fun now() = now })
-            val records = PhoneMessageRepository(db, Cipher)
-            val ledger = BookkeepingRepository(db, Cipher)
+            val records = PhoneMessageRepository(db)
+            val ledger = BookkeepingRepository(db)
             val service = PhoneAssistantService(records, sms, reminder, ledger, settings, object : Clock { override fun now() = now })
             block(service, records, ledger, sms, settings)
         } finally { driver.close() }

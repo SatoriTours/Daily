@@ -18,7 +18,7 @@ class AiPurposeRoutingTest {
         repo.setPurposeConfig(AiPurpose.INTERACTIVE, fastId)
         repo.setPurposeConfig(AiPurpose.EXTERNAL_CONTENT, backgroundId)
         repo.setPurposeConfig(AiPurpose.REFLECTION, deepId)
-        val reopened = AIConfigRepository(db, PlainCipher)
+        val reopened = AIConfigRepository(db)
         val service = AiConfigService(reopened)
         assertEquals("fast-model", service.getConfig(AiPurpose.INTERACTIVE)!!.model_name)
         assertEquals("background-model", service.getConfig(AiPurpose.EXTERNAL_CONTENT)!!.model_name)
@@ -67,7 +67,7 @@ class AiPurposeRoutingTest {
     }
 
     @Test fun explicitAssignmentWorksWithoutAGlobalDefault() = withDatabase { db ->
-        val repo = AIConfigRepository(db, PlainCipher)
+        val repo = AIConfigRepository(db)
         val id = add(repo, "deepseek", "https://api.deepseek.com", "fast-model")
         repo.setPurposeConfig(AiPurpose.INTERACTIVE, id)
         assertEquals(id, repo.getForPurpose(AiPurpose.INTERACTIVE)!!.id)
@@ -76,7 +76,7 @@ class AiPurposeRoutingTest {
         assertNull(repo.getForPurpose(AiPurpose.INTERACTIVE))
     }
 
-    private fun configs(db: DailySatoriDatabase) = AIConfigRepository(db, PlainCipher).also {
+    private fun configs(db: DailySatoriDatabase) = AIConfigRepository(db).also {
         it.insert("openai", "https://example.com/v1", "test-token", "default-model", 1)
     }
 

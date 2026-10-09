@@ -32,7 +32,7 @@ class AiPurposeLiveTest {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val repo = AIConfigRepository(db, PlainCipher)
+            val repo = AIConfigRepository(db)
             repo.insert("openai", "https://invalid.example/v1", "unused-token", "invalid-default", 1)
             repo.insert(required("provider"), required("apiAddress"), required("apiToken"), required("modelName"))
             val assignedId = repo.getAllSync().single { it.model_name != "invalid-default" }.id

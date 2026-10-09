@@ -23,6 +23,7 @@ android {
         applicationId = "com.dailysatori"
         minSdk = 26
         targetSdk = 36
+        testInstrumentationRunner = "com.dailysatori.encryption.DatabaseTestRunner"
         versionCode = 50165
         versionName = "5.1.65"
         providers.gradleProperty("ciVersionCode").orNull?.let { value ->
@@ -113,6 +114,10 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.compose.material3)
     implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation(kotlin("test"))
+    androidTestImplementation(libs.sqldelight.android.driver)
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.sqldelight.sqlite.driver)

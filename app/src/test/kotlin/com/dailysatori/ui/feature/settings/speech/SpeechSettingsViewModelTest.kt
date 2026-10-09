@@ -205,7 +205,7 @@ class SpeechSettingsViewModelTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val service = SpeechSettingsService(SettingRepository(db), TestCipher, AiConfigService(AIConfigRepository(db, TestCipher)))
+            val service = SpeechSettingsService(SettingRepository(db), AiConfigService(AIConfigRepository(db)))
             initial?.let(service::save)
             val i18n = I18nService(SettingRepository(db)).apply {
                 loadTranslation("zh", File("../shared/src/commonMain/resources/i18n/zh.yaml").readText())

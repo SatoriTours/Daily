@@ -35,7 +35,7 @@ class ExternalFavoriteOrganizeTaskHandlerTest {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
+            val sources = ExternalFavoriteSourceRepository(db)
             val items = ExternalFavoriteItemRepository(db)
             val articles = ArticleRepository(db)
             val tasks = AsyncTaskRepository(db)
@@ -79,7 +79,7 @@ class ExternalFavoriteOrganizeTaskHandlerTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
+            val sources = ExternalFavoriteSourceRepository(db)
             val items = ExternalFavoriteItemRepository(db)
             val articles = ArticleRepository(db)
             val tasks = AsyncTaskRepository(db)

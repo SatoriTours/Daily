@@ -14,17 +14,17 @@ class SpeechSettingsTest {
     private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     private val db = DailySatoriDatabase(driver).also { DailySatoriDatabase.Schema.create(driver) }
     private val settings = SettingRepository(db)
-    private val aiConfigs = AIConfigRepository(db, TestCipher)
-    private val service = SpeechSettingsService(settings, TestCipher, AiConfigService(aiConfigs))
+    private val aiConfigs = AIConfigRepository(db)
+    private val service = SpeechSettingsService(settings, AiConfigService(aiConfigs))
 
     @AfterTest fun close() = driver.close()
 
-    @Test fun independentSpeechConfigIsEncryptedAndDoesNotChangeChatDefault() {
+    @Test fun independentSpeechConfigIsAtomicInsideProtectedDatabaseWithoutChangingChatDefault() {
         aiConfigs.insert("deepseek", "https://api.deepseek.com", "chat-key", "deepseek-flash", 1)
         val config = SpeechConfig("minimax", "asr-1.0", "https://api.minimax.cn/v1", "speech-key")
         service.save(config)
         assertEquals(config, service.load())
-        assertTrue(settings.get(SettingKeys.speechConfig)!!.startsWith("encrypted:"))
+        assertEquals(config, kotlinx.serialization.json.Json.decodeFromString<SpeechConfig>(settings.get(SettingKeys.speechConfig)!!))
         assertEquals("deepseek", aiConfigs.getDefault()?.provider)
         assertFalse(config.toString().contains("speech-key"))
     }
@@ -56,12 +56,12 @@ class SpeechSettingsTest {
         assertEquals(SpeechConfig("minimax", "asr-1.0", "https://api.minimax.cn/v1", "key"), service.load())
     }
 
-    @Test fun secretBackupProcessingIncludesIndependentSpeechConfiguration() {
-        service.save(SpeechConfig("minimax", "asr-1.0", "https://api.minimax.cn/v1", "speech-key"))
-        SecretFieldProcessor(driver, TestCipher).decryptSecretsForBackup()
-        assertFalse(settings.get(SettingKeys.speechConfig)!!.startsWith("encrypted:"))
-        SecretFieldProcessor(driver, TestCipher).prepareRestoredSecrets()
-        assertEquals("speech-key", service.load()?.apiKey)
+    @Test fun oldEncryptedSpeechConfigurationIsStrictlyConvertedOnce() {
+        val config = SpeechConfig("minimax", "asr-1.0", "https://api.minimax.cn/v1", "speech-key")
+        settings.upsert(SettingKeys.speechConfig, TestCipher.encrypt(kotlinx.serialization.json.Json.encodeToString(config)))
+        SecretFieldProcessor(driver, TestCipher).decryptLegacyFields()
+        assertEquals(config, service.load())
+        assertEquals(0, SecretFieldProcessor(driver, TestCipher).decryptLegacyFields().updated)
     }
 
     @Test fun validationRejectsMissingCredentialsInsecureAddressesAndWrongModelFamilies() {

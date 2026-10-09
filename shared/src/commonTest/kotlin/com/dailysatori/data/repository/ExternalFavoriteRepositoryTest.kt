@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 
 class ExternalFavoriteRepositoryTest {
     @Test
-    fun sourceRepositoryEncryptsAuthJsonAndDecryptsOnRead() = withRepositories { db, sources, _ ->
+    fun sourceRepositoryStoresOrdinaryAuthJsonInsideEncryptedDatabase() = withRepositories { db, sources, _ ->
         val sourceId = saveXSource(
             sources = sources,
             displayName = "X Favorites",
@@ -22,7 +22,7 @@ class ExternalFavoriteRepositoryTest {
         )
 
         val raw = db.dailySatoriQueries.selectExternalFavoriteSourceById(sourceId).executeAsOne()
-        assertEquals("""enc:v1:{"access_token":"secret"}""", raw.auth_json)
+        assertEquals("""{"access_token":"secret"}""", raw.auth_json)
 
         val decrypted = sources.getById(sourceId)
         assertNotNull(decrypted)
@@ -39,7 +39,7 @@ class ExternalFavoriteRepositoryTest {
     }
 
     @Test
-    fun sourceRepositoryEncryptsLegacyPlaintextAuthJson() = withRepositories { db, sources, _ ->
+    fun sourceRepositoryReadsMigratedAuthJsonWithoutMutatingIt() = withRepositories { db, sources, _ ->
         val now = 1_700_000_000_000
         db.dailySatoriQueries.insertExternalFavoriteSource(
             provider = ExternalFavoriteProvider.X.id,
@@ -56,12 +56,10 @@ class ExternalFavoriteRepositoryTest {
             updated_at = now,
         )
 
-        sources.encryptStoredSecrets()
-
         val raw = db.dailySatoriQueries
             .selectExternalFavoriteSourceByProviderAccount(ExternalFavoriteProvider.X.id, "legacy-acct")
             .executeAsOne()
-        assertEquals("""enc:v1:{"access_token":"legacy"}""", raw.auth_json)
+        assertEquals("""{"access_token":"legacy"}""", raw.auth_json)
         assertEquals("""{"access_token":"legacy"}""", sources.getById(raw.id)?.auth_json)
     }
 
@@ -92,7 +90,7 @@ class ExternalFavoriteRepositoryTest {
         assertEquals("new", updated.account_name)
         assertEquals("idle", updated.status)
         assertEquals("""{"access_token":"new"}""", updated.auth_json)
-        assertEquals("""enc:v1:{"access_token":"new"}""", db.dailySatoriQueries.selectExternalFavoriteSourceById(firstId).executeAsOne().auth_json)
+        assertEquals("""{"access_token":"new"}""", db.dailySatoriQueries.selectExternalFavoriteSourceById(firstId).executeAsOne().auth_json)
     }
 
     @Test
@@ -197,12 +195,7 @@ class ExternalFavoriteRepositoryTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
         val db = DailySatoriDatabase(driver)
-        val sources = ExternalFavoriteSourceRepository(
-            db = db,
-            encryptSecret = { value -> if (value.isBlank()) value else "enc:v1:$value" },
-            decryptSecret = { value -> value.removePrefix("enc:v1:") },
-            isSecretEncrypted = { value -> value.startsWith("enc:v1:") },
-        )
+        val sources = ExternalFavoriteSourceRepository(db = db)
         val items = ExternalFavoriteItemRepository(db)
         val articleRepository = ArticleRepository(db)
         val sourceId = saveXSource(sources)
@@ -305,12 +298,7 @@ class ExternalFavoriteRepositoryTest {
         driver.execute(null, "PRAGMA foreign_keys=ON", 0)
         DailySatoriDatabase.Schema.create(driver)
         val db = DailySatoriDatabase(driver)
-        val sources = ExternalFavoriteSourceRepository(
-            db = db,
-            encryptSecret = { value -> if (value.isBlank()) value else "enc:v1:$value" },
-            decryptSecret = { value -> value.removePrefix("enc:v1:") },
-            isSecretEncrypted = { value -> value.startsWith("enc:v1:") },
-        )
+        val sources = ExternalFavoriteSourceRepository(db = db)
         val items = ExternalFavoriteItemRepository(db)
         block(db, sources, items)
     }

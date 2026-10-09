@@ -28,8 +28,8 @@ class XArticleExtractionTest {
                 respond(XArticleRetrievalTest.fxArticle, headers = headersOf(HttpHeaders.ContentType, "application/json"))
             }).use { client ->
                 val parser = WebpageParserService(ArticleRepository(db), TagRepository(db), ImageRepository(db),
-                    AiService(client), AiConfigService(AIConfigRepository(db, PlainCipher)), WebViewLoader(), FileManager(),
-                    client, ExternalFavoriteSourceRepository(db, { it }, { it }), XBookmarksConnector(client), settingRepo = SettingRepository(db))
+                    AiService(client), AiConfigService(AIConfigRepository(db)), WebViewLoader(), FileManager(),
+                    client, ExternalFavoriteSourceRepository(db), XBookmarksConnector(client), settingRepo = SettingRepository(db))
                 val extracted = kotlinx.coroutines.withTimeout(1_500) { parser.extractContent("https://x.com/writer/status/123") }
                 assertEquals("Article", extracted.title)
                 assertTrue(extracted.content.orEmpty().contains("Last paragraph."))
@@ -118,7 +118,7 @@ class XArticleExtractionTest {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            val sources = ExternalFavoriteSourceRepository(db, { it }, { it })
+            val sources = ExternalFavoriteSourceRepository(db)
             HttpClient(MockEngine { request ->
                 if (request.url.host == "api.fxtwitter.com") {
                     assertEquals("/status/123", request.url.encodedPath)
@@ -134,7 +134,7 @@ class XArticleExtractionTest {
 
     private fun parser(db: DailySatoriDatabase, sources: ExternalFavoriteSourceRepository, client: HttpClient) =
         WebpageParserService(ArticleRepository(db), TagRepository(db), ImageRepository(db), AiService(client),
-            AiConfigService(AIConfigRepository(db, PlainCipher)), WebViewLoader(), FileManager(), client, sources,
+            AiConfigService(AIConfigRepository(db)), WebViewLoader(), FileManager(), client, sources,
             XBookmarksConnector(client), settingRepo = SettingRepository(db), externalFavoriteItemRepo = ExternalFavoriteItemRepository(db))
 
     private object PlainCipher : SecretValueCipher {

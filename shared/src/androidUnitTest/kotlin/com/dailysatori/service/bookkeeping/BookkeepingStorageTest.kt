@@ -16,7 +16,7 @@ import kotlin.test.*
 class BookkeepingStorageTest {
     @Test fun optInAndSelectedSourcesControlIntake() = runBlocking {
         withDatabase { db, _ ->
-            val repo = BookkeepingRepository(db, Cipher)
+            val repo = BookkeepingRepository(db)
             val service = BookkeepingService(repo, SettingRepository(db))
             assertFalse(service.accept("bank", "a", "消费56元", 1000))
             service.setEnabled(true)
@@ -32,7 +32,7 @@ class BookkeepingStorageTest {
 
     @Test fun backfillReclassifiesLegacyEntriesOnceByMerchant() = runBlocking {
         withDatabase { db, _ ->
-            val repo = BookkeepingRepository(db, Cipher)
+            val repo = BookkeepingRepository(db)
             val entry = repo.ingest("bank", "one", "消费56元，商户：美团外卖", 1000).entries.single()
             assertEquals(LedgerCategory.FOOD, entry.category)
             // An entry stored before categories existed looks like an uncategorised merchant entry.
@@ -48,15 +48,15 @@ class BookkeepingStorageTest {
         }
     }
 
-    @Test fun encryptsWholeEntryAndRetainsDeletionIdentity() {
+    @Test fun protectedDatabaseStoresWholeEntryAndRetainsDeletionIdentity() {
         withDatabase { db, _ ->
-            val repo = BookkeepingRepository(db, Cipher)
+            val repo = BookkeepingRepository(db)
             val entry = repo.ingest("bank", "one", "消费56元，商户：便利店", 1000).entries.single()
             val stored = db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne().encrypted_payload
-            assertTrue(Cipher.isEncrypted(stored))
-            assertFalse(stored.contains("便利店"))
+            assertFalse(Cipher.isEncrypted(stored))
+            assertTrue(stored.contains("便利店"))
             repo.edit(entry.id, "57.20", "CNY", LedgerKind.EXPENSE, "超市")
-            assertEquals(5720L, BookkeepingRepository(db, Cipher).snapshot().entries.single().amountMinor)
+            assertEquals(5720L, BookkeepingRepository(db).snapshot().entries.single().amountMinor)
             repo.dismiss(entry.id, LedgerStatus.DELETED)
             repo.ingest("bank", "one", "消费56元", 1001)
             val deleted = repo.snapshot().entries.single()
@@ -71,8 +71,8 @@ class BookkeepingStorageTest {
             val settings = SettingRepository(db)
             settings.upsert("existing.user.setting", "keep-me")
             settings.upsert(SettingKeys.schemaVersion, "29")
-            DatabaseMigration(driver, settings, Cipher).runMigrations()
-            BookkeepingRepository(db, Cipher).ingest("bank", "one", "消费56元", 1000)
+            DatabaseMigration(driver, settings).runMigrations()
+            BookkeepingRepository(db).ingest("bank", "one", "消费56元", 1000)
             assertEquals(1, db.dailySatoriQueries.selectBookkeepingEntries().executeAsList().size)
             assertEquals("keep-me", settings.get("existing.user.setting"))
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
@@ -81,13 +81,12 @@ class BookkeepingStorageTest {
 
     @Test fun ledgerSecretsParticipateInPortableEncryptedBackup() {
         withDatabase { db, driver ->
-            BookkeepingRepository(db, Cipher).ingest("bank", "one", "消费56元", 1000)
-            val processor = SecretFieldProcessor(driver, Cipher)
-            processor.decryptSecretsForBackup()
+            BookkeepingRepository(db).ingest("bank", "one", "消费56元", 1000)
+            val raw = db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne()
+            db.dailySatoriQueries.upsertBookkeepingEntry(raw.id, Cipher.encrypt(raw.encrypted_payload), 1, 1)
+            SecretFieldProcessor(driver, Cipher).decryptLegacyFields()
             assertFalse(Cipher.isEncrypted(db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne().encrypted_payload))
-            processor.prepareRestoredSecrets()
-            assertTrue(Cipher.isEncrypted(db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne().encrypted_payload))
-            assertEquals(5600L, BookkeepingRepository(db, Cipher).snapshot().entries.single().amountMinor)
+            assertEquals(5600L, BookkeepingRepository(db).snapshot().entries.single().amountMinor)
         }
     }
 
@@ -96,14 +95,14 @@ class BookkeepingStorageTest {
             driver.execute(null, "DROP TABLE bookkeeping_entry", 0)
             SettingRepository(db).upsert(SettingKeys.schemaVersion, "29")
             SecretFieldProcessor(driver, Cipher).prepareRestoredSecrets()
-            DatabaseMigration(driver, SettingRepository(db), Cipher).runMigrations()
-            assertTrue(BookkeepingRepository(db, Cipher).snapshot().entries.isEmpty())
+            DatabaseMigration(driver, SettingRepository(db)).runMigrations()
+            assertTrue(BookkeepingRepository(db).snapshot().entries.isEmpty())
         }
     }
 
     @Test fun concurrentRepeatedNotificationsProduceOneEntry() = runBlocking {
         withDatabase { db, _ ->
-            val repo = BookkeepingRepository(db, Cipher)
+            val repo = BookkeepingRepository(db)
             val service = BookkeepingService(repo, SettingRepository(db))
             service.setEnabled(true)
             service.selectSource("bank", true)
@@ -117,23 +116,19 @@ class BookkeepingStorageTest {
     @Test fun damagedCiphertextCannotOverwriteExistingLedger() {
         withDatabase { db, _ ->
             db.dailySatoriQueries.upsertBookkeepingEntry("bad", "enc:v1:invalid", 1, 1)
-            val repo = BookkeepingRepository(db, Cipher)
+            val repo = BookkeepingRepository(db)
             assertFails { repo.ingest("bank", "one", "消费56元", 1000) }
             assertEquals(1, db.dailySatoriQueries.selectBookkeepingEntries().executeAsList().size)
             assertEquals("enc:v1:invalid", db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne().encrypted_payload)
         }
     }
 
-    @Test fun encryptionFailurePreservesExistingEntry() {
-        withDatabase { db, _ ->
-            val repo = BookkeepingRepository(db, Cipher)
+    @Test fun databaseWriteFailurePreservesExistingEntry() {
+        withDatabase { db, driver ->
+            val repo = BookkeepingRepository(db)
             val original = repo.ingest("bank", "one", "消费56元", 1000)
-            val failingCipher = object : SecretValueCipher {
-                override fun encrypt(value: String): String = error("encryption_unavailable")
-                override fun decrypt(value: String) = Cipher.decrypt(value)
-                override fun isEncrypted(value: String) = Cipher.isEncrypted(value)
-            }
-            assertFails { BookkeepingRepository(db, failingCipher).edit(original.entries.single().id, "99", "CNY", LedgerKind.EXPENSE, "") }
+            driver.execute(null, "CREATE TRIGGER fail_update BEFORE UPDATE ON bookkeeping_entry BEGIN SELECT RAISE(ABORT, 'failed'); END", 0)
+            assertFails { repo.edit(original.entries.single().id, "99", "CNY", LedgerKind.EXPENSE, "") }
             assertEquals(original, repo.snapshot())
         }
     }
@@ -141,40 +136,32 @@ class BookkeepingStorageTest {
     @Test fun malformedEntryCannotReachUiOrBeOverwritten() {
         withDatabase { db, _ ->
             val malformed = """{"id":"bad","eventKeys":["one"],"source":"bank","text":"","receivedAt":1000,"amountMinor":-1,"currency":"CNY","kind":"EXPENSE","status":"POSTED","reason":""}"""
-            db.dailySatoriQueries.upsertBookkeepingEntry("bad", Cipher.encrypt(malformed), 1, 1)
-            assertFails { BookkeepingRepository(db, Cipher).snapshot() }
-            assertEquals(Cipher.encrypt(malformed), db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne().encrypted_payload)
+            db.dailySatoriQueries.upsertBookkeepingEntry("bad", malformed, 1, 1)
+            assertFails { BookkeepingRepository(db).snapshot() }
+            assertEquals(malformed, db.dailySatoriQueries.selectBookkeepingEntries().executeAsOne().encrypted_payload)
         }
     }
 
-    @Test fun notificationIntakeDecryptsEachExistingEntryOnlyOnce() = runBlocking {
+    @Test fun notificationIntakeRemainsIdempotentAfterRemovingFieldCipher() = runBlocking {
         withDatabase { db, _ ->
-            var decryptions = 0
-            val countingCipher = object : SecretValueCipher {
-                override fun encrypt(value: String) = Cipher.encrypt(value)
-                override fun decrypt(value: String): String { decryptions++; return Cipher.decrypt(value) }
-                override fun isEncrypted(value: String) = Cipher.isEncrypted(value)
-            }
-            val repo = BookkeepingRepository(db, countingCipher)
+            val repo = BookkeepingRepository(db)
             repo.ingest("bank", "one", "消费56元", 1000)
             val service = BookkeepingService(repo, SettingRepository(db))
             service.setEnabled(true)
             service.selectSource("bank", true)
-            decryptions = 0
             assertTrue(service.accept("bank", "two", "消费57元", 400000))
-            assertEquals(1, decryptions)
-            decryptions = 0
+            val before = repo.snapshot()
             assertFalse(service.accept("bank", "two", "消费57元", 400000))
-            assertEquals(2, decryptions)
+            assertEquals(before, repo.snapshot())
         }
     }
 
     @Test fun manualConfirmationAndItsIdentitySurviveReload() {
         withDatabase { db, _ ->
-            val repo = BookkeepingRepository(db, Cipher)
+            val repo = BookkeepingRepository(db)
             val original = repo.ingest("bank", "one", "尾号1238消费56元，交易单号：AB123456", 1000).entries.single()
             repo.edit(original.id, "58", "USD", LedgerKind.INCOME, "修正")
-            val reloaded = BookkeepingRepository(db, Cipher)
+            val reloaded = BookkeepingRepository(db)
             val repeated = reloaded.ingest("bank", "two", "消费56元，交易单号：AB123456", 2000)
             assertEquals(5800L, repeated.entries.single().amountMinor)
             assertEquals("USD", repeated.entries.single().currency)
@@ -186,8 +173,8 @@ class BookkeepingStorageTest {
     @Test fun entriesWrittenBeforeConfirmationFlagRemainReadable() {
         withDatabase { db, _ ->
             val legacy = """{"id":"bank:one","eventKeys":["one"],"source":"bank","text":"消费56元","receivedAt":1000,"amountMinor":5600,"currency":"CNY","kind":"EXPENSE","status":"POSTED","reason":""}"""
-            db.dailySatoriQueries.upsertBookkeepingEntry("bank:one", Cipher.encrypt(legacy), 1, 1)
-            val entry = BookkeepingRepository(db, Cipher).snapshot().entries.single()
+            db.dailySatoriQueries.upsertBookkeepingEntry("bank:one", legacy, 1, 1)
+            val entry = BookkeepingRepository(db).snapshot().entries.single()
             assertFalse(entry.userConfirmed)
             assertEquals(5600L, entry.amountMinor)
             assertEquals(LedgerStatus.POSTED, entry.status)

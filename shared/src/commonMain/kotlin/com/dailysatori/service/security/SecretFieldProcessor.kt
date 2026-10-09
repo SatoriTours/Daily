@@ -47,6 +47,15 @@ class SecretFieldProcessor(
     private val cipher: SecretValueCipher,
     private val fields: List<SecretFieldSpec> = SecretFieldRegistry.fields,
 ) {
+    fun decryptLegacyFields(): SecretProcessingResult = try {
+        // SQLDelight pins the JDBC connection as well as owning Android transaction rollback.
+        object : app.cash.sqldelight.TransacterImpl(driver) {}.transactionWithResult {
+            decryptSecretsForBackup()
+        }
+    } catch (_: Exception) {
+        throw DatabaseSecurityException("旧字段无法解密，已取消转换以保留数据")
+    }
+
     fun encryptPlaintextSecrets(): SecretProcessingResult =
         process { value ->
             when {
@@ -132,11 +141,15 @@ class SecretFieldProcessor(
     }
 
     private fun tableExists(field: SecretFieldSpec): Boolean = driver.executeQuery(null,
-        "PRAGMA table_info(${field.quotedTable()})", { cursor -> QueryResult.Value(cursor.next().value) }, 0).value
+        "PRAGMA table_info(${field.quotedTable()})", { cursor ->
+            var found = false
+            while (cursor.next().value) if (cursor.getString(1) == field.column) found = true
+            QueryResult.Value(found)
+        }, 0).value
 
     private fun updateRow(field: SecretFieldSpec, rowId: Long, value: String) {
-        val sql = "UPDATE ${field.quotedTable()} SET ${field.quotedColumn()} = '${value.sqlEscaped()}' WHERE rowid = $rowId"
-        driver.execute(null, sql, 0, null)
+        val sql = "UPDATE ${field.quotedTable()} SET ${field.quotedColumn()} = ? WHERE rowid = ?"
+        driver.execute(null, sql, 2) { bindString(0, value); bindLong(1, rowId) }
     }
 
     private fun SecretFieldSpec.quotedTable(): String = table.sqlIdentifier()

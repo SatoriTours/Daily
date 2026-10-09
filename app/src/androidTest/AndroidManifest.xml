@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="com.dailysatori.encryption.FixtureGrantActivity" android:exported="true" android:theme="@android:style/Theme.NoDisplay" />
+        <!-- Test APK only: real SAF calls against disposable synthetic fixture files. -->
+        <provider android:name="com.dailysatori.encryption.FixtureDocumentsProvider"
+            android:authorities="com.dailysatori.test.encryption.documents"
+            android:exported="true" android:grantUriPermissions="true" android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter>
+        </provider>
+    </application>
+</manifest>

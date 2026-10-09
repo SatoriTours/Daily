@@ -2,6 +2,7 @@ package com.dailysatori.service.backup
 
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
+import com.dailysatori.service.security.DatabaseKey
 
 internal fun createSqliteBackupSnapshot(driver: SqlDriver, source: String, destination: String, copyFile: (String, String) -> Unit) {
     val version = sqliteValue(driver, "SELECT sqlite_version()").split('.').map(String::toInt)
@@ -20,6 +21,37 @@ internal fun createSqliteBackupSnapshot(driver: SqlDriver, source: String, desti
     } finally {
         driver.execute(null, "ROLLBACK", 0)
     }
+}
+
+/** Explicitly keyed target: VACUUM INTO must not accidentally create a plaintext backup. */
+internal fun exportEncryptedDatabase(driver: SqlDriver, destination: String, key: DatabaseKey) {
+    try { exportKeyedDatabase(driver, destination, key) }
+    catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+    catch (_: Exception) { throw com.dailysatori.service.security.DatabaseSecurityException("加密数据库导出失败") }
+}
+
+internal expect fun prepareEncryptedSnapshotFile(path: String)
+
+private fun exportKeyedDatabase(driver: SqlDriver, destination: String, key: DatabaseKey) {
+    prepareEncryptedSnapshotFile(destination)
+    val password = key.sqlCipherPassword()
+    try {
+        driver.execute(null, "ATTACH DATABASE ? AS encrypted KEY ?", 2) {
+            bindString(0, destination); bindString(1, password.decodeToString())
+        }
+    } finally { password.fill(0) }
+    try {
+        driver.execute(null, "BEGIN IMMEDIATE", 0)
+        try {
+            val version = sqliteValue(driver, "PRAGMA user_version").toLong()
+            driver.executeQuery(null, "SELECT sqlcipher_export('encrypted')", { cursor -> cursor.next(); QueryResult.Value(Unit) }, 0)
+            driver.execute(null, "PRAGMA encrypted.user_version = $version", 0)
+            driver.execute(null, "COMMIT", 0)
+        } catch (failure: Exception) {
+            driver.execute(null, "ROLLBACK", 0)
+            throw failure
+        }
+    } finally { driver.execute(null, "DETACH DATABASE encrypted", 0) }
 }
 
 private fun sqliteValue(driver: SqlDriver, sql: String): String = driver.executeQuery(null, sql,

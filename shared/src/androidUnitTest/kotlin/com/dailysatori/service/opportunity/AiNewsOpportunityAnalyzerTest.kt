@@ -69,7 +69,7 @@ class AiNewsOpportunityAnalyzerTest {
     ) {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
-            val configs = AIConfigRepository(DailySatoriDatabase(driver), PlainCipher)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
             configs.insert("openai", "https://example.com/v1", "test-token", "test-model", isDefault = 1)
             val requests = mutableListOf<JsonObject>()
             HttpClient(MockEngine { request ->

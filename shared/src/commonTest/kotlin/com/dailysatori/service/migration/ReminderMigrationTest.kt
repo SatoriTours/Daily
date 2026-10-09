@@ -20,7 +20,7 @@ class ReminderMigrationTest {
             DailySatoriDatabase.Schema.create(driver)
             val settings = SettingRepository(DailySatoriDatabase(driver))
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
         } finally {
@@ -67,7 +67,7 @@ class ReminderMigrationTest {
             db.dailySatoriQueries.insertReminder("legacy", "preserved", "", "ACTIVE", "2026-09-02", "2026-09-02", "09:00", "daily", "once", "UTC", "{}", 0, null, 0, null, null, null, null, 1, 1)
             settings.upsert(SettingKeys.schemaVersion, "24")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
             db.dailySatoriQueries.insertReminderAiBatch("batch", null, "source", "source", "UTC", "2026-09-02", "PARSING", null, 0, 3, null, "", null, 1, 1)
 
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
@@ -101,7 +101,7 @@ class ReminderMigrationTest {
             driver.execute(null, "INSERT INTO reminder_ai_draft(batch_id, source_index, source_text, draft_json, created_at, updated_at) VALUES ('v26', 0, 'keep', '{}', 1, 1)", 0)
             settings.upsert(SettingKeys.schemaVersion, "26")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             val draft = db.dailySatoriQueries.selectReminderAiDraftsByBatchId("v26").executeAsOne()
             assertEquals("keep", draft.source_text)
@@ -125,7 +125,7 @@ class ReminderMigrationTest {
             val settings = SettingRepository(DailySatoriDatabase(driver))
             settings.upsert(SettingKeys.schemaVersion, "31")
 
-            DatabaseMigration(driver, settings, TestCipher).runMigrations()
+            DatabaseMigration(driver, settings).runMigrations()
 
             val columns = driver.executeQuery(null, "SELECT name FROM pragma_table_info('reminder')", { cursor ->
                 val names = mutableListOf<String>()

@@ -6,6 +6,56 @@ import java.nio.file.StandardCopyOption
 import kotlin.test.*
 
 class BackupRestoreTransactionTest {
+    @Test fun failedKeyPreparationDoesNotInstallOrReplayAnOldRestore() = withFiles { root ->
+        val pending = File(root, "pending")
+        val db = File(root, "db").apply { writeText("original") }
+        val prepared = prepare(root)
+        val transaction = BackupRestoreTransaction(pending, File(root, "app"), db, File(root, "life"), File(root, "password"),
+            prepareIncoming = { error("unable to validate database key") },
+            move = { from, to ->
+                if (from == pending) error("cleanup unavailable")
+                to.parentFile?.mkdirs()
+                Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            })
+        transaction.stage(prepared)
+        assertEquals("恢复失败，原有数据已保留", transaction.applyPending())
+        assertEquals("original", db.readText())
+        db.writeText("user wrote new data")
+        BackupRestoreTransaction(pending, File(root, "app"), db, File(root, "life"), File(root, "password")).applyPending()
+        assertEquals("user wrote new data", db.readText())
+    }
+    @Test fun databaseAndItsPasswordAlwaysInstallOrRollbackTogether() = withFiles { root ->
+        val pending = File(root, "pending")
+        val db = File(root, "db").apply { writeText("old-db") }
+        val key = File(root, "key").apply { writeText("old-key") }
+        val prepared = prepare(root)
+        prepared.resolve("database_key.sec").writeText("new-key")
+        val txn = BackupRestoreTransaction(pending, File(root, "app"), db, File(root, "life"), File(root, "password"),
+            databaseKey = key, move = { source, target ->
+                if (source.path.endsWith("incoming/database_key.sec")) throw SimulatedProcessDeath()
+                target.parentFile?.mkdirs()
+                Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            })
+        txn.stage(prepared)
+        assertFailsWith<SimulatedProcessDeath> { txn.applyPending() }
+        BackupRestoreTransaction(pending, File(root, "app"), db, File(root, "life"), File(root, "password"), databaseKey = key).applyPending()
+        assertEquals("old-db", db.readText())
+        assertEquals("old-key", key.readText())
+        val again = prepare(root).apply { resolve("database_key.sec").writeText("new-key") }
+        val restarted = BackupRestoreTransaction(pending, File(root, "app"), db, File(root, "life"), File(root, "password"), databaseKey = key)
+        restarted.stage(again)
+        restarted.applyPending()
+        assertEquals("new db", db.readText())
+        assertEquals("new-key", key.readText())
+    }
+
+    @Test fun missingDatabaseKeyCannotBeStagedForEncryptedInstallation() = withFiles { root ->
+        val key = File(root, "key").apply { writeText("old-key") }
+        val transaction = BackupRestoreTransaction(File(root, "pending"), File(root, "app"), File(root, "db"),
+            File(root, "life"), File(root, "password"), databaseKey = key)
+        assertFails { transaction.stage(prepare(root)) }
+        assertEquals("old-key", key.readText())
+    }
     @Test
     fun cleanupFailureAfterRollbackNeverReplaysRollbackAgainstNewUserData() = withFiles { root ->
         val pending = File(root, "pending")
