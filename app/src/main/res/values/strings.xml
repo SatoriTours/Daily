@@ -181,6 +181,10 @@
     <string name="reminder_delete_message">删除后无法恢复。</string>
     <string name="reminder_list_next_kicker">下一次提醒</string>
     <string name="reminder_list_today">今天</string>
+    <string name="reminder_list_overdue">逾期未完成</string>
+    <string name="reminder_due_soon">即将到期 · %1$s</string>
+    <string name="reminder_overdue">已逾期</string>
+    <string name="reminder_overdue_days">已逾期 %1$d 天</string>
     <string name="reminder_list_tomorrow">明天</string>
     <string name="reminder_list_hero_soon">未来 30 天共 %1$d 项</string>
     <string name="reminder_list_hero_paused">%1$d 项已暂停</string>
@@ -314,6 +318,7 @@
     <string name="recovery_update_install_failed">未能打开安装程序，请允许安装未知应用后重试。</string>
     <string name="reminder_detail_complete">标记完成</string>
     <string name="reminder_detail_complete_hint">完成后，这条提醒将永久结束，不再发送通知。</string>
+    <string name="reminder_detail_complete_cycle_hint">完成后，今天不再提醒，后续周期仍会正常提醒。</string>
     <string name="reminder_detail_edit_hint">修改提醒内容、日期和时间</string>
     <string name="reminder_detail_pause">暂停提醒</string>
     <string name="reminder_detail_pause_hint">暂时停止通知，之后可手动恢复</string>

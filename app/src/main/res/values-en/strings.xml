@@ -159,6 +159,10 @@
     <string name="reminder_delete_message">This cannot be undone.</string>
     <string name="reminder_list_next_kicker">NEXT REMINDER</string>
     <string name="reminder_list_today">Today</string>
+    <string name="reminder_list_overdue">Overdue and unfinished</string>
+    <string name="reminder_due_soon">Due soon · %1$s</string>
+    <string name="reminder_overdue">Overdue</string>
+    <string name="reminder_overdue_days">%1$d days overdue</string>
     <string name="reminder_list_tomorrow">Tomorrow</string>
     <string name="reminder_list_hero_soon">%1$d items in the next 30 days</string>
     <string name="reminder_list_hero_paused">%1$d paused</string>
@@ -292,6 +296,7 @@
     <string name="recovery_update_install_failed">Could not open the installer. Allow installation from this app and try again.</string>
     <string name="reminder_detail_complete">Mark as complete</string>
     <string name="reminder_detail_complete_hint">Completing this reminder permanently ends it and stops all future notifications.</string>
+    <string name="reminder_detail_complete_cycle_hint">Completing this occurrence stops today’s notifications and keeps future cycles active.</string>
     <string name="reminder_detail_edit_hint">Change the reminder content, dates, and time</string>
     <string name="reminder_detail_pause">Pause reminder</string>
     <string name="reminder_detail_pause_hint">Stop notifications temporarily; resume them manually later</string>

@@ -143,10 +143,11 @@ class ReminderUiStateTest {
         val completed = reminder(ReminderStatus.COMPLETED)
         val expired = reminder(ReminderStatus.EXPIRED)
 
-        assertEquals(listOf(active), filterReminders(listOf(active, paused, completed, expired), ReminderFilter.ACTIVE))
+        assertEquals(listOf(active, expired), filterReminders(listOf(active, paused, completed, expired), ReminderFilter.ACTIVE))
         assertEquals(setOf(ReminderAction.PAUSE, ReminderAction.EDIT, ReminderAction.COMPLETE, ReminderAction.DELETE, ReminderAction.APPLY_LATEST_PROFILE), reminderActions(active).toSet())
         assertEquals(setOf(ReminderAction.RESUME, ReminderAction.EDIT, ReminderAction.COMPLETE, ReminderAction.DELETE, ReminderAction.APPLY_LATEST_PROFILE), reminderActions(paused).toSet())
         assertEquals(listOf(ReminderAction.DELETE), reminderActions(completed))
+        assertEquals(listOf(ReminderAction.COMPLETE, ReminderAction.DELETE), reminderActions(expired))
     }
 
     @Test

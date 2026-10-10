@@ -371,7 +371,7 @@ enum class ReminderAction { PAUSE, RESUME, EDIT, COMPLETE, DELETE, APPLY_LATEST_
 
 fun filterReminders(reminders: List<Reminder>, filter: ReminderFilter): List<Reminder> = reminders.filter { reminder ->
     when (filter) {
-        ReminderFilter.ACTIVE -> reminder.status in setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
+        ReminderFilter.ACTIVE -> reminder.status in setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED, ReminderStatus.EXPIRED)
         ReminderFilter.PAUSED -> reminder.status == ReminderStatus.PAUSED
         ReminderFilter.COMPLETED -> reminder.status == ReminderStatus.COMPLETED
         ReminderFilter.EXPIRED -> reminder.status == ReminderStatus.EXPIRED
@@ -381,7 +381,8 @@ fun filterReminders(reminders: List<Reminder>, filter: ReminderFilter): List<Rem
 fun reminderActions(reminder: Reminder): List<ReminderAction> = when (reminder.status) {
     ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED -> listOf(ReminderAction.PAUSE, ReminderAction.EDIT, ReminderAction.COMPLETE, ReminderAction.DELETE, ReminderAction.APPLY_LATEST_PROFILE)
     ReminderStatus.PAUSED -> listOf(ReminderAction.RESUME, ReminderAction.EDIT, ReminderAction.COMPLETE, ReminderAction.DELETE, ReminderAction.APPLY_LATEST_PROFILE)
-    ReminderStatus.COMPLETED, ReminderStatus.EXPIRED -> listOf(ReminderAction.DELETE)
+    ReminderStatus.COMPLETED -> listOf(ReminderAction.DELETE)
+    ReminderStatus.EXPIRED -> listOf(ReminderAction.COMPLETE, ReminderAction.DELETE)
     ReminderStatus.DRAFT -> emptyList()
 }
 
@@ -646,7 +647,9 @@ class ReminderViewModel(
 
     fun pause(id: String) = mutateAndRecompute(id) { repository.pause(id) }
     fun resume(id: String) = mutateAndRecompute(id) { repository.resume(id) }
-    fun complete(id: String) = mutateAndRecompute(id) { repository.complete(id) }
+    fun complete(id: String) = viewModelScope.launch(Dispatchers.IO) {
+        coordinator.complete(id)
+    }
 
     fun edit(id: String, edit: ReminderEdit) = mutateAndRecompute(id) { repository.update(id, edit) }
 

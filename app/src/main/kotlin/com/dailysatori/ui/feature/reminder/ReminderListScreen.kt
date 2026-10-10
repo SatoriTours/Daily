@@ -167,6 +167,7 @@ fun ReminderListScreen(
                             showDivider = index > 0,
                             sourceKey = reminderSources[item.id],
                             onClick = { viewModel.selectReminder(item.id) },
+                            onComplete = { viewModel.complete(item.id) },
                         )
                     }
                 }
@@ -250,7 +251,11 @@ private fun ReminderHero(summary: ReminderListSummaryUi, today: LocalDate) {
         verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
     ) {
         Text(
-            if (next.deadlineAt != null) i18n.t("sms.deadline") else stringResource(R.string.reminder_list_next_kicker),
+            when {
+                next.dueState == ReminderDueState.OVERDUE -> stringResource(R.string.reminder_list_overdue)
+                next.deadlineAt != null -> i18n.t("sms.deadline")
+                else -> stringResource(R.string.reminder_list_next_kicker)
+            },
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             letterSpacing = 2.sp,
@@ -433,6 +438,7 @@ private fun ReminderSectionHeader(section: ReminderListSectionUi, today: LocalDa
 private fun sectionHeadLabel(section: ReminderListSectionUi, today: LocalDate, displayYear: Int): String {
     val date = section.items.firstOrNull()?.occurrenceDate
     return when (section.key) {
+        "overdue" -> stringResource(R.string.reminder_list_overdue)
         "today" -> stringResource(R.string.reminder_list_today) + dateSuffix(date)
         "tomorrow" -> stringResource(R.string.reminder_list_tomorrow) + dateSuffix(date)
         "next_week" -> stringResource(R.string.reminder_list_next_week)
@@ -461,6 +467,7 @@ private fun ReminderStoryRow(
     showDivider: Boolean,
     sourceKey: String?,
     onClick: () -> Unit,
+    onComplete: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         if (showDivider) {
@@ -497,6 +504,11 @@ private fun ReminderStoryRow(
                         }
                     }
                 }
+                if (item.isTodayPending) {
+                    TextButton(onClick = onComplete) {
+                        Text(stringResource(R.string.reminder_detail_complete))
+                    }
+                }
             }
             if (item.isTodayPending) ReminderPendingDot(Modifier.align(Alignment.CenterVertically))
             Icon(
@@ -519,6 +531,7 @@ internal fun ReminderPendingDot(modifier: Modifier = Modifier) {
 private fun ReminderDateBlock(item: ReminderListItemUi, today: LocalDate, isFinished: Boolean) {
     val dayColor = when {
         isFinished -> MaterialTheme.colorScheme.onSurfaceVariant
+        item.dueState == ReminderDueState.OVERDUE -> MaterialTheme.colorScheme.error
         item.daysUntil == 0 -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurface
     }
@@ -563,6 +576,7 @@ private fun ReminderStoryMeta(item: ReminderListItemUi, isFinished: Boolean) {
     val isUnscheduledSms = item.id.startsWith("sms:") && item.deadlineAt == null
     Text(if (isUnscheduledSms) i18n.t("sms.no_deadline") else item.deadlineAt?.let { i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(it) } ?: item.firstReminderTime,
         style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (!isFinished) ReminderDueBadge(item)
     if (isFinished) {
         val completed = item.status == ReminderStatus.COMPLETED
         ReminderMetaChip(
@@ -591,6 +605,22 @@ private fun ReminderStoryMeta(item: ReminderListItemUi, isFinished: Boolean) {
             contentColor = AppColors.warning,
         )
     }
+}
+
+@Composable
+internal fun ReminderDueBadge(item: ReminderListItemUi) {
+    val overdue = item.dueState == ReminderDueState.OVERDUE
+    val text = when (item.dueState) {
+        ReminderDueState.NONE -> return
+        ReminderDueState.DUE_SOON -> stringResource(R.string.reminder_due_soon, item.dueDate.toString())
+        ReminderDueState.OVERDUE -> if (item.overdueDays > 0) stringResource(R.string.reminder_overdue_days, item.overdueDays)
+            else stringResource(R.string.reminder_overdue)
+    }
+    ReminderMetaChip(
+        text = text,
+        container = if (overdue) MaterialTheme.colorScheme.errorContainer else AppColors.warning.copy(alpha = 0.15f),
+        contentColor = if (overdue) MaterialTheme.colorScheme.error else AppColors.warning,
+    )
 }
 
 @Composable

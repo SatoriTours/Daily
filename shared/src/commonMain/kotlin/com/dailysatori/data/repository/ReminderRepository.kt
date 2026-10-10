@@ -180,7 +180,7 @@ class ReminderRepository(
     fun complete(id: String, at: Instant = Clock.System.now()): Boolean = terminalTransition(id, ReminderStatus.COMPLETED, at, "completed")
 
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean = transition(id, expectedVersion, at) { row ->
-        if (row.status in terminalStatuses) return@transition null
+        if (row.status == ReminderStatus.COMPLETED.name) return@transition null
         Lifecycle(
             ReminderStatus.COMPLETED,
             row.state_date?.let(LocalDate::parse),
@@ -200,10 +200,14 @@ class ReminderRepository(
         Lifecycle(ReminderStatus.EXPIRED, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.completed_at, null, "expired")
     }
 
-    fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: LocalDate, nextStatus: ReminderStatus): Boolean = transition(id, expectedVersion, at) { row ->
-        if (row.status !in deliverableStatuses) return@transition null
-        require(nextStatus == ReminderStatus.ACTIVE || nextStatus == ReminderStatus.NOTIFIED)
-        Lifecycle(nextStatus, cycleDate, 0, row.last_notified_at, row.last_dismissed_at, row.completed_at, null, "daily_cutoff")
+    fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: LocalDate, nextStatus: ReminderStatus, completed: Boolean = false): Boolean = transition(id, expectedVersion, at) { row ->
+        val pausedCompletion = row.status == ReminderStatus.PAUSED.name && nextStatus == ReminderStatus.PAUSED
+        val expiredCompletion = completed && row.status == ReminderStatus.EXPIRED.name && nextStatus == ReminderStatus.ACTIVE
+        if (row.status !in deliverableStatuses && !pausedCompletion && !expiredCompletion) return@transition null
+        require(nextStatus == ReminderStatus.ACTIVE || nextStatus == ReminderStatus.NOTIFIED || pausedCompletion)
+        Lifecycle(nextStatus, cycleDate, 0, row.last_notified_at, row.last_dismissed_at,
+            if (completed) at.toEpochMilliseconds() else row.completed_at, null,
+            if (completed) "cycle_completed" else "daily_cutoff")
     }
 
     fun pause(id: String, at: Instant = Clock.System.now()): Boolean = simpleTransition(id, ReminderStatus.PAUSED, at, "paused")
@@ -252,8 +256,9 @@ class ReminderRepository(
         repeat(MAX_CAS_RETRIES) {
             val result = q.transactionWithResult {
                 val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult TerminalResult.TERMINAL
-                if (row.status in terminalStatuses) return@transactionWithResult TerminalResult.TERMINAL
-                if (saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, at.toEpochMilliseconds(), null, eventType), at)) TerminalResult.UPDATED else TerminalResult.RETRY
+                if (row.status == ReminderStatus.COMPLETED.name || row.status == ReminderStatus.EXPIRED.name && target != ReminderStatus.COMPLETED) return@transactionWithResult TerminalResult.TERMINAL
+                val completedAt = if (target == ReminderStatus.COMPLETED) at.toEpochMilliseconds() else row.completed_at
+                if (saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, completedAt, null, eventType), at)) TerminalResult.UPDATED else TerminalResult.RETRY
             }
             if (result != TerminalResult.RETRY) return result == TerminalResult.UPDATED
         }
@@ -279,6 +284,8 @@ class ReminderRepository(
 
     private fun com.dailysatori.shared.db.Reminder.toReminder(): Reminder {
         val decodedProfile = runCatching { profile_json.toProfile() }
+        // Older versions stored the expiry timestamp in completed_at, without any manual completion.
+        val completedAt = completed_at?.takeUnless { status == ReminderStatus.EXPIRED.name && it == updated_at }
         return Reminder(
             id, content, LocalDate.parse(start_date), LocalDate.parse(end_date), LocalTime.parse(first_reminder_time),
             active_day_rule.decode(), decodedProfile.getOrElse { quarantinedProfile() },
@@ -288,6 +295,8 @@ class ReminderRepository(
             recurrence_rule.decodeRecurrence(),
             deadline_at?.let(Instant::fromEpochMilliseconds),
             notes = notes,
+            stateDate = state_date?.let(LocalDate::parse),
+            completedAt = completedAt?.let(Instant::fromEpochMilliseconds),
         )
     }
 

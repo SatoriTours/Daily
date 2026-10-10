@@ -108,6 +108,8 @@ data class Reminder(
     val recurrence: ReminderRecurrence = ReminderRecurrence.Once,
     val deadlineAt: Instant? = null,
     val notes: String = "",
+    val stateDate: LocalDate? = null,
+    val completedAt: Instant? = null,
 )
 
 enum class ReminderDeliveryReason { INITIAL, HOURLY_REPEAT, DISMISSAL_BACKOFF, EVENING_REINFORCEMENT, WAKE_RECOVERY, NEXT_ACTIVE_DATE }

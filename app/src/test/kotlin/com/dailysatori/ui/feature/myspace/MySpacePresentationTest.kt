@@ -18,12 +18,23 @@ class MySpacePresentationTest {
             ReminderProfileSnapshot.standard(), status, TimeZone.UTC, 1)
 
     @Test fun reminderPreviewKeepsTodayPendingAfterNotificationAndDismissalUntilCompleted() {
-        val pending = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
+        val pending = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED, ReminderStatus.EXPIRED)
         ReminderStatus.entries.forEach { status ->
             assertEquals(if (status in pending) listOf("today") else emptyList(),
                 myUpcomingReminders(listOf(reminder("today", status = status)), today).map { it.id },
                 "status=$status")
         }
+    }
+
+    @Test fun reminderPreviewKeepsExpiredUnfinishedTasksAheadOfFutureTasks() {
+        val preview = myUpcomingReminders(listOf(
+            reminder("tomorrow", LocalDate(2026, 10, 5)),
+            reminder("yesterday", LocalDate(2026, 10, 3), ReminderStatus.EXPIRED),
+        ), today)
+
+        assertEquals(listOf("yesterday", "tomorrow"), preview.map { it.id })
+        assertTrue(preview.first().isTodayPending)
+        assertEquals(com.dailysatori.ui.feature.reminder.ReminderDueState.OVERDUE, preview.first().dueState)
     }
 
     @Test fun reminderPreviewPrioritizesTodayPendingOverFutureAndLimitsToTwo() {

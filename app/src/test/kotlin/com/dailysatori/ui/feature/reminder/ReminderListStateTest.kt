@@ -69,6 +69,53 @@ class ReminderListStateTest {
     }
 
     @Test
+    fun unfinishedDateRangeRemainsVisibleAfterItsEndWithoutLosingTheDueDate() {
+        val task = reminder("range", ReminderRecurrence.Once).copy(
+            startDate = LocalDate(2026, 9, 1), endDate = LocalDate(2026, 9, 3),
+        )
+        val overdue = buildReminderListState(listOf(task), LocalDate(2026, 9, 5), ReminderListMode.RECENT, ReminderListFilter())
+
+        assertEquals(listOf("overdue"), overdue.sections.map { it.key })
+        assertEquals(LocalDate(2026, 9, 3), overdue.sections.single().items.single().occurrenceDate)
+        assertTrue(overdue.sections.single().items.single().isTodayPending)
+    }
+
+    @Test
+    fun deadlineWarningsUseEndDateAndKeepOverdueItemsAheadOfToday() {
+        val today = LocalDate(2026, 9, 14)
+        val base = reminder("task", ReminderRecurrence.Once).copy(startDate = today, endDate = today)
+        val reminders = listOf(
+            base.copy(id = "overdue", startDate = LocalDate(2026, 9, 12), endDate = LocalDate(2026, 9, 12)),
+            base.copy(id = "today"),
+            base.copy(id = "tomorrow", startDate = LocalDate(2026, 9, 15), endDate = LocalDate(2026, 9, 15)),
+            base.copy(id = "range", startDate = LocalDate(2026, 9, 1), endDate = LocalDate(2026, 9, 16)),
+        )
+        val state = buildReminderListState(reminders, today, ReminderListMode.RECENT, ReminderListFilter())
+        val items = state.sections.flatMap { it.items }.associateBy { it.id }
+
+        assertEquals("overdue", state.sections.first().key)
+        assertEquals(ReminderDueState.OVERDUE, items.getValue("overdue").dueState)
+        assertEquals(2, items.getValue("overdue").overdueDays)
+        assertEquals(ReminderDueState.DUE_SOON, items.getValue("today").dueState)
+        assertEquals(ReminderDueState.DUE_SOON, items.getValue("tomorrow").dueState)
+        assertEquals(ReminderDueState.NONE, items.getValue("range").dueState)
+        assertEquals(LocalDate(2026, 9, 16), items.getValue("range").dueDate)
+    }
+
+    @Test
+    fun expiredDeadlineEarlierTodayIsOverdueRatherThanCompleted() {
+        val today = LocalDate(2026, 9, 14)
+        val task = reminder("deadline", ReminderRecurrence.Once, ReminderStatus.EXPIRED).copy(
+            startDate = today, endDate = today, deadlineAt = kotlinx.datetime.Instant.parse("2026-09-14T00:00:00Z"),
+        )
+        val state = buildReminderListState(listOf(task), today, ReminderListMode.RECENT, ReminderListFilter(todayOnly = true))
+
+        assertEquals(listOf("overdue"), state.sections.map { it.key })
+        assertEquals(ReminderDueState.OVERDUE, state.sections.single().items.single().dueState)
+        assertTrue(state.sections.single().items.single().isTodayPending)
+    }
+
+    @Test
     fun yearSwitcherOnlyAppearsForMonthsMode() {
         assertTrue(ReminderListMode.MONTHS.showsYearSwitcher())
         assertFalse(ReminderListMode.RECENT.showsYearSwitcher())
@@ -93,7 +140,7 @@ class ReminderListStateTest {
     fun recentSortsByNextOccurrenceAcrossYearBoundary() {
         val state = buildReminderListState(
             reminders = listOf(
-                reminder("january-next-year", yearly(1, 2)),
+                reminder("january-next-year", yearly(1, 2)).copy(completedAt = kotlinx.datetime.Instant.parse("2026-01-02T12:00:00Z")),
                 reminder("september", yearly(9, 2)),
             ),
             now = LocalDate(2026, 8, 31),
@@ -202,7 +249,7 @@ class ReminderListStateTest {
     }
 
     @Test
-    fun finishedSplitsCompletedAndExpiredGroups() {
+    fun finishedDoesNotTreatExpiredUnfinishedTasksAsCompleted() {
         val state = buildReminderListState(
             reminders = listOf(
                 reminder("completed", ReminderRecurrence.Once, ReminderStatus.COMPLETED),
@@ -213,9 +260,8 @@ class ReminderListStateTest {
             filter = ReminderListFilter(),
         )
 
-        assertEquals(listOf("completed", "expired"), state.sections.map { it.key })
-        assertEquals(listOf("completed"), state.sections[0].items.map { it.id })
-        assertEquals(listOf("expired"), state.sections[1].items.map { it.id })
+        assertEquals(listOf("completed"), state.sections.map { it.key })
+        assertEquals(listOf("completed"), state.sections.single().items.map { it.id })
     }
 
     @Test
@@ -284,6 +330,8 @@ class ReminderListStateTest {
         timeZone = TimeZone.UTC,
         version = 1,
         recurrence = recurrence,
+        // Projection fixtures have no outstanding earlier cycles; overdue cases use explicit unfinished data.
+        completedAt = if (recurrence == ReminderRecurrence.Once) null else kotlinx.datetime.Instant.parse("2026-09-13T12:00:00Z"),
     )
 
     private fun yearly(month: Int, day: Int) = ReminderRecurrence.Yearly(month, day, LeapDayPolicy.FEBRUARY_28)

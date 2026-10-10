@@ -41,6 +41,8 @@ interface ReminderDeliveryStore {
     fun expire(id: String, at: Instant): Boolean
     fun expire(id: String, expectedVersion: Long, at: Instant): Boolean = false
     fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus): Boolean = false
+    fun completeCycle(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus): Boolean =
+        advanceCutoff(id, expectedVersion, at, cycleDate, nextStatus)
 }
 
 class RepositoryReminderDeliveryStore(
@@ -63,6 +65,8 @@ class RepositoryReminderDeliveryStore(
     override fun expire(id: String, expectedVersion: Long, at: Instant) = repository.expire(id, expectedVersion, at)
     override fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus) =
         repository.advanceCutoff(id, expectedVersion, at, cycleDate, nextStatus)
+    override fun completeCycle(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus) =
+        repository.advanceCutoff(id, expectedVersion, at, cycleDate, nextStatus, completed = true)
 
     private companion object {
         val activeStatuses = setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED)
@@ -190,7 +194,8 @@ class ReminderCoordinator(
             return if (expectedVersion == null) store.complete(reminder.id, now) else store.complete(reminder.id, expectedVersion, now)
         }
         val nextDate = nextActiveCycleDate(reminder, now.toLocalDateTime(reminder.timeZone).date)
-        return nextDate != null && store.advanceCutoff(reminder.id, reminder.version, now, nextDate, ReminderStatus.ACTIVE)
+        val nextStatus = if (reminder.status == ReminderStatus.PAUSED) ReminderStatus.PAUSED else ReminderStatus.ACTIVE
+        return nextDate != null && store.completeCycle(reminder.id, reminder.version, now, nextDate, nextStatus)
     }
 
     private fun finishCompletion(id: String, reminder: Reminder, changed: Boolean): Boolean {

@@ -115,6 +115,48 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun expiryDoesNotRecordCompletionAndOnlyCurrentVersionCanCompleteExpiredTask() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft(), strongProfile())
+        assertTrue(repo.expire(reminder.id, now))
+        val expired = repo.get(reminder.id)!!
+        assertEquals(null, expired.completedAt)
+        assertFalse(repo.complete(reminder.id, reminder.version, now))
+
+        assertTrue(repo.complete(reminder.id, expired.version, now))
+
+        assertEquals(ReminderStatus.COMPLETED, repo.get(reminder.id)?.status)
+        assertEquals(now, repo.get(reminder.id)?.completedAt)
+        assertFalse(repo.complete(reminder.id, now))
+        assertFalse(repo.markDelivered(reminder.id, expired.version, now))
+    }
+
+    @Test
+    fun legacyExpiryTimestampIsNotTreatedAsACompletedRecurringCycle() = withDriverDatabase { db, driver ->
+        val repo = ReminderRepository(db, TimeZone.UTC)
+        val reminder = repo.createConfirmed(draft(id = "legacy").copy(recurrence = ReminderRecurrence.Monthly(30)), strongProfile())
+        driver.execute(null, "UPDATE reminder SET status = 'EXPIRED', completed_at = ?, updated_at = ? WHERE id = ?", 3) {
+            bindLong(0, now.toEpochMilliseconds())
+            bindLong(1, now.toEpochMilliseconds())
+            bindString(2, reminder.id)
+        }
+
+        val expired = repo.get(reminder.id)!!
+        assertEquals(null, expired.completedAt)
+        assertEquals(1, com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(listOf(expired), LocalDate(2026, 8, 30)))
+    }
+
+    @Test
+    fun laterExpiryPreservesTheActualRecurringCompletion() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft().copy(recurrence = ReminderRecurrence.Monthly(30)), strongProfile())
+        assertTrue(repo.advanceCutoff(reminder.id, reminder.version, now, LocalDate(2026, 9, 30), ReminderStatus.ACTIVE, completed = true))
+        assertTrue(repo.expire(reminder.id, Instant.parse("2026-08-31T10:00:00Z")))
+
+        val expired = repo.get(reminder.id)!!
+        assertEquals(now, expired.completedAt)
+        assertEquals(0, com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(listOf(expired), LocalDate(2026, 8, 31)))
+    }
+
+    @Test
     fun optimisticVersionRejectsStaleDismissal() = withRepository { repo ->
         val reminder = repo.createConfirmed(draft(), strongProfile())
         assertTrue(repo.markDelivered(reminder.id, reminder.version, now))

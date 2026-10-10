@@ -50,6 +50,7 @@ import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.indicator.AttentionReason
 import com.dailysatori.service.reminder.ReminderSummary
+import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.feature.profile.localDayTicker
 import org.koin.compose.koinInject
@@ -75,6 +76,8 @@ fun ReminderDetailScreen(
             Text("未找到提醒。", modifier = modifier.padding(Spacing.m))
         } else {
             val timeline = buildReminderTimeline(reminder, today)
+            val listItem = buildReminderListState(listOf(reminder), today, ReminderListMode.RECENT, ReminderListFilter())
+                .sections.flatMap { it.items }.firstOrNull()
             val i18n: I18nService = koinInject()
             val pending = ReminderSummary.todayPendingCount(listOf(reminder), today) > 0
             LazyColumn(
@@ -91,6 +94,7 @@ fun ReminderDetailScreen(
                     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m)) {
                         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                             Text(reminder.content, style = MaterialTheme.typography.headlineSmall)
+                            listItem?.let { ReminderDueBadge(it) }
                             reminder.deadlineAt?.let { deadline ->
                                 val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
                                 Text(i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(deadline), style = MaterialTheme.typography.bodyMedium)
@@ -178,7 +182,10 @@ private fun ReminderDetailActions(reminder: Reminder, onAction: (ReminderAction)
                 }
             }
             Text(
-                stringResource(R.string.reminder_detail_complete_hint),
+                stringResource(
+                    if (reminder.recurrence == ReminderRecurrence.Once) R.string.reminder_detail_complete_hint
+                    else R.string.reminder_detail_complete_cycle_hint,
+                ),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.s),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

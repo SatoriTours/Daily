@@ -33,6 +33,23 @@ class ReminderOccurrenceTest {
         assertEquals(LocalDate(2026, 3, 31), reminder.nextOccurrenceOnOrAfter(LocalDate(2026, 2, 1)))
     }
 
+    @Test fun latestMonthlyOccurrenceSkipsInvalidDaysAndDoesNotLookBeforeStart() {
+        val monthly = reminder(ReminderRecurrence.Monthly(31)).copy(startDate = LocalDate(2026, 1, 1))
+
+        assertEquals(LocalDate(2026, 1, 31), monthly.latestOccurrenceOnOrBefore(LocalDate(2026, 2, 28)))
+        assertEquals(LocalDate(2026, 3, 31), monthly.latestOccurrenceOnOrBefore(LocalDate(2026, 4, 15)))
+        assertNull(monthly.latestOccurrenceOnOrBefore(LocalDate(2026, 1, 30)))
+    }
+
+    @Test fun latestYearlyOccurrenceUsesLeapDayFallbackAndActiveDayRule() {
+        val yearly = reminder(ReminderRecurrence.Yearly(2, 29, LeapDayPolicy.MARCH_1)).copy(startDate = LocalDate(2026, 1, 1))
+
+        assertEquals(LocalDate(2027, 3, 1), yearly.latestOccurrenceOnOrBefore(LocalDate(2027, 3, 2)))
+        assertEquals(LocalDate(2026, 3, 1), yearly.latestOccurrenceOnOrBefore(LocalDate(2027, 2, 28)))
+        val selected = yearly.copy(activeDayRule = ReminderActiveDayRule.SelectedWeekdays(setOf(kotlinx.datetime.DayOfWeek.SUNDAY)))
+        assertEquals(LocalDate(2026, 3, 1), selected.latestOccurrenceOnOrBefore(LocalDate(2027, 3, 2)))
+    }
+
     @Test fun recurrenceRejectsInvalidCalendarValues() {
         assertFailsWith<IllegalArgumentException> { ReminderRecurrence.Monthly(0) }
         assertFailsWith<IllegalArgumentException> { ReminderRecurrence.Yearly(13, 1, LeapDayPolicy.FEBRUARY_28) }

@@ -8,12 +8,16 @@ import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.service.reminder.nextOccurrenceOnOrAfter
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toLocalDateTime
+import com.dailysatori.service.reminder.isUnscheduledSmsTodo
 
 enum class ReminderListMode { RECENT, MONTHS, FINISHED }
 
 fun ReminderListMode.showsYearSwitcher(): Boolean = this == ReminderListMode.MONTHS
 
 enum class ReminderRecurrenceKind { ONCE, MONTHLY, YEARLY }
+
+enum class ReminderDueState { NONE, DUE_SOON, OVERDUE }
 
 /** 列表元信息展示的重复文案：重复周期与生效日规则共同决定。 */
 enum class ReminderRepeatLabel { ONCE, DAILY, WEEKDAYS, WEEKLY, MONTHLY, YEARLY }
@@ -39,6 +43,9 @@ data class ReminderListItemUi(
     val activeDayRule: ReminderActiveDayRule = ReminderActiveDayRule.Daily,
     val deadlineAt: kotlinx.datetime.Instant? = null,
     val isTodayPending: Boolean = false,
+    val dueDate: LocalDate? = null,
+    val dueState: ReminderDueState = ReminderDueState.NONE,
+    val overdueDays: Int = 0,
 )
 
 fun ReminderListItemUi.repeatLabel(): ReminderRepeatLabel = when {
@@ -117,26 +124,28 @@ private fun Reminder.matchesFilters(filter: ReminderListFilter): Boolean =
         (filter.recurrences.isEmpty() || recurrence.kind() in filter.recurrences)
 
 private fun List<Reminder>.upcomingItems(now: LocalDate): List<ReminderListItemUi> {
-    val todayPendingIds = ReminderSummary.todayPendingReminders(this, now).map { it.id }.toSet()
     return mapNotNull { reminder ->
-        if (reminder.recurrence == ReminderRecurrence.Once && reminder.status.isTerminal()) return@mapNotNull null
+        if (reminder.recurrence == ReminderRecurrence.Once && reminder.status == ReminderStatus.COMPLETED) return@mapNotNull null
         val displayed = if (reminder.deadlineAt == null) reminder else reminder.copy(timeZone = kotlinx.datetime.TimeZone.currentSystemDefault())
-        val date = if (displayed.deadlineAt == null && displayed.startDate <= now && displayed.id in todayPendingIds) now
-            else displayed.nextOccurrenceOnOrAfter(now)
+        val date = ReminderSummary.pendingOccurrenceDate(displayed, now) ?: displayed.nextOccurrenceOnOrAfter(now)
         date?.let { displayed.toItem(it, now) }
     }
 }
 
 private fun List<Reminder>.finishedItems(now: LocalDate): List<ReminderListItemUi> = mapNotNull { reminder ->
-    if (reminder.recurrence != ReminderRecurrence.Once || !reminder.status.isTerminal()) return@mapNotNull null
+    if (reminder.recurrence != ReminderRecurrence.Once || reminder.status != ReminderStatus.COMPLETED) return@mapNotNull null
     reminder.toItem(reminder.endDate, now)
 }
 
 private fun List<Reminder>.monthsFor(year: Int, now: LocalDate, query: String): List<ReminderMonthUi> = (1..12).map { month ->
     val firstDay = LocalDate(year, month, 1)
     val items = asSequence()
-        .filter { it.recurrence != ReminderRecurrence.Once || !it.status.isTerminal() }
-        .mapNotNull { reminder -> reminder.nextOccurrenceOnOrAfter(firstDay)?.takeIf { it.year == year && it.monthNumber == month }?.let { reminder.toItem(it, now) } }
+        .filter { it.recurrence != ReminderRecurrence.Once || it.status != ReminderStatus.COMPLETED }
+        .mapNotNull { reminder ->
+            val pending = ReminderSummary.pendingOccurrenceDate(reminder, now)?.takeIf { it.year == year && it.monthNumber == month }
+            (pending ?: reminder.nextOccurrenceOnOrAfter(firstDay))
+                ?.takeIf { it.year == year && it.monthNumber == month }?.let { reminder.toItem(it, now) }
+        }
         .filter { it.matchesQuery(query, now) }
         .sortedWith(compareBy<ReminderListItemUi> { it.occurrenceDate }.thenBy { it.firstReminderTime }.thenBy { it.id })
         .toList()
@@ -144,7 +153,8 @@ private fun List<Reminder>.monthsFor(year: Int, now: LocalDate, query: String): 
 }
 
 private fun List<ReminderListItemUi>.groupForRecent(now: LocalDate): List<ReminderListSectionUi> = listOfNotNull(
-    ReminderListSectionUi("today", filter { it.daysUntil == 0 }).takeIf { it.items.isNotEmpty() },
+    ReminderListSectionUi("overdue", filter { it.daysUntil < 0 || it.dueState == ReminderDueState.OVERDUE }).takeIf { it.items.isNotEmpty() },
+    ReminderListSectionUi("today", filter { it.daysUntil == 0 && it.dueState != ReminderDueState.OVERDUE }).takeIf { it.items.isNotEmpty() },
     ReminderListSectionUi("tomorrow", filter { it.daysUntil == 1 }).takeIf { it.items.isNotEmpty() },
     ReminderListSectionUi("next_week", filter { it.daysUntil in 2..7 }).takeIf { it.items.isNotEmpty() },
     ReminderListSectionUi("later_this_month", filter { it.occurrenceDate.year == now.year && it.occurrenceDate.monthNumber == now.monthNumber && it.daysUntil > 7 }).takeIf { it.items.isNotEmpty() },
@@ -157,19 +167,30 @@ private fun List<ReminderListItemUi>.groupByMonth(year: Int): List<ReminderListS
         .toSortedMap()
         .map { (month, items) -> ReminderListSectionUi("month_$month", items) }
 
-private fun Reminder.toItem(date: LocalDate, now: LocalDate) = ReminderListItemUi(
-    id = id,
-    content = content,
-    occurrenceDate = date,
-    firstReminderTime = firstReminderTime.toString(),
-    daysUntil = now.daysUntil(date),
-    recurrence = recurrence.kind(),
-    status = status,
-    activeDayRule = activeDayRule,
-    deadlineAt = deadlineAt,
-    isTodayPending = (recurrence == ReminderRecurrence.Once || date == now) &&
-        ReminderSummary.todayPendingCount(listOf(this), now) > 0,
-)
+private fun Reminder.toItem(date: LocalDate, now: LocalDate): ReminderListItemUi {
+    val deadline = deadlineAt
+    val dueDate = when {
+        isUnscheduledSmsTodo -> null
+        deadline != null -> deadline.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
+        recurrence == ReminderRecurrence.Once -> endDate
+        else -> date
+    }
+    val daysUntilDue = dueDate?.let { now.daysUntil(it) }
+    val dueState = when {
+        status == ReminderStatus.COMPLETED || status == ReminderStatus.PAUSED || dataIssue != null -> ReminderDueState.NONE
+        daysUntilDue == null -> ReminderDueState.NONE
+        daysUntilDue < 0 || deadlineAt != null && status == ReminderStatus.EXPIRED -> ReminderDueState.OVERDUE
+        daysUntilDue <= 1 -> ReminderDueState.DUE_SOON
+        else -> ReminderDueState.NONE
+    }
+    return ReminderListItemUi(
+        id = id, content = content, occurrenceDate = date, firstReminderTime = firstReminderTime.toString(),
+        daysUntil = now.daysUntil(date), recurrence = recurrence.kind(), status = status,
+        activeDayRule = activeDayRule, deadlineAt = deadlineAt,
+        isTodayPending = date == ReminderSummary.pendingOccurrenceDate(this, now),
+        dueDate = dueDate, dueState = dueState, overdueDays = (daysUntilDue?.unaryMinus() ?: 0).coerceAtLeast(0),
+    )
+}
 
 private fun ReminderListItemUi.matchesQuery(query: String, now: LocalDate): Boolean {
     val normalized = query.trim().lowercase()
@@ -186,5 +207,3 @@ private fun ReminderRecurrence.kind(): ReminderRecurrenceKind = when (this) {
     is ReminderRecurrence.Monthly -> ReminderRecurrenceKind.MONTHLY
     is ReminderRecurrence.Yearly -> ReminderRecurrenceKind.YEARLY
 }
-
-private fun ReminderStatus.isTerminal(): Boolean = this == ReminderStatus.COMPLETED || this == ReminderStatus.EXPIRED

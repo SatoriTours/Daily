@@ -65,7 +65,8 @@ class ProfileStateTest {
         val reminder = profileReminder(date = LocalDate(2026, 9, 2), content = "续费", hour = 8)
 
         assertEquals("续费", profileReminderSummary(listOf(reminder), LocalDate(2026, 9, 2)).nextContent)
-        assertEquals(null, profileReminderSummary(listOf(reminder), LocalDate(2026, 9, 3)).nextContent)
+        assertEquals("续费", profileReminderSummary(listOf(reminder), LocalDate(2026, 9, 3)).nextContent)
+        assertEquals(null, profileReminderSummary(listOf(reminder.copy(status = ReminderStatus.COMPLETED)), LocalDate(2026, 9, 3)).nextContent)
     }
 
     @Test
