@@ -53,7 +53,9 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         DatabaseMigration(driver, settings).runMigrations()
     }
 
-    fun userFiles(appDataDir: String): List<String> {
+    fun userFiles(appDataDir: String): List<String> = attachmentReferences(appDataDir).map { it.relativePath }.distinct()
+
+    fun attachmentReferences(appDataDir: String): List<BackupAttachmentReference> {
         check(strings("PRAGMA quick_check") == listOf("ok")) { "数据库完整性检查失败" }
         check(strings("PRAGMA foreign_key_check").isEmpty()) { "数据库关联完整性检查失败" }
         if ("error_message" in strings("SELECT name FROM pragma_table_info('diary_attachment')")) {
@@ -61,7 +63,13 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
                 "正在录音，请结束录音后再备份或恢复"
             }
         }
-        return pathRows().flatMap { row -> row.paths().mapNotNull { portablePath(it, appDataDir) } }.distinct()
+        return pathRows().flatMap { row ->
+            row.paths().mapNotNull { path ->
+                portablePath(path, appDataDir)?.let {
+                    BackupAttachmentReference(row.source, row.id, row.recordId, path, it)
+                }
+            }
+        }
     }
 
     fun prepareRestore(appDataDir: String, backupDirectory: String, availableFiles: Set<String>) {
@@ -90,14 +98,15 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         SettingRepository(DailySatoriDatabase(driver)).upsert(SettingKeys.backupDir, backupDirectory)
     }
 
-    private fun pathRows(): List<PathRow> = listOf(
-        "diary_attachment" to "local_path", "diary" to "images", "image" to "path",
-        "article" to "cover_image", "book" to "cover_image",
-    ).flatMap { (table, column) ->
-        if (column !in strings("SELECT name FROM pragma_table_info('$table')")) emptyList() else {
-            driver.executeQuery(null, "SELECT rowid, $column FROM $table WHERE $column IS NOT NULL AND $column <> ''", { cursor ->
+    private fun pathRows(): List<PathRow> = BackupAttachmentSource.entries.flatMap { source ->
+        val table = source.table
+        val column = source.column
+        val columns = strings("SELECT name FROM pragma_table_info('$table')")
+        if (column !in columns) emptyList() else {
+            val owner = source.ownerColumn?.takeIf { it in columns } ?: "rowid"
+            driver.executeQuery(null, "SELECT rowid, $column, $owner FROM $table WHERE $column IS NOT NULL AND $column <> ''", { cursor ->
                 val result = mutableListOf<PathRow>()
-                while (cursor.next().value) result += PathRow(table, column, cursor.getLong(0)!!, cursor.getString(1)!!)
+                while (cursor.next().value) result += PathRow(source, cursor.getLong(0)!!, cursor.getString(1)!!, cursor.getLong(2))
                 QueryResult.Value(result)
             }, 0).value
         }
@@ -109,7 +118,9 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         QueryResult.Value(values)
     }, 0).value
 
-    private data class PathRow(val table: String, val column: String, val id: Long, val value: String) {
+    private data class PathRow(val source: BackupAttachmentSource, val id: Long, val value: String, val recordId: Long?) {
+        val table: String get() = source.table
+        val column: String get() = source.column
         fun paths(): List<String> {
             val paths = if (table == "diary") value.split(',').map(String::trim).filter(String::isNotEmpty) else listOf(value)
             // Old JSON imports turned absent images into these literal values. They are not files.

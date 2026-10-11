@@ -78,10 +78,62 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
             }
             BackupVerificationCard(state, busy, i18n, viewModel)
             state.error?.let { SettingsEditorMessage(it, isError = true) }
+            if (state.missingAttachments.isNotEmpty()) BackupMissingAttachmentsCard(state.missingAttachments, i18n)
             state.message?.let { SettingsEditorMessage(it, isError = false) }
             if (state.isBackingUp && !state.isVerifying) LinearProgressIndicator(progress = { state.backupProgress },
                 modifier = Modifier.fillMaxWidth())
             if (!grouped) OutlinedButton(onClick = onRestore, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(i18n.t("settings_design.restore_backup")) }
+        }
+    }
+}
+
+@Composable
+private fun BackupMissingAttachmentsCard(missing: List<BackupAttachmentReference>, i18n: I18nService) {
+    var visibleCount by remember(missing) { mutableIntStateOf(20) }
+    val clipboard = LocalClipboardManager.current
+    var copied by remember(missing) { mutableStateOf(false) }
+    val report = remember(missing) {
+        buildString {
+            appendLine("Daily Satori unmatched backup attachments")
+            appendLine("appVersion=${com.dailysatori.BuildConfig.VERSION_NAME} (${com.dailysatori.BuildConfig.VERSION_CODE})")
+            missing.forEach {
+                appendLine("source=${it.source.diagnosticName} recordId=${it.recordId} rowId=${it.rowId}")
+                appendLine("originalPath=${it.originalPath}")
+                appendLine("expectedPath=${it.relativePath}")
+            }
+        }
+    }
+    SettingsSectionCard(i18n.t("settings_design.backup_missing_title", missing.map { it.relativePath }.distinct().size, missing.size)) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+            Text(i18n.t("settings_design.backup_missing_description"), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = {
+                clipboard.setText(AnnotatedString(report))
+                copied = true
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text(i18n.t(if (copied) "settings_design.backup_missing_copied" else "settings_design.backup_missing_copy"))
+            }
+            SelectionContainer {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    missing.take(visibleCount).forEach { attachment ->
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Text(i18n.t("settings_design.backup_attachment_${attachment.source.name.lowercase()}"),
+                                style = MaterialTheme.typography.titleSmall)
+                            attachment.recordId?.let {
+                                Text(i18n.t("settings_design.backup_attachment_record", it), style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text(i18n.t("settings_design.backup_attachment_row", attachment.rowId), style = MaterialTheme.typography.bodySmall)
+                            Text(i18n.t("settings_design.backup_attachment_original") + attachment.originalPath,
+                                style = MaterialTheme.typography.bodySmall)
+                            Text(i18n.t("settings_design.backup_attachment_target") + attachment.relativePath,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+            if (visibleCount < missing.size) TextButton(onClick = { visibleCount += 20 }, modifier = Modifier.fillMaxWidth()) {
+                Text(i18n.t("settings_design.backup_missing_more", missing.size - visibleCount))
+            }
         }
     }
 }

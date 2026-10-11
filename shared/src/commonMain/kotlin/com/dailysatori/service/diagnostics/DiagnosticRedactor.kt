@@ -25,6 +25,8 @@ object DiagnosticRedactor {
                 key == "articleStage" && value in setOf("queued", "extraction", "overview", "translation", "cover") -> put(key, value)
                 key == "method" && value in methods -> put(key, value)
                 key == "reminderField" && value in reminderFields -> put(key, value)
+                key == "backupAttachmentSource" && value in setOf("diary_attachment.local_path", "diary.images",
+                    "image.path", "article.cover_image", "book.cover_image") -> put(key, value)
                 key == "provider" && value.lowercase() in providers -> put(key, value.lowercase())
                 key == "url" -> putAll(endpoint(value))
                 key == "model" -> put(key, value.takeIf { it in publicModels } ?: "custom-${DiagnosticLog.fingerprint(value)}")

@@ -734,7 +734,7 @@ private class FakeBackupSecrets(private val files: FakeBackupFiles) : BackupData
     override fun wrapRestoredKey(key: com.dailysatori.service.security.DatabaseKey) = "device-wrapped-key".encodeToByteArray()
     override fun checkBackupDatabase(databasePath: String, key: com.dailysatori.service.security.DatabaseKey?) = Unit
     override fun backupDatabaseSummary(databasePath: String, key: com.dailysatori.service.security.DatabaseKey) = emptyMap<String, Long>()
-    override fun requiredUserFiles(databasePath: String, appDataDir: String, key: com.dailysatori.service.security.DatabaseKey) = emptyList<String>()
+    override fun attachmentReferences(databasePath: String, appDataDir: String, key: com.dailysatori.service.security.DatabaseKey) = emptyList<BackupAttachmentReference>()
     override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: com.dailysatori.service.security.DatabaseKey) = Unit
 }
 

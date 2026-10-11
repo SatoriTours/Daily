@@ -10,6 +10,26 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackupSettingsViewModelTest {
     @Test
+    fun failedBackupShowsExactReferencesAndNextSuccessClearsThem() = runTest {
+        val client = Client()
+        val reference = BackupAttachmentReference(BackupAttachmentSource.DIARY_ATTACHMENT, 7, 23,
+            "/old/DailySatori/diary/audio/23/voice.m4a", "diary/audio/23/voice.m4a")
+        client.backupResult = false
+        client.missingAttachments.value = listOf(reference)
+        val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
+        runCurrent()
+
+        vm.startBackup()
+        runCurrent()
+        assertEquals(listOf(reference), vm.state.value.missingAttachments)
+
+        client.backupResult = true
+        vm.startBackup()
+        runCurrent()
+        assertTrue(vm.state.value.missingAttachments.isEmpty())
+    }
+
+    @Test
     fun failedImmediateBackupShowsAnErrorAndClearsThePreviousSuccessMessage() = runTest {
         val client = Client()
         val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
@@ -316,6 +336,7 @@ class BackupSettingsViewModelTest {
         var directory = "old"
         var backupResult = true
         override val lastMessage = MutableStateFlow("")
+        override val missingAttachments = MutableStateFlow<List<BackupAttachmentReference>>(emptyList())
         val backupDirectories = mutableListOf<String>()
         override fun loadDirectory() = directory
         override fun saveDirectory(path: String) { directory = path }

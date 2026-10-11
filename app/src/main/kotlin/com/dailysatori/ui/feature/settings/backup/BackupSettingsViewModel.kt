@@ -11,6 +11,7 @@ import com.dailysatori.platform.FileManager
 import com.dailysatori.service.backup.BackupPasswordStore
 import com.dailysatori.service.backup.MinBackupPasswordLength
 import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.backup.BackupAttachmentReference
 import com.dailysatori.service.backup.BackupVerificationResult
 import com.dailysatori.service.backup.BackupVerificationStage
 import com.dailysatori.service.backup.BackupVerificationStatus
@@ -38,6 +39,7 @@ data class BackupSettingsState(
     val backupProgress: Float = 0f,
     val error: String? = null,
     val message: String? = null,
+    val missingAttachments: List<BackupAttachmentReference> = emptyList(),
     val isVerifying: Boolean = false,
     val verificationStage: BackupVerificationStage = BackupVerificationStage.SELECTING,
     val verificationFileName: String? = null,
@@ -49,6 +51,7 @@ internal interface BackupSettingsClient {
     val isBackingUp: StateFlow<Boolean>
     val progress: StateFlow<Double>
     val lastMessage: StateFlow<String>
+    val missingAttachments: StateFlow<List<BackupAttachmentReference>>
     val verificationStage: StateFlow<BackupVerificationStage>
     val verificationFileName: StateFlow<String?>
     fun loadDirectory(): String
@@ -74,6 +77,7 @@ class BackupSettingsViewModel internal constructor(
         override val isBackingUp = backupService.isBackingUp
         override val progress = backupService.progress
         override val lastMessage = backupService.lastMessage
+        override val missingAttachments = backupService.missingAttachments
         override val verificationStage = backupService.verificationStage
         override val verificationFileName = backupService.verificationFileName
         override fun loadDirectory() = settingService.getString(SettingKeys.backupDir)
@@ -254,7 +258,7 @@ class BackupSettingsViewModel internal constructor(
                 onComplete(false)
                 return@launch
             }
-            _state.update { it.copy(error = null, message = null, verificationResult = null, verificationPasswordInput = "") }
+            _state.update { it.copy(error = null, message = null, missingAttachments = emptyList(), verificationResult = null, verificationPasswordInput = "") }
             try {
                 if (_state.value.backupDirectory.isBlank()) {
                     _state.update { it.copy(error = "请先选择备份目录") }
@@ -270,6 +274,7 @@ class BackupSettingsViewModel internal constructor(
                 _state.update { it.copy(
                     message = if (result) "备份已完成" else null,
                     error = if (result) null else backupFailureMessage(),
+                    missingAttachments = if (result) emptyList() else client.missingAttachments.value,
                 ) }
                 onComplete(result)
             } catch (cancelled: CancellationException) {
@@ -283,7 +288,7 @@ class BackupSettingsViewModel internal constructor(
 
     private fun backupFailureMessage(): String = when (client.lastMessage.value) {
         "Backup failed: 存在缺失的附件，无法创建完整备份" ->
-            "备份失败：当前数据引用的附件已缺失，未生成新备份。验证最近备份仍可能检查旧备份。"
+            "备份失败：部分附件引用未匹配到文件，具体清单见下方。未生成新备份，验证最近备份仍可能检查旧备份。"
         else -> "备份失败。请检查备份目录权限、可用空间和诊断日志；验证最近备份仍可能检查旧备份。"
     }
 }

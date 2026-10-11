@@ -72,6 +72,8 @@ class BackupService internal constructor(
     val progress: StateFlow<Double> = _progress
     private val _lastMessage = MutableStateFlow("")
     val lastMessage: StateFlow<String> = _lastMessage
+    private val _missingAttachments = MutableStateFlow<List<BackupAttachmentReference>>(emptyList())
+    val missingAttachments: StateFlow<List<BackupAttachmentReference>> = _missingAttachments
 
     private val _verificationStage = MutableStateFlow(BackupVerificationStage.SELECTING)
     val verificationStage: StateFlow<BackupVerificationStage> = _verificationStage
@@ -228,6 +230,7 @@ class BackupService internal constructor(
 
     private suspend fun backupRecorded(): Boolean {
         if (!operationMutex.tryLock()) return false
+        _missingAttachments.value = emptyList()
         _isBackingUp.value = true
         _progress.value = 0.0
         var tempDirToClean: String? = null
@@ -294,13 +297,22 @@ class BackupService internal constructor(
                 _progress.value = 0.35 + 0.15 * (index + 1) / content.size
             }
         }
-        val required = secrets.requiredUserFiles(database, appDataDir, key)
-        check(entries.map { it.path }.containsAll(required)) { "存在缺失的附件，无法创建完整备份" }
+        checkRequiredAttachments(database, appDataDir, key, entries.map { it.path }.toSet())
         val manifest = BackupManifest(formatVersion = 2, schemaVersion = DatabaseConfig.currentSchemaVersion, sourceAppDataDir = appDataDir, files = entries)
         val manifestPath = "$directory/$BackupManifestName"
         files.writeFile(manifestPath, Json.encodeToString(manifest).encodeToByteArray())
         _progress.value = 0.5
         return content + manifestPath
+    }
+
+    private fun checkRequiredAttachments(database: String, appDataDir: String, key: DatabaseKey, available: Set<String>) {
+        val missing = secrets.attachmentReferences(database, appDataDir, key).filter { it.relativePath !in available }
+        _missingAttachments.value = missing
+        missing.groupingBy { it.source }.eachCount().forEach { (source, count) ->
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.BACKUP,
+                DiagnosticLevel.WARNING, fields = mapOf("backupAttachmentSource" to source.diagnosticName, "count" to count.toString()))
+        }
+        check(missing.isEmpty()) { "存在缺失的附件，无法创建完整备份" }
     }
 
     private fun publishBackup(directory: String, content: List<String>, backupDir: String, name: String, password: String) {
@@ -598,7 +610,7 @@ internal interface BackupDatabaseAccess {
     fun exportSnapshot(databasePath: String): DatabaseKey
     fun prepareRestoredDatabase(databasePath: String, key: DatabaseKey?): DatabaseKey
     fun wrapRestoredKey(key: DatabaseKey): ByteArray
-    fun requiredUserFiles(databasePath: String, appDataDir: String, key: DatabaseKey): List<String>
+    fun attachmentReferences(databasePath: String, appDataDir: String, key: DatabaseKey): List<BackupAttachmentReference>
     fun checkBackupDatabase(databasePath: String, key: DatabaseKey?)
     fun backupDatabaseSummary(databasePath: String, key: DatabaseKey): Map<String, Long>
     fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey)
@@ -674,8 +686,8 @@ private class DatabaseBackupAccess(
     }
 
     override fun wrapRestoredKey(key: DatabaseKey): ByteArray = factory.wrapDatabaseKey(key)
-    override fun requiredUserFiles(databasePath: String, appDataDir: String, key: DatabaseKey): List<String> =
-        withDatabase(databasePath, key) { BackupDatabaseData(it).userFiles(appDataDir) }
+    override fun attachmentReferences(databasePath: String, appDataDir: String, key: DatabaseKey): List<BackupAttachmentReference> =
+        withDatabase(databasePath, key) { BackupDatabaseData(it).attachmentReferences(appDataDir) }
 
     override fun checkBackupDatabase(databasePath: String, key: DatabaseKey?) {
         withDatabase(databasePath, key) { driver ->

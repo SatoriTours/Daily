@@ -7,6 +7,14 @@ import kotlinx.serialization.json.Json
 
 class DiagnosticRedactorTest {
     @Test
+    fun backupAttachmentEvidenceRecordsOnlyKnownSourcesAndCounts() {
+        assertEquals(mapOf("backupAttachmentSource" to "diary.images", "count" to "2"),
+            DiagnosticRedactor.fields(mapOf("backupAttachmentSource" to "diary.images", "count" to "2",
+                "path" to "/private/photo.jpg", "recordId" to "23")))
+        assertTrue(DiagnosticRedactor.fields(mapOf("backupAttachmentSource" to "/private/photo.jpg")).isEmpty())
+    }
+
+    @Test
     fun reminderValidationRecordsOnlyAllowListedFieldNames() {
         assertEquals(mapOf("reminderField" to "first_reminder_time"),
             DiagnosticRedactor.fields(mapOf("reminderField" to "first_reminder_time", "response" to "private-body")))

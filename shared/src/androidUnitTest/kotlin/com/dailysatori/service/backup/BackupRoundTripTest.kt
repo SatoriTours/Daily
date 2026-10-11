@@ -5,6 +5,7 @@ import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.service.ideatopic.*
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.platform.FileManager
 import com.dailysatori.service.security.DatabaseKey
 import com.dailysatori.service.security.SecretFieldProcessor
@@ -18,6 +19,38 @@ import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class BackupRoundTripTest {
+    @Test
+    fun failedBackupReportsMissingAttachmentCountsAndPreservesDatabaseAndPreviousBackup() = runBlocking {
+        withVerificationFixture { files, service, backup ->
+            File(files.getAppDataDir(), "diary/audio/23/voice.m4a").delete()
+            val database = File(files.getDatabasePath()).readBytes()
+            val previousBackup = backup.readBytes()
+            val events = mutableListOf<SafeDiagnosticEvent>()
+            val previousDiagnostics = DiagnosticLog.diagnostics
+            try {
+                DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+                assertFalse(service.backupNow())
+            } finally { DiagnosticLog.diagnostics = previousDiagnostics }
+
+            assertContentEquals(database, File(files.getDatabasePath()).readBytes())
+            assertContentEquals(previousBackup, backup.readBytes())
+            assertEquals(1, backup.parentFile!!.listFiles()!!.size)
+            assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
+            val missing = events.single { it.attributes["backupAttachmentSource"] == "diary_attachment.local_path" }
+            assertEquals("1", missing.attributes["count"])
+            assertFalse(Json.encodeToString(events).contains("voice.m4a"))
+            val reference = service.missingAttachments.value.single()
+            assertEquals(BackupAttachmentSource.DIARY_ATTACHMENT, reference.source)
+            assertEquals(23L, reference.recordId)
+            assertEquals("diary/audio/23/voice.m4a", reference.relativePath)
+            assertEquals("${files.getAppDataDir()}/diary/audio/23/voice.m4a", reference.originalPath)
+
+            files.writeFile(reference.originalPath, "recovered voice".toByteArray())
+            assertTrue(service.backupNow(), service.lastMessage.value)
+            assertTrue(service.missingAttachments.value.isEmpty())
+        }
+    }
+
     @Test
     fun freshBackupWithLegacyNullImagePlaceholdersCanBeCreatedAndVerifiedWithoutChangingLiveData() = runBlocking {
         withVerificationFixture { files, service, _ ->
@@ -470,8 +503,8 @@ class BackupRoundTripTest {
                     withDatabase(databasePath) { BackupDatabaseData(it).verifiedSummary(BackupDatabaseData(reference).schemaColumns()) }
                 } finally { reference.close() }
             }
-            override fun requiredUserFiles(databasePath: String, appDataDir: String, key: DatabaseKey) = withDatabase(databasePath) {
-                BackupDatabaseData(it).userFiles(appDataDir)
+            override fun attachmentReferences(databasePath: String, appDataDir: String, key: DatabaseKey) = withDatabase(databasePath) {
+                BackupDatabaseData(it).attachmentReferences(appDataDir)
             }
             override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey) =
                 withDatabase(databasePath) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }

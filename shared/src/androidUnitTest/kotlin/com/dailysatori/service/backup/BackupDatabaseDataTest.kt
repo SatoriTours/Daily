@@ -9,6 +9,32 @@ import kotlin.test.*
 
 class BackupDatabaseDataTest {
     @Test
+    fun attachmentInventoryPreservesEveryReferenceAndItsOwnerWithoutIncludingRemoteImages() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(23,'diary','diary_images/photo.jpg,https://example.com/remote.jpg',1,1)", 0)
+            driver.execute(null, "INSERT INTO diary_attachment(id,diary_id,kind,local_path,created_at,updated_at) VALUES(7,23,'audio','/old/app_flutter/diary/audio/23/voice.m4a',1,1)", 0)
+            driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(31,'images/shared.jpg',1,1)", 0)
+            driver.execute(null, "INSERT INTO image(id,path,article_id,created_at,updated_at) VALUES(8,'images/shared.jpg',31,1,1)", 0)
+            driver.execute(null, "INSERT INTO book(id,title,author,category,cover_image,introduction,created_at,updated_at) VALUES(51,'book','','','images/book.jpg','',1,1)", 0)
+
+            val references = BackupDatabaseData(driver).attachmentReferences("/app")
+
+            assertEquals(5, references.size)
+            assertEquals(BackupAttachmentSource.entries.toSet(), references.map { it.source }.toSet())
+            val audio = references.single { it.source == BackupAttachmentSource.DIARY_ATTACHMENT }
+            assertEquals(7L, audio.rowId)
+            assertEquals(23L, audio.recordId)
+            assertEquals("/old/app_flutter/diary/audio/23/voice.m4a", audio.originalPath)
+            assertEquals("diary/audio/23/voice.m4a", audio.relativePath)
+            assertEquals(31L, references.single { it.source == BackupAttachmentSource.ARTICLE_IMAGE }.recordId)
+            assertEquals(2, references.count { it.relativePath == "images/shared.jpg" })
+            assertEquals(4, BackupDatabaseData(driver).userFiles("/app").size)
+        } finally { driver.close() }
+    }
+
+    @Test
     fun legacyNullImagePlaceholdersDoNotRequireNonexistentAttachments() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
