@@ -38,7 +38,7 @@ class DiaryThreadBackupTest {
         assertTrue(files.contains("diary/audio/root.m4a"))
         assertTrue(files.contains("diary/audio/reply.m4a"), "续写录音必须随备份")
 
-        backupData.prepareRestore(appDataDir, "/backups", files.toSet())
+        backupData.prepareRestore(appDataDir, "/backups")
 
         assertEquals("diary_images/reply.png", diaries.getById(replyId)!!.images)
         assertEquals(

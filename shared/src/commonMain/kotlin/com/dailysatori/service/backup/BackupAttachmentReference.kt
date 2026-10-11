@@ -10,11 +10,14 @@ enum class BackupAttachmentSource(val table: String, val column: String, interna
     val diagnosticName: String get() = "$table.$column"
 }
 
-/** Private, on-device evidence. Paths and record IDs must never enter diagnostic logs. */
+internal const val BackupAttachmentLogDirectory = "backup_logs"
+
+/** Private, on-device evidence. Paths and record IDs must never enter exported diagnostic logs. */
 data class BackupAttachmentReference(
     val source: BackupAttachmentSource,
     val rowId: Long,
     val recordId: Long?,
     val originalPath: String,
     val relativePath: String,
+    val isImage: Boolean = source != BackupAttachmentSource.DIARY_ATTACHMENT,
 )

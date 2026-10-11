@@ -20,6 +20,39 @@ import kotlin.test.*
 
 class BackupRoundTripTest {
     @Test
+    fun missingImagesAllowBackupVerificationAndRestoreWithoutDroppingReferences() = runBlocking {
+        withVerificationFixture { files, service, _ ->
+            withDatabase(files.getDatabasePath()) { driver ->
+                driver.execute(null, "UPDATE diary SET images = 'diary_images/photo.jpg,diary_images/missing.jpg' WHERE id = 23", 0)
+                driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(71,'images/20241025_140752-2408',1,1)", 0)
+                driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(23,'image','diary/images/missing-without-extension',1,1)", 0)
+            }
+            val source = File(files.getDatabasePath()).readBytes()
+            assertTrue(service.backupNow(), service.lastMessage.value)
+            val log = File(files.getAppDataDir(), "$BackupAttachmentLogDirectory/missing-attachments.log").readText()
+            assertTrue(log.contains("expectedPath=diary_images/missing.jpg"))
+            assertTrue(log.contains("expectedPath=images/20241025_140752-2408"))
+            assertTrue(log.contains("expectedPath=diary/images/missing-without-extension"))
+            assertEquals(BackupVerificationStatus.PASSED, service.verifyLatestBackup("correct horse battery").status)
+            assertContentEquals(source, File(files.getDatabasePath()).readBytes())
+
+            val latestBackup = service.listBackups().maxBy { it.timestamp }
+            assertTrue(service.restore(latestBackup.name, "correct horse battery"), service.lastMessage.value)
+            withDatabase(files.getDatabasePath()) { driver ->
+                val queries = DailySatoriDatabase(driver).dailySatoriQueries
+                assertEquals("journal entry", queries.selectAllDiaries().executeAsOne().content)
+                assertEquals("diary_images/photo.jpg,diary_images/missing.jpg", queries.selectAllDiaries().executeAsOne().images)
+                assertEquals("images/20241025_140752-2408", queries.selectArticleById(71).executeAsOne().cover_image)
+                assertTrue(queries.selectAllDiaryAttachments().executeAsList().any {
+                    it.kind == "image" && it.local_path == "${files.getAppDataDir()}/diary/images/missing-without-extension"
+                })
+            }
+            assertEquals("photo bytes", File(files.getAppDataDir(), "diary_images/photo.jpg").readText())
+            assertEquals("voice bytes", File(files.getAppDataDir(), "diary/audio/23/voice.m4a").readText())
+        }
+    }
+
+    @Test
     fun failedBackupReportsMissingAttachmentCountsAndPreservesDatabaseAndPreviousBackup() = runBlocking {
         withVerificationFixture { files, service, backup ->
             File(files.getAppDataDir(), "diary/audio/23/voice.m4a").delete()
@@ -132,15 +165,16 @@ class BackupRoundTripTest {
     }
 
     @Test
-    fun verificationRejectsMissingReferencedAudioEvenWithAConsistentManifest() = runBlocking {
+    fun verificationAcceptsMissingReferencedAudioWithAConsistentManifest() = runBlocking {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup) { it.resolve("diary/audio/23/voice.m4a").delete() }
-            assertVerificationFailure(files, service, BackupVerificationStage.PREPARING)
+            assertEquals(BackupVerificationStatus.PASSED, service.verifyLatestBackup("correct horse battery").status)
+            assertFalse(files.pending.exists())
         }
     }
 
     @Test
-    fun legacyBackupMissingAudioReportsTheSpecificIssueWithoutChangingSourceOrBackup() = runBlocking {
+    fun legacyBackupWithMissingAudioRemainsUsableWithoutChangingSourceOrBackup() = runBlocking {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup, updateManifest = false) { content ->
                 content.resolve(BackupManifestName).delete()
@@ -150,11 +184,9 @@ class BackupRoundTripTest {
             val source = File(files.getDatabasePath()).readBytes()
             val originalArchive = backup.readBytes()
             val result = service.verifyLatestBackup("correct horse battery")
-            assertEquals(BackupVerificationStatus.FAILED, result.status)
-            assertEquals(BackupVerificationStage.PREPARING, result.stage)
-            assertEquals(BackupVerificationIssue.MISSING_ATTACHMENTS, result.issue)
-            assertEquals(1L, result.summary["missing_files"])
-            assertTrue(result.diagnosticLog.contains("missingAttachmentReferences=diary_attachment.local_path count=1"))
+            assertEquals(BackupVerificationStatus.LIMITED, result.status)
+            assertEquals(BackupVerificationStage.COMPLETE, result.stage)
+            assertNull(result.issue)
             assertFalse(result.diagnosticLog.contains("voice.m4a"))
             assertContentEquals(source, File(files.getDatabasePath()).readBytes())
             assertContentEquals(originalArchive, backup.readBytes())
@@ -506,8 +538,8 @@ class BackupRoundTripTest {
             override fun attachmentReferences(databasePath: String, appDataDir: String, key: DatabaseKey) = withDatabase(databasePath) {
                 BackupDatabaseData(it).attachmentReferences(appDataDir)
             }
-            override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey) =
-                withDatabase(databasePath) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }
+            override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, key: DatabaseKey) =
+                withDatabase(databasePath) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory) }
         }
         val life = object : LifeArchiveBackup {
             override suspend fun exportSnapshot() = archive

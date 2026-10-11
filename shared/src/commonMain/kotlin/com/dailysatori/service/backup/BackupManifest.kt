@@ -27,6 +27,6 @@ internal fun isBackupUserFile(path: String): Boolean =
     path.isNotBlank() && !path.startsWith('/') && '\\' !in path &&
         path.split('/').none { it.isBlank() || it == "." || it == ".." ||
             it in setOf(DatabaseKeyBackupName, "database_key.sec", "backup_password.sec") } &&
-        path.substringBefore('/') !in setOf("backups", "restore_temp", BackupManifestName,
+        path.substringBefore('/') !in setOf("backups", "restore_temp", BackupAttachmentLogDirectory, BackupManifestName,
             LifeArchiveBackupName, DatabaseKeyBackupName, "database_key.sec", "backup_password.sec", "database-install",
             "pending-restore", "database-init.lock", "daily_satori.db", "_restore")

@@ -288,7 +288,7 @@ class BackupSettingsViewModel internal constructor(
 
     private fun backupFailureMessage(): String = when (client.lastMessage.value) {
         "Backup failed: 存在缺失的附件，无法创建完整备份" ->
-            "备份失败：部分附件引用未匹配到文件，具体清单见下方。未生成新备份，验证最近备份仍可能检查旧备份。"
+            "备份失败：部分附件文件缺失，请查看本地备份日志。未生成新备份，最近备份仍是旧备份。"
         else -> "备份失败。请检查备份目录权限、可用空间和诊断日志；验证最近备份仍可能检查旧备份。"
     }
 }

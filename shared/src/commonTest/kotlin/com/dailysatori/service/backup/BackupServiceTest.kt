@@ -64,6 +64,54 @@ class BackupServiceTest {
     }
 
     @Test
+    fun missingImagesAreLoggedWithoutBlockingBackupAndExistingDiaryFilesAreIncluded() = runBlocking {
+        val fixture = backupFixture()
+        val diaryImage = BackupAttachmentReference(BackupAttachmentSource.DIARY_IMAGE, 7, null,
+            "/app/diary_images/photo.jpg", "diary_images/photo.jpg")
+        val diaryAudio = BackupAttachmentReference(BackupAttachmentSource.DIARY_ATTACHMENT, 23, 7,
+            "/app/diary/audio/7/voice.m4a", "diary/audio/7/voice.m4a")
+        val cover = BackupAttachmentReference(BackupAttachmentSource.ARTICLE_COVER, 71, 71,
+            "images/20241025_140752-2408", "images/20241025_140752-2408")
+        fixture.secrets.references = listOf(diaryImage, diaryAudio, cover)
+        fixture.files.seedFile(fixture.files.databasePathValue, "live database")
+        fixture.files.seedFile("/app/${diaryAudio.relativePath}", "diary audio")
+
+        assertTrue(fixture.service.backupNow())
+        assertEquals(1, fixture.files.writtenBackups.size)
+        val logPath = "/app/$BackupAttachmentLogDirectory/missing-attachments.log"
+        val report = fixture.files.readText(logPath)
+        assertTrue(report.contains("source=article.cover_image recordId=71 rowId=71"))
+        assertTrue(report.contains("originalPath=images/20241025_140752-2408"))
+        assertTrue(report.contains("expectedPath=diary_images/photo.jpg"))
+        assertTrue(diaryAudio.relativePath in fixture.files.zipEntries.single())
+        assertFalse(diaryImage.relativePath in fixture.files.zipEntries.single())
+        assertFalse(report.contains("correct horse battery"))
+        assertEquals("live database", fixture.files.readText(fixture.files.databasePathValue))
+
+        fixture.files.seedFile("/app/${diaryImage.relativePath}", "diary image")
+        fixture.files.seedFile("/app/${cover.relativePath}", "cover")
+        assertTrue(fixture.service.backupNow())
+        val entries = fixture.files.zipEntries.last()
+        assertTrue(diaryImage.relativePath in entries)
+        assertTrue(diaryAudio.relativePath in entries)
+        assertFalse(entries.any { it.startsWith("$BackupAttachmentLogDirectory/") })
+    }
+
+    @Test
+    fun failedAttachmentLogWriteDoesNotBlockBackupWithMissingImages() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.databasePathValue, "live database")
+        fixture.secrets.references = listOf(BackupAttachmentReference(BackupAttachmentSource.DIARY_IMAGE,
+            7, null, "diary_images/missing.jpg", "diary_images/missing.jpg"))
+        fixture.files.failAttachmentLogWrite = true
+
+        assertTrue(fixture.service.backupNow())
+        assertEquals(1, fixture.files.writtenBackups.size)
+        assertEquals(fixture.secrets.references, fixture.service.missingAttachments.value)
+        assertTrue(fixture.service.lastMessage.value.startsWith("Backup completed:"))
+    }
+
+    @Test
     fun verificationFailureRetainsStepsCauseAndCleanupWithoutPrivateExceptionText() = runBlocking {
         val fixture = backupFixture()
         fixture.files.seedCurrentBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc")
@@ -717,6 +765,7 @@ private class FakeBackupSecrets(private val files: FakeBackupFiles) : BackupData
     val preparedRestoredDatabases = mutableListOf<String>()
     val restoredKeys = mutableListOf<com.dailysatori.service.security.DatabaseKey?>()
     var onPrepare: (() -> Unit)? = null
+    var references = emptyList<BackupAttachmentReference>()
     private val fixtureKey = com.dailysatori.service.security.DatabaseKey.fromHex("ab".repeat(32))
 
     override fun exportSnapshot(databasePath: String): com.dailysatori.service.security.DatabaseKey {
@@ -734,8 +783,8 @@ private class FakeBackupSecrets(private val files: FakeBackupFiles) : BackupData
     override fun wrapRestoredKey(key: com.dailysatori.service.security.DatabaseKey) = "device-wrapped-key".encodeToByteArray()
     override fun checkBackupDatabase(databasePath: String, key: com.dailysatori.service.security.DatabaseKey?) = Unit
     override fun backupDatabaseSummary(databasePath: String, key: com.dailysatori.service.security.DatabaseKey) = emptyMap<String, Long>()
-    override fun attachmentReferences(databasePath: String, appDataDir: String, key: com.dailysatori.service.security.DatabaseKey) = emptyList<BackupAttachmentReference>()
-    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: com.dailysatori.service.security.DatabaseKey) = Unit
+    override fun attachmentReferences(databasePath: String, appDataDir: String, key: com.dailysatori.service.security.DatabaseKey) = references
+    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, key: com.dailysatori.service.security.DatabaseKey) = Unit
 }
 
 private class FakeBackupFiles : BackupFiles {
@@ -751,6 +800,7 @@ private class FakeBackupFiles : BackupFiles {
     var restartCalled = false
     var failRestart = false
     var failWrite = false
+    var failAttachmentLogWrite = false
     var failDelete = false
     var hideWrittenBackups = false
     var failList = false
@@ -806,7 +856,10 @@ private class FakeBackupFiles : BackupFiles {
     override fun createDatabaseSnapshot(destination: String) = copyFile(databasePathValue, destination)
     override fun listFilesRecursively(path: String) = files.keys.filter { it.startsWith("$path/") }.sorted()
     override fun readFile(path: String) = files.getValue(path).encodeToByteArray()
-    override fun writeFile(path: String, bytes: ByteArray) = seedFile(path, bytes.decodeToString())
+    override fun writeFile(path: String, bytes: ByteArray) {
+        check(!failAttachmentLogWrite || !path.contains("/$BackupAttachmentLogDirectory/")) { "Disk full" }
+        seedFile(path, bytes.decodeToString())
+    }
     override fun fileSize(path: String) = readFile(path).size.toLong()
     override fun sha256(path: String) = files.getValue(path) // Stable fingerprint for this in-memory filesystem.
     override fun stageRestore(directory: String) {

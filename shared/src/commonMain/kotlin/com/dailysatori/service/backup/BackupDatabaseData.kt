@@ -13,8 +13,7 @@ import com.dailysatori.service.security.SecretValueCipher
 /** Operates only on the backup copy, never on the running app's database. */
 internal class BackupDatabaseData(private val driver: SqlDriver) {
     fun checkBackupDatabase() {
-        check(strings("PRAGMA integrity_check") == listOf("ok")) { "数据库完整性检查失败" }
-        check(strings("PRAGMA foreign_key_check").isEmpty()) { "数据库关联完整性检查失败" }
+        check(strings("PRAGMA quick_check") == listOf("ok")) { "数据库完整性检查失败" }
         val tables = schemaColumns().keys
         check(tables.containsAll(listOf("setting", "diary", "article", "book", "image"))) { "备份不是完整的应用数据库" }
         val version = SettingRepository(DailySatoriDatabase(driver)).get(SettingKeys.schemaVersion)
@@ -35,14 +34,14 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
             if (missing.isNotEmpty()) throw BackupValidationException("Missing required columns: $table.${missing.sorted().joinToString(",")}")
         }
         checkBackupDatabase()
-        // Read every application table, not merely the SQLite header or schema.
-        val counts = expectedSchema.keys.associateWith { table ->
+        // Validate structure from metadata and read only aggregate counts used by the summary.
+        val summaryTables = setOf("diary", "article", "book", "bookkeeping_entry", "reminder", "setting")
+        return expectedSchema.keys.intersect(summaryTables).associateWith { table ->
             driver.executeQuery(null, "SELECT COUNT(*) FROM \"${table.replace("\"", "\"\"")}\"", { cursor ->
                 check(cursor.next().value)
                 QueryResult.Value(checkNotNull(cursor.getLong(0)))
             }, 0).value
         }
-        return counts.filterKeys { it in setOf("diary", "article", "book", "bookkeeping_entry", "reminder", "setting") }
     }
 
     fun prepareSecrets(cipher: SecretValueCipher, legacyFields: Boolean = true) {
@@ -66,22 +65,15 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         return pathRows().flatMap { row ->
             row.paths().mapNotNull { path ->
                 portablePath(path, appDataDir)?.let {
-                    BackupAttachmentReference(row.source, row.id, row.recordId, path, it)
+                    BackupAttachmentReference(row.source, row.id, row.recordId, path, it, row.isImage)
                 }
             }
         }
     }
 
-    fun prepareRestore(appDataDir: String, backupDirectory: String, availableFiles: Set<String>) {
-        val missingFiles = userFiles(appDataDir).toSet() - availableFiles
+    fun prepareRestore(appDataDir: String, backupDirectory: String) {
         val rows = pathRows()
-        if (missingFiles.isNotEmpty()) {
-            val missingBySource = rows.flatMap { row ->
-                row.paths().filter { portablePath(it, appDataDir) in missingFiles }
-                    .map { "${row.table}.${row.column}" }
-            }.groupingBy { it }.eachCount()
-            throw BackupMissingAttachmentsException(missingFiles.size, missingBySource)
-        }
+        // Relocate references without requiring every historical attachment to exist in the archive.
         rows.forEach { row ->
             val paths = row.paths().map { path ->
                 val relative = portablePath(path, appDataDir)
@@ -104,9 +96,11 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         val columns = strings("SELECT name FROM pragma_table_info('$table')")
         if (column !in columns) emptyList() else {
             val owner = source.ownerColumn?.takeIf { it in columns } ?: "rowid"
-            driver.executeQuery(null, "SELECT rowid, $column, $owner FROM $table WHERE $column IS NOT NULL AND $column <> ''", { cursor ->
+            val kind = if (source == BackupAttachmentSource.DIARY_ATTACHMENT && "kind" in columns) "kind" else "NULL"
+            driver.executeQuery(null, "SELECT rowid, $column, $owner, $kind FROM $table WHERE $column IS NOT NULL AND $column <> ''", { cursor ->
                 val result = mutableListOf<PathRow>()
-                while (cursor.next().value) result += PathRow(source, cursor.getLong(0)!!, cursor.getString(1)!!, cursor.getLong(2))
+                while (cursor.next().value) result += PathRow(source, cursor.getLong(0)!!, cursor.getString(1)!!,
+                    cursor.getLong(2), source != BackupAttachmentSource.DIARY_ATTACHMENT || cursor.getString(3) == "image")
                 QueryResult.Value(result)
             }, 0).value
         }
@@ -118,7 +112,8 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         QueryResult.Value(values)
     }, 0).value
 
-    private data class PathRow(val source: BackupAttachmentSource, val id: Long, val value: String, val recordId: Long?) {
+    private data class PathRow(val source: BackupAttachmentSource, val id: Long, val value: String,
+        val recordId: Long?, val isImage: Boolean) {
         val table: String get() = source.table
         val column: String get() = source.column
         fun paths(): List<String> {

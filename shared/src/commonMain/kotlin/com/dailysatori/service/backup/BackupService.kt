@@ -197,7 +197,7 @@ class BackupService internal constructor(
         stage(BackupVerificationStage.PREPARING, 0.75)
         val key = verificationStep(diagnostics, "migrate_and_prepare_secrets") { secrets.prepareRestoredDatabase(database, portableKey) }
         verificationStep(diagnostics, "relocate_and_check_attachments") {
-            secrets.relocateRestoredData(database, files.getAppDataDir(), directory, actual, key)
+            secrets.relocateRestoredData(database, files.getAppDataDir(), directory, key)
         }
         val summary = verificationStep(diagnostics, "check_schema_and_read_counts") {
             secrets.backupDatabaseSummary(database, key).toMutableMap()
@@ -312,7 +312,26 @@ class BackupService internal constructor(
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.BACKUP,
                 DiagnosticLevel.WARNING, fields = mapOf("backupAttachmentSource" to source.diagnosticName, "count" to count.toString()))
         }
-        check(missing.isEmpty()) { "存在缺失的附件，无法创建完整备份" }
+        if (missing.isNotEmpty()) writeMissingAttachmentsLog(missing)
+        val requiredMissing = missing.filterNot { it.isImage }
+        check(requiredMissing.isEmpty()) { "存在缺失的附件，无法创建完整备份" }
+    }
+
+    private fun writeMissingAttachmentsLog(missing: List<BackupAttachmentReference>) {
+        // Keep only the latest list in app-private storage, outside backups and diagnostic exports.
+        runCatching {
+            val report = buildString {
+                appendLine("Daily Satori unmatched backup attachments")
+                appendLine("checkedAt=${clock.now()} references=${missing.size}")
+                missing.forEach {
+                    appendLine("source=${it.source.diagnosticName} recordId=${it.recordId} rowId=${it.rowId}")
+                    appendLine("originalPath=${it.originalPath}")
+                    appendLine("expectedPath=${it.relativePath}")
+                }
+            }
+            files.writeFile("${files.getAppDataDir()}/$BackupAttachmentLogDirectory/missing-attachments.log",
+                report.encodeToByteArray())
+        }.onFailure { log.w(it) { "Cannot write missing attachment log" } }
     }
 
     private fun publishBackup(directory: String, content: List<String>, backupDir: String, name: String, password: String) {
@@ -415,7 +434,7 @@ class BackupService internal constructor(
         check(files.exists(database)) { "备份中未找到数据库文件" }
         secrets.checkBackupDatabase(database, portableKey)
         val key = secrets.prepareRestoredDatabase(database, portableKey)
-        secrets.relocateRestoredData(database, files.getAppDataDir(), backupDir, restoredFiles, key)
+        secrets.relocateRestoredData(database, files.getAppDataDir(), backupDir, key)
         secrets.backupDatabaseSummary(database, key)
         _progress.value = 0.7
         val prepared = "$tempDir/_restore"
@@ -613,7 +632,7 @@ internal interface BackupDatabaseAccess {
     fun attachmentReferences(databasePath: String, appDataDir: String, key: DatabaseKey): List<BackupAttachmentReference>
     fun checkBackupDatabase(databasePath: String, key: DatabaseKey?)
     fun backupDatabaseSummary(databasePath: String, key: DatabaseKey): Map<String, Long>
-    fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey)
+    fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, key: DatabaseKey)
 }
 
 private class FileManagerBackupFiles(private val fileManager: FileManager) : BackupFiles {
@@ -706,8 +725,8 @@ private class DatabaseBackupAccess(
         } finally { reference.close() }
     }
 
-    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, availableFiles: Set<String>, key: DatabaseKey) {
-        withDatabase(databasePath, key) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory, availableFiles) }
+    override fun relocateRestoredData(databasePath: String, appDataDir: String, backupDirectory: String, key: DatabaseKey) {
+        withDatabase(databasePath, key) { BackupDatabaseData(it).prepareRestore(appDataDir, backupDirectory) }
     }
 
     private fun <T> withDatabase(path: String, key: DatabaseKey?, block: (app.cash.sqldelight.db.SqlDriver) -> T): T {
