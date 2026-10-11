@@ -10,6 +10,60 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackupSettingsViewModelTest {
     @Test
+    fun failedImmediateBackupShowsAnErrorAndClearsThePreviousSuccessMessage() = runTest {
+        val client = Client()
+        val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
+        runCurrent()
+        vm.saveBackupDirectory("new", {}, {})
+        runCurrent()
+        assertNotNull(vm.state.value.message)
+        client.backupResult = false
+        client.lastMessage.value = "Backup failed: 存在缺失的附件，无法创建完整备份"
+        var completed: Boolean? = null
+
+        vm.startBackup { completed = it }
+        runCurrent()
+
+        assertEquals(false, completed)
+        assertNotNull(vm.state.value.error)
+        assertTrue(vm.state.value.error!!.contains("附件"))
+        assertTrue(vm.state.value.error!!.contains("旧备份"))
+        assertNull(vm.state.value.message)
+    }
+
+    @Test
+    fun unknownBackupFailureDoesNotExposePrivateServiceDetails() = runTest {
+        val client = Client()
+        client.backupResult = false
+        client.lastMessage.value = "Backup failed: private diary token password"
+        val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
+        runCurrent()
+
+        vm.startBackup()
+        runCurrent()
+
+        assertNotNull(vm.state.value.error)
+        assertFalse(vm.state.value.error!!.contains("private diary"))
+        assertNull(vm.state.value.message)
+    }
+
+    @Test
+    fun successfulImmediateBackupShowsCompletionAndClearsThePreviousError() = runTest {
+        val client = Client()
+        val vm = BackupSettingsViewModel(client, backgroundScope, StandardTestDispatcher(testScheduler))
+        runCurrent()
+        vm.saveBackupDirectory("new", { error("permission denied") }, {})
+        runCurrent()
+        assertNotNull(vm.state.value.error)
+
+        vm.startBackup()
+        runCurrent()
+
+        assertNull(vm.state.value.error)
+        assertNotNull(vm.state.value.message)
+    }
+
+    @Test
     fun verificationRequiresFreshInputAndNeverSavesOrReusesIt() = runTest {
         val client = Client()
         var checks = 0
@@ -260,6 +314,8 @@ class BackupSettingsViewModelTest {
         var verificationBody: suspend (String?, String?) -> BackupVerificationResult = { _, _ -> verificationResult() }
         val savedPasswords = mutableListOf<String>()
         var directory = "old"
+        var backupResult = true
+        override val lastMessage = MutableStateFlow("")
         val backupDirectories = mutableListOf<String>()
         override fun loadDirectory() = directory
         override fun saveDirectory(path: String) { directory = path }
@@ -269,7 +325,7 @@ class BackupSettingsViewModelTest {
         override suspend fun verifyLatestBackup(password: String?, expectedName: String?) = verificationBody(password, expectedName)
         override suspend fun backupNow(): Boolean {
             backupDirectories += directory
-            return true
+            return backupResult
         }
     }
 }

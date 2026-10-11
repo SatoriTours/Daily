@@ -83,6 +83,31 @@ class BackupRoundTripTest {
     }
 
     @Test
+    fun legacyBackupMissingAudioReportsTheSpecificIssueWithoutChangingSourceOrBackup() = runBlocking {
+        withVerificationFixture { files, service, backup ->
+            rewriteBackup(backup, updateManifest = false) { content ->
+                content.resolve(BackupManifestName).delete()
+                content.resolve(DatabaseKeyBackupName).delete()
+                content.resolve("diary/audio/23/voice.m4a").delete()
+            }
+            val source = File(files.getDatabasePath()).readBytes()
+            val originalArchive = backup.readBytes()
+            val result = service.verifyLatestBackup("correct horse battery")
+            assertEquals(BackupVerificationStatus.FAILED, result.status)
+            assertEquals(BackupVerificationStage.PREPARING, result.stage)
+            assertEquals(BackupVerificationIssue.MISSING_ATTACHMENTS, result.issue)
+            assertEquals(1L, result.summary["missing_files"])
+            assertTrue(result.diagnosticLog.contains("missingAttachmentReferences=diary_attachment.local_path count=1"))
+            assertFalse(result.diagnosticLog.contains("voice.m4a"))
+            assertContentEquals(source, File(files.getDatabasePath()).readBytes())
+            assertContentEquals(originalArchive, backup.readBytes())
+            assertFalse(files.pending.exists())
+            assertNull(files.restoreResult)
+            assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
+        }
+    }
+
+    @Test
     fun verificationRejectsDatabaseMissingCurrentApplicationTables() = runBlocking {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup) { content -> withDatabase(content.resolve(DatabaseConfig.name).path) {

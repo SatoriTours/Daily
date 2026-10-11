@@ -11,6 +11,7 @@ internal actual fun backupVerificationSafeStack(error: Throwable): List<String> 
         val detail = failure.message?.takeIf { failure is BackupValidationException || it in safeBackupMessages }
             ?: "[message omitted for privacy]"
         add("$relation ${failure.javaClass.name}: $detail")
+        if (failure is BackupMissingAttachmentsException) addAll(failure.diagnosticDetails())
         if (failure is java.sql.SQLException || failure.javaClass.name.startsWith("android.database.sqlite.")) {
             databaseFailureCategory(failure.message.orEmpty())?.let { add("databaseFailure=$it") }
         }

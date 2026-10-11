@@ -1272,6 +1272,8 @@ settings_design:
   backup_verify_issue_busy: "A backup or restore is in progress. Try again later."
   backup_verify_issue_backup_changed: "The latest backup has changed. Choose Verify latest backup again to avoid checking a different file with the old password."
   backup_verify_issue_cancelled: "Verification was cancelled and was not recorded as passed."
+  backup_verify_issue_missing_attachments: "Some attachments referenced by the database were not found in the backup. The restore rehearsal stopped. Older backups may omit audio recordings; the diagnostic log lists missing categories and counts. If your current data is complete, create and verify a new backup. Current data and the original backup are unchanged."
+  backup_verify_summary_missing_files: "Attachments missing from backup: %d"
   backup_verify_stage_selecting: "Finding the latest backup…"
   backup_verify_stage_reading: "Reading the backup file…"
   backup_verify_stage_decrypting: "Decrypting and checking encrypted integrity…"

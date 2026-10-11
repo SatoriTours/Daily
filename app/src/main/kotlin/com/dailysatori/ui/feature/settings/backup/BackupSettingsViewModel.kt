@@ -48,6 +48,7 @@ data class BackupSettingsState(
 internal interface BackupSettingsClient {
     val isBackingUp: StateFlow<Boolean>
     val progress: StateFlow<Double>
+    val lastMessage: StateFlow<String>
     val verificationStage: StateFlow<BackupVerificationStage>
     val verificationFileName: StateFlow<String?>
     fun loadDirectory(): String
@@ -72,6 +73,7 @@ class BackupSettingsViewModel internal constructor(
     ) : this(object : BackupSettingsClient {
         override val isBackingUp = backupService.isBackingUp
         override val progress = backupService.progress
+        override val lastMessage = backupService.lastMessage
         override val verificationStage = backupService.verificationStage
         override val verificationFileName = backupService.verificationFileName
         override fun loadDirectory() = settingService.getString(SettingKeys.backupDir)
@@ -252,7 +254,7 @@ class BackupSettingsViewModel internal constructor(
                 onComplete(false)
                 return@launch
             }
-            _state.update { it.copy(error = null, verificationResult = null, verificationPasswordInput = "") }
+            _state.update { it.copy(error = null, message = null, verificationResult = null, verificationPasswordInput = "") }
             try {
                 if (_state.value.backupDirectory.isBlank()) {
                     _state.update { it.copy(error = "请先选择备份目录") }
@@ -265,6 +267,10 @@ class BackupSettingsViewModel internal constructor(
                     return@launch
                 }
                 val result = client.backupNow()
+                _state.update { it.copy(
+                    message = if (result) "备份已完成" else null,
+                    error = if (result) null else backupFailureMessage(),
+                ) }
                 onComplete(result)
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -273,5 +279,11 @@ class BackupSettingsViewModel internal constructor(
                 onComplete(false)
             }
         }
+    }
+
+    private fun backupFailureMessage(): String = when (client.lastMessage.value) {
+        "Backup failed: 存在缺失的附件，无法创建完整备份" ->
+            "备份失败：当前数据引用的附件已缺失，未生成新备份。验证最近备份仍可能检查旧备份。"
+        else -> "备份失败。请检查备份目录权限、可用空间和诊断日志；验证最近备份仍可能检查旧备份。"
     }
 }

@@ -3,7 +3,7 @@ package com.dailysatori.service.backup
 /** Results describe a specific archive, never the running application's data. */
 enum class BackupVerificationStatus { PASSED, LIMITED, FAILED, INCOMPLETE }
 enum class BackupVerificationStage { SELECTING, READING, DECRYPTING, EXTRACTING, FILES, DATABASE, PREPARING, LIFE_ARCHIVE, CLEANUP, COMPLETE }
-enum class BackupVerificationIssue { NO_DIRECTORY, NO_BACKUP, NO_PASSWORD, BUSY, BACKUP_CHANGED, CHECK_FAILED, CANCELLED }
+enum class BackupVerificationIssue { NO_DIRECTORY, NO_BACKUP, NO_PASSWORD, BUSY, BACKUP_CHANGED, CHECK_FAILED, CANCELLED, MISSING_ATTACHMENTS }
 
 data class BackupVerificationResult(
     val status: BackupVerificationStatus,
@@ -31,6 +31,20 @@ data class BackupVerificationResult(
 
 /** Details here are produced from application-controlled schema identifiers, never row values. */
 internal class BackupValidationException(message: String) : IllegalStateException(message)
+
+internal class BackupMissingAttachmentsException(
+    val missingFiles: Int,
+    private val missingBySource: Map<String, Int>,
+) : IllegalStateException("备份缺少附件，已取消恢复") {
+    fun diagnosticDetails(): List<String> = buildList {
+        add("missingAttachmentFiles=$missingFiles")
+        // Emit only known schema identifiers and counts, never paths, URLs or row contents.
+        listOf("diary_attachment.local_path", "diary.images", "image.path", "article.cover_image", "book.cover_image")
+            .forEach { source ->
+                missingBySource[source]?.let { add("missingAttachmentReferences=$source count=$it") }
+            }
+    }
+}
 
 internal class BackupVerificationLog {
     private val lines = mutableListOf<String>()

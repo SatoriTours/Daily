@@ -65,13 +65,19 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
     }
 
     fun prepareRestore(appDataDir: String, backupDirectory: String, availableFiles: Set<String>) {
-        userFiles(appDataDir)
+        val missingFiles = userFiles(appDataDir).toSet() - availableFiles
         val rows = pathRows()
+        if (missingFiles.isNotEmpty()) {
+            val missingBySource = rows.flatMap { row ->
+                row.paths().filter { portablePath(it, appDataDir) in missingFiles }
+                    .map { "${row.table}.${row.column}" }
+            }.groupingBy { it }.eachCount()
+            throw BackupMissingAttachmentsException(missingFiles.size, missingBySource)
+        }
         rows.forEach { row ->
             val paths = row.paths().map { path ->
                 val relative = portablePath(path, appDataDir)
                 if (relative == null) path else {
-                    check(relative in availableFiles) { "备份缺少附件，已取消恢复" }
                     if (row.table == "diary_attachment") "$appDataDir/$relative" else relative
                 }
             }

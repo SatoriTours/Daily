@@ -130,7 +130,9 @@ class BackupService internal constructor(
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.BACKUP,
                 DiagnosticLevel.ERROR, error = failure)
             BackupVerificationResult(BackupVerificationStatus.FAILED, _verificationStage.value, checkedAt,
-                selected?.first, selected?.second?.toString(), BackupVerificationIssue.CHECK_FAILED)
+                selected?.first, selected?.second?.toString(),
+                if (failure is BackupMissingAttachmentsException) BackupVerificationIssue.MISSING_ATTACHMENTS else BackupVerificationIssue.CHECK_FAILED,
+                summary = if (failure is BackupMissingAttachmentsException) mapOf("missing_files" to failure.missingFiles.toLong()) else emptyMap())
         } finally {
             temporary?.let { path ->
                 diagnostics.start("cleanup")

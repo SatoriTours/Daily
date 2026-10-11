@@ -1272,6 +1272,8 @@ settings_design:
   backup_verify_issue_busy: "备份或恢复正在进行，请稍后重试。"
   backup_verify_issue_backup_changed: "最近的备份已发生变化。请重新点击“验证最近备份”，避免用旧密码验证另一个文件。"
   backup_verify_issue_cancelled: "验证已取消，未记录为通过。"
+  backup_verify_issue_missing_attachments: "备份中未找到数据库引用的部分附件，已停止恢复演练。旧版备份可能漏存录音；诊断日志包含缺失类别及数量。若当前数据完整，请创建新备份后验证；本次未改动当前数据或原备份。"
+  backup_verify_summary_missing_files: "备份缺失附件：%d 个"
   backup_verify_stage_selecting: "正在查找最近备份…"
   backup_verify_stage_reading: "正在读取备份文件…"
   backup_verify_stage_decrypting: "正在解密并验证加密完整性…"
