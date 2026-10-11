@@ -100,6 +100,7 @@ fun buildUnifiedNewsPrompt(window: UnifiedNewsWindow, sources: List<UnifiedNewsS
 9. 如果来源不足以支持可靠判断，请明确说明无法可靠生成，不要猜测。
 10. 不要输出总标题。
 11. 新闻与热点统一去重。同一事件跨平台合并引用，兼顾不同来源，不让单个平台包揽要点。所有标题和说明使用简体中文，保留必要的产品名和仓库标识。
+12. 如果来源中存在 H 编号的平台热点，简报必须包含至少一条由该热点正文支持的内容，并在相应句子中附上有效 H 引用；不要仅列出引用而省略内容。没有热点来源时，不编造热点或 H 引用。
 
 日期: ${window.summaryDate}
 窗口: ${window.key.value}

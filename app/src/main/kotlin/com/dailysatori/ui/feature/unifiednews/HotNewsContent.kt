@@ -15,11 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.R
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.service.hotnews.*
+import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.opportunity.newsArticleKey
 import com.dailysatori.ui.theme.*
+import org.koin.compose.koinInject
 
 @Composable
 internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel, isActive: Boolean) {
+    val i18n: I18nService = koinInject()
     var expanded by remember { mutableStateOf(emptySet<HotNewsPlatform>()) }
     val listState = rememberLazyListState()
     LaunchedEffect(isActive) { if (isActive) viewModel.refreshHotNews() }
@@ -28,6 +31,7 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.l),
         verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        if (state.hotNewsBoards.isEmpty()) item { Text(i18n.t("news_sources.all_disabled")) }
         items(state.hotNewsBoards, key = { it.platform.key }) { board ->
             HotNewsBoardCard(board, board.platform in expanded, state.searchQuery, collected, viewModel::openHotNews,
                 onExpand = { expanded = if (board.platform in expanded) expanded - board.platform else expanded + board.platform },
@@ -39,13 +43,14 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
 @Composable
 private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: String, collected: Set<String>,
     onOpen: (HotNewsItem) -> Unit, onExpand: () -> Unit, onRetry: () -> Unit) {
+    val i18n: I18nService = koinInject()
     val matching = board.items.filter { query.isBlank() || it.displayTitle.orEmpty().contains(query, true) || it.displaySummary.contains(query, true) }
     Card(shape = RoundedCornerShape(Radius.l), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(board.platform.displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(when (board.platform) {
+                    Text(if (board.items.any { it.fromFeed }) i18n.t("news_sources.subscription") else stringResource(when (board.platform) {
                         HotNewsPlatform.GITHUB -> R.string.news_hotnews_daily
                         HotNewsPlatform.HACKER_NEWS -> R.string.news_hotnews_top
                         else -> R.string.news_hotnews_topics
@@ -58,14 +63,15 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
             if (board.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
             val error = board.error
             if (error != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(when (error) {
-                    HotNewsError.FETCH_FAILED -> R.string.news_hotnews_fetch_failed
-                    HotNewsError.AI_NOT_CONFIGURED -> R.string.news_hotnews_ai_missing
-                    HotNewsError.TRANSLATION_FAILED -> R.string.news_hotnews_translation_failed
-                }), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(when (error) {
+                    HotNewsError.FETCH_FAILED -> stringResource(R.string.news_hotnews_fetch_failed)
+                    HotNewsError.AI_NOT_CONFIGURED -> stringResource(R.string.news_hotnews_ai_missing)
+                    HotNewsError.TRANSLATION_FAILED -> stringResource(R.string.news_hotnews_translation_failed)
+                    HotNewsError.FEED_NOT_CONFIGURED -> i18n.t("news_sources.feed_required")
+                }, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = onRetry) { Text(stringResource(R.string.news_hotnews_retry)) }
             }
-            if (board.items.isEmpty()) Text(stringResource(if (board.refreshing) R.string.news_hotnews_loading else R.string.news_hotnews_empty),
+            if (board.items.isEmpty() && error == null) Text(stringResource(if (board.refreshing) R.string.news_hotnews_loading else R.string.news_hotnews_empty),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             (if (expanded || query.isNotBlank()) matching else matching.take(3)).forEach { item ->
                 HotNewsRankRow(item, newsArticleKey(item.url, "") in collected, onOpen)

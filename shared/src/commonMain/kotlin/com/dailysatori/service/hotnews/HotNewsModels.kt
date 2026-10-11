@@ -3,12 +3,23 @@ package com.dailysatori.service.hotnews
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class HotNewsPlatform(val key: String, val displayName: String, val boardUrl: String) {
+enum class HotNewsPlatform(
+    val key: String,
+    val displayName: String,
+    val boardUrl: String,
+    val defaultFeedUrl: String = "",
+    val core: Boolean = true,
+) {
     GITHUB("github", "GitHub", "https://github.com/trending?since=daily"),
-    HACKER_NEWS("hackernews", "Hacker News", "https://news.ycombinator.com/"),
-    ZHIHU("zhihu", "知乎", "https://www.zhihu.com/hot"),
-    TOUTIAO("toutiao", "今日头条", "https://www.toutiao.com/"),
-    V2EX("v2ex", "V2EX", "https://www.v2ex.com/?tab=hot"),
+    HACKER_NEWS("hackernews", "Hacker News", "https://news.ycombinator.com/", "https://rsshub.app/hackernews/index"),
+    X("x", "X", "https://x.com/explore", "https://rsshub.app/twitter/trends/1"),
+    XIAOHONGSHU("xiaohongshu", "小红书", "https://www.xiaohongshu.com/explore"),
+    TOUTIAO("toutiao", "今日头条", "https://www.toutiao.com/", "https://rsshub.app/toutiao/channel/news_hot"),
+    ZHIHU("zhihu", "知乎", "https://www.zhihu.com/hot", "https://rsshub.app/zhihu/hot"),
+    V2EX("v2ex", "V2EX", "https://www.v2ex.com/?tab=hot", "https://rsshub.app/v2ex/topics/hot"),
+    LINUX_DO("linuxdo", "Linux DO", "https://linux.do/top"),
+    CHINA_NEWS("chinanews", "中新网", "https://www.chinanews.com.cn/", "https://www.chinanews.com.cn/rss/importnews.xml", false),
+    IT_HOME("ithome", "IT之家", "https://www.ithome.com/", "https://www.ithome.com/rss/", false),
 }
 
 @Serializable
@@ -25,6 +36,7 @@ data class HotNewsItem(
     val chineseTitle: String? = null,
     val chineseSummary: String? = null,
     val originalContent: String = "",
+    val fromFeed: Boolean = false,
 ) {
     val identity: String get() = "${platform.key}:$id"
     val displayTitle: String? get() = chineseTitle ?: originalTitle.takeIf(::isChineseHotNewsText)
@@ -33,7 +45,7 @@ data class HotNewsItem(
 }
 
 @Serializable
-enum class HotNewsError { FETCH_FAILED, AI_NOT_CONFIGURED, TRANSLATION_FAILED }
+enum class HotNewsError { FETCH_FAILED, FEED_NOT_CONFIGURED, AI_NOT_CONFIGURED, TRANSLATION_FAILED }
 
 @Serializable
 data class HotNewsBoard(

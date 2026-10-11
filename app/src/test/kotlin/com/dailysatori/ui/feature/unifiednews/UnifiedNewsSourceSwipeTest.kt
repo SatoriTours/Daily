@@ -23,9 +23,9 @@ class UnifiedNewsSourceSwipeTest {
     @Test
     fun pagesFollowHeaderOrderEvenWithDuplicateNamesAndIds() {
         val pages = unifiedNewsSourcePages(state)
-        assertEquals(listOf("news-summary", "news-hotlists", "news-sources"), pages.map(::unifiedNewsSourcePageKey))
+        assertEquals(listOf("news-summary", "news-hotlists", "news-remote-1", "news-favorite-1", "news-local"), pages.map(::unifiedNewsSourcePageKey))
         assertEquals(2, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "旧名称")))
-        assertEquals(2, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")))
+        assertEquals(3, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")))
     }
 
     @Test
@@ -33,19 +33,20 @@ class UnifiedNewsSourceSwipeTest {
         val selection = UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")
         val updated = state.copy(remoteSources = listOf(UnifiedNewsRemoteSourceOption(2, "新增")) + state.remoteSources)
         val pages = unifiedNewsSourcePages(updated)
-        assertEquals(2, unifiedNewsSourcePageIndex(pages, selection))
-        assertEquals("news-sources", unifiedNewsSourcePageKey(pages[2]))
+        assertEquals(4, unifiedNewsSourcePageIndex(pages, selection))
+        assertEquals("news-favorite-1", unifiedNewsSourcePageKey(pages[4]))
     }
 
     @Test
     fun emptySourcesStillAllowSwitchingBetweenSummaryAndLocal() {
-        assertEquals(listOf(UnifiedNewsSourceSelection.Summary, UnifiedNewsSourceSelection.Hotlists, UnifiedNewsSourceSelection.Sources), unifiedNewsSourcePages(UnifiedNewsState()))
+        assertEquals(listOf(UnifiedNewsSourceSelection.Summary, UnifiedNewsSourceSelection.Hotlists, UnifiedNewsSourceSelection.LocalArticles), unifiedNewsSourcePages(UnifiedNewsState()))
     }
 
     @Test
     fun removedSourceFallsBackToSummary() {
         val removed = UnifiedNewsSourceSelection.RemoteSource(99, "已移除")
         assertEquals(UnifiedNewsSourceSelection.Summary, resolvedUnifiedNewsSourceSelection(removed, state.remoteSources, state.externalFavoriteSources))
+        assertEquals(0, unifiedNewsSourcePageIndex(unifiedNewsSourcePages(state), removed))
     }
 
     @Test

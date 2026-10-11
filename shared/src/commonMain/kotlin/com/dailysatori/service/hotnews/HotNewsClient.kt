@@ -16,23 +16,45 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.*
 
 class HotNewsClient(private val client: HttpClient) {
-    suspend fun fetch(platform: HotNewsPlatform): List<HotNewsItem> {
-        val items = when (platform) {
+    suspend fun fetch(platform: HotNewsPlatform, feedUrl: String = platform.defaultFeedUrl): List<HotNewsItem> {
+        if (platform in setOf(HotNewsPlatform.X, HotNewsPlatform.XIAOHONGSHU,
+                HotNewsPlatform.CHINA_NEWS, HotNewsPlatform.IT_HOME)) return feed(platform, feedUrl)
+        return try {
+            validate(direct(platform, feedUrl))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            if (feedUrl.isBlank()) throw error
+            feed(platform, feedUrl)
+        }
+    }
+
+    private suspend fun direct(platform: HotNewsPlatform, feedUrl: String): List<HotNewsItem> = when (platform) {
             HotNewsPlatform.GITHUB -> parseGithubHotNews(get(platform.boardUrl))
             HotNewsPlatform.HACKER_NEWS -> hackerNews()
             HotNewsPlatform.ZHIHU -> zhihu(get("https://www.zhihu.com/api/v3/feed/topstory/hot-list-web?limit=30&desktop=true"))
             HotNewsPlatform.TOUTIAO -> toutiao(get("https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc"))
             HotNewsPlatform.V2EX -> v2ex(get("https://www.v2ex.com/api/topics/hot.json"))
-        }.distinctBy { it.id }.take(30)
+            HotNewsPlatform.LINUX_DO -> feed(platform, "https://linux.do/top/daily.rss")
+            HotNewsPlatform.CHINA_NEWS, HotNewsPlatform.IT_HOME -> feed(platform, feedUrl)
+            HotNewsPlatform.X, HotNewsPlatform.XIAOHONGSHU -> error("RSS source required")
+    }
+
+    private suspend fun feed(platform: HotNewsPlatform, url: String): List<HotNewsItem> {
+        if (url.isBlank()) throw NewsFeedNotConfigured()
+        return validate(parseHotNewsFeed(get(normalizeNewsFeedUrl(url)), url, platform))
+    }
+
+    private fun validate(items: List<HotNewsItem>): List<HotNewsItem> {
         require(items.isNotEmpty()) { "热榜暂不可用" }
-        return items
+        return items.distinctBy { it.id }.take(30)
     }
 
     private suspend fun get(url: String): String = client.get(url) {
         expectSuccess = true
         timeout { requestTimeoutMillis = 20_000; connectTimeoutMillis = 10_000 }
         header("User-Agent", "Mozilla/5.0 (compatible; DailySatori/1.0)")
-        header("Accept", "application/json,text/html;q=0.9")
+        header("Accept", "application/json,application/rss+xml,application/atom+xml,text/html;q=0.9")
     }.bodyAsText()
 
     private suspend fun hackerNews(): List<HotNewsItem> = coroutineScope {
@@ -92,3 +114,5 @@ class HotNewsClient(private val client: HttpClient) {
 
 internal fun JsonObject.text(key: String): String? = (get(key) as? JsonPrimitive)?.contentOrNull
 internal expect fun parseGithubHotNews(html: String): List<HotNewsItem>
+internal expect fun parseHotNewsFeed(body: String, feedUrl: String, platform: HotNewsPlatform): List<HotNewsItem>
+internal class NewsFeedNotConfigured : IllegalStateException("News feed not configured")

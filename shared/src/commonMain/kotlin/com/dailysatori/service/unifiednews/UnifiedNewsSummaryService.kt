@@ -76,6 +76,10 @@ class UnifiedNewsSummaryService(
         if (!hasValidCitationTokens(sanitizedContent, preparedSources)) {
             return saveFailure(window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试")
         }
+        val hotRefs = preparedSources.filter { it.sourceType == UnifiedNewsSourceType.HOT_NEWS }.map { it.refKey }.toSet()
+        if (hotRefs.isNotEmpty() && citationTokens(sanitizedContent).none { it in hotRefs }) {
+            return saveFailure(window, preparedSources, warnings, "AI 返回内容缺少有效热点引用，请稍后重试")
+        }
         return persistSuccess(window, preparedSources, warnings, sanitizedContent)
     }
 
@@ -289,13 +293,21 @@ fun prepareUnifiedNewsSources(
         .filter { it.title.isNotBlank() }
         .filter { it.usefulTextLength() >= minTextChars }
     val deduped = deduplicateUnifiedNewsSources(useful)
-    return deduped
-        .sortedWith(compareByDescending<UnifiedNewsSourceItem> { it.sourceTime ?: 0L }.thenByDescending { it.usefulTextLength() })
+    val order = compareByDescending<UnifiedNewsSourceItem> { it.sourceTime ?: 0L }
+        .thenByDescending { it.usefulTextLength() }
+    val ranked = deduped.sortedWith(order)
+    // Keep one readable item per hot platform before filling the shared daily budget.
+    val reservedHotNews = ranked.filter { it.sourceType == UnifiedNewsSourceType.HOT_NEWS }
+        .distinctBy { it.sourceFilename?.takeIf(String::isNotBlank)?.substringBefore(':') ?: it.refKey }
+        .take(minOf(maxSources, maxPerSourceType))
+    val remaining = ranked.filterNot { it in reservedHotNews }
         .groupBy { it.sourceType }
-        .values
-        .flatMap { it.take(maxPerSourceType) }
-        .sortedWith(compareByDescending<UnifiedNewsSourceItem> { it.sourceTime ?: 0L }.thenByDescending { it.usefulTextLength() })
-        .take(maxSources)
+        .flatMap { (type, items) ->
+            items.take(if (type == UnifiedNewsSourceType.HOT_NEWS) maxPerSourceType - reservedHotNews.size else maxPerSourceType)
+        }
+        .sortedWith(order)
+        .take(maxSources - reservedHotNews.size)
+    return (reservedHotNews + remaining).sortedWith(order)
         .map { source -> source.copy(content = source.content.take(maxContentChars)) }
 }
 

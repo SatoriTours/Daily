@@ -18,6 +18,9 @@ class SettingsCatalogTest {
     }
 
     @Test fun relatedPagesArePeersAndReturnDirectlyToSettings() {
+        assertEquals(listOf(SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES),
+            SettingsPage.REMOTE_NEWS.groupPages())
+        assertEquals("settings_design.sources", SettingsPage.HOT_NEWS.groupTitleKey())
         assertEquals(listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT),
             SettingsPage.BACKUP_RESTORE.groupPages())
         assertEquals(listOf(SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH), SettingsPage.SPEECH.groupPages())
@@ -28,6 +31,9 @@ class SettingsCatalogTest {
         val sms = searchSettings(" 短信权限 ") { it }.single()
         assertEquals(SettingsDestination(SettingsPage.AUTHORIZATION, "sms"), sms.destination)
         assertTrue(searchSettings("API KEY") { it }.any { it.destination.page == SettingsPage.AI_CONFIG })
+        listOf("GitHub", "Hacker News", "小红书", "今日头条", "知乎", "V2EX", "Linux DO", "RSSHub").forEach { query ->
+            assertTrue(searchSettings(query) { it }.any { it.destination.page == SettingsPage.HOT_NEWS })
+        }
         assertTrue(searchSettings("restore") { it }.any { it.destination.page == SettingsPage.BACKUP_RESTORE })
         assertTrue(searchSettings("zz-not-a-setting") { it }.isEmpty())
         assertTrue(searchSettings("  ") { it }.isEmpty())
@@ -44,16 +50,19 @@ class SettingsCatalogTest {
             val keySets = listOf("zh", "en").map { lang ->
                 val asset = File("src/main/assets/i18n/$lang.yaml").readText()
                 val shared = File("../shared/src/commonMain/resources/i18n/$lang.yaml").readText()
-                fun settingsSection(content: String) = content.substringAfter("\nsettings_design:\n")
+                fun section(content: String, root: String) = content.substringAfter("\n$root:\n")
                     .lineSequence().takeWhile { it.isBlank() || it.startsWith(" ") }.joinToString("\n")
-                val section = settingsSection(asset)
-                assertEquals(section, settingsSection(shared))
                 service.loadTranslation(lang, asset)
                 service.init(lang)
-                Regex("^  ([a-z_]+):", RegexOption.MULTILINE).findAll(section).map { match ->
-                    val key = "settings_design.${match.groupValues[1]}"
-                    assertFalse(service.t(key) == key, "Missing translation: $lang/$key")
-                    key
+                listOf("settings_design", "news_sources").flatMap { root ->
+                    val translated = section(asset, root)
+                    assertTrue(translated.isNotBlank())
+                    assertEquals(translated, section(shared, root))
+                    Regex("^  ([a-z_]+):", RegexOption.MULTILINE).findAll(translated).map { match ->
+                        val key = "$root.${match.groupValues[1]}"
+                        assertFalse(service.t(key) == key, "Missing translation: $lang/$key")
+                        key
+                    }.toList()
                 }.toSet()
             }
             assertEquals(keySets[0], keySets[1])

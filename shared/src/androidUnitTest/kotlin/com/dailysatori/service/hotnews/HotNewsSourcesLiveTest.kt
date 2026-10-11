@@ -11,9 +11,12 @@ class HotNewsSourcesLiveTest {
     @Test fun publicRankingsReturnStableIdentitiesAndPlatformOrder() = runBlocking {
         assumeTrue("Opt in to real source validation", System.getenv("DAILY_HOT_NEWS_LIVE_TEST") == "1")
         val failures = mutableListOf<String>()
+        val selected = System.getenv("DAILY_HOT_NEWS_PLATFORMS")?.split(',')?.map { it.trim() }
+        val platforms = HotNewsPlatform.entries.filter { selected == null || it.key in selected }
+        require(platforms.isNotEmpty() && (selected == null || selected.all { key -> platforms.any { it.key == key } }))
         HttpClient(OkHttp).use { http ->
             val client = HotNewsClient(http)
-            HotNewsPlatform.entries.forEach { platform ->
+            platforms.forEach { platform ->
                 try {
                     val items = client.fetch(platform)
                     assertTrue(items.isNotEmpty())

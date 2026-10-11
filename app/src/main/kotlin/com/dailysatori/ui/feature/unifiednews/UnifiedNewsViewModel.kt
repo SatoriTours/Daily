@@ -34,6 +34,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -50,7 +51,6 @@ enum class UnifiedNewsPage {
 sealed class UnifiedNewsSourceSelection {
     data object Summary : UnifiedNewsSourceSelection()
     data object Hotlists : UnifiedNewsSourceSelection()
-    data object Sources : UnifiedNewsSourceSelection()
     data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data class ExternalFavoriteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data object LocalArticles : UnifiedNewsSourceSelection()
@@ -138,7 +138,9 @@ class UnifiedNewsViewModel(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            hotNews.boards.collect { boards -> _state.update { it.copy(hotNewsBoards = boards) } }
+            combine(hotNews.boards, hotNews.preferences) { boards, prefs ->
+                boards.filter { prefs.source(it.platform).enabled }
+            }.collect { boards -> _state.update { it.copy(hotNewsBoards = boards) } }
         }
     }
 
@@ -343,7 +345,6 @@ class UnifiedNewsViewModel(
     fun refreshSelectedSource() {
         when (_state.value.sourceSelection) {
             UnifiedNewsSourceSelection.Hotlists -> refreshHotNews(force = true)
-            UnifiedNewsSourceSelection.Sources -> incrementLocalArticleRefreshRequest()
             UnifiedNewsSourceSelection.Summary -> regenerateCurrentWindow()
             is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> incrementLocalArticleRefreshRequest()

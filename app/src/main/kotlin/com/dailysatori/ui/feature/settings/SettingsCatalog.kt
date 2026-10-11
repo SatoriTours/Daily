@@ -4,7 +4,7 @@ internal enum class SettingsPage {
     MAIN, AI_CONFIG, AI_PURPOSE, SPEECH, DIARY_TAGS, MCP_SERVER, PLUGIN_CENTER,
     BACKUP_SETTINGS, BACKUP_RESTORE, DATA_IMPORT, SKILLS, DIAGNOSTICS,
     REMINDERS, SMS_REMINDERS, PHONE_ASSISTANT, BOOKKEEPING, AUTHORIZATION,
-    REMOTE_NEWS, EXTERNAL_FAVORITES, PRIVACY, WEB_SERVICE, UPDATES,
+    HOT_NEWS, REMOTE_NEWS, EXTERNAL_FAVORITES, PRIVACY, WEB_SERVICE, UPDATES,
 }
 
 internal data class SettingsDestination(val page: SettingsPage, val section: String? = null)
@@ -28,7 +28,7 @@ internal val settingsHomeEntries = listOf(
     entry("capabilities", "models", SettingsPage.AI_CONFIG, "模型 AI 默认 服务商 API Key model provider default"),
     entry("capabilities", "skills", SettingsPage.SKILLS, "提示词 技能 插件 prompt skills plugins"),
     entry("capabilities", "tools", SettingsPage.MCP_SERVER, "外部工具 工具 连接 MCP tools connection"),
-    entry("data", "sources", SettingsPage.REMOTE_NEWS, "内容 来源 新闻 收藏 news source favorites"),
+    entry("data", "sources", SettingsPage.HOT_NEWS, "内容 来源 新闻 收藏 GitHub Hacker News X 小红书 今日头条 知乎 V2EX Linux DO RSSHub news source favorites"),
     entry("data", "storage", SettingsPage.BACKUP_SETTINGS, "数据 管理 备份 backup data storage"),
     entry("data", "privacy", SettingsPage.PRIVACY, "隐私 privacy"),
     entry("application", "updates", SettingsPage.UPDATES, "更新 关于 版本 渠道 update about version channel"),
@@ -43,6 +43,7 @@ private val settingsSearchEntries = settingsHomeEntries + listOf(
     entry("capabilities", "ai_purpose", SettingsPage.AI_PURPOSE, "功能 模型 分配 快速 经济 深度 交互 后台 总结 purpose model assignment"),
     entry("capabilities", "plugins", SettingsPage.PLUGIN_CENTER, "提示词插件 prompt plugins"),
     entry("capabilities", "web", SettingsPage.WEB_SERVICE, "Web 服务 地址 Token 令牌 token server address"),
+    entry("data", "news", SettingsPage.REMOTE_NEWS, "远程 新闻 remote news"),
     entry("data", "favorites", SettingsPage.EXTERNAL_FAVORITES, "外部 收藏 favorites external"),
     entry("data", "restore", SettingsPage.BACKUP_RESTORE, "恢复 还原 restore"),
     entry("data", "import", SettingsPage.DATA_IMPORT, "导入 迁移 import migration Flutter"),
@@ -64,7 +65,8 @@ internal fun SettingsPage.groupPages(): List<SettingsPage> = when (this) {
         listOf(SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH)
     SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER -> listOf(SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER)
     SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE -> listOf(SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE)
-    SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES -> listOf(SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES)
+    SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES ->
+        listOf(SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES)
     SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT ->
         listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT)
     else -> emptyList()
@@ -78,6 +80,7 @@ internal fun SettingsPage.tabKey(): String = "settings_design." + when (this) {
     SettingsPage.PLUGIN_CENTER -> "plugins"
     SettingsPage.MCP_SERVER -> "mcp"
     SettingsPage.WEB_SERVICE -> "web"
+    SettingsPage.HOT_NEWS -> "hot_news"
     SettingsPage.REMOTE_NEWS -> "news"
     SettingsPage.EXTERNAL_FAVORITES -> "favorites"
     SettingsPage.BACKUP_SETTINGS -> "backup"

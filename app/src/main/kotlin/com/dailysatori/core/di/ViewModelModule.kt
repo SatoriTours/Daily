@@ -336,6 +336,7 @@ val viewModelModule: Module = module {
         )
     }
     viewModel { SpeechSettingsViewModel(get(), get(), get()) }
+    viewModel { com.dailysatori.ui.feature.settings.hotnews.HotNewsSettingsViewModel(get(), get(), get()) }
     viewModel {
         RemoteNewsSettingsViewModel(
             sourceRepo = get(),

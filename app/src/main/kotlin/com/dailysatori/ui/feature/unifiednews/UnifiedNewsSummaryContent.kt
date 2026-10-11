@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,7 +52,12 @@ internal fun NewsFocusHeader(
             horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
             tabs.forEachIndexed { index, tab ->
                 val selected = index == selectedTabIndex
-                Column(Modifier.width(IntrinsicSize.Max).selectable(selected, role = Role.Tab, onClick = tab.onClick),
+                val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                LaunchedEffect(selected) {
+                    if (selected) bringIntoViewRequester.bringIntoView()
+                }
+                Column(Modifier.width(IntrinsicSize.Max).bringIntoViewRequester(bringIntoViewRequester)
+                    .selectable(selected, role = Role.Tab, onClick = tab.onClick),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(tab.label, Modifier.padding(vertical = Spacing.m), style = MaterialTheme.typography.titleSmall,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,

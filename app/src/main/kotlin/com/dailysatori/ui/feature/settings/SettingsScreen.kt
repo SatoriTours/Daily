@@ -30,6 +30,7 @@ import com.dailysatori.ui.feature.aiconfig.AiPurposeScreen
 import com.dailysatori.ui.feature.profile.DataPrivacyScreen
 import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
+import com.dailysatori.ui.feature.settings.hotnews.HotNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.speech.SpeechSettingsScreen
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
@@ -89,6 +90,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
             SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack, initialSection = section)
             SettingsPage.SMS_REMINDERS, SettingsPage.BOOKKEEPING, SettingsPage.PHONE_ASSISTANT, SettingsPage.AUTHORIZATION ->
                 com.dailysatori.ui.feature.phone.AuthorizationScreen(onBack = childBack, initialSection = section)
+            SettingsPage.HOT_NEWS -> HotNewsSettingsScreen(onBack = childBack)
             SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(onBack = childBack)
             SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = childBack)
             SettingsPage.PRIVACY -> DataPrivacyScreen(onBack = childBack)
@@ -174,7 +176,7 @@ private fun settingsEntryIcon(page: SettingsPage) = when (page) {
     SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH -> Icons.Default.AutoAwesome
     SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER -> Icons.Default.Extension
     SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE -> Icons.Default.Hub
-    SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES -> Icons.Default.Article
+    SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES -> Icons.Default.Article
     SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT -> Icons.Default.CloudSync
     SettingsPage.PRIVACY -> Icons.Outlined.PrivacyTip
     SettingsPage.UPDATES -> Icons.Default.SystemUpdate
