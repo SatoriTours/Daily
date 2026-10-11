@@ -110,9 +110,17 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
     }, 0).value
 
     private data class PathRow(val table: String, val column: String, val id: Long, val value: String) {
-        fun paths(): List<String> = if (table == "diary") value.split(',').map(String::trim).filter(String::isNotEmpty) else listOf(value)
+        fun paths(): List<String> {
+            val paths = if (table == "diary") value.split(',').map(String::trim).filter(String::isNotEmpty) else listOf(value)
+            // Old JSON imports turned absent images into these literal values. They are not files.
+            return paths.filterNot { table != "diary_attachment" && isLegacyNullImagePath(it) }
+        }
     }
 }
+
+private fun isLegacyNullImagePath(path: String): Boolean =
+    path in setOf("null", "images/null", "diary_images/null") ||
+        (path.startsWith('/') && (path.endsWith("/images/null") || path.endsWith("/diary_images/null")))
 
 internal fun portablePath(path: String, appDataDir: String): String? {
     if (path.isBlank() || path.startsWith("http://") || path.startsWith("https://")) return null

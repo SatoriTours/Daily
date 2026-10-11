@@ -18,6 +18,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -131,8 +132,8 @@ class ImportService(
 
     private fun getNewId(entityType: String, oldId: Long): Long? = idMaps[entityType]?.get(oldId)
 
-    private fun JsonObject.getString(key: String): String? =
-        (this[key] as? JsonPrimitive)?.content
+    internal fun JsonObject.getString(key: String): String? =
+        (this[key] as? JsonPrimitive)?.contentOrNull
 
     private fun JsonObject.getLong(key: String): Long? =
         (this[key] as? JsonPrimitive)?.longOrNull

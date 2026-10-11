@@ -9,6 +9,40 @@ import kotlin.test.*
 
 class BackupDatabaseDataTest {
     @Test
+    fun legacyNullImagePlaceholdersDoNotRequireNonexistentAttachments() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(1,'null',1,1)", 0)
+            driver.execute(null, "INSERT INTO image(path,article_id,created_at,updated_at) VALUES('images/null',1,1,1)", 0)
+            driver.execute(null, "INSERT INTO book(title,author,category,cover_image,introduction,created_at,updated_at) VALUES('book','','','/old/app_flutter/images/null','',1,1)", 0)
+            driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(1,'keep text','diary_images/null,diary_images/photo.jpg',1,1)", 0)
+            val data = BackupDatabaseData(driver)
+
+            assertEquals(listOf("diary_images/photo.jpg"), data.userFiles("/app"))
+            data.prepareRestore("/app", "backup-dir", setOf("diary_images/photo.jpg"))
+
+            val queries = DailySatoriDatabase(driver).dailySatoriQueries
+            assertEquals("keep text", queries.selectAllDiaries().executeAsOne().content)
+            assertEquals("diary_images/photo.jpg", queries.selectAllDiaries().executeAsOne().images)
+        } finally { driver.close() }
+    }
+
+    @Test
+    fun legacyNullImageHandlingDoesNotHideMissingAudioOrImageFiles() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(1,'diary','diary_images/null.jpg',1,1)", 0)
+            driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(1,'audio','diary/audio/null',1,1)", 0)
+            val data = BackupDatabaseData(driver)
+
+            assertEquals(setOf("diary_images/null.jpg", "diary/audio/null"), data.userFiles("/app").toSet())
+            assertFailsWith<BackupMissingAttachmentsException> { data.prepareRestore("/app", "backup-dir", emptySet()) }
+        } finally { driver.close() }
+    }
+
+    @Test
     fun orphanedAttachmentPreventsAcceptingAnOtherwiseReadableDatabase() {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {

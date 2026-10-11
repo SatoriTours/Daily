@@ -19,6 +19,30 @@ import kotlin.test.*
 
 class BackupRoundTripTest {
     @Test
+    fun freshBackupWithLegacyNullImagePlaceholdersCanBeCreatedAndVerifiedWithoutChangingLiveData() = runBlocking {
+        withVerificationFixture { files, service, _ ->
+            withDatabase(files.getDatabasePath()) { driver ->
+                driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(1,'null',1,1)", 0)
+                driver.execute(null, "INSERT INTO image(path,article_id,created_at,updated_at) VALUES('images/null',1,1,1)", 0)
+                driver.execute(null, "UPDATE diary SET images = 'diary_images/null,diary_images/photo.jpg' WHERE id = 23", 0)
+            }
+            val source = File(files.getDatabasePath()).readBytes()
+            val voice = File(files.getAppDataDir(), "diary/audio/23/voice.m4a").readBytes()
+
+            assertTrue(service.backupNow(), service.lastMessage.value)
+            val result = service.verifyLatestBackup("correct horse battery")
+
+            assertEquals(BackupVerificationStatus.PASSED, result.status)
+            assertEquals(1L, result.summary["diary"])
+            assertEquals(1L, result.summary["audio"])
+            assertContentEquals(source, File(files.getDatabasePath()).readBytes())
+            assertContentEquals(voice, File(files.getAppDataDir(), "diary/audio/23/voice.m4a").readBytes())
+            assertFalse(files.pending.exists())
+            assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
+        }
+    }
+
+    @Test
     fun verificationReadsPublishedEncryptedBackupAndPreservesAllSourceBytes() = runBlocking {
         withVerificationFixture { files, service, backup ->
             val database = File(files.getDatabasePath()).readBytes()
