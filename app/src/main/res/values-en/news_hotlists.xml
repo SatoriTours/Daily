@@ -1,0 +1,32 @@
+<resources>
+    <string name="news_focus_summary_title">Daily briefing</string>
+    <string name="news_hotlists_tab">Trending</string>
+    <string name="news_sources_tab">Sources</string>
+    <string name="news_hotnews_daily">Trending projects today</string>
+    <string name="news_hotnews_top">Top stories</string>
+    <string name="news_hotnews_topics">Popular topics</string>
+    <string name="news_hotnews_updated">Updated %1$s</string>
+    <string name="news_hotnews_loading">Loading rankings and Chinese translations…</string>
+    <string name="news_hotnews_translation_pending">Chinese translation pending</string>
+    <string name="news_hotnews_fetch_failed">Refresh unavailable; previous ranking retained</string>
+    <string name="news_hotnews_ai_missing">Configure AI for external content to translate these items</string>
+    <string name="news_hotnews_translation_failed">Some translations are incomplete; refresh to retry</string>
+    <string name="news_hotnews_empty">No ranking available yet</string>
+    <string name="news_hotnews_more">View all %1$d items</string>
+    <string name="news_hotnews_less">Collapse ranking</string>
+    <string name="news_hotnews_retry">Retry</string>
+    <string name="news_hotnews_collected">Included in highlights</string>
+    <string name="news_hotnews_rank">%1$s · #%2$d</string>
+    <string name="news_hotnews_growth">%1$s stars added today</string>
+    <string name="news_hotnews_points">%1$s points</string>
+    <string name="news_hotnews_comments">%1$d comments</string>
+    <string name="news_hotnews_original">Open original</string>
+    <string name="news_hotnews_discussion">Discussion</string>
+    <string name="news_hotnews_favorite">Save</string>
+    <string name="news_hotnews_favorited">Saved</string>
+    <string name="news_hotnews_summary">Summary</string>
+    <string name="news_hotnews_body">Article</string>
+    <string name="news_hotnews_detail">Article details</string>
+    <string name="news_hotnews_processing">Fetching the article and preparing Chinese content with your configured AI…</string>
+    <string name="news_hotnews_no_points">No highlights available. Open details to read more.</string>
+</resources>

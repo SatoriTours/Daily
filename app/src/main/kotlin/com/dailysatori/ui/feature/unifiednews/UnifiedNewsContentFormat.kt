@@ -1,8 +1,8 @@
 package com.dailysatori.ui.feature.unifiednews
 
 private val LeadingUnifiedNewsTitleRegex = Regex("""^\s*#\s*今日统一新闻总结[^\n]*\n+""")
-private val CitationTokenRegex = Regex("""\[([RCDF]\d+)](?!\()""")
-private val UnifiedNewsCitationRegex = Regex("""\[([RCDF]\d+)]""")
+private val CitationTokenRegex = Regex("""\[([RCDFH]\d+)](?!\()""")
+private val UnifiedNewsCitationRegex = Regex("""\[([RCDFH]\d+)]""")
 private val BlankLineBetweenListItemsRegex = Regex("""(?m)^(\s*[-*+]\s+.+)\n\s*\n(?=\s*[-*+]\s+)""")
 private val OrderedListItemRegex = Regex("""^\s*\d+[.)]\s+(.+)""")
 private val UnorderedListItemRegex = Regex("""^\s*[-*+]\s+.+""")
@@ -94,6 +94,7 @@ fun unifiedNewsSummaryTitle(summaryDate: String): String {
 }
 
 fun unifiedNewsSourceTypeLabel(sourceType: String): String = when (sourceType) {
+    "hot_news" -> "平台热点"
     "remote_article" -> "远程新闻"
     "local_favorite" -> "本地收藏"
     else -> "来源"

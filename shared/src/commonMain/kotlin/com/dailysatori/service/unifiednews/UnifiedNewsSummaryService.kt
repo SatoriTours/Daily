@@ -18,6 +18,8 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.coroutines.CancellationException
+import com.dailysatori.service.hotnews.HotNewsService
 
 class UnifiedNewsSummaryService(
     private val aiService: AiService,
@@ -26,6 +28,7 @@ class UnifiedNewsSummaryService(
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
     private val remoteArticleSyncRepo: RemoteArticleSyncRepository,
     private val summaryRepo: UnifiedNewsSummaryRepository,
+    private val hotNews: HotNewsService? = null,
 ) {
     private val log = Logger.withTag("UnifiedNewsSummary")
 
@@ -41,6 +44,7 @@ class UnifiedNewsSummaryService(
         val warnings = mutableListOf<String>()
         val sources = try {
             collectSources(window, warnings, ignoreSourceTimeFilter)
+        } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
             log.w(e) { "Unified news source collection failed" }
             return saveFailure(window, emptyList(), warnings, "新闻来源收集失败，请稍后重试")
@@ -62,6 +66,7 @@ class UnifiedNewsSummaryService(
                 provider = config.provider,
                 purpose = AiPurpose.EXTERNAL_CONTENT,
             )
+        } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
             log.w(e) { "Unified news AI generation failed" }
             return saveFailure(window, preparedSources, warnings, aiGenerationFailureMessage(e))
@@ -101,6 +106,13 @@ class UnifiedNewsSummaryService(
         val refCounts = mutableMapOf<String, Int>()
         addSources(sources, refCounts, collectConfiguredRemoteArticles(window, warnings, ignoreSourceTimeFilter))
         addSources(sources, refCounts, collectLocalFavorites(window))
+        try {
+            addSources(sources, refCounts, hotNews?.summarySources().orEmpty())
+            if (hotNews?.boards?.value?.any { it.error != null } == true) {
+                warnings += "部分平台热榜暂时不可用，本次汇总基于已获取内容生成"
+            }
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) { warnings += "部分平台热榜暂时不可用，本次汇总基于已获取内容生成" }
         return sources
     }
 
@@ -344,7 +356,7 @@ private fun enqueueUnvisitedDuplicateIndices(
 
 private fun UnifiedNewsSourceItem.dedupeKeys(): List<String> =
     listOfNotNull(
-        sourceUrl?.trim()?.lowercase()?.takeIf { it.isNotBlank() }?.let { "url:$it" },
+        sourceUrl?.trim()?.substringBefore('#')?.trimEnd('/')?.lowercase()?.takeIf { it.isNotBlank() }?.let { "url:$it" },
         titleDedupeKey(),
     )
 

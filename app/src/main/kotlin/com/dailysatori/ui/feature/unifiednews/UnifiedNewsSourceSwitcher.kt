@@ -46,12 +46,6 @@ internal fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNe
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
-        FilterChip(
-            selected = state.sourceSelection is UnifiedNewsSourceSelection.Summary,
-            onClick = viewModel::selectSummarySource,
-            label = { Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_focus_tab)) },
-            colors = sourceChipColors,
-        )
         state.remoteSources.forEach { source ->
             FilterChip(
                 selected = (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id,

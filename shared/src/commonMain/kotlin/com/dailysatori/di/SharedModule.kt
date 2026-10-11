@@ -108,6 +108,10 @@ import com.dailysatori.service.skill.DefaultSkillConnectionTester
 import com.dailysatori.service.skill.SkillConnectionTester
 import com.dailysatori.service.skill.SkillRegistry
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
+import com.dailysatori.service.hotnews.HotNewsClient
+import com.dailysatori.service.hotnews.HotNewsStore
+import com.dailysatori.service.hotnews.HotNewsTranslator
+import com.dailysatori.service.hotnews.HotNewsService
 import com.dailysatori.service.weekly.WeeklySummaryService
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -238,7 +242,17 @@ val sharedModule: Module = module {
     single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
     single { DiaryTitleGenerator(diaryTitleCompletion(get(), get())) }
     single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get(), get()) }
-    single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
+    single { HotNewsClient(get()) }
+    single { HotNewsStore(get()) }
+    single { HotNewsTranslator(get(), get()) }
+    single {
+        val translator: HotNewsTranslator = get()
+        val parser: WebpageParserService = get()
+        HotNewsService(get(), get(), translator::translate) { url ->
+            com.dailysatori.service.parser.articleOriginalMarkdown(parser.extractContent(url), url)
+        }
+    }
+    single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }
     single<SkillConnectionTester> { DefaultSkillConnectionTester(get()) }
 

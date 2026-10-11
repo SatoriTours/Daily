@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.unifiednews
 
 internal fun UnifiedNewsState.withUnifiedNewsSourceDetailCleared(): UnifiedNewsState = copy(
+    selectedHotNews = null,
+    selectedHotNewsArticle = null,
     selectedRemoteDigest = null,
     selectedRemoteArticle = null,
     selectedRemoteArticleLocalId = null,

@@ -2,6 +2,8 @@ package com.dailysatori.ui.feature.unifiednews
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.service.hotnews.*
+import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
@@ -47,6 +49,8 @@ enum class UnifiedNewsPage {
 
 sealed class UnifiedNewsSourceSelection {
     data object Summary : UnifiedNewsSourceSelection()
+    data object Hotlists : UnifiedNewsSourceSelection()
+    data object Sources : UnifiedNewsSourceSelection()
     data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data class ExternalFavoriteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data object LocalArticles : UnifiedNewsSourceSelection()
@@ -61,6 +65,7 @@ fun sourceArticleCacheKey(sourceId: Long, summaryDate: String): SourceArticleCac
     SourceArticleCacheKey(sourceId, summaryDate)
 
 sealed class UnifiedNewsNavigationTarget {
+    data class HotNews(val identity: String) : UnifiedNewsNavigationTarget()
     data class RemoteDigest(val id: Long) : UnifiedNewsNavigationTarget()
     data class RemoteArticle(val id: Long, val remoteSourceId: Long?) : UnifiedNewsNavigationTarget()
     data class LocalArticle(val id: Long) : UnifiedNewsNavigationTarget()
@@ -71,6 +76,9 @@ data class UnifiedNewsState(
     val sourceSelection: UnifiedNewsSourceSelection = UnifiedNewsSourceSelection.Summary,
     val isSearchVisible: Boolean = false,
     val searchQuery: String = "",
+    val hotNewsBoards: List<HotNewsBoard> = emptyList(),
+    val selectedHotNews: HotNewsItem? = null,
+    val selectedHotNewsArticle: Article? = null,
     val scrollToTopRequestKey: Int = 0,
     val remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList(),
     val externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
@@ -114,6 +122,8 @@ class UnifiedNewsViewModel(
     private val remoteArticleSyncService: RemoteArticleSyncService,
     private val remoteArticleFavoriteService: RemoteArticleFavoriteService,
     private val postProcessingScheduler: ArticlePostProcessingScheduler,
+    private val hotNews: HotNewsService,
+    private val webpageParser: WebpageParserService,
     private val isDebugBuild: Boolean = false,
 ) : ViewModel() {
     private val _state = MutableStateFlow(UnifiedNewsState())
@@ -124,6 +134,68 @@ class UnifiedNewsViewModel(
     private var detailRequestToken: Long = 0L
     private val sourceArticleRequestToken = AtomicLong(0L)
     private val sourceArticleRequestLock = Any()
+    private var hotNewsRefreshJob: Job? = null
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            hotNews.boards.collect { boards -> _state.update { it.copy(hotNewsBoards = boards) } }
+        }
+    }
+
+    fun selectHotNewsSource() {
+        invalidateSourceArticleRequest()
+        _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Hotlists, searchQuery = "") }
+        refreshHotNews()
+    }
+
+    fun refreshHotNews(force: Boolean = false, platform: HotNewsPlatform? = null) {
+        if (hotNewsRefreshJob?.isActive == true) return
+        hotNewsRefreshJob = viewModelScope.launch(Dispatchers.IO) { hotNews.refresh(platform, force = force) }
+    }
+
+    fun openHotNews(item: HotNewsItem) {
+        val token = beginDetailRequest(UnifiedNewsNavigationTarget.HotNews(item.identity))
+        _state.update { it.copy(selectedHotNews = item, isLoading = true) }
+        detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val existing = articleRepo.getByUrl(item.url)
+                val enriched = if (existing?.ai_markdown_content.isNullOrBlank()) hotNews.ensureContent(item) else item
+                val id = existing?.id ?: articleRepo.insert(title = item.originalTitle, aiTitle = item.displayTitle,
+                    aiContent = item.displaySummary, url = item.url)
+                if (existing?.original_markdown_content.isNullOrBlank() && enriched.originalContent.isNotBlank()) {
+                    articleRepo.updateOriginalMarkdownContent(id, enriched.originalContent)
+                }
+                if (existing?.ai_markdown_content.isNullOrBlank()) webpageParser.processAiTasks(id, retryOnFailure = true)
+                val article = articleRepo.getById(id) ?: error("文章不可用")
+                require(!article.ai_markdown_content.isNullOrBlank()) { "文章中文处理尚未完成" }
+                if (token == detailRequestToken) _state.update {
+                    it.copy(selectedHotNews = enriched, selectedHotNewsArticle = article, isLoading = false, error = null)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                if (token == detailRequestToken) _state.update { it.copy(isLoading = false, error = "暂未完成正文抓取或中文处理，可稍后重试或打开原文") }
+            }
+        }
+    }
+
+    fun toggleHotNewsFavorite() {
+        val article = _state.value.selectedHotNewsArticle ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            articleRepo.toggleFavorite(article.id)
+            _state.update { current -> if (current.selectedHotNewsArticle?.id == article.id) {
+                current.copy(selectedHotNewsArticle = articleRepo.getById(article.id))
+            } else current }
+        }
+    }
+
+    private fun openHotNewsSource(source: Unified_news_source) {
+        val identity = source.source_filename.orEmpty()
+        val platform = HotNewsPlatform.entries.firstOrNull { identity.startsWith(it.key + ":") } ?: return
+        val item = hotNews.find(identity) ?: HotNewsItem(identity.substringAfter(':'), platform, 0,
+            source.title, source.source_url ?: return, chineseTitle = source.title,
+            chineseSummary = source.summary)
+        openHotNews(item)
+    }
 
     fun loadInitial() {
         if (loadJob != null) return
@@ -162,7 +234,7 @@ class UnifiedNewsViewModel(
                             lastSuccessfulSources = lastSources,
                             sources = displaySummaries.firstOrNull()?.let { summary -> sourcesBySummaryId[summary.id] }.orEmpty(),
                             sourcesBySummaryId = sourcesBySummaryId,
-                            isLoading = false,
+                            isLoading = it.navigationTarget != null && it.isLoading,
                         )
                     }
                 }
@@ -176,9 +248,11 @@ class UnifiedNewsViewModel(
     }
 
     fun openCitation(source: Unified_news_source) {
+        if (source.source_type == "hot_news") { openHotNewsSource(source); return }
         val target = navigationTargetFor(source.source_type, source.source_id, source.source_filename) ?: return
         val token = beginDetailRequest(target)
         when (target) {
+            is UnifiedNewsNavigationTarget.HotNews -> Unit
             is UnifiedNewsNavigationTarget.RemoteDigest -> openRemoteDigest(target.id, token)
             is UnifiedNewsNavigationTarget.RemoteArticle -> openRemoteArticle(source, token)
             is UnifiedNewsNavigationTarget.LocalArticle -> Unit
@@ -186,9 +260,11 @@ class UnifiedNewsViewModel(
     }
 
     fun openCitationSource(sourceType: String, sourceId: Long?, filename: String?) {
+        if (sourceType == "hot_news") { hotNews.find(filename.orEmpty())?.let(::openHotNews); return }
         val target = navigationTargetFor(sourceType, sourceId, filename) ?: return
         val token = beginDetailRequest(target)
         when (target) {
+            is UnifiedNewsNavigationTarget.HotNews -> Unit
             is UnifiedNewsNavigationTarget.RemoteDigest -> openRemoteDigest(target.id, token)
             is UnifiedNewsNavigationTarget.RemoteArticle -> openRemoteArticle(target.id, target.remoteSourceId, token)
             is UnifiedNewsNavigationTarget.LocalArticle -> Unit
@@ -266,6 +342,8 @@ class UnifiedNewsViewModel(
 
     fun refreshSelectedSource() {
         when (_state.value.sourceSelection) {
+            UnifiedNewsSourceSelection.Hotlists -> refreshHotNews(force = true)
+            UnifiedNewsSourceSelection.Sources -> incrementLocalArticleRefreshRequest()
             UnifiedNewsSourceSelection.Summary -> regenerateCurrentWindow()
             is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> incrementLocalArticleRefreshRequest()

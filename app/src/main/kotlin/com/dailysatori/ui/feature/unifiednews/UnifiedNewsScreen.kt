@@ -114,6 +114,12 @@ fun UnifiedNewsScreen(
 
 @Composable
 internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
+    val hotItem = state.selectedHotNews
+    if (hotItem != null) {
+        HotNewsDetailScreen(state, hotItem, viewModel::closeSourceDetail,
+            onRetry = { viewModel.openHotNews(hotItem) }, onFavorite = viewModel::toggleHotNewsFavorite)
+        return true
+    }
     val remoteArticle = state.selectedRemoteArticle
     if (remoteArticle != null) {
         BackHandler(onBack = viewModel::closeSourceDetail)
@@ -223,7 +229,7 @@ private fun UnifiedNewsSummaryPage(
     val pageKey = remember(currentPages) { unifiedNewsSourcePagerKey(currentPages) }
     val scope = rememberCoroutineScope()
     var tabScrollJob by remember { mutableStateOf<Job?>(null) }
-    val selectedKey = unifiedNewsSourcePageKey(state.sourceSelection)
+    val selectedKey = unifiedNewsRootPageKey(state.sourceSelection)
     val scrollRequests = remember { mutableStateMapOf<String, Int>() }
     val refreshRequests = remember { mutableStateMapOf<String, Int>() }
     LaunchedEffect(state.scrollToTopRequestKey) {
@@ -268,6 +274,8 @@ private fun UnifiedNewsSummaryPage(
                 val pageState = unifiedNewsSourcePageState(state, selection, scrollRequests[pageKey] ?: 0, refreshRequests[pageKey] ?: 0)
                 when (selection) {
                     UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(pageState, viewModel, onBriefing, onOpportunities, onOpportunity, onTopic)
+                    UnifiedNewsSourceSelection.Hotlists -> HotNewsContent(pageState, viewModel, isActive = pageKey == selectedKey)
+                    UnifiedNewsSourceSelection.Sources -> UnifiedNewsSourcesPage(pageState, viewModel, onArticleClick, isActive = pageKey == selectedKey)
                     is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(pageState, selection, viewModel, isActive = pageKey == selectedKey)
                     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
                         onArticleClick = onArticleClick,
@@ -321,11 +329,31 @@ private fun unifiedNewsHeaderTabs(pages: List<UnifiedNewsSourceSelection>, onSel
     return pages.mapIndexed { index, selection ->
         val title = when (selection) {
             UnifiedNewsSourceSelection.Summary -> summaryTitle
+            UnifiedNewsSourceSelection.Hotlists -> stringResource(R.string.news_hotlists_tab)
+            UnifiedNewsSourceSelection.Sources -> stringResource(R.string.news_sources_tab)
             is UnifiedNewsSourceSelection.RemoteSource -> selection.name
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name
             UnifiedNewsSourceSelection.LocalArticles -> "本地新闻"
         }
         HomeCompactTab(title) { onSelect(index) }
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourcesPage(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel, onArticleClick: (Long) -> Unit, isActive: Boolean) {
+    Column(Modifier.fillMaxSize()) {
+        UnifiedNewsSourceTabs(state, viewModel, Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs))
+        when (val selection = state.sourceSelection) {
+            is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(state, selection, viewModel, isActive)
+            is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
+                onArticleClick = onArticleClick, showTopBar = false,
+                viewModelKey = unifiedNewsSourcePageKey(selection), externalFavoriteSourceId = selection.id,
+                refreshRequestKey = state.localArticleRefreshRequestKey, embeddedSearchQuery = state.searchQuery,
+                scrollToTopRequestKey = state.scrollToTopRequestKey)
+            else -> ArticleListScreen(onArticleClick = onArticleClick, showTopBar = false,
+                viewModelKey = "news-local", refreshRequestKey = state.localArticleRefreshRequestKey,
+                embeddedSearchQuery = state.searchQuery, scrollToTopRequestKey = state.scrollToTopRequestKey)
+        }
     }
 }
 

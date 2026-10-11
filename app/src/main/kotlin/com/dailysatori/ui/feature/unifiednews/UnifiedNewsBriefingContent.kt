@@ -11,8 +11,8 @@ data class UnifiedNewsBriefingPoint(
     val citation: String?,
 )
 
-private val BriefingCitationRegex = Regex("""\[([RCDF]\d+)]""")
-private val BriefingListItemRegex = Regex("""^\s*[-*+]\s+(.+)""")
+private val BriefingCitationRegex = Regex("""\[([RCDFH]\d+)]""")
+private val BriefingListItemRegex = Regex("""^\s*(?:[-*+]|\d+[.)、])\s+(.+)""")
 private val BriefingDailyCoverHeadingRegex = Regex("""^\s*#{1,6}\s*(?:🗞️\s*)?(?:每日封面|今日要闻)\s*$""")
 private val BriefingHeadingRegex = Regex("""^\s*#{1,6}\s+.+""")
 private val BriefingItalicAsteriskRegex = Regex("""\*(.*?)\*""")
@@ -21,7 +21,7 @@ private val BriefingItalicUnderscoreRegex = Regex("""_(.*?)_""")
 fun unifiedNewsBriefingContent(content: String): UnifiedNewsBriefingContent {
     val coverLead = briefingDailyCoverLeadFrom(content)
     val displayed = displayUnifiedNewsMarkdown(content).withoutDailyCoverSection()
-    val points = displayed.lines().mapNotNull(::briefingPointFromLine)
+    val points = displayed.lines().mapNotNull(::briefingPointFromLine).distinctBy { it.text }.take(5)
     return UnifiedNewsBriefingContent(
         title = "今日要闻",
         lead = coverLead ?: briefingLeadFrom(displayed),

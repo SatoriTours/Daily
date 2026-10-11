@@ -2,7 +2,7 @@
     <string name="news_focus_title">News</string>
     <string name="news_focus_search">Search news</string>
     <string name="news_focus_refresh">Refresh news</string>
-    <string name="news_focus_tab">Daily highlights</string>
+    <string name="news_focus_tab">Highlights</string>
     <string name="news_focus_headlines">Today’s headlines</string>
     <string name="news_focus_past_headlines">Headlines</string>
     <string name="news_focus_read_more">Read the news →</string>

@@ -65,9 +65,10 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                     Text(stringResource(R.string.news_focus_news_count, summary.summary_date, sources.size),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    val briefing = unifiedNewsBriefingContent(summary.content)
                     Text(stringResource(headlinesTitleResource(summary.summary_date)), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    briefing.lead?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                    CitationText(content = summary.content, modifier = Modifier.fillMaxWidth()) { citation ->
+                        sources.firstOrNull { it.ref_key == citation }?.let(viewModel::openCitation)
+                    }
                     Text(stringResource(R.string.news_focus_news_list), style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = Spacing.s))
                 }

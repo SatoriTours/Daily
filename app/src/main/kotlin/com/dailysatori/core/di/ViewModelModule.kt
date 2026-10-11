@@ -319,6 +319,8 @@ val viewModelModule: Module = module {
             remoteArticleFavoriteService = get(),
             postProcessingScheduler = get(),
             isDebugBuild = com.dailysatori.BuildConfig.DEBUG,
+            hotNews = get(),
+            webpageParser = get(),
         )
     }
     viewModel {

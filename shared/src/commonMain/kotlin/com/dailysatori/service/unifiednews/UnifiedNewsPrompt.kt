@@ -1,6 +1,6 @@
 package com.dailysatori.service.unifiednews
 
-private val CitationRegex = Regex("\\[([RCDF]\\d+)]")
+private val CitationRegex = Regex("\\[([RCDFH]\\d+)]")
 private val CitationLikeRegex = Regex("\\[([A-Z]+\\d*)]")
 
 fun citationTokens(content: String): List<String> =
@@ -90,15 +90,16 @@ fun buildUnifiedNewsPrompt(window: UnifiedNewsWindow, sources: List<UnifiedNewsS
 
 要求：
 1. 只能使用给定来源，不要编造事实。
-2. 每个关键判断都必须带引用，例如 [R1][F2]。
+2. 每个关键判断都必须带引用，例如 [R1][F2][H3]。H 表示平台热点，排名表示关注度，不代表事实可信度。
 3. 引用必须完全匹配来源编号，不要创造不存在的编号。
 4. 输出结构使用这四个二级标题：`## 今日要闻`、`## 今日要点`、`## 重要变化`、`## 值得关注`。
 5. `## 今日要闻` 下输出一段 150-250 字的连贯总结，概括主要事件、变化及来源明确支持的影响，每个关键判断带引用。不分点、不重复标题、不为凑字数补充事实，来源较少时可以缩短。
-6. 其他二级标题下面使用 Markdown 无序列表，格式为 `- 新闻标题或短句 [R1]`，不要输出无列表符号的长段落。
+6. `## 今日要点` 按重要性列出最重要的五点，每条用一句简短中文概括，格式为 `- 新闻标题或短句 [R1]`。不同点不要重复。可靠信息不足五点时只列已有重点，不凑数。其他二级标题下面使用 Markdown 无序列表，每条带引用。
 7. 优先做跨来源综合，不要机械逐条复述来源。
 8. 对远程来源优先使用来源标题，保持短句，不要改写成长摘要。
 9. 如果来源不足以支持可靠判断，请明确说明无法可靠生成，不要猜测。
 10. 不要输出总标题。
+11. 新闻与热点统一去重。同一事件跨平台合并引用，兼顾不同来源，不让单个平台包揽要点。所有标题和说明使用简体中文，保留必要的产品名和仓库标识。
 
 日期: ${window.summaryDate}
 窗口: ${window.key.value}

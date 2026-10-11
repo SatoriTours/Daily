@@ -12,6 +12,7 @@ enum class UnifiedNewsWindowKey(val value: String, val hour: Int, val minute: In
 enum class UnifiedNewsSourceType(val dbValue: String, val prefix: String) {
     REMOTE_ARTICLE("remote_article", "R"),
     LOCAL_FAVORITE("local_favorite", "F"),
+    HOT_NEWS("hot_news", "H"),
 }
 
 enum class UnifiedNewsSummaryStatus(val value: String) {

@@ -6,6 +6,13 @@ import kotlin.test.assertNull
 
 class UnifiedNewsBriefingContentTest {
     @Test
+    fun `homepage exposes at most five numbered key points including hot news citations`() {
+        val model = unifiedNewsBriefingContent("## 今日要点\n" + (1..7).joinToString("\n") { "$it. 重要新闻 $it [H$it]" })
+        assertEquals((1..5).map { "重要新闻 $it" }, model.points.map { it.text })
+        assertEquals("H1", model.points.first().citation)
+    }
+
+    @Test
     fun `daily headlines retain a full paragraph and keep linked news separate`() {
         val model = unifiedNewsBriefingContent("## 今日要闻\n第一句介绍新闻主线。[R1]\n第二句解释具体变化。\n\n第三句补充影响。\n\n## 今日要点\n- 新闻细节 [R1]")
         assertEquals("今日要闻", model.title)
