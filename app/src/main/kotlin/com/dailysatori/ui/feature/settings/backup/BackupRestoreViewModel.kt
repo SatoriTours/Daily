@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.platform.FileManager
 import com.dailysatori.service.backup.BackupEntry
 import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.backup.backupFileTimestamp
 import com.dailysatori.service.i18n.I18nService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -117,8 +118,7 @@ class BackupRestoreViewModel internal constructor(
     }
 
     fun getBackupTime(path: String): String {
-        val timestamp = Regex("""^daily_satori_backup_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})(?:_hint_[^./]{3})?\.zip\.enc$""")
-            .matchEntire(path)?.groupValues?.get(1) ?: return path
+        val timestamp = backupFileTimestamp(path) ?: return path
         return timestamp.take(10) + " " + timestamp.substring(11).replace('-', ':')
     }
 

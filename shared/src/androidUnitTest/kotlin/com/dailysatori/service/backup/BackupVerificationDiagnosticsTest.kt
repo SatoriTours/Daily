@@ -5,6 +5,13 @@ import kotlin.test.*
 
 class BackupVerificationDiagnosticsTest {
     @Test
+    fun reportRecognizesLocalBackupName() {
+        val result = BackupVerificationResult(BackupVerificationStatus.PASSED, BackupVerificationStage.COMPLETE,
+            "2026-05-21T12:00:00Z", "daily_satori_backup_2026-05-21-20-00-00.zip.enc")
+        assertTrue(result.diagnosticReport().contains("file=daily_satori_backup_2026-05-21-20-00-00.zip.enc"))
+    }
+
+    @Test
     fun reportCopiesAllFramesCausesAndSuppressedErrorsWithoutMessagesOrPasswordHints() {
         var failure: Throwable = IllegalArgumentException("secret root token")
         repeat(10) { failure = IllegalStateException("private diary text", failure) }

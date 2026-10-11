@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.currentCoroutineContext
@@ -33,8 +37,21 @@ data class BackupEntry(
 
 const val MinBackupPasswordLength = 10
 
+internal val backupFileNamePattern = Regex(
+    """^daily_satori_backup_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})(?:_hint_[^./]{3})?\.zip\.enc$""",
+)
+
+fun backupFileTimestamp(name: String): String? = backupFileNamePattern.matchEntire(name)?.groupValues?.get(1)
+
 internal fun backupFileName(timestamp: String, password: String): String {
     return "daily_satori_backup_${timestamp}.zip.enc"
+}
+
+private fun localBackupTimestamp(time: Instant): String {
+    val zone = TimeZone.currentSystemDefault()
+    val local = time.toLocalDateTime(zone)
+    val clock = listOf(local.hour, local.minute, local.second).joinToString("-") { it.toString().padStart(2, '0') }
+    return "${local.date}-${clock}"
 }
 
 fun backupPasswordHint(name: String): String? {
@@ -239,7 +256,7 @@ class BackupService internal constructor(
             val password = currentBackupPassword() ?: return failBackup("请先设置备份密码")
             if (!files.exists(files.getDatabasePath())) return failBackup("数据库文件不存在，无法创建完整备份")
             val backupTime = clock.now()
-            val timestamp = backupTime.toString().replace(Regex("[:T]"), "-").take(19)
+            val timestamp = localBackupTimestamp(backupTime)
             val tempDir = "${files.getCacheDir()}/temp_$timestamp"
             tempDirToClean = tempDir
             deleteRecursive(tempDir)
@@ -499,7 +516,7 @@ class BackupService internal constructor(
                         size = 0L,
                     )
                 }
-                .sortedByDescending { it.timestamp }
+                .sortedByDescending { backupInstant(it.name) }
         } catch (e: Exception) {
             log.e(e) { "Failed to list backups" }
             emptyList()
@@ -546,11 +563,10 @@ class BackupService internal constructor(
     }
 
     private fun backupInstant(name: String): Instant? {
-        val timestamp = Regex(
-            """^daily_satori_backup_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})(?:_hint_[^./]{3})?\.zip\.enc$""",
-        ).matchEntire(name)?.groupValues?.get(1) ?: return null
+        val timestamp = backupFileTimestamp(name) ?: return null
         return runCatching {
-            Instant.parse("${timestamp.take(10)}T${timestamp.substring(11).replace('-', ':')}Z")
+            LocalDateTime.parse("${timestamp.take(10)}T${timestamp.substring(11).replace('-', ':')}")
+                .toInstant(TimeZone.currentSystemDefault())
         }.getOrNull()
     }
 

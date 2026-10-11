@@ -10,6 +10,13 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackupRestoreViewModelTest {
     @Test
+    fun localBackupTimeIsDisplayedWithoutOffsetOrLegacyPasswordHint() = runTest {
+        val vm = BackupRestoreViewModel(Client(), { it }, backgroundScope, StandardTestDispatcher(testScheduler))
+        assertEquals("2026-05-21 20:00:00", vm.getBackupTime("daily_satori_backup_2026-05-21-20-00-00.zip.enc"))
+        assertEquals("2026-05-21 12:00:00", vm.getBackupTime("daily_satori_backup_2026-05-21-12-00-00_hint_abc.zip.enc"))
+    }
+
+    @Test
     fun legacyBackupWarningSurvivesSuccessfulPreparationAndManualRestart() = runTest {
         val client = Client()
         val vm = BackupRestoreViewModel(client, { it }, backgroundScope, StandardTestDispatcher(testScheduler))

@@ -15,10 +15,40 @@ import java.io.File
 import java.nio.file.Files
 import java.util.Base64
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class BackupRoundTripTest {
+    @Test
+    fun backupFileNameUsesOnlyCurrentDeviceLocalDateAndTime() = runBlocking {
+        val previous = java.util.TimeZone.getDefault()
+        var time = Instant.parse("2026-05-21T23:05:00Z")
+        val clock = object : Clock { override fun now() = time }
+        try {
+            listOf("Asia/Shanghai" to "2026-05-22-07-05-00",
+                "Asia/Kolkata" to "2026-05-22-04-35-00",
+                "America/New_York" to "2026-05-21-19-05-00",
+                "UTC" to "2026-05-21-23-05-00").forEach { (zone, expected) ->
+                java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+                withVerificationFixture(clock) { _, service, _ ->
+                    assertTrue(service.backupNow(), service.lastMessage.value)
+                    assertEquals("Backup completed: daily_satori_backup_$expected.zip.enc", service.lastMessage.value)
+                    val verification = service.verifyLatestBackup("correct horse battery")
+                    assertEquals(BackupVerificationStatus.PASSED, verification.status)
+                    assertEquals(time.toString(), verification.backupTime)
+                }
+            }
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/New_York"))
+            withVerificationFixture(clock) { _, service, _ ->
+                time = Instant.parse("2026-12-21T23:05:00Z")
+                assertTrue(service.backupNow(), service.lastMessage.value)
+                assertEquals("Backup completed: daily_satori_backup_2026-12-21-18-05-00.zip.enc", service.lastMessage.value)
+            }
+        } finally { java.util.TimeZone.setDefault(previous) }
+    }
+
     @Test
     fun missingImagesAllowBackupVerificationAndRestoreWithoutDroppingReferences() = runBlocking {
         withVerificationFixture { files, service, _ ->
@@ -285,7 +315,7 @@ class BackupRoundTripTest {
         assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
     }
 
-    private suspend fun withVerificationFixture(block: suspend (DiskFiles, BackupService, File) -> Unit) {
+    private suspend fun withVerificationFixture(clock: Clock = Clock.System, block: suspend (DiskFiles, BackupService, File) -> Unit) {
         val root = Files.createTempDirectory("verify-round-trip").toFile()
         try {
             val files = DiskFiles(root.resolve("source"))
@@ -294,7 +324,7 @@ class BackupRoundTripTest {
             files.writeFile("${files.getAppDataDir()}/diary/audio/23/voice.m4a", "voice bytes".toByteArray())
             files.writeFile("${files.getAppDataDir()}/diary_images/photo.jpg", "photo bytes".toByteArray())
             val backups = root.resolve("backups").apply { mkdirs() }
-            val service = service(files, backups, cipher, "{\"categories\":[],\"records\":[{\"title\":\"policy\"}]}")
+            val service = service(files, backups, cipher, "{\"categories\":[],\"records\":[{\"title\":\"policy\"}]}", clock = clock)
             assertTrue(service.backupNow(), service.lastMessage.value)
             block(files, service, backups.listFiles()!!.single())
         } finally { root.deleteRecursively() }
@@ -503,7 +533,8 @@ class BackupRoundTripTest {
         assertEquals(listOf("child-reply"), q.selectIdeaTopicMessagesByStatus("pending").executeAsList().map { it.id })
     }
 
-    private fun service(files: DiskFiles, backups: File, cipher: SecretValueCipher, archive: String, configured: Boolean = true): BackupService {
+    private fun service(files: DiskFiles, backups: File, cipher: SecretValueCipher, archive: String,
+        configured: Boolean = true, clock: Clock = Clock.System): BackupService {
         val values = if (configured) mutableMapOf(SettingKeys.backupDir to backups.path) else mutableMapOf()
         val settings = object : BackupSettings {
             override fun get(key: String) = values[key]
@@ -545,7 +576,7 @@ class BackupRoundTripTest {
             override suspend fun exportSnapshot() = archive
             override suspend fun prepareRestore(snapshot: String) = cipher.encrypt(snapshot).toByteArray()
         }
-        return BackupService(files, settings, passwords, secrets, lifeArchive = life)
+        return BackupService(files, settings, passwords, secrets, clock = clock, lifeArchive = life)
     }
 
     private class DeviceCipher(private val device: String) : SecretValueCipher {

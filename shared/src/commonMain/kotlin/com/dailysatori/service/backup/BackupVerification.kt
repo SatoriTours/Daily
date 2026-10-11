@@ -20,8 +20,7 @@ data class BackupVerificationResult(
         appendLine("status=$status stage=$stage issue=${issue ?: "none"}")
         appendLine("checkedAt=$checkedAt backupTime=${backupTime ?: "unknown"}")
         // Legacy archive names can contain password hints. Never copy these into diagnostics.
-        val timestamp = Regex("""^daily_satori_backup_(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})(?:_hint_[^./]{3})?\.zip\.enc$""")
-            .matchEntire(fileName.orEmpty())?.groupValues?.get(1)
+        val timestamp = backupFileTimestamp(fileName.orEmpty())
         appendLine("file=${timestamp?.let { "daily_satori_backup_$it.zip.enc" } ?: "[name omitted]"}")
         appendLine("currentSchemaVersion=${com.dailysatori.config.DatabaseConfig.currentSchemaVersion}")
         appendLine("passwordSource=manual; liveData=untouched; backup=untouched")

@@ -6,6 +6,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -322,6 +324,20 @@ class BackupServiceTest {
         val name = "daily_satori_backup_2026-05-21-12-00-00_hint_abc.zip.enc"
         fixture.files.seedCurrentBackup(name)
         assertEquals(name, fixture.service.verifyLatestBackup("correct horse battery").fileName)
+    }
+
+    @Test
+    fun latestBackupAndListOrderLocalNamesIncludingLegacyHints() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedCurrentBackup(nameAt(Instant.parse("2026-05-21T12:00:00Z")))
+        fixture.files.seedCurrentBackup(nameAt(Instant.parse("2026-05-21T12:15:00Z")).replace(".zip.enc", "_hint_abc.zip.enc"))
+        val latest = nameAt(Instant.parse("2026-05-21T12:30:00Z"))
+        fixture.files.seedCurrentBackup(latest)
+
+        assertEquals(latest, fixture.service.listBackups().first().name)
+        val result = fixture.service.verifyLatestBackup("correct horse battery")
+        assertEquals(latest, result.fileName)
+        assertEquals("2026-05-21T12:30:00Z", result.backupTime)
     }
 
     @Test
@@ -733,8 +749,11 @@ private fun backupFixture(password: String? = "correct horse battery", life: Lif
     )
 }
 
-private fun nameAt(time: Instant): String =
-    "daily_satori_backup_${time.toString().replace(Regex("[:T]"), "-").take(19)}.zip.enc"
+private fun nameAt(time: Instant): String {
+    val local = time.toLocalDateTime(TimeZone.currentSystemDefault())
+    val clock = listOf(local.hour, local.minute, local.second).joinToString("-") { it.toString().padStart(2, '0') }
+    return "daily_satori_backup_${local.date}-$clock.zip.enc"
+}
 
 private class FakeBackupClock(var time: Instant) : Clock {
     override fun now(): Instant = time
