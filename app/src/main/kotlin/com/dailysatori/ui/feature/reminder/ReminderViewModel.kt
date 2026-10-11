@@ -415,7 +415,10 @@ class ReminderViewModel(
     private val batchStateTransitions = ReminderBatchStateTransitions(_state)
     private val batchSaveLaunchController = ReminderBatchSaveLaunchController()
     val state: StateFlow<ReminderUiState> = _state
+    private val mutableRemindersLoaded = MutableStateFlow(false)
+    val remindersLoaded: StateFlow<Boolean> = mutableRemindersLoaded
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
+        .map { items -> mutableRemindersLoaded.value = true; items }
         .withUiObservationError { _state.update { it.copy(error = context.getString(R.string.reminder_load_failed)) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val profiles: StateFlow<List<ReminderProfile>> = repository.observeProfiles()

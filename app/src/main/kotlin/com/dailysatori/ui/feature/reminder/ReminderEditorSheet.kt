@@ -53,6 +53,8 @@ internal fun ReminderEditorSheet(
     var editor by remember(reminder.id) { mutableStateOf(ReminderEditorState.from(original)) }
     val profiles by viewModel.profiles.collectAsState()
     var confirmDelete by remember(reminder.id) { mutableStateOf(false) }
+    var pendingSource by remember(reminder.id) { mutableStateOf<String?>(null) }
+    val navigation = com.dailysatori.core.navigation.LocalPhoneNavigation.current
     ModalBottomSheet(
         onDismissRequest = { if (!editor.saving) onDismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -91,6 +93,12 @@ internal fun ReminderEditorSheet(
                         }
                     },
                 )
+                com.dailysatori.ui.feature.phone.PhoneSourcePanel(reminderId = reminder.id, onOpenSource = { sourceId ->
+                    if (!editor.saving) {
+                        if (editor == ReminderEditorState.from(original)) { onDismiss(); navigation.openHistory(sourceId) }
+                        else pendingSource = sourceId
+                    }
+                })
             }
             editor.notice?.let { Text(it, Modifier.padding(horizontal = Spacing.l), color = MaterialTheme.colorScheme.error) }
             ReminderEditorFooter(editor, canEdit = ReminderAction.EDIT in reminderActions(reminder), onCancel = onDismiss) {
@@ -102,6 +110,15 @@ internal fun ReminderEditorSheet(
                 }
             }
         }
+    }
+    pendingSource?.let { sourceId ->
+        AlertDialog(onDismissRequest = { pendingSource = null },
+            title = { Text(stringResource(R.string.settings_unsaved_title)) },
+            text = { Text(stringResource(R.string.settings_unsaved_message)) },
+            confirmButton = { TextButton(onClick = { pendingSource = null; onDismiss(); navigation.openHistory(sourceId) }) {
+                Text(stringResource(R.string.settings_discard_changes))
+            } },
+            dismissButton = { TextButton(onClick = { pendingSource = null }) { Text(stringResource(R.string.settings_continue_editing)) } })
     }
     if (confirmDelete) {
         AlertDialog(

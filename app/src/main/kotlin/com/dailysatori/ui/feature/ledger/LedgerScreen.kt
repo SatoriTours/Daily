@@ -3,6 +3,8 @@ package com.dailysatori.ui.feature.ledger
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
@@ -35,6 +37,7 @@ import org.koin.compose.koinInject
 @Composable
 fun LedgerScreen(onBack: () -> Unit, viewModel: LedgerViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val navigation = com.dailysatori.core.navigation.LocalPhoneNavigation.current
     val i18n: I18nService = koinInject()
     var pendingOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<LedgerEntry?>(null) }
@@ -62,7 +65,7 @@ fun LedgerScreen(onBack: () -> Unit, viewModel: LedgerViewModel = koinViewModel(
                             Column {
                                 bucket.entries.forEachIndexed { index, entry ->
                                     if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                    LedgerRow(entry) { viewModel.openEntry(entry.id) }
+                                    LedgerRow(entry) { navigation.openLedger(entry.id) }
                                 }
                             }
                         }
@@ -404,16 +407,16 @@ private fun PendingSheet(state: LedgerUiState, viewModel: LedgerViewModel, onDis
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun LedgerDetailSheet(entry: LedgerEntry, busy: Boolean, onDismiss: () -> Unit,
+internal fun LedgerDetailSheet(entry: LedgerEntry, busy: Boolean, onDismiss: () -> Unit,
     onCategory: (LedgerCategory, Boolean) -> Unit, onNote: (String) -> Unit, onExcluded: (Boolean) -> Unit,
     onMoveToTodo: () -> Unit, onDelete: () -> Unit) {
     val i18n: I18nService = koinInject()
     var note by remember(entry.id) { mutableStateOf(entry.note) }
     var remember_rule by remember(entry.id) { mutableStateOf(true) }
-    var showOriginal by remember(entry.id) { mutableStateOf(false) }
+    val navigation = com.dailysatori.core.navigation.LocalPhoneNavigation.current
     val zone = TimeZone.currentSystemDefault()
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.padding(horizontal = Spacing.m).padding(bottom = Spacing.xl),
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.m).padding(bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(signed(entry), style = MaterialTheme.typography.headlineSmall)
@@ -444,14 +447,7 @@ private fun LedgerDetailSheet(entry: LedgerEntry, busy: Boolean, onDismiss: () -
             DetailRow(i18n.t("ledger.detail.merchant"), entry.merchant.ifBlank { "-" })
             if (entry.accountTail.isNotEmpty()) DetailRow(i18n.t("ledger.detail.account_tail"), entry.accountTail)
             DetailRow(i18n.t("ledger.detail.source"), entry.source)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(i18n.t("ledger.detail.original"), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = { showOriginal = !showOriginal }) {
-                    Text(i18n.t(if (showOriginal) "bookkeeping.hide_source" else "bookkeeping.show_source"))
-                }
-            }
-            if (showOriginal) Text(entry.text, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            com.dailysatori.ui.feature.phone.PhoneSourcePanel(onOpenSource = { navigation.openHistory(it) }, ledger = entry)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(i18n.t("ledger.detail.excluded"), style = MaterialTheme.typography.bodyMedium)

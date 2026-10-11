@@ -67,18 +67,25 @@ fun ReminderDetailScreen(
     onEdit: (String) -> Unit,
     viewModel: ReminderViewModel = koinViewModel(),
 ) {
+    val i18n: I18nService = koinInject()
+    val navigation = com.dailysatori.core.navigation.LocalPhoneNavigation.current
     val reminders by viewModel.reminders.collectAsState()
+    val loaded by viewModel.remindersLoaded.collectAsState()
+    val uiState by viewModel.state.collectAsState()
     val reminder = reminders.firstOrNull { it.id == reminderId }
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
     var confirmDelete by remember(reminderId) { mutableStateOf(false) }
-    AppScaffold(title = "提醒详情", onBack = onBack) { modifier ->
+    AppScaffold(title = i18n.t("phone.todo_detail"), onBack = onBack) { modifier ->
         if (reminder == null) {
-            Text("未找到提醒。", modifier = modifier.padding(Spacing.m))
+            when {
+                uiState.error != null -> Text(uiState.error.orEmpty(), modifier = modifier.padding(Spacing.m), color = MaterialTheme.colorScheme.error)
+                !loaded -> androidx.compose.material3.LinearProgressIndicator(modifier = modifier.fillMaxWidth().padding(Spacing.m))
+                else -> Text(i18n.t("phone.result_not_found"), modifier = modifier.padding(Spacing.m))
+            }
         } else {
             val timeline = buildReminderTimeline(reminder, today)
             val listItem = buildReminderListState(listOf(reminder), today, ReminderListMode.RECENT, ReminderListFilter())
                 .sections.flatMap { it.items }.firstOrNull()
-            val i18n: I18nService = koinInject()
             val pending = ReminderSummary.todayPendingCount(listOf(reminder), today) > 0
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
@@ -91,8 +98,11 @@ fun ReminderDetailScreen(
                     }
                 }
                 item {
-                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m)) {
-                        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.card),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            Text(i18n.t("phone.todos") + " · " + i18n.t("phone.reminder_status.${reminder.status.name.lowercase()}"),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(reminder.content, style = MaterialTheme.typography.headlineSmall)
                             listItem?.let { ReminderDueBadge(it) }
                             reminder.deadlineAt?.let { deadline ->
@@ -117,7 +127,9 @@ fun ReminderDetailScreen(
                         }
                     }
                 }
-                if (reminder.id.startsWith("sms:")) item { SmsReminderSourcePanel(reminder.id) }
+                item(key = "source") {
+                    com.dailysatori.ui.feature.phone.PhoneSourcePanel(onOpenSource = { navigation.openHistory(it) }, reminderId = reminder.id)
+                }
                 if (reminder.deadlineAt != null) item {
                     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
                     Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)

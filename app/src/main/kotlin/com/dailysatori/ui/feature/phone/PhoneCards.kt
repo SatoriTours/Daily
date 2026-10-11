@@ -53,52 +53,6 @@ import org.koin.compose.koinInject
     }
 }
 
-@Composable internal fun PhoneMessageCard(row: PhoneMessage, state: PhoneUiState, vm: PhoneAssistantViewModel,
-    onAddTodo: () -> Unit, onAddLedger: () -> Unit, onClear: () -> Unit) {
-    val i18n: I18nService = koinInject()
-    var expanded by remember(row.id) { mutableStateOf(false) }
-    val entry = state.bookkeeping.ledger.entries.firstOrNull { it.id == row.ledgerId }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(i18n.t("phone.${row.event.channel.name.lowercase()}") + " · " + row.event.origin, style = MaterialTheme.typography.titleSmall)
-            Text(Instant.fromEpochMilliseconds(row.event.receivedAt).toLocalDateTime(TimeZone.of(row.event.zone)).toString().replace('T', ' '),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(i18n.t("phone.result_counts", row.todos.count { it.state == PhoneResultState.DONE },
-                if (entry?.status in setOf(com.dailysatori.bookkeeping.LedgerStatus.POSTED, com.dailysatori.bookkeeping.LedgerStatus.PENDING)) 1 else 0))
-            if (row.ledgerState == PhoneResultState.FAILED) Text(i18n.t("phone.reason.processing_failed"), color = MaterialTheme.colorScheme.error)
-            if (row.todos.any { it.state in setOf(PhoneResultState.FAILED, PhoneResultState.QUEUED) } || row.ledgerState in setOf(PhoneResultState.FAILED, PhoneResultState.QUEUED))
-                TextButton(onClick = { vm.retry(row) }, enabled = !state.busy) { Text(i18n.t("phone.retry")) }
-            if (!row.textErased && row.todos.none { it.state == PhoneResultState.DONE } && row.ledgerId.isEmpty() &&
-                row.ledgerState != PhoneResultState.QUEUED) {
-                TextButton(onClick = { vm.reprocess(row) }, enabled = !state.busy) { Text(i18n.t("phone.reprocess")) }
-                if (state.preferences.forChannel(row.event.channel).cloud) {
-                    TextButton(onClick = { vm.aiReprocess(row) }, enabled = !state.busy) { Text(i18n.t("phone.ai_reprocess")) }
-                }
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                TextButton(onClick = onAddTodo, enabled = !state.busy) { Text(i18n.t("phone.add_todo")) }
-                if (row.ledgerId.isEmpty()) TextButton(onClick = onAddLedger, enabled = !state.busy) { Text(i18n.t("phone.add_ledger")) }
-            }
-            if (row.ledgerId.isNotEmpty() && row.todos.any { it.state == PhoneResultState.DONE }) {
-                Text(i18n.t("phone.related_notice"), style = MaterialTheme.typography.bodySmall)
-                row.todos.filter { it.reminderId.isNotEmpty() }.forEach { todo ->
-                    TextButton(onClick = { ReminderOpenRequest.state.open(todo.reminderId) }) { Text(i18n.t("phone.view_todo")) }
-                }
-            }
-            if (row.textErased) Text(i18n.t("phone.source_erased"), style = MaterialTheme.typography.bodySmall)
-            else {
-                FlowRow {
-                    TextButton(onClick = { expanded = !expanded }) { Text(i18n.t(if (expanded) "bookkeeping.hide_source" else "bookkeeping.show_source")) }
-                    TextButton(onClick = onClear, enabled = !state.busy) { Text(i18n.t("phone.clear_source")) }
-                }
-                if (expanded) PhoneSourceText(row.event.text)
-            }
-            TextButton(onClick = { vm.blockSource(row) }, enabled = !state.busy) { Text(i18n.t("phone.block_source")) }
-        }
-    }
-}
-
 @Composable private fun PhoneSourceText(text: String) {
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Text(text, Modifier.padding(Spacing.m), style = MaterialTheme.typography.bodySmall,

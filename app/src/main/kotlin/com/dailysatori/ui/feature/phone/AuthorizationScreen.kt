@@ -49,7 +49,7 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
-    var history by rememberSaveable { mutableStateOf(false) }
+    val navigation = com.dailysatori.core.navigation.LocalPhoneNavigation.current
     var sources by rememberSaveable { mutableStateOf(false) }
     var consent by remember { mutableStateOf<PhoneChannel?>(null) }
     var restrictedHelp by remember { mutableStateOf(false) }
@@ -64,9 +64,6 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
         vm.refreshAccess()
     }
     val grant = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); Unit }
-    if (history) {
-        PhoneHistoryScreen(onBack = { history = false }, vm = vm)
-    } else {
         BackHandler(onBack = onBack)
         SettingsScaffold(title = i18n.t("auth.title"), onBack = onBack) { modifier ->
             LazyColumn(modifier.fillMaxSize(), state = rememberLazyListState(
@@ -90,7 +87,7 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
                         Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
                             Column {
                                 AuthorizationAction(i18n.t("auth.records"), i18n.t("auth.records_hint"),
-                                    Icons.Default.History, true) { history = true }
+                                    Icons.Default.History, true) { navigation.openHistory(null) }
                                 AuthorizationDivider()
                                 AuthorizationNote(i18n.t("auth.retention"), i18n.t("auth.retention_hint"))
                             }
@@ -126,7 +123,6 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
                 item { PhoneInfoNote(i18n.t("phone.privacy")) }
             }
         }
-    }
     if (sources) BookkeepingSourcesDialog(state.bookkeeping.copy(busy = state.busy, error = state.failed), vm::selectSource) { sources = false }
     consent?.let { channel -> PhoneConsentDialog(channel, { consent = null }) {
         vm.configure(channel, state.preferences.forChannel(channel).copy(cloud = true)); consent = null

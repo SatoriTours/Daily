@@ -96,11 +96,9 @@ fun ReminderListScreen(
 ) {
     val ui by viewModel.state.collectAsState()
     val all by viewModel.reminders.collectAsState()
-    val phoneMessages: com.dailysatori.data.repository.PhoneMessageRepository = org.koin.compose.koinInject()
-    val intake by produceState(initialValue = emptyList<com.dailysatori.service.phone.PhoneMessage>(), key1 = Unit) {
-        phoneMessages.observe().collect { value = it }
-    }
-    val reminderSources = remember(intake) { ReminderSources.labels(intake) }
+    val sourceVm: com.dailysatori.ui.feature.phone.PhoneSourceViewModel = koinViewModel()
+    val sourceState by sourceVm.state.collectAsState()
+    val reminderSources = remember(sourceState.messages) { ReminderSources.labels(sourceState.messages) }
     val listState by viewModel.listState.collectAsState()
     val selected = all.firstOrNull { it.id == ui.selectedReminderId }
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())

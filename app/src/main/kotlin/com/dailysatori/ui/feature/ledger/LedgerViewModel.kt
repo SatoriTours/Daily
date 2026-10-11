@@ -33,6 +33,7 @@ data class LedgerUiState(
     val entry: LedgerEntry? = null,
     val busy: Boolean = false,
     val failed: Boolean = false,
+    val loaded: Boolean = false,
 ) {
     val period: LedgerPeriod get() = if (tab == LedgerTab.DETAIL) detail else analysis
 
@@ -121,6 +122,7 @@ class LedgerViewModel(
             pending = ledger.entries.filter { it.status == LedgerStatus.PENDING }.sortedByDescending { it.receivedAt },
             entry = state.entry?.let { open -> ledger.entries.firstOrNull { it.id == open.id } },
             failed = false,
+            loaded = true,
         )
     }
 

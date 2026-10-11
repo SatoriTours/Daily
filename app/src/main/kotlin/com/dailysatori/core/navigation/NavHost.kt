@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
@@ -42,6 +44,20 @@ private const val BOOK_ANALYSIS_MESSAGE_KEY = "bookAnalysisMessage"
 
 @Composable
 fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: SettingsViewModel) {
+    val phoneNavigation = remember(navController) {
+        PhoneNavigation(
+            openHistory = { navController.navigate(PhoneHistoryRoute(it)) },
+            openLedger = { navController.navigate(LedgerEntryRoute(it)) },
+            openTodo = { navController.navigate(ReminderDetailRoute(it)) },
+        )
+    }
+    CompositionLocalProvider(LocalPhoneNavigation provides phoneNavigation) {
+        DailySatoriNavigationGraph(navController, settingsViewModel)
+    }
+}
+
+@Composable
+private fun DailySatoriNavigationGraph(navController: NavHostController, settingsViewModel: SettingsViewModel) {
     NavHost(navController, startDestination = HomeRoute) {
         composable<LifeArchiveRoute> {
             com.dailysatori.ui.feature.lifearchive.LifeArchiveScreen(
@@ -143,6 +159,14 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
             )
         }
         composable<LedgerRoute> { com.dailysatori.ui.feature.ledger.LedgerScreen(onBack = { navController.popBackStack() }) }
+        composable<LedgerEntryRoute> { entry ->
+            com.dailysatori.ui.feature.ledger.LedgerEntryScreen(entry.toRoute<LedgerEntryRoute>().entryId,
+                onBack = { navController.popBackStack() })
+        }
+        composable<PhoneHistoryRoute> { entry ->
+            com.dailysatori.ui.feature.phone.PhoneHistoryScreen(onBack = { navController.popBackStack() },
+                messageId = entry.toRoute<PhoneHistoryRoute>().messageId)
+        }
         composable<DataPrivacyRoute> { DataPrivacyScreen(onBack = { navController.popBackStack() }) }
         composable<ProfileFavoritesRoute> {
             ArticleListScreen(

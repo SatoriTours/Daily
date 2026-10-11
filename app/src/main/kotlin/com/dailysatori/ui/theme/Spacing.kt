@@ -18,6 +18,8 @@ object Radius {
     val xs = 4.dp
     val s = 8.dp
     val m = 12.dp
+    val inset = 10.dp
+    val card = 16.dp
     val l = 22.dp
     val xl = 24.dp
     val circular = 100.dp

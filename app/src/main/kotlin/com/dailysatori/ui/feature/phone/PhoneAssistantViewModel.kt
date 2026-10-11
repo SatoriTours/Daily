@@ -30,6 +30,9 @@ data class PhoneUiState(
     val preferences: PhonePreferences = PhonePreferences(PhoneOptions(), PhoneOptions(), emptySet()),
     val messages: List<PhoneMessage> = emptyList(), val smsRecords: List<SmsSourceRecord> = emptyList(),
     val history: List<PhoneMessage> = emptyList(), val historyHasMore: Boolean = false,
+    val messagesLoaded: Boolean = false, val historyLoaded: Boolean = false,
+    val remindersLoaded: Boolean = false, val ledgerLoaded: Boolean = false,
+    val sourceLabels: Map<String, String> = emptyMap(),
     val reminders: List<Reminder> = emptyList(), val bookkeeping: BookkeepingUiState = BookkeepingUiState(),
     val smsGranted: Boolean = false, val canNotify: Boolean = true, val exactAlarms: Boolean = true,
     val busy: Boolean = false, val failed: Boolean = false,
@@ -49,16 +52,21 @@ class PhoneAssistantViewModel(
     private val historyLimit = MutableStateFlow(50)
     init {
         refreshAccess()
-        viewModelScope.launch(Dispatchers.IO) { messages.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(messages = rows) } } }
+        viewModelScope.launch(Dispatchers.IO) {
+            messages.observe().catch { fail() }.collect { rows ->
+                val labels = phoneApplicationLabels(context, rows)
+                mutableState.update { it.copy(messages = rows, messagesLoaded = true, sourceLabels = labels) }
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             historyLimit.flatMapLatest { limit -> messages.observeHistory(limit + 1).map { limit to it } }
                 .catch { fail() }.collect { (limit, rows) ->
-                    mutableState.update { it.copy(history = rows.take(limit), historyHasMore = rows.size > limit) }
+                    mutableState.update { it.copy(history = rows.take(limit), historyHasMore = rows.size > limit, historyLoaded = true) }
                 }
         }
         viewModelScope.launch(Dispatchers.IO) { smsSources.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(smsRecords = rows) } } }
-        viewModelScope.launch(Dispatchers.IO) { reminders.observeAll().catch { fail() }.collect { rows -> mutableState.update { it.copy(reminders = rows) } } }
-        viewModelScope.launch(Dispatchers.IO) { ledger.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(bookkeeping = withSummary(it.bookkeeping, rows)) } } }
+        viewModelScope.launch(Dispatchers.IO) { reminders.observeAll().catch { fail() }.collect { rows -> mutableState.update { it.copy(reminders = rows, remindersLoaded = true) } } }
+        viewModelScope.launch(Dispatchers.IO) { ledger.observe().catch { fail() }.collect { rows -> mutableState.update { it.copy(bookkeeping = withSummary(it.bookkeeping, rows), ledgerLoaded = true) } } }
         viewModelScope.launch { monitor.state.collect { capture -> mutableState.update { it.copy(bookkeeping = it.bookkeeping.copy(capture = capture)) } } }
     }
     fun refreshAccess() = action {
