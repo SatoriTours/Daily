@@ -739,7 +739,17 @@ backup_restore:
   path_not_exist: Backup path does not exist
   title: Restore from backup
   choose_file: Choose backup file
-  empty: Select an encrypted backup exported from another device
+  source_title: Backup source
+  select_title: Select a backup
+  choose_file_short: Choose file
+  directory_files: Files in the backup directory
+  restore_selected: Restore this backup
+  warning_short: Restoring replaces current data. Back up anything you need to keep first.
+  backup_count: "%d backups"
+  choose_file_hint: Restore an encrypted backup from this or another device
+  selected_file: Selected external backup file
+  available_backups: "Backups in directory · %d"
+  empty: No backups in the directory. Choose an encrypted backup file at the top right.
   encrypted_file: Encrypted backup file
   restore: Restore backup
   confirm_title: Confirm restore
@@ -1241,11 +1251,20 @@ settings_design:
   service_connection: "Service connection"
   more: "More actions"
   backup_location: "Backup location"
+  backup_intro: "Set a backup directory and encryption password, then create a full backup."
+  backup_configuration: "Backup settings"
+  backup_protected: "Encrypted"
+  backup_content_hint: "Backups include app data and attachments. Keep your password safe; enter it manually when restoring."
+  backup_verify_caption: "Check integrity without replacing current data"
+  backup_verify_action: "Verify"
+  set_backup_password: "Set backup password"
+  change_backup_password: "Change backup password"
+  backup_password_help: "Use at least 10 characters to encrypt new backups. Keep the password safe; older backups still require their original password."
   backup_directory: "Backup directory"
   choose_directory_hint: "Choose a location to save backups"
-  backup_encryption: "Backup encryption"
-  backup_password_set: "Configured. New backups use the saved password."
-  backup_password_missing: "Not configured. Use at least 10 characters."
+  backup_encryption: "Encryption password"
+  backup_password_set: "Configured, used automatically for new backups"
+  backup_password_missing: "Not configured. Tap to set at least 10 characters."
   backup_password: "Backup password"
   save_backup_password: "Save backup password"
   backup_now: "Back up now"
@@ -1264,7 +1283,8 @@ settings_design:
   backup_attachment_original: "Original database path: "
   backup_attachment_target: "Expected backup path: "
   backup_verify_title: "Backup verification"
-  backup_verify_description: "Read the latest backup from its directory, decrypt, extract, and check its contents and restore preparation. Current data and backup files are not replaced or deleted."
+  backup_verify_safety: "Check that a backup can be restored"
+  backup_verify_description: "Check the latest backup's integrity and restore preparation without changing current data or backup files."
   backup_verify_start: "Verify latest backup"
   backup_verify_password: "Original password for this backup (used only for this check)"
   backup_verify_retry: "Retry verification with this password"
@@ -1346,7 +1366,7 @@ settings_design:
   sources: "Content sources"
   sources_hint: "News · Favorites"
   storage: "Data management"
-  storage_hint: "Backup · Import"
+  storage_hint: "Backup · Restore"
   privacy: "Privacy"
   privacy_hint: "Data use"
   updates: "Updates & about"

@@ -739,7 +739,17 @@ backup_restore:
   path_not_exist: 备份路径不存在
   title: 从备份恢复
   choose_file: 选择备份文件
-  empty: 可直接选择其他设备导出的加密备份文件
+  source_title: 备份来源
+  select_title: 选择备份
+  choose_file_short: 选择文件
+  directory_files: 备份目录中的文件
+  restore_selected: 恢复此备份
+  warning_short: 恢复会替换当前数据，请先备份需要保留的内容。
+  backup_count: "共 %d 份备份"
+  choose_file_hint: 从本机或其他设备的加密备份中恢复
+  selected_file: 已选择的外部备份文件
+  available_backups: "目录中的备份 · %d"
+  empty: 目录中暂无备份，请从右上方选择加密备份文件。
   encrypted_file: 加密备份文件
   restore: 恢复备份
   confirm_title: 确认恢复
@@ -1241,11 +1251,20 @@ settings_design:
   service_connection: "服务连接"
   more: "更多操作"
   backup_location: "备份位置"
+  backup_intro: "先设置备份目录和加密密码，再创建完整备份。"
+  backup_configuration: "备份设置"
+  backup_protected: "加密保护"
+  backup_content_hint: "备份包含应用数据与附件。请妥善保存密码，恢复时需要手动输入。"
+  backup_verify_caption: "检查完整性，不覆盖当前数据"
+  backup_verify_action: "验证"
+  set_backup_password: "设置备份密码"
+  change_backup_password: "修改备份密码"
+  backup_password_help: "密码至少 10 位，用于加密新备份。请妥善保存；恢复旧备份仍需创建时的密码。"
   backup_directory: "备份目录"
   choose_directory_hint: "尚未选择，点击设置备份位置"
-  backup_encryption: "备份加密"
-  backup_password_set: "已设置。新备份会使用当前保存的密码。"
-  backup_password_missing: "未设置。密码至少 10 位。"
+  backup_encryption: "加密密码"
+  backup_password_set: "已设置，创建备份时自动使用"
+  backup_password_missing: "未设置，点击设置至少 10 位的密码"
   backup_password: "备份加密密码"
   save_backup_password: "保存备份密码"
   backup_now: "立即备份"
@@ -1264,7 +1283,8 @@ settings_design:
   backup_attachment_original: "数据库原始路径："
   backup_attachment_target: "备份内应有路径："
   backup_verify_title: "备份验证"
-  backup_verify_description: "从备份目录读取最近的备份，解密、解压并检查内容及恢复准备。不会覆盖当前数据，也不会删除备份。"
+  backup_verify_safety: "检查备份能否恢复"
+  backup_verify_description: "检查最近备份的完整性和恢复准备，不改动当前数据或备份文件。"
   backup_verify_start: "验证最近备份"
   backup_verify_password: "此备份原来的密码（仅本次验证使用）"
   backup_verify_retry: "使用此密码重试验证"
@@ -1346,7 +1366,7 @@ settings_design:
   sources: "内容来源"
   sources_hint: "新闻 · 收藏"
   storage: "数据管理"
-  storage_hint: "备份 · 导入"
+  storage_hint: "备份 · 恢复"
   privacy: "隐私说明"
   privacy_hint: "数据使用"
   updates: "更新与关于"

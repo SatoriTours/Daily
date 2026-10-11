@@ -2,7 +2,7 @@ package com.dailysatori.ui.feature.settings
 
 internal enum class SettingsPage {
     MAIN, AI_CONFIG, AI_PURPOSE, SPEECH, DIARY_TAGS, MCP_SERVER, PLUGIN_CENTER,
-    BACKUP_SETTINGS, BACKUP_RESTORE, DATA_IMPORT, SKILLS, DIAGNOSTICS,
+    BACKUP_SETTINGS, BACKUP_RESTORE, SKILLS, DIAGNOSTICS,
     REMINDERS, SMS_REMINDERS, PHONE_ASSISTANT, BOOKKEEPING, AUTHORIZATION,
     HOT_NEWS, REMOTE_NEWS, EXTERNAL_FAVORITES, PRIVACY, WEB_SERVICE, UPDATES,
 }
@@ -46,7 +46,6 @@ private val settingsSearchEntries = settingsHomeEntries + listOf(
     entry("data", "news", SettingsPage.REMOTE_NEWS, "远程 新闻 remote news"),
     entry("data", "favorites", SettingsPage.EXTERNAL_FAVORITES, "外部 收藏 favorites external"),
     entry("data", "restore", SettingsPage.BACKUP_RESTORE, "恢复 还原 restore"),
-    entry("data", "import", SettingsPage.DATA_IMPORT, "导入 迁移 import migration Flutter"),
 )
 
 internal fun searchSettings(query: String, translate: (String) -> String): List<SettingsEntry> {
@@ -67,8 +66,8 @@ internal fun SettingsPage.groupPages(): List<SettingsPage> = when (this) {
     SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE -> listOf(SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE)
     SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES ->
         listOf(SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES)
-    SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT ->
-        listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT)
+    SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE ->
+        listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE)
     else -> emptyList()
 }
 
@@ -85,7 +84,6 @@ internal fun SettingsPage.tabKey(): String = "settings_design." + when (this) {
     SettingsPage.EXTERNAL_FAVORITES -> "favorites"
     SettingsPage.BACKUP_SETTINGS -> "backup"
     SettingsPage.BACKUP_RESTORE -> "restore"
-    SettingsPage.DATA_IMPORT -> "import"
     else -> error("Page has no settings tab: $this")
 }
 

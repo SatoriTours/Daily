@@ -21,7 +21,7 @@ class SettingsCatalogTest {
         assertEquals(listOf(SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES),
             SettingsPage.REMOTE_NEWS.groupPages())
         assertEquals("settings_design.sources", SettingsPage.HOT_NEWS.groupTitleKey())
-        assertEquals(listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT),
+        assertEquals(listOf(SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE),
             SettingsPage.BACKUP_RESTORE.groupPages())
         assertEquals(listOf(SettingsPage.AI_CONFIG, SettingsPage.AI_PURPOSE, SettingsPage.SPEECH), SettingsPage.SPEECH.groupPages())
         SettingsPage.entries.forEach { assertEquals(SettingsPage.MAIN, it.parent()) }
@@ -35,6 +35,9 @@ class SettingsCatalogTest {
             assertTrue(searchSettings(query) { it }.any { it.destination.page == SettingsPage.HOT_NEWS })
         }
         assertTrue(searchSettings("restore") { it }.any { it.destination.page == SettingsPage.BACKUP_RESTORE })
+        listOf("import", "导入", "Flutter").forEach { query ->
+            assertTrue(searchSettings(query) { it }.isEmpty())
+        }
         assertTrue(searchSettings("zz-not-a-setting") { it }.isEmpty())
         assertTrue(searchSettings("  ") { it }.isEmpty())
     }

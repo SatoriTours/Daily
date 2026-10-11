@@ -34,7 +34,6 @@ import com.dailysatori.ui.feature.settings.hotnews.HotNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.speech.SpeechSettingsScreen
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
-import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen
@@ -84,7 +83,6 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
             SettingsPage.BACKUP_SETTINGS -> BackupSettingsScreen(onBack = childBack,
                 onRestore = { navigate(SettingsDestination(SettingsPage.BACKUP_RESTORE)) })
             SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = childBack)
-            SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = childBack)
             SettingsPage.SKILLS -> SkillSettingsScreen(onBack = childBack)
             SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = childBack)
             SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack, initialSection = section)
@@ -177,7 +175,7 @@ private fun settingsEntryIcon(page: SettingsPage) = when (page) {
     SettingsPage.SKILLS, SettingsPage.PLUGIN_CENTER -> Icons.Default.Extension
     SettingsPage.MCP_SERVER, SettingsPage.WEB_SERVICE -> Icons.Default.Hub
     SettingsPage.HOT_NEWS, SettingsPage.REMOTE_NEWS, SettingsPage.EXTERNAL_FAVORITES -> Icons.Default.Article
-    SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE, SettingsPage.DATA_IMPORT -> Icons.Default.CloudSync
+    SettingsPage.BACKUP_SETTINGS, SettingsPage.BACKUP_RESTORE -> Icons.Default.CloudSync
     SettingsPage.PRIVACY -> Icons.Outlined.PrivacyTip
     SettingsPage.UPDATES -> Icons.Default.SystemUpdate
     else -> Icons.Default.BugReport
