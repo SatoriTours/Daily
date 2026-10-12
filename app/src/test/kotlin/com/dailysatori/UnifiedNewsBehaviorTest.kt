@@ -31,6 +31,10 @@ import com.dailysatori.service.unifiednews.unifiedNewsWindowFor
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.ui.feature.remotenews.remoteArticleDetailPageContent
+import com.dailysatori.ui.feature.settings.SettingsPage
+import com.dailysatori.ui.feature.settings.groupPages
+import com.dailysatori.ui.feature.settings.searchSettings
+import com.dailysatori.ui.feature.settings.settingsHomeEntries
 import com.dailysatori.ui.feature.unifiednews.displayUnifiedNewsMarkdown
 import com.dailysatori.ui.feature.unifiednews.primaryCitationInUnifiedNewsLine
 import com.dailysatori.ui.feature.unifiednews.manualRefreshWindowForEnvironment
@@ -1614,8 +1618,11 @@ class UnifiedNewsBehaviorTest {
         assertFalse(settings.contains("CRAYFISH_NEWS_SETTINGS"))
         assertFalse(settings.contains("小龙虾新闻设置"))
         assertTrue(settings.contains("SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen"))
-        assertTrue(com.dailysatori.ui.feature.settings.settingsHomeEntries.any {
-            it.destination.page == com.dailysatori.ui.feature.settings.SettingsPage.REMOTE_NEWS
+        val sourcesEntry = settingsHomeEntries.single { it.title == "settings_design.sources" }
+        assertEquals(SettingsPage.HOT_NEWS, sourcesEntry.destination.page)
+        assertTrue(SettingsPage.REMOTE_NEWS in sourcesEntry.destination.page.groupPages())
+        assertTrue(searchSettings("remote news") { it }.any {
+            it.destination.page == SettingsPage.REMOTE_NEWS
         })
         assertFalse(screen.substringAfter("private fun SkeletonLine").substringBefore("private fun UnifiedNewsMenu").contains("14.dp"))
         assertFalse(unifiedNewsBriefingCardSource().substringAfter("internal fun TodayUnifiedNewsCard").contains("1.dp"))
