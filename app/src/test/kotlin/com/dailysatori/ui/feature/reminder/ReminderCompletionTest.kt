@@ -40,6 +40,8 @@ import org.junit.After
 import org.junit.Before
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -87,6 +89,98 @@ class ReminderCompletionTest {
         if (::viewModel.isInitialized) viewModel.viewModelScope.cancel()
         if (::driver.isInitialized) driver.close()
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun undoCompletionRestoresOnceReminderAndRejectsOldNotificationGeneration() = runBlocking {
+        val reminder = create(ReminderRecurrence.Once)
+        coordinator.recompute(reminder.id)
+        val originalSchedule = scheduled[reminder.id]
+
+        viewModel.complete(reminder.id, reminder.version).join()
+        val undo = assertNotNull(viewModel.state.value.completionUndo)
+        viewModel.undoCompletion(undo).join()
+
+        val restored = assertNotNull(repository.get(reminder.id))
+        assertEquals(ReminderStatus.ACTIVE, restored.status)
+        assertNull(restored.completedAt)
+        assertEquals(reminder.version + 2, restored.version)
+        assertEquals(originalSchedule, scheduled[reminder.id])
+        assertNull(viewModel.state.value.completionUndo)
+        coordinator.deliver(reminder.id, reminder.version)
+        assertTrue(posted.isEmpty())
+    }
+
+    @Test
+    fun undoRecurringCompletionRestoresCycleAndDismissalBackoff() = runBlocking {
+        val reminder = create(ReminderRecurrence.Monthly(2))
+        assertTrue(repository.markDismissed(reminder.id, reminder.version, now))
+        coordinator.recomputeAfterStateChange(reminder.id)
+        val original = assertNotNull(repository.get(reminder.id))
+        val originalState = repository.state(reminder.id)
+        val originalSchedule = scheduled[reminder.id]
+
+        viewModel.complete(reminder.id, original.version).join()
+        assertEquals(LocalDate(2026, 10, 2), repository.state(reminder.id)?.stateDate)
+        viewModel.undoCompletion(assertNotNull(viewModel.state.value.completionUndo)).join()
+
+        assertEquals(original.status, repository.get(reminder.id)?.status)
+        assertEquals(originalState, repository.state(reminder.id))
+        assertEquals(originalSchedule, scheduled[reminder.id])
+        assertNull(repository.get(reminder.id)?.completedAt)
+    }
+
+    @Test
+    fun undoExpiredCompletionKeepsTaskVisibleWithoutSchedulingAnExpiredAlarm() = runBlocking {
+        val reminder = create(ReminderRecurrence.Once)
+        now = Instant.parse("2026-09-03T08:00:00Z")
+        assertTrue(repository.expire(reminder.id, now))
+        viewModel.complete(reminder.id).join()
+
+        viewModel.undoCompletion(assertNotNull(viewModel.state.value.completionUndo)).join()
+
+        assertEquals(ReminderStatus.EXPIRED, repository.get(reminder.id)?.status)
+        assertNull(scheduled[reminder.id])
+        assertEquals(1, ReminderSummary.todayPendingCount(listOf(repository.get(reminder.id)!!), LocalDate(2026, 9, 3)))
+    }
+
+    @Test
+    fun undoDoesNotOverwriteAnEditAfterCompletion() = runBlocking {
+        val reminder = create(ReminderRecurrence.Monthly(2))
+        viewModel.complete(reminder.id).join()
+        val undo = assertNotNull(viewModel.state.value.completionUndo)
+        val completed = assertNotNull(repository.get(reminder.id))
+        assertTrue(repository.update(reminder.id, com.dailysatori.data.repository.ReminderEdit(completed.version, content = "Changed task")))
+
+        viewModel.undoCompletion(undo).join()
+
+        assertEquals("Changed task", repository.get(reminder.id)?.content)
+        assertEquals(LocalDate(2026, 10, 2), repository.state(reminder.id)?.stateDate)
+        assertEquals(ReminderCompletionError.UNDO, viewModel.state.value.completionError)
+    }
+
+    @Test
+    fun staleRowCannotCompleteTheFollowingRecurringOccurrence() = runBlocking {
+        val reminder = create(ReminderRecurrence.Monthly(2))
+        viewModel.complete(reminder.id, reminder.version).join()
+        val completed = repository.get(reminder.id)
+
+        viewModel.complete(reminder.id, reminder.version).join()
+
+        assertEquals(completed, repository.get(reminder.id))
+        assertFalse(repository.get(reminder.id)?.status == ReminderStatus.COMPLETED)
+    }
+
+    @Test
+    fun undoPausedCompletionPreservesPause() = runBlocking {
+        val reminder = create(ReminderRecurrence.Monthly(2))
+        assertTrue(repository.pause(reminder.id, now))
+        viewModel.complete(reminder.id).join()
+        viewModel.undoCompletion(assertNotNull(viewModel.state.value.completionUndo)).join()
+
+        assertEquals(ReminderStatus.PAUSED, repository.get(reminder.id)?.status)
+        assertNull(repository.state(reminder.id)?.stateDate)
+        assertNull(scheduled[reminder.id])
     }
 
     @Test

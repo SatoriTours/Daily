@@ -41,6 +41,14 @@ import kotlinx.serialization.json.putJsonArray
 
 data class ReminderState(val dismissalCount: Int, val stateDate: LocalDate?, val lastNotifiedAt: Instant? = null)
 
+data class ReminderCompletionSnapshot(
+    val reminder: Reminder,
+    val dismissalCount: Int,
+    val lastNotifiedAt: Long?,
+    val lastDismissedAt: Long?,
+    val nextOccurrenceAt: Long?,
+)
+
 data class ReminderProfile(
     val id: String,
     val name: String,
@@ -178,6 +186,19 @@ class ReminderRepository(
     }
 
     fun complete(id: String, at: Instant = Clock.System.now()): Boolean = terminalTransition(id, ReminderStatus.COMPLETED, at, "completed")
+
+    fun completionSnapshot(id: String): ReminderCompletionSnapshot? = q.selectReminderById(id).executeAsOneOrNull()?.let { row ->
+        ReminderCompletionSnapshot(row.toReminder(), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.next_occurrence_at)
+    }
+
+    fun undoCompletion(snapshot: ReminderCompletionSnapshot, at: Instant): Boolean {
+        val previous = snapshot.reminder
+        return transition(previous.id, previous.version + 1, at) { row ->
+            if (row.completed_at == null) return@transition null
+            Lifecycle(previous.status, previous.stateDate, snapshot.dismissalCount, snapshot.lastNotifiedAt,
+                snapshot.lastDismissedAt, previous.completedAt?.toEpochMilliseconds(), snapshot.nextOccurrenceAt, "completion_undone")
+        }
+    }
 
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean = transition(id, expectedVersion, at) { row ->
         if (row.status == ReminderStatus.COMPLETED.name) return@transition null

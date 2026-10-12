@@ -151,14 +151,14 @@ private fun ReminderEditorFooter(editor: ReminderEditorState, canEdit: Boolean, 
 }
 
 @Composable
-private fun ReminderEditorMoreActions(reminder: Reminder, enabled: Boolean, onAction: (ReminderAction) -> Unit) {
+internal fun ReminderEditorMoreActions(reminder: Reminder, enabled: Boolean, showComplete: Boolean = true, onAction: (ReminderAction) -> Unit) {
     var expanded by remember(reminder.id) { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }, enabled = enabled) {
             Icon(Icons.Default.MoreVert, stringResource(R.string.reminder_editor_more_actions))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            reminderActions(reminder).filterNot { it == ReminderAction.EDIT }.forEach { action ->
+            reminderActions(reminder).filterNot { it == ReminderAction.EDIT || !showComplete && it == ReminderAction.COMPLETE }.forEach { action ->
                 DropdownMenuItem(
                     text = { Text(action.label(), color = if (action == ReminderAction.DELETE) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface) },
                     enabled = enabled && (action != ReminderAction.RESUME || canResumeReminder(reminder)),

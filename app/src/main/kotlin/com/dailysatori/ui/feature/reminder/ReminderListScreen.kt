@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +35,9 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material3.Button
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +60,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -63,6 +69,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,9 +88,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import org.koin.androidx.compose.koinViewModel
-
-private val DateBlockWidth = 50.dp
-private const val WEEK_DAYS = 7
 
 @Composable
 fun ReminderListScreen(
@@ -104,13 +111,16 @@ fun ReminderListScreen(
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val displayYear = ui.listFilter.displayYear ?: today.year
     val scrollState = rememberLazyListState()
+    var showPaused by remember(ui.listFilter.statuses) { mutableStateOf(ReminderStatus.PAUSED in ui.listFilter.statuses) }
+    var isEditing by remember(selected?.id) { mutableStateOf(false) }
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
 
     LaunchedEffect(viewModel, initialTodayOnly) { viewModel.applyListEntryFilter(initialTodayOnly) }
     LaunchedEffect(initialReminderId) {
         if (initialReminderId != null) viewModel.selectReminder(initialReminderId)
     }
 
-    Box(modifier.fillMaxSize().statusBarsPadding()) {
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding()) {
         Column(Modifier.fillMaxSize()) {
             ReminderTopBar(
                 onBack = onBack,
@@ -131,7 +141,7 @@ fun ReminderListScreen(
                 ReminderHero(listState.summary, today)
                 ReminderModeTabs(ui.listMode, viewModel::setListMode)
             }
-            LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Height.appBar + Spacing.xxl)) {
                 if (ui.listMode == ReminderListMode.MONTHS) {
                     item(key = "year_nav") {
                         ReminderYearNavBar(
@@ -163,13 +173,30 @@ fun ReminderListScreen(
                             today = today,
                             isFinished = ui.listMode == ReminderListMode.FINISHED,
                             showDivider = index > 0,
+                            isFirst = index == 0,
+                            isLast = index == section.items.lastIndex,
+                            isBusy = item.id in ui.completingIds,
                             sourceKey = reminderSources[item.id],
                             onClick = { viewModel.selectReminder(item.id) },
-                            onComplete = { viewModel.complete(item.id) },
+                            onComplete = { viewModel.complete(item.id, item.version) },
                         )
                     }
                 }
-                if (listState.sections.isEmpty()) {
+                if (listState.pausedItems.isNotEmpty()) {
+                    item(key = "paused_toggle") {
+                        TextButton(onClick = { showPaused = !showPaused }, modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s)) {
+                            Text(i18n.t("reminder_ui.paused_count", listState.pausedItems.size), Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(if (showPaused) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (showPaused) itemsIndexed(listState.pausedItems, key = { _, item -> "paused_${item.id}" }) { index, item ->
+                        ReminderStoryRow(item, today, false, index > 0, index == 0, index == listState.pausedItems.lastIndex,
+                            item.id in ui.completingIds, reminderSources[item.id],
+                            onClick = { viewModel.selectReminder(item.id) }, onComplete = { viewModel.complete(item.id, item.version) })
+                    }
+                }
+                if (listState.sections.isEmpty() && listState.pausedItems.isEmpty()) {
                     item(key = "empty") { ReminderEmptyBlock(ui, listState.months, today, onAddReminder) }
                 }
             }
@@ -178,13 +205,24 @@ fun ReminderListScreen(
             onClick = onAddReminder,
             modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.l),
         ) { Icon(Icons.Default.Add, stringResource(R.string.reminder_list_add), Modifier.size(IconSize.l)) }
+        ReminderCompletionSnackbar(ui, viewModel, Modifier.align(Alignment.BottomCenter)
+            .padding(horizontal = Spacing.m, vertical = Height.appBar + Spacing.l))
     }
 
     if (selected != null) {
-        ReminderEditorSheet(
+        if (isEditing) ReminderEditorSheet(
             reminder = selected,
             latestProfile = latestProfile,
             viewModel = viewModel,
+            onDismiss = { viewModel.selectReminder(null) },
+        ) else ReminderOverviewSheet(
+            reminder = selected,
+            isBusy = selected.id in ui.completingIds,
+            sourceKey = reminderSources[selected.id],
+            viewModel = viewModel,
+            latestProfile = latestProfile,
+            onComplete = { viewModel.complete(selected.id, selected.version); viewModel.selectReminder(null) },
+            onEdit = { isEditing = true },
             onDismiss = { viewModel.selectReminder(null) },
         )
     }
@@ -241,46 +279,22 @@ private fun ReminderSearchField(query: String, onQueryChange: (String) -> Unit) 
 
 @Composable
 private fun ReminderHero(summary: ReminderListSummaryUi, today: LocalDate) {
-    val next = summary.nextItem ?: return
     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
-    val headline = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-    Column(
-        Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-    ) {
-        Text(
-            when {
-                next.dueState == ReminderDueState.OVERDUE -> stringResource(R.string.reminder_list_overdue)
-                next.deadlineAt != null -> i18n.t("sms.deadline")
-                else -> stringResource(R.string.reminder_list_next_kicker)
-            },
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(heroDayLabel(next, today), style = headline)
-            if (next.id.startsWith("sms:") && next.deadlineAt == null) Text(i18n.t("sms.no_deadline"), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            else Text(next.deadlineAt?.let { com.dailysatori.ui.feature.settings.sms.formatSmsTime(it).takeLast(5) } ?: next.firstReminderTime, style = headline, color = MaterialTheme.colorScheme.primary)
-        }
-        Text(next.content, style = headline, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(
-            buildString {
-                append(stringResource(R.string.reminder_list_hero_soon, summary.upcomingInThirtyDays))
-                if (summary.pausedUpcoming > 0) append(" · ").append(stringResource(R.string.reminder_list_hero_paused, summary.pausedUpcoming))
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun heroDayLabel(item: ReminderListItemUi, today: LocalDate): String = when (item.daysUntil) {
-    0 -> stringResource(R.string.reminder_list_today)
-    1 -> stringResource(R.string.reminder_list_tomorrow)
-    else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
+    val date = stringResource(R.string.reminder_date_month_day, today.monthNumber, today.dayOfMonth)
+    val weekday = today.dayOfWeek.weekdayLabel()
+    val accent = MaterialTheme.colorScheme.primary
+    Text(
+        buildAnnotatedString {
+            append("$date · $weekday · ")
+            append(i18n.t("reminder_ui.today_count", summary.todayCount))
+            if (summary.overdueCount > 0) withStyle(SpanStyle(color = accent)) {
+                append(" · ")
+                append(i18n.t("reminder_ui.overdue_count", summary.overdueCount))
+            }
+        },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -309,12 +323,12 @@ private fun ReminderModeTab(mode: ReminderListMode, isSelected: Boolean, onClick
             mode.label(),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(Spacing.s))
         Box(
             Modifier
-                .height(2.dp)
+                .height(Spacing.xxs)
                 .fillMaxWidth()
                 .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(Radius.xxs)),
         )
@@ -419,14 +433,17 @@ private fun ReminderSectionHeader(section: ReminderListSectionUi, today: LocalDa
     ) {
         Text(
             sectionHeadLabel(section, today, displayYear),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.6.sp,
-            color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = when {
+                section.key == "overdue" -> MaterialTheme.colorScheme.error
+                isToday -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
         )
         Text(
             stringResource(R.string.reminder_count_items, section.items.size),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -463,58 +480,66 @@ private fun ReminderStoryRow(
     today: LocalDate,
     isFinished: Boolean,
     showDivider: Boolean,
+    isFirst: Boolean,
+    isLast: Boolean,
+    isBusy: Boolean,
     sourceKey: String?,
     onClick: () -> Unit,
     onComplete: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        if (showDivider) {
-            HorizontalDivider(
-                Modifier.padding(start = Spacing.m + DateBlockWidth + Spacing.m),
-                color = MaterialTheme.colorScheme.outline,
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+    val completed = item.status == ReminderStatus.COMPLETED
+    val circleColor = if (completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(
+            topStart = if (isFirst) Radius.card else Radius.none,
+            topEnd = if (isFirst) Radius.card else Radius.none,
+            bottomStart = if (isLast) Radius.card else Radius.none,
+            bottomEnd = if (isLast) Radius.card else Radius.none,
+        ),
+    ) {
+        Column {
+            if (showDivider) HorizontalDivider(
+                Modifier.padding(start = Spacing.xxl + Spacing.s, end = Spacing.m),
+                color = MaterialTheme.colorScheme.outlineVariant,
             )
-        }
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-        ) {
-            ReminderDateBlock(item, today, isFinished)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-                Text(
-                    item.content,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isFinished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+            Row(Modifier.fillMaxWidth().padding(vertical = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onComplete, enabled = item.canComplete && !isBusy && !isFinished,
+                    modifier = Modifier.size(Spacing.xxl).semantics {
+                        contentDescription = i18n.t(if (completed) "reminder_ui.completed_access" else "reminder_ui.complete_access", *arrayOf(item.content))
+                    },
                 ) {
-                    ReminderStoryMeta(item, isFinished)
-                    if (sourceKey != null) {
-                        val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
-                        Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                            Text(i18n.t(sourceKey), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                    Box(
+                        Modifier.size(IconSize.l)
+                            .background(if (completed) circleColor else Color.Transparent, CircleShape)
+                            .border(BorderWidth.m, circleColor, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (completed) Icon(Icons.Default.Check, null, Modifier.size(IconSize.xs), tint = AppColors.onAccent)
                     }
                 }
-                if (item.isTodayPending) {
-                    TextButton(onClick = onComplete) {
-                        Text(stringResource(R.string.reminder_detail_complete))
+                Row(
+                    Modifier.weight(1f).clickable(onClick = onClick).padding(vertical = Spacing.s, horizontal = Spacing.s),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text(
+                            item.content, style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (isFinished) FontWeight.Normal else FontWeight.Medium,
+                            color = if (isFinished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            textDecoration = if (completed) TextDecoration.LineThrough else null,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        )
+                        ReminderStoryMeta(item, today, isFinished, sourceKey)
                     }
+                    Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 }
             }
-            if (item.isTodayPending) ReminderPendingDot(Modifier.align(Alignment.CenterVertically))
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(IconSize.s).align(Alignment.CenterVertically),
-            )
         }
     }
 }
@@ -523,36 +548,6 @@ private fun ReminderStoryRow(
 internal fun ReminderPendingDot(modifier: Modifier = Modifier) {
     val description = stringResource(R.string.my_space_reminder_pending)
     Badge(modifier.semantics { contentDescription = description }, containerColor = MaterialTheme.colorScheme.error)
-}
-
-@Composable
-private fun ReminderDateBlock(item: ReminderListItemUi, today: LocalDate, isFinished: Boolean) {
-    val dayColor = when {
-        isFinished -> MaterialTheme.colorScheme.onSurfaceVariant
-        item.dueState == ReminderDueState.OVERDUE -> MaterialTheme.colorScheme.error
-        item.daysUntil == 0 -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    Column(Modifier.width(DateBlockWidth), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            item.occurrenceDate.dayOfMonth.toString(),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = dayColor,
-        )
-        Text(
-            dateBlockUnit(item, isFinished),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun dateBlockUnit(item: ReminderListItemUi, isFinished: Boolean): String = when {
-    isFinished -> stringResource(R.string.reminder_date_month, item.occurrenceDate.monthNumber)
-    item.daysUntil in 0..WEEK_DAYS -> item.occurrenceDate.dayOfWeek.weekdayLabel()
-    else -> stringResource(R.string.reminder_date_month, item.occurrenceDate.monthNumber)
 }
 
 @Composable
@@ -569,40 +564,28 @@ private fun DayOfWeek.weekdayLabel(): String = stringResource(
 )
 
 @Composable
-private fun ReminderStoryMeta(item: ReminderListItemUi, isFinished: Boolean) {
+private fun ReminderStoryMeta(item: ReminderListItemUi, today: LocalDate, isFinished: Boolean, sourceKey: String?) {
     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
     val isUnscheduledSms = item.id.startsWith("sms:") && item.deadlineAt == null
-    Text(if (isUnscheduledSms) i18n.t("sms.no_deadline") else item.deadlineAt?.let { i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(it) } ?: item.firstReminderTime,
-        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    if (!isFinished) ReminderDueBadge(item)
-    if (isFinished) {
-        val completed = item.status == ReminderStatus.COMPLETED
-        ReminderMetaChip(
-            text = stringResource(if (completed) R.string.reminder_status_completed else R.string.reminder_status_expired),
-            container = if (completed) AppColors.success.copy(alpha = 0.15f) else MaterialTheme.colorScheme.errorContainer,
-            contentColor = if (completed) AppColors.success else MaterialTheme.colorScheme.error,
-        )
-        return
+    val date = when (item.occurrenceDate) {
+        today -> stringResource(R.string.reminder_list_today)
+        else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
     }
-    if (isUnscheduledSms) return
-    val recurrenceChip = item.repeatLabel() == ReminderRepeatLabel.ONCE || item.repeatLabel() == ReminderRepeatLabel.YEARLY
-    if (recurrenceChip) {
-        ReminderMetaChip(
-            text = item.repeatLabel().label(),
-            container = if (item.repeatLabel() == ReminderRepeatLabel.YEARLY) AppColors.success.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainerHighest,
-            contentColor = if (item.repeatLabel() == ReminderRepeatLabel.YEARLY) AppColors.success else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    } else {
-        Text("·", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(item.repeatLabel().label(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val timing = when {
+        isUnscheduledSms -> i18n.t("sms.no_deadline")
+        item.deadlineAt != null -> i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(item.deadlineAt)
+        else -> "$date ${item.firstReminderTime}"
     }
-    if (item.status == ReminderStatus.PAUSED) {
-        ReminderMetaChip(
-            text = stringResource(R.string.reminder_status_paused),
-            container = AppColors.warning.copy(alpha = 0.16f),
-            contentColor = AppColors.warning,
-        )
-    }
+    val repeat = if (!item.isSingleDate && !isUnscheduledSms && !isFinished) item.repeatLabel().label() else null
+    val source = sourceKey?.let { i18n.t(it) }
+        ?: i18n.t(if (item.id.startsWith("sms:")) "reminder_ui.source_unknown" else "reminder_ui.manual_source")
+    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val timingColor = if (!isFinished && item.dueState == ReminderDueState.OVERDUE) MaterialTheme.colorScheme.error else textColor
+    Text(buildAnnotatedString {
+        withStyle(SpanStyle(color = timingColor)) { append(timing) }
+        repeat?.let { append(" · $it") }
+        append(" · $source")
+    }, style = MaterialTheme.typography.bodySmall, color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis)
 }
 
 @Composable
@@ -768,7 +751,7 @@ private fun ReminderListMode.label() = stringResource(
 )
 
 @Composable
-private fun ReminderRepeatLabel.label() = stringResource(
+internal fun ReminderRepeatLabel.label() = stringResource(
     when (this) {
         ReminderRepeatLabel.ONCE -> R.string.reminder_list_repeat_once
         ReminderRepeatLabel.DAILY -> R.string.reminder_rule_daily

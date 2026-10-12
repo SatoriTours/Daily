@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,16 +13,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.PauseCircleOutline
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,13 +41,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import com.dailysatori.R
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.component.indicator.AttentionReason
-import com.dailysatori.service.reminder.ReminderSummary
-import com.dailysatori.service.reminder.ReminderRecurrence
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.feature.profile.localDayTicker
 import org.koin.compose.koinInject
@@ -72,6 +65,9 @@ fun ReminderDetailScreen(
     val reminders by viewModel.reminders.collectAsState()
     val loaded by viewModel.remindersLoaded.collectAsState()
     val uiState by viewModel.state.collectAsState()
+    val sourceViewModel: com.dailysatori.ui.feature.phone.PhoneSourceViewModel = koinViewModel()
+    val sources by sourceViewModel.state.collectAsState()
+    val sourceLabels = remember(sources.messages) { ReminderSources.labels(sources.messages) }
     val reminder = reminders.firstOrNull { it.id == reminderId }
     val today by remember { localDayTicker() }.collectAsState(initial = Clock.System.todayIn(TimeZone.currentSystemDefault()))
     var confirmDelete by remember(reminderId) { mutableStateOf(false) }
@@ -84,82 +80,52 @@ fun ReminderDetailScreen(
             }
         } else {
             val timeline = buildReminderTimeline(reminder, today)
-            val listItem = buildReminderListState(listOf(reminder), today, ReminderListMode.RECENT, ReminderListFilter())
-                .sections.flatMap { it.items }.firstOrNull()
-            val pending = ReminderSummary.todayPendingCount(listOf(reminder), today) > 0
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.m),
-            ) {
-                if (pending) item(key = "pending-reason") {
-                    AttentionReason(i18n.t("attention.reminder_pending"), i18n.t("attention.reminder_complete")) {
-                        viewModel.complete(reminder.id)
+            Box(modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                ) {
+                    item { ReminderOverviewInformation(reminder, sourceLabels[reminder.id]) }
+                    item(key = "source") {
+                        com.dailysatori.ui.feature.phone.PhoneSourcePanel(onOpenSource = { navigation.openHistory(it) }, reminderId = reminder.id)
                     }
-                }
-                item {
-                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.card),
-                        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                            Text(i18n.t("phone.todos") + " · " + i18n.t("phone.reminder_status.${reminder.status.name.lowercase()}"),
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(reminder.content, style = MaterialTheme.typography.headlineSmall)
-                            listItem?.let { ReminderDueBadge(it) }
-                            reminder.deadlineAt?.let { deadline ->
-                                val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
-                                Text(i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(deadline), style = MaterialTheme.typography.bodyMedium)
-                            }
-                            if (reminder.id.startsWith("sms:") && reminder.deadlineAt == null) {
-                                val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
-                                Text(i18n.t("sms.unscheduled"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            } else if (reminder.deadlineAt == null) {
-                                Text("下次 ${timeline.occurrenceDate ?: "—"} ${reminder.firstReminderTime}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(reminder.recurrence.toString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    if (reminder.deadlineAt != null) item {
+                        val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
+                        Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item { Text("提醒过程", style = MaterialTheme.typography.titleMedium) }
+                    if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item {
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(horizontal = Spacing.m)) {
+                                timeline.steps.forEachIndexed { index, step ->
+                                    TimelineRow(step.title, step.detail)
+                                    if (index != timeline.steps.lastIndex) HorizontalDivider()
+                                }
                             }
                         }
                     }
-                }
-                if (reminder.notes.isNotBlank()) item(key = "notes") {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                            Text(stringResource(R.string.reminder_notes_label), style = MaterialTheme.typography.titleMedium)
-                            Text(reminder.notes, style = MaterialTheme.typography.bodyMedium)
-                        }
+                    if (reminder.dataIssue != null) item {
+                        Text(stringResource(R.string.reminder_detail_resume_blocked), color = MaterialTheme.colorScheme.error)
                     }
-                }
-                item(key = "source") {
-                    com.dailysatori.ui.feature.phone.PhoneSourcePanel(onOpenSource = { navigation.openHistory(it) }, reminderId = reminder.id)
-                }
-                if (reminder.deadlineAt != null) item {
-                    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
-                    Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)
-                }
-                if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item { Text("提醒过程", style = MaterialTheme.typography.titleMedium) }
-                if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(horizontal = Spacing.m)) {
-                            timeline.steps.forEachIndexed { index, step ->
-                                TimelineRow(step.title, step.detail)
-                                if (index != timeline.steps.lastIndex) HorizontalDivider()
+                    item {
+                        ReminderDetailActions(reminder) { action ->
+                            when (action) {
+                                ReminderAction.COMPLETE -> viewModel.complete(reminder.id, reminder.version)
+                                ReminderAction.PAUSE -> viewModel.pause(reminder.id)
+                                ReminderAction.RESUME -> viewModel.resume(reminder.id)
+                                ReminderAction.EDIT -> onEdit(reminder.id)
+                                ReminderAction.DELETE -> confirmDelete = true
+                                ReminderAction.APPLY_LATEST_PROFILE -> viewModel.applyLatestProfile(reminder.id)
                             }
                         }
                     }
                 }
-                if (reminder.dataIssue != null) item {
-                    Text(stringResource(R.string.reminder_detail_resume_blocked), color = MaterialTheme.colorScheme.error)
-                }
-                item {
-                    ReminderDetailActions(reminder) { action ->
-                        when (action) {
-                            ReminderAction.COMPLETE -> viewModel.complete(reminder.id)
-                            ReminderAction.PAUSE -> viewModel.pause(reminder.id)
-                            ReminderAction.RESUME -> viewModel.resume(reminder.id)
-                            ReminderAction.EDIT -> onEdit(reminder.id)
-                            ReminderAction.DELETE -> confirmDelete = true
-                            ReminderAction.APPLY_LATEST_PROFILE -> viewModel.applyLatestProfile(reminder.id)
-                        }
-                    }
-                }
+                ReminderPrimaryActions(reminder, reminder.id !in uiState.completingIds,
+                    onComplete = { viewModel.complete(reminder.id, reminder.version) }, onEdit = { onEdit(reminder.id) })
+            }
+            ReminderCompletionSnackbar(uiState, viewModel, Modifier.align(Alignment.BottomCenter).padding(Spacing.m))
             }
         }
     }
@@ -181,40 +147,11 @@ private fun ReminderDetailActions(reminder: Reminder, onAction: (ReminderAction)
     val actions = reminderActions(reminder)
     var showMore by remember(reminder.id, reminder.dataIssue) { mutableStateOf(reminder.dataIssue != null) }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        if (ReminderAction.COMPLETE in actions) {
-            Button(
-                onClick = { onAction(ReminderAction.COMPLETE) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = Height.button),
-                shape = RoundedCornerShape(Radius.m),
-                colors = ButtonDefaults.buttonColors(contentColor = AppColors.onAccent),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.CheckCircle, null, Modifier.size(IconSize.m))
-                    Text(stringResource(R.string.reminder_detail_complete))
-                }
-            }
-            Text(
-                stringResource(
-                    if (reminder.recurrence == ReminderRecurrence.Once) R.string.reminder_detail_complete_hint
-                    else R.string.reminder_detail_complete_cycle_hint,
-                ),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.s),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
         if (ReminderAction.EDIT in actions) {
             Card(
                 Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             ) {
-                ReminderDetailActionRow(
-                    Icons.Outlined.Edit, stringResource(R.string.reminder_detail_edit_kicker),
-                    stringResource(R.string.reminder_detail_edit_hint),
-                    onClick = { onAction(ReminderAction.EDIT) },
-                )
-                HorizontalDivider(Modifier.padding(horizontal = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
                 val paused = ReminderAction.RESUME in actions
                 ReminderDetailActionRow(
                     icon = if (paused) Icons.Outlined.PlayCircleOutline else Icons.Outlined.PauseCircleOutline,

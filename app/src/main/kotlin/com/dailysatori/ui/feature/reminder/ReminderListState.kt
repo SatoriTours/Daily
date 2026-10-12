@@ -46,6 +46,9 @@ data class ReminderListItemUi(
     val dueDate: LocalDate? = null,
     val dueState: ReminderDueState = ReminderDueState.NONE,
     val overdueDays: Int = 0,
+    val version: Long = 0,
+    val canComplete: Boolean = true,
+    val isSingleDate: Boolean = false,
 )
 
 fun ReminderListItemUi.repeatLabel(): ReminderRepeatLabel = when {
@@ -66,6 +69,8 @@ data class ReminderListSummaryUi(
     val nextOccurrence: LocalDate?,
     val nextItem: ReminderListItemUi? = null,
     val pausedUpcoming: Int = 0,
+    val todayCount: Int = 0,
+    val overdueCount: Int = 0,
 )
 
 data class ReminderListState(
@@ -73,6 +78,7 @@ data class ReminderListState(
     val months: List<ReminderMonthUi>,
     val summary: ReminderListSummaryUi,
     val listIdentity: String,
+    val pausedItems: List<ReminderListItemUi> = emptyList(),
 )
 
 fun buildReminderListState(
@@ -94,11 +100,15 @@ fun buildReminderListState(
     val sorted = if (mode == ReminderListMode.FINISHED) items.sortedWith(ReminderItemOrder) else upcoming
     val year = filter.displayYear ?: now.year
     val months = if (mode == ReminderListMode.MONTHS) filtered.monthsFor(year, now, filter.query) else emptyList()
+    val displayed = if (mode == ReminderListMode.MONTHS) {
+        months.firstOrNull { it.month == filter.expandedMonth }?.items.orEmpty()
+    } else sorted
+    val actionable = displayed.filter { it.status != ReminderStatus.PAUSED }
     return ReminderListState(
         sections = when (mode) {
-            ReminderListMode.RECENT -> sorted.groupForRecent(now)
+            ReminderListMode.RECENT -> actionable.groupForRecent(now)
             ReminderListMode.MONTHS -> filter.expandedMonth?.let { month ->
-                months.firstOrNull { it.month == month }?.items?.takeIf { it.isNotEmpty() }
+                actionable.takeIf { it.isNotEmpty() }
                     ?.let { listOf(ReminderListSectionUi("month_$month", it)) }
             }.orEmpty()
             ReminderListMode.FINISHED -> listOfNotNull(
@@ -112,8 +122,11 @@ fun buildReminderListState(
             nextOccurrence = upcoming.firstOrNull()?.occurrenceDate,
             nextItem = upcoming.firstOrNull(),
             pausedUpcoming = upcoming.count { it.daysUntil in 0..30 && it.status == ReminderStatus.PAUSED },
+            todayCount = upcoming.count { it.daysUntil == 0 && it.status != ReminderStatus.PAUSED && it.dueState != ReminderDueState.OVERDUE },
+            overdueCount = upcoming.count { it.status != ReminderStatus.PAUSED && (it.daysUntil < 0 || it.dueState == ReminderDueState.OVERDUE) },
         ),
         listIdentity = "$mode|${filter.statuses.sortedBy { it.name }}|${filter.recurrences.sortedBy { it.name }}|${filter.query.trim().lowercase()}|$year|${filter.expandedMonth}|${filter.todayOnly}",
+        pausedItems = displayed.filter { it.status == ReminderStatus.PAUSED },
     )
 }
 
@@ -189,6 +202,10 @@ private fun Reminder.toItem(date: LocalDate, now: LocalDate): ReminderListItemUi
         activeDayRule = activeDayRule, deadlineAt = deadlineAt,
         isTodayPending = date == ReminderSummary.pendingOccurrenceDate(this, now),
         dueDate = dueDate, dueState = dueState, overdueDays = (daysUntilDue?.unaryMinus() ?: 0).coerceAtLeast(0),
+        version = version,
+        canComplete = dataIssue == null && status !in setOf(ReminderStatus.COMPLETED, ReminderStatus.DRAFT) &&
+            (recurrence == ReminderRecurrence.Once || date == (ReminderSummary.pendingOccurrenceDate(this, now) ?: nextOccurrenceOnOrAfter(now))),
+        isSingleDate = recurrence == ReminderRecurrence.Once && startDate == endDate,
     )
 }
 

@@ -16,6 +16,19 @@ import kotlin.test.assertTrue
 
 class ReminderListStateTest {
     @Test
+    fun pausedRemindersAreSeparatedFromActionableTasksAndSummary() {
+        val today = LocalDate(2026, 9, 14)
+        val active = reminder("active", ReminderRecurrence.Monthly(14)).copy(startDate = today, endDate = today)
+        val state = buildReminderListState(listOf(active, active.copy(id = "paused", status = ReminderStatus.PAUSED)),
+            today, ReminderListMode.RECENT, ReminderListFilter())
+
+        assertEquals(listOf("active"), state.sections.flatMap { it.items }.map { it.id })
+        assertEquals(listOf("paused"), state.pausedItems.map { it.id })
+        assertEquals(1, state.summary.todayCount)
+        assertEquals(0, state.summary.overdueCount)
+    }
+
+    @Test
     fun pendingDotsMatchTodayCountAndDisappearAfterCompletion() {
         val today = LocalDate(2026, 9, 14)
         val due = reminder("active", ReminderRecurrence.Once).copy(startDate = today, endDate = today)
@@ -45,7 +58,9 @@ class ReminderListStateTest {
         fun monthItems(month: Int) = buildReminderListState(listOf(due), today, ReminderListMode.MONTHS,
             ReminderListFilter(expandedMonth = month)).sections.flatMap { it.items }
         assertTrue(monthItems(9).single().isTodayPending)
+        assertTrue(monthItems(9).single().canComplete)
         assertFalse(monthItems(10).single().isTodayPending)
+        assertFalse(monthItems(10).single().canComplete)
     }
 
     @Test

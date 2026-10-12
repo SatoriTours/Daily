@@ -15,6 +15,7 @@ import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.core.util.withUiObservationError
 import com.dailysatori.data.repository.ReminderEdit
 import com.dailysatori.data.repository.ReminderRepository
+import com.dailysatori.data.repository.ReminderCompletionSnapshot
 import com.dailysatori.data.repository.ReminderAiBatchRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ReminderProfile
@@ -369,6 +370,8 @@ enum class ReminderFilter { ACTIVE, PAUSED, COMPLETED, EXPIRED }
 
 enum class ReminderAction { PAUSE, RESUME, EDIT, COMPLETE, DELETE, APPLY_LATEST_PROFILE }
 
+enum class ReminderCompletionError { COMPLETE, UNDO }
+
 fun filterReminders(reminders: List<Reminder>, filter: ReminderFilter): List<Reminder> = reminders.filter { reminder ->
     when (filter) {
         ReminderFilter.ACTIVE -> reminder.status in setOf(ReminderStatus.ACTIVE, ReminderStatus.NOTIFIED, ReminderStatus.DISMISSED, ReminderStatus.EXPIRED)
@@ -397,6 +400,9 @@ data class ReminderUiState(
     val selectedReminderId: String? = null,
     val aiParse: ReminderAiParseState = ReminderAiParseState(),
     val error: String? = null,
+    val completionUndo: ReminderCompletionSnapshot? = null,
+    val completionError: ReminderCompletionError? = null,
+    val completingIds: Set<String> = emptySet(),
 )
 
 class ReminderViewModel(
@@ -650,8 +656,41 @@ class ReminderViewModel(
 
     fun pause(id: String) = mutateAndRecompute(id) { repository.pause(id) }
     fun resume(id: String) = mutateAndRecompute(id) { repository.resume(id) }
-    fun complete(id: String) = viewModelScope.launch(Dispatchers.IO) {
-        coordinator.complete(id)
+    fun complete(id: String, expectedVersion: Long? = null) = viewModelScope.launch {
+        if (id in _state.value.completingIds) return@launch
+        _state.update { it.copy(completingIds = it.completingIds + id, completionError = null) }
+        try {
+            val undo = withContext(Dispatchers.IO) { coordinator.completeUndoable(id, expectedVersion) }
+            _state.update { it.copy(completionUndo = undo ?: it.completionUndo,
+                completionError = if (undo == null) ReminderCompletionError.COMPLETE else null) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _state.update { it.copy(completionError = ReminderCompletionError.COMPLETE) }
+        } finally {
+            _state.update { it.copy(completingIds = it.completingIds - id) }
+        }
+    }
+
+    fun undoCompletion(snapshot: ReminderCompletionSnapshot) = viewModelScope.launch {
+        val id = snapshot.reminder.id
+        if (_state.value.completionUndo != snapshot || id in _state.value.completingIds) return@launch
+        _state.update { it.copy(completingIds = it.completingIds + id) }
+        try {
+            val restored = withContext(Dispatchers.IO) { coordinator.undoCompletion(snapshot) }
+            _state.update { it.copy(completionUndo = it.completionUndo.takeUnless { token -> token == snapshot },
+                completionError = if (restored) null else ReminderCompletionError.UNDO) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _state.update { it.copy(completionError = ReminderCompletionError.UNDO) }
+        } finally {
+            _state.update { it.copy(completingIds = it.completingIds - id) }
+        }
+    }
+
+    fun dismissCompletion(snapshot: ReminderCompletionSnapshot?) {
+        _state.update { it.copy(completionUndo = it.completionUndo.takeUnless { token -> token == snapshot }, completionError = null) }
     }
 
     fun edit(id: String, edit: ReminderEdit) = mutateAndRecompute(id) { repository.update(id, edit) }

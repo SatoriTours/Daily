@@ -7,6 +7,7 @@ import co.touchlab.kermit.Logger
 import com.dailysatori.MainActivity
 import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.data.repository.ReminderState
+import com.dailysatori.data.repository.ReminderCompletionSnapshot
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderScheduleDecision
@@ -38,6 +39,8 @@ interface ReminderDeliveryStore {
     fun markDismissed(id: String, expectedVersion: Long, at: Instant, timeZone: TimeZone): Boolean
     fun complete(id: String, at: Instant): Boolean
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean
+    fun completionSnapshot(id: String): ReminderCompletionSnapshot? = null
+    fun undoCompletion(snapshot: ReminderCompletionSnapshot, at: Instant): Boolean = false
     fun expire(id: String, at: Instant): Boolean
     fun expire(id: String, expectedVersion: Long, at: Instant): Boolean = false
     fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus): Boolean = false
@@ -61,6 +64,8 @@ class RepositoryReminderDeliveryStore(
         repository.markDismissed(id, expectedVersion, at, timeZone)
     override fun complete(id: String, at: Instant) = repository.complete(id, at)
     override fun complete(id: String, expectedVersion: Long, at: Instant) = repository.complete(id, expectedVersion, at)
+    override fun completionSnapshot(id: String) = repository.completionSnapshot(id)
+    override fun undoCompletion(snapshot: ReminderCompletionSnapshot, at: Instant) = repository.undoCompletion(snapshot, at)
     override fun expire(id: String, at: Instant) = repository.expire(id, at)
     override fun expire(id: String, expectedVersion: Long, at: Instant) = repository.expire(id, expectedVersion, at)
     override fun advanceCutoff(id: String, expectedVersion: Long, at: Instant, cycleDate: kotlinx.datetime.LocalDate, nextStatus: ReminderStatus) =
@@ -179,6 +184,21 @@ class ReminderCoordinator(
     fun complete(id: String): Boolean {
         val reminder = store.get(id)?.inCurrentTimeZone() ?: return false
         return finishCompletion(id, reminder, completeOccurrence(reminder, null))
+    }
+
+    @Synchronized
+    fun completeUndoable(id: String, expectedVersion: Long? = null): ReminderCompletionSnapshot? {
+        val snapshot = store.completionSnapshot(id) ?: return null
+        if (expectedVersion != null && snapshot.reminder.version != expectedVersion) return null
+        if (!complete(id, snapshot.reminder.version)) return null
+        return snapshot
+    }
+
+    @Synchronized
+    fun undoCompletion(snapshot: ReminderCompletionSnapshot): Boolean {
+        if (!store.undoCompletion(snapshot, clock.now())) return false
+        recomputeAfterStateChange(snapshot.reminder.id)
+        return true
     }
 
     @Synchronized
