@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.diary
 
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.driver.jdbc.ConnectionManager
+import app.cash.sqldelight.driver.jdbc.JdbcDriver
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.core.recording.DiaryRecordingState
 import com.dailysatori.core.recording.DiaryRecordingStore
@@ -27,6 +31,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -39,6 +45,7 @@ import org.junit.After
 import org.junit.Before
 import java.io.File
 import java.nio.file.Files
+import java.sql.Connection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -392,10 +399,30 @@ class DiaryContinuationEditorTest {
         }
     }
 
+    @Test
+    fun concurrentReplySavesPreserveAllDrafts() = runBlocking {
+        val fixture = diaryFixture()
+        try {
+            val rootId = fixture.diaryRepo.create("原始日记")
+            val replyIds = List(8) {
+                async(Dispatchers.IO) {
+                    List(20) {
+                        assertNotNull(fixture.viewModel.saveReplyAndGetId(rootId, "草稿"), fixture.viewModel.state.value.error)
+                    }
+                }
+            }.awaitAll().flatten()
+            assertEquals(160, replyIds.toSet().size)
+            assertEquals(161, fixture.threadRepo.getSnapshot(rootId)!!.entries.size)
+        } finally {
+            fixture.close()
+        }
+    }
+
     private fun diaryFixture(): DiaryFixture {
         // 文件驱动可让多个线程共享同一数据库；IN_MEMORY 只共享一个连接。
         val directory = Files.createTempDirectory("diary-continuation").toFile()
-        val driver = JdbcSqliteDriver("jdbc:sqlite:${File(directory, "diary.db").absolutePath}")
+        val driver = DiaryTestDriver(JdbcSqliteDriver("jdbc:sqlite:${File(directory, "diary.db").absolutePath}"))
+        driver.execute(null, "PRAGMA journal_mode=WAL", 0)
         val database = DailySatoriDatabase(driver)
         database.transaction { DailySatoriDatabase.Schema.create(driver) }
         val diaryRepo = DiaryRepository(database, driver)
@@ -431,7 +458,7 @@ class DiaryContinuationEditorTest {
 
     private class DiaryFixture(
         private val directory: File,
-        val driver: JdbcSqliteDriver,
+        val driver: SqlDriver,
         private val httpClient: HttpClient,
         val diaryRepo: DiaryRepository,
         val attachmentRepo: DiaryAttachmentRepository,
@@ -448,6 +475,33 @@ class DiaryContinuationEditorTest {
             driver.close()
             directory.deleteRecursively()
         }
+    }
+
+    private class DiaryTestDriver(
+        private val connections: JdbcSqliteDriver,
+    ) : JdbcDriver(), ConnectionManager by connections {
+        override var transaction: ConnectionManager.Transaction?
+            get() = connections.transaction
+            set(value) { connections.transaction = value }
+
+        override fun close() = connections.close()
+
+        override fun Connection.endTransaction() = connections.run { endTransaction() }
+
+        override fun Connection.rollbackTransaction() = connections.run { rollbackTransaction() }
+
+        override fun Connection.beginTransaction() {
+            // 与 Android 写事务一样先取得写锁，避免延迟事务从读升级到写时触发 SQLITE_BUSY。
+            createStatement().use { it.execute("BEGIN IMMEDIATE") }
+        }
+
+        override fun addListener(vararg queryKeys: String, listener: Query.Listener) =
+            connections.addListener(*queryKeys, listener = listener)
+
+        override fun removeListener(vararg queryKeys: String, listener: Query.Listener) =
+            connections.removeListener(*queryKeys, listener = listener)
+
+        override fun notifyListeners(vararg queryKeys: String) = connections.notifyListeners(*queryKeys)
     }
 
     private class NoopMemoryExtractor : MemoryExtractor {
