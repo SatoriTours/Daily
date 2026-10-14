@@ -63,6 +63,7 @@ import java.io.File
 
 val appModule: Module = module {
     single { com.dailysatori.core.bookkeeping.BookkeepingCaptureMonitor() }
+    single { com.dailysatori.core.bookkeeping.BookkeepingNotificationRecovery(androidContext(), get(), get()) }
     single { com.dailysatori.core.bookkeeping.PhoneNotificationIdentity(get()) }
     // One factory owns both interfaces, even if R8 merges their class literals in release builds.
     single { EncryptedLifeArchiveRepository(File(androidContext().noBackupFilesDir, "life_archive"), get()) }

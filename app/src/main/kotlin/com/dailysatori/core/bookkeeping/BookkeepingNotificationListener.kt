@@ -28,6 +28,7 @@ class BookkeepingCaptureMonitor {
 class BookkeepingNotificationListener : NotificationListenerService() {
     private val intake: PhoneIntake by inject()
     private val monitor: BookkeepingCaptureMonitor by inject()
+    private val recovery: BookkeepingNotificationRecovery by inject()
     private val identity: PhoneNotificationIdentity by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val captures = Channel<suspend () -> Unit>(Channel.UNLIMITED)
@@ -44,13 +45,17 @@ class BookkeepingNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        monitor.connected(true)
+        recovery.connected()
         val activeEvents = try {
             activeNotifications.orEmpty().associate { it.key to (it.notification.`when`.takeIf { time -> time > 0 } ?: it.postTime) }
         } catch (_: Exception) { monitor.failed(); return }
         captures.trySend { identity.reconcile(activeEvents) }
     }
-    override fun onListenerDisconnected() { monitor.connected(false); super.onListenerDisconnected() }
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        monitor.connected(false)
+        recovery.request()
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val extras = sbn.notification.extras ?: return

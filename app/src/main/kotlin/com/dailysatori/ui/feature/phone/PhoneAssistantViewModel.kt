@@ -2,13 +2,10 @@ package com.dailysatori.ui.feature.phone
 
 import android.Manifest
 import android.app.AlarmManager
-import android.app.NotificationManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.service.notification.NotificationListenerService
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
@@ -45,6 +42,7 @@ class PhoneAssistantViewModel(
     private val smsSources: SmsSourceRepository, private val reminders: ReminderRepository,
     private val coordinator: ReminderCoordinator, private val monitor: BookkeepingCaptureMonitor,
     private val scheduler: AsyncTaskScheduler, private val legacy: SmsReminderService,
+    private val recovery: BookkeepingNotificationRecovery,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(PhoneUiState())
     val state = mutableState.asStateFlow()
@@ -70,9 +68,7 @@ class PhoneAssistantViewModel(
         viewModelScope.launch { monitor.state.collect { capture -> mutableState.update { it.copy(bookkeeping = it.bookkeeping.copy(capture = capture)) } } }
     }
     fun refreshAccess() = action {
-        val component = ComponentName(context, BookkeepingNotificationListener::class.java)
-        val granted = if (Build.VERSION.SDK_INT >= 27) context.getSystemService(NotificationManager::class.java).isNotificationListenerAccessGranted(component)
-            else context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
+        val granted = hasNotificationListenerAccess(context)
         val prefs = service.preferences()
         mutableState.update { it.copy(preferences = prefs,
             smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED,
@@ -80,18 +76,19 @@ class PhoneAssistantViewModel(
             exactAlarms = Build.VERSION.SDK_INT < 31 || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms(),
             bookkeeping = withSummary(it.bookkeeping.copy(granted = granted, sources = availableSources(prefs.sources),
                 selectedSources = prefs.sources, enabled = prefs.notification.enabled), ledger.snapshot())) }
+        recovery.request()
     }
     fun configure(channel: PhoneChannel, options: PhoneOptions) = action {
         service.configure(channel, options)
         mutableState.update { it.copy(preferences = service.preferences(),
             smsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) }
-        if (channel == PhoneChannel.NOTIFICATION && options.enabled && state.value.bookkeeping.granted)
-            NotificationListenerService.requestRebind(ComponentName(context, BookkeepingNotificationListener::class.java))
+        if (channel == PhoneChannel.NOTIFICATION) recovery.request()
     }
     fun selectSource(source: String, selected: Boolean) = action {
         service.selectSource(source, selected)
         val prefs = service.preferences()
         mutableState.update { it.copy(preferences = prefs, bookkeeping = it.bookkeeping.copy(selectedSources = prefs.sources)) }
+        recovery.request()
     }
     fun retry(row: PhoneMessage) = action { service.retry(row.id)?.let(scheduler::enqueue) }
     fun reprocess(row: PhoneMessage) = action { service.reprocess(row.id)?.let(scheduler::enqueue) }
