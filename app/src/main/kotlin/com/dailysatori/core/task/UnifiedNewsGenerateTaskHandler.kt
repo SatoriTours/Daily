@@ -18,6 +18,7 @@ data class UnifiedNewsGenerateTaskPayload(
 
 class UnifiedNewsGenerateTaskHandler(
     private val summaryService: UnifiedNewsSummaryService,
+    private val articleQueue: UnifiedNewsArticleQueue,
 ) : AsyncTaskHandler {
     override val type: String = TYPE
 
@@ -39,6 +40,7 @@ class UnifiedNewsGenerateTaskHandler(
         reporter.report(1, 2, result.message ?: "正在生成新闻汇总", checkpointJson = """{"stage":"generated"}""")
 
         if (result.success) {
+            articleQueue.enqueueLatest()
             reporter.report(2, 2, result.message ?: "远程新闻已更新", checkpointJson = """{"stage":"completed"}""")
             return AsyncTaskExecutionResult.Success()
         }

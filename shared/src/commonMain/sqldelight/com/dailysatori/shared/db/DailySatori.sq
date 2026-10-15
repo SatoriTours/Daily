@@ -738,6 +738,11 @@ SELECT * FROM article WHERE url = ?;
 selectArticleByUrlNullable:
 SELECT * FROM article WHERE url = ?;
 
+selectNewsArticleSummaries:
+SELECT id, ai_content FROM article
+WHERE id IN :articleIds AND ai_content IS NOT NULL AND ai_content != ''
+;
+
 selectArticleByNoUrlRemoteContent:
 SELECT * FROM article
 WHERE url IS NULL

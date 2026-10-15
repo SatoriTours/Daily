@@ -127,7 +127,8 @@ class HotNewsService(
                 if (preferences.value.source(item.platform) != config) return@mapNotNull null
                 UnifiedNewsSourceItem("", UnifiedNewsSourceType.HOT_NEWS, sourceFilename = article.identity,
                     sourceUrl = article.url, title = article.displayTitle ?: return@mapNotNull null,
-                    summary = article.displaySummary, sourceTime = board(item.platform).fetchedAt,
+                    summary = article.displaySummary.ifBlank { article.originalContent.take(1000) },
+                    sourceTime = board(item.platform).fetchedAt,
                     content = "内容来源：${item.platform.displayName}，${if (item.fromFeed) "订阅顺序" else "排名"} ${item.rank}。\n以下为来源正文：\n${article.originalContent}")
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { null }

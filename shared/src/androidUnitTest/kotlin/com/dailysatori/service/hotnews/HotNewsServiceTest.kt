@@ -117,6 +117,7 @@ class HotNewsServiceTest {
                 val sources = service.summarySources()
                 assertEquals(listOf("v2ex:8"), sources.map { it.sourceFilename })
                 assertTrue(sources.single().content.contains(body))
+                assertEquals(body, sources.single().summary)
                 assertEquals(HotNewsError.FETCH_FAILED, service.boards.value.first { it.platform == HotNewsPlatform.HACKER_NEWS }.error)
             }
         }

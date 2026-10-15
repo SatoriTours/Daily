@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.service.hotnews.*
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
+import com.dailysatori.core.task.UnifiedNewsArticleQueue
 import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.config.SettingKeys
@@ -38,6 +39,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 
@@ -94,6 +98,8 @@ data class UnifiedNewsState(
     val lastSuccessfulSources: List<Unified_news_source> = emptyList(),
     val sources: List<Unified_news_source> = emptyList(),
     val sourcesBySummaryId: Map<Long, List<Unified_news_source>> = emptyMap(),
+    val articleIdsByNewsSource: Map<Long, Long> = emptyMap(),
+    val articleSummariesById: Map<Long, String> = emptyMap(),
     val navigationTarget: UnifiedNewsNavigationTarget? = null,
     val selectedRemoteDigest: RemoteDigest? = null,
     val selectedRemoteArticle: RemoteArticle? = null,
@@ -124,6 +130,7 @@ class UnifiedNewsViewModel(
     private val postProcessingScheduler: ArticlePostProcessingScheduler,
     private val hotNews: HotNewsService,
     private val webpageParser: WebpageParserService,
+    private val newsArticleQueue: UnifiedNewsArticleQueue,
     private val isDebugBuild: Boolean = false,
 ) : ViewModel() {
     private val _state = MutableStateFlow(UnifiedNewsState())
@@ -136,7 +143,17 @@ class UnifiedNewsViewModel(
     private val sourceArticleRequestLock = Any()
     private var hotNewsRefreshJob: Job? = null
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun observeArticleSummaries() {
+        viewModelScope.launch(Dispatchers.IO) {
+            state.map { it.articleIdsByNewsSource.values.distinct().sorted() }.distinctUntilChanged()
+                .flatMapLatest(articleRepo::observeNewsSummaries)
+                .collect { summaries -> _state.update { it.copy(articleSummariesById = summaries) } }
+        }
+    }
+
     init {
+        observeArticleSummaries()
         viewModelScope.launch(Dispatchers.IO) {
             combine(hotNews.boards, hotNews.preferences) { boards, prefs ->
                 boards.filter { prefs.source(it.platform).enabled }
@@ -225,6 +242,7 @@ class UnifiedNewsViewModel(
                     val nextSelection = resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)
                     val lastSuccessful = if (todaySummary.isSuccessfulDisplaySummary) todaySummary else latestSuccessfulFallback ?: currentState.lastSuccessfulSummary
                     val lastSources = lastSuccessful?.let { summary -> allSourcesBySummaryId[summary.id] }.orEmpty()
+                    val articleIds = newsArticleQueue.enqueue(displaySummaries.firstOrNull()?.let { sourcesBySummaryId[it.id] }.orEmpty())
                     _state.update {
                         it.copy(
                             sourceSelection = nextSelection,
@@ -236,6 +254,7 @@ class UnifiedNewsViewModel(
                             lastSuccessfulSources = lastSources,
                             sources = displaySummaries.firstOrNull()?.let { summary -> sourcesBySummaryId[summary.id] }.orEmpty(),
                             sourcesBySummaryId = sourcesBySummaryId,
+                            articleIdsByNewsSource = articleIds,
                             isLoading = it.navigationTarget != null && it.isLoading,
                         )
                     }
@@ -250,6 +269,10 @@ class UnifiedNewsViewModel(
     }
 
     fun openCitation(source: Unified_news_source) {
+        _state.value.articleIdsByNewsSource[source.id]?.let { articleId ->
+            beginDetailRequest(UnifiedNewsNavigationTarget.LocalArticle(articleId))
+            return
+        }
         if (source.source_type == "hot_news") { openHotNewsSource(source); return }
         val target = navigationTargetFor(source.source_type, source.source_id, source.source_filename) ?: return
         val token = beginDetailRequest(target)

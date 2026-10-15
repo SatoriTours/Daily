@@ -59,7 +59,7 @@ internal fun NewsFocusHeader(
                 Column(Modifier.width(IntrinsicSize.Max).bringIntoViewRequester(bringIntoViewRequester)
                     .selectable(selected, role = Role.Tab, onClick = tab.onClick),
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(tab.label, Modifier.padding(vertical = Spacing.m), style = MaterialTheme.typography.titleSmall,
+                    Text(tab.label, Modifier.padding(vertical = Spacing.s), style = MaterialTheme.typography.titleSmall,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     Box(Modifier.fillMaxWidth().height(BorderWidth.m).background(
@@ -114,7 +114,9 @@ internal fun UnifiedNewsSummaryContent(
             }
         }
         items(feedSources, key = { "news-${it.id}" }) { source ->
-            UnifiedNewsArticleCard(source, state, onOpen = { viewModel.openCitation(source) })
+            UnifiedNewsArticleCard(source, state,
+                briefing = headlineSummaries.firstOrNull { it.id == source.summary_id }?.content.orEmpty(),
+                onOpen = { viewModel.openCitation(source) })
         }
         if (opportunityState.isUpdating || task?.status in listOf("queued", "running", "retrying")) item(key = "opportunity-progress") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -185,34 +187,43 @@ private fun DailyHeadlinesPreview(summary: Unified_news_summary, onOpen: () -> U
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun UnifiedNewsArticleCard(source: com.dailysatori.shared.db.Unified_news_source, state: UnifiedNewsState, onOpen: () -> Unit) {
-    val appearances = state.hotNewsBoards.flatMap { it.items }.filter {
-        !source.source_url.isNullOrBlank() && com.dailysatori.service.opportunity.newsArticleKey(it.url, "") ==
-            com.dailysatori.service.opportunity.newsArticleKey(source.source_url, "")
-    }.distinctBy { it.platform }
-    Card(onClick = onOpen, shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(source.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            if (source.summary.isNotBlank()) Text(source.summary.withoutUnifiedNewsBasicMarkdown(),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                appearances.forEach { item ->
-                    Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xs),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)) {
-                        Text(stringResource(R.string.news_hotnews_rank, item.platform.displayName, item.rank),
-                            Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-            Text(unifiedNewsSourceTypeLabel(source.source_type), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+private fun UnifiedNewsArticleCard(
+    source: com.dailysatori.shared.db.Unified_news_source,
+    state: UnifiedNewsState,
+    briefing: String,
+    onOpen: () -> Unit,
+) {
+    val appearances = remember(source.source_url, state.hotNewsBoards) {
+        state.hotNewsBoards.flatMap { it.items }.filter {
+            !source.source_url.isNullOrBlank() && com.dailysatori.service.opportunity.newsArticleKey(it.url, "") ==
+                com.dailysatori.service.opportunity.newsArticleKey(source.source_url, "")
+        }.distinctBy { it.platform }
     }
+    val articleSummary = state.articleIdsByNewsSource[source.id]?.let(state.articleSummariesById::get)
+    val preview = remember(source, briefing, appearances, articleSummary) {
+        unifiedNewsArticlePreview(source, briefing, appearances, articleSummary)
+    }
+    val sourceName = com.dailysatori.service.hotnews.HotNewsPlatform.entries
+        .firstOrNull { source.source_type == "hot_news" && it.key == source.source_filename?.substringBefore(':') }?.displayName
+        ?: source.source_url?.takeIf { it.isNotBlank() }?.let { com.dailysatori.ui.component.card.articleDisplayDomain(it) }
+        ?: unifiedNewsSourceTypeLabel(source.source_type)
+    val metadata = appearances.map { item ->
+        stringResource(R.string.news_hotnews_rank, item.platform.displayName, item.rank)
+    }.joinToString(" · ").ifBlank { sourceName }
+    Column(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Text(source.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        if (preview.isNotBlank()) {
+            Text(preview, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 4,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+        Text(metadata, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 internal fun headlinesTitleResource(date: String): Int =

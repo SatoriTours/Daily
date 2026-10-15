@@ -321,6 +321,7 @@ val viewModelModule: Module = module {
             isDebugBuild = com.dailysatori.BuildConfig.DEBUG,
             hotNews = get(),
             webpageParser = get(),
+            newsArticleQueue = get(),
         )
     }
     viewModel {

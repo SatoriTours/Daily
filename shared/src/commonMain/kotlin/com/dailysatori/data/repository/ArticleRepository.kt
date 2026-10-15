@@ -9,12 +9,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 class ArticleRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Article>> =
         q.selectLocalArticles().asFlow().mapToList(Dispatchers.IO)
+
+    fun observeNewsSummaries(articleIds: List<Long>): Flow<Map<Long, String>> =
+        q.selectNewsArticleSummaries(articleIds) { id, content -> id to content.orEmpty() }
+            .asFlow().mapToList(Dispatchers.IO).map { it.toMap() }.distinctUntilChanged()
 
     fun getCards(searchQuery: String = "", tagId: Long? = null, favoritesOnly: Boolean = false,
         sourceId: Long? = null): Flow<List<Article>> =

@@ -123,7 +123,7 @@ internal fun remoteArticleProcessingFailure(error: Exception): AsyncTaskExecutio
     }
 }
 
-private fun articlePostProcessingPayloadJson(articleId: Long): String =
+internal fun articlePostProcessingPayloadJson(articleId: Long): String =
     Json.encodeToString(ArticlePostProcessingPayload(articleId))
 
 private fun decodeArticleId(payloadJson: String): Long? =

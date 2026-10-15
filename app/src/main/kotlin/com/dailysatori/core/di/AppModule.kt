@@ -33,6 +33,7 @@ import com.dailysatori.service.parser.ArticleCoverScheduler
 import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
 import com.dailysatori.core.task.ReminderAiParseTaskHandler
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
+import com.dailysatori.core.task.UnifiedNewsArticleQueue
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
@@ -88,7 +89,8 @@ val appModule: Module = module {
     single { ExternalFavoriteOrganizeTaskHandler(get(), get(), get(), get(), get()) }
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
     single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }
-    single { UnifiedNewsGenerateTaskHandler(get()) }
+    single { UnifiedNewsArticleQueue(get(), get(), get(), get(), get(), get<AsyncTaskScheduler>()::enqueue) }
+    single { UnifiedNewsGenerateTaskHandler(get(), get()) }
     single { com.dailysatori.core.task.NewsOpportunityTaskHandler(get()) }
     single { ReminderAiParseTaskHandler(get(), get<ReminderAiInterpretationRemote>(), get<ReminderBatchCodec>(), get(), get()) }
     single { com.dailysatori.core.sms.SmsPendingNotifier(androidContext(), get(), get()) }
