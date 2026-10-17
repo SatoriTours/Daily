@@ -51,4 +51,25 @@ class UnifiedNewsArticlePreviewTest {
         assertEquals(text.take(600), preview)
         assertFalse(preview.contains("简报内容"))
     }
+
+    @Test fun concisePlatformSummaryTakesPriorityOverScrapedPageText() {
+        val summary = "完全在本地运行的开源语音合成工具。"
+        val item = HotNewsItem("8", HotNewsPlatform.GITHUB, 10, source.title, "https://github.com/example/voice",
+            chineseSummary = summary, originalContent = "页面正文。".repeat(100))
+        assertEquals(summary, unifiedNewsArticlePreview(source.copy(summary = "旧摘要。".repeat(50)), "", listOf(item)))
+    }
+
+    @Test fun repositoryNavigationYieldsToCitedBriefing() {
+        val noise = "main39 Branches42 TagsGo to fileCodeOpen more actions menuLatest commitMerge pull request #2919"
+        val repository = source.copy(source_filename = "github:8", source_url = "https://github.com/example/voice", summary = noise)
+        assertEquals("本地运行的语音合成工具。", unifiedNewsArticlePreview(repository,
+            "- 本地运行的语音合成工具。 [H1]", emptyList(), noise))
+        assertEquals("", unifiedNewsArticlePreview(repository, "", emptyList()))
+    }
+
+    @Test fun validRepositoryDescriptionWithOneNavigationTermIsPreserved() {
+        val text = "Latest commit 引入离线语音合成，支持本地运行。"
+        assertEquals(text, unifiedNewsArticlePreview(source.copy(source_url = "https://github.com/example/voice", summary = text),
+            "", emptyList()))
+    }
 }

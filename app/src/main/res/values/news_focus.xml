@@ -2,7 +2,12 @@
     <string name="news_focus_title">新闻</string>
     <string name="news_focus_search">搜索新闻</string>
     <string name="news_focus_refresh">刷新新闻</string>
-    <string name="news_focus_tab">精选</string>
+    <string name="news_focus_tab">今日</string>
+    <string name="news_focus_read_briefing">阅读完整简报</string>
+    <string name="news_focus_view_report">查看原始报道</string>
+    <string name="news_focus_for_you">与你有关</string>
+    <string name="news_focus_view_all">查看全部</string>
+    <string name="news_focus_view_opportunity">查看机会</string>
     <string name="news_focus_headlines">今日要闻</string>
     <string name="news_focus_past_headlines">当日要闻</string>
     <string name="news_focus_read_more">查看详细新闻 →</string>

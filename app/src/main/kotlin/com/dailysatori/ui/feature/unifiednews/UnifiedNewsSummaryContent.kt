@@ -1,6 +1,5 @@
 package com.dailysatori.ui.feature.unifiednews
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -9,7 +8,6 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -91,8 +89,11 @@ internal fun UnifiedNewsSummaryContent(
     val summary = latestHeadlinesSummary(state.summaries, state.lastSuccessfulSummary)
     val headlineSummaries = if (state.searchQuery.isBlank()) listOfNotNull(summary) else summaries.filter { it.content.isNotBlank() }
     val recommendations = recommendedArticles(opportunityState.items)
-    val feedSources = headlineSummaries.flatMap { state.sourcesBySummaryId[it.id].orEmpty() }
-        .distinctBy { com.dailysatori.service.opportunity.newsArticleKey(it.source_url, it.ref_key) }
+    val articleSummariesBySource = remember(state.articleIdsByNewsSource, state.articleSummariesById) {
+        state.articleIdsByNewsSource.mapNotNull { (sourceId, articleId) ->
+            state.articleSummariesById[articleId]?.let { sourceId to it }
+        }.toMap()
+    }
     val listState = rememberLazyListState()
     LaunchedEffect(opportunities) { opportunities.observeRecommendations() }
     LaunchedEffect(summary?.updated_at) { if (summary != null) opportunities.refreshRecommendations() }
@@ -103,9 +104,12 @@ internal fun UnifiedNewsSummaryContent(
         if (state.scrollToTopRequestKey > 0) listState.animateScrollToItem(0)
     }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s, bottom = Height.navBar + Spacing.xxl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        items(headlineSummaries, key = { "headlines-${it.id}" }) { entry -> DailyHeadlinesPreview(entry) { onBriefing(entry.id) } }
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+        items(headlineSummaries, key = { "headlines-${it.id}" }) { entry ->
+            DailyHeadlinesPreview(entry, state.sourcesBySummaryId[entry.id].orEmpty(), articleSummariesBySource,
+                query = state.searchQuery, onOpen = { onBriefing(entry.id) }, onCitationClick = viewModel::openCitation)
+        }
         if (headlineSummaries.isEmpty()) item(key = "headlines-empty") {
             Column(Modifier.padding(vertical = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(stringResource(R.string.news_focus_empty), style = MaterialTheme.typography.titleLarge)
@@ -113,10 +117,8 @@ internal fun UnifiedNewsSummaryContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        items(feedSources, key = { "news-${it.id}" }) { source ->
-            UnifiedNewsArticleCard(source, state,
-                briefing = headlineSummaries.firstOrNull { it.id == source.summary_id }?.content.orEmpty(),
-                onOpen = { viewModel.openCitation(source) })
+        if (recommendations.isNotEmpty()) item(key = "opportunity-header") {
+            OpportunitySectionHeader(onMore = onOpportunities)
         }
         if (opportunityState.isUpdating || task?.status in listOf("queued", "running", "retrying")) item(key = "opportunity-progress") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -132,12 +134,11 @@ internal fun UnifiedNewsSummaryContent(
                 TextButton(onClick = { opportunities.clearError() }) { Text(stringResource(R.string.my_space_close)) }
             }
         }
-        itemsIndexed(recommendations, key = { _, item -> item.id }) { index, item ->
+        items(recommendations.take(3), key = { it.id }) { item ->
             val topicId = topicLinks[item.id]
             val isCaptured = topicId != null
-            NewsOpportunityCard(
+            TodayNewsOpportunityCard(
                 item = item,
-                rank = index + 1,
                 onOpen = { onOpportunity(item.id) },
                 isCaptured = isCaptured,
                 onTopicAction = {
@@ -164,68 +165,6 @@ internal fun UnifiedNewsSummaryContent(
     }
 }
 
-@Composable
-private fun DailyHeadlinesPreview(summary: Unified_news_summary, onOpen: () -> Unit) {
-    val briefing = remember(summary.content) { unifiedNewsBriefingContent(summary.content) }
-    Card(onClick = onOpen, shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.news_focus_summary_title), Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text(summary.summary_date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            briefing.points.forEachIndexed { index, point ->
-                Row(Modifier.fillMaxWidth().padding(vertical = Spacing.xs), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    Text((index + 1).toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(point.text, style = MaterialTheme.typography.bodyMedium, maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                }
-            }
-            if (briefing.points.isEmpty()) Text(stringResource(R.string.news_hotnews_no_points), style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsArticleCard(
-    source: com.dailysatori.shared.db.Unified_news_source,
-    state: UnifiedNewsState,
-    briefing: String,
-    onOpen: () -> Unit,
-) {
-    val appearances = remember(source.source_url, state.hotNewsBoards) {
-        state.hotNewsBoards.flatMap { it.items }.filter {
-            !source.source_url.isNullOrBlank() && com.dailysatori.service.opportunity.newsArticleKey(it.url, "") ==
-                com.dailysatori.service.opportunity.newsArticleKey(source.source_url, "")
-        }.distinctBy { it.platform }
-    }
-    val articleSummary = state.articleIdsByNewsSource[source.id]?.let(state.articleSummariesById::get)
-    val preview = remember(source, briefing, appearances, articleSummary) {
-        unifiedNewsArticlePreview(source, briefing, appearances, articleSummary)
-    }
-    val sourceName = com.dailysatori.service.hotnews.HotNewsPlatform.entries
-        .firstOrNull { source.source_type == "hot_news" && it.key == source.source_filename?.substringBefore(':') }?.displayName
-        ?: source.source_url?.takeIf { it.isNotBlank() }?.let { com.dailysatori.ui.component.card.articleDisplayDomain(it) }
-        ?: unifiedNewsSourceTypeLabel(source.source_type)
-    val metadata = appearances.map { item ->
-        stringResource(R.string.news_hotnews_rank, item.platform.displayName, item.rank)
-    }.joinToString(" · ").ifBlank { sourceName }
-    Column(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = Spacing.s),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(source.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        if (preview.isNotBlank()) {
-            Text(preview, style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 4,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        }
-        Text(metadata, style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-}
-
 internal fun headlinesTitleResource(date: String): Int =
     if (date == java.time.LocalDate.now().toString()) R.string.news_focus_headlines else R.string.news_focus_past_headlines
 
@@ -237,18 +176,15 @@ internal fun latestHeadlinesSummary(
 
 @Composable
 private fun OpportunitySectionHeader(onMore: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.my_space_useful), Modifier.weight(1f),
-                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onMore, contentPadding = PaddingValues(Spacing.xs)) {
-                Text(stringResource(R.string.news_focus_more))
-                Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
-            }
+    Row(Modifier.fillMaxWidth().padding(top = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.news_focus_for_you), Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        TextButton(onClick = onMore, contentPadding = PaddingValues(Spacing.xs)) {
+            Text(stringResource(R.string.news_focus_view_all), style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(stringResource(R.string.news_focus_continuous), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(Spacing.xs))
     }
 }
 

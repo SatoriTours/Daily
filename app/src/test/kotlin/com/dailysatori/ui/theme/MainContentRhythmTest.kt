@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 class MainContentRhythmTest {
     @Test
-    fun newsSummaryStartsCloserToTitleBar() {
+    fun newsSummaryUsesCardSpacingBelowTitleBar() {
         val news = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val summary = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
         val layouts = File("src/main/kotlin/com/dailysatori/ui/component/news/NewsListLayouts.kt").readText()
@@ -23,7 +23,7 @@ class MainContentRhythmTest {
             .replace(Regex("\\s+"), "")
         assertTrue(summaryPadding.contains("start=Spacing.m"))
         assertTrue(summaryPadding.contains("end=Spacing.m"))
-        assertTrue(summaryPadding.contains("top=Spacing.s"))
+        assertTrue(summaryPadding.contains("top=Spacing.m"))
         assertTrue(summaryPadding.contains("bottom=Height.navBar+Spacing.xxl"))
         assertTrue(layouts.contains("PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)"))
         assertFalse(summary.contains("contentPadding = PaddingValues(Spacing.m)"))
