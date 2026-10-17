@@ -32,5 +32,9 @@
     <string name="news_hotnews_body">正文</string>
     <string name="news_hotnews_detail">文章详情</string>
     <string name="news_hotnews_processing">正在抓取正文并使用已配置的 AI 整理中文内容…</string>
+    <string name="news_hotnews_detail_failed">正文抓取或中文处理尚未完成，可重试；已保存内容仍可阅读</string>
+    <string name="news_hotnews_summary_missing">摘要尚未完成，可重试或查看正文</string>
+    <string name="news_hotnews_body_missing">暂未获取正文，可重试或打开原文</string>
+    <string name="news_hotnews_original_fallback">中文整理尚未完成，以下为已保存原文</string>
     <string name="news_hotnews_no_points">暂无可提炼的重点，点击查看详情</string>
 </resources>

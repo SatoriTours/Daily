@@ -12,6 +12,8 @@ class UnifiedNewsDetailStateTest {
     fun clearSourceDetailRemovesAllSelectedDetailPayloadsWithoutChangingSourceCache() {
         val article = RemoteArticle(id = 7L, title = "远程文章")
         val state = UnifiedNewsState(
+            hotNewsDetailLoading = true,
+            hotNewsDetailFailed = true,
             selectedRemoteDigest = RemoteDigest(id = 9L, date = "2026-05-31"),
             selectedRemoteArticle = article,
             selectedRemoteArticleLocalId = 11L,
@@ -22,6 +24,8 @@ class UnifiedNewsDetailStateTest {
         val cleared = state.withUnifiedNewsSourceDetailCleared()
 
         assertNull(cleared.selectedRemoteDigest)
+        assertFalse(cleared.hotNewsDetailLoading)
+        assertFalse(cleared.hotNewsDetailFailed)
         assertNull(cleared.selectedRemoteArticle)
         assertNull(cleared.selectedRemoteArticleLocalId)
         assertFalse(cleared.selectedRemoteArticleIsFavorite)

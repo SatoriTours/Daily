@@ -84,6 +84,45 @@ class ArticleAiProcessorTest {
         assertTrue(articleNeedsTranslation("中文标题\n\n" + "This is English body text with many words. ".repeat(10)))
     }
 
+    @Test fun chineseProseWithBareUrlsAndReferenceDefinitionsDoesNotNeedRetranslation() {
+        val source = "# 工具说明\n\n使用工具检查项目。\n\n" +
+            "https://developer.android.com/studio/command-line/android-skills\n\n" +
+            "[documentation]: https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary"
+        assertFalse(articleNeedsTranslation(source))
+        assertTrue(articleNeedsTranslation("Install the tool and check your project.\n\n$source"))
+        val protected = protectArticleMarkdown(source)
+        assertFalse(protected.text.contains("https://"))
+        assertEquals(source, protected.restore(protected.text))
+    }
+
+    @Test fun shortRepositoryReadmeKeepsCodeAndProseInOneTranslationChunk() {
+        val source = "# Android skills\n\nInstall the tool.\n\n```sh\nandroid skills add --all\n```\n\nRead the documentation."
+        val chunks = splitArticleTranslationChunks(source)
+        assertEquals(1, chunks.size)
+        assertTrue(chunks.single().contains("```sh\nandroid skills add --all\n```"))
+        assertTrue(chunks.single().endsWith("Read the documentation."))
+    }
+
+    @Test fun oldIndexBasedTranslationCheckpointCannotBeAppliedToDifferentChunks() = runBlocking {
+        val source = "This is an English article about reliable software processing."
+        val fingerprint = com.dailysatori.service.externalfavorites.sha256Hex(
+            "article-v4-brief\n$source\n标题\n\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
+        withProcessor({ request ->
+            if (system(request).contains("忠实翻译")) translationResponse("可靠软件处理的文章译文。")
+            else overviewResponse()
+        }, prepare = { settings ->
+            settings.upsert("article.ai.v3:26", buildJsonObject {
+                put("fingerprint", fingerprint)
+                put("overview", buildJsonObject { put("title", "已有中文标题"); put("summary", "已有中文摘要。") })
+                put("translations", buildJsonObject { put("0", "不能复用的旧分块译文。") })
+            }.toString())
+        }) { processor, _, _ ->
+            var markdown = ""
+            processor.process(26, source, "标题", config, onMarkdown = { markdown = it })
+            assertEquals("可靠软件处理的文章译文。", markdown)
+        }
+    }
+
     @Test fun tokenLimitResponseIsRejectedEvenWhenJsonLooksValid() = runBlocking {
         val response = buildJsonObject {
             put("choices", buildJsonArray { add(buildJsonObject {
@@ -120,11 +159,11 @@ class ArticleAiProcessorTest {
         var failTranslation = true
         var overviewPublished = false
         withProcessor({ request ->
-            if (system(request).contains("DAILY_TRANSLATION_END")) {
+            if (system(request).contains("忠实翻译")) {
                 delay(30)
                 assertTrue(overviewPublished)
                 if (failTranslation) error("network failure")
-                "这是一段关于软件性能的英文文章译文。\n<!-- DAILY_TRANSLATION_END -->"
+                translationResponse("这是一段关于软件性能的英文文章译文。")
             } else overviewResponse()
         }) { processor, requests, createProcessor ->
             val source = "This is an English article about software performance and reliable processing."
@@ -201,10 +240,24 @@ class ArticleAiProcessorTest {
     }
 
     @Test fun truncatedTranslationIsRejectedInsteadOfPublished() = runBlocking {
-        withProcessor({ request -> if (system(request).contains("DAILY_TRANSLATION_END")) "截断的译文" else overviewResponse() }) { processor, _, _ ->
+        withProcessor({ request -> if (system(request).contains("忠实翻译")) "截断的译文" else overviewResponse() }) { processor, _, _ ->
             var published = false
             assertFailsWith<ArticleAiProcessingException> {
                 processor.process(6, "This article contains important facts about reliable software systems.", "English", config,
+                    onMarkdown = { published = true })
+            }
+            assertFalse(published)
+        }
+    }
+
+    @Test fun validJsonMarkedIncompleteCannotPublishPartialTranslation() = runBlocking {
+        withProcessor({ request ->
+            if (system(request).contains("忠实翻译")) """{"markdown":"只翻译了前半段。","complete":false}"""
+            else overviewResponse()
+        }) { processor, _, _ ->
+            var published = false
+            assertFailsWith<ArticleAiProcessingException> {
+                processor.process(27, "This article contains important facts about reliable software systems.", "English", config,
                     onMarkdown = { published = true })
             }
             assertFalse(published)
@@ -263,6 +316,10 @@ class ArticleAiProcessorTest {
     }
 
     private fun overviewResponse() = briefResponse(news = false, time = null)
+    private fun translationResponse(markdown: String) = buildJsonObject {
+        put("markdown", markdown)
+        put("complete", true)
+    }.toString()
     private fun factsResponse() = """{"title":"软件性能优化","summary":"保留正文事实并改善处理效率。"}"""
     private fun briefResponse(news: Boolean = true, time: String? = "10月5日") = buildJsonObject {
         put("title", "平台故障已恢复，先检查失败任务")

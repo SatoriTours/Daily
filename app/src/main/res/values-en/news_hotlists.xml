@@ -32,5 +32,9 @@
     <string name="news_hotnews_body">Article</string>
     <string name="news_hotnews_detail">Article details</string>
     <string name="news_hotnews_processing">Fetching the article and preparing Chinese content with your configured AI…</string>
+    <string name="news_hotnews_detail_failed">Fetching or Chinese processing is incomplete. Retry; saved content remains readable.</string>
+    <string name="news_hotnews_summary_missing">Summary is incomplete. Retry or view the article.</string>
+    <string name="news_hotnews_body_missing">Article content is unavailable. Retry or open the original.</string>
+    <string name="news_hotnews_original_fallback">Chinese processing is incomplete. Showing the saved original.</string>
     <string name="news_hotnews_no_points">No highlights available. Open details to read more.</string>
 </resources>

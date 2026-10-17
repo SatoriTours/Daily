@@ -2,6 +2,7 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -103,6 +104,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             .map { list -> list.associate { it.article_day to it.article_count } }
 
     fun getById(id: Long) = q.selectArticleById(id).executeAsOneOrNull()
+
+    fun observeById(id: Long): Flow<Article?> =
+        q.selectArticleById(id).asFlow().mapToOneOrNull(Dispatchers.IO).distinctUntilChanged()
 
     fun getSourceNames(id: Long): List<String> =
         q.selectArticleSourceNames(id).executeAsList().filter { it.isNotBlank() }

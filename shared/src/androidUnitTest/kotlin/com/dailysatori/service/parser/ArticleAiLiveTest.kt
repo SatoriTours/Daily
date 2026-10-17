@@ -3,6 +3,7 @@ package com.dailysatori.service.parser
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -55,5 +56,36 @@ class ArticleAiLiveTest {
                 assertNotNull(articleTranslationMarkdown(english, markdown))
             }
         }
+    }
+
+    @Test fun repositoryReadmeProducesChineseOverviewAndCompleteTranslation() = runBlocking<Unit> {
+        assumeTrue(System.getenv("DAILY_AI_LIVE_TEST") == "1")
+        val path = System.getenv("DAILY_ARTICLE_LIVE_SOURCE")
+        assumeTrue("Specify a public repository README sample", path != null)
+        val value = Json.parseToJsonElement(File("../.local/ai-test.json").readText()).jsonObject
+        fun required(key: String) = value[key]!!.jsonPrimitive.content
+        val config = normalizeAiConfigValues(required("apiAddress"), required("apiToken"), required("modelName"), required("provider"))
+        val events = java.util.Collections.synchronizedList(mutableListOf<SafeDiagnosticEvent>())
+        val previous = DiagnosticLog.diagnostics
+        DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+        try {
+            JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+                DailySatoriDatabase.Schema.create(driver)
+                HttpClient(OkHttp) { install(HttpTimeout) { requestTimeoutMillis = 120_000 } }.use { client ->
+                    val processor = ArticleAiProcessor(AiService(client), SettingRepository(DailySatoriDatabase(driver)))
+                    var overview: ArticleAiOverview? = null
+                    var markdown = ""
+                    val failure = runCatching {
+                        processor.process(3, File(requireNotNull(path)).readText(), "android/skills", config,
+                            sourceUrl = "https://github.com/android/skills", onOverview = { overview = it }, onMarkdown = { markdown = it })
+                    }.exceptionOrNull()
+                    val failures = events.filter { it.source == DiagnosticSource.PARSER && it.eventCode == DiagnosticCode.OPERATION_FAILED }
+                        .map { "${it.attributes}: ${it.exception.take(4)}" }
+                    assertNull(failure, "overview=${overview != null}, translation=${markdown.isNotBlank()}, failures=$failures")
+                    assertTrue(assertNotNull(overview).summary.isNotBlank())
+                    assertTrue(markdown.isNotBlank() && !articleNeedsTranslation(markdown))
+                }
+            }
+        } finally { DiagnosticLog.diagnostics = previous }
     }
 }

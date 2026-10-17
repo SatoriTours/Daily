@@ -83,6 +83,8 @@ data class UnifiedNewsState(
     val hotNewsBoards: List<HotNewsBoard> = emptyList(),
     val selectedHotNews: HotNewsItem? = null,
     val selectedHotNewsArticle: Article? = null,
+    val hotNewsDetailLoading: Boolean = false,
+    val hotNewsDetailFailed: Boolean = false,
     val scrollToTopRequestKey: Int = 0,
     val remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList(),
     val externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
@@ -183,25 +185,19 @@ class UnifiedNewsViewModel(
 
     fun openHotNews(item: HotNewsItem) {
         val token = beginDetailRequest(UnifiedNewsNavigationTarget.HotNews(item.identity))
-        _state.update { it.copy(selectedHotNews = item, isLoading = true) }
+        _state.update { it.copy(selectedHotNews = item, hotNewsDetailLoading = true, hotNewsDetailFailed = false) }
         detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-                val existing = articleRepo.getByUrl(item.url)
-                val enriched = if (existing?.ai_markdown_content.isNullOrBlank()) hotNews.ensureContent(item) else item
-                val id = existing?.id ?: articleRepo.insert(title = item.originalTitle, aiTitle = item.displayTitle,
-                    aiContent = item.displaySummary, url = item.url)
-                if (existing?.original_markdown_content.isNullOrBlank() && enriched.originalContent.isNotBlank()) {
-                    articleRepo.updateOriginalMarkdownContent(id, enriched.originalContent)
+                val loader = HotNewsArticleLoader(articleRepo, hotNews, webpageParser::reprocessArticle)
+                val article = loader.load(item) { snapshot ->
+                    ifLatestDetailRequest(token) { it.copy(selectedHotNewsArticle = snapshot) }
                 }
-                if (existing?.ai_markdown_content.isNullOrBlank()) webpageParser.processAiTasks(id, retryOnFailure = true)
-                val article = articleRepo.getById(id) ?: error("文章不可用")
-                require(!article.ai_markdown_content.isNullOrBlank()) { "文章中文处理尚未完成" }
                 if (token == detailRequestToken) _state.update {
-                    it.copy(selectedHotNews = enriched, selectedHotNewsArticle = article, isLoading = false, error = null)
+                    it.copy(selectedHotNewsArticle = article, hotNewsDetailLoading = false, hotNewsDetailFailed = false)
                 }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) {
-                if (token == detailRequestToken) _state.update { it.copy(isLoading = false, error = "暂未完成正文抓取或中文处理，可稍后重试或打开原文") }
+                ifLatestDetailRequest(token) { it.copy(hotNewsDetailLoading = false, hotNewsDetailFailed = true) }
             }
         }
     }

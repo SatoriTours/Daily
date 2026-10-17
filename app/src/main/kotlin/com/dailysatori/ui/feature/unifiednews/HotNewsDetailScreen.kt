@@ -13,6 +13,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.R
 import com.dailysatori.service.hotnews.HotNewsItem
+import com.dailysatori.data.repository.articleOriginalMarkdown
+import com.dailysatori.service.parser.articleTranslationMarkdown
 import com.dailysatori.service.opportunity.newsArticleKey
 import com.dailysatori.ui.component.news.ArticleReaderBody
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -25,13 +27,19 @@ internal fun HotNewsDetailScreen(state: UnifiedNewsState, item: HotNewsItem, onB
     val context = LocalContext.current
     var bodySelected by remember(item.identity) { mutableStateOf(false) }
     val article = state.selectedHotNewsArticle
+    val summary = article?.ai_content?.takeIf { it.isNotBlank() } ?: item.displaySummary
+    val original = articleOriginalMarkdown(article?.original_markdown_content, article?.ai_markdown_content,
+        article?.source_type == "remote_news") ?: item.originalContent
+    val translation = articleTranslationMarkdown(original, article?.ai_markdown_content)
+    val body = translation ?: original
     val appearances = state.hotNewsBoards.flatMap { it.items }.filter { newsArticleKey(it.url, "") == newsArticleKey(item.url, "") }
         .ifEmpty { listOf(item) }
     AppScaffold(title = stringResource(R.string.news_hotnews_detail), onBack = onBack) { modifier ->
-        Column(modifier.fillMaxSize()) {
+        Column(modifier.fillMaxSize().padding(bottom = Height.navBar + Spacing.m)) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                Text(article?.ai_title ?: item.displayTitle ?: item.originalTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(article?.ai_title?.takeIf { it.isNotBlank() && it != item.originalTitle } ?: item.displayTitle ?: item.originalTitle,
+                    style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 if (appearances.any { it.rank > 0 }) Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
                     Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         appearances.filter { it.rank > 0 }.forEach { appearance ->
@@ -40,26 +48,32 @@ internal fun HotNewsDetailScreen(state: UnifiedNewsState, item: HotNewsItem, onB
                         }
                     }
                 }
-                if (state.isLoading) {
+                if (state.hotNewsDetailLoading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(stringResource(R.string.news_hotnews_processing), style = MaterialTheme.typography.bodySmall)
                 }
-                if (article == null && item.displaySummary.isNotBlank()) {
-                    ArticleReaderBody(item.displaySummary, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
-                }
-                state.error?.let { message ->
-                    Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                if (state.hotNewsDetailFailed) {
+                    Text(stringResource(R.string.news_hotnews_detail_failed), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error)
                     TextButton(onClick = onRetry) { Text(stringResource(R.string.news_hotnews_retry)) }
                 }
-                if (article != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                        TextButton(onClick = { bodySelected = false }) { Text(stringResource(R.string.news_hotnews_summary),
-                            color = if (!bodySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
-                        TextButton(onClick = { bodySelected = true }) { Text(stringResource(R.string.news_hotnews_body),
-                            color = if (bodySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
-                    }
-                    ArticleReaderBody(if (bodySelected) article.ai_markdown_content.orEmpty() else article.ai_content.orEmpty(),
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    TextButton(onClick = { bodySelected = false }) { Text(stringResource(R.string.news_hotnews_summary),
+                        color = if (!bodySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
+                    TextButton(onClick = { bodySelected = true }) { Text(stringResource(R.string.news_hotnews_body),
+                        color = if (bodySelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                val content = if (bodySelected) body else summary
+                if (bodySelected && translation == null && body.isNotBlank() && state.hotNewsDetailFailed) {
+                    Text(stringResource(R.string.news_hotnews_original_fallback), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (content.isNotBlank()) {
+                    ArticleReaderBody(content,
                         typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
+                } else {
+                    Text(stringResource(if (bodySelected) R.string.news_hotnews_body_missing else R.string.news_hotnews_summary_missing),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Row(Modifier.fillMaxWidth().padding(Spacing.s), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
