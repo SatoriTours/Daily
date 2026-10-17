@@ -7,8 +7,12 @@
     <string name="news_hotnews_topics">热门话题</string>
     <string name="news_hotnews_updated">更新于 %1$s</string>
     <string name="news_hotnews_loading">正在获取榜单和中文翻译…</string>
-    <string name="news_hotnews_translation_pending">中文翻译待完成</string>
+    <string name="news_hotnews_translation_pending">正在翻译为中文…</string>
+    <string name="news_hotnews_item_translation_failed">中文翻译未成功，可重试或打开详情</string>
     <string name="news_hotnews_fetch_failed">暂时无法刷新，已保留上次榜单</string>
+    <string name="news_hotnews_fetch_failed_empty">暂未获取榜单，请检查网络或来源</string>
+    <string name="news_hotnews_feed_failed">订阅源不可用，请检查订阅地址及所需凭据</string>
+    <string name="news_hotnews_configure_source">配置来源</string>
     <string name="news_hotnews_ai_missing">请先配置资料整理用途的 AI，再重试中文翻译</string>
     <string name="news_hotnews_translation_failed">部分中文翻译未完成，可刷新重试</string>
     <string name="news_hotnews_empty">暂未获取榜单</string>

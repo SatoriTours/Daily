@@ -47,23 +47,28 @@ class HotNewsService(
         Unit
     }
 
-    private suspend fun refreshBoard(platform: HotNewsPlatform, force: Boolean) {
+    suspend fun retryTranslations(platform: HotNewsPlatform) = refreshMutex.withLock {
+        refreshBoard(platform, force = false, translationsOnly = true)
+    }
+
+    private suspend fun refreshBoard(platform: HotNewsPlatform, force: Boolean, translationsOnly: Boolean = false) {
         val config = preferences.value.source(platform)
         if (!config.enabled) return
         val previous = board(platform)
         val ttl = if (platform == HotNewsPlatform.GITHUB) 60 * 60_000L else 15 * 60_000L
         val fresh = previous.items.isNotEmpty() && now() - previous.fetchedAt in 0 until ttl
-        if (!force && fresh && previous.error == null) return
+        if (!translationsOnly && !force && fresh && previous.error == null && previous.items.none(::needsTranslation)) return
         commit(platform, config) { update(platform) { it.copy(refreshing = true, error = null) } }
         try {
-            val raw = if (!force && fresh) previous.items else client.fetch(platform, config.feedUrl)
+            val useCache = translationsOnly || (!force && fresh)
+            val raw = if (useCache) previous.items else client.fetch(platform, config.feedUrl)
             val cached = board(platform).items.associateBy { it.id }
             val merged = raw.map { item ->
                 cached[item.id]?.takeIf { it.fingerprint == item.fingerprint }?.let {
                     item.copy(chineseTitle = it.chineseTitle, chineseSummary = it.chineseSummary, originalContent = it.originalContent)
                 } ?: item
             }
-            val fetchedAt = if (!force && fresh) previous.fetchedAt else now()
+            val fetchedAt = if (useCache) previous.fetchedAt else now()
             commit(platform, config) { update(platform) { it.copy(items = merged, fetchedAt = fetchedAt) } }
             translateBoard(platform, config)
             commit(platform, config) { store.save(board(platform)) }
@@ -76,25 +81,47 @@ class HotNewsService(
 
     private suspend fun translateBoard(platform: HotNewsPlatform, config: HotNewsSourceConfig) {
         if (preferences.value.source(platform) != config) return
-        val pending = board(platform).items.filter { item ->
-            item.chineseTitle == null && (item.displayTitle == null ||
-                (item.description.isNotBlank() && !isChineseHotNewsText(item.description)))
-        }
-        for (batch in pending.chunked(15)) {
+        val pending = board(platform).items.filter(::needsTranslation)
+        for (batch in pending.chunked(5)) {
             if (preferences.value.source(platform) != config) return
             try {
-                val translated = translationSlots.withPermit { translate(batch) }.associateBy { it.id }
-                commit(platform, config) {
-                    update(platform) { current -> current.copy(items = current.items.map { item ->
-                        translated[item.id]?.takeIf { it.fingerprint == item.fingerprint } ?: item
-                    }) }
+                val remaining = try { translateBatch(platform, config, batch) }
+                    catch (_: HotNewsTranslationFormatException) { batch }
+                if (batch.size > 1) for (item in remaining) {
+                    try { translateBatch(platform, config, listOf(item)) }
+                    catch (_: HotNewsTranslationFormatException) { /* Keep other successful entries. */ }
                 }
             } catch (e: CancellationException) { throw e }
             catch (_: HotNewsAiNotConfigured) {
-                commit(platform, config) { update(platform) { it.copy(error = HotNewsError.AI_NOT_CONFIGURED) } }; break
+                commit(platform, config) { update(platform) { it.copy(error = HotNewsError.AI_NOT_CONFIGURED) } }; return
             }
-            catch (_: Exception) { commit(platform, config) { update(platform) { it.copy(error = HotNewsError.TRANSLATION_FAILED) } } }
+            catch (_: Exception) { /* Remaining entries are marked failed below. */ }
         }
+        commit(platform, config) {
+            if (board(platform).items.any(::needsTranslation)) {
+                update(platform) { it.copy(error = HotNewsError.TRANSLATION_FAILED) }
+            }
+        }
+    }
+
+    private fun needsTranslation(item: HotNewsItem): Boolean =
+        item.chineseTitle == null && (item.displayTitle == null ||
+            (item.description.isNotBlank() && !isChineseHotNewsText(item.description)))
+
+    private suspend fun translateBatch(platform: HotNewsPlatform, config: HotNewsSourceConfig,
+        batch: List<HotNewsItem>): List<HotNewsItem> {
+        if (preferences.value.source(platform) != config) return emptyList()
+        val translated = translationSlots.withPermit { translate(batch) }
+            .filter { it.platform == platform && !it.chineseTitle.isNullOrBlank() }.associateBy { it.id }
+        commit(platform, config) {
+            update(platform) { current -> current.copy(items = current.items.map { item ->
+                translated[item.id]?.takeIf { it.fingerprint == item.fingerprint }?.let {
+                    item.copy(chineseTitle = it.chineseTitle, chineseSummary = it.chineseSummary)
+                } ?: item
+            }) }
+            store.save(board(platform))
+        }
+        return batch.filter { translated[it.id]?.fingerprint != it.fingerprint }
     }
 
     fun find(identity: String): HotNewsItem? = boards.value.asSequence().flatMap { it.items.asSequence() }.firstOrNull { it.identity == identity }

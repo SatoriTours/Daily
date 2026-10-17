@@ -172,6 +172,15 @@ class UnifiedNewsViewModel(
         hotNewsRefreshJob = viewModelScope.launch(Dispatchers.IO) { hotNews.refresh(platform, force = force) }
     }
 
+    fun retryHotNews(board: HotNewsBoard) {
+        if (hotNewsRefreshJob?.isActive == true) return
+        hotNewsRefreshJob = viewModelScope.launch(Dispatchers.IO) {
+            if (board.error in setOf(HotNewsError.TRANSLATION_FAILED, HotNewsError.AI_NOT_CONFIGURED)) {
+                hotNews.retryTranslations(board.platform)
+            } else hotNews.refresh(board.platform, force = true)
+        }
+    }
+
     fun openHotNews(item: HotNewsItem) {
         val token = beginDetailRequest(UnifiedNewsNavigationTarget.HotNews(item.identity))
         _state.update { it.copy(selectedHotNews = item, isLoading = true) }

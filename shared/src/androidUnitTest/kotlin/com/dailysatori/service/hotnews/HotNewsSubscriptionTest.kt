@@ -14,6 +14,25 @@ import kotlinx.datetime.Clock
 import kotlin.test.*
 
 class HotNewsSubscriptionTest {
+    @Test fun unavailableFeedAndUnconfiguredFeedHaveDistinctErrors() = runBlocking {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val store = HotNewsStore(SettingRepository(DailySatoriDatabase(driver)))
+            var requests = 0
+            HttpClient(MockEngine { requests++; respond("Not Found", HttpStatusCode.NotFound) }).use { http ->
+                val service = HotNewsService(HotNewsClient(http), store, { error("No items to translate") })
+                service.refresh(HotNewsPlatform.X)
+                service.refresh(HotNewsPlatform.XIAOHONGSHU)
+                val x = service.boards.value.first { it.platform == HotNewsPlatform.X }
+                val xiaohongshu = service.boards.value.first { it.platform == HotNewsPlatform.XIAOHONGSHU }
+                assertEquals(HotNewsError.FETCH_FAILED, x.error)
+                assertEquals(HotNewsError.FEED_NOT_CONFIGURED, xiaohongshu.error)
+                assertTrue(x.items.isEmpty() && xiaohongshu.items.isEmpty())
+                assertEquals(1, requests)
+            }
+        }
+    }
+
     @Test fun disablingCachedSourcesExcludesThemFromNewSummariesWithoutFetching() = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)

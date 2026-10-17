@@ -31,7 +31,7 @@ internal fun HotNewsDetailScreen(state: UnifiedNewsState, item: HotNewsItem, onB
         Column(modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                Text(article?.ai_title ?: item.displayTitle.orEmpty(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(article?.ai_title ?: item.displayTitle ?: item.originalTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 if (appearances.any { it.rank > 0 }) Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
                     Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         appearances.filter { it.rank > 0 }.forEach { appearance ->
