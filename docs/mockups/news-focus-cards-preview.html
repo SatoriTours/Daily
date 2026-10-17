@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>精选新闻卡片设计预览</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#000;color:#f5f5f7;font-family:Roboto,"Noto Sans CJK SC",sans-serif}.phone{position:relative;width:430px;height:1000px;overflow:hidden;margin:auto;background:#000}.status{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:14px;font-weight:600}.status-right{display:flex;align-items:center;gap:7px}.battery{border-radius:5px;background:#d3d3d6;color:#000;padding:1px 5px;font-size:12px}.header{height:64px;padding:8px 16px;display:flex;align-items:center;justify-content:space-between}.header h1{margin:0;font-size:26px;line-height:34px;font-weight:700}.tools{display:flex;gap:24px;padding-right:8px}svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.tabs{display:flex;gap:24px;padding:0 16px;border-bottom:1px solid #333;white-space:nowrap;align-items:center;height:46px;font-size:15px;color:#a1a1a6}.tab{height:46px;display:flex;align-items:center}.active{color:#0a84ff;font-weight:600;border-bottom:2px solid #0a84ff}.feed{padding:8px 16px 120px;height:842px;overflow:hidden;display:flex;flex-direction:column;gap:16px}.headlines{padding:16px;border-radius:22px;background:#1c1c1e;flex-shrink:0}.headlines-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.headlines-head strong{font-size:14px;line-height:20px;font-weight:500;color:#0a84ff}.date{font-size:11px;line-height:15px;color:#a1a1a6}.point{display:flex;gap:16px;padding:4px 0;margin-top:8px;align-items:baseline}.point b{font-size:14px;line-height:20px;color:#0a84ff;font-weight:500;min-width:8px}.point span{font-size:15px;line-height:24px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.article{border-radius:22px;padding:16px;background:#111113;flex-shrink:0}.meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-height:25px}.source{padding:4px 8px;border-radius:8px;background:rgba(10,132,255,.10);color:#0a84ff;font-size:12px;line-height:17px;font-weight:500}.rank{font-size:11px;line-height:15px;color:#a1a1a6}.article h2{font-size:17px;line-height:24px;font-weight:600;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.article p{font-size:13px;line-height:19px;font-weight:400;color:#a1a1a6;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.bottom-fade{position:absolute;bottom:0;left:0;right:0;height:100px;background:linear-gradient(transparent,#000 95%);pointer-events:none}.bottom{position:absolute;bottom:26px;left:16px;right:16px;border-radius:32px;height:58px;background:linear-gradient(135deg,rgba(42,42,44,.85),rgba(21,22,25,.9));backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-around;color:#98989e}.nav-item{width:72px;height:40px;display:flex;align-items:center;justify-content:center;position:relative}.nav-item svg{width:27px;height:27px;stroke-width:1.9}.nav-item.selected{border-radius:24px;background:rgba(10,132,255,.12);color:#0a84ff}.badge{position:absolute;top:0;right:14px;border-radius:20px;background:#ff453a;color:white;font-size:11px;width:18px;height:18px;text-align:center;line-height:18px}.home{position:absolute;bottom:8px;left:155px;width:120px;height:4px;border-radius:4px;background:#555}
+</style>
+<div class="phone">
+  <div class="status"><span>02:25</span><div class="status-right"><svg style="width:17px;height:15px" viewBox="0 0 24 24"><path d="M3 19v-3m5 3v-6m5 6V9m5 10V5"/></svg><svg style="width:18px;height:15px" viewBox="0 0 24 24"><path d="M3 8a15 15 0 0 1 18 0M6 12a10 10 0 0 1 12 0m-9 4a5 5 0 0 1 6 0m-3 4h.01"/></svg><span class="battery">83</span></div></div>
+  <header class="header"><h1>新闻</h1><div class="tools"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 6M20 7l-3 2"/></svg></div></header>
+  <nav class="tabs"><span class="tab active">精选</span><span class="tab">热榜</span><span class="tab">远程新闻</span><span class="tab">爱马仕</span><span class="tab">GitHub Stars</span></nav>
+  <main class="feed">
+    <section class="headlines">
+      <div class="headlines-head"><strong>今日要闻</strong><span class="date">2026-10-17</span></div>
+      <div class="point"><b>1</b><span>开源语音工具，让本地创作更轻松</span></div>
+      <div class="point"><b>2</b><span>智能体工具探索应用逆向工程</span></div>
+      <div class="point"><b>3</b><span>社区热议 AI 工具的使用与体验</span></div>
+      <div class="point"><b>4</b><span>Linus Torvalds 谈 AI 辅助内核代码贡献</span></div>
+      <div class="point"><b>5</b><span>联想集团全球交付英伟达 Vera Rubin NVL72</span></div>
+    </section>
+    <article class="article"><div class="meta"><span class="source">GitHub</span></div><h2>morluto/rea：用智能体逆向工程任何事物</h2><p>morluto/rea 使用智能体对任何事物进行逆向工程，从应用行为到原生二进制文件。</p></article>
+    <article class="article"><div class="meta"><span class="source">GitHub</span><span class="rank">GitHub · 第 10 名</span></div><h2>VoiceStudio：完全本地运行的开源 ElevenLabs 替代方案</h2><p>完全本地运行的开源语音工具，提供 ElevenLabs 的替代方案。</p></article>
+    <article class="article"><div class="meta"><span class="source">Linux DO</span></div><h2>我这绝对是商业站水平的公益站</h2><p>一名用户在论坛发帖称，某模型首字响应已进入 1 秒以内，且未出现降智。帖子共有 105 个回复、94 位参与者。</p></article>
+    <article class="article"><div class="meta"><span class="source">Linux DO</span></div><h2>不要在 claude code 里 /login，给 A/送人头了</h2><p>社区讨论 Claude Code 的登录方式及账号使用体验。</p></article>
+  </main>
+  <div class="bottom-fade"></div><nav class="bottom">
+    <span class="nav-item selected"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg></span>
+    <span class="nav-item"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 3v9l3-2 3 2V3"/></svg></span>
+    <span class="nav-item"><svg viewBox="0 0 24 24"><path d="M12 6c-3-3-7-3-10-2v15c4-1 7 0 10 2m0-15c3-3 7-3 10-2v15c-4-1-7 0-10 2V6"/></svg></span>
+    <span class="nav-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2c0-5 16-5 16 0v2z"/></svg><span class="badge">2</span></span>
+  </nav><div class="home"></div>
+</div>
+</html>

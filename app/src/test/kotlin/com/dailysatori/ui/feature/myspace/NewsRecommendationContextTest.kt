@@ -30,6 +30,10 @@ class NewsRecommendationContextTest {
             assertNull(recommendationError(OpportunityState(), tasks.getById(id), "分析失败"))
             val failure = tasks.getById(id)!!.copy(last_error_code = "opportunity_analysis_failed", last_error_message = "private error")
             assertEquals("分析失败", recommendationError(OpportunityState(), failure, "分析失败"))
+            val networkFailure = failure.copy(last_error_code = "opportunity_network_error", last_error_message = "api_token=private")
+            val networkMessage = recommendationError(OpportunityState(), networkFailure, "分析失败")!!
+            assertTrue(networkMessage.contains("连接"))
+            assertFalse(networkMessage.contains("private"))
             assertNull(recommendationError(OpportunityState(dismissedErrorTaskId = id), failure, "分析失败"))
             assertEquals("分析失败", recommendationError(OpportunityState(dismissedErrorTaskId = id - 1), failure, "分析失败"))
             assertNull(recommendationError(OpportunityState(error = "Job was cancelled"), null, "分析失败"))

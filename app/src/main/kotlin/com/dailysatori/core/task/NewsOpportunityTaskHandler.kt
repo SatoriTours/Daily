@@ -5,6 +5,7 @@ import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.opportunity.NewsOpportunityService
 import com.dailysatori.service.opportunity.NewsOpportunityAnalysisException
+import com.dailysatori.service.opportunity.OpportunityFailureReason
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
@@ -28,12 +29,18 @@ class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : 
         } catch (error: Exception) {
             val failure = error as? NewsOpportunityAnalysisException
             val code = failure?.reason?.name?.lowercase()?.let { "opportunity_$it" } ?: "opportunity_analysis_failed"
-            AsyncTaskExecutionResult.PermanentFailure(code, failure?.reason?.message ?: service.state.value.error ?: "新闻机会点分析未完成，请重试")
+            val message = failure?.reason?.message ?: service.state.value.error ?: "新闻机会点分析未完成，请重试"
+            if (failure?.reason == OpportunityFailureReason.NETWORK_ERROR) {
+                AsyncTaskExecutionResult.RetryableFailure(code, message)
+            } else {
+                AsyncTaskExecutionResult.PermanentFailure(code, message)
+            }
         }
     }
 
     companion object {
         const val TYPE = "news_opportunity_analysis"
+        const val MAX_ATTEMPTS = 3L
         private const val RESUME_CHECKPOINT = "{\"started\":true}"
     }
 }

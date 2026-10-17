@@ -4,6 +4,7 @@ import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
 import com.dailysatori.service.opportunity.OpportunityState
+import com.dailysatori.service.opportunity.OpportunityFailureReason
 import com.dailysatori.service.opportunity.isOpportunityCancellationMessage
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.service.reminder.Reminder
@@ -23,7 +24,8 @@ internal fun recommendationError(state: OpportunityState, task: Async_task?, fal
     state.error?.takeUnless(::isOpportunityCancellationMessage)?.let { return it }
     if (task == null || task.status != "failed" || task.id == state.dismissedErrorTaskId) return null
     if (task.last_error_code == "interrupted" || isOpportunityCancellationMessage(task.last_error_message)) return null
-    return fallback
+    return OpportunityFailureReason.entries.firstOrNull { "opportunity_${it.name.lowercase()}" == task.last_error_code }
+        ?.message ?: fallback
 }
 
 internal fun recommendationAction(hasAnalysisContext: Boolean, isUpdating: Boolean, taskStatus: String?): RecommendationAction = when {

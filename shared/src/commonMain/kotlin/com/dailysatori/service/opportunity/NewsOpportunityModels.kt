@@ -88,6 +88,7 @@ interface NewsOpportunityContext {
 
 enum class OpportunityFailureReason(val message: String) {
     UNKNOWN("分析失败，请稍后重试"),
+    NETWORK_ERROR("AI 连接中断或超时，已完成的分析已保留，请重试"),
     INVALID_RESPONSE("AI 返回的分析格式不完整，请重试"),
     INVALID_QUOTE("AI 引用与新闻原文不一致，请重试"),
     CONTEXT_CHANGED("关注点或思想已更新，请重新分析"),

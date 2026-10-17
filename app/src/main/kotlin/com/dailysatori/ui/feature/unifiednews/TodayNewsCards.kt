@@ -114,32 +114,32 @@ internal fun TodayNewsOpportunityCard(
     onTopicAction: () -> Unit,
 ) {
     val i18n: I18nService = koinInject()
-    Card(onClick = onOpen, shape = RoundedCornerShape(Radius.l), modifier = Modifier.fillMaxWidth(),
+    Card(onClick = onOpen, shape = RoundedCornerShape(Radius.m), modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            if (item.category.isNotBlank()) {
-                Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)) {
-                    Text(item.category, Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
+        Column(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                if (item.category.isNotBlank()) {
+                    Text(item.category, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                Text(item.article.source, Modifier.widthIn(max = Height.input + Spacing.xxl), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(Icons.Default.ChevronRight, stringResource(R.string.news_focus_view_opportunity),
+                    Modifier.size(IconSize.xs), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                IconButton(onClick = onTopicAction, modifier = Modifier.size(Height.buttonSmall)) {
+                    Icon(Icons.Outlined.Lightbulb, i18n.t(opportunityActionLabelKey(isCaptured)), Modifier.size(IconSize.s),
+                        tint = if (isCaptured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+            Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(item.relevance.ifBlank { item.action }, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(item.article.source, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                TextButton(onClick = onOpen, contentPadding = PaddingValues(Spacing.xs)) {
-                    Text(stringResource(R.string.news_focus_view_opportunity), style = MaterialTheme.typography.labelMedium)
-                    Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.xs))
-                }
-                IconButton(onClick = onTopicAction, modifier = Modifier.size(Height.buttonSmall)) {
-                    Icon(Icons.Outlined.Lightbulb, i18n.t(opportunityActionLabelKey(isCaptured)), Modifier.size(IconSize.s))
-                }
-            }
         }
     }
 }

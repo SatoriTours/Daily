@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1900" viewBox="0 0 900 1900">
+<defs><style>text{font-family:'Noto Sans CJK SC',sans-serif}.title{fill:#f1f3f7;font-weight:600}.muted{fill:#a4afc1;font-size:26px}.icon{fill:none;stroke:#a6c5ff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}</style></defs>
+<rect width="900" height="1900" fill="#101216"/>
+<text x="48" y="58" fill="#edf1f8" font-size="29" font-weight="600">10:33</text>
+<path d="M743 39v14 M754 33v20 M765 27v26" stroke="#edf1f8" stroke-width="5"/>
+<path d="M790 33 Q807 17 824 33 M796 40 Q807 29 818 40" fill="none" stroke="#edf1f8" stroke-width="3"/>
+<rect x="838" y="27" width="34" height="23" rx="6" fill="none" stroke="#edf1f8" stroke-width="2"/>
+<rect x="842" y="31" width="25" height="15" rx="3" fill="#edf1f8"/>
+<path d="M69 122l-20 20 20 20 M50 142h37" stroke="#edf1f8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<text x="450" y="155" text-anchor="middle" class="title" font-size="35">我的点子</text>
+<g fill="#d5dce8"><circle cx="842" cy="130" r="3.5"/><circle cx="842" cy="142" r="3.5"/><circle cx="842" cy="154" r="3.5"/></g>
+<text x="48" y="253" class="title" font-size="42">产品端到端 AI 化</text>
+<rect x="48" y="281" width="147" height="55" rx="27" fill="#233047"/>
+<text x="71" y="318" fill="#b8ceef" font-size="26">待验证</text>
+<path d="M163 303l7 7 7-7" class="icon"/>
+<text x="223" y="318" class="muted">由你更新状态</text>
+<text x="701" y="318" fill="#9cbfff" font-size="25">点子资料</text>
+<path d="M838 300l9 9-9 9" class="icon"/>
+<path d="M0 379h900" stroke="#2d333d"/>
+<!-- A calm first-use state, not an AI message -->
+<rect x="396" y="557" width="108" height="108" rx="33" fill="#1f2d42"/>
+<path d="M421 585h58a7 7 0 0 1 7 7v34a7 7 0 0 1-7 7h-29l-18 12v-12h-11a7 7 0 0 1-7-7v-34a7 7 0 0 1 7-7z" class="icon"/>
+<g fill="#a6c5ff"><circle cx="434" cy="610" r="3"/><circle cx="450" cy="610" r="3"/><circle cx="466" cy="610" r="3"/></g>
+<text x="450" y="737" text-anchor="middle" class="title" font-size="38">这个点子，可以一直聊下去</text>
+<text x="450" y="799" text-anchor="middle" class="muted">说说你的想法、试过的结果，</text>
+<text x="450" y="844" text-anchor="middle" class="muted">或者现在卡在哪里。</text>
+<text x="450" y="937" text-anchor="middle" fill="#8494ac" font-size="23">不知道怎么开头？试试这样说</text>
+<rect x="148" y="974" width="604" height="89" rx="22" fill="#1b232f" stroke="#344156"/>
+<text x="181" y="1029" fill="#d0def4" font-size="29">我想先聊聊这个想法</text>
+<path d="M704 1009l10 10-10 10" class="icon"/>
+<rect x="148" y="1081" width="604" height="89" rx="22" fill="#1b232f" stroke="#344156"/>
+<text x="181" y="1136" fill="#d0def4" font-size="29">我试了一下，有些新发现</text>
+<path d="M704 1116l10 10-10 10" class="icon"/>
+<rect x="148" y="1188" width="604" height="89" rx="22" fill="#1b232f" stroke="#344156"/>
+<text x="181" y="1243" fill="#d0def4" font-size="29">这个方向好像行不通</text>
+<path d="M704 1223l10 10-10 10" class="icon"/>
+<text x="450" y="1334" text-anchor="middle" fill="#8997ac" font-size="23">点一下填入输入框，修改后再发送</text>
+<text x="450" y="1530" text-anchor="middle" fill="#8997ac" font-size="24">不必先整理资料，也不必给讨论起名字</text>
+<!-- Pinned composer -->
+<rect x="0" y="1622" width="900" height="278" fill="#14181f"/>
+<path d="M0 1622h900" stroke="#313a47"/>
+<rect x="36" y="1653" width="828" height="147" rx="28" fill="#202733" stroke="#42516a" stroke-width="1.5"/>
+<text x="66" y="1712" fill="#aab5c8" font-size="29">反馈新情况，或继续聊这个点子…</text>
+<text x="66" y="1770" fill="#92a2ba" font-size="22">内容与讨论记录只属于这个点子</text>
+<circle cx="813" cy="1750" r="28" fill="#354154"/>
+<path d="M813 1762v-24 M803 1747l10-10 10 10" stroke="#91a0b8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<text x="450" y="1840" text-anchor="middle" fill="#8e9aaa" font-size="22">首次进入设计稿 · 尚未产生 AI 对话</text>
+<rect x="333" y="1870" width="234" height="6" rx="3" fill="#d0d5de"/>
+</svg>

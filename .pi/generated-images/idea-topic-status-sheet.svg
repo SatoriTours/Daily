@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="1900" viewBox="0 0 900 1900">
+<defs><style>text{font-family:'Noto Sans CJK SC',sans-serif}.title{fill:#eff3fb;font-weight:600}.muted{fill:#a7b1c1;font-size:24px}.row{fill:#e2e8f2;font-size:30px;font-weight:500}</style></defs>
+<image xlink:href="idea-topic-discussion-layout.png" width="900" height="1900"/>
+<rect width="900" height="1900" fill="#000" opacity="0.62"/>
+<path d="M0 695 Q0 651 44 651H856 Q900 651 900 695V1900H0Z" fill="#1b2028"/>
+<rect x="400" y="675" width="100" height="7" rx="3.5" fill="#566174"/>
+<text x="48" y="753" class="title" font-size="37">更新点子状态</text>
+<path d="M826 724l22 22 M848 724l-22 22" stroke="#a7b1c1" stroke-width="3.5" stroke-linecap="round"/>
+<text x="48" y="802" class="muted">这是你的判断，以后随时可以改。</text>
+<!-- Five concise options -->
+<rect x="36" y="840" width="828" height="114" rx="20" fill="#242b36"/>
+<text x="63" y="888" class="row">待验证</text>
+<text x="63" y="926" class="muted">还没有验证这个想法</text>
+<circle cx="809" cy="896" r="16" stroke="#7f8da3" stroke-width="2.5" fill="none"/>
+<rect x="36" y="969" width="828" height="114" rx="20" fill="#242b36"/>
+<text x="63" y="1017" class="row">验证中</text>
+<text x="63" y="1055" class="muted">正在试，有结果但还没定论</text>
+<circle cx="809" cy="1025" r="16" stroke="#7f8da3" stroke-width="2.5" fill="none"/>
+<rect x="36" y="1098" width="828" height="114" rx="20" fill="#242b36"/>
+<text x="63" y="1146" class="row">已验证可行</text>
+<text x="63" y="1184" class="muted">你认为当前方向已经得到验证</text>
+<circle cx="809" cy="1154" r="16" stroke="#7f8da3" stroke-width="2.5" fill="none"/>
+<rect x="36" y="1227" width="828" height="114" rx="20" fill="#25374f" stroke="#9cbfff" stroke-width="2"/>
+<text x="63" y="1275" fill="#cce0ff" font-size="30" font-weight="500">暂时搁置</text>
+<text x="63" y="1313" fill="#b7c7dd" font-size="24">先放一放，不代表失败</text>
+<circle cx="809" cy="1283" r="16" fill="#9cbfff"/>
+<path d="M801 1283l6 6 11-13" stroke="#1a2c45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<rect x="36" y="1356" width="828" height="114" rx="20" fill="#242b36"/>
+<text x="63" y="1404" class="row">当前方向行不通</text>
+<text x="63" y="1442" class="muted">试过后认为这条路不可行，不等于永久放弃</text>
+<circle cx="809" cy="1412" r="16" stroke="#7f8da3" stroke-width="2.5" fill="none"/>
+<!-- Optional explanation -->
+<text x="48" y="1528" fill="#c4cedc" font-size="26">补充一句原因 <tspan fill="#8e9bad" font-size="23">（可选）</tspan></text>
+<rect x="36" y="1551" width="828" height="91" rx="18" fill="#141a23" stroke="#43516a"/>
+<text x="63" y="1607" fill="#d1dbea" font-size="27">权限和数据边界还没解决，先暂停整体尝试。</text>
+<rect x="36" y="1674" width="828" height="90" rx="45" fill="#9cbfff"/>
+<text x="450" y="1730" text-anchor="middle" fill="#142744" font-size="31" font-weight="600">保存状态</text>
+<text x="450" y="1810" text-anchor="middle" class="muted" font-size="22">会留下状态记录，不会自动发起 AI 回复</text>
+<rect x="333" y="1870" width="234" height="6" rx="3" fill="#d0d5de"/>
+</svg>

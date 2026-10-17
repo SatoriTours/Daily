@@ -30,7 +30,7 @@ class UnifiedNewsSourceTabsStyleTest {
         val remote = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
 
         assertTrue(summary.contains("bottom = Height.navBar + Spacing.xxl"))
-        assertTrue(summary.contains("items(recommendations.take(3), key = { it.id })"))
+        assertTrue(summary.contains("items(recommendations, key = { it.id })"))
         assertTrue(remote.contains("contentPadding = newsCompactListContentPadding()"))
         assertTrue(remote.contains("items(articles, key = { it.id })"))
     }

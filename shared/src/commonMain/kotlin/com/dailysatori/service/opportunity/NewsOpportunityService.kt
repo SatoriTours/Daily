@@ -6,6 +6,12 @@ import com.dailysatori.service.diagnostics.DiagnosticLog
 import com.dailysatori.service.diagnostics.DiagnosticSource
 import com.dailysatori.service.externalfavorites.sha256Hex
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeout
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.io.IOException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -17,6 +23,7 @@ class NewsOpportunityService(
     private val analyzer: OpportunityAnalyzer,
     private val context: NewsOpportunityContext,
     private val candidateSource: OpportunityCandidateSource? = null,
+    private val analysisTimeoutMs: Long = 90_000L,
 ) {
     private val execution = Mutex()
     private var archive = OpportunityArchive()
@@ -103,7 +110,22 @@ class NewsOpportunityService(
     }
 
     private suspend fun analyzeArticle(article: ReadNewsArticle, context: AnalysisContext) {
-        val draft = analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, context.thoughts))
+        val draft = try {
+            withTimeout(analysisTimeoutMs) {
+                analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, context.thoughts))
+            }
+        } catch (timeout: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            throw NewsOpportunityAnalysisException(OpportunityFailureReason.NETWORK_ERROR, timeout)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            val networkFailure = generateSequence(error as Throwable) { it.cause }.take(8)
+                .any { it is IOException || it is HttpRequestTimeoutException }
+            if (networkFailure) throw NewsOpportunityAnalysisException(OpportunityFailureReason.NETWORK_ERROR, error)
+            throw error
+        }
         checkAnalysisContext(context)
         val before = archive
         applyResult(article, context.version, draft)

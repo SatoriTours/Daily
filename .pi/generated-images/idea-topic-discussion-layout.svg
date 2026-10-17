@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1900" viewBox="0 0 900 1900">
+<defs><style>
+text {font-family:'Noto Sans CJK SC',sans-serif;}
+.title {fill:#f1f3f7;font-weight:600;}
+.body {fill:#d8deea;font-size:30px;}
+.muted {fill:#a4afc1;font-size:25px;}
+.icon {fill:none;stroke:#a6c5ff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;}
+</style></defs>
+<rect width="900" height="1900" fill="#101216"/>
+<text x="48" y="58" fill="#edf1f8" font-size="29" font-weight="600">10:33</text>
+<path d="M743 39v14 M754 33v20 M765 27v26" stroke="#edf1f8" stroke-width="5"/>
+<path d="M790 33 Q807 17 824 33 M796 40 Q807 29 818 40" fill="none" stroke="#edf1f8" stroke-width="3"/>
+<rect x="838" y="27" width="34" height="23" rx="6" fill="none" stroke="#edf1f8" stroke-width="2"/>
+<rect x="842" y="31" width="25" height="15" rx="3" fill="#edf1f8"/>
+<path d="M69 122l-20 20 20 20 M50 142h37" stroke="#edf1f8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<text x="450" y="155" text-anchor="middle" class="title" font-size="35">我的点子</text>
+<g fill="#d5dce8"><circle cx="842" cy="130" r="3.5"/><circle cx="842" cy="142" r="3.5"/><circle cx="842" cy="154" r="3.5"/></g>
+<!-- Compact idea context: conversation remains primary -->
+<text x="48" y="253" class="title" font-size="42">产品端到端 AI 化</text>
+<rect x="48" y="281" width="170" height="55" rx="27" fill="#30303a"/>
+<text x="71" y="318" fill="#d1cbdf" font-size="26">暂时搁置</text>
+<path d="M192 303l7 7 7-7" fill="none" stroke="#d1cbdf" stroke-width="3"/>
+<text x="244" y="318" class="muted">由你更新状态</text>
+<text x="48" y="383" class="muted">用 AI 串联产品调研、设计、开发和反馈。</text>
+<text x="701" y="383" fill="#9cbfff" font-size="25">点子资料</text>
+<path d="M838 365l9 9-9 9" class="icon"/>
+<path d="M0 419h900" stroke="#2d333d"/>
+<text x="450" y="472" text-anchor="middle" class="muted" font-size="24">持续讨论 · 保留每次反馈</text>
+<!-- User feedback -->
+<text x="809" y="531" text-anchor="end" class="muted">你 · 今天 10:20</text>
+<rect x="141" y="550" width="711" height="209" rx="26" fill="#243b5e"/>
+<text x="175" y="607" class="body">我试了一下，用 AI 整理访谈挺有用，</text>
+<text x="175" y="654" class="body">但生成的需求经常漏掉约束。</text>
+<text x="175" y="701" class="body">现在还不能算端到端验证成功。</text>
+<!-- Assistant reflection, no unsolicited next-action panel -->
+<rect x="48" y="806" width="45" height="45" rx="14" fill="#263246"/>
+<path d="M70 815l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#abcaff"/>
+<text x="109" y="839" fill="#bfd3f7" font-size="27" font-weight="500">AI · 接着你的反馈</text>
+<text x="48" y="906" class="body">明白，目前验证的是「访谈整理有用」，</text>
+<text x="48" y="954" class="body">不是「整个流程已经跑通」。需求约束遗漏</text>
+<text x="48" y="1002" class="body">是这次试用暴露出来的关键问题。</text>
+<text x="48" y="1070" class="body">你说的约束，主要是哪一类？</text>
+<!-- Continued feedback -->
+<text x="809" y="1141" text-anchor="end" class="muted">你 · 今天 10:28</text>
+<rect x="141" y="1160" width="711" height="209" rx="26" fill="#243b5e"/>
+<text x="175" y="1217" class="body">主要是权限和数据边界，总是被漏掉。</text>
+<text x="175" y="1264" class="body">这个方向先放一放，但访谈整理部分</text>
+<text x="175" y="1311" class="body">可以留下，以后再接着聊。</text>
+<!-- Status change authored by user, recorded alongside discussion -->
+<rect x="140" y="1400" width="620" height="59" rx="29" fill="#1e232c"/>
+<circle cx="174" cy="1430" r="9" fill="#a4afc1"/>
+<text x="198" y="1441" fill="#b7c0ce" font-size="25">你将状态从「验证中」改为「暂时搁置」</text>
+<rect x="48" y="1498" width="45" height="45" rx="14" fill="#263246"/>
+<path d="M70 1507l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#abcaff"/>
+<text x="109" y="1531" fill="#bfd3f7" font-size="27" font-weight="500">AI</text>
+<text x="48" y="1584" class="body">记下了：整体暂时搁置，访谈整理的价值保留。</text>
+<!-- Pinned composer: main action is always feedback -->
+<rect x="0" y="1622" width="900" height="278" fill="#14181f"/>
+<path d="M0 1622h900" stroke="#313a47"/>
+<rect x="36" y="1653" width="828" height="147" rx="28" fill="#202733" stroke="#42516a" stroke-width="1.5"/>
+<text x="66" y="1712" fill="#aab5c8" font-size="29">反馈新情况，或继续聊这个点子…</text>
+<text x="66" y="1770" fill="#92a2ba" font-size="22">结合点子资料与近期讨论回复</text>
+<circle cx="813" cy="1750" r="28" fill="#9cbfff"/>
+<path d="M813 1762v-24 M803 1747l10-10 10 10" stroke="#142744" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<text x="450" y="1840" text-anchor="middle" fill="#8e9aaa" font-size="22">交互设计稿 · 对话与状态均为示例</text>
+<rect x="333" y="1870" width="234" height="6" rx="3" fill="#d0d5de"/>
+</svg>

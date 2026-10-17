@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1900" viewBox="0 0 900 1900">
+<defs>
+  <style>
+    text { font-family: 'Noto Sans CJK SC', sans-serif; }
+    .title { fill:#f1f3f7; font-weight:600; }
+    .body { fill:#d3d8e2; font-size:30px; }
+    .muted { fill:#a5aebb; font-size:26px; }
+    .label { fill:#edf1f8; font-size:31px; font-weight:500; }
+    .link { fill:#92b9ff; font-size:27px; }
+    .icon { fill:none; stroke:#a6c5ff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
+  </style>
+</defs>
+<rect width="900" height="1900" fill="#101216"/>
+<!-- System bar -->
+<text x="48" y="58" fill="#edf1f8" font-size="29" font-weight="600">10:33</text>
+<path d="M743 39v14 M754 33v20 M765 27v26" stroke="#edf1f8" stroke-width="5"/>
+<path d="M790 33 Q807 17 824 33 M796 40 Q807 29 818 40" fill="none" stroke="#edf1f8" stroke-width="3"/>
+<rect x="838" y="27" width="34" height="23" rx="6" fill="none" stroke="#edf1f8" stroke-width="2"/>
+<rect x="842" y="31" width="25" height="15" rx="3" fill="#edf1f8"/>
+<!-- App bar -->
+<path d="M69 122l-20 20 20 20 M50 142h37" stroke="#edf1f8" stroke-width="4" fill="none" stroke-linecap="round"/>
+<text x="450" y="155" text-anchor="middle" class="title" font-size="35">点子详情</text>
+<g fill="#d5dce8"><circle cx="842" cy="130" r="3.5"/><circle cx="842" cy="142" r="3.5"/><circle cx="842" cy="154" r="3.5"/></g>
+<!-- Navigation -->
+<text x="156" y="248" text-anchor="middle" fill="#9cbfff" font-size="30" font-weight="500">点子概览</text>
+<text x="450" y="248" text-anchor="middle" fill="#a5aebb" font-size="30">来源与进展</text>
+<text x="744" y="248" text-anchor="middle" fill="#a5aebb" font-size="30">AI 讨论</text>
+<path d="M0 281h900" stroke="#2d333d" stroke-width="1"/>
+<rect x="91" y="277" width="130" height="5" rx="2.5" fill="#8eb8ff"/>
+<!-- Idea identity -->
+<text x="48" y="362" class="title" font-size="43">产品端到端 AI 化</text>
+<rect x="48" y="392" width="164" height="55" rx="27" fill="#203049"/>
+<text x="71" y="429" fill="#aecbff" font-size="26">待研究</text>
+<path d="M176 414l7 7 7-7" class="icon"/>
+<text x="231" y="429" class="muted">点按可修改研究状态</text>
+<!-- Content: purpose -->
+<rect x="40" y="487" width="820" height="410" rx="27" fill="#1b2028"/>
+<text x="72" y="549" class="label">这个点子是什么</text>
+<path d="M740 530l13-13 8 8-13 13-11 3z M750 520l8 8" class="icon"/>
+<text x="778" y="546" class="link">编辑</text>
+<text x="72" y="614" class="body">探索 AI 如何贯穿产品调研、设计、开发</text>
+<text x="72" y="661" class="body">和反馈，减少重复工作，缩短从想法到</text>
+<text x="72" y="708" class="body">落地的周期。</text>
+<path d="M72 751h756" stroke="#343b47"/>
+<text x="72" y="804" class="label">已有结论</text>
+<text x="72" y="850" class="muted">还没有结论，先记录你的观察和判断。</text>
+<!-- Next step -->
+<rect x="40" y="921" width="820" height="217" rx="27" fill="#192536"/>
+<rect x="72" y="961" width="28" height="28" rx="7" class="icon"/>
+<path d="M79 974l5 5 11-13" class="icon"/>
+<text x="115" y="986" class="label">下一步</text>
+<text x="72" y="1049" class="body">选择一个重复工作最多的环节，先做</text>
+<text x="72" y="1096" class="body">小范围验证。</text>
+<!-- Progress -->
+<text x="48" y="1216" class="label">最近进展</text>
+<text x="696" y="1216" class="link">查看全部</text>
+<path d="M838 1195l10 10-10 10" class="icon"/>
+<rect x="40" y="1246" width="820" height="175" rx="27" fill="#191d24"/>
+<circle cx="91" cy="1312" r="21" stroke="#78879f" stroke-width="2.5" fill="none"/>
+<path d="M91 1299v14l9 6" stroke="#78879f" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<text x="137" y="1323" fill="#cbd4e2" font-size="29">还没有进展记录</text>
+<text x="137" y="1372" class="muted">记录一次尝试、发现或决定。</text>
+<!-- Primary action -->
+<rect x="40" y="1450" width="820" height="92" rx="46" fill="#9cbfff"/>
+<path d="M344 1484v26 M331 1497h26" stroke="#102542" stroke-width="3.5" stroke-linecap="round"/>
+<text x="382" y="1508" fill="#102542" font-size="31" font-weight="600">记录进展</text>
+<!-- AI help, explicitly review-first -->
+<rect x="40" y="1571" width="820" height="195" rx="27" fill="#1c2431" stroke="#35465f" stroke-width="1.5"/>
+<path d="M92 1609l7 19 19 7-19 7-7 19-7-19-19-7 19-7z M118 1602l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#a6c5ff"/>
+<text x="144" y="1644" class="label">AI 整理点子</text>
+<text x="144" y="1694" class="muted">根据已有资料生成建议</text>
+<text x="144" y="1737" class="muted">确认后才更新，不会直接覆盖内容</text>
+<path d="M806 1624l12 12-12 12" class="icon"/>
+<!-- Prototype disclaimer and system gesture -->
+<text x="450" y="1815" text-anchor="middle" fill="#7f8a9c" font-size="22">布局设计稿 · 描述与下一步为示例内容</text>
+<rect x="333" y="1869" width="234" height="6" rx="3" fill="#d0d5de"/>
+</svg>

@@ -24,8 +24,8 @@ android {
         minSdk = 26
         targetSdk = 36
         testInstrumentationRunner = "com.dailysatori.encryption.DatabaseTestRunner"
-        versionCode = 50165
-        versionName = "5.1.65"
+        versionCode = 50166
+        versionName = "5.1.66"
         providers.gradleProperty("ciVersionCode").orNull?.let { value ->
             require(value.all { it.isDigit() && it != '4' })
             versionCode = value.toInt().also { require(it in 1..2100000000) }

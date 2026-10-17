@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
@@ -89,6 +91,9 @@ internal fun UnifiedNewsSummaryContent(
     val summary = latestHeadlinesSummary(state.summaries, state.lastSuccessfulSummary)
     val headlineSummaries = if (state.searchQuery.isBlank()) listOfNotNull(summary) else summaries.filter { it.content.isNotBlank() }
     val recommendations = recommendedArticles(opportunityState.items)
+    val isAnalyzing = opportunityState.isUpdating || task?.status in listOf("queued", "running", "retrying")
+    val analysisProgress = if (isAnalyzing) task?.progress_message?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.my_space_updating_recommendations) else null
     val articleSummariesBySource = remember(state.articleIdsByNewsSource, state.articleSummariesById) {
         state.articleIdsByNewsSource.mapNotNull { (sourceId, articleId) ->
             state.articleSummariesById[articleId]?.let { sourceId to it }
@@ -105,7 +110,7 @@ internal fun UnifiedNewsSummaryContent(
     }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+        verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         items(headlineSummaries, key = { "headlines-${it.id}" }) { entry ->
             DailyHeadlinesPreview(entry, state.sourcesBySummaryId[entry.id].orEmpty(), articleSummariesBySource,
                 query = state.searchQuery, onOpen = { onBriefing(entry.id) }, onCitationClick = viewModel::openCitation)
@@ -117,24 +122,23 @@ internal fun UnifiedNewsSummaryContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (recommendations.isNotEmpty()) item(key = "opportunity-header") {
-            OpportunitySectionHeader(onMore = onOpportunities)
-        }
-        if (opportunityState.isUpdating || task?.status in listOf("queued", "running", "retrying")) item(key = "opportunity-progress") {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(task?.progress_message?.takeIf { it.isNotBlank() } ?: stringResource(R.string.my_space_updating_recommendations),
-                    Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { opportunities.cancelAnalysis() }) { Text(stringResource(R.string.my_space_cancel)) }
-            }
+        if (recommendations.isNotEmpty() || isAnalyzing) item(key = "opportunity-header") {
+            OpportunitySectionHeader(onMore = onOpportunities, progress = analysisProgress,
+                onCancel = { opportunities.cancelAnalysis() })
         }
         if (operationFailed || analysisError != null) item(key = "error") {
-            Text(analysisError ?: stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            Row {
-                TextButton(onClick = onOpportunities) { Text(stringResource(R.string.my_space_expand)) }
-                TextButton(onClick = { opportunities.clearError() }) { Text(stringResource(R.string.my_space_close)) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(analysisError ?: stringResource(R.string.my_space_error), Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3, overflow = TextOverflow.Ellipsis)
+                TextButton(onClick = { opportunities.analyze() }) { Text(stringResource(R.string.news_hotnews_retry)) }
+                IconButton(onClick = { opportunities.clearError() }, modifier = Modifier.size(Height.buttonSmall)) {
+                    Icon(Icons.Default.Close, stringResource(R.string.my_space_close), Modifier.size(IconSize.s),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
-        items(recommendations.take(3), key = { it.id }) { item ->
+        items(recommendations, key = { it.id }) { item ->
             val topicId = topicLinks[item.id]
             val isCaptured = topicId != null
             TodayNewsOpportunityCard(
@@ -175,10 +179,22 @@ internal fun latestHeadlinesSummary(
     ?: retained?.takeIf { it.content.isNotBlank() }
 
 @Composable
-private fun OpportunitySectionHeader(onMore: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.news_focus_for_you), Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+private fun OpportunitySectionHeader(onMore: () -> Unit, progress: String?, onCancel: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+            Text(stringResource(R.string.news_focus_for_you),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (progress != null) {
+                Text(progress, style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (progress != null) {
+            IconButton(onClick = onCancel, modifier = Modifier.size(Height.buttonSmall)) {
+                Icon(Icons.Default.Close, stringResource(R.string.my_space_cancel), Modifier.size(IconSize.s),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         TextButton(onClick = onMore, contentPadding = PaddingValues(Spacing.xs)) {
             Text(stringResource(R.string.news_focus_view_all), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)

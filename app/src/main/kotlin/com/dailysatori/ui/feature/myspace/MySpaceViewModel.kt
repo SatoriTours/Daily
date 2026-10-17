@@ -90,7 +90,8 @@ class MySpaceViewModel(
     }
 
     private fun enqueueAnalysis(automatic: Boolean) {
-        val id = tasks.enqueue(NewsOpportunityTaskHandler.TYPE, "{\"automatic\":$automatic}", uniqueKey = NewsOpportunityTaskHandler.TYPE, maxAttempts = 1)
+        val id = tasks.enqueue(NewsOpportunityTaskHandler.TYPE, "{\"automatic\":$automatic}",
+            uniqueKey = NewsOpportunityTaskHandler.TYPE, maxAttempts = NewsOpportunityTaskHandler.MAX_ATTEMPTS)
         scheduler.enqueue(id)
     }
     private suspend fun scheduleAutomaticAnalysis() = refreshRecommendationsIfReady(thoughts.state.value, service) {
