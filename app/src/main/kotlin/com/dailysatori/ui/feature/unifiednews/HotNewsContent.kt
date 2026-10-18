@@ -73,6 +73,7 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
                     })
                     HotNewsError.AI_NOT_CONFIGURED -> stringResource(R.string.news_hotnews_ai_missing)
                     HotNewsError.TRANSLATION_FAILED -> stringResource(R.string.news_hotnews_translation_failed)
+                    HotNewsError.TRANSLATION_NETWORK_FAILED -> stringResource(R.string.news_hotnews_translation_network_failed)
                     HotNewsError.FEED_NOT_CONFIGURED -> i18n.t("news_sources.feed_required")
                 }, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val configure = error == HotNewsError.FEED_NOT_CONFIGURED || (error == HotNewsError.FETCH_FAILED && feedOnly)

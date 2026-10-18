@@ -4,25 +4,35 @@ import io.ktor.http.Url
 
 /** Allow-list projection, not a best-effort replacement of secrets in arbitrary text. */
 object DiagnosticRedactor {
-    private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens")
+    private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens", "translatedCount", "pendingCount")
     private val methods = setOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
     private val reminderFields = setOf("content", "start_date", "end_date", "first_reminder_time",
         "active_day_rule", "recurrence_rule", "selected_weekdays", "profile", "timezone", "other")
-    private val providers = setOf("openai", "anthropic", "gemini")
+    private val providers = setOf("openai", "anthropic", "gemini", "deepseek")
+    private val aiPurposes = setOf("interactive", "external_content", "reflection")
+    private val hotNewsPlatforms = setOf("github", "hackernews", "x", "xiaohongshu", "toutiao", "zhihu", "v2ex", "linuxdo", "chinanews", "ithome")
+    private val hotNewsStages = setOf("retry_queued", "retry_running", "cache", "translation_batch", "translation_request", "translation_result", "translation_failure")
     private val publicModels = setOf("gpt-4o", "gpt-4o-mini", "gpt-5", "gpt-5-mini", "gpt-5.1", "gpt-5.2",
-        "claude-sonnet-4-5", "claude-opus-4-5", "gemini-2.5-pro", "gemini-2.5-flash")
+        "claude-sonnet-4-5", "claude-opus-4-5", "gemini-2.5-pro", "gemini-2.5-flash",
+        "deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4.1-flash", "deepseek-v4-flash-vision-exp")
     private val tools = setOf("get_latest_diary", "get_diary_by_date", "search_diary_by_content", "get_diary_by_tag",
         "get_diary_count", "get_latest_articles", "search_articles", "get_favorite_articles", "get_article_count",
         "get_latest_books", "search_books", "search_book_notes", "get_book_viewpoints", "get_book_count", "get_statistics",
         "query_local_database", "search_web_with_mcp", "search_memory", "get_memory_source", "create_reminder_draft")
     private val routes = listOf("/chat/completions", "/messages", "/models", "/responses", "/graphql")
-    private val hosts = setOf("api.github.com", "api.x.com", "api.twitter.com", "api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com")
+    private val hosts = setOf("api.github.com", "api.x.com", "api.twitter.com", "api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com", "api.deepseek.com")
 
     fun fields(input: Map<String, String>): Map<String, String> = buildMap {
         input.forEach { (key, value) ->
             when {
                 key in numeric -> value.toLongOrNull()?.takeIf { it >= 0 }?.let { put(key, it.toString()) }
                 key == "articleStage" && value in setOf("queued", "extraction", "overview", "translation", "cover") -> put(key, value)
+                key == "aiPurpose" && value in aiPurposes -> put(key, value)
+                key == "hotNewsPlatform" && value in hotNewsPlatforms -> put(key, value)
+                key == "hotNewsStage" && value in hotNewsStages -> put(key, value)
+                key == "operation" && value in setOf("hot_news_refresh", "hot_news_retry") -> put(key, value)
+                key == "retryState" && value in setOf("accepted", "ignored_running") -> put(key, value)
+                key == "hotNewsFailure" && value in setOf("network", "timeout", "format", "configuration", "other") -> put(key, value)
                 key == "method" && value in methods -> put(key, value)
                 key == "reminderField" && value in reminderFields -> put(key, value)
                 key == "backupAttachmentSource" && value in setOf("diary_attachment.local_path", "diary.images",
@@ -31,7 +41,7 @@ object DiagnosticRedactor {
                 key == "url" -> putAll(endpoint(value))
                 key == "model" -> put(key, value.takeIf { it in publicModels } ?: "custom-${DiagnosticLog.fingerprint(value)}")
                 key == "tool" -> put(key, value.takeIf { it in tools } ?: "custom-${DiagnosticLog.fingerprint(value)}")
-                key in setOf("foreground", "permission.microphone", "permission.notifications") && value in setOf("true", "false") -> put(key, value)
+                key in setOf("foreground", "permission.microphone", "permission.notifications", "cacheUsed") && value in setOf("true", "false") -> put(key, value)
                 key == "screen" && value in setOf("MainActivity", "ShareReceiverActivity") -> put(key, value)
                 key == "network" && value in setOf("wifi", "cellular", "ethernet", "other", "none") -> put(key, value)
             }

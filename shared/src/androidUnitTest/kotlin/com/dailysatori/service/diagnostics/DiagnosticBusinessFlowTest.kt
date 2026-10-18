@@ -1,6 +1,8 @@
 package com.dailysatori.service.diagnostics
 
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.ai.AiPurpose
+import kotlinx.serialization.json.Json
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -9,6 +11,30 @@ import kotlin.test.*
 import kotlinx.coroutines.runBlocking
 
 class DiagnosticBusinessFlowTest {
+    @Test
+    fun aiPurposeAndPublicDeepSeekIdentityAreRecordedWithoutAnyRequestOrResponseText() = runBlocking<Unit> {
+        val events = mutableListOf<SafeDiagnosticEvent>()
+        val previous = DiagnosticLog.diagnostics
+        DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+        HttpClient(MockEngine {
+            respond("""{"choices":[{"message":{"content":"private-response-canary"}}]}""")
+        }).use { client ->
+            try {
+                assertEquals("private-response-canary", AiService(client).complete(
+                    "private-request-canary", "https://api.deepseek.com", "token-canary", "deepseek-v4-flash",
+                    provider = "deepseek", systemPrompt = "private-system-canary", purpose = AiPurpose.EXTERNAL_CONTENT,
+                ))
+                val start = events.first { it.eventCode == DiagnosticCode.OPERATION_START }
+                assertEquals("deepseek", start.attributes["provider"])
+                assertEquals("deepseek-v4-flash", start.attributes["model"])
+                assertEquals("api.deepseek.com", start.attributes["service"])
+                assertEquals("external_content", start.attributes["aiPurpose"])
+                assertEquals(DiagnosticCoverage.LIFECYCLE_ONLY, DiagnosticLog.coverage()[DiagnosticSource.AI])
+                assertFalse(Json.encodeToString(events).contains("canary"))
+            } finally { DiagnosticLog.diagnostics = previous }
+        }
+    }
+
     @Test
     fun httpSuccessFollowedByParsingFailureIsBusinessFailure() = runBlocking<Unit> {
         val events = mutableListOf<SafeDiagnosticEvent>()

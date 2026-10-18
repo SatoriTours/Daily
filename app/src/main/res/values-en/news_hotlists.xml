@@ -15,6 +15,7 @@
     <string name="news_hotnews_configure_source">Configure source</string>
     <string name="news_hotnews_ai_missing">Configure AI for external content to translate these items</string>
     <string name="news_hotnews_translation_failed">Some translations are incomplete; refresh to retry</string>
+    <string name="news_hotnews_translation_network_failed">AI connection failed; some translations remain incomplete. Retry later.</string>
     <string name="news_hotnews_empty">No ranking available yet</string>
     <string name="news_hotnews_more">View full ranking · %1$d items</string>
     <string name="news_hotnews_feed_more">View all feed items · %1$d items</string>

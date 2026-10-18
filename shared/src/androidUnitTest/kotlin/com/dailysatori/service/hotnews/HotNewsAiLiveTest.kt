@@ -2,6 +2,7 @@ package com.dailysatori.service.hotnews
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.unifiednews.*
@@ -44,6 +45,40 @@ class HotNewsAiLiveTest {
             val points = content.substringAfter("## 今日要点").substringBefore("\n## ").lines().filter { it.trim().startsWith("- ") }
             assertTrue(points.size in 1..5, "汇总应最多包含五条重点")
             assertTrue(points.all { hasValidCitationTokens(it, sources) && isChineseHotNewsText(it) })
+        }
+    }
+
+    @Test fun configuredAiTranslatesRealRankingBatchesIncludingLowerRankedEntries() = runBlocking {
+        assumeTrue("Opt in to real ranking translation", System.getenv("DAILY_AI_LIVE_TEST") == "1")
+        val file = File("../.local/ai-test.json")
+        require(file.isFile) { "缺少 .local/ai-test.json，未运行真实热榜翻译验证" }
+        val config = Json.parseToJsonElement(file.readText()).jsonObject
+        fun required(key: String) = config[key]?.jsonPrimitive?.content?.takeIf(String::isNotBlank)
+            ?: error("AI 测试配置缺少 $key")
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val configs = AIConfigRepository(DailySatoriDatabase(driver))
+            configs.insert(required("provider"), required("apiAddress"), required("apiToken"), required("modelName"), isDefault = 1)
+            HttpClient(OkHttp) { install(HttpTimeout) { requestTimeoutMillis = 120_000 } }.use { http ->
+                val client = HotNewsClient(http)
+                val translator = HotNewsTranslator(AiService(http), AiConfigService(configs))
+                val store = HotNewsStore(SettingRepository(DailySatoriDatabase(driver)))
+                for (platform in listOf(HotNewsPlatform.GITHUB, HotNewsPlatform.HACKER_NEWS)) {
+                    val input = client.fetch(platform).takeLast(5)
+                    assertTrue(input.isNotEmpty(), "${platform.key}: 榜单为空，未完成真实验证")
+                    store.save(HotNewsBoard(platform, input, 1L, HotNewsError.TRANSLATION_FAILED))
+                    val service = HotNewsService(client, store, translator::translate)
+                    service.retryTranslations(platform)
+                    val board = service.boards.value.first { it.platform == platform }
+                    assertNull(board.error, "${platform.key}: 真实翻译重试未完成")
+                    val translated = board.items.filter { it.chineseTitle != null }
+                    val missing = input.filter { item -> translated.none { it.identity == item.identity } }
+                    println("${platform.key}: translated=${translated.size}/${input.size}, missing=${missing.map { it.identity }}")
+                    assertTrue(missing.isEmpty(), "${platform.key}: 未完成的真实条目 ${missing.map { it.identity }}")
+                    assertEquals(input.map { it.url }, translated.map { it.url })
+                    assertTrue(translated.all { isChineseHotNewsText(it.chineseTitle.orEmpty()) })
+                }
+            }
         }
     }
 

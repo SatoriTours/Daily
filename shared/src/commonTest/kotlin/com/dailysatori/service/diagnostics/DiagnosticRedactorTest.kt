@@ -7,6 +7,48 @@ import kotlinx.serialization.json.Json
 
 class DiagnosticRedactorTest {
     @Test
+    fun hotNewsDiagnosticsKeepOnlyPublicIdentifiersAndBoundedMetadata() {
+        val fields = DiagnosticRedactor.fields(mapOf(
+            "provider" to "deepseek", "model" to "deepseek-v4-flash",
+            "url" to "https://user:password-canary@api.deepseek.com/v1/chat/completions?key=query-canary#fragment-canary",
+            "aiPurpose" to "external_content", "hotNewsPlatform" to "github",
+            "hotNewsStage" to "translation_request", "retryState" to "accepted",
+            "hotNewsFailure" to "network", "operation" to "hot_news_retry",
+            "attempt" to "2", "count" to "5", "translatedCount" to "3", "pendingCount" to "2",
+            "cacheUsed" to "true", "requestBody" to "private-request", "responseBody" to "private-response",
+        ))
+        assertEquals(mapOf(
+            "provider" to "deepseek", "model" to "deepseek-v4-flash", "service" to "api.deepseek.com",
+            "route" to "/chat/completions", "aiPurpose" to "external_content", "hotNewsPlatform" to "github",
+            "hotNewsStage" to "translation_request", "retryState" to "accepted",
+            "hotNewsFailure" to "network", "operation" to "hot_news_retry",
+            "attempt" to "2", "count" to "5", "translatedCount" to "3", "pendingCount" to "2", "cacheUsed" to "true",
+        ), fields)
+    }
+
+    @Test
+    fun hotNewsMetadataCannotExposeCustomAddressesModelsOrArbitraryStageText() {
+        val events = mutableListOf<SafeDiagnosticEvent>()
+        Diagnostics(DiagnosticSink { events.add(it) }).emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.AI,
+            fields = mapOf(
+                "url" to "https://user:password-canary@private-host-canary.invalid/private-path-canary?key=query-canary",
+                "model" to "private-model-canary", "provider" to "private-provider-canary",
+                "aiPurpose" to "private-purpose-canary", "hotNewsPlatform" to "private-feed-canary",
+                "hotNewsStage" to "private-stage-canary", "retryState" to "private-state-canary",
+                "hotNewsFailure" to "private-error-canary", "operation" to "private-operation-canary",
+                "translatedCount" to "private-count-canary", "pendingCount" to "-1", "cacheUsed" to "private-flag-canary",
+                "headers" to "authorization-canary", "prompt" to "private-prompt-canary",
+                "requestBody" to "private-request-canary", "responseBody" to "private-response-canary",
+            ), error = IllegalStateException("private-exception-canary"))
+        val event = events.single()
+        val encoded = Json.encodeToString(SafeDiagnosticEvent.serializer(), event)
+        assertFalse(encoded.contains("canary"))
+        assertTrue(event.attributes.getValue("model").startsWith("custom-"))
+        assertTrue(event.attributes.getValue("service").startsWith("custom-"))
+        assertEquals(setOf("model", "service", "route"), event.attributes.keys)
+    }
+
+    @Test
     fun backupAttachmentEvidenceRecordsOnlyKnownSourcesAndCounts() {
         assertEquals(mapOf("backupAttachmentSource" to "diary.images", "count" to "2"),
             DiagnosticRedactor.fields(mapOf("backupAttachmentSource" to "diary.images", "count" to "2",

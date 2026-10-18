@@ -45,7 +45,7 @@ data class HotNewsItem(
 }
 
 @Serializable
-enum class HotNewsError { FETCH_FAILED, FEED_NOT_CONFIGURED, AI_NOT_CONFIGURED, TRANSLATION_FAILED }
+enum class HotNewsError { FETCH_FAILED, FEED_NOT_CONFIGURED, AI_NOT_CONFIGURED, TRANSLATION_FAILED, TRANSLATION_NETWORK_FAILED }
 
 @Serializable
 data class HotNewsBoard(

@@ -5,6 +5,8 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
+import java.net.SocketException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlin.test.*
@@ -101,6 +103,52 @@ class HotNewsTranslationRecoveryTest {
         }
     }
 
+    @Test fun aBrokenAiConnectionRetriesTheSameBatchAndKeepsSuccessfulTranslations() {
+        val calls = mutableListOf<List<String>>()
+        withCachedBoard({ batch ->
+            calls += batch.map { it.id }
+            if (calls.size < 3) throw IllegalStateException("transport wrapper", SocketException("connection reset"))
+            batch.map { it.copy(chineseTitle = "中文工具标题", chineseSummary = "") }
+        }) { service, store ->
+            service.retryTranslations(HotNewsPlatform.GITHUB)
+            assertEquals(List(3) { items.map { it.id } }, calls)
+            val board = service.boards.value.first { it.platform == HotNewsPlatform.GITHUB }
+            assertTrue(board.items.all { it.chineseTitle != null })
+            assertNull(board.error)
+            assertFalse(board.refreshing)
+            assertEquals(board.items, store.load(HotNewsPlatform.GITHUB)!!.items)
+        }
+    }
+
+    @Test fun persistentNetworkFailureStopsAfterThreeAttemptsWithoutPerItemOrLaterBatchStorms() {
+        val translated = items.first().copy(chineseTitle = "已完成的文档工具", chineseSummary = "")
+        val pending = (1..8).map { items.last().copy(id = "acme/reader-$it") }
+        val calls = mutableListOf<List<String>>()
+        withCachedBoard({ batch ->
+            calls += batch.map { it.id }
+            throw SocketException("connection reset")
+        }, cachedItems = listOf(translated) + pending) { service, store ->
+            service.retryTranslations(HotNewsPlatform.GITHUB)
+            assertEquals(List(3) { pending.take(5).map { it.id } }, calls)
+            val board = service.boards.value.first { it.platform == HotNewsPlatform.GITHUB }
+            assertEquals("TRANSLATION_NETWORK_FAILED", board.error?.name)
+            assertEquals(translated, board.items.first())
+            assertFalse(board.refreshing)
+            assertEquals(board, store.load(HotNewsPlatform.GITHUB))
+        }
+    }
+
+    @Test fun cancellingTranslationDoesNotRetryOrReportANetworkFailure() {
+        var attempts = 0
+        withCachedBoard({ attempts++; throw CancellationException("user cancelled") }) { service, _ ->
+            assertFailsWith<CancellationException> { service.retryTranslations(HotNewsPlatform.GITHUB) }
+            assertEquals(1, attempts)
+            val board = service.boards.value.first { it.platform == HotNewsPlatform.GITHUB }
+            assertNull(board.error)
+            assertFalse(board.refreshing)
+        }
+    }
+
     @Test fun incompleteCacheWithoutAnErrorStillResumesTranslation() {
         var attempts = 0
         withCachedBoard({ batch ->
@@ -118,12 +166,13 @@ class HotNewsTranslationRecoveryTest {
         translate: suspend (List<HotNewsItem>) -> List<HotNewsItem>,
         fetchedAt: Long = Clock.System.now().toEpochMilliseconds(),
         initialError: HotNewsError? = HotNewsError.TRANSLATION_FAILED,
+        cachedItems: List<HotNewsItem> = items,
         verify: suspend (HotNewsService, HotNewsStore) -> Unit,
     ) = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val store = HotNewsStore(SettingRepository(DailySatoriDatabase(driver)))
-            store.save(HotNewsBoard(HotNewsPlatform.GITHUB, items, fetchedAt,
+            store.save(HotNewsBoard(HotNewsPlatform.GITHUB, cachedItems, fetchedAt,
                 error = initialError))
             HttpClient(MockEngine { error("Translation retry must use the cached ranking") }).use { http ->
                 verify(HotNewsService(HotNewsClient(http), store, translate), store)

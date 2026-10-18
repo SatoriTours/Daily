@@ -33,10 +33,13 @@ class AiService(private val client: HttpClient) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     private suspend fun <T> withAiOperation(
-        provider: String, model: String, isFailure: (T) -> Boolean = { false }, block: suspend () -> T,
+        provider: String, model: String, apiAddress: String, purpose: AiPurpose?,
+        isFailure: (T) -> Boolean = { false }, block: suspend () -> T,
     ): T = withAiRequestSession {
+        DiagnosticLog.registerCoverage(DiagnosticSource.AI, DiagnosticCoverage.LIFECYCLE_ONLY)
         DiagnosticLog.diagnostics.operation(
-            DiagnosticSource.AI, fields = mapOf("provider" to provider, "model" to model), isFailure = isFailure, block = block,
+            DiagnosticSource.AI, fields = mapOf("provider" to provider.trim(), "model" to model.trim(),
+                "url" to apiAddress, "aiPurpose" to purpose?.id.orEmpty()), isFailure = isFailure, block = block,
         )
     }
 
@@ -76,7 +79,7 @@ class AiService(private val client: HttpClient) {
         temperature: Double = 0.5,
         disableThinking: Boolean = false,
         purpose: AiPurpose? = null,
-    ): String = withAiOperation(provider, modelName) {
+    ): String = withAiOperation(provider, modelName, apiAddress, purpose) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
@@ -157,7 +160,7 @@ class AiService(private val client: HttpClient) {
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
         purpose: AiPurpose? = null,
-    ): JsonObject? = withAiOperation(provider, modelName, isFailure = { it == null }) {
+    ): JsonObject? = withAiOperation(provider, modelName, apiAddress, purpose, isFailure = { it == null }) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         try {
@@ -191,7 +194,7 @@ class AiService(private val client: HttpClient) {
         temperature: Double = 0.7,
         purpose: AiPurpose? = null,
         onChunk: suspend (String) -> Unit,
-    ): JsonObject? = withAiOperation(provider, modelName, isFailure = { it == null }) {
+    ): JsonObject? = withAiOperation(provider, modelName, apiAddress, purpose, isFailure = { it == null }) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         try {

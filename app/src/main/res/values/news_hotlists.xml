@@ -15,6 +15,7 @@
     <string name="news_hotnews_configure_source">配置来源</string>
     <string name="news_hotnews_ai_missing">请先配置资料整理用途的 AI，再重试中文翻译</string>
     <string name="news_hotnews_translation_failed">部分中文翻译未完成，可刷新重试</string>
+    <string name="news_hotnews_translation_network_failed">AI 连接异常，部分翻译未完成，请稍后重试</string>
     <string name="news_hotnews_empty">暂未获取榜单</string>
     <string name="news_hotnews_more">查看完整榜单 · %1$d 条</string>
     <string name="news_hotnews_feed_more">查看全部订阅 · %1$d 条</string>

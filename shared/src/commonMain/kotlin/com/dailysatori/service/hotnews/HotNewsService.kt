@@ -1,7 +1,11 @@
 package com.dailysatori.service.hotnews
 
+import com.dailysatori.service.retryTransientFailure
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.unifiednews.UnifiedNewsSourceItem
 import com.dailysatori.service.unifiednews.UnifiedNewsSourceType
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -24,7 +28,7 @@ class HotNewsService(
 ) {
     private val mutableBoards = MutableStateFlow(HotNewsPlatform.entries.map { store.load(it) ?: HotNewsBoard(it) })
     val boards = mutableBoards.asStateFlow()
-    private val refreshMutex = Mutex()
+    private val refreshMutexes = HotNewsPlatform.entries.associateWith { Mutex() }
     private val contentMutex = Mutex()
     private val configMutex = Mutex()
     private val translationSlots = Semaphore(2)
@@ -40,15 +44,31 @@ class HotNewsService(
         if (changedUrl) store.save(board(platform))
     }
 
-    suspend fun refresh(platform: HotNewsPlatform? = null, force: Boolean = false) = refreshMutex.withLock {
+    suspend fun refresh(platform: HotNewsPlatform? = null, force: Boolean = false) {
         val platforms = (platform?.let(::listOf) ?: HotNewsPlatform.entries)
             .filter { preferences.value.source(it).enabled }
-        coroutineScope { platforms.map { async { refreshBoard(it, force) } }.awaitAll() }
-        Unit
+        coroutineScope {
+            platforms.map { source -> async {
+                refreshMutexes.getValue(source).withLock {
+                    DiagnosticLog.diagnostics.operation(DiagnosticSource.AI,
+                        fields = mapOf("operation" to "hot_news_refresh", "hotNewsPlatform" to source.key,
+                            "aiPurpose" to "external_content"),
+                        isFailure = { _: Unit -> board(source).error != null }) { refreshBoard(source, force) }
+                }
+            } }.awaitAll()
+        }
     }
 
-    suspend fun retryTranslations(platform: HotNewsPlatform) = refreshMutex.withLock {
-        refreshBoard(platform, force = false, translationsOnly = true)
+    suspend fun retryTranslations(platform: HotNewsPlatform) = DiagnosticLog.diagnostics.operation(
+        DiagnosticSource.AI,
+        fields = mapOf("operation" to "hot_news_retry", "hotNewsPlatform" to platform.key, "aiPurpose" to "external_content"),
+        isFailure = { _: Unit -> board(platform).error != null },
+    ) {
+        logHotNewsProgress(platform, "retry_queued")
+        refreshMutexes.getValue(platform).withLock {
+            logHotNewsProgress(platform, "retry_running")
+            refreshBoard(platform, force = false, translationsOnly = true)
+        }
     }
 
     private suspend fun refreshBoard(platform: HotNewsPlatform, force: Boolean, translationsOnly: Boolean = false) {
@@ -57,7 +77,10 @@ class HotNewsService(
         val previous = board(platform)
         val ttl = if (platform == HotNewsPlatform.GITHUB) 60 * 60_000L else 15 * 60_000L
         val fresh = previous.items.isNotEmpty() && now() - previous.fetchedAt in 0 until ttl
-        if (!translationsOnly && !force && fresh && previous.error == null && previous.items.none(::needsTranslation)) return
+        if (!translationsOnly && !force && fresh && previous.error == null && previous.items.none(::needsTranslation)) {
+            logHotNewsProgress(platform, "cache", mapOf("cacheUsed" to "true", "count" to previous.items.size.toString(), "pendingCount" to "0"))
+            return
+        }
         commit(platform, config) { update(platform) { it.copy(refreshing = true, error = null) } }
         try {
             val useCache = translationsOnly || (!force && fresh)
@@ -70,6 +93,8 @@ class HotNewsService(
             }
             val fetchedAt = if (useCache) previous.fetchedAt else now()
             commit(platform, config) { update(platform) { it.copy(items = merged, fetchedAt = fetchedAt) } }
+            logHotNewsProgress(platform, "cache", mapOf("cacheUsed" to useCache.toString(),
+                "count" to merged.size.toString(), "pendingCount" to merged.count(::needsTranslation).toString()))
             translateBoard(platform, config)
             commit(platform, config) { store.save(board(platform)) }
         } catch (e: CancellationException) { throw e }
@@ -95,7 +120,12 @@ class HotNewsService(
             catch (_: HotNewsAiNotConfigured) {
                 commit(platform, config) { update(platform) { it.copy(error = HotNewsError.AI_NOT_CONFIGURED) } }; return
             }
-            catch (_: Exception) { /* Remaining entries are marked failed below. */ }
+            catch (error: Exception) {
+                if (isHotNewsNetworkFailure(error)) {
+                    commit(platform, config) { update(platform) { it.copy(error = HotNewsError.TRANSLATION_NETWORK_FAILED) } }
+                    return // Do not fan a broken connection out into every item or remaining batch.
+                }
+            }
         }
         commit(platform, config) {
             if (board(platform).items.any(::needsTranslation)) {
@@ -111,8 +141,12 @@ class HotNewsService(
     private suspend fun translateBatch(platform: HotNewsPlatform, config: HotNewsSourceConfig,
         batch: List<HotNewsItem>): List<HotNewsItem> {
         if (preferences.value.source(platform) != config) return emptyList()
-        val translated = translationSlots.withPermit { translate(batch) }
-            .filter { it.platform == platform && !it.chineseTitle.isNullOrBlank() }.associateBy { it.id }
+        var attempt = 0
+        logHotNewsProgress(platform, "translation_batch", mapOf("count" to batch.size.toString()))
+        val translated = retryTransientFailure(maxAttempts = 3, initialDelayMs = 1_000,
+            shouldRetry = ::isHotNewsNetworkFailure) {
+            requestTranslation(platform, config, batch, ++attempt)
+        }.filter { it.platform == platform && !it.chineseTitle.isNullOrBlank() }.associateBy { it.id }
         commit(platform, config) {
             update(platform) { current -> current.copy(items = current.items.map { item ->
                 translated[item.id]?.takeIf { it.fingerprint == item.fingerprint }?.let {
@@ -121,7 +155,23 @@ class HotNewsService(
             }) }
             store.save(board(platform))
         }
-        return batch.filter { translated[it.id]?.fingerprint != it.fingerprint }
+        val remaining = batch.filter { translated[it.id]?.fingerprint != it.fingerprint }
+        logHotNewsProgress(platform, "translation_result", mapOf("translatedCount" to (batch.size - remaining.size).toString(),
+            "pendingCount" to remaining.size.toString()))
+        return remaining
+    }
+
+    private suspend fun requestTranslation(platform: HotNewsPlatform, config: HotNewsSourceConfig,
+        batch: List<HotNewsItem>, attempt: Int): List<HotNewsItem> = translationSlots.withPermit {
+        if (preferences.value.source(platform) != config) return@withPermit emptyList()
+        logHotNewsProgress(platform, "translation_request", mapOf("attempt" to attempt.toString(), "count" to batch.size.toString()))
+        try { translate(batch) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) {
+            logHotNewsProgress(platform, "translation_failure",
+                mapOf("attempt" to attempt.toString(), "hotNewsFailure" to hotNewsFailureKind(error)), error)
+            throw error
+        }
     }
 
     fun find(identity: String): HotNewsItem? = boards.value.asSequence().flatMap { it.items.asSequence() }.firstOrNull { it.identity == identity }
@@ -170,4 +220,24 @@ class HotNewsService(
         mutableBoards.update { list -> list.map { if (it.platform == platform) transform(it) else it } }
     }
     private fun now(): Long = Clock.System.now().toEpochMilliseconds()
+}
+
+private fun isHotNewsNetworkFailure(error: Throwable): Boolean =
+    generateSequence(error) { it.cause }.take(8).any { it is IOException || it is HttpRequestTimeoutException }
+
+private fun hotNewsFailureKind(error: Throwable): String = when {
+    generateSequence(error) { it.cause }.take(8).any { it is HttpRequestTimeoutException } -> "timeout"
+    isHotNewsNetworkFailure(error) -> "network"
+    error is HotNewsTranslationFormatException -> "format"
+    error is HotNewsAiNotConfigured -> "configuration"
+    else -> "other"
+}
+
+private fun logHotNewsProgress(platform: HotNewsPlatform, stage: String, fields: Map<String, String> = emptyMap(), error: Throwable? = null) {
+    DiagnosticLog.diagnostics.emit(
+        if (error == null) DiagnosticCode.OPERATION_PROGRESS else DiagnosticCode.OPERATION_FAILED,
+        DiagnosticSource.AI, if (error == null) DiagnosticLevel.INFO else DiagnosticLevel.WARNING,
+        fields = mapOf("hotNewsPlatform" to platform.key, "hotNewsStage" to stage, "aiPurpose" to "external_content") + fields,
+        error = error,
+    )
 }

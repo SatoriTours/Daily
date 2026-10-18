@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.unifiednews
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.service.hotnews.*
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.core.task.UnifiedNewsArticleQueue
@@ -144,6 +145,7 @@ class UnifiedNewsViewModel(
     private val sourceArticleRequestToken = AtomicLong(0L)
     private val sourceArticleRequestLock = Any()
     private var hotNewsRefreshJob: Job? = null
+    private val hotNewsRetryJobs = mutableMapOf<HotNewsPlatform, Job>()
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun observeArticleSummaries() {
@@ -175,9 +177,15 @@ class UnifiedNewsViewModel(
     }
 
     fun retryHotNews(board: HotNewsBoard) {
-        if (hotNewsRefreshJob?.isActive == true) return
-        hotNewsRefreshJob = viewModelScope.launch(Dispatchers.IO) {
-            if (board.error in setOf(HotNewsError.TRANSLATION_FAILED, HotNewsError.AI_NOT_CONFIGURED)) {
+        val busy = hotNewsRetryJobs[board.platform]?.isActive == true
+        val trace = DiagnosticTrace(DiagnosticLog.newId())
+        DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.APP,
+            fields = mapOf("operation" to "hot_news_retry", "hotNewsPlatform" to board.platform.key,
+                "retryState" to if (busy) "ignored_running" else "accepted"), trace = trace)
+        if (busy) return
+        hotNewsRetryJobs[board.platform] = viewModelScope.launch(Dispatchers.IO + DiagnosticLog.traceContext(trace)) {
+            if (board.error in setOf(HotNewsError.TRANSLATION_FAILED, HotNewsError.TRANSLATION_NETWORK_FAILED,
+                    HotNewsError.AI_NOT_CONFIGURED)) {
                 hotNews.retryTranslations(board.platform)
             } else hotNews.refresh(board.platform, force = true)
         }
