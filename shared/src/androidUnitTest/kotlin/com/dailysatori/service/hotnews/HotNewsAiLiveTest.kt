@@ -64,16 +64,17 @@ class HotNewsAiLiveTest {
                 val translator = HotNewsTranslator(AiService(http), AiConfigService(configs))
                 val store = HotNewsStore(SettingRepository(DailySatoriDatabase(driver)))
                 for (platform in listOf(HotNewsPlatform.GITHUB, HotNewsPlatform.HACKER_NEWS)) {
-                    val input = client.fetch(platform).takeLast(5)
+                    val ranking = client.fetch(platform)
+                    val input = if (platform == HotNewsPlatform.HACKER_NEWS) ranking else ranking.takeLast(5)
                     assertTrue(input.isNotEmpty(), "${platform.key}: 榜单为空，未完成真实验证")
                     store.save(HotNewsBoard(platform, input, 1L, HotNewsError.TRANSLATION_FAILED))
                     val service = HotNewsService(client, store, translator::translate)
                     service.retryTranslations(platform)
                     val board = service.boards.value.first { it.platform == platform }
-                    assertNull(board.error, "${platform.key}: 真实翻译重试未完成")
                     val translated = board.items.filter { it.chineseTitle != null }
                     val missing = input.filter { item -> translated.none { it.identity == item.identity } }
                     println("${platform.key}: translated=${translated.size}/${input.size}, missing=${missing.map { it.identity }}")
+                    assertNull(board.error, "${platform.key}: 真实翻译重试未完成，条目 ${missing.map { it.identity }}")
                     assertTrue(missing.isEmpty(), "${platform.key}: 未完成的真实条目 ${missing.map { it.identity }}")
                     assertEquals(input.map { it.url }, translated.map { it.url })
                     assertTrue(translated.all { isChineseHotNewsText(it.chineseTitle.orEmpty()) })
@@ -100,12 +101,18 @@ class HotNewsAiLiveTest {
                     HotNewsItem("11", HotNewsPlatform.HACKER_NEWS, 8, "Building a local-first reading tool",
                         "https://example.com/reading", "A reading tool stores articles locally and supports exporting saved documents.",
                         discussionUrl = "https://news.ycombinator.com/item?id=11"),
+                    HotNewsItem("50126253", HotNewsPlatform.HACKER_NEWS, 9,
+                        "Bleached corals recover within days after contact with healthy neighbours",
+                        "https://example.com/corals", "https://archive.ph/zIPG4",
+                        discussionUrl = "https://news.ycombinator.com/item?id=50126253"),
                 )
                 val result = HotNewsTranslator(AiService(http), AiConfigService(configs)).translate(input)
                 assertEquals(input.map { it.identity }, result.map { it.identity })
                 assertEquals(input.map { it.url }, result.map { it.url })
                 assertEquals(input.last().discussionUrl, result.last().discussionUrl)
-                result.forEach { assertTrue(isChineseHotNewsText(it.chineseTitle.orEmpty())); assertTrue(isChineseHotNewsText(it.chineseSummary.orEmpty())) }
+                result.forEach { assertTrue(isChineseHotNewsText(it.chineseTitle.orEmpty())) }
+                result.take(2).forEach { assertTrue(isChineseHotNewsText(it.chineseSummary.orEmpty())) }
+                assertEquals("https://archive.ph/zIPG4", result.last().chineseSummary)
             }
         }
     }

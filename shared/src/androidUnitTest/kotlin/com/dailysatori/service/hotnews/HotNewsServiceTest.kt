@@ -84,6 +84,46 @@ class HotNewsServiceTest {
         }
     }
 
+    @Test fun repositoryWithoutDescriptionGetsAFactualChineseLabelWithoutAi() = runBlocking {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val configs = com.dailysatori.data.repository.AIConfigRepository(DailySatoriDatabase(driver))
+            HttpClient(MockEngine { error("Repository metadata does not need an AI request") }).use { http ->
+                val input = HotNewsItem("android/skills", HotNewsPlatform.GITHUB, 1, "android/skills",
+                    "https://github.com/android/skills")
+                val translator = HotNewsTranslator(com.dailysatori.service.ai.AiService(http),
+                    com.dailysatori.service.ai.AiConfigService(configs))
+                val result = translator.translate(listOf(input)).single()
+                assertEquals("android/skills：代码仓库", result.chineseTitle)
+                assertEquals("", result.chineseSummary)
+                assertEquals(input.identity, result.identity)
+                assertEquals(input.url, result.url)
+            }
+        }
+    }
+
+    @Test fun versionedNameWithOnlyReferencesGetsAFactualLabelWithoutInventingFacts() = runBlocking<Unit> {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val configs = com.dailysatori.data.repository.AIConfigRepository(DailySatoriDatabase(driver))
+            HttpClient(MockEngine { error("A versioned name and reference links need no AI request") }).use { http ->
+                val input = HotNewsItem("50129045", HotNewsPlatform.HACKER_NEWS, 1, "DeepSeek-v4.1-Flash-1017",
+                    "https://example.com/model", "[https://example.com/source](https://example.com/source)")
+                val translator = HotNewsTranslator(com.dailysatori.service.ai.AiService(http),
+                    com.dailysatori.service.ai.AiConfigService(configs))
+                val result = translator.translate(listOf(input)).single()
+                assertEquals("热榜条目：DeepSeek-v4.1-Flash-1017", result.chineseTitle)
+                assertEquals(input.description, result.chineseSummary)
+                assertEquals(input.identity, result.identity)
+                assertEquals(input.url, result.url)
+                val prose = input.copy(originalTitle = "Why DeepSeek-v4.1 matters")
+                assertFailsWith<HotNewsAiNotConfigured> { translator.translate(listOf(prose)) }
+                val described = input.copy(description = "A model for solving reasoning tasks")
+                assertFailsWith<HotNewsAiNotConfigured> { translator.translate(listOf(described)) }
+            }
+        }
+    }
+
     @Test fun chineseTechnologyTitlesCanRetainRepositoryAndProductNames() {
         assertTrue(isChineseHotNewsText("microsoft/markitdown：将文档转成 Markdown"))
         assertTrue(isChineseHotNewsText("用 Python 实现本地阅读工具"))

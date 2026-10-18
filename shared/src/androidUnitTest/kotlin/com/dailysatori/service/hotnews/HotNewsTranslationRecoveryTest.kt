@@ -28,6 +28,33 @@ class HotNewsTranslationRecoveryTest {
         assertEquals("文档转换工具", result.single().chineseTitle)
     }
 
+    @Test fun linkOnlyDescriptionsAreReferencesNotUntranslatedProse() {
+        val references = listOf(
+            "https://archive.ph/zIPG4",
+            "[https://example.com/source](https://example.com/source)",
+            "<https://example.com/source>\nhttps://example.com/other",
+        )
+        references.forEach { reference ->
+            val item = items.first().copy(description = reference)
+            val result = parseHotNewsTranslations(
+                """[{"id":"github:acme/docs","title":"文档转换工具","summary":"https://untrusted.example/changed"}]""",
+                listOf(item),
+            ).single()
+            assertEquals(reference, result.chineseSummary)
+            assertEquals(item.url, result.url)
+        }
+    }
+
+    @Test fun linkOnlySummaryCannotStandInForUntranslatedEnglishProse() {
+        val item = items.first().copy(description = "Read the original report at https://example.com/source")
+        assertFailsWith<HotNewsTranslationFormatException> {
+            parseHotNewsTranslations(
+                """[{"id":"github:acme/docs","title":"文档转换工具","summary":"https://example.com/source"}]""",
+                listOf(item),
+            )
+        }
+    }
+
     @Test fun omittedEntriesDoNotDiscardMatchingTranslations() {
         val result = parseHotNewsTranslations(
             """[{"id":"github:acme/reader","title":"本地阅读工具","summary":""}]""", items)

@@ -65,6 +65,27 @@ class HotNewsDiagnosticsTest {
     }
 
     @Test
+    fun rejectedEntriesExplainValidationWithoutRecordingResponseContent() {
+        Fixture().use { fixture ->
+            val item = HotNewsItem("private-id-canary", HotNewsPlatform.GITHUB, 1, "private-title-canary",
+                "https://private-canary.invalid", description = "private-description-canary")
+            val responses = listOf(
+                "private-json-canary",
+                """[{"id":"wrong-id-canary","title":"中文标题","summary":"中文简介"}]""",
+                """[{"id":"github:private-id-canary","title":"private-English-canary","summary":"中文简介"}]""",
+                """[{"id":"github:private-id-canary","title":"中文标题","summary":"private-English-canary"}]""",
+                """[{"id":"github:private-id-canary","title":"中文标题","summary":""}]""",
+            )
+            responses.forEach { response ->
+                assertFailsWith<HotNewsTranslationFormatException> { parseHotNewsTranslations(response, listOf(item)) }
+            }
+            assertEquals(listOf("json", "identity", "title", "summary", "missing_summary"),
+                fixture.events.mapNotNull { it.attributes["hotNewsValidation"] })
+            assertPrivateDataAbsent(fixture.events.toList())
+        }
+    }
+
+    @Test
     fun missingAiConfigurationIsDiagnosedWithoutMakingARequest() = runBlocking {
         Fixture(configured = false).use { fixture ->
             fixture.service.retryTranslations(HotNewsPlatform.GITHUB)

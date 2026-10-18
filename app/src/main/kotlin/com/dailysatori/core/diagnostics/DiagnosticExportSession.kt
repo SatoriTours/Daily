@@ -3,7 +3,7 @@ package com.dailysatori.core.diagnostics
 import com.dailysatori.service.diagnostics.DiagnosticLog
 import java.io.OutputStream
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +48,7 @@ class DiagnosticExportSession(
             val id = DiagnosticLog.newId()
             token = id
             mutableState.value = DiagnosticExportState(DiagnosticExportPhase.AWAITING_DESTINATION)
-            val time = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneOffset.UTC).format(Instant.ofEpochMilli(snapshot!!.endMs))
+            val time = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", java.util.Locale.ROOT).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(snapshot!!.endMs))
             return DiagnosticExportRequest(id, "DailySatori-${if (crash) "crash" else "diagnostics"}-$time.txt")
         } catch (cancelled: CancellationException) {
             release(); mutableState.value = DiagnosticExportState(); throw cancelled

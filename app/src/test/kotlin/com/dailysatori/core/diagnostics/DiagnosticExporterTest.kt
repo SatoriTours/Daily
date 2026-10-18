@@ -13,6 +13,68 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 
 class DiagnosticExporterTest {
     @Test
+    fun reportUsesPhoneTimeZoneAtExportForWindowAndEveryEvent() = runBlocking<Unit> {
+        val previous = java.util.TimeZone.getDefault()
+        val root = Files.createTempDirectory("diagnostic-local-time").toFile()
+        val time = java.time.Instant.parse("2026-10-18T12:36:06.618Z").toEpochMilli()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+            val exporter = DiagnosticExporter("test", 1, 26)
+            DiagnosticStore(root, clock = { time }).use { store ->
+                Diagnostics(store, now = { time }).emit(DiagnosticCode.APP_START, DiagnosticSource.APP)
+                store.snapshot(time).use { snapshot ->
+                    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Shanghai"))
+                    val output = ByteArrayOutputStream()
+                    exporter.write(snapshot, output)
+                    val text = output.toString("UTF-8")
+                    assertTrue(text.contains("timeZone=Asia/Shanghai"))
+                    assertTrue(text.contains("window=[2026-10-18 20:06:06.618 +08:00, 2026-10-18 20:36:06.618 +08:00]"))
+                    assertTrue(text.contains("actualFirst=2026-10-18 20:36:06.618 +08:00"))
+                    val line = text.lineSequence().single { it.startsWith("{\"timestampMs\"") }
+                    assertTrue(line.contains("\"localTime\":\"2026-10-18 20:36:06.618 +08:00\""))
+                    assertEquals(time, diagnosticJson.decodeFromString(SafeDiagnosticEvent.serializer(), line).timestampMs)
+                }
+                val session = DiagnosticExportSession(store, exporter, clock = { time })
+                val request = assertNotNull(session.prepare())
+                assertEquals("DailySatori-diagnostics-20261018-203606.txt", request.fileName)
+                session.cancel(request.token)
+            }
+        } finally {
+            java.util.TimeZone.setDefault(previous)
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun reportResolvesDaylightSavingOffsetForEachEvent() {
+        val previous = java.util.TimeZone.getDefault()
+        val root = Files.createTempDirectory("diagnostic-dst").toFile()
+        val events = java.io.File(root, "events.jsonl")
+        val winter = java.time.Instant.parse("2026-01-18T12:00:00Z").toEpochMilli()
+        val summer = java.time.Instant.parse("2026-07-18T12:00:00Z").toEpochMilli()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/New_York"))
+            val captured = mutableListOf<SafeDiagnosticEvent>()
+            for (time in listOf(winter, summer)) {
+                Diagnostics(DiagnosticSink { captured.add(it); true }, now = { time })
+                    .emit(DiagnosticCode.APP_START, DiagnosticSource.APP)
+            }
+            events.writeText(captured.joinToString("\n") { diagnosticJson.encodeToString(SafeDiagnosticEvent.serializer(), it) })
+            DiagnosticSnapshot(events, winter, summer, DiagnosticHealth()).use { snapshot ->
+                val output = ByteArrayOutputStream()
+                DiagnosticExporter("test", 1, 26).write(snapshot, output)
+                val text = output.toString("UTF-8")
+                assertTrue(text.contains("\"localTime\":\"2026-01-18 07:00:00.000 -05:00\""))
+                assertTrue(text.contains("\"localTime\":\"2026-07-18 08:00:00.000 -04:00\""))
+                assertEquals(2, text.lineSequence().count { it.startsWith("{\"timestampMs\"") })
+            }
+        } finally {
+            java.util.TimeZone.setDefault(previous)
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun reportContainsFactsAndCoverageWithoutPrivateData() = runBlocking<Unit> {
         val root = Files.createTempDirectory("diagnostic-report").toFile()
         DiagnosticStore(root).use { store ->
