@@ -2,6 +2,10 @@ package com.dailysatori.core.diagnostics
 
 import com.dailysatori.service.diagnostics.DiagnosticCode
 import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticLevel
+import com.dailysatori.service.diagnostics.DiagnosticSink
+import com.dailysatori.service.diagnostics.DiagnosticSource
+import com.dailysatori.service.diagnostics.Diagnostics
 import com.dailysatori.service.diagnostics.SafeDiagnosticEvent
 import java.io.File
 import java.io.RandomAccessFile
@@ -45,6 +49,11 @@ class DiagnosticRecoveryReader(
         val startupTime = if (crash) startupMarker()?.substringBefore(':')?.toLongOrNull() else null
         val end = lastCrash?.event?.timestampMs ?: startupTime?.let { minOf(endTimeMs, it + DiagnosticStore.WINDOW_MS) } ?: endTimeMs
         val start = end - DiagnosticStore.WINDOW_MS
+        // Recovery/export runs without starting the business process, so its final exit may not
+        // have reached the ordinary log yet. Read Android's main-process history directly.
+        val systemExit = runCatching { previousExit(start - 1) }.getOrNull()
+            ?.takeIf { it.timestampMs in start..end }
+        var hasSystemExit = false
         val target = File(recoveryRoot, "snapshot-${DiagnosticLog.newId()}.jsonl")
         val tail = ArrayDeque<String>()
         var bytes = 0L
@@ -55,6 +64,9 @@ class DiagnosticRecoveryReader(
         }.getOrDefault(DiagnosticHealth())
         fun append(event: SafeDiagnosticEvent) {
             if (event.timestampMs !in start..end) return
+            if (event.eventCode == DiagnosticCode.PROCESS_EXIT &&
+                event.attributes["exitTimestampMs"] == systemExit?.timestampMs?.toString() &&
+                event.attributes["reason"] == systemExit?.reason?.toString()) hasSystemExit = true
             val line = diagnosticJson.encodeToString(SafeDiagnosticEvent.serializer(), event)
             val size = line.toByteArray(Charsets.UTF_8).size + 1
             if (size > policy.crashBytes) { truncated++; return }
@@ -73,10 +85,17 @@ class DiagnosticRecoveryReader(
                 } catch (_: java.io.IOException) { corrupt++ } // Another process may prune a segment while we read.
             }
             if (lastCrash != null && !lastCrash.archived) append(lastCrash.event)
+            if (systemExit != null && !hasSystemExit) {
+                Diagnostics(DiagnosticSink { append(it); true }, now = { systemExit.timestampMs })
+                    .emit(DiagnosticCode.PROCESS_EXIT, DiagnosticSource.APP,
+                        if (systemExit.isCrash) DiagnosticLevel.ERROR else DiagnosticLevel.INFO,
+                        fields = mapOf("reason" to systemExit.reason.toString(),
+                            "exitTimestampMs" to systemExit.timestampMs.toString()))
+            }
             target.bufferedWriter().use { writer -> tail.forEach { writer.write(it); writer.newLine() } }
             return DiagnosticSnapshot(target, start, end,
                 savedHealth.copy(corruptLines = savedHealth.corruptLines + corrupt,
-                    truncatedEvents = savedHealth.truncatedEvents + truncated), crash = lastCrash != null)
+                    truncatedEvents = savedHealth.truncatedEvents + truncated), crash = lastCrash != null || systemExit?.isCrash == true)
         } catch (failure: Exception) { target.delete(); throw failure }
     }
 

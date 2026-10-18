@@ -32,7 +32,8 @@ object DiagnosticRuntime {
         if (::store.isInitialized) return
         store = DiagnosticStore(File(application.noBackupFilesDir, "diagnostics"), previousExit = { lastSeen ->
             try {
-                DiagnosticExitInfoReader.read(application, lastSeen).also {
+                // Other app processes' exits must not mask the main process's exit reason.
+                DiagnosticExitInfoReader.read(application, lastSeen, application.packageName).also {
                     exitInfoCoverage = when {
                         Build.VERSION.SDK_INT < 30 -> "unsupported-api"
                         it == null -> "no-new-exit"

@@ -12,4 +12,17 @@ class DiagnosticExitInfoReaderTest {
         assertFalse(DiagnosticExit(30, 10).isCrash)
         assertTrue(DiagnosticExit(30, 6).isCrash)
     }
+
+    @Test
+    fun newerExitFromAnotherProcessDoesNotShadowTheCurrentProcess() {
+        val records = listOf(
+            DiagnosticExit(30, 13, "com.dailysatori"),
+            DiagnosticExit(40, 1, "com.dailysatori:diagnostics"),
+        )
+        assertEquals(DiagnosticExit(30, 13, "com.dailysatori"),
+            DiagnosticExitInfoReader.select(30, 20, records, "com.dailysatori"))
+        assertNull(DiagnosticExitInfoReader.select(30, 35, records, "com.dailysatori"))
+        assertEquals(DiagnosticExit(40, 1, "com.dailysatori:diagnostics"),
+            DiagnosticExitInfoReader.select(30, 20, records, "com.dailysatori:diagnostics"))
+    }
 }

@@ -126,6 +126,60 @@ class DiagnosticRecoveryReaderTest {
     }
 
     @Test
+    fun manualExportReadsSystemExitWithoutRestartingOrMutatingTheMainProcess() {
+        val directory = Files.createTempDirectory("recovery-system-exit").toFile()
+        try {
+            val root = File(directory, "diagnostics").apply { mkdirs() }
+            val history = File(root, "events/00000000000000000001.jsonl").apply {
+                parentFile!!.mkdirs(); writeText(event(DiagnosticCode.APP_START, 9_000) + "\n")
+            }
+            val before = history.readText()
+            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"), clock = { 11_000 },
+                previousExit = { DiagnosticExit(10_000, 5, "com.dailysatori") })
+            reader.snapshot(false, 11_000).use { snapshot ->
+                val exit = snapshot.events().single { it.eventCode == DiagnosticCode.PROCESS_EXIT }
+                assertEquals("5", exit.attributes["reason"])
+                assertEquals(10_000L, exit.timestampMs)
+                assertTrue(snapshot.crash)
+            }
+            assertEquals(before, history.readText())
+            assertFalse(File(root, "crash-pending.json").exists())
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test
+    fun exportingSystemExitDoesNotDuplicateAlreadyRecordedExitOrInventACrash() {
+        val directory = Files.createTempDirectory("recovery-system-exit-duplicate").toFile()
+        try {
+            val root = File(directory, "diagnostics").apply { mkdirs() }
+            File(root, "events/00000000000000000001.jsonl").apply {
+                parentFile!!.mkdirs()
+                writeText(event(DiagnosticCode.PROCESS_EXIT, 10_000,
+                    mapOf("reason" to "1", "exitTimestampMs" to "10000")) + "\n")
+            }
+            val reader = DiagnosticRecoveryReader(root, File(directory, "recovery"), clock = { 11_000 },
+                previousExit = { DiagnosticExit(10_000, 1, "com.dailysatori") })
+            reader.snapshot(false, 11_000).use { snapshot ->
+                assertEquals(1, snapshot.events().count { it.eventCode == DiagnosticCode.PROCESS_EXIT })
+                assertFalse(snapshot.crash)
+            }
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test
+    fun systemExitOutsideSnapshotWindowIsNotIncluded() {
+        val directory = Files.createTempDirectory("recovery-system-exit-window").toFile()
+        try {
+            val reader = DiagnosticRecoveryReader(File(directory, "diagnostics"), File(directory, "recovery"),
+                clock = { 2_000_000 }, previousExit = { DiagnosticExit(1, 5, "com.dailysatori") })
+            reader.snapshot(false, 2_000_000).use { snapshot ->
+                assertEquals(0, snapshot.events().count())
+                assertFalse(snapshot.crash)
+            }
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test
     fun unfinishedStartupOnlyOffersRecoveryWhenSystemConfirmsACrash() {
         val directory = Files.createTempDirectory("recovery-early-startup").toFile()
         try {
@@ -138,7 +192,7 @@ class DiagnosticRecoveryReaderTest {
             assertFalse(reader.needsRecovery())
             exit = DiagnosticExit(System.currentTimeMillis(), 4)
             assertTrue(reader.needsRecovery())
-            reader.snapshot(true, System.currentTimeMillis()).use { assertFalse(it.crash) }
+            reader.snapshot(true, System.currentTimeMillis()).use { assertTrue(it.crash) }
             reader.acknowledgeCrash()
             assertFalse(reader.needsRecovery())
             DiagnosticRecoveryReader.startupStarted(root)
