@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
@@ -17,12 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.R
 import com.dailysatori.core.util.TimeUtils
-import com.dailysatori.service.hotnews.HotNewsPlatform
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
-import com.dailysatori.ui.component.card.articleDisplayDomain
 import com.dailysatori.ui.feature.myspace.opportunityActionLabelKey
 import com.dailysatori.ui.theme.*
 import org.koin.compose.koinInject
@@ -79,28 +76,17 @@ internal fun DailyHeadlinesPreview(
 @Composable
 private fun DailyHeadlineStoryRow(index: Int, story: DailyHeadlineStory, onOpen: (Unified_news_source) -> Unit) {
     val source = story.source
-    Row(Modifier.fillMaxWidth().clickable(enabled = source != null) { source?.let(onOpen) }.padding(vertical = Spacing.m),
+    Row(Modifier.fillMaxWidth().clickable(enabled = source != null) { source?.let(onOpen) }
+        .padding(vertical = Spacing.s + Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Text((index + 1).toString().padStart(2, '0'), Modifier.padding(top = Spacing.xs),
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(story.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
             story.description?.let { description ->
                 Text(description, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            if (source != null) {
-                val platform = HotNewsPlatform.entries.firstOrNull {
-                    source.source_type == "hot_news" && it.key == source.source_filename?.substringBefore(':')
-                }
-                val label = platform?.displayName ?: source.source_url?.takeIf { it.isNotBlank() }?.let(::articleDisplayDomain)
-                    ?: stringResource(R.string.news_focus_view_report)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, Modifier.size(IconSize.xs), tint = MaterialTheme.colorScheme.primary)
-                }
             }
         }
     }
@@ -116,30 +102,34 @@ internal fun TodayNewsOpportunityCard(
     val i18n: I18nService = koinInject()
     Card(onClick = onOpen, shape = RoundedCornerShape(Radius.m), modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Column(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+        Column(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s + Spacing.xs),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                if (item.category.isNotBlank()) {
-                    Text(item.category, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+            if (item.category.isNotBlank()) {
+                Surface(shape = RoundedCornerShape(Radius.xs),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)) {
+                    Text(item.category, Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                } else {
-                    Spacer(Modifier.weight(1f))
                 }
-                Text(item.article.source, Modifier.widthIn(max = Height.input + Spacing.xxl), style = MaterialTheme.typography.labelSmall,
+            }
+            Text(item.title, Modifier.padding(top = Spacing.xs),
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(item.relevance.ifBlank { item.action }, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            HorizontalDivider(Modifier.padding(top = Spacing.s), color = MaterialTheme.colorScheme.outlineVariant)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(item.article.source, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Icon(Icons.Default.ChevronRight, stringResource(R.string.news_focus_view_opportunity),
-                    Modifier.size(IconSize.xs), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.news_focus_view_opportunity), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.xs), tint = MaterialTheme.colorScheme.primary)
                 IconButton(onClick = onTopicAction, modifier = Modifier.size(Height.buttonSmall)) {
                     Icon(Icons.Outlined.Lightbulb, i18n.t(opportunityActionLabelKey(isCaptured)), Modifier.size(IconSize.s),
                         tint = if (isCaptured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(item.relevance.ifBlank { item.action }, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }

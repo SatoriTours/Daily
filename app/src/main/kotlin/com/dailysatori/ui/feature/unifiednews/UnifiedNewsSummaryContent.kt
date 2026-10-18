@@ -180,7 +180,7 @@ internal fun latestHeadlinesSummary(
 
 @Composable
 private fun OpportunitySectionHeader(onMore: () -> Unit, progress: String?, onCancel: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(top = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(stringResource(R.string.news_focus_for_you),
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

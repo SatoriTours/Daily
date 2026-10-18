@@ -5,9 +5,9 @@
     <string name="news_focus_tab">Today</string>
     <string name="news_focus_read_briefing">Read full briefing</string>
     <string name="news_focus_view_report">View original report</string>
-    <string name="news_focus_for_you">For you</string>
+    <string name="news_focus_for_you">Highlights</string>
     <string name="news_focus_view_all">View all</string>
-    <string name="news_focus_view_opportunity">View opportunity</string>
+    <string name="news_focus_view_opportunity">View details</string>
     <string name="news_focus_headlines">Today’s headlines</string>
     <string name="news_focus_past_headlines">Headlines</string>
     <string name="news_focus_read_more">Read the news →</string>
@@ -16,7 +16,7 @@
     <string name="news_focus_continuous_detail">Updated from news, retained across dates</string>
     <string name="news_focus_ranking_hint">Capture as ideas to advance; added tasks leave recommendations</string>
     <string name="news_focus_recommended">Recommended</string>
-    <string name="news_focus_recommended_count">For you · %1$d opportunities</string>
+    <string name="news_focus_recommended_count">Highlights · %1$d items</string>
     <string name="news_focus_direction">Focus: %1$s</string>
     <string name="news_focus_adjust">Adjust</string>
     <string name="news_focus_history">Choose a date</string>
