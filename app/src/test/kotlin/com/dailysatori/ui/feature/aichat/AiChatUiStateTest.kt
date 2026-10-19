@@ -620,7 +620,7 @@ class AiChatUiStateTest {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
         val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
 
-        assertTrue(home.contains("homeBottomBarVisibleForTab(selectedIndex)"))
+        assertTrue(home.contains("shouldShowHomeBottomBar(selectedIndex, isHotNewsDetailOpen)"))
         assertTrue(home.contains("val isAiMode = aiInputController != null"))
         assertTrue(home.contains("visible = isAiMode"))
         assertTrue(home.contains("HomeBottomBarSurface("))
