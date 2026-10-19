@@ -297,6 +297,16 @@ private fun UnifiedNewsSummaryPage(
                         embeddedSearchQuery = pageState.searchQuery,
                         scrollToTopRequestKey = pageState.scrollToTopRequestKey,
                     )
+                    UnifiedNewsSourceSelection.Favorites -> ArticleListScreen(
+                        onArticleClick = onArticleClick,
+                        showTopBar = false,
+                        showFavoritesOnly = true,
+                        lockFavoritesFilter = true,
+                        viewModelKey = pageKey,
+                        refreshRequestKey = pageState.localArticleRefreshRequestKey,
+                        embeddedSearchQuery = pageState.searchQuery,
+                        scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                    )
                     UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
                         onArticleClick = onArticleClick,
                         showTopBar = false,
@@ -343,7 +353,8 @@ private fun unifiedNewsHeaderTabs(pages: List<UnifiedNewsSourceSelection>, onSel
             UnifiedNewsSourceSelection.Hotlists -> stringResource(R.string.news_hotlists_tab)
             is UnifiedNewsSourceSelection.RemoteSource -> selection.name
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name
-            UnifiedNewsSourceSelection.LocalArticles -> "本地新闻"
+            UnifiedNewsSourceSelection.LocalArticles -> stringResource(R.string.news_manual_tab)
+            UnifiedNewsSourceSelection.Favorites -> stringResource(R.string.news_favorites_tab)
         }
         HomeCompactTab(title) { onSelect(index) }
     }

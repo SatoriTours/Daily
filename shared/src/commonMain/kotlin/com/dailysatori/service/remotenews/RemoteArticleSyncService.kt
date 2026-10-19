@@ -17,6 +17,29 @@ class RemoteArticleSyncService(
     private val articleRepo: ArticleRepository,
     private val syncRepo: RemoteArticleSyncRepository,
 ) {
+    /** Reading never depends on the network once an article has been saved. */
+    suspend fun readLocalArticle(
+        remoteSourceId: Long?,
+        remoteArticleId: Long,
+        sourceDate: String,
+        url: String? = null,
+        download: suspend () -> RemoteArticle,
+    ): com.dailysatori.shared.db.Article {
+        val mapped = remoteSourceId?.let { syncRepo.findByRemoteIdentity(it, remoteArticleId) }
+        val local = mapped?.article_id?.let(articleRepo::getById) ?: url?.let(articleRepo::getByUrl)
+        if (local != null) return local
+        val downloaded = download()
+        if (remoteSourceId != null) {
+            val result = syncSourceArticles(remoteSourceId, sourceDate, listOf(downloaded),
+                kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+            check(result.failures.isEmpty()) { "文章保存失败" }
+            return syncRepo.findByRemoteIdentity(remoteSourceId, downloaded.id)?.article_id?.let(articleRepo::getById)
+                ?: error("文章保存失败")
+        }
+        val saved = articleRepo.saveRemoteArticleForSync(downloaded) ?: error("文章保存失败")
+        return articleRepo.getById(saved.article.id) ?: error("文章保存失败")
+    }
+
     fun syncSourceArticles(
         remoteSourceId: Long,
         sourceDate: String,

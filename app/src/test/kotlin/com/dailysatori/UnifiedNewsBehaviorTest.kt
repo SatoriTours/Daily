@@ -273,21 +273,21 @@ class UnifiedNewsBehaviorTest {
         val openSourceArticleBody = viewModel.substringAfter("fun openSourceArticle(").substringBefore("fun toggleSelectedRemoteArticleFavorite")
 
         assertTrue(viewModel.contains("fun openSourceArticle(article: RemoteArticle)"))
-        assertTrue(openSourceArticleBody.contains("selectedRemoteArticle = article"))
+        assertTrue(openSourceArticleBody.contains("remoteArticleSyncService.readLocalArticle"))
         assertFalse(openSourceArticleBody.contains("openCitationSource"))
-        assertTrue(screen.contains("viewModel.openSourceArticle(article)"))
+        assertTrue(screen.contains("viewModel.openLocalArticle(article.id)"))
         assertFalse(screen.contains("viewModel.openSourceArticle(selection.id, article.id)"))
     }
 
     @Test
-    fun unifiedSourceArticleOpensEvenWhenFavoriteLookupFails() {
+    fun unifiedSourceArticlePersistsBeforeOpeningLocalDetail() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openBody = viewModel.substringAfter("fun openSourceArticle(article: RemoteArticle)").substringBefore("fun toggleSelectedRemoteArticleFavorite")
 
-        assertTrue(openBody.contains("selectedRemoteArticle = article"))
-        assertTrue(openBody.contains("runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()"))
-        assertTrue(openBody.contains("selectedRemoteArticleIsFavorite = local?.is_favorite == 1L"))
-        assertFalse(openBody.contains("catch (_: Exception)"))
+        assertTrue(openBody.contains("remoteArticleSyncService.readLocalArticle"))
+        assertTrue(openBody.contains("UnifiedNewsNavigationTarget.LocalArticle(local.id)"))
+        assertTrue(openBody.contains("ifLatestDetailRequest(token)"))
+        assertFalse(openBody.contains("selectedRemoteArticle = article"))
     }
 
     @Test
@@ -379,12 +379,12 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedCitationRemoteArticleFetchesRemoteDetailWithoutLocalCache() {
+    fun unifiedCitationRemoteArticleDownloadsOnlyThroughLocalReader() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
 
         assertTrue(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
-        assertTrue(openRemoteArticleBody.contains("selectedRemoteArticle ="))
+        assertTrue(openRemoteArticleBody.contains("remoteArticleSyncService.readLocalArticle"))
         assertFalse(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
         assertTrue(openRemoteArticleBody.contains("文章内容不可用"))
     }
@@ -413,15 +413,15 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedLegacyRemoteArticleCitationDoesNotCreateLocalArticleUntilFavorite() {
+    fun unifiedLegacyRemoteArticleCitationUsesLocalDetailAndKeepsSourceIdentity() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
 
         assertTrue(viewModel.contains("fun openCitation(source: Unified_news_source)"))
-        assertTrue(openRemoteArticleBody.contains("source.source_url?.let(articleRepo::getByUrl)"))
-        assertTrue(openRemoteArticleBody.contains("local?.is_favorite == 1L"))
-        assertFalse(openRemoteArticleBody.contains("if (local != null)"))
-        assertTrue(openRemoteArticleBody.contains("selectedRemoteArticle"))
+        assertTrue(openRemoteArticleBody.contains("source.source_url"))
+        assertTrue(openRemoteArticleBody.contains("parseRemoteNewsSourceRouteKey(source.source_filename)"))
+        assertTrue(openRemoteArticleBody.contains("UnifiedNewsNavigationTarget.LocalArticle(local.id)"))
+        assertFalse(openRemoteArticleBody.contains("selectedRemoteArticle ="))
         assertFalse(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
         assertFalse(openRemoteArticleBody.contains("toRemoteArticleForLocalCache"))
     }
@@ -1588,8 +1588,8 @@ class UnifiedNewsBehaviorTest {
         val settings = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
         val citationText = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/CitationText.kt").readText()
 
-        assertTrue(screen.contains("本地新闻"))
-        assertTrue(screen.contains("本地收藏"))
+        assertTrue(screen.contains("R.string.news_manual_tab"))
+        assertTrue(screen.contains("R.string.news_favorites_tab"))
         assertFalse(screen.contains("CrayfishNewsScreen"))
         assertFalse(screen.contains("RemoteNewsScreen"))
         assertFalse(screen.contains("UnifiedNewsPage.REMOTE_NEWS"))
@@ -1672,7 +1672,7 @@ class UnifiedNewsBehaviorTest {
         val refreshBody = viewModel.requiredSubstringAfter("fun refreshSelectedSource()").requiredSubstringBefore("fun refreshSelectedRemoteSource")
         val localSourceBody = viewModel.requiredSubstringAfter("fun selectLocalArticlesSource()").requiredSubstringBefore("fun refreshSelectedSource")
 
-        assertTrue(screen.contains("本地新闻"))
+        assertTrue(screen.contains("R.string.news_manual_tab"))
         assertTrue(screen.contains("UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen("))
         assertTrue(screen.contains("showTopBar = false"))
         assertTrue(sourceSwitcher.contains("state.remoteSources.forEach { source ->"))
@@ -2347,7 +2347,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(viewModel.contains("selectedCrayfish"))
         assertTrue(viewModel.contains("detailRequestToken") || viewModel.contains("detailLoadJob"))
         assertTrue(viewModel.substringAfter("fun closeSourceDetail()").substringBefore("fun switchPage").contains("detailRequestToken"))
-        assertTrue(viewModel.contains("withUnifiedNewsSourceDetailCleared"))
+        assertTrue(viewModel.contains("beginDetailRequest(UnifiedNewsNavigationTarget.LocalArticle(id))"))
         assertTrue(viewModel.contains("withUnifiedNewsDetailRequestStarted"))
         assertTrue(viewModel.contains("withUnifiedNewsSourceDetailClosed"))
         assertTrue(viewModel.substringAfter("fun loadInitial()").substringBefore("fun openCitation").contains("catch") || viewModel.substringAfter("fun loadInitial()").substringBefore("fun openCitation").contains("runCatching"))
@@ -2424,11 +2424,11 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsRemoteArticleFallbackDoesNotUseSummaryAsOriginalContent() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val fallbackBody = viewModel.substringAfter("private fun Unified_news_source.toRemoteArticleForDisplay()").substringBefore("private fun fetchSourceArticles")
+        val detailBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
 
-        assertTrue(fallbackBody.contains("summary = this.summary"))
-        assertTrue(fallbackBody.contains("content = null"))
-        assertFalse(fallbackBody.contains("content = this.summary"))
+        assertTrue(detailBody.contains("remoteArticleSyncService.readLocalArticle"))
+        assertFalse(detailBody.contains("source.toRemoteArticleForDisplay()"))
+        assertFalse(detailBody.contains("content = this.summary"))
     }
 
     private fun String.requiredSubstringAfter(marker: String): String {

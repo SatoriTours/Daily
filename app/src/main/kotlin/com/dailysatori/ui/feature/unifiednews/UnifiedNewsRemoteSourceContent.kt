@@ -71,6 +71,7 @@ internal fun UnifiedNewsSourceArticleContent(
             sourceArticlesError = state.sourceArticlesError,
             canLoadMore = isActive && state.searchQuery.isBlank(),
             scrollToTopRequestKey = state.scrollToTopRequestKey,
+            favoriteArticleIds = state.favoriteArticleIdentities.keys,
             viewModel = viewModel,
         )
     }
@@ -85,6 +86,7 @@ private fun UnifiedNewsSourceArticleList(
     sourceArticlesError: String?,
     canLoadMore: Boolean,
     scrollToTopRequestKey: Int,
+    favoriteArticleIds: Set<Long>,
     viewModel: UnifiedNewsViewModel,
 ) {
     val listState = rememberLazyListState()
@@ -109,7 +111,9 @@ private fun UnifiedNewsSourceArticleList(
                 NewsStatusBanner(message = "刷新失败，正在显示已同步文章：$sourceArticlesError")
             }
             items(articles, key = { it.id }) { article ->
-                RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(article) }
+                RemoteArticleSummaryCard(article, isFavorite = article.id in favoriteArticleIds) {
+                    viewModel.openLocalArticle(article.id)
+                }
             }
             if (isLoadingMore) item(key = "source-article-loading-more") {
                 Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {

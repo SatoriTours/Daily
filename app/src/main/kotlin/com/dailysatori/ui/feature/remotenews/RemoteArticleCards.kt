@@ -8,11 +8,13 @@ import com.dailysatori.ui.component.news.MagazineNewsCard
 import com.dailysatori.ui.component.news.cleanNewsIntroText
 
 @Composable
-fun RemoteArticleSummaryCard(article: RemoteArticle, onClick: () -> Unit) {
+fun RemoteArticleSummaryCard(article: RemoteArticle, isFavorite: Boolean = false, onClick: () -> Unit) {
     MagazineNewsCard(
         title = article.title.orEmpty(),
         summary = remoteArticleIntroText(article),
-        meta = remoteArticleMetaText(article),
+        meta = listOfNotNull(
+            androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_article_favorited).takeIf { isFavorite }, remoteArticleMetaText(article))
+            .joinToString(" · ").takeIf { it.isNotBlank() },
         coverUrl = article.coverUrl,
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),

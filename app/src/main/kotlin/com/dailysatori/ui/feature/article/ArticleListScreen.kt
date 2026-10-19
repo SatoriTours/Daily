@@ -150,6 +150,10 @@ private fun ArticleListEffects(
     fun firstVisibleArticleId(): Long? = state.articles.getOrNull(listState.firstVisibleItemIndex)?.id
     fun isAtTop(): Boolean = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
     val articleIds = remember(state.articles) { state.articles.map { it.id } }
+    val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+    LaunchedEffect(lastVisibleIndex, state.hasMore) {
+        if (state.hasMore && lastVisibleIndex >= state.articles.size - 5) viewModel.loadMoreArticles()
+    }
     LaunchedEffect(effectiveShowFavoritesOnly) { viewModel.setFavoritesOnly(effectiveShowFavoritesOnly) }
     LaunchedEffect(externalFavoriteSourceId, embeddedSearchQuery) {
         viewModel.setExternalFavoriteSource(externalFavoriteSourceId)
@@ -162,10 +166,10 @@ private fun ArticleListEffects(
             viewModel.clearNewArticlesIndicator()
         }
     }
-    LaunchedEffect(state.scrollToTopRequest, state.articles.isNotEmpty()) {
-        if (shouldScrollToTopAfterArticleAdded(state.scrollToTopRequest) && state.articles.isNotEmpty()) {
+    LaunchedEffect(state.scrollToTopRequest, articleIds) {
+        if (shouldScrollToTopAfterArticleAdded(state.scrollToTopRequest) && state.addedArticleId in articleIds) {
             listState.animateScrollToItem(0)
-            viewModel.clearNewArticlesIndicator()
+            viewModel.consumeAddedArticleScroll()
         }
     }
     LaunchedEffect(isAtTop()) { if (isAtTop()) viewModel.clearNewArticlesIndicator() }

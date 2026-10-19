@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -59,6 +60,7 @@ sealed class UnifiedNewsSourceSelection {
     data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data class ExternalFavoriteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data object LocalArticles : UnifiedNewsSourceSelection()
+    data object Favorites : UnifiedNewsSourceSelection()
 }
 
 data class UnifiedNewsRemoteSourceOption(val id: Long, val name: String)
@@ -103,6 +105,7 @@ data class UnifiedNewsState(
     val sourcesBySummaryId: Map<Long, List<Unified_news_source>> = emptyMap(),
     val articleIdsByNewsSource: Map<Long, Long> = emptyMap(),
     val articleSummariesById: Map<Long, String> = emptyMap(),
+    val favoriteArticleIdentities: Map<Long, String?> = emptyMap(),
     val navigationTarget: UnifiedNewsNavigationTarget? = null,
     val selectedRemoteDigest: RemoteDigest? = null,
     val selectedRemoteArticle: RemoteArticle? = null,
@@ -156,8 +159,42 @@ class UnifiedNewsViewModel(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private fun observeSelectedRemoteArticles() {
+        viewModelScope.launch(Dispatchers.IO) {
+            state.map { current ->
+                val id = (current.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id
+                id to maxOf(SOURCE_ARTICLE_PAGE_SIZE, current.sourceArticlesBySourceId[id]?.size?.toLong() ?: 0L)
+            }.distinctUntilChanged().flatMapLatest { (id, limit) ->
+                if (id == null) kotlinx.coroutines.flow.flowOf(Triple(null, limit, emptyList<Article>()))
+                else remoteArticleSyncRepo.observeArticlesBySource(id, limit + 1).map { Triple(id, limit, it) }
+                    .catch { _state.update { current ->
+                        if ((current.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == id)
+                            current.withUnifiedNewsSourceArticlesFailure("本地新闻读取失败，请稍后重试") else current
+                    } }
+            }.collect { (id, limit, articles) ->
+                if (id != null) _state.update { current ->
+                    if ((current.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id != id) current
+                    else current.copy(
+                        sourceArticlesBySourceId = current.sourceArticlesBySourceId + (id to articles.take(limit.toInt()).map { it.toRemoteArticleForDisplay() }),
+                        sourceArticlesHasMoreSourceIds = if (articles.size > limit) current.sourceArticlesHasMoreSourceIds + id
+                            else current.sourceArticlesHasMoreSourceIds - id,
+                    )
+                }
+            }
+        }
+    }
+
     init {
         observeArticleSummaries()
+        observeSelectedRemoteArticles()
+        viewModelScope.launch(Dispatchers.IO) {
+            articleRepo.observeFavoriteIdentities().catch {
+                _state.update { it.copy(error = "收藏状态读取失败，请稍后重试") }
+            }.collect { favorites ->
+                _state.update { it.copy(favoriteArticleIdentities = favorites) }
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             combine(hotNews.boards, hotNews.preferences) { boards, prefs ->
                 boards.filter { prefs.source(it.platform).enabled }
@@ -332,7 +369,6 @@ class UnifiedNewsViewModel(
     }
 
     fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption) {
-        val sourceArticlesCached = _state.value.sourceArticlesBySourceId.containsKey(source.id)
         invalidateSourceArticleRequest()
         _state.update {
             it.copy(
@@ -341,9 +377,7 @@ class UnifiedNewsViewModel(
                 searchQuery = "",
             )
         }
-        if (!sourceArticlesCached) {
-            fetchSourceArticles(source.id, force = false)
-        }
+        fetchSourceArticles(source.id, force = false)
     }
 
     fun selectExternalFavoriteSource(source: UnifiedNewsExternalFavoriteSourceOption) {
@@ -358,6 +392,11 @@ class UnifiedNewsViewModel(
         _state.update {
             it.copy(sourceSelection = UnifiedNewsSourceSelection.LocalArticles, searchQuery = "")
         }
+    }
+
+    fun selectFavoritesSource() {
+        invalidateSourceArticleRequest()
+        _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Favorites, searchQuery = "") }
     }
 
     fun toggleSearch() {
@@ -385,6 +424,7 @@ class UnifiedNewsViewModel(
             is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> incrementLocalArticleRefreshRequest()
             UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()
+            UnifiedNewsSourceSelection.Favorites -> incrementLocalArticleRefreshRequest()
         }
     }
 
@@ -411,53 +451,31 @@ class UnifiedNewsViewModel(
                     uniqueKey = "remote_article_sync:source:$sourceId",
                 )
                 asyncTaskScheduler.enqueue(taskId)
-                _state.update { it.copy(manualRefreshMessage = null, error = null) }
-                fetchSourceArticles(sourceId, force = true)
+                _state.update { it.copy(manualRefreshMessage = null, error = null,
+                    manualRefreshNotice = NewsManualRefreshNotice.STARTED) }
             } catch (_: Exception) {
                 _state.update { it.copy(error = "远程新闻源同步任务创建失败") }
             }
         }
     }
 
+    fun openLocalArticle(id: Long) {
+        beginDetailRequest(UnifiedNewsNavigationTarget.LocalArticle(id))
+    }
+
     fun openSourceArticle(article: RemoteArticle) {
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.update {
-                it.withUnifiedNewsSourceDetailCleared().copy(
-                    navigationTarget = null,
-                    selectedRemoteArticle = article,
-                    selectedRemoteArticleLocalId = null,
-                    selectedRemoteArticleIsFavorite = false,
-                    isLoading = true,
-                    error = null,
-                )
-            }
-            val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
-            if (local != null) {
-                _state.update { state ->
-                    if (state.selectedRemoteArticle?.id == article.id) {
-                        state.copy(
-                            navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id),
-                            selectedRemoteArticle = null,
-                            selectedRemoteArticleLocalId = null,
-                            selectedRemoteArticleIsFavorite = false,
-                            isLoading = false,
-                        )
-                    } else {
-                        state
-                    }
+        val token = beginDetailRequest(UnifiedNewsNavigationTarget.RemoteArticle(article.id, null))
+        detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val local = remoteArticleSyncService.readLocalArticle(null, article.id,
+                    dailyUnifiedNewsWindowFor().summaryDate, article.url) { article }
+                ifLatestDetailRequest(token) {
+                    it.copy(navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id), isLoading = false)
                 }
-                return@launch
-            }
-            _state.update { state ->
-                if (state.selectedRemoteArticle?.id == article.id) {
-                    state.copy(
-                        selectedRemoteArticleLocalId = local?.id,
-                        selectedRemoteArticleIsFavorite = local?.is_favorite == 1L,
-                        isLoading = false,
-                    )
-                } else {
-                    state
-                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                ifLatestDetailRequest(token) { it.copy(error = "文章保存失败，请稍后重试", isLoading = false) }
             }
         }
     }
@@ -571,92 +589,42 @@ class UnifiedNewsViewModel(
         }
     }
 
-    private fun openRemoteArticle(id: Long, remoteSourceId: Long?, token: Long) {
+    private fun openRemoteArticle(id: Long, remoteSourceId: Long?, token: Long, url: String? = null) {
         detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 ifLatestDetailRequest(token) { it.copy(isLoading = true) }
-                val config = remoteConfigOrSetError(token, remoteSourceId) ?: return@launch
-                when (val result = remoteNewsService.fetchArticle(config, id)) {
-                    is RemoteNewsResult.Success -> {
-                        val article = result.value.article
-                        val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
-                        ifLatestDetailRequest(token) {
-                            it.copy(
-                                selectedRemoteArticle = article,
-                                selectedRemoteArticleLocalId = local?.id,
-                                selectedRemoteArticleIsFavorite = local?.is_favorite == 1L,
-                                isLoading = false,
-                            )
-                        }
+                val local = remoteArticleSyncService.readLocalArticle(remoteSourceId, id,
+                    dailyUnifiedNewsWindowFor().summaryDate, url) {
+                    val config = remoteConfigOrSetError(token, remoteSourceId) ?: error("远程新闻源不可用")
+                    when (val result = remoteNewsService.fetchArticle(config, id)) {
+                        is RemoteNewsResult.Success -> result.value.article
+                        is RemoteNewsResult.Failure -> error(result.message)
                     }
-                    is RemoteNewsResult.Failure -> {
-                        ifLatestDetailRequest(token) { it.copy(error = result.message, isLoading = false) }
-                    }
+                }
+                ifLatestDetailRequest(token) {
+                    it.copy(navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id), isLoading = false)
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
             }
         }
     }
 
     private fun openRemoteArticle(source: Unified_news_source, token: Long) {
-        detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                ifLatestDetailRequest(token) { it.copy(isLoading = true) }
-                val local = source.source_url?.let(articleRepo::getByUrl)
-                if (local?.is_favorite == 1L) {
-                    ifLatestDetailRequest(token) {
-                        it.copy(navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id), isLoading = false)
-                    }
-                    return@launch
-                }
-
-                val remoteArticleId = source.source_id
-                val remoteSourceId = parseRemoteNewsSourceRouteKey(source.source_filename)
-                val remoteArticle = if (remoteArticleId != null && remoteSourceId != null) {
-                    val config = remoteConfigOrSetError(token, remoteSourceId) ?: return@launch
-                    when (val result = remoteNewsService.fetchArticle(config, remoteArticleId)) {
-                        is RemoteNewsResult.Success -> result.value.article
-                        is RemoteNewsResult.Failure -> source.toRemoteArticleForDisplay()
-                    }
-                } else {
-                    source.toRemoteArticleForDisplay()
-                }
-                if (remoteArticle.title.isNullOrBlank() && remoteArticle.content.isNullOrBlank() && remoteArticle.summary.isNullOrBlank()) {
-                    ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
-                    return@launch
-                }
-                ifLatestDetailRequest(token) {
-                    it.copy(
-                        selectedRemoteArticle = remoteArticle,
-                        selectedRemoteArticleLocalId = local?.id,
-                        selectedRemoteArticleIsFavorite = local?.is_favorite == 1L,
-                        isLoading = false,
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
-            }
+        val id = source.source_id
+        if (id == null) {
+            ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
+            return
         }
+        openRemoteArticle(id, parseRemoteNewsSourceRouteKey(source.source_filename), token, source.source_url)
     }
-
-    private fun Unified_news_source.toRemoteArticleForDisplay(): RemoteArticle = RemoteArticle(
-        id = source_id ?: id,
-        title = this.title,
-        url = source_url,
-        summary = this.summary,
-        content = null,
-    )
 
     private fun fetchSourceArticles(sourceId: Long, force: Boolean, append: Boolean = false) {
         val current = _state.value
         if (current.sourceArticlesLoadingSourceId == sourceId || current.sourceArticlesLoadingMoreSourceId == sourceId) return
         if (append && sourceId !in current.sourceArticlesHasMoreSourceIds) return
-        if (!force && !append && current.sourceArticlesBySourceId.containsKey(sourceId)) return
         val token = beginSourceArticleRequest(sourceId, append)
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -668,7 +636,7 @@ class UnifiedNewsViewModel(
                     return@launch
                 }
                 val pageOffset = if (append) current.sourceArticlesBySourceId[sourceId].orEmpty().size.toLong() else 0L
-                if (!force) {
+                run {
                     val localArticles = remoteArticleSyncRepo.getArticlesBySource(
                         remoteSourceId = sourceId,
                         limit = SOURCE_ARTICLE_PAGE_SIZE,
@@ -683,7 +651,8 @@ class UnifiedNewsViewModel(
                                 hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
                             )
                         }
-                        return@launch
+                        if (!force || append) return@launch
+                        ifLatestSourceArticleRequest(token) { state -> state.withUnifiedNewsSourceArticlesLoading(sourceId) }
                     }
                 }
                 val sourceDate = dailyUnifiedNewsWindowFor().summaryDate

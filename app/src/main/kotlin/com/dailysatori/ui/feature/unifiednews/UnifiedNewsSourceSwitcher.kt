@@ -65,7 +65,13 @@ internal fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNe
         FilterChip(
             selected = state.sourceSelection is UnifiedNewsSourceSelection.LocalArticles,
             onClick = viewModel::selectLocalArticlesSource,
-            label = { Text("本地新闻") },
+            label = { Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_manual_tab)) },
+            colors = sourceChipColors,
+        )
+        FilterChip(
+            selected = state.sourceSelection is UnifiedNewsSourceSelection.Favorites,
+            onClick = viewModel::selectFavoritesSource,
+            label = { Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.news_favorites_tab)) },
             colors = sourceChipColors,
         )
     }

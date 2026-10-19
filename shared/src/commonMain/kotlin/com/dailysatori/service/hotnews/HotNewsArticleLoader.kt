@@ -56,6 +56,7 @@ class HotNewsArticleLoader(
         val original = savedOriginal?.takeIf { it.isNotBlank() } ?: hotNews.ensureContent(item).originalContent
         val id = existing?.id ?: articles.insert(title = item.originalTitle, aiTitle = item.displayTitle,
             aiContent = item.displaySummary, url = item.url)
+        if (existing == null) articles.markHotNewsOrigin(id)
         if (existing?.original_markdown_content.isNullOrBlank()) articles.updateOriginalMarkdownContent(id, original)
         return articles.getById(id) ?: error("文章不可用")
     }

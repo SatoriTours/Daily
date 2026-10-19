@@ -1,4 +1,7 @@
 <resources>
+    <string name="news_manual_tab">Added links</string>
+    <string name="news_favorites_tab">Favorites</string>
+    <string name="news_article_favorited">Saved</string>
     <string name="news_focus_title">News</string>
     <string name="news_focus_search">Search news</string>
     <string name="news_focus_refresh">Refresh news</string>

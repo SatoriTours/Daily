@@ -108,6 +108,6 @@ class RepositoryQuerySimplificationSourceTest {
         assertTrue(repository.contains("q.selectArticleCards("))
         assertTrue(viewModel.contains("articleRepo.getCards(current.searchQuery"))
         assertTrue(viewModel.contains("articleRepo.getCardsSync(current.searchQuery"))
-        assertTrue(viewModel.contains("externalFavoriteSourceId.takeIf { searchQuery.isNotBlank() || selectedTagId == null }"))
+        assertTrue(viewModel.contains("private fun ArticlesState.cardSourceFilter(): Long? = externalFavoriteSourceId"))
     }
 }

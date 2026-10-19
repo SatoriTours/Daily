@@ -16,6 +16,7 @@ internal fun unifiedNewsSourcePages(state: UnifiedNewsState): List<UnifiedNewsSo
     state.remoteSources.forEach { add(UnifiedNewsSourceSelection.RemoteSource(it.id, it.name)) }
     state.externalFavoriteSources.forEach { add(UnifiedNewsSourceSelection.ExternalFavoriteSource(it.id, it.name)) }
     add(UnifiedNewsSourceSelection.LocalArticles)
+    add(UnifiedNewsSourceSelection.Favorites)
 }
 
 internal fun unifiedNewsSourcePageKey(selection: UnifiedNewsSourceSelection): String = when (selection) {
@@ -24,6 +25,7 @@ internal fun unifiedNewsSourcePageKey(selection: UnifiedNewsSourceSelection): St
     is UnifiedNewsSourceSelection.RemoteSource -> "news-remote-${selection.id}"
     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> "news-favorite-${selection.id}"
     UnifiedNewsSourceSelection.LocalArticles -> "news-local"
+    UnifiedNewsSourceSelection.Favorites -> "news-favorites"
 }
 
 internal fun unifiedNewsSourcePageIndex(
@@ -71,6 +73,7 @@ internal fun UnifiedNewsViewModel.selectNewsPage(selection: UnifiedNewsSourceSel
         is UnifiedNewsSourceSelection.RemoteSource -> selectRemoteSource(UnifiedNewsRemoteSourceOption(selection.id, selection.name))
         is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selectExternalFavoriteSource(UnifiedNewsExternalFavoriteSourceOption(selection.id, selection.name))
         UnifiedNewsSourceSelection.LocalArticles -> selectLocalArticlesSource()
+        UnifiedNewsSourceSelection.Favorites -> selectFavoritesSource()
     }
 }
 

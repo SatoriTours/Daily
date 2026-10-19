@@ -72,6 +72,38 @@ class ArticlesViewModelFailureTest {
         }
     }
 
+    @Test fun favoriteSearchNeverIncludesUnfavoritedArticlesAndFirstLoadIsBounded() = runBlocking {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        var model: ArticlesViewModel? = null
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            val articles = ArticleRepository(db)
+            repeat(75) { articles.insert(title = "共同关键词 $it", url = "https://example.com/$it") }
+            val favorite = articles.insert(title = "共同关键词 收藏", url = "https://example.com/favorite", isFavorite = 1)
+            val context = unusedContext()
+            val vm = ArticlesViewModel(articles, TagRepository(db), ArticleProcessingScheduler(context),
+                ArticlePostProcessingScheduler(context, AsyncTaskRepository(db)))
+            model = vm
+            val initial = withTimeout(3_000) { vm.state.first { !it.isLoading } }
+            kotlin.test.assertTrue(initial.articles.size <= 50, "首屏不能加载全部文章")
+            kotlin.test.assertTrue(initial.hasMore)
+            vm.loadMoreArticles()
+            val all = withTimeout(3_000) { vm.state.first { it.articles.size == 76 } }
+            assertFalse(all.hasMore)
+            vm.setFavoritesOnly(true)
+            withTimeout(3_000) { vm.state.first { !it.isLoading && it.articles.size == 1 } }
+            vm.search("共同关键词")
+            val searched = withTimeout(3_000) { vm.state.first { !it.isLoading && it.searchQuery == "共同关键词" } }
+            assertEquals(listOf(favorite), searched.articles.map { it.id })
+        } finally {
+            model?.viewModelScope?.coroutineContext?.get(Job)?.cancelAndJoin()
+            driver.close()
+            Dispatchers.resetMain()
+        }
+    }
+
     // 调度器在本测试中不执行；绕开 android.jar 的 Context 构造桩。
     private fun unusedContext(): ContextWrapper {
         val field = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").apply { isAccessible = true }

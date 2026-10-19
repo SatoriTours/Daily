@@ -2,6 +2,7 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOne
+import app.cash.sqldelight.coroutines.mapToList
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.Remote_article_sync_item
@@ -32,6 +33,9 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
 
     fun getArticlesBySource(remoteSourceId: Long, limit: Long, offset: Long): List<Article> =
         q.selectRemoteArticleSyncItemsBySource(remoteSourceId, limit, offset).executeAsList()
+
+    fun observeArticlesBySource(remoteSourceId: Long, limit: Long): Flow<List<Article>> =
+        q.selectRemoteArticleSyncItemsBySource(remoteSourceId, limit, 0).asFlow().mapToList(Dispatchers.IO)
 
     fun count(): Long = q.countRemoteArticleSyncItems().executeAsOne()
 

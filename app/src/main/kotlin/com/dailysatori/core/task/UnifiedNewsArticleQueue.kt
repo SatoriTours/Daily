@@ -29,6 +29,10 @@ class UnifiedNewsArticleQueue(
             val existing = findArticle(source, url)
             if (existing == null && url == null) return@mapNotNull null
             val articleId = enqueueArticle(source, url, existing, pending) ?: return@mapNotNull null
+            if (existing == null) when (source.source_type) {
+                "hot_news" -> articles.markHotNewsOrigin(articleId)
+                "remote_article" -> articles.markRemoteNewsOrigin(articleId)
+            }
             source.id to articleId
         }.toMap()
         pending.forEach(schedule)

@@ -33,8 +33,11 @@ data class ArticlesState(
     val isAddingArticle: Boolean = false,
     val isRefreshing: Boolean = false,
     val scrollToTopRequest: Long = 0,
+    val addedArticleId: Long? = null,
     val newArticlesAboveCount: Int = 0,
     val loadError: String? = null,
+    val visibleLimit: Int = 50,
+    val hasMore: Boolean = false,
 )
 
 class ArticlesViewModel(
@@ -68,14 +71,16 @@ class ArticlesViewModel(
     fun loadArticles() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true, loadError = null) }
+            val current = _state.value
+            _state.update { it.copy(isLoading = it.articles.isEmpty(), loadError = null) }
             com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Loading articles with flow")
-            articlesFlowFor(_state.value).catch { error ->
+            articlesFlowFor(current).catch { error ->
                 com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Article observation failed", error)
                 _state.update { it.copy(isLoading = false, isRefreshing = false, loadError = "文章列表读取失败，点击重试") }
             }.collect { articles ->
                 com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Got ${articles.size} articles")
-                _state.update { it.copy(articles = articles, isLoading = false, loadError = null) }
+                _state.update { it.copy(articles = articles.take(current.visibleLimit), hasMore = articles.size > current.visibleLimit,
+                    isLoading = false, loadError = null) }
             }
         }
     }
@@ -89,7 +94,8 @@ class ArticlesViewModel(
             _state.update { it.copy(isRefreshing = true) }
             try {
                 val articles = articlesSnapshotFor(_state.value)
-                _state.update { it.copy(articles = articles, isRefreshing = false, isLoading = false) }
+                _state.update { it.copy(articles = articles.take(it.visibleLimit), hasMore = articles.size > it.visibleLimit,
+                    isRefreshing = false, isLoading = false) }
             } catch (e: Exception) {
                 com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Failed to refresh articles", e)
                 _state.update { it.copy(isRefreshing = false, isLoading = false) }
@@ -98,37 +104,42 @@ class ArticlesViewModel(
     }
 
     private fun articlesFlowFor(current: ArticlesState): Flow<List<Article>> =
-        articleRepo.getCards(current.searchQuery, current.cardTagFilter(), current.cardFavoriteFilter(), current.cardSourceFilter())
+        articleRepo.getCards(current.searchQuery, current.cardTagFilter(), current.cardFavoriteFilter(), current.cardSourceFilter(), current.visibleLimit + 1L)
 
     private fun articlesSnapshotFor(current: ArticlesState): List<Article> =
-        articleRepo.getCardsSync(current.searchQuery, current.cardTagFilter(), current.cardFavoriteFilter(), current.cardSourceFilter())
+        articleRepo.getCardsSync(current.searchQuery, current.cardTagFilter(), current.cardFavoriteFilter(), current.cardSourceFilter(), current.visibleLimit + 1L)
 
     private fun ArticlesState.cardTagFilter(): Long? = selectedTagId.takeIf { searchQuery.isBlank() }
 
-    private fun ArticlesState.cardSourceFilter(): Long? =
-        externalFavoriteSourceId.takeIf { searchQuery.isNotBlank() || selectedTagId == null }
+    private fun ArticlesState.cardSourceFilter(): Long? = externalFavoriteSourceId
 
-    private fun ArticlesState.cardFavoriteFilter(): Boolean =
-        showFavoritesOnly && searchQuery.isBlank() && selectedTagId == null && externalFavoriteSourceId == null
+    private fun ArticlesState.cardFavoriteFilter(): Boolean = showFavoritesOnly
+
+    fun loadMoreArticles() {
+        if (!_state.value.hasMore) return
+        _state.update { it.copy(visibleLimit = it.visibleLimit + 50, hasMore = false) }
+        loadArticles()
+    }
 
     fun search(query: String) {
-        _state.update { it.copy(searchQuery = query) }
+        if (_state.value.searchQuery == query) return
+        _state.update { it.copy(searchQuery = query, visibleLimit = 50) }
         loadArticles()
     }
 
     fun filterByTag(tagId: Long?) {
-        _state.update { it.copy(selectedTagId = tagId) }
+        _state.update { it.copy(selectedTagId = tagId, visibleLimit = 50) }
         loadArticles()
     }
 
     fun toggleFavoritesOnly() {
-        _state.update { it.copy(showFavoritesOnly = !_state.value.showFavoritesOnly) }
+        _state.update { it.copy(showFavoritesOnly = !it.showFavoritesOnly, visibleLimit = 50) }
         loadArticles()
     }
 
     fun setFavoritesOnly(enabled: Boolean) {
         if (_state.value.showFavoritesOnly == enabled) return
-        _state.update { it.copy(showFavoritesOnly = enabled, externalFavoriteSourceId = null) }
+        _state.update { it.copy(showFavoritesOnly = enabled, externalFavoriteSourceId = null, visibleLimit = 50) }
         loadArticles()
     }
 
@@ -137,6 +148,7 @@ class ArticlesViewModel(
         _state.update {
             it.copy(
                 externalFavoriteSourceId = sourceId,
+                visibleLimit = 50,
                 showFavoritesOnly = if (sourceId != null) false else it.showFavoritesOnly,
                 searchQuery = if (sourceId != null) "" else it.searchQuery,
                 selectedTagId = if (sourceId != null) null else it.selectedTagId,
@@ -161,9 +173,22 @@ class ArticlesViewModel(
     fun addArticle(url: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isAddingArticle = true) }
-            articleProcessingScheduler.enqueueSave(url)
-            _state.update { it.copy(isAddingArticle = false, scrollToTopRequest = it.scrollToTopRequest + 1) }
+            try {
+                articleProcessingScheduler.enqueueSave(url)
+                val addedId = articleRepo.findIntakeArticle(com.dailysatori.normalizeArticleUrl(url))?.id
+                _state.update { it.copy(isAddingArticle = false, addedArticleId = addedId,
+                    scrollToTopRequest = it.scrollToTopRequest + 1) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _state.update { it.copy(isAddingArticle = false, loadError = "添加文章失败，请重试") }
+            }
         }
+    }
+
+    fun consumeAddedArticleScroll() {
+        _state.update { it.copy(scrollToTopRequest = 0, addedArticleId = null) }
+        clearNewArticlesIndicator()
     }
 
     fun rememberVisibleTopArticle(articleId: Long?, isAtTop: Boolean) {

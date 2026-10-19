@@ -22,17 +22,27 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         q.selectNewsArticleSummaries(articleIds) { id, content -> id to content.orEmpty() }
             .asFlow().mapToList(Dispatchers.IO).map { it.toMap() }.distinctUntilChanged()
 
+    fun observeFavoriteIdentities(): Flow<Map<Long, String?>> =
+        q.selectFavoriteArticleIdentities { id, url -> id to url }.asFlow().mapToList(Dispatchers.IO)
+            .map { it.toMap() }.distinctUntilChanged()
+
+    fun markRemoteNewsOrigin(articleId: Long) = markRemoteNewsMetadata(articleId, null)
+
+    fun markHotNewsOrigin(articleId: Long) {
+        q.updateArticleSourceType("hot_news", kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), articleId)
+    }
+
     fun getCards(searchQuery: String = "", tagId: Long? = null, favoritesOnly: Boolean = false,
-        sourceId: Long? = null): Flow<List<Article>> =
-        articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId).asFlow().mapToList(Dispatchers.IO)
+        sourceId: Long? = null, limit: Long = Long.MAX_VALUE): Flow<List<Article>> =
+        articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId, limit).asFlow().mapToList(Dispatchers.IO)
 
     fun getCardsSync(searchQuery: String = "", tagId: Long? = null, favoritesOnly: Boolean = false,
-        sourceId: Long? = null): List<Article> =
-        articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId).executeAsList()
+        sourceId: Long? = null, limit: Long = Long.MAX_VALUE): List<Article> =
+        articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId, limit).executeAsList()
 
-    private fun articleCardsQuery(searchQuery: String, tagId: Long?, favoritesOnly: Boolean, sourceId: Long?) =
+    private fun articleCardsQuery(searchQuery: String, tagId: Long?, favoritesOnly: Boolean, sourceId: Long?, limit: Long) =
         q.selectArticleCards(sourceId = sourceId, favoritesOnly = if (favoritesOnly) 1L else 0L,
-            tagId = tagId, searchQuery = searchQuery, ftsQuery = searchQuery.toFtsPhraseQuery()) {
+            tagId = tagId, searchQuery = searchQuery, ftsQuery = searchQuery.toFtsPhraseQuery(), cardLimit = limit) {
                 id, title, aiTitle, summary, markdown, url, favorite, source, status, cover, coverUrl, pubDate, created, updated ->
             Article(id = id, title = title, ai_title = aiTitle, ai_content = summary,
                 ai_markdown_content = markdown, original_markdown_content = null, url = url,
@@ -59,6 +69,17 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             insert(title = "正在加载...", url = normalized, status = "pending",
                 pubDate = kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
         }
+    }
+
+    fun recordManualIntake(url: String, now: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()): Long = q.transactionWithResult {
+        val id = createPendingFromUrl(url)
+        val existing = getById(id)
+        if (existing?.source_type == SOURCE_REMOTE_NEWS) {
+            val original = articleOriginalMarkdown(existing.original_markdown_content, existing.ai_markdown_content, true)
+            q.updateArticleOriginalMarkdownContent(original, now, id)
+        }
+        q.recordArticleManualIntake(now, id)
+        id
     }
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Article>> =

@@ -48,6 +48,13 @@ class UnifiedNewsArticleQueueTest {
         assertNull(articles.getById(id)!!.ai_content)
     }
 
+    @Test fun queuedRemoteAndHotArticlesNeverLeakIntoManualIntake() = withQueue { queue, articles, _, _, _ ->
+        queue.enqueue(listOf(source, source.copy(id = 2, source_type = "remote_article", source_id = 42,
+            source_url = "https://example.com/remote")))
+        assertTrue(articles.getCardsSync().isEmpty(), "后台抓取的文章不属于手动添加")
+        assertEquals(setOf("hot_news", "remote_news"), articles.getAllSync().map { it.source_type }.toSet())
+    }
+
     @Test fun completedArticleIsReusedWithoutNewAiWork() = withQueue { queue, articles, _, scheduled, _ ->
         val id = articles.insert(title = source.title, url = "https://v2ex.com/t/8",
             aiContent = "已有完整总结", aiMarkdownContent = "已有正文", status = "completed")

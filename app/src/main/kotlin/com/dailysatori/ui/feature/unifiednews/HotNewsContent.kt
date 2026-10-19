@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material3.*
@@ -30,6 +31,7 @@ import org.koin.compose.koinInject
 @Composable
 internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel, isActive: Boolean) {
     val i18n: I18nService = koinInject()
+    val favoriteUrls = remember(state.favoriteArticleIdentities) { state.favoriteArticleIdentities.values.filterNotNull().toSet() }
     var expanded by remember { mutableStateOf(emptySet<HotNewsPlatform>()) }
     var showSourceSettings by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -45,7 +47,7 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
         verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         if (state.hotNewsBoards.isEmpty()) item { Text(i18n.t("news_sources.all_disabled")) }
         items(state.hotNewsBoards, key = { it.platform.key }) { board ->
-            HotNewsBoardCard(board, board.platform in expanded, state.searchQuery, viewModel::openHotNews,
+            HotNewsBoardCard(board, board.platform in expanded, state.searchQuery, favoriteUrls, viewModel::openHotNews,
                 onExpand = { expanded = if (board.platform in expanded) expanded - board.platform else expanded + board.platform },
                 onRetry = { viewModel.retryHotNews(board) }, onConfigure = { showSourceSettings = true })
         }
@@ -53,7 +55,7 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
 }
 
 @Composable
-private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: String,
+private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: String, favoriteUrls: Set<String>,
     onOpen: (HotNewsItem) -> Unit, onExpand: () -> Unit, onRetry: () -> Unit, onConfigure: () -> Unit) {
     val i18n: I18nService = koinInject()
     val matching = board.items.filter { query.isBlank() || (it.displayTitle ?: it.originalTitle).contains(query, true) || it.displaySummary.contains(query, true) }
@@ -85,7 +87,7 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             (if (expanded || query.isNotBlank()) matching else matching.take(3)).forEach { item ->
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                HotNewsRankRow(item, board.refreshing, onOpen)
+                HotNewsRankRow(item, board.refreshing, item.url in favoriteUrls, onOpen)
             }
             if (matching.size > 3 && query.isBlank()) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -104,7 +106,7 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
 }
 
 @Composable
-private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, onOpen: (HotNewsItem) -> Unit) {
+private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, isFavorite: Boolean, onOpen: (HotNewsItem) -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { onOpen(item) }.padding(vertical = Spacing.m),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Text(item.rank.toString(), Modifier.width(IconSize.m), style = MaterialTheme.typography.labelLarge,
@@ -122,6 +124,8 @@ private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, onOpen: (HotN
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
+        if (isFavorite) Icon(Icons.Default.Bookmark, stringResource(R.string.news_article_favorited),
+            Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.primary)
     }
 }
 

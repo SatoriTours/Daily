@@ -54,11 +54,11 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("fun refreshSelectedRemoteSource()"))
         assertTrue(source.contains("fun loadMoreSelectedRemoteSource()"))
         assertTrue(source.contains("fun openSourceArticle(article: RemoteArticle)"))
-        assertTrue(source.contains("sourceArticlesBySourceId.containsKey(source.id)"))
+        assertTrue(source.contains("remoteArticleSyncRepo.observeArticlesBySource(id, limit + 1)"))
         assertTrue(source.contains("remoteArticleSyncRepo.getArticlesBySource("))
         assertTrue(source.contains("remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)"))
-        assertTrue(source.contains("selectedRemoteArticle = article"))
-        assertTrue(source.contains("articleRepo.findLocalArticleForRemote(article)"))
+        assertTrue(source.contains("remoteArticleSyncService.readLocalArticle"))
+        assertTrue(source.contains("UnifiedNewsNavigationTarget.LocalArticle(local.id)"))
         assertTrue(source.contains("import java.util.concurrent.atomic.AtomicLong"))
         assertTrue(source.contains("private val sourceArticleRequestToken = AtomicLong(0L)"))
         assertTrue(source.contains("private val sourceArticleRequestLock = Any()"))
@@ -77,7 +77,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("invalidateSourceArticleRequest()"))
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticleRequestInvalidated() }"))
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId, append) }"))
-        assertTrue(source.contains("if (!sourceArticlesCached)"))
+        assertTrue(source.contains("observeSelectedRemoteArticles()"))
         assertTrue(source.contains("shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
         assertTrue(source.contains("resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
         assertTrue(selectRemoteSource.indexOf("invalidateSourceArticleRequest()") < selectRemoteSource.indexOf("_state.update"))
@@ -96,7 +96,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("这个来源暂时没有已同步文章"))
         assertTrue(source.contains("PullToRefreshBox("))
         assertTrue(source.contains("LoadMoreWhenAtEnd("))
-        assertTrue(source.contains("viewModel.openSourceArticle(article)"))
+        assertTrue(source.contains("viewModel.openLocalArticle(article.id)"))
     }
 
     @Test
@@ -112,7 +112,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertFalse(articleList.contains("共 \${articles.size} 篇"))
         assertFalse(articleList.contains("UnifiedNewsSourceArticleSyncBar"))
         assertFalse(articleList.contains("Text(\"刷新中...\""))
-        assertTrue(articleList.contains("RemoteArticleSummaryCard(article)"))
+        assertTrue(articleList.contains("RemoteArticleSummaryCard(article, isFavorite = article.id in favoriteArticleIds)"))
     }
 
     @Test
@@ -123,7 +123,7 @@ class UnifiedNewsLocalArticleBackTest {
 
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         assertTrue(source.contains("sourceArticlesBySourceId: Map<Long, List<RemoteArticle>> = emptyMap()"))
-        assertTrue(source.contains("sourceArticlesBySourceId.containsKey(source.id)"))
+        assertTrue(source.contains("observeSelectedRemoteArticles()"))
     }
 
     @Test
@@ -132,10 +132,10 @@ class UnifiedNewsLocalArticleBackTest {
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
 
         assertTrue(viewModel.contains("fun openSourceArticle(article: RemoteArticle)"))
-        assertTrue(viewModel.contains("selectedRemoteArticle = article"))
-        assertTrue(viewModel.contains("articleRepo.findLocalArticleForRemote(article)"))
+        assertTrue(viewModel.contains("fun openLocalArticle(id: Long)"))
+        assertTrue(viewModel.contains("beginDetailRequest(UnifiedNewsNavigationTarget.LocalArticle(id))"))
         assertFalse(viewModel.contains("fun openSelectedSourceArticle(articleId: Long)"))
-        assertTrue(screen.contains("viewModel.openSourceArticle(article)"))
+        assertTrue(screen.contains("viewModel.openLocalArticle(article.id)"))
     }
 
     @Test

@@ -32,14 +32,14 @@ class ArticleProcessingScheduler(
     private val articleRepo: ArticleRepository? = null,
 ) {
     fun enqueueSave(url: String) {
-        enqueueSave(url, ExistingWorkPolicy.KEEP)
+        enqueueSave(url, ExistingWorkPolicy.KEEP, manualIntake = true)
     }
 
     fun enqueueRetrySave(url: String) {
-        enqueueSave(url, ExistingWorkPolicy.REPLACE)
+        enqueueSave(url, ExistingWorkPolicy.REPLACE, manualIntake = false)
     }
 
-    private fun enqueueSave(url: String, policy: ExistingWorkPolicy) {
+    private fun enqueueSave(url: String, policy: ExistingWorkPolicy, manualIntake: Boolean) {
         val normalizedUrl = normalizeArticleUrl(url)
         if (normalizedUrl.isBlank()) return
         if (asyncTaskRepo != null && asyncTaskScheduler != null) {
@@ -49,12 +49,12 @@ class ArticleProcessingScheduler(
                 uniqueKey = saveTaskUniqueKey(normalizedUrl),
             )
             // Persist the owner before publishing the article, so startup recovery cannot claim it.
-            articleRepo?.createPendingFromUrl(normalizedUrl)
+            persistIntake(normalizedUrl, manualIntake)
             markSavePending(normalizedUrl)
             asyncTaskScheduler.enqueue(taskId)
             return
         }
-        articleRepo?.createPendingFromUrl(normalizedUrl)
+        persistIntake(normalizedUrl, manualIntake)
         markSavePending(normalizedUrl)
         val request = buildArticleSaveWorkRequest(url, normalizedUrl)
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -62,6 +62,10 @@ class ArticleProcessingScheduler(
             policy,
             request,
         )
+    }
+
+    private fun persistIntake(url: String, manualIntake: Boolean) {
+        if (manualIntake) articleRepo?.recordManualIntake(url) else articleRepo?.createPendingFromUrl(url)
     }
 
     private fun saveTaskUniqueKey(normalizedUrl: String): String = "save_article:$normalizedUrl"

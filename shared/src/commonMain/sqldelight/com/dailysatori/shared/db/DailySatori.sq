@@ -688,8 +688,21 @@ LEFT JOIN (
     WHERE source_id = :sourceId AND article_id IS NOT NULL
     GROUP BY article_id
 ) favorite_order ON favorite_order.article_id = a.id
-WHERE (:sourceId IS NULL AND (a.source_type != 'remote_news' OR :favoritesOnly = 1 OR :tagId IS NOT NULL)
-       OR favorite_order.article_id IS NOT NULL)
+LEFT JOIN (
+    SELECT rtrim(substr(s.source_url, 1, instr(s.source_url || '#', '#') - 1), '/') AS normalized_url,
+           MIN(n.created_at) AS first_selected_at
+    FROM unified_news_source AS s
+    JOIN unified_news_summary AS n ON n.id = s.summary_id
+    WHERE :sourceId IS NULL AND :favoritesOnly = 0 AND :tagId IS NULL
+      AND s.source_type IN ('hot_news', 'remote_article') AND s.source_url IS NOT NULL
+    GROUP BY normalized_url
+) legacy_origin ON legacy_origin.normalized_url = a.url
+WHERE (:sourceId IS NULL AND (:favoritesOnly = 1 OR :tagId IS NOT NULL OR a.source_type = 'manual' OR (
+           a.source_type = 'local'
+           AND NOT EXISTS (SELECT 1 FROM external_favorite_item WHERE article_id = a.id)
+           AND NOT EXISTS (SELECT 1 FROM remote_article_sync_item WHERE article_id = a.id)
+           AND (legacy_origin.first_selected_at IS NULL OR a.created_at < legacy_origin.first_selected_at)
+       )) OR favorite_order.article_id IS NOT NULL)
   AND (:favoritesOnly = 0 OR a.is_favorite = 1)
   AND (:tagId IS NULL OR a.id IN (SELECT article_id FROM article_tag WHERE tag_id = :tagId))
   AND (:searchQuery = ''
@@ -699,7 +712,14 @@ WHERE (:sourceId IS NULL AND (a.source_type != 'remote_news' OR :favoritesOnly =
        OR a.ai_content LIKE '%' || :searchQuery || '%')
 ORDER BY
     CASE WHEN :searchQuery != '' AND a.id IN (SELECT rowid FROM article_fts WHERE article_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
-    COALESCE(favorite_order.sort_time, a.created_at) DESC, a.id DESC;
+    COALESCE(favorite_order.sort_time, a.created_at) DESC, a.id DESC
+LIMIT :cardLimit;
+
+selectFavoriteArticleIdentities:
+SELECT id, url FROM article WHERE is_favorite = 1;
+
+recordArticleManualIntake:
+UPDATE article SET source_type = 'manual', created_at = :now, updated_at = :now WHERE id = :id;
 
 selectArticleIntakeByUrl:
 SELECT id, status FROM article
@@ -1861,9 +1881,9 @@ ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_syn
 
 selectRemoteArticleSyncItemsBySource:
 SELECT article.* FROM article
-INNER JOIN remote_article_sync_item ON remote_article_sync_item.article_id = article.id
-WHERE remote_article_sync_item.remote_source_id = ?
-ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_sync_item.last_seen_at DESC
+WHERE EXISTS (SELECT 1 FROM remote_article_sync_item
+    WHERE remote_article_sync_item.article_id = article.id AND remote_article_sync_item.remote_source_id = ?)
+ORDER BY COALESCE(article.pub_date, article.created_at) DESC, article.id DESC
 LIMIT ? OFFSET ?;
 
 countRemoteArticleSyncItems:
