@@ -150,7 +150,8 @@ class HotNewsService(
         commit(platform, config) {
             update(platform) { current -> current.copy(items = current.items.map { item ->
                 translated[item.id]?.takeIf { it.fingerprint == item.fingerprint }?.let {
-                    item.copy(chineseTitle = it.chineseTitle, chineseSummary = it.chineseSummary)
+                    item.copy(chineseTitle = item.chineseTitle ?: it.chineseTitle,
+                        chineseSummary = item.chineseSummary ?: it.chineseSummary)
                 } ?: item
             }) }
             store.save(board(platform))
@@ -176,6 +177,25 @@ class HotNewsService(
 
     fun find(identity: String): HotNewsItem? = boards.value.asSequence().flatMap { it.items.asSequence() }.firstOrNull { it.identity == identity }
 
+    suspend fun updateArticleState(item: HotNewsItem, processing: Boolean, title: String? = null, summary: String? = null) =
+        configMutex.withLock {
+            if (!preferences.value.source(item.platform).enabled) return@withLock
+            val current = board(item.platform)
+            if (current.items.none { it.id == item.id && it.url == item.url && it.fingerprint == item.fingerprint }) return@withLock
+            update(item.platform) { board ->
+                val items = board.items.map { existing ->
+                    if (existing.id != item.id || existing.url != item.url || existing.fingerprint != item.fingerprint) existing
+                    else existing.copy(articleProcessing = processing,
+                        chineseTitle = title?.takeIf(::isChineseHotNewsText) ?: existing.chineseTitle,
+                        chineseSummary = summary?.takeIf(::isChineseHotNewsText) ?: existing.chineseSummary)
+                }
+                val recovered = board.error in setOf(HotNewsError.TRANSLATION_FAILED,
+                    HotNewsError.TRANSLATION_NETWORK_FAILED, HotNewsError.AI_NOT_CONFIGURED) && items.none(::needsTranslation)
+                board.copy(items = items, error = if (recovered) null else board.error)
+            }
+            store.save(board(item.platform))
+        }
+
     suspend fun ensureContent(item: HotNewsItem): HotNewsItem = contentMutex.withLock {
         val current = find(item.identity) ?: item
         if (current.originalContent.length >= 40) return@withLock current
@@ -183,7 +203,7 @@ class HotNewsService(
         require(content.length >= 40) { "暂未获取可阅读正文" }
         val enriched = current.copy(originalContent = content)
         update(item.platform) { existing -> existing.copy(items = existing.items.map {
-            if (it.id == enriched.id && it.fingerprint == enriched.fingerprint) enriched else it
+            if (it.id == enriched.id && it.url == enriched.url && it.fingerprint == enriched.fingerprint) it.copy(originalContent = content) else it
         }) }
         store.save(board(item.platform))
         enriched

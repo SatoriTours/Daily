@@ -113,7 +113,7 @@ private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, onOpen: (HotN
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(item.displayTitle ?: item.originalTitle, style = MaterialTheme.typography.titleSmall,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (item.displayTitle == null) Text(stringResource(if (refreshing) R.string.news_hotnews_translation_pending
+            if (item.displayTitle == null) Text(stringResource(if (refreshing || item.articleProcessing) R.string.news_hotnews_translation_pending
                 else R.string.news_hotnews_item_translation_failed), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             val metadata = hotNewsMetrics(item).ifBlank { item.displaySummary }

@@ -5,7 +5,10 @@ import com.dailysatori.data.repository.articleOriginalMarkdown
 import com.dailysatori.service.parser.articleNeedsTranslation
 import com.dailysatori.service.parser.articleTranslationMarkdown
 import com.dailysatori.shared.db.Article
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -16,18 +19,30 @@ class HotNewsArticleLoader(
     private val process: suspend (Long) -> Unit,
 ) {
     suspend fun load(item: HotNewsItem, onArticle: (Article) -> Unit = {}): Article = coroutineScope {
+        hotNews.updateArticleState(item, processing = true)
+        try { loadArticle(item, onArticle) }
+        finally { withContext(NonCancellable) { hotNews.updateArticleState(item, processing = false) } }
+    }
+
+    private suspend fun loadArticle(item: HotNewsItem, onArticle: (Article) -> Unit): Article = coroutineScope {
+        suspend fun publish(article: Article) {
+            hotNews.updateArticleState(item, processing = true, title = article.ai_title, summary = article.ai_content)
+            onArticle(article)
+        }
         val existing = articles.getByUrl(item.url)
-        existing?.let(onArticle)
+        existing?.let { publish(it) }
         if (existing != null && isReady(existing)) return@coroutineScope existing
         val article = prepare(item, existing)
-        onArticle(article)
+        publish(article)
         val observer = launch(start = CoroutineStart.UNDISPATCHED) {
-            articles.observeById(article.id).filterNotNull().collect { onArticle(it) }
+            articles.observeById(article.id).filterNotNull().collect { publish(it) }
         }
         try { process(article.id) }
         finally {
-            observer.cancel()
-            articles.getById(article.id)?.let(onArticle)
+            withContext(NonCancellable) {
+                observer.cancelAndJoin()
+                articles.getById(article.id)?.let { publish(it) }
+            }
         }
         val latest = articles.getById(article.id) ?: error("文章不可用")
         require(isReady(latest)) { "文章中文处理尚未完成" }

@@ -26,6 +26,8 @@ class HotNewsTranslator(private val ai: AiService, private val configs: AiConfig
 }
 
 private val hotNewsVersionedName = Regex("[A-Za-z][A-Za-z0-9.+-]*[-.]v?\\d[A-Za-z0-9.+-]*")
+private val hotNewsProductName = Regex("[A-Za-z][A-Za-z0-9.+-]*")
+private val hotNewsInternalCapital = Regex("[a-z][A-Z]")
 
 private fun hotNewsMetadataTranslation(item: HotNewsItem): HotNewsItem? {
     if (item.originalTitle.length > 180 || item.description.length > 2000) return null
@@ -33,7 +35,8 @@ private fun hotNewsMetadataTranslation(item: HotNewsItem): HotNewsItem? {
     val title = when {
         item.platform == HotNewsPlatform.GITHUB && item.description.isBlank() && item.originalTitle == item.id ->
             "${item.originalTitle}：代码仓库"
-        hotNewsVersionedName.matches(item.originalTitle) &&
+        (hotNewsVersionedName.matches(item.originalTitle) ||
+            (hotNewsProductName.matches(item.originalTitle) && hotNewsInternalCapital.containsMatchIn(item.originalTitle))) &&
             (item.description.isBlank() || isHotNewsReferenceOnlyText(item.description)) -> "热榜条目：${item.originalTitle}"
         else -> return null
     }

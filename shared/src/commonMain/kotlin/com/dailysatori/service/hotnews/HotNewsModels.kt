@@ -37,6 +37,7 @@ data class HotNewsItem(
     val chineseSummary: String? = null,
     val originalContent: String = "",
     val fromFeed: Boolean = false,
+    @kotlinx.serialization.Transient val articleProcessing: Boolean = false,
 ) {
     val identity: String get() = "${platform.key}:$id"
     val displayTitle: String? get() = chineseTitle ?: originalTitle.takeIf(::isChineseHotNewsText)

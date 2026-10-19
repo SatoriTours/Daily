@@ -7,6 +7,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import java.net.SocketException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlin.test.*
@@ -187,6 +190,27 @@ class HotNewsTranslationRecoveryTest {
             assertTrue(service.boards.value.first { it.platform == HotNewsPlatform.GITHUB }
                 .items.all { it.chineseTitle != null })
         }
+    }
+
+    @Test fun lateRankingTranslationDoesNotOverwriteRecoveredArticleMetadata() {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        withCachedBoard({ batch ->
+            started.complete(Unit)
+            release.await()
+            batch.map { it.copy(chineseTitle = "稍后返回的榜单标题", chineseSummary = "") }
+        }) { service, _ -> coroutineScope {
+            val refresh = async { service.retryTranslations(HotNewsPlatform.GITHUB) }
+            try {
+                started.await()
+                service.updateArticleState(items.first(), processing = true,
+                    title = "详情已生成的中文标题", summary = "详情已生成的中文摘要。")
+            } finally { release.complete(Unit) }
+            refresh.await()
+            assertEquals("详情已生成的中文标题", service.find(items.first().identity)?.displayTitle)
+            assertEquals("详情已生成的中文摘要。", service.find(items.first().identity)?.displaySummary)
+            assertNull(service.boards.value.first { it.platform == HotNewsPlatform.GITHUB }.error)
+        } }
     }
 
     private fun withCachedBoard(

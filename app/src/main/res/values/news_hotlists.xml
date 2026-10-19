@@ -39,4 +39,15 @@
     <string name="news_hotnews_body_missing">暂未获取正文，可重试或打开原文</string>
     <string name="news_hotnews_original_fallback">中文整理尚未完成，以下为已保存原文</string>
     <string name="news_hotnews_no_points">暂无可提炼的重点，点击查看详情</string>
+    <string name="news_hotnews_rank_number">第 %1$d 名</string>
+    <string name="news_hotnews_reading_minutes_estimate">%1$s · 约 %2$d 分钟</string>
+    <string name="news_hotnews_ai_curated">AI 整理</string>
+    <string name="news_hotnews_chinese_translation">中文译文</string>
+    <string name="news_hotnews_chinese_original">中文原文</string>
+    <string name="news_hotnews_original_source">原文</string>
+    <string name="news_hotnews_status_processing">正文翻译中</string>
+    <string name="news_hotnews_status_incomplete">未译完</string>
+    <string name="news_hotnews_original_title_prefix">原标题：%1$s</string>
+    <string name="news_hotnews_ai_disclaimer">以上为 AI 整理，分析不等于来源事实。完整信息请以原文为准。</string>
+    <string name="news_hotnews_back">返回热榜</string>
 </resources>

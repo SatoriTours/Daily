@@ -101,6 +101,8 @@ class HotNewsAiLiveTest {
                     HotNewsItem("11", HotNewsPlatform.HACKER_NEWS, 8, "Building a local-first reading tool",
                         "https://example.com/reading", "A reading tool stores articles locally and supports exporting saved documents.",
                         discussionUrl = "https://news.ycombinator.com/item?id=11"),
+                    HotNewsItem("reprapmicron", HotNewsPlatform.HACKER_NEWS, 1, "RepRapmicron",
+                        "https://example.com/reprapmicron"),
                     HotNewsItem("50126253", HotNewsPlatform.HACKER_NEWS, 9,
                         "Bleached corals recover within days after contact with healthy neighbours",
                         "https://example.com/corals", "https://archive.ph/zIPG4",

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>热榜文章详情 · 切换与信息同一行 v4</title>
+<style>
+/* 静态设计稿：颜色、字号和间距映射现有 AppColors / Typography / Spacing，非 App 实现。 */
+:root { color-scheme:light; --blue:#007aff; --ink:#1d1d1f; --muted:#6e6e73; --space-s:8px; --space-m:16px; --space-l:24px; }
+* { box-sizing:border-box; }
+body { margin:0; background:#ebedf0; color:var(--ink); font-family:Roboto,"Noto Sans CJK SC",sans-serif; }
+button { font:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+button:focus-visible, a:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.page { max-width:1260px; padding:36px 28px 28px; margin:auto; }
+.board-heading { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:26px; gap:20px; }
+.eyebrow { font-size:11px; font-weight:600; letter-spacing:2px; color:var(--muted); margin-bottom:8px; }
+.board-heading h1 { margin:0; font-size:26px; line-height:1.4; letter-spacing:-.5px; }
+.board-heading p { margin:8px 0 0; color:var(--muted); font-size:13px; line-height:1.8; }
+.version { font-size:11px; color:var(--muted); border:1px solid #d3d5d9; padding:7px 10px; border-radius:8px; white-space:nowrap; }
+.layout { display:grid; grid-template-columns:390px 390px 1fr; gap:24px; align-items:start; }
+.caption { margin-bottom:12px; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:#6e6e73; }
+.caption b { width:20px; height:20px; display:grid; place-items:center; border-radius:6px; background:#dfe3e8; color:#50535a; font-size:10px; }
+.phone { --bg:#000; --text:#f5f5f7; --secondary:#a1a1a6; --surface:#1c1c1e; --low:#111113; --line:rgba(255,255,255,.13); --accent:#0a84ff; --soft:rgba(10,132,255,.14); --danger:#ff6961; color-scheme:dark; width:390px; height:844px; display:flex; flex-direction:column; overflow:hidden; border-radius:28px; background:var(--bg); color:var(--text); border:1px solid var(--line); box-shadow:0 10px 32px #151a2421; position:relative; }
+.phone.light { --bg:#fff; --text:#1d1d1f; --secondary:#6e6e73; --surface:#efeff4; --low:#f5f5f7; --line:rgba(60,60,67,.12); --accent:#007aff; --soft:rgba(0,122,255,.08); --danger:#c9352c; color-scheme:light; }
+.status { height:38px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:8px 24px 0; font-size:12px; font-weight:600; }
+.status-icons { display:flex; gap:6px; align-items:center; }
+.status svg { width:14px; height:14px; stroke-width:1.9; }
+.battery { border-radius:3px; padding:0 4px; background:var(--text); color:var(--bg); font-size:9px; line-height:14px; }
+.topbar { height:48px; flex-shrink:0; display:grid; grid-template-columns:44px 1fr 44px; align-items:center; padding:0 8px; }
+.topbar-title { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; height:44px; padding:0; background:none; border:0; color:var(--secondary); font-size:11px; font-weight:400; }
+.topbar-title .source-name { font-size:12px; }
+.topbar-title svg { width:12px; height:12px; transition:transform .15s; }
+.topbar-title[aria-expanded="true"] svg { transform:rotate(180deg); }
+.topbar-title .rank { border-left:1px solid var(--line); padding-left:8px; margin-left:2px; }
+.icon-button { width:44px; height:44px; padding:0; display:grid; place-items:center; background:none; border:0; color:var(--text); border-radius:50%; }
+.icon-button.saved { color:var(--accent); }
+.icon-button.saved svg { fill:var(--soft); }
+.article-scroll { overflow:auto; min-height:0; flex:1; scrollbar-width:none; overscroll-behavior:contain; }
+.article-scroll::-webkit-scrollbar { display:none; }
+.article-head { padding:4px 16px 8px; }
+.source { display:flex; align-items:center; flex-wrap:wrap; gap:8px; color:var(--secondary); font-size:11px; line-height:20px; margin-bottom:12px; }
+.source-name { color:var(--accent); font-weight:500; }
+.source-mark { width:17px; height:17px; border-radius:4px; background:var(--soft); display:grid; place-items:center; font-size:10px; font-weight:600; color:var(--accent); }
+.source-divider { color:var(--line); }
+h2.title { font-size:20px; line-height:28px; letter-spacing:-.3px; font-weight:600; margin:0; overflow-wrap:anywhere; }
+.original-title { font-size:11px; line-height:18px; color:var(--secondary); margin-top:8px; padding:8px 10px; background:var(--low); border-radius:8px; }
+.original-title[hidden] { display:none; }
+.phone { --switcher:#171719; --selection:#2c2c2e; }
+.phone.light { --switcher:#efeff4; --selection:#fff; }
+.segments { position:sticky; top:0; z-index:2; margin:0; padding:0 16px; height:44px; display:flex; background:var(--bg); gap:0; align-items:center; }
+.segments::before { content:""; position:absolute; top:6px; left:16px; width:148px; height:32px; border-radius:9px; background:var(--switcher); }
+.segment { position:relative; isolation:isolate; border:0; background:none; color:var(--secondary); font-size:13px; font-weight:500; padding:0; width:74px; min-width:44px; height:44px; }
+.segment[aria-selected="true"] { color:var(--text); }
+.segment[aria-selected="true"]::before { content:""; position:absolute; z-index:-1; top:8px; bottom:8px; left:3px; right:3px; border-radius:7px; background:var(--selection); box-shadow:0 1px 3px #0002; }
+.segments.dropdown::before { display:none; }
+.mode-picker { position:relative; height:44px; display:flex; align-items:center; }
+.mode-picker::after { content:""; pointer-events:none; width:6px; height:6px; border-right:1.5px solid var(--secondary); border-bottom:1.5px solid var(--secondary); transform:rotate(45deg); position:absolute; right:12px; top:17px; }
+.mode-select { appearance:none; height:44px; min-width:90px; border:0; border-radius:9px; background:transparent; color:var(--text); font:500 13px Roboto,"Noto Sans CJK SC",sans-serif; padding:0 28px 0 12px; cursor:pointer; }
+.mode-picker::before { content:""; position:absolute; left:0; right:0; top:6px; bottom:6px; border-radius:9px; background:var(--switcher); pointer-events:none; }
+.mode-select { position:relative; z-index:1; background:none; }
+.mode-picker::after { z-index:2; }
+.mode-select option { color:var(--text); background:var(--bg); }
+.mode-select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.switch-tabs { display:flex; height:44px; flex-shrink:0; }
+.segment-note { margin-left:auto; align-self:center; display:flex; align-items:center; gap:5px; padding-left:8px; color:var(--secondary); font-size:11px; line-height:18px; white-space:nowrap; }
+.segment-note svg { width:13px; height:13px; }
+.segment-note[data-kind="processing"] svg { color:var(--accent); }
+.inline-retry { border:0; background:none; color:var(--accent); font-size:11px; min-width:44px; height:44px; padding:0 4px; }
+@media(max-width:350px) { .segments::before { width:136px; } .segment { width:68px; } .segment-note { font-size:10px; gap:4px; padding-left:4px; } }
+.panel { padding:16px 16px 28px; }
+.panel[hidden] { display:none; }
+.section-title { margin:0 0 10px; font-size:15px; line-height:22px; font-weight:600; display:flex; align-items:center; gap:8px; }
+.section-title:not(:first-child) { margin-top:24px; }
+.prose { font-size:15px; line-height:26px; font-weight:400; letter-spacing:.05px; }
+.prose p { margin:0 0 14px; }
+.prose p:last-child { margin-bottom:0; }
+.analysis-tag { color:var(--secondary); font-size:10px; line-height:17px; font-weight:400; padding:0 5px; border:1px solid var(--line); border-radius:4px; }
+.small-note { color:var(--secondary); font-size:11px; line-height:19px; margin-top:22px; }
+.reading { font-family:"Noto Serif CJK SC",serif; font-size:16px; line-height:29px; }
+.reading h3 { font-family:Roboto,"Noto Sans CJK SC",sans-serif; font-size:17px; line-height:25px; font-weight:600; margin:22px 0 12px; }
+.reading h3:first-child { margin-top:0; }
+.body-note { display:flex; align-items:center; gap:5px; color:var(--secondary); font-size:11px; font-family:Roboto,"Noto Sans CJK SC",sans-serif; margin-bottom:16px; }
+.body-note svg { width:14px; height:14px; }
+.progress-note { margin:0 16px 4px; border-radius:8px; background:var(--low); padding:4px 8px; display:none; align-items:flex-start; gap:8px; font-size:11px; line-height:19px; color:var(--secondary); }
+.progress-note strong { color:var(--text); font-weight:500; }
+.progress-note svg { width:15px; height:15px; margin-top:2px; color:var(--accent); }
+.phone[data-state="processing"] .progress-note.processing, .phone[data-state="failed"] .progress-note.failed { display:flex; }
+.retry { background:none; border:0; color:var(--accent); padding:0 6px; font-size:11px; min-width:44px; min-height:44px; }
+.failed { align-items:center!important; }
+.failed > div { display:flex; align-items:center; justify-content:space-between; width:100%; }
+.toolbar { height:70px; flex-shrink:0; border-top:1px solid var(--line); display:flex; align-items:center; gap:12px; padding:10px 16px; background:var(--bg); }
+.toolbar button { display:flex; align-items:center; justify-content:center; gap:7px; border:0; border-radius:12px; height:42px; font-size:13px; font-weight:500; }
+.toolbar svg { width:17px; height:17px; }
+.original-button { flex:1; color:var(--accent); background:var(--soft); }
+.discussion-button { flex:1; color:var(--secondary); background:none; }
+.home-area { height:20px; flex-shrink:0; display:grid; place-items:center; }
+.home-indicator { height:4px; width:120px; border-radius:5px; background:var(--secondary); opacity:.6; }
+.toast { position:absolute; bottom:100px; left:24px; right:24px; padding:10px 12px; text-align:center; background:var(--surface); border:1px solid var(--line); border-radius:10px; font-size:11px; line-height:18px; opacity:0; pointer-events:none; transition:opacity .15s; z-index:3; }
+.toast.show { opacity:1; }
+.notes { padding:32px 0 0 4px; }
+.notes h3 { font-size:17px; margin:0 0 14px; line-height:1.5; }
+.notes p { color:var(--muted); font-size:12px; line-height:1.9; margin:0 0 16px; }
+.note { margin:22px 0; }
+.note b { display:block; font-size:12px; margin-bottom:5px; }
+.controls { padding-top:18px; border-top:1px solid #d3d5d9; }
+.controls label { display:block; font-size:11px; color:var(--muted); margin-bottom:10px; }
+.choices { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px; }
+.choices button { border:1px solid #d3d5d9; border-radius:7px; background:transparent; font-size:11px; padding:7px 9px; color:var(--muted); }
+.choices button[aria-pressed="true"] { color:#006edb; border-color:#007aff; background:#e0ecfc; }
+.footnote { font-size:11px; color:var(--muted); line-height:1.8; margin:20px 0 0; }
+body.solo { background:#000; }
+.solo .board-heading,.solo .notes,.solo .caption,.solo .footnote,.solo .preview:nth-child(2) { display:none; }
+.solo .page { padding:0; max-width:none; }
+.solo .layout { display:block; }
+.solo .phone { width:100vw; height:100dvh; border:0; border-radius:0; box-shadow:none; }
+@media(max-width:1100px) { .layout { grid-template-columns:390px 390px; justify-content:center; } .notes { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; gap:0 32px; padding-top:0; } .notes>.intro { grid-column:1/-1; } .page { max-width:860px; } }
+@media(max-width:840px) { .page { padding:24px 16px; } .board-heading { display:block; } .version { display:inline-block; margin-top:12px; } .layout { grid-template-columns:minmax(0,390px); gap:28px; } .phone { width:100%; } .notes { grid-column:auto; display:block; } .board-heading h1 { font-size:22px; } }
+@media(prefers-reduced-motion:reduce) { * { transition:none!important; } }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><defs>
+<symbol id="chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="m14 5-7 7 7 7"/></symbol>
+<symbol id="bookmark" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z"/></symbol>
+<symbol id="external" viewBox="0 0 24 24"><path d="M14 4h6v6m0-6L10 14M10 5H5v15h15v-5"/></symbol>
+<symbol id="discussion" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0z"/><path d="M7 9h8M7 13h5"/></symbol>
+<symbol id="wifi" viewBox="0 0 24 24"><path d="M3 8a15 15 0 0 1 18 0M6 12a10 10 0 0 1 12 0M9 16a5 5 0 0 1 6 0M12 20h.01"/></symbol>
+<symbol id="translate" viewBox="0 0 24 24"><path d="M3 5h12M9 3v2M5 8c1 4 4 7 8 9M12 5c-1 6-4 10-9 13M14 21l4-10 4 10M16 17h4"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</defs></svg>
+<main class="page">
+<header class="board-heading"><div><div class="eyebrow">DAILY SATORI / READER</div><h1>左边切换，右边读懂当前内容</h1><p>v4 · 同一行承载阅读模式、内容类型与阅读时长；翻译异常时优先显示状态。</p></div><span class="version">方案 04 · 左操作，右信息</span></header>
+<div class="layout">
+<section class="preview"><div class="caption"><b>01</b> 摘要 · AI 整理与阅读时长</div><div class="phone" id="dark-phone"></div></section>
+<section class="preview"><div class="caption"><b>02</b> 正文 · 译文标记与阅读时长</div><div class="phone" id="body-phone"></div></section>
+<aside class="notes">
+<div class="intro"><h3>这一行，操作与信息各归其位。</h3><p>左侧保留直观的摘要 / 正文切换，右侧提供当前内容的信息。不是为了填满空白，而是让这一行更有用。</p></div>
+<div class="note"><b>摘要 / AI 整理 · 约 2 分钟</b><p>标明当前是 AI 整理内容，附当前摘要的阅读时长。时长按设计稿实际文本估算，不编造浏览量、热度或发布时间。</p></div>
+<div class="note"><b>正文 / 中文译文 · 约 1 分钟</b><p>切到正文后随之更新，不另占一行「中文译文」说明。本稿仅为正文片段示意，时长不代表真实全文。</p></div>
+<div class="note"><b>处理中或失败 / 状态优先</b><p>右侧改为「正文翻译中」或「未译完 · 重试」，替代额外提示条。来源与排名仍在顶栏，不重复搬到这里。</p></div>
+<div class="controls"><label>外观</label><div class="choices" id="theme-controls"><button data-theme="dark" aria-pressed="true">深色</button><button data-theme="light" aria-pressed="false">浅色</button></div><label>状态演示（不触发 AI 请求）</label><div class="choices" id="state-controls"><button data-state="ready" aria-pressed="true">已完成</button><button data-state="processing" aria-pressed="false">正文翻译中</button><button data-state="failed" aria-pressed="false">正文失败</button></div><label>内容演示</label><div class="choices" id="tab-controls"><button data-tab="summary" aria-pressed="true">摘要</button><button data-tab="body" aria-pressed="false">正文</button></div></div>
+</aside>
+</div>
+<p class="footnote">设计说明：摘要信息来自所提供截图，正文片段仅演示排版，非抓取结果。切换、收藏与状态可交互；原文/讨论按钮仅演示反馈。此稿不修改 App 或摘要生成规则。</p>
+</main>
+<template id="phone-template">
+<div class="status"><span>23:46</span><div class="status-icons"><span>5G</span><svg><use href="#wifi"/></svg><span class="battery">90</span></div></div>
+<header class="topbar"><button class="icon-button back" aria-label="返回热榜"><svg><use href="#back"/></svg></button><button class="topbar-title" aria-label="查看来源与原标题" aria-expanded="false"><span class="source-name">Hacker News</span><span class="rank">第 1 名</span><svg><use href="#chevron"/></svg></button><button class="icon-button favorite" aria-label="收藏文章" aria-pressed="false"><svg><use href="#bookmark"/></svg></button></header>
+<div class="article-scroll">
+<div class="article-head"><h2 class="title">RepRapMicron 推进微米级 3D 打印平台</h2><div class="original-title" hidden>原标题：RepRapmicron</div></div>
+<div class="segments"><div class="switch-tabs" role="tablist" aria-label="阅读内容"><button class="segment" data-tab="summary" role="tab" aria-selected="true">摘要</button><button class="segment" data-tab="body" role="tab" aria-selected="false">正文</button></div><div class="segment-note" role="status" aria-live="polite"></div></div>
+<section class="panel summary-panel prose" role="tabpanel">
+<h3 class="section-title">核心内容</h3>
+<p>RepRapMicron（μRepRap）希望用常见易得的材料，打造可复制的微米及亚微米级 3D 打印机。</p>
+<p>初始原型已在 10 mm 工作区域实现优于 3 μm 的重复定位精度，并打印出层高 4 μm 的 0.5 mm「Benchy」模型。</p>
+<p>目前推荐的 PIKA V0.02 硬件，在约 8 mm 立方体积内实现约 1 μm 重复定位。它使用蚀刻探针沉积小至 4 μm 的 UV 树脂液滴，并通过光纤探针固化出 9 μm 树脂线。</p>
+<h3 class="section-title">为什么重要 <span class="analysis-tag">AI 分析</span></h3>
+<p>若微米制造能由类 RepRap 技术实现，生物科学可能获得更易获取的实验设备，微电子领域也可能出现更多独立探索的空间。</p>
+<p>但平台仍处于开发阶段，可打印对象与材料方面还有大量工作，复杂 3D 形状仍需折叠、铰链和柔性结构。</p>
+<h3 class="section-title">项目状态</h3>
+<p>MAUS 版本已弃用，MAUS L V0.05 于 2026 年 2 月开发中。页面由 Vik Olliver 编辑，2026 年 10 月 13 日记录了 37 次修订。</p>
+<div class="small-note">以上为 AI 整理，分析不等于来源事实。<br>完整信息请以原文为准。</div>
+</section>
+<section class="panel body-panel prose reading" role="tabpanel" hidden>
+<h3>RepRapMicron（μRepRap）</h3>
+<p>这个项目旨在使用常见、易获取的材料，构建可复制的微米及亚微米级 3D 打印机。</p>
+<p>最初的原型在 10 mm 的工作区域内，实现了优于 3 μm 的重复定位精度。它已经打印出一个约 0.5 mm 的 Benchy 模型，层高为 4 μm。</p>
+<h3>当前硬件</h3>
+<p>目前推荐的 PIKA V0.02，在约 8 mm 的立方工作体积内实现约 1 μm 的重复定位精度。</p>
+<p>通过蚀刻探针沉积 UV 树脂液滴，再使用光纤探针固化，项目探索小尺度结构的制造方式。</p>
+<div class="small-note">正文片段仅用于设计排版演示，<br>不是本次真实抓取或翻译的产物。</div>
+</section>
+</div>
+<footer class="toolbar"><button class="original-button"><svg><use href="#external"/></svg>打开原文</button><button class="discussion-button"><svg><use href="#discussion"/></svg>查看讨论</button></footer>
+<div class="home-area"><div class="home-indicator"></div></div><div class="toast" role="status"></div>
+</template>
+<script>
+const params = new URLSearchParams(location.search);
+const phones = [...document.querySelectorAll('.phone')];
+function notify(phone, message) {
+ const el=phone.querySelector('.toast'); el.textContent=message; el.classList.add('show');
+ clearTimeout(phone.toastTimer); phone.toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function updateReadingInfo(phone) {
+ const note=phone.querySelector('.segment-note'),state=phone.dataset.state||'ready';
+ note.dataset.kind=state;
+ if(state==='processing') {
+  note.innerHTML='<svg aria-hidden="true"><use href="#clock"/></svg><span>正文翻译中</span>';
+  note.title='摘要可先阅读，正文完成后自动更新';
+ } else if(state==='failed') {
+  note.innerHTML='<span>未译完</span><button class="inline-retry" aria-label="重试正文翻译">重试</button>';
+  note.title='摘要仍可阅读，也可直接打开原文';
+ } else {
+  const tab=phone.dataset.tab||'summary';
+  const panel=phone.querySelector(tab==='summary'?'.summary-panel':'.body-panel');
+  const text=[...panel.querySelectorAll(':scope > p')].map(p=>p.textContent).join('').replace(/\s/g,'');
+  const minutes=Math.max(1,Math.ceil(Array.from(text).length/350));
+  note.textContent=(tab==='summary'?'AI 整理':'中文译文')+' · 约 '+minutes+' 分钟';
+  note.title='根据当前展示内容，按约350字/分钟估算；正文为演示片段，不代表实际全文';
+ }
+}
+function selectTab(phone, tab) {
+ phone.dataset.tab=tab;
+ phone.querySelectorAll('.segment').forEach(el=>el.setAttribute('aria-selected',String(el.dataset.tab===tab)));
+ phone.querySelector('.summary-panel').hidden=tab!=='summary';
+ phone.querySelector('.body-panel').hidden=tab!=='body';
+ phone.querySelectorAll('.segment').forEach(el=>el.tabIndex=el.dataset.tab===tab?0:-1);
+ updateReadingInfo(phone);
+}
+function setState(state) {
+ phones.forEach(phone=>{
+  phone.dataset.state=state;
+  updateReadingInfo(phone);
+  // 不将演示中的中文正文伪装为处理中/失败时已经可用的译文。
+  phone.querySelector('.body-panel').classList.toggle('unavailable',state!=='ready');
+  phone.querySelectorAll('.body-panel > h3,.body-panel > p').forEach(el=>el.hidden=state!=='ready');
+  phone.querySelector('.body-panel .small-note').innerHTML=state==='ready'?'正文片段仅用于设计排版演示，<br>不是本次真实抓取或翻译的产物。':'实际页面将显示已保存的原文。<br>本稿未抓取对应英文原文，不伪造原文内容。';
+ });
+ document.querySelectorAll('#state-controls button').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.state===state)));
+}
+phones.forEach((phone,i)=>{
+ phone.append(document.querySelector('#phone-template').content.cloneNode(true));
+ phone.querySelector('.article-scroll').setAttribute('aria-label','文章阅读区域');
+ phone.querySelectorAll('.segment').forEach((tab,j)=>{
+  const id='tab-'+i+'-'+j,panelId='panel-'+i+'-'+j; tab.id=id; tab.setAttribute('aria-controls',panelId); tab.tabIndex=j===0?0:-1;
+  const panel=phone.querySelector(j===0?'.summary-panel':'.body-panel'); panel.id=panelId; panel.setAttribute('aria-labelledby',id);
+  tab.addEventListener('click',()=>{selectTab(phone,tab.dataset.tab);phone.querySelectorAll('.segment').forEach(other=>other.tabIndex=other===tab?0:-1);});
+  tab.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();phone.querySelectorAll('.segment')[1-j].click();phone.querySelectorAll('.segment')[1-j].focus();});
+ });
+ phone.querySelector('.favorite').addEventListener('click',event=>{
+  const button=event.currentTarget,saved=button.getAttribute('aria-pressed')!=='true'; button.setAttribute('aria-pressed',String(saved));button.classList.toggle('saved',saved);button.setAttribute('aria-label',saved?'取消收藏':'收藏文章');notify(phone,saved?'已收藏（设计演示）':'已取消收藏（设计演示）');
+ });
+ const disclosure=phone.querySelector('.topbar-title');
+ const originalTitle=phone.querySelector('.original-title');
+ originalTitle.id='original-title-'+i; disclosure.setAttribute('aria-controls',originalTitle.id);
+ disclosure.addEventListener('click',()=>{
+  const expanded=disclosure.getAttribute('aria-expanded')!=='true';
+  disclosure.setAttribute('aria-expanded',String(expanded)); originalTitle.hidden=!expanded;
+ });
+ phone.querySelector('.back').addEventListener('click',()=>notify(phone,'返回热榜 · 本稿仅展示详情页'));
+ phone.querySelector('.original-button').addEventListener('click',()=>notify(phone,'实际使用时将打开来源网页'));
+ phone.querySelector('.discussion-button').addEventListener('click',()=>notify(phone,'实际使用时将打开 Hacker News 讨论'));
+ phone.querySelector('.segment-note').addEventListener('click',event=>{
+  if(event.target.closest('.inline-retry'))setState('processing');
+ });
+ if(i===1)selectTab(phone,'body');
+});
+document.querySelectorAll('#state-controls button').forEach(el=>el.addEventListener('click',()=>setState(el.dataset.state)));
+document.querySelectorAll('#tab-controls button').forEach(el=>el.addEventListener('click',()=>{
+ phones.forEach(phone=>selectTab(phone,el.dataset.tab));
+ document.querySelectorAll('#tab-controls button').forEach(button=>button.setAttribute('aria-pressed',String(button===el)));
+}));
+if(params.has('solo'))document.body.classList.add('solo');
+function setTheme(theme) {
+ phones.forEach(phone=>phone.classList.toggle('light',theme==='light'));
+ document.querySelectorAll('#theme-controls button').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.theme===theme)));
+}
+document.querySelectorAll('#theme-controls button').forEach(el=>el.addEventListener('click',()=>setTheme(el.dataset.theme)));
+if(params.get('theme')==='light')setTheme('light');
+if(params.get('tab')==='body')phones.forEach(phone=>selectTab(phone,'body'));
+setState(['processing','failed'].includes(params.get('state'))?params.get('state'):'ready');
+</script>
+</body>
+</html>

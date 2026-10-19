@@ -39,4 +39,15 @@
     <string name="news_hotnews_body_missing">Article content is unavailable. Retry or open the original.</string>
     <string name="news_hotnews_original_fallback">Chinese processing is incomplete. Showing the saved original.</string>
     <string name="news_hotnews_no_points">No highlights available. Open details to read more.</string>
+    <string name="news_hotnews_rank_number">#%1$d</string>
+    <string name="news_hotnews_reading_minutes_estimate">%1$s · ~%2$d min read</string>
+    <string name="news_hotnews_ai_curated">AI Summary</string>
+    <string name="news_hotnews_chinese_translation">Chinese translation</string>
+    <string name="news_hotnews_chinese_original">Chinese original</string>
+    <string name="news_hotnews_original_source">Original</string>
+    <string name="news_hotnews_status_processing">Translating article…</string>
+    <string name="news_hotnews_status_incomplete">Incomplete translation</string>
+    <string name="news_hotnews_original_title_prefix">Original title: %1$s</string>
+    <string name="news_hotnews_ai_disclaimer">AI-curated summary. Analysis may differ from facts; please refer to the original article.</string>
+    <string name="news_hotnews_back">Back to trending</string>
 </resources>

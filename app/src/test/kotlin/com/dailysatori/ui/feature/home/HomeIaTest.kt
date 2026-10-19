@@ -88,7 +88,7 @@ class HomeIaTest {
     @Test
     fun homeBottomBarOnlyRendersInsideHomeTabs() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val gate = "if (homeBottomBarVisibleForTab(selectedIndex))"
+        val gate = "if (shouldShowHomeBottomBar(selectedIndex, isHotNewsDetailOpen))"
         assertTrue(source.contains(gate))
         val bottomBarGate = source.substringAfter(gate)
 

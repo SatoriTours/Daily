@@ -124,6 +124,33 @@ class HotNewsServiceTest {
         }
     }
 
+    @Test fun standaloneProductNameGetsNeutralLabelButProseStillRequiresTranslation() = runBlocking<Unit> {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val configs = com.dailysatori.data.repository.AIConfigRepository(DailySatoriDatabase(driver))
+            HttpClient(MockEngine { error("A standalone name supplies no prose to translate") }).use { http ->
+                val translator = HotNewsTranslator(com.dailysatori.service.ai.AiService(http),
+                    com.dailysatori.service.ai.AiConfigService(configs))
+                val input = HotNewsItem("1", HotNewsPlatform.HACKER_NEWS, 1, "RepRapmicron", "https://example.com/project")
+                for (description in listOf("", "https://example.com/reference")) {
+                    val result = translator.translate(listOf(input.copy(description = description))).single()
+                    assertEquals("热榜条目：RepRapmicron", result.displayTitle)
+                    assertEquals(description, result.chineseSummary)
+                    assertEquals(input.url, result.url)
+                }
+                assertFailsWith<HotNewsAiNotConfigured> {
+                    translator.translate(listOf(input.copy(originalTitle = "Why RepRapmicron matters")))
+                }
+                assertFailsWith<HotNewsAiNotConfigured> {
+                    translator.translate(listOf(input.copy(description = "An open source printing platform")))
+                }
+                assertFailsWith<HotNewsAiNotConfigured> {
+                    translator.translate(listOf(input.copy(originalTitle = "Superconductivity")))
+                }
+            }
+        }
+    }
+
     @Test fun chineseTechnologyTitlesCanRetainRepositoryAndProductNames() {
         assertTrue(isChineseHotNewsText("microsoft/markitdown：将文档转成 Markdown"))
         assertTrue(isChineseHotNewsText("用 Python 实现本地阅读工具"))

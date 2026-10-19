@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,9 +86,20 @@ fun UnifiedNewsScreen(
     onOpportunities: () -> Unit = {},
     onOpportunity: (String) -> Unit = {},
     onTopic: (String) -> Unit = {},
+    onHotNewsDetailVisibleChange: (Boolean) -> Unit = {},
 ) {
     val viewModel: UnifiedNewsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    val isHotNewsDetailOpen = state.selectedHotNews != null
+    DisposableEffect(isHotNewsDetailOpen) {
+        onHotNewsDetailVisibleChange(isHotNewsDetailOpen)
+        onDispose {
+            if (isHotNewsDetailOpen) {
+                onHotNewsDetailVisibleChange(false)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadInitial() }
     LaunchedEffect(state.navigationTarget) {

@@ -123,6 +123,11 @@ private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f
 
 fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
+fun shouldShowHomeBottomBar(tabIndex: Int, isDetailHidingBottomBar: Boolean): Boolean {
+    if (!homeBottomBarVisibleForTab(tabIndex)) return false
+    return if (tabIndex == TODAY_TAB_INDEX) !isDetailHidingBottomBar else true
+}
+
 internal fun homeReminderBadgeCount(index: Int, count: Int): Int = if (index == MY_TAB_INDEX) count.coerceAtLeast(0) else 0
 
 const val MY_TAB_INDEX = AI_CHAT_TAB_INDEX
@@ -155,6 +160,7 @@ fun HomeScreen(
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    var isHotNewsDetailOpen by remember { mutableStateOf(false) }
     var myPreviewSeed by rememberSaveable { mutableIntStateOf(Random.nextInt()) }
     val myListState = rememberLazyListState()
     val reminderViewModel: ReminderViewModel = koinViewModel()
@@ -194,7 +200,8 @@ fun HomeScreen(
                     when (index) {
                         TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
                             onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
-                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic)
+                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
+                            onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
                         DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick) { onIdeaTopic(it) }
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
@@ -220,11 +227,12 @@ fun HomeScreen(
                             onLedger = onLedger,
                         )
                         else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
-                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic)
+                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
+                            onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
                     }
                 }
             }
-            if (homeBottomBarVisibleForTab(selectedIndex)) {
+            if (shouldShowHomeBottomBar(selectedIndex, isHotNewsDetailOpen)) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter,
