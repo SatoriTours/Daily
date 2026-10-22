@@ -41,15 +41,27 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         articleCardsQuery(searchQuery, tagId, favoritesOnly, sourceId, limit).executeAsList()
 
     private fun articleCardsQuery(searchQuery: String, tagId: Long?, favoritesOnly: Boolean, sourceId: Long?, limit: Long) =
-        q.selectArticleCards(sourceId = sourceId, favoritesOnly = if (favoritesOnly) 1L else 0L,
-            tagId = tagId, searchQuery = searchQuery, ftsQuery = searchQuery.toFtsPhraseQuery(), cardLimit = limit) {
-                id, title, aiTitle, summary, markdown, url, favorite, source, status, cover, coverUrl, pubDate, created, updated ->
-            Article(id = id, title = title, ai_title = aiTitle, ai_content = summary,
-                ai_markdown_content = markdown, original_markdown_content = null, url = url,
-                is_favorite = favorite, source_type = source, comment = null, status = status,
-                cover_image = cover, cover_image_url = coverUrl, pub_date = pubDate,
-                created_at = created, updated_at = updated)
+        when {
+            searchQuery.isEmpty() && tagId == null && sourceId == null && favoritesOnly ->
+                q.selectFavoriteArticleCards(limit, ::articleCard)
+            searchQuery.isEmpty() && tagId == null && sourceId == null ->
+                q.selectManualArticleCards(limit, ::articleCard)
+            searchQuery.isEmpty() && tagId == null && sourceId != null && !favoritesOnly ->
+                q.selectSourceArticleCards(sourceId, limit, ::articleCard)
+            else -> q.selectArticleCards(sourceId = sourceId, favoritesOnly = if (favoritesOnly) 1L else 0L,
+                tagId = tagId, searchQuery = searchQuery, ftsQuery = searchQuery.toFtsPhraseQuery(),
+                cardLimit = limit, mapper = ::articleCard)
         }
+
+    private fun articleCard(id: Long, title: String?, aiTitle: String?, summary: String?, markdown: String?,
+        url: String?, favorite: Long?, source: String, status: String?, cover: String?, coverUrl: String?,
+        pubDate: Long?, created: Long, updated: Long) = Article(
+        id = id, title = title, ai_title = aiTitle, ai_content = summary,
+        ai_markdown_content = markdown, original_markdown_content = null, url = url,
+        is_favorite = favorite, source_type = source, comment = null, status = status,
+        cover_image = cover, cover_image_url = coverUrl, pub_date = pubDate,
+        created_at = created, updated_at = updated,
+    )
 
     fun findIntakeArticle(url: String): com.dailysatori.shared.db.SelectArticleIntakeByUrl? {
         val normalized = url.trim().trimEnd('/')

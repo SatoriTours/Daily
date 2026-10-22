@@ -39,6 +39,13 @@ CREATE INDEX IF NOT EXISTS idx_article_local_created
 ON article(created_at DESC)
 WHERE source_type != 'remote_news';
 
+CREATE INDEX IF NOT EXISTS idx_article_manual_cards
+ON article(created_at DESC, id DESC)
+WHERE source_type != 'remote_news';
+
+CREATE INDEX IF NOT EXISTS idx_article_favorite_cards
+ON article(is_favorite, created_at DESC, id DESC);
+
 CREATE INDEX IF NOT EXISTS idx_article_status_updated
 ON article(status, updated_at ASC);
 
@@ -554,6 +561,10 @@ CREATE TABLE unified_news_source (
 CREATE INDEX IF NOT EXISTS idx_unified_news_summary_window_end
 ON unified_news_summary(window_end_ms DESC);
 
+CREATE INDEX IF NOT EXISTS idx_unified_news_source_normalized_url
+ON unified_news_source(CAST(rtrim(substr(source_url, 1, instr(source_url || '#', '#') - 1), '/') AS TEXT))
+WHERE source_type IN ('hot_news', 'remote_article') AND source_url IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_unified_news_source_summary
 ON unified_news_source(summary_id, id ASC);
 
@@ -674,6 +685,59 @@ SELECT * FROM article ORDER BY created_at DESC;
 
 selectLocalArticles:
 SELECT * FROM article WHERE source_type != 'remote_news' ORDER BY created_at DESC;
+
+-- First-page browsing avoids the optional search/filter ORs in selectArticleCards.
+selectManualArticleCards:
+SELECT a.id, a.title, a.ai_title,
+       substr(a.ai_content, 1, 512) AS ai_content,
+       substr(a.ai_markdown_content, 1, 512) AS ai_markdown_content,
+       a.url, a.is_favorite, a.source_type, a.status,
+       a.cover_image, a.cover_image_url, a.pub_date, a.created_at, a.updated_at
+FROM article AS a
+WHERE a.source_type != 'remote_news'
+  -- CASE avoids a multi-index OR plan that sorts all matching local/manual rows.
+  AND CASE a.source_type WHEN 'manual' THEN 1 WHEN 'local' THEN
+      NOT EXISTS (SELECT 1 FROM external_favorite_item WHERE article_id = a.id)
+      AND NOT EXISTS (SELECT 1 FROM remote_article_sync_item WHERE article_id = a.id)
+      AND NOT EXISTS (
+          SELECT 1 FROM unified_news_source AS s
+          JOIN unified_news_summary AS n ON n.id = s.summary_id
+          WHERE s.source_type IN ('hot_news', 'remote_article') AND s.source_url IS NOT NULL
+            AND CAST(rtrim(substr(s.source_url, 1, instr(s.source_url || '#', '#') - 1), '/') AS TEXT) = a.url
+            AND n.created_at <= a.created_at
+      )
+  ELSE 0 END
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT :cardLimit;
+
+selectFavoriteArticleCards:
+SELECT a.id, a.title, a.ai_title,
+       substr(a.ai_content, 1, 512) AS ai_content,
+       substr(a.ai_markdown_content, 1, 512) AS ai_markdown_content,
+       a.url, a.is_favorite, a.source_type, a.status,
+       a.cover_image, a.cover_image_url, a.pub_date, a.created_at, a.updated_at
+FROM article AS a
+WHERE a.is_favorite = 1
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT :cardLimit;
+
+selectSourceArticleCards:
+SELECT a.id, a.title, a.ai_title,
+       substr(a.ai_content, 1, 512) AS ai_content,
+       substr(a.ai_markdown_content, 1, 512) AS ai_markdown_content,
+       a.url, a.is_favorite, a.source_type, a.status,
+       a.cover_image, a.cover_image_url, a.pub_date, a.created_at, a.updated_at
+FROM (
+    SELECT item.article_id, MAX(COALESCE(item.favorited_at, item.first_seen_at)) AS sort_time
+    FROM external_favorite_item AS item
+    WHERE item.source_id = :sourceId AND item.article_id IS NOT NULL
+      AND EXISTS (SELECT 1 FROM article WHERE id = item.article_id)
+    GROUP BY item.article_id
+    ORDER BY sort_time DESC, item.article_id DESC
+    LIMIT :cardLimit
+) AS page
+JOIN article AS a ON a.id = page.article_id
+ORDER BY page.sort_time DESC, a.id DESC;
 
 selectArticleCards:
 SELECT a.id, a.title, a.ai_title,
@@ -1880,11 +1944,15 @@ WHERE remote_article_sync_item.remote_source_id = ?
 ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_sync_item.last_seen_at DESC;
 
 selectRemoteArticleSyncItemsBySource:
-SELECT article.* FROM article
-WHERE EXISTS (SELECT 1 FROM remote_article_sync_item
-    WHERE remote_article_sync_item.article_id = article.id AND remote_article_sync_item.remote_source_id = ?)
-ORDER BY COALESCE(article.pub_date, article.created_at) DESC, article.id DESC
-LIMIT ? OFFSET ?;
+SELECT article.* FROM (
+    SELECT a.id, COALESCE(a.pub_date, a.created_at) AS sort_time
+    FROM article AS a
+    WHERE a.id IN (SELECT article_id FROM remote_article_sync_item WHERE remote_source_id = ?)
+    ORDER BY sort_time DESC, a.id DESC
+    LIMIT ? OFFSET ?
+) AS page
+JOIN article ON article.id = page.id
+ORDER BY page.sort_time DESC, article.id DESC;
 
 countRemoteArticleSyncItems:
 SELECT COUNT(*) FROM remote_article_sync_item;

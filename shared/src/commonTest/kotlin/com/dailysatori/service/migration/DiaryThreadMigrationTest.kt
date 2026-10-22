@@ -91,7 +91,7 @@ class DiaryThreadMigrationTest {
             assertNull(db.dailySatoriQueries.selectDiaryById(1).executeAsOne().parent_diary_id)
             db.dailySatoriQueries.insertDiaryReply("升级后续写", null, null, null, 2_000, 2_000, 1)
             assertEquals(1L, db.dailySatoriQueries.selectDiaryRepliesForRoot(1).executeAsOne().parent_diary_id)
-            assertEquals("34", settings.get(SettingKeys.schemaVersion))
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
         } finally {
             driver.close()
         }

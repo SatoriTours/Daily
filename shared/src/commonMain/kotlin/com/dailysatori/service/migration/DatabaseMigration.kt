@@ -144,6 +144,9 @@ class DatabaseMigration(
         if (currentVersion < 34) {
             migrateV33ToV34()
         }
+        if (currentVersion < 35) {
+            migrateV34ToV35()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1183,6 +1186,23 @@ class DatabaseMigration(
             migrateDiaryThreadSchema { sql -> runSql(sql) }
         } catch (e: Exception) {
             log.w(e) { "Could not create diary thread storage" }
+        }
+    }
+
+    /** V34 -> V35: Ordered news cards and indexed legacy source lookup. */
+    private fun migrateV34ToV35() {
+        listOf(
+            "CREATE INDEX IF NOT EXISTS idx_article_manual_cards ON article(created_at DESC, id DESC) WHERE source_type != 'remote_news'",
+            "CREATE INDEX IF NOT EXISTS idx_article_favorite_cards ON article(is_favorite, created_at DESC, id DESC)",
+            """CREATE INDEX IF NOT EXISTS idx_unified_news_source_normalized_url
+                ON unified_news_source(CAST(rtrim(substr(source_url, 1, instr(source_url || '#', '#') - 1), '/') AS TEXT))
+                WHERE source_type IN ('hot_news', 'remote_article') AND source_url IS NOT NULL""".trimIndent(),
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                log.w(e) { "Could not create news list index" }
+            }
         }
     }
 
