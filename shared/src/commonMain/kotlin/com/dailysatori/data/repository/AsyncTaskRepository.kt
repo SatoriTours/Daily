@@ -292,6 +292,15 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
 
     fun isRunning(id: Long): Boolean = getById(id)?.status == AsyncTaskStatus.running.name
 
+    fun hasRunningLease(id: Long, owner: String): Boolean =
+        getById(id)?.let { it.status == AsyncTaskStatus.running.name && it.lease_owner == owner } == true
+
+    /** Check and mutation share the database transaction, so a reclaim cannot race the write. */
+    fun <T : Any> withRunningLease(id: Long, owner: String, mutation: () -> T): T? =
+        q.transactionWithResult {
+            if (hasRunningLease(id, owner)) mutation() else null
+        }
+
     fun updateProgress(id: Long, current: Long, total: Long, message: String, checkpointJson: String) {
         q.updateAsyncTaskProgress(
             progress_current = current,
@@ -350,6 +359,21 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             updated_at = Clock.System.now().toEpochMilliseconds(),
             id = id,
         )
+    }
+
+    /** Explicit UI continuation only, with the same identity/checkpoint and current cloud authority. */
+    fun resumeAssistantBackground(id: Long): Boolean = q.transactionWithResult {
+        val task = getById(id) ?: return@transactionWithResult false
+        if (task.type !in setOf("assistant_index", "assistant_summary", "assistant_history_backfill") ||
+            task.status !in setOf("failed", "cancelled") ||
+            SettingRepository(db).get("assistant.cloud_consent") != "true") return@transactionWithResult false
+        q.resumeAssistantBackgroundTask(Clock.System.now().toEpochMilliseconds(), id)
+        true
+    }
+
+    fun parkAssistantBackground(id: Long) {
+        val now = Clock.System.now().toEpochMilliseconds()
+        q.parkAssistantBackgroundTask("备份历史等待在任务中心明确继续", now, now, id)
     }
 
     fun cancel(id: Long) {

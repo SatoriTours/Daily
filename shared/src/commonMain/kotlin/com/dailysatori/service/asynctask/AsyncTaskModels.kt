@@ -20,6 +20,10 @@ val AsyncTaskStatus.visibleByDefault: Boolean
         this == AsyncTaskStatus.retrying
 
 enum class AsyncTaskType(val displayName: String) {
+    assistant_turn("助手对话"),
+    assistant_index("助手来源索引"),
+    assistant_history_backfill("助手历史整理"),
+    assistant_summary("助手历史归纳"),
     save_article("保存文章"),
     article_cover_download("文章封面下载"),
     remote_article_sync("同步远程文章"),
@@ -142,6 +146,8 @@ fun asyncTaskNextRetryDelayMs(attemptCount: Long): Long = when (attemptCount) {
 }
 
 sealed interface AsyncTaskExecutionResult {
+    /** Productive bounded work continues without consuming the failure/retry budget. */
+    data class Yield(val delayMs: Long = 0) : AsyncTaskExecutionResult
     data class Success(val resultJson: String = "") : AsyncTaskExecutionResult
     data class RetryableFailure(
         val code: String,
@@ -178,7 +184,12 @@ fun reminderAiRetryDecision(error: Throwable, attempt: Long): ReminderAiRetryDec
     )
 }
 
+/** Identity captured by the runner's successful claim, never adopted from mutable task state. */
+data class AsyncTaskExecutionLease(val taskId: Long, val owner: String)
+
 interface AsyncTaskProgressReporter {
+    val executionLease: AsyncTaskExecutionLease? get() = null
+
     suspend fun report(
         current: Long,
         total: Long,

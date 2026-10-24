@@ -99,12 +99,15 @@ data class TabItem(
 
 const val TODAY_TAB_INDEX = 0
 const val DIARY_TAB_INDEX = 1
-const val READING_TAB_INDEX = 2
-const val AI_CHAT_TAB_INDEX = 3
+const val ASSISTANT_TAB_INDEX = 2
+const val READING_TAB_INDEX = 3
+const val MY_TAB_INDEX = 4
+const val AI_CHAT_TAB_INDEX = ASSISTANT_TAB_INDEX
 
 val tabs = listOf(
     TabItem("今日", Icons.Filled.Language, Icons.Outlined.Language),
     TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
+    TabItem("助手", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     TabItem("我的", Icons.Filled.Person, Icons.Outlined.Person),
 )
@@ -129,8 +132,6 @@ fun shouldShowHomeBottomBar(tabIndex: Int, isDetailHidingBottomBar: Boolean): Bo
 }
 
 internal fun homeReminderBadgeCount(index: Int, count: Int): Int = if (index == MY_TAB_INDEX) count.coerceAtLeast(0) else 0
-
-const val MY_TAB_INDEX = AI_CHAT_TAB_INDEX
 
 @Composable
 fun HomeScreen(
@@ -203,6 +204,12 @@ fun HomeScreen(
                             onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
                             onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
                         DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick) { onIdeaTopic(it) }
+                        ASSISTANT_TAB_INDEX -> com.dailysatori.ui.feature.aichat.AiChatScreen(
+                            onArticleClick = onArticleClick,
+                            onReminderClick = onReminder,
+                            onTaskCenterClick = onTasks,
+                            onMyClick = onProfileClick,
+                        )
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
                             selectedViewpointId = selectedViewpointId,

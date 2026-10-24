@@ -6,6 +6,8 @@ import com.dailysatori.shared.db.DailySatoriDatabase
 class ChatConversationRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
+    fun getById(id: Long): Chat_conversation? = q.selectChatById(id).executeAsOneOrNull()
+
     fun getBySession(sessionId: String): List<Chat_conversation> =
         q.selectChatBySession(sessionId).executeAsList()
 
@@ -27,6 +29,13 @@ class ChatConversationRepository(private val db: DailySatoriDatabase) {
         createdAt: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
     ) {
         q.insertChat(sessionId, role, content, searchResults, steps, createdAt)
+    }
+
+    /** Accept before starting any model/configuration/network work. Failure must reach the caller. */
+    fun acceptUserInput(sessionId: String, content: String): Long = q.transactionWithResult {
+        require(sessionId.isNotBlank() && sessionId.length <= 128 && content.isNotBlank())
+        insert(sessionId, "user", content)
+        q.selectLastInsertedChatId().executeAsOne()
     }
 
     fun deleteBySession(sessionId: String) =

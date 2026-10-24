@@ -19,15 +19,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material3.Icon
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,7 +60,6 @@ import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import org.koin.androidx.compose.koinViewModel
@@ -71,6 +75,8 @@ data class AiChatInputController(
 @Composable
 fun AiChatScreen(
     onArticleClick: (Long) -> Unit = {},
+    onReminderClick: (String) -> Unit = {},
+    onTaskCenterClick: () -> Unit = {},
     onMyClick: () -> Unit = {},
     onInputControllerChange: (AiChatInputController?) -> Unit = {},
     onBack: (() -> Unit)? = null,
@@ -86,9 +92,14 @@ fun AiChatScreen(
     val referenceDetailState by referenceDetailViewModel.state.collectAsState()
     val reminderState by reminderViewModel.state.collectAsState()
     val reminderProfiles by reminderViewModel.profiles.collectAsState()
+    val uiError by viewModel.uiErrors.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     var inputText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showReferenceSheet by remember { mutableStateOf(false) }
+    var showSessionSheet by remember { mutableStateOf(false) }
+    var showMemorySheet by remember { mutableStateOf(false) }
+
     val loadOlderMessages = viewModel::loadOlderMessages
     val displayMessages = remember(state.messages) { aiChatDisplayMessages(state.messages) }
     val showThinking = aiChatShowsThinkingBubble(
@@ -97,6 +108,13 @@ fun AiChatScreen(
     )
     val showStoppedStatus = !state.isProcessing && state.currentStep == aiChatStoppedStatusText()
     var hasCompletedInitialScroll by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiError) {
+        uiError?.let {
+            snackbarHostState.showSnackbar(it.message)
+            viewModel.clearUiError()
+        }
+    }
 
     LaunchedEffect(listState, state.canLoadOlderMessages, state.isLoadingOlderMessages, state.messages.size, displayMessages.firstOrNull()?.id) {
         snapshotFlow {
@@ -164,8 +182,18 @@ fun AiChatScreen(
 
     val sendCurrentInput = {
         if (inputText.isNotBlank()) {
-            viewModel.sendMessage(inputText, explicitContext, includeThoughts)
-            inputText = ""
+            val content = inputText
+            viewModel.sendMessage(
+                content = content,
+                explicitContext = explicitContext,
+                includeThoughts = includeThoughts,
+                onSuccess = {
+                    inputText = ""
+                    if (!state.cloudConsentAccepted) {
+                        viewModel.promptCloudConsent()
+                    }
+                },
+            )
         }
     }
 
@@ -187,16 +215,27 @@ fun AiChatScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Column {
-            AppTopBar(
-                title = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_chat),
-                showBack = onBack != null,
-                onBack = onBack,
-                myNavigationLabel = "我的",
-                onMyNavigationClick = onMyClick,
-            )
-            com.dailysatori.ui.feature.myspace.PersonalChatContextBanner(contextLabel, explicitContext != null, includeThoughts, onRemoveContext)
+                AppTopBar(
+                    title = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_title),
+                    showBack = onBack != null,
+                    onBack = onBack,
+                    myNavigationLabel = "我的",
+                    onMyNavigationClick = onMyClick,
+                    actions = {
+                        IconButton(onClick = { showSessionSheet = true }) {
+                            Icon(Icons.Filled.ChatBubbleOutline, contentDescription = "会话列表")
+                        }
+                        IconButton(onClick = { showMemorySheet = true }) {
+                            Icon(Icons.Filled.Psychology, contentDescription = "记忆管理")
+                        }
+                    },
+                )
+                com.dailysatori.ui.feature.myspace.PersonalChatContextBanner(
+                    contextLabel, explicitContext != null, includeThoughts, onRemoveContext,
+                )
             }
         },
     ) { padding ->
@@ -220,6 +259,12 @@ fun AiChatScreen(
                             onReferenceClick = ::openReference,
                             onDelete = viewModel::deleteMessage,
                             onReAsk = { viewModel.reAsk(it, explicitContext, includeThoughts) },
+                            onExcludeFromMemory = { viewModel.excludeMessage(it.messageId ?: it.id.toLong()) },
+                            onCancelTurn = viewModel::cancelTurn,
+                            onRetryTurn = viewModel::retryTurn,
+                            onArticleClick = onArticleClick,
+                            onReminderClick = onReminderClick,
+                            onTaskCenterClick = onTaskCenterClick,
                         )
                         message.reminderDrafts.forEach { draft ->
                             LaunchedEffect(draft.id) { reminderViewModel.registerDraft(draft) }
@@ -259,6 +304,35 @@ fun AiChatScreen(
                 referenceDetailViewModel.clear()
                 onArticleClick(articleId)
             },
+        )
+    }
+
+    if (showSessionSheet) {
+        SessionListSheet(
+            sessions = state.availableSessions,
+            currentSessionId = state.sessionId,
+            onSelectSession = viewModel::switchSession,
+            onNewSession = { viewModel.startNewSession() },
+            onDeleteSession = viewModel::deleteSession,
+            onDismiss = { showSessionSheet = false },
+        )
+    }
+
+    if (showMemorySheet) {
+        MemoryManagementSheet(
+            memories = state.memories,
+            onForget = viewModel::forgetMemory,
+            onCorrect = viewModel::correctMemory,
+            onDismiss = { showMemorySheet = false },
+        )
+    }
+
+    if (state.showConsentPrompt) {
+        CloudConsentDialog(
+            onAgree = {
+                viewModel.acceptCloudConsent()
+            },
+            onDecline = { viewModel.declineCloudConsent() },
         )
     }
 }

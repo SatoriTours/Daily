@@ -260,7 +260,7 @@ class AiService(private val client: HttpClient) {
         headers: Map<String, String>,
         thinkingMode: AiThinkingMode,
     ): JsonObject? = withSafeGoResponse(headers) {
-        val fullText = StringBuilder()
+        val accumulator = OpenAiStreamAccumulator()
         val started = DiagnosticLog.elapsed()
         var firstChunk = true
         client.preparePost(openAiChatCompletionEndpoint(apiAddress.trim())) {
@@ -278,19 +278,33 @@ class AiService(private val client: HttpClient) {
                 if (headers.containsKey("x-opencode-session")) throw openCodeGoHttpError(response.status.value)
                 throw IllegalStateException(response.bodyAsText().ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
             }
+            // Some configured providers ignore stream=true; consume that same response, never request again.
+            if (response.contentType()?.match(ContentType.Application.Json) == true) {
+                val parsed = json.parseToJsonElement(response.bodyAsText()).jsonObject
+                val reason = parsed["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("finish_reason")?.jsonPrimitive?.contentOrNull
+                require(reason !in setOf("length", "content_filter", "error")) { "AI response was incomplete" }
+                return@execute parsed
+            }
             val channel = response.bodyAsChannel()
             while (!channel.isClosedForRead) {
-                val chunk = parseOpenAiStreamingContentChunk(channel.readUTF8Line() ?: break) ?: continue
+                val chunk = accumulator.accept(channel.readUTF8Line() ?: break)
+                if (accumulator.done) break
+                if (chunk == null) continue
                 if (firstChunk) {
                     firstChunk = false
                     DiagnosticLog.diagnostics.emit(DiagnosticCode.AI_FIRST_CHUNK, DiagnosticSource.AI,
                         fields = mapOf("firstChunkMs" to (DiagnosticLog.elapsed() - started).toString()))
                 }
-                fullText.append(chunk)
                 onChunk(chunk)
             }
+            accumulator.usage?.let { usage ->
+                DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.AI, fields = mapOf(
+                    "inputTokens" to (usage["prompt_tokens"]?.jsonPrimitive?.contentOrNull ?: ""),
+                    "outputTokens" to (usage["completion_tokens"]?.jsonPrimitive?.contentOrNull ?: ""),
+                ))
+            }
+            accumulator.response()
         }
-        if (fullText.isEmpty()) null else buildOpenAiStreamingResponse(fullText.toString())
     }
 
     suspend fun translate(

@@ -13,6 +13,7 @@ class HomeIaTest {
         assertEquals(0, homeReminderBadgeCount(MY_TAB_INDEX, 0))
         assertEquals(0, homeReminderBadgeCount(MY_TAB_INDEX, -1))
         assertEquals(0, homeReminderBadgeCount(DIARY_TAB_INDEX, 3))
+        assertEquals(0, homeReminderBadgeCount(ASSISTANT_TAB_INDEX, 3))
         assertEquals(0, homeReminderBadgeCount(TODAY_TAB_INDEX, 3))
         assertEquals(0, homeReminderBadgeCount(READING_TAB_INDEX, 3))
     }
@@ -26,11 +27,12 @@ class HomeIaTest {
 
     @Test
     fun homeTabsUseWeChatStyleInformationArchitecture() {
-        assertEquals(listOf("今日", "日记", "读书", "我的"), tabs.map { it.label })
+        assertEquals(listOf("今日", "日记", "助手", "读书", "我的"), tabs.map { it.label })
         assertEquals(0, TODAY_TAB_INDEX)
         assertEquals(1, DIARY_TAB_INDEX)
-        assertEquals(2, READING_TAB_INDEX)
-        assertEquals(3, AI_CHAT_TAB_INDEX)
+        assertEquals(2, ASSISTANT_TAB_INDEX)
+        assertEquals(3, READING_TAB_INDEX)
+        assertEquals(4, MY_TAB_INDEX)
         assertTrue(tabs.indices.all(::homeBottomBarVisibleForTab))
     }
 
@@ -42,6 +44,7 @@ class HomeIaTest {
         assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryScreen"))
         assertFalse(source.contains("DiaryTheme"))
         assertTrue(source.contains("DiaryScreen(onMyClick = onProfileClick)"))
+        assertTrue(source.contains("ASSISTANT_TAB_INDEX -> com.dailysatori.ui.feature.aichat.AiChatScreen"))
         assertTrue(source.contains("READING_TAB_INDEX -> BooksScreen"))
         assertTrue(source.contains("MY_TAB_INDEX -> MySpaceScreen"))
         assertFalse(source.contains("RECORDS_TAB_INDEX"))

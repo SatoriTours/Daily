@@ -44,6 +44,7 @@ data class TaskCenterState(
     val attentionTasks: List<AsyncTaskListItem> = emptyList(),
     val attentionOnly: Boolean = false,
     val sourceNames: TaskCenterSourceNames = TaskCenterSourceNames(),
+    val assistantResumeBlocked: Boolean = false,
 )
 
 private data class SelectedTaskState(
@@ -83,6 +84,7 @@ class TaskCenterViewModel(
     private val pageLimit = MutableStateFlow(DEFAULT_TASK_CENTER_PAGE_SIZE)
     private val attentionOnly = MutableStateFlow(false)
     private val selectedTaskId = MutableStateFlow<Long?>(null)
+    private val assistantResumeBlocked = MutableStateFlow(false)
     private val selected = selectedTaskId.flatMapLatest { id ->
         if (id == null) {
             flowOf(SelectedTaskState(null, "", false))
@@ -134,6 +136,7 @@ class TaskCenterViewModel(
             }
         }
         .combine(sourceNames) { state, names -> state.copy(sourceNames = names) }
+        .combine(assistantResumeBlocked) { state, blocked -> state.copy(assistantResumeBlocked = blocked) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskCenterState())
 
     fun applyEntryFilter(recentFailures: Boolean) {
@@ -204,7 +207,16 @@ class TaskCenterViewModel(
         }
     }
 
+    fun resumeAssistantBackground(taskId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val resumed = repository.resumeAssistantBackground(taskId)
+            assistantResumeBlocked.value = !resumed
+            if (resumed) runCatching { scheduler.enqueue(taskId) }
+        }
+    }
+
     fun openTask(taskId: Long) {
+        assistantResumeBlocked.value = false
         selectedTaskId.value = taskId
     }
 

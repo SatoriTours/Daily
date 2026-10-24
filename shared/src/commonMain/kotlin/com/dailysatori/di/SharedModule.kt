@@ -128,6 +128,20 @@ val sharedModule: Module = module {
     single { BookViewpointAiRepository(get()) }
     single { BookViewpointRepository(get()) }
     single { ChatConversationRepository(get()) }
+    single { com.dailysatori.service.assistant.AssistantTurnRepository(get()) }
+    single { com.dailysatori.service.assistant.AssistantPrivacyRepository(get()) }
+    single { com.dailysatori.service.assistant.data.AssistantDataGateway(get()) }
+    single { com.dailysatori.service.assistant.KoogReadOnlyAssistant(get(), get(), get(), get(), get()) }
+    single { com.dailysatori.service.assistant.AssistantMemoryService(get()) }
+    single { com.dailysatori.service.assistant.AssistantMemoryIndexer(get(), get(), get<MemoryExtractService>()::extractPersonalCandidates) }
+    single { com.dailysatori.service.assistant.AssistantIndexTaskHandler(get(), get()) }
+    single { com.dailysatori.service.assistant.AssistantHistoryBackfill(get()) }
+    single { com.dailysatori.service.assistant.AssistantHistoryBackfillTaskHandler(get()) }
+    single { com.dailysatori.service.assistant.AssistantConversationSummarizer(get(), summarize = get<MemoryExtractService>()::summarizeConversation) }
+    single { com.dailysatori.service.assistant.AssistantSummaryTaskHandler(get()) }
+    single { com.dailysatori.service.assistant.AssistantActionService(get(), get()) }
+    single { com.dailysatori.service.assistant.KoogAssistantRuntime(get(), get(), get(), get(), get(), get()) }
+    single { com.dailysatori.service.assistant.AssistantTurnTaskHandler(get(), get(), get<com.dailysatori.service.assistant.KoogAssistantRuntime>()) }
     single { DiaryAttachmentRepository(get(), get(), get()) }
     single { DiaryRepository(get(), get(), get()) }
     single { com.dailysatori.data.repository.DiaryThreadRepository(get(), get()) }

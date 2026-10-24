@@ -27,6 +27,9 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.kermit)
             implementation(libs.kaml)
+            implementation(libs.koog.agents.core)
+            implementation(libs.koog.agents.snapshot)
+            implementation(libs.koog.agents.event.handler)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

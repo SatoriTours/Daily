@@ -275,13 +275,14 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun viewModelUsesStreamingMcpPathAndPersistsFinalMessage() {
+    fun viewModelUsesAssistantConversationAndExposesState() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatViewModel.kt").readText()
 
-        assertTrue(source.contains("processQueryStreaming("))
-        assertTrue(source.contains("withStreamingAssistantChunk("))
-        assertTrue(source.contains("finishedStreamingAssistant("))
-        assertTrue(source.contains("finalizedAssistantMessageForPersistence(assistantMessageId)?.let { persistMessage(it) }"))
+        assertTrue(source.contains("conversation: AssistantConversation"))
+        assertTrue(source.contains("conversation.sessions()"))
+        assertTrue(source.contains("conversation.messages("))
+        assertTrue(source.contains("conversation.memories()"))
+        assertTrue(source.contains("conversation.sendWithContext(") || source.contains("conversation.send("))
     }
 
     @Test
@@ -374,13 +375,8 @@ class AiChatUiStateTest {
 
     @Test
     fun topBarDoesNotExposeRefreshOrMemorySearchAction() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
-
         assertFalse(aiChatShowsRefreshAction())
         assertFalse(aiChatShowsMemorySearchAction())
-        assertFalse(screen.contains("MemorySearchSheet("))
-        assertFalse(screen.contains("showMemorySheet"))
-        assertFalse(screen.contains("contentDescription = \"记忆搜索\""))
     }
 
     @Test
@@ -430,15 +426,10 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun chatInitialHistoryUsesLatestPageInsteadOfFullSession() {
-        assertEquals(12, aiChatHistoryPageSize())
-
-        val repository = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ChatConversationRepository.kt").readText()
+    fun chatInitialHistoryUsesAssistantConversation() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatViewModel.kt").readText()
 
-        assertTrue(repository.contains("fun getLatestBySession("))
-        assertTrue(viewModel.contains("chatConversationRepo.getLatestBySession(latestSession"))
-        assertFalse(viewModel.contains("chatConversationRepo.getBySession(latestSession)"))
+        assertTrue(viewModel.contains("conversation.messages("))
     }
 
     @Test
@@ -732,7 +723,7 @@ class AiChatUiStateTest {
         val assistant = ChatMessageUi("a1", "assistant", "回答", 2L)
         val messages = listOf(user, assistant)
 
-        assertEquals(listOf(ChatMessageAction.Copy, ChatMessageAction.Delete, ChatMessageAction.ReAsk), chatMessageActions(user))
+        assertEquals(listOf(ChatMessageAction.Copy, ChatMessageAction.Delete, ChatMessageAction.ExcludeFromMemory), chatMessageActions(user))
         assertEquals("问题", reAskContentForMessage(messages, assistant))
         assertEquals(listOf(user), deleteChatMessage(messages, assistant.id))
     }

@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.IdeaTopicRepository
+import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ideatopic.*
 import com.dailysatori.service.diagnostics.*
 import com.dailysatori.platform.FileManager
@@ -21,6 +22,83 @@ import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class BackupRoundTripTest {
+    @Test
+    fun assistantPrivacyAndTurnsSurviveArchiveRestoreWithoutAutomaticallyReplayingWork() = runBlocking {
+        withVerificationFixture { files, service, _ ->
+            var pendingId = 0L
+            var completedId = 0L
+            var childTaskId = 0L
+            var historyTaskId = 0L
+            var summaryTaskId = 0L
+            withDatabase(files.getDatabasePath()) { driver ->
+                val turns = com.dailysatori.service.assistant.AssistantTurnRepository(driver)
+                val tasks = com.dailysatori.data.repository.AsyncTaskRepository(DailySatoriDatabase(driver))
+                val pending = turns.accept("assistant", "pending", "保留但不自动执行", 123L, "Asia/Shanghai")
+                pendingId = pending.id
+                tasks.claimForRun(pending.taskId, "before-backup", Long.MAX_VALUE)
+                val completed = turns.accept("assistant", "done", "保存 https://example.com/restored", 124L, "UTC")
+                completedId = completed.id
+                tasks.claimForRun(completed.taskId, "owner", Long.MAX_VALUE)
+                val business = com.dailysatori.service.assistant.RepositoryAssistantBusiness(driver) { _, _ -> }
+                val actions = com.dailysatori.service.assistant.AssistantActionService(driver, business)
+                childTaskId = actions.submit(completed, "owner", listOf(com.dailysatori.service.assistant.AssistantActionRequest(
+                    "article", "保存 [input_link_0]", urlRef = "input_link_0"))).single().taskId!!
+                assertTrue(turns.complete(completed.id, "owner", "已完成回答"))
+                tasks.finishSuccess(completed.taskId, "")
+                com.dailysatori.service.assistant.AssistantPrivacyRepository(driver).exclude("diary", "23")
+                tasks.updateProgress(pending.taskId, 0, 0, "", "saved-model-context-must-not-be-restored")
+                historyTaskId = tasks.enqueue("assistant_history_backfill", """{"cursor":0,"upperBound":999}""", "assistant_history_backfill")
+                summaryTaskId = tasks.enqueue("assistant_summary", """{"sessionId":"assistant","upperId":999}""", "assistant_summary:assistant:999")
+            }
+            assertTrue(service.backupNow(), service.lastMessage.value)
+            val archive = service.listBackups().maxBy { it.timestamp }
+            assertTrue(service.restore(archive.name, "correct horse battery"), service.lastMessage.value)
+            withDatabase(files.getDatabasePath()) { driver ->
+                val turns = com.dailysatori.service.assistant.AssistantTurnRepository(driver)
+                val tasks = com.dailysatori.data.repository.AsyncTaskRepository(DailySatoriDatabase(driver))
+                val pending = turns.get(pendingId)!!
+                assertTrue(pending.requiresResume)
+                assertEquals(123L, pending.receivedAtMs)
+                assertEquals("Asia/Shanghai", pending.timeZoneId)
+                assertEquals("failed", tasks.getById(pending.taskId)!!.status)
+                assertEquals("restore_requires_resume", tasks.getById(pending.taskId)!!.last_error_code)
+                assertEquals("", tasks.getById(pending.taskId)!!.checkpoint_json)
+                val settings = SettingRepository(DailySatoriDatabase(driver))
+                assertEquals("true", settings.get("assistant.history.restore_hold"))
+                for (id in listOf(historyTaskId, summaryTaskId)) {
+                    assertEquals("failed", tasks.getById(id)!!.status)
+                    assertEquals("restore_requires_resume", tasks.getById(id)!!.last_error_code)
+                    assertTrue(tasks.runnableTasks(Long.MAX_VALUE, 100).none { it.id == id })
+                }
+                settings.upsert("assistant.cloud_consent", "true")
+                assertNull(com.dailysatori.service.assistant.AssistantHistoryBackfill(driver).enqueue())
+                assertEquals("true", settings.get("assistant.history.restore_hold"))
+                assertTrue(tasks.runnableTasks(Long.MAX_VALUE, 100).none { it.type == "assistant_turn" })
+                assertNotNull(turns.get(completedId)!!.responseMessageId)
+                assertTrue(turns.get(completedId)!!.requiresResume)
+                assertEquals("failed", tasks.getById(childTaskId)!!.status)
+                assertEquals("restore_requires_resume", tasks.getById(childTaskId)!!.last_error_code)
+                assertTrue(tasks.runnableTasks(Long.MAX_VALUE, 100).none { it.id == childTaskId })
+                val actions = com.dailysatori.service.assistant.AssistantActionService(driver,
+                    com.dailysatori.service.assistant.RepositoryAssistantBusiness(driver) { _, _ -> })
+                assertEquals(childTaskId, actions.list(completedId).single().taskId)
+                val privacy = com.dailysatori.service.assistant.AssistantPrivacyRepository(driver)
+                assertTrue(privacy.isExcluded("diary", "23"))
+                // A stale indexer recreating derived memory cannot resurrect forgotten material.
+                driver.execute(null, "INSERT INTO memory_entry(type,source_type,source_id,title,content,tags,created_at,updated_at) VALUES('diary','diary',23,'旧归纳','禁止复现','',1,1)", 0)
+            }
+            withDatabase(files.getDatabasePath()) { driver ->
+                val gateway = com.dailysatori.service.assistant.data.AssistantDataGateway(driver)
+                assertFalse(runBlocking { gateway.search("禁止复现") }.toString().contains("禁止复现"))
+                assertTrue(com.dailysatori.service.assistant.AssistantTurnRepository(driver).resume(pendingId))
+                val turns = com.dailysatori.service.assistant.AssistantTurnRepository(driver)
+                val tasks = com.dailysatori.data.repository.AsyncTaskRepository(DailySatoriDatabase(driver))
+                assertFalse(turns.get(pendingId)!!.requiresResume)
+                assertEquals("retrying", tasks.getById(turns.get(pendingId)!!.taskId)!!.status)
+            }
+        }
+    }
+
     @Test
     fun backupFileNameUsesOnlyCurrentDeviceLocalDateAndTime() = runBlocking {
         val previous = java.util.TimeZone.getDefault()

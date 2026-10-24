@@ -147,6 +147,13 @@ class DatabaseMigration(
         if (currentVersion < 35) {
             migrateV34ToV35()
         }
+        if (currentVersion < 36) {
+            migrateV35ToV36()
+        }
+        if (currentVersion < 37) {
+            migrateV36ToV37()
+        }
+        if (currentVersion < 38) migrateV37ToV38()
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -1203,6 +1210,66 @@ class DatabaseMigration(
             } catch (e: Exception) {
                 log.w(e) { "Could not create news list index" }
             }
+        }
+    }
+
+    private fun migrateV37ToV38() {
+        val statements = listOf(
+            "CREATE TABLE IF NOT EXISTS assistant_action (id TEXT PRIMARY KEY NOT NULL, turn_id INTEGER NOT NULL, kind TEXT NOT NULL, parameters_json TEXT NOT NULL, fingerprint TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, target_id TEXT, task_id INTEGER, error_code TEXT NOT NULL DEFAULT '')",
+            "CREATE INDEX IF NOT EXISTS idx_assistant_action_turn ON assistant_action(turn_id)",
+            "CREATE TABLE IF NOT EXISTS assistant_reference (turn_id INTEGER NOT NULL, source_type TEXT NOT NULL, source_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', PRIMARY KEY(turn_id,source_type,source_id))",
+            "CREATE TABLE IF NOT EXISTS assistant_index_segment (source_id INTEGER NOT NULL, source_version TEXT NOT NULL, segment_index INTEGER NOT NULL, content TEXT NOT NULL, ai_state TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(source_id,segment_index))",
+        )
+        statements.forEach { sql ->
+            try { runSql(sql) } catch (e: Exception) { log.e(e) { "Assistant table migration failed" } }
+        }
+        listOf(
+            Triple("assistant_turn", "action_plan_json", "TEXT NOT NULL DEFAULT ''"),
+            Triple("assistant_turn", "context_json", "TEXT NOT NULL DEFAULT ''"),
+            Triple("assistant_session", "summary", "TEXT NOT NULL DEFAULT ''"),
+            Triple("assistant_session", "summary_sources_json", "TEXT NOT NULL DEFAULT '[]'"),
+            Triple("assistant_session", "summary_version", "INTEGER NOT NULL DEFAULT 0"),
+            Triple("memory_entry", "assistant_kind", "TEXT NOT NULL DEFAULT 'legacy'"),
+            Triple("memory_entry", "assistant_state", "TEXT NOT NULL DEFAULT 'active'"),
+            Triple("memory_entry", "evidence", "TEXT NOT NULL DEFAULT ''"),
+            Triple("memory_entry", "source_version", "TEXT NOT NULL DEFAULT ''"),
+        ).forEach { (table, column, definition) ->
+            try { addColumnIfMissing(table, column, definition) }
+            catch (e: Exception) { log.e(e) { "Assistant column migration failed" } }
+        }
+    }
+
+    /** V36 -> V37: identities are separate from the existing task scheduler. */
+    private fun migrateV36ToV37() {
+        listOf(
+            """CREATE TABLE IF NOT EXISTS assistant_session (
+                id TEXT PRIMARY KEY NOT NULL, created_at INTEGER NOT NULL
+            )""".trimIndent(),
+            """CREATE TABLE IF NOT EXISTS assistant_turn (
+                id INTEGER PRIMARY KEY NOT NULL, session_id TEXT NOT NULL,
+                client_message_id TEXT NOT NULL, task_id INTEGER NOT NULL UNIQUE,
+                received_at INTEGER NOT NULL, time_zone_id TEXT NOT NULL,
+                response_message_id INTEGER, requires_resume INTEGER NOT NULL DEFAULT 0,
+                UNIQUE (session_id, client_message_id)
+            )""".trimIndent(),
+        ).forEach { sql ->
+            try {
+                runSql(sql)
+            } catch (e: Exception) {
+                log.e(e) { "Failed to create durable assistant identities" }
+            }
+        }
+    }
+
+    /** V35 -> V36: Privacy tombstones must outlive a rebuild of assistant memory. */
+    private fun migrateV35ToV36() {
+        try {
+            runSql("""CREATE TABLE IF NOT EXISTS assistant_memory_exclusion (
+                source_type TEXT NOT NULL, source_id TEXT NOT NULL, created_at INTEGER NOT NULL,
+                PRIMARY KEY (source_type, source_id)
+            )""".trimIndent())
+        } catch (e: Exception) {
+            log.w(e) { "Could not create assistant privacy storage" }
         }
     }
 

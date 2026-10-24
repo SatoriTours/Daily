@@ -1209,7 +1209,10 @@ ORDER BY task.updated_at DESC, task.id DESC;
 
 selectAsyncTaskIdsBeyondRetention:
 SELECT id FROM async_task
-WHERE status IN ('succeeded', 'failed', 'cancelled') AND id NOT IN (
+WHERE status IN ('succeeded', 'failed', 'cancelled')
+AND NOT EXISTS (SELECT 1 FROM assistant_turn t WHERE t.task_id = async_task.id)
+AND NOT EXISTS (SELECT 1 FROM assistant_action a WHERE a.task_id = async_task.id)
+AND id NOT IN (
     SELECT id FROM async_task
     WHERE status IN ('succeeded', 'failed', 'cancelled')
     ORDER BY updated_at DESC, id DESC
@@ -1334,6 +1337,20 @@ UPDATE async_task
 SET status = ?, attempt_count = ?, run_after_ms = ?, lease_owner = NULL, lease_until_ms = NULL,
     last_error_code = ?, last_error_message = ?, updated_at = ?
 WHERE id = ? AND status = 'running';
+
+parkAssistantBackgroundTask:
+UPDATE async_task
+SET status='failed',lease_owner=NULL,lease_until_ms=NULL,run_after_ms=NULL,
+    last_error_code='restore_requires_resume',last_error_message=?,updated_at=?,finished_at=?
+WHERE id=? AND type IN ('assistant_index','assistant_summary','assistant_history_backfill')
+    AND status IN ('queued','running','retrying');
+
+resumeAssistantBackgroundTask:
+UPDATE async_task
+SET status='queued',attempt_count=0,run_after_ms=NULL,lease_owner=NULL,lease_until_ms=NULL,
+    last_error_code='',last_error_message='',finished_at=NULL,updated_at=?
+WHERE id=? AND type IN ('assistant_index','assistant_summary','assistant_history_backfill')
+    AND status IN ('failed','cancelled');
 
 cancelAsyncTask:
 UPDATE async_task
@@ -2331,6 +2348,10 @@ SELECT
 -- Memory Entry
 CREATE TABLE memory_entry (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assistant_kind TEXT NOT NULL DEFAULT 'legacy',
+    assistant_state TEXT NOT NULL DEFAULT 'active',
+    evidence TEXT NOT NULL DEFAULT '',
+    source_version TEXT NOT NULL DEFAULT '',
     type TEXT NOT NULL,
     source_type TEXT,
     source_id INTEGER,
@@ -2381,6 +2402,67 @@ CREATE TABLE chat_conversation (
 CREATE INDEX IF NOT EXISTS idx_chat_conversation_session_created
 ON chat_conversation(session_id, created_at DESC);
 
+-- Assistant privacy tombstones are independent of original records and survive memory rebuilds.
+CREATE TABLE assistant_memory_exclusion (
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (source_type, source_id)
+);
+
+-- Durable identity only: execution status/leases remain owned by async_task.
+CREATE TABLE assistant_session (
+    id TEXT PRIMARY KEY NOT NULL,
+    created_at INTEGER NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    summary_sources_json TEXT NOT NULL DEFAULT '[]',
+    summary_version INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE assistant_turn (
+    id INTEGER PRIMARY KEY NOT NULL,
+    session_id TEXT NOT NULL,
+    client_message_id TEXT NOT NULL,
+    task_id INTEGER NOT NULL UNIQUE,
+    received_at INTEGER NOT NULL,
+    time_zone_id TEXT NOT NULL,
+    response_message_id INTEGER,
+    requires_resume INTEGER NOT NULL DEFAULT 0,
+    action_plan_json TEXT NOT NULL DEFAULT '',
+    context_json TEXT NOT NULL DEFAULT '',
+    UNIQUE (session_id, client_message_id)
+);
+
+CREATE TABLE assistant_action (
+    id TEXT PRIMARY KEY NOT NULL,
+    turn_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    parameters_json TEXT NOT NULL,
+    fingerprint TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    target_id TEXT,
+    task_id INTEGER,
+    error_code TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX idx_assistant_action_turn ON assistant_action(turn_id);
+
+CREATE TABLE assistant_reference (
+    turn_id INTEGER NOT NULL,
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (turn_id, source_type, source_id)
+);
+
+CREATE TABLE assistant_index_segment (
+    source_id INTEGER NOT NULL,
+    source_version TEXT NOT NULL,
+    segment_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    ai_state TEXT NOT NULL DEFAULT 'pending',
+    PRIMARY KEY (source_id, segment_index)
+);
+
 -- Memory queries
 selectMemoryByType:
 SELECT * FROM memory_entry WHERE type = ? ORDER BY created_at DESC;
@@ -2424,6 +2506,9 @@ memoryCountByType:
 SELECT COUNT(*) FROM memory_entry WHERE type = ?;
 
 -- Chat conversation queries
+selectChatById:
+SELECT * FROM chat_conversation WHERE id = ?;
+
 selectChatBySession:
 SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at ASC;
 
@@ -2436,6 +2521,9 @@ SELECT * FROM chat_conversation WHERE session_id = ? AND created_at < ? ORDER BY
 insertChat:
 INSERT INTO chat_conversation (session_id, role, content, search_results, steps, created_at)
 VALUES (?, ?, ?, ?, ?, ?);
+
+selectLastInsertedChatId:
+SELECT id FROM chat_conversation ORDER BY id DESC LIMIT 1;
 
 deleteChatBySession:
 DELETE FROM chat_conversation WHERE session_id = ?;

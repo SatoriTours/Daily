@@ -88,6 +88,35 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
             }
         }
         SettingRepository(DailySatoriDatabase(driver)).upsert(SettingKeys.backupDir, backupDirectory)
+        holdRestoredAssistantWork()
+    }
+
+    private fun holdRestoredAssistantWork() {
+        SettingRepository(DailySatoriDatabase(driver)).upsert("assistant.history.restore_hold", "true")
+        driver.execute(null, "UPDATE async_task SET checkpoint_json=\'\' WHERE type=\'assistant_turn\'", 0)
+        // Only the staged restore copy is changed. Normal app restart keeps automatic recovery.
+        driver.execute(null, """UPDATE assistant_turn SET requires_resume=1 WHERE id IN (
+            SELECT a.turn_id FROM assistant_action a JOIN async_task t ON t.id=a.task_id
+            WHERE t.status IN ('queued','running','retrying')
+        )""".trimIndent(), 0)
+        driver.execute(null, """UPDATE async_task SET status='failed',lease_owner=NULL,lease_until_ms=NULL,
+            last_error_code='restore_requires_resume',last_error_message='备份中的助手动作等待明确继续'
+            WHERE status IN ('queued','running','retrying') AND id IN (SELECT task_id FROM assistant_action)
+        """.trimIndent(), 0)
+        driver.execute(null, """UPDATE assistant_turn SET requires_resume = 1
+            WHERE response_message_id IS NULL AND task_id IN (
+                SELECT id FROM async_task WHERE type = 'assistant_turn'
+                AND status IN ('queued', 'running', 'retrying')
+            )""".trimIndent(), 0)
+        driver.execute(null, """UPDATE async_task SET status = 'failed',
+            lease_owner = NULL, lease_until_ms = NULL, run_after_ms = NULL,
+            last_error_code = 'restore_requires_resume',
+            last_error_message = '备份已恢复，请核对后手动继续助手任务'
+            WHERE type = 'assistant_turn'
+            AND id IN (SELECT task_id FROM assistant_turn WHERE requires_resume = 1)""".trimIndent(), 0)
+        driver.execute(null, """UPDATE async_task SET status='failed',lease_owner=NULL,lease_until_ms=NULL,run_after_ms=NULL,
+            last_error_code='restore_requires_resume',last_error_message='备份中的记忆索引等待明确继续'
+            WHERE type IN ('assistant_index','assistant_summary','assistant_history_backfill') AND status IN ('queued','running','retrying')""".trimIndent(),0)
     }
 
     private fun pathRows(): List<PathRow> = BackupAttachmentSource.entries.flatMap { source ->

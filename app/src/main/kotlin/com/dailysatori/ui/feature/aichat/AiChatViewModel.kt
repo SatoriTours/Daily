@@ -2,30 +2,23 @@ package com.dailysatori.ui.feature.aichat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailysatori.data.repository.ChatConversationRepository
-import com.dailysatori.shared.db.Chat_conversation
-import com.dailysatori.service.mcp.McpAgentService
+import com.dailysatori.service.assistant.AssistantActionView
+import com.dailysatori.service.assistant.AssistantConversation
+import com.dailysatori.service.assistant.AssistantMemoryView
+import com.dailysatori.service.assistant.AssistantMessage
+import com.dailysatori.service.assistant.AssistantReference
 import com.dailysatori.service.mcp.McpSearchResult
-import com.dailysatori.service.mcp.decodeMcpSearchResults
-import com.dailysatori.service.mcp.encodeMcpSearchResults
 import com.dailysatori.service.reminder.ReminderDraft
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class AiChatState(
-    val messages: List<ChatMessageUi> = emptyList(),
-    val isProcessing: Boolean = false,
-    val currentStep: String = "",
-    val sessionId: String = "chat_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
-    val canLoadOlderMessages: Boolean = false,
-    val isLoadingOlderMessages: Boolean = false,
-)
+enum class TaskDisplayState { None, Waiting, Processing, Failed, Cancelled, RequiresResume }
 
 data class ChatMessageUi(
     val id: String,
@@ -37,12 +30,37 @@ data class ChatMessageUi(
     val reminderDrafts: List<ReminderDraft> = emptyList(),
     val steps: List<String> = emptyList(),
     val isStreaming: Boolean = false,
+    val messageId: Long? = null,
+    val turnId: Long? = null,
+    val taskId: Long? = null,
+    val taskDisplayState: TaskDisplayState = TaskDisplayState.None,
+    val errorMessage: String = "",
+    val isExcludedFromMemory: Boolean = false,
+    val actions: List<AssistantActionView> = emptyList(),
+    val references: List<AssistantReference> = emptyList(),
 )
 
-enum class ChatMessageAction { Copy, Delete, ReAsk }
+data class AiChatState(
+    val messages: List<ChatMessageUi> = emptyList(),
+    val isProcessing: Boolean = false,
+    val currentStep: String = "",
+    val sessionId: String = "",
+    val availableSessions: List<String> = emptyList(),
+    val memories: List<AssistantMemoryView> = emptyList(),
+    val cloudConsentAccepted: Boolean = false,
+    val showConsentPrompt: Boolean = false,
+    val canLoadOlderMessages: Boolean = false,
+    val isLoadingOlderMessages: Boolean = false,
+)
+
+enum class ChatMessageAction { Copy, Delete, ReAsk, ExcludeFromMemory }
 
 fun chatMessageActions(message: ChatMessageUi): List<ChatMessageAction> =
-    listOf(ChatMessageAction.Copy, ChatMessageAction.Delete, ChatMessageAction.ReAsk)
+    if (message.role == "user") {
+        listOf(ChatMessageAction.Copy, ChatMessageAction.Delete, ChatMessageAction.ExcludeFromMemory)
+    } else {
+        listOf(ChatMessageAction.Copy, ChatMessageAction.Delete, ChatMessageAction.ReAsk)
+    }
 
 fun deleteChatMessage(messages: List<ChatMessageUi>, messageId: String): List<ChatMessageUi> =
     messages.filterNot { it.id == messageId }
@@ -182,193 +200,249 @@ fun generateChatMessageId(now: Long): String {
 }
 
 class AiChatViewModel(
-    private val mcpAgentService: McpAgentService,
-    private val chatConversationRepo: ChatConversationRepository,
-    private val sessionStore: com.dailysatori.service.ai.AiConversationSessionStore,
+    private val conversation: AssistantConversation,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AiChatState())
     val state: StateFlow<AiChatState> = _state.asStateFlow()
-    private var activeRequestJob: Job? = null
-    private var activeAssistantMessageId: String? = null
+
+    private var messagesJob: Job? = null
+    private val draftClientUuids = mutableMapOf<String, String>()
 
     init {
-        loadLatestSession()
-    }
-
-    private fun loadLatestSession() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val sessions = chatConversationRepo.getSessions()
-            if (sessions.isNotEmpty()) {
-                val latestSession = sessions.first()
-                val messages = chatConversationRepo.getLatestBySession(latestSession, aiChatHistoryPageSize().toLong())
-                if (messages.isNotEmpty()) {
-                    _state.update { it.copy(
-                        sessionId = latestSession,
-                        messages = messages.map(::toChatMessageUi),
-                        canLoadOlderMessages = messages.size >= aiChatHistoryPageSize(),
-                    ) }
-                }
-            }
+        val consented = conversation.cloudConsent()
+        _state.update {
+            it.copy(
+                cloudConsentAccepted = consented,
+                showConsentPrompt = !consented,
+            )
         }
+
+        conversation.sessions().onEach { sessions ->
+            var activeSessionChanged = false
+            _state.update { current ->
+                val isCurrentlyKnown = current.sessionId in current.availableSessions
+                val isDeletedFromPersisted = isCurrentlyKnown && current.sessionId !in sessions
+                val currentSession = when {
+                    // 1. Session is currently active and still present in persisted sessions
+                    current.sessionId.isNotBlank() && current.sessionId in sessions -> current.sessionId
+                    // 2. Session was known/persisted and has now been deleted from persistence -> fallback
+                    isDeletedFromPersisted -> sessions.firstOrNull() ?: createNewSessionId()
+                    // 3. Session is brand-new / unpersisted (not in availableSessions or sessions yet) -> keep it!
+                    current.sessionId.isNotBlank() && !isCurrentlyKnown -> current.sessionId
+                    // 4. Initial launch or blank sessionId
+                    else -> sessions.firstOrNull() ?: createNewSessionId()
+                }
+                activeSessionChanged = (currentSession != current.sessionId)
+                current.copy(availableSessions = sessions, sessionId = currentSession)
+            }
+            if (activeSessionChanged || messagesJob == null) {
+                observeMessagesForSession(_state.value.sessionId)
+            }
+        }.launchIn(viewModelScope)
+
+        conversation.memories().onEach { memories ->
+            _state.update { it.copy(memories = memories) }
+        }.launchIn(viewModelScope)
     }
 
-    fun loadOlderMessages() {
-        val snapshot = _state.value
-        val firstMessage = snapshot.messages.firstOrNull() ?: return
-        if (!snapshot.canLoadOlderMessages || snapshot.isLoadingOlderMessages) return
+    private fun createNewSessionId(): String = "chat_${java.util.UUID.randomUUID()}"
 
-        _state.update { it.copy(isLoadingOlderMessages = true) }
-        viewModelScope.launch(Dispatchers.IO) {
-            val olderMessages = chatConversationRepo.getBefore(
-                sessionId = snapshot.sessionId,
-                beforeCreatedAt = firstMessage.timestamp,
-                limit = aiChatHistoryPageSize().toLong(),
-            ).map(::toChatMessageUi)
+    fun switchSession(sessionId: String) {
+        if (_state.value.sessionId == sessionId) return
+        _state.update { it.copy(sessionId = sessionId) }
+        observeMessagesForSession(sessionId)
+    }
+
+    fun startNewSession(): String {
+        val newSessionId = createNewSessionId()
+        _state.update { it.copy(sessionId = newSessionId) }
+        observeMessagesForSession(newSessionId)
+        return newSessionId
+    }
+
+    private fun observeMessagesForSession(sessionId: String) {
+        messagesJob?.cancel()
+        if (sessionId.isBlank()) {
+            _state.update { it.copy(messages = emptyList(), isProcessing = false) }
+            return
+        }
+        messagesJob = conversation.messages(sessionId).onEach { rawMessages ->
+            val mapped = rawMessages.map(::toChatMessageUi)
+            val anyRunning = mapped.any { it.isStreaming || it.taskDisplayState == TaskDisplayState.Waiting || it.taskDisplayState == TaskDisplayState.Processing }
             _state.update { current ->
                 current.copy(
-                    messages = olderMessages + current.messages,
-                    canLoadOlderMessages = olderMessages.size >= aiChatHistoryPageSize(),
-                    isLoadingOlderMessages = false,
+                    messages = mapped,
+                    isProcessing = anyRunning,
+                    currentStep = if (anyRunning) "正在处理…" else "",
                 )
             }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun toChatMessageUi(msg: AssistantMessage): ChatMessageUi {
+        val taskState = when (msg.status) {
+            "queued", "pending" -> TaskDisplayState.Waiting
+            "running", "retrying" -> TaskDisplayState.Processing
+            "failed" -> TaskDisplayState.Failed
+            "cancelled" -> TaskDisplayState.Cancelled
+            "requires_resume" -> TaskDisplayState.RequiresResume
+            "succeeded", "complete" -> TaskDisplayState.None
+            else -> TaskDisplayState.None
+        }
+        val isError = taskState == TaskDisplayState.Failed || msg.error.isNotBlank()
+        return ChatMessageUi(
+            id = msg.id.toString(),
+            messageId = msg.id.takeIf { it > 0 },
+            role = msg.role,
+            isStreaming = msg.status == "streaming",
+            content = msg.content,
+            timestamp = msg.createdAt,
+            turnId = msg.turnId,
+            taskId = msg.taskId,
+            taskDisplayState = taskState,
+            errorMessage = msg.error,
+            isExcludedFromMemory = msg.excluded,
+            isError = isError,
+            actions = msg.actions,
+            references = msg.references,
+        )
+    }
+
+    fun prepareInput(input: String): String {
+        return draftClientUuids.getOrPut(input) {
+            "msg_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}_${(1000..9999).random()}"
         }
     }
 
-    fun sendMessage(content: String, explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null, includeThoughts: Boolean = true) {
-        if (_state.value.isProcessing) return
-        val userMessage = ChatMessageUi(
-            id = generateId(),
-            role = "user",
-            content = content,
-            timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-        )
-        _state.update { it.copy(
-            messages = it.messages + userMessage,
-            isProcessing = true,
-            currentStep = "",
-        ) }
-        persistMessage(userMessage)
-        val conversationId = _state.value.sessionId
-
-        val assistantMessageId = generateId()
-        activeAssistantMessageId = assistantMessageId
-        activeRequestJob = viewModelScope.launch(Dispatchers.IO) {
+    fun sendMessage(
+        content: String,
+        clientMessageId: String? = null,
+        explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null,
+        includeThoughts: Boolean = true,
+        onSuccess: (() -> Unit)? = null,
+    ) {
+        if (content.isBlank()) return
+        val session = _state.value.sessionId.ifBlank { startNewSession() }
+        val uuid = clientMessageId ?: prepareInput(content)
+        viewModelScope.launch {
             try {
-                val steps = mutableListOf<String>()
-                val result = mcpAgentService.processQueryStreaming(
-                    query = content,
-                    sessionId = sessionStore.getOrCreate("ai-chat:$conversationId"),
+                conversation.sendWithContext(
+                    sessionId = session,
+                    clientMessageId = uuid,
+                    content = content,
                     explicitContext = explicitContext,
                     includeThoughts = includeThoughts,
-                    onStep = { step, status ->
-                        if (activeAssistantMessageId == assistantMessageId) {
-                            _state.update { it.copy(currentStep = step) }
-                        }
-                        if (status == "completed") steps.add(step)
-                    },
-                    onChunk = { chunk ->
-                        if (activeAssistantMessageId == assistantMessageId) {
-                            _state.update { it.withStreamingAssistantChunk(assistantMessageId, chunk) }
-                        }
-                    },
                 )
-                if (activeAssistantMessageId != assistantMessageId) return@launch
-                val finalAssistantMessage = buildAssistantMessageOrNull(
-                    answer = result.answer.ifBlank { aiChatBlankResponseMessage() },
-                    searchResults = result.searchResults,
-                    steps = steps,
-                )?.copy(id = assistantMessageId, reminderDrafts = result.reminderDrafts)
-                _state.update { current ->
-                    if (current.messages.any { it.id == assistantMessageId }) {
-                        current.finishedStreamingAssistant(
-                            messageId = assistantMessageId,
-                            finalContent = finalAssistantMessage?.content ?: aiChatBlankResponseMessage(),
-                            searchResults = finalAssistantMessage?.searchResults.orEmpty(),
-                            steps = finalAssistantMessage?.steps.orEmpty(),
-                            reminderDrafts = result.reminderDrafts,
-                        )
-                    } else {
-                        current.withAssistantMessage(finalAssistantMessage)
-                    }
-                }
-                _state.value.finalizedAssistantMessageForPersistence(assistantMessageId)?.let { persistMessage(it) }
-            } catch (_: CancellationException) {
-                if (activeAssistantMessageId == assistantMessageId) {
-                    _state.update { it.cancelledStreamingAssistant(assistantMessageId) }
-                }
-            } finally {
-                if (activeAssistantMessageId == assistantMessageId) {
-                    activeRequestJob = null
-                    activeAssistantMessageId = null
-                }
+                draftClientUuids.remove(content)
+                onSuccess?.invoke()
+            } catch (e: Exception) {
+                _uiErrors.value = UiError("发送失败：${e.message ?: "未知错误"}")
             }
         }
     }
 
-    fun stopGeneration() {
-        val cancelledAssistantMessageId = activeAssistantMessageId
-        activeRequestJob?.cancel()
-        activeRequestJob = null
-        activeAssistantMessageId = null
-        _state.update {
-            cancelledAssistantMessageId?.let(it::cancelledStreamingAssistant) ?: it.stoppedGeneration()
-        }
+    fun cancelTurn(turnId: Long) {
+        viewModelScope.launch { conversation.cancel(turnId) }
+    }
+
+    fun retryTurn(turnId: Long) {
+        viewModelScope.launch { conversation.retry(turnId) }
+    }
+
+    fun excludeMessage(messageId: Long) {
+        viewModelScope.launch { conversation.excludeMessage(messageId) }
+    }
+
+    fun deleteMessage(messageId: Long) {
+        viewModelScope.launch { conversation.deleteMessage(messageId) }
     }
 
     fun deleteMessage(message: ChatMessageUi) {
-        _state.update { it.copy(messages = deleteChatMessage(it.messages, message.id)) }
-        viewModelScope.launch(Dispatchers.IO) {
-            chatConversationRepo.deleteMessage(
-                sessionId = _state.value.sessionId,
-                role = message.role,
-                content = message.content,
-                createdAt = message.timestamp,
-            )
+        if (message.isStreaming) return
+        val id = message.messageId ?: message.id.toLongOrNull()
+        if (id != null) {
+            deleteMessage(id)
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            conversation.deleteSession(sessionId)
+            if (_state.value.sessionId == sessionId) {
+                val remaining = _state.value.availableSessions.filterNot { it == sessionId }
+                val next = remaining.firstOrNull() ?: createNewSessionId()
+                _state.update { it.copy(sessionId = next) }
+                observeMessagesForSession(next)
+            }
+        }
+    }
+
+    data class UiError(val message: String, val timestamp: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
+    private val _uiErrors = MutableStateFlow<UiError?>(null)
+    val uiErrors: StateFlow<UiError?> = _uiErrors.asStateFlow()
+
+    fun clearUiError() {
+        _uiErrors.value = null
+    }
+
+    fun forgetMemory(memoryId: Long) {
+        viewModelScope.launch {
+            try {
+                conversation.forgetMemory(memoryId)
+            } catch (e: Exception) {
+                _uiErrors.value = UiError("遗忘记忆失败：${e.message ?: "未知错误"}")
+            }
+        }
+    }
+
+    fun correctMemory(memoryId: Long, corrected: String) {
+        viewModelScope.launch {
+            try {
+                conversation.correctMemory(memoryId, corrected)
+            } catch (e: Exception) {
+                _uiErrors.value = UiError("纠正记忆失败：${e.message ?: "未知错误"}")
+            }
+        }
+    }
+
+    fun acceptCloudConsent() {
+        conversation.setCloudConsent(true)
+        _state.update { it.copy(cloudConsentAccepted = true, showConsentPrompt = false) }
+        val resumeCandidate = _state.value.messages.lastOrNull {
+            it.taskDisplayState == TaskDisplayState.RequiresResume ||
+                (it.taskDisplayState == TaskDisplayState.Failed && it.errorMessage.contains("cloud_consent_required"))
+        }?.turnId
+        if (resumeCandidate != null) {
+            retryTurn(resumeCandidate)
+        }
+    }
+
+    fun declineCloudConsent() {
+        conversation.setCloudConsent(false)
+        _state.update { it.copy(cloudConsentAccepted = false, showConsentPrompt = false) }
+    }
+
+    fun promptCloudConsent() {
+        _state.update { it.copy(showConsentPrompt = true) }
+    }
+
+    fun dismissCloudConsentPrompt() {
+        _state.update { it.copy(showConsentPrompt = false) }
+    }
+
+    fun stopGeneration() {
+        val activeTurn = _state.value.messages.lastOrNull {
+            it.taskDisplayState == TaskDisplayState.Waiting || it.taskDisplayState == TaskDisplayState.Processing
+        }?.turnId
+        if (activeTurn != null) {
+            cancelTurn(activeTurn)
         }
     }
 
     fun reAsk(message: ChatMessageUi, explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null, includeThoughts: Boolean = true) {
         val content = reAskContentForMessage(_state.value.messages, message) ?: return
-        sendMessage(content, explicitContext, includeThoughts)
+        sendMessage(content)
     }
 
-    fun clearMessages() {
-        viewModelScope.launch(Dispatchers.IO) {
-            chatConversationRepo.deleteBySession(_state.value.sessionId)
-        }
-        _state.update { it.copy(
-            messages = emptyList(),
-            isProcessing = false,
-            currentStep = "",
-            sessionId = "chat_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
-            canLoadOlderMessages = false,
-            isLoadingOlderMessages = false,
-        ) }
-    }
-
-    private fun persistMessage(message: ChatMessageUi) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                chatConversationRepo.insert(
-                    sessionId = _state.value.sessionId,
-                    role = message.role,
-                    content = message.content,
-                    searchResults = encodeMcpSearchResults(message.searchResults),
-                    steps = encodeSteps(message.steps),
-                    createdAt = message.timestamp,
-                )
-            } catch (_: Exception) { }
-        }
-    }
-
-    private fun generateId(): String =
-        generateChatMessageId(kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
-
-    private fun encodeSteps(steps: List<String>): String? = steps.takeIf { it.isNotEmpty() }?.joinToString("\n")
-
-    private fun decodeSteps(value: String?): List<String> = value?.lines()?.filter { it.isNotBlank() }.orEmpty()
-
-    private fun toChatMessageUi(msg: Chat_conversation): ChatMessageUi = persistedChatMessage(
-        role = msg.role, content = msg.content ?: "", timestamp = msg.created_at,
-    ).copy(id = msg.id.toString(), searchResults = decodeMcpSearchResults(msg.search_results), steps = decodeSteps(msg.steps))
+    fun loadOlderMessages() {}
 }

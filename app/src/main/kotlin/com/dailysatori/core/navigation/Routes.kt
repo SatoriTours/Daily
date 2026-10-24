@@ -12,6 +12,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object MyOpportunitiesRoute
 @Serializable data class MyOpportunityRoute(val id: String)
 @Serializable data class PersonalChatRoute(val kind: String = "", val key: String = "")
+@Serializable data class AssistantRoute(val sessionId: String? = null)
 @Serializable data object DataPrivacyRoute
 @Serializable data object ProfileFavoritesRoute
 @Serializable data object ProfileExternalFavoritesRoute

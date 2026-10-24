@@ -79,6 +79,29 @@ val appModule: Module = module {
     single<FavoriteSyncHttpLogger> { AsyncTaskHttpLogWriter(get()) }
     single { ClipboardMonitorService(androidContext()) }
     single { AsyncTaskScheduler(androidContext()) }
+    single {
+        val scheduler = get<AsyncTaskScheduler>()
+        val coordinator = get<ReminderCoordinator>()
+        val reminders = get<com.dailysatori.data.repository.ReminderRepository>()
+        val context = androidContext()
+        com.dailysatori.service.assistant.RepositoryAssistantBusiness(get()) { kind, target ->
+            if (kind == "article") scheduler.enqueue(target.toLong())
+            else {
+                coordinator.recompute(target)
+                if (reminders.get(target)?.status == com.dailysatori.service.reminder.ReminderStatus.ACTIVE) {
+                    check(androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                        "Notification permission unavailable"
+                    }
+                }
+            }
+        }
+    }
+    single<com.dailysatori.service.assistant.AssistantConversation> {
+        com.dailysatori.service.assistant.PersistentAssistantConversation(
+            get(), get(), get(), get<com.dailysatori.service.diary.DiaryThoughtChatContextProvider>(),
+            get<com.dailysatori.service.assistant.AssistantHistoryBackfill>(), get<AsyncTaskScheduler>()::enqueue,
+        )
+    }
     single { SaveArticleTaskHandler(get(), get()) }
     single<ArticleCoverScheduler> { PersistentArticleCoverScheduler(get(), get(), get()) }
     single { ArticleCoverDownloadTaskHandler(get()) }
@@ -101,6 +124,10 @@ val appModule: Module = module {
     single {
         AsyncTaskHandlerRegistry(
             listOf(
+                get<com.dailysatori.service.assistant.AssistantTurnTaskHandler>(),
+                get<com.dailysatori.service.assistant.AssistantIndexTaskHandler>(),
+                get<com.dailysatori.service.assistant.AssistantHistoryBackfillTaskHandler>(),
+                get<com.dailysatori.service.assistant.AssistantSummaryTaskHandler>(),
                 get<SaveArticleTaskHandler>(),
                 get<ArticleCoverDownloadTaskHandler>(),
                 get<ArticleMemoryExtractTaskHandler>(),

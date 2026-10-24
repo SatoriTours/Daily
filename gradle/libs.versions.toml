@@ -1,5 +1,6 @@
 [versions]
 kotlin = "2.1.21"
+koog = "0.3.0"
 agp = "8.9.2"
 compose-multiplatform = "1.8.1"
 sqldelight = "2.1.0"
@@ -23,6 +24,9 @@ langchain4j = "1.14.0"
 langchain4j-http-client-okhttp = "1.14.0-beta24"
 
 [libraries]
+koog-agents-core = { group = "ai.koog", name = "agents-core", version.ref = "koog" }
+koog-agents-snapshot = { group = "ai.koog", name = "agents-features-snapshot", version.ref = "koog" }
+koog-agents-event-handler = { group = "ai.koog", name = "agents-features-event-handler", version.ref = "koog" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }

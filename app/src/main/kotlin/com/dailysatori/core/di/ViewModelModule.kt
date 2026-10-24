@@ -195,9 +195,7 @@ val viewModelModule: Module = module {
     }
     viewModel {
         AiChatViewModel(
-            mcpAgentService = get<McpAgentService>(),
-            chatConversationRepo = get<ChatConversationRepository>(),
-            sessionStore = get<com.dailysatori.service.ai.AiConversationSessionStore>(),
+            conversation = get<com.dailysatori.service.assistant.AssistantConversation>(),
         )
     }
     viewModel {

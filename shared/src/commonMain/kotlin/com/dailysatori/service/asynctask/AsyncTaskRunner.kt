@@ -32,7 +32,9 @@ class AsyncTaskRunner(
     private val repository: AsyncTaskRepository,
     private val registry: AsyncTaskHandlerRegistry,
     private val logger: AsyncTaskLogger = NoopAsyncTaskLogger,
-    private val leaseOwnerProvider: () -> String = { "async-task-runner-${Clock.System.now().toEpochMilliseconds()}" },
+    private val leaseOwnerProvider: () -> String = {
+        "async-task-runner-${Clock.System.now().toEpochMilliseconds()}-${kotlin.random.Random.nextLong()}"
+    },
     private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val leaseMs: Long = DEFAULT_LEASE_MS,
     private val executionTimeoutMs: (String) -> Long = ::asyncTaskExecutionTimeoutMs,
@@ -62,19 +64,23 @@ class AsyncTaskRunner(
 
         val handler = registry.get(task.type)
         if (handler == null) {
-            repository.finishFailure(taskId, "handler_missing", "没有注册 ${task.type} 任务处理器")
-            log(taskId, "TASK failed code=handler_missing message=没有注册 ${task.type} 任务处理器")
-            return AsyncTaskRunOutcome.Failed
+            return finishWithLease(task, leaseOwner, AsyncTaskExecutionResult.PermanentFailure(
+                "handler_missing", "没有注册 ${task.type} 任务处理器",
+            ))
         }
 
         val reporter = object : AsyncTaskProgressReporter {
+            override val executionLease = AsyncTaskExecutionLease(taskId, leaseOwner)
+
             override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) {
-                if (!repository.isRunning(taskId)) throw AsyncTaskCancelledException()
-                repository.updateProgress(taskId, current, total, message, checkpointJson)
+                repository.withRunningLease(taskId, leaseOwner) {
+                    repository.updateProgress(taskId, current, total, message, checkpointJson)
+                    repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
+                } ?: throw AsyncTaskCancelledException()
                 DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.TASK,
                     fields = mapOf("count" to current.toString()))
-                repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
-                log(taskId, "TASK progress current=$current total=$total message=$message checkpoint=$checkpointJson")
+                val safeCheckpoint = if (task.type.startsWith("assistant_")) "[助手执行状态]" else checkpointJson
+                log(taskId, "TASK progress current=$current total=$total message=$message checkpoint=$safeCheckpoint")
             }
         }
 
@@ -84,45 +90,17 @@ class AsyncTaskRunner(
                     handler.execute(taskId, executionPayload, task.checkpoint_json, reporter)
                 }
             }
-            if (!repository.isRunning(taskId)) {
-                log(taskId, "TASK cancelled")
-                return AsyncTaskRunOutcome.Skipped
-            }
-            when (result) {
-                is AsyncTaskExecutionResult.Success -> {
-                    repository.finishSuccess(taskId, result.resultJson)
-                    log(taskId, "TASK succeeded")
-                    AsyncTaskRunOutcome.Succeeded
-                }
-                is AsyncTaskExecutionResult.PermanentFailure -> {
-                    repository.finishFailure(taskId, result.code, result.message)
-                    log(taskId, "TASK failed code=${result.code} message=${result.message}")
-                    AsyncTaskRunOutcome.Failed
-                }
-                is AsyncTaskExecutionResult.RetryableFailure -> {
-                    handleRetryableFailure(taskId, task, result.code, result.message, result.retryAfterMs)
-                }
-            }
+            finishWithLease(task, leaseOwner, result)
         } catch (_: AsyncTaskCancelledException) {
             log(taskId, "TASK cancelled")
             AsyncTaskRunOutcome.Skipped
         } catch (_: TimeoutCancellationException) {
-            when (val timeoutResult = handler.onExecutionTimeout(taskId, executionPayload, task.checkpoint_json, reporter)) {
-                is AsyncTaskExecutionResult.Success -> {
-                    repository.finishSuccess(taskId, timeoutResult.resultJson)
-                    log(taskId, "TASK succeeded")
-                    AsyncTaskRunOutcome.Succeeded
-                }
-                is AsyncTaskExecutionResult.PermanentFailure -> {
-                    repository.finishFailure(taskId, timeoutResult.code, timeoutResult.message)
-                    log(taskId, "TASK failed code=${timeoutResult.code} message=${timeoutResult.message}")
-                    AsyncTaskRunOutcome.Failed
-                }
-                is AsyncTaskExecutionResult.RetryableFailure -> handleRetryableFailure(taskId, task, timeoutResult.code, timeoutResult.message, timeoutResult.retryAfterMs)
-                null -> handleRetryableFailure(taskId, task, "timeout", "任务执行超时，已停止并等待重试", null)
-            }
+            if (!repository.hasRunningLease(taskId, leaseOwner)) return AsyncTaskRunOutcome.Skipped
+            val result = handler.onExecutionTimeout(taskId, executionPayload, task.checkpoint_json, reporter)
+                ?: AsyncTaskExecutionResult.RetryableFailure("timeout", "任务执行超时，已停止并等待重试")
+            finishWithLease(task, leaseOwner, result)
         } catch (error: CancellationException) {
-            if (repository.isRunning(taskId)) {
+            repository.withRunningLease(taskId, leaseOwner) {
                 repository.markRetry(
                     taskId, "interrupted", "任务被系统中断，将自动重试",
                     nowMs() + asyncTaskNextRetryDelayMs(task.attempt_count), consumeAttempt = false,
@@ -131,13 +109,9 @@ class AsyncTaskRunner(
             }
             throw error
         } catch (error: Throwable) {
-            handleRetryableFailure(
-                taskId = taskId,
-                task = task,
-                code = "exception",
-                message = error.message.orEmpty().ifBlank { "任务执行失败" },
-                retryAfterMs = null,
-            )
+            finishWithLease(task, leaseOwner, AsyncTaskExecutionResult.RetryableFailure(
+                "exception", error.message.orEmpty().ifBlank { "任务执行失败" },
+            ))
         }
     }
 
@@ -149,7 +123,7 @@ class AsyncTaskRunner(
         val heartbeat = launch {
             while (true) {
                 delay((leaseMs / 3).coerceAtLeast(MIN_HEARTBEAT_MS))
-                if (!repository.isRunning(taskId)) return@launch
+                if (!repository.hasRunningLease(taskId, leaseOwner)) return@launch
                 repository.renewLease(taskId, leaseOwner, nowMs() + leaseMs)
             }
         }
@@ -158,6 +132,34 @@ class AsyncTaskRunner(
         } finally {
             heartbeat.cancelAndJoin()
         }
+    }
+
+    private fun finishWithLease(
+        task: Async_task,
+        owner: String,
+        result: AsyncTaskExecutionResult,
+    ): AsyncTaskRunOutcome = repository.withRunningLease(task.id, owner) {
+        when (result) {
+            is AsyncTaskExecutionResult.Yield -> {
+                repository.markRetry(task.id, "", "", nowMs() + result.delayMs.coerceAtLeast(0), consumeAttempt = false)
+                log(task.id, "TASK yielded after productive work")
+                AsyncTaskRunOutcome.RetryScheduled
+            }
+            is AsyncTaskExecutionResult.Success -> {
+                repository.finishSuccess(task.id, result.resultJson)
+                log(task.id, "TASK succeeded")
+                AsyncTaskRunOutcome.Succeeded
+            }
+            is AsyncTaskExecutionResult.PermanentFailure -> {
+                repository.finishFailure(task.id, result.code, result.message)
+                log(task.id, "TASK failed code=${result.code} message=${result.message}")
+                AsyncTaskRunOutcome.Failed
+            }
+            is AsyncTaskExecutionResult.RetryableFailure ->
+                handleRetryableFailure(task.id, task, result.code, result.message, result.retryAfterMs)
+        }
+    } ?: AsyncTaskRunOutcome.Skipped.also {
+        log(task.id, if (repository.getById(task.id)?.status == "cancelled") "TASK cancelled" else "TASK lease lost")
     }
 
     private fun handleRetryableFailure(
@@ -188,7 +190,7 @@ class AsyncTaskRunner(
     private companion object {
         const val DEFAULT_LEASE_MS = 30 * 60 * 1000L
         const val MIN_HEARTBEAT_MS = 30_000L
-        val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name)
+        val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name, AsyncTaskType.assistant_turn.name, "assistant_history_backfill", "assistant_summary")
     }
 }
 

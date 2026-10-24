@@ -94,6 +94,8 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                 failureSuperseded = state.selectedFailureSuperseded,
                 needsAttention = state.attentionTasks.any { it.id == task.id },
                 onAcknowledge = { viewModel.acknowledgeFailure(task.id, task.updated_at) },
+                onResumeAssistant = { viewModel.resumeAssistantBackground(task.id) },
+                assistantResumeBlocked = state.assistantResumeBlocked,
                 modifier = modifier,
             )
             return@AppScaffold
@@ -382,6 +384,8 @@ private fun TaskCenterTaskDetail(
     failureSuperseded: Boolean,
     needsAttention: Boolean,
     onAcknowledge: () -> Unit,
+    onResumeAssistant: () -> Unit,
+    assistantResumeBlocked: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var pageIndex by remember(taskLog) { mutableStateOf(0) }
@@ -412,6 +416,21 @@ private fun TaskCenterTaskDetail(
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text("#${task.id} · ${asyncTaskStatusDisplayName(task.status)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (!failureSuperseded && task.type in setOf("assistant_index", "assistant_summary", "assistant_history_backfill") &&
+            task.status in setOf("failed", "cancelled")) {
+            item(key = "assistant-background-continue") {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_background_scope),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (assistantResumeBlocked) Text(
+                        androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_background_blocked),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = onResumeAssistant) {
+                        Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_background_continue))
+                    }
+                }
             }
         }
         if (failureSuperseded) {

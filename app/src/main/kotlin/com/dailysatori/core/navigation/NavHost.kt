@@ -152,6 +152,14 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             val route = entry.toRoute<PersonalChatRoute>()
             PersonalChatScreen(route.kind, route.key, onBack = { navController.popBackStack() }, onArticle = { navController.navigate(ArticleDetailRoute(it)) })
         }
+        composable<AssistantRoute> {
+            com.dailysatori.ui.feature.aichat.AiChatScreen(
+                onArticleClick = { navController.navigate(ArticleDetailRoute(it)) },
+                onReminderClick = { navController.navigate(ReminderDetailRoute(it)) },
+                onTaskCenterClick = { navController.navigate(TaskCenterRoute()) },
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable<ProfileRoute> {
             SettingsScreen(
                 viewModel = settingsViewModel,

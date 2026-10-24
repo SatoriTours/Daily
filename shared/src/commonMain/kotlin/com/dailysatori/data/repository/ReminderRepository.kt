@@ -250,7 +250,8 @@ class ReminderRepository(
         val profile = edit.profile ?: runCatching { row.profile_json.toProfile() }.getOrNull() ?: return@transactionWithResult false
         if (q.updateReminderEditableIfVersion(content, edit.notes ?: row.notes, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         edit.deadlineAt?.let { q.setReminderDeadline(it.toEpochMilliseconds(), id) }
-        if (id.startsWith("sms:") && row.deadline_at == null && edit.deadlineAt != null && row.status == ReminderStatus.PAUSED.name) {
+        if (((id.startsWith("sms:") && row.deadline_at == null && edit.deadlineAt != null) ||
+                (id.startsWith("assistant:todo:") && edit.firstReminderTime != null)) && row.status == ReminderStatus.PAUSED.name) {
             simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")
         }
         recordEvent(id, "edited", at)

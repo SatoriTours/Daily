@@ -735,24 +735,8 @@ class ReminderViewModel(
         }
     }
 
-    private fun defaultProfile(): ReminderProfile {
-        val defaultId = settingRepository.get("reminder.default_profile") ?: "builtin-standard"
-        val selected = repository.getProfile(defaultId) ?: builtInProfiles().firstOrNull { it.id == defaultId } ?: builtInProfiles()[1]
-        val base = selected.snapshot
-        fun time(key: String, fallback: LocalTime) = settingRepository.get(key)?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: fallback
-        val workDays = settingRepository.get("reminder.work_days")?.split(',')?.mapNotNull { runCatching { DayOfWeek.valueOf(it) }.getOrNull() }?.toSet().orEmpty().ifEmpty { base.workDays }
-        return selected.copy(snapshot = base.copy(
-            sleepStart = time("reminder.sleep_start", base.sleepStart),
-            sleepEnd = time("reminder.sleep_end", base.sleepEnd),
-            workDays = workDays,
-            workStart = time("reminder.work_start", base.workStart),
-            workEnd = time("reminder.work_end", base.workEnd),
-            soundEnabled = settingRepository.get("reminder.sound")?.toBooleanStrictOrNull() ?: base.soundEnabled,
-            vibrationEnabled = settingRepository.get("reminder.vibration")?.toBooleanStrictOrNull() ?: base.vibrationEnabled,
-            importance = settingRepository.get("reminder.importance")?.let { runCatching { ReminderImportance.valueOf(it) }.getOrNull() } ?: base.importance,
-            lockScreenVisibility = settingRepository.get("reminder.visibility")?.let { runCatching { ReminderLockScreenVisibility.valueOf(it) }.getOrNull() } ?: base.lockScreenVisibility,
-        ))
-    }
+    private fun defaultProfile(): ReminderProfile =
+        com.dailysatori.service.reminder.resolveDefaultReminderProfile(repository, settingRepository)
 
     private fun builtInProfiles() = listOf(
         ReminderProfile("builtin-strong", "Strong", com.dailysatori.service.reminder.ReminderProfileKind.STRONG, ReminderProfileSnapshot.strong()),
