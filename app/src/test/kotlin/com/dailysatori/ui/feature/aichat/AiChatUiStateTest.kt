@@ -606,6 +606,42 @@ class AiChatUiStateTest {
     }
 
     @Test
+    fun standaloneChatAlwaysHasAnInputOwner() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertTrue(screen.contains("onInputControllerChange: ((AiChatInputController?) -> Unit)? = null"))
+        assertTrue(screen.contains("if (onInputControllerChange == null)"))
+        assertTrue(screen.contains("ChatInputBar("))
+        assertTrue(screen.contains("onSend = sendCurrentInput"))
+        assertTrue(screen.contains("onStop = viewModel::stopGeneration"))
+    }
+
+    @Test
+    fun assistantTabConnectsItsInputControllerAndReservesComposerSpace() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val assistant = home.substringAfter("ASSISTANT_TAB_INDEX ->").substringBefore("READING_TAB_INDEX ->")
+
+        assertTrue(assistant.contains("onInputControllerChange = { aiInputController = it }"))
+        assertTrue(assistant.contains(".padding(bottom = HomeAiInputHeight + Spacing.m)"))
+        assertTrue(assistant.contains(".imePadding()"))
+        assertTrue(home.contains("aiInputController = if (selectedIndex == ASSISTANT_TAB_INDEX) aiInputController else null"))
+    }
+
+    @Test
+    fun contextBannerOnlyShowsActivelySelectedReferenceMaterial() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+        val personal = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/myspace/PersonalChatScreen.kt").readText()
+        val banner = personal.substringAfter("fun PersonalChatContextBanner(")
+
+        assertTrue(screen.contains("if (explicitContext != null)"))
+        assertFalse(banner.contains("my_space_default_context"))
+        assertFalse(banner.contains("my_space_no_context"))
+        assertFalse(banner.contains("my_space_ai"))
+        assertTrue(banner.contains("IconButton(onClick = onRemove)"))
+        assertTrue(banner.contains("maxLines = 2"))
+    }
+
+    @Test
     fun aiTabUsesSharedMorphingHomeBottomBar() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
@@ -620,7 +656,8 @@ class AiChatUiStateTest {
         assertTrue(home.contains("selectedIndex = TODAY_TAB_INDEX"))
         assertFalse(screen.contains("AiChatCompactBottomBar("))
         assertFalse(screen.contains("Icons.Filled.Home"))
-        assertFalse(screen.contains("bottomBar = {"))
+        assertTrue(screen.contains("bottomBar = {"))
+        assertTrue(screen.contains("if (onInputControllerChange == null)"))
         assertTrue(input.contains("fun ChatInputField("))
         assertTrue(input.contains("compact: Boolean = false"))
         assertTrue(input.contains("singleLine = compact"))

@@ -79,12 +79,15 @@ class HomeIaTest {
     }
 
     @Test
-    fun tabContentKeepsFloatingBottomBarOverlayArea() {
+    fun onlyAssistantReservesSpaceForItsFloatingComposer() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         val tabContent = source.extractCallBlock("Crossfade(")
 
         assertTrue(tabContent.contains("modifier = Modifier.fillMaxSize()"))
-        assertFalse(tabContent.contains("padding(bottom ="))
+        val assistant = tabContent.substringAfter("ASSISTANT_TAB_INDEX ->").substringBefore("READING_TAB_INDEX ->")
+        assertTrue(assistant.contains(".padding(bottom = HomeAiInputHeight + Spacing.m)"))
+        assertFalse(tabContent.substringBefore("ASSISTANT_TAB_INDEX ->").contains("padding(bottom ="))
+        assertFalse(tabContent.substringAfter("READING_TAB_INDEX ->").contains("padding(bottom ="))
         assertFalse(source.contains("homeBottomBarContentBottomPadding"))
     }
 

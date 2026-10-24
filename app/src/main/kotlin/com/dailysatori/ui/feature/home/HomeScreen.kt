@@ -162,6 +162,7 @@ fun HomeScreen(
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
     var isHotNewsDetailOpen by remember { mutableStateOf(false) }
+    var aiInputController by remember { mutableStateOf<AiChatInputController?>(null) }
     var myPreviewSeed by rememberSaveable { mutableIntStateOf(Random.nextInt()) }
     val myListState = rememberLazyListState()
     val reminderViewModel: ReminderViewModel = koinViewModel()
@@ -209,6 +210,10 @@ fun HomeScreen(
                             onReminderClick = onReminder,
                             onTaskCenterClick = onTasks,
                             onMyClick = onProfileClick,
+                            onInputControllerChange = { aiInputController = it },
+                            modifier = Modifier
+                                .padding(bottom = HomeAiInputHeight + Spacing.m)
+                                .imePadding(),
                         )
                         READING_TAB_INDEX -> BooksScreen(
                             selectedBookId = selectedBookId,
@@ -246,7 +251,7 @@ fun HomeScreen(
                 ) {
                     HomeBottomBarSurface(
                         selectedIndex = selectedIndex,
-                        aiInputController = null,
+                        aiInputController = if (selectedIndex == ASSISTANT_TAB_INDEX) aiInputController else null,
                         hazeState = hazeState,
                         onTabSelected = { index ->
                             if (index == MY_TAB_INDEX && selectedIndex != MY_TAB_INDEX) myPreviewSeed = Random.nextInt()

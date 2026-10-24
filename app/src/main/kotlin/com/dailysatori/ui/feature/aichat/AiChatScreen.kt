@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -78,12 +79,13 @@ fun AiChatScreen(
     onReminderClick: (String) -> Unit = {},
     onTaskCenterClick: () -> Unit = {},
     onMyClick: () -> Unit = {},
-    onInputControllerChange: (AiChatInputController?) -> Unit = {},
+    onInputControllerChange: ((AiChatInputController?) -> Unit)? = null,
     onBack: (() -> Unit)? = null,
     explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null,
     contextLabel: String = "",
     includeThoughts: Boolean = true,
     onRemoveContext: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val viewModel: AiChatViewModel = koinViewModel()
     val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
@@ -198,7 +200,7 @@ fun AiChatScreen(
     }
 
     SideEffect {
-        onInputControllerChange(
+        onInputControllerChange?.invoke(
             AiChatInputController(
                 inputText = inputText,
                 onInputChange = { inputText = it },
@@ -210,10 +212,24 @@ fun AiChatScreen(
     }
 
     DisposableEffect(Unit) {
-        onDispose { onInputControllerChange(null) }
+        onDispose { onInputControllerChange?.invoke(null) }
     }
 
     Scaffold(
+        modifier = modifier,
+        bottomBar = {
+            if (onInputControllerChange == null) {
+                Box(Modifier.navigationBarsPadding()) {
+                    ChatInputBar(
+                        inputText = inputText,
+                        onInputChange = { inputText = it },
+                        onSend = sendCurrentInput,
+                        onStop = viewModel::stopGeneration,
+                        isProcessing = state.isProcessing,
+                    )
+                }
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -233,9 +249,12 @@ fun AiChatScreen(
                         }
                     },
                 )
-                com.dailysatori.ui.feature.myspace.PersonalChatContextBanner(
-                    contextLabel, explicitContext != null, includeThoughts, onRemoveContext,
-                )
+                if (explicitContext != null) {
+                    com.dailysatori.ui.feature.myspace.PersonalChatContextBanner(
+                        label = contextLabel,
+                        onRemove = onRemoveContext,
+                    )
+                }
             }
         },
     ) { padding ->

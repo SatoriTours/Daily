@@ -5,8 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
@@ -117,13 +119,31 @@ fun PersonalChatScreen(kind: String, key: String, onBack: () -> Unit, onArticle:
 }
 
 @Composable
-fun PersonalChatContextBanner(label: String, explicit: Boolean, includeThoughts: Boolean, onRemove: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s)) {
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.my_space_ai), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            Text(if (explicit) stringResource(R.string.my_space_context) else stringResource(if (includeThoughts) R.string.my_space_default_context else R.string.my_space_no_context), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (explicit) Text(label, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+fun PersonalChatContextBanner(label: String, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Default.Description,
+            contentDescription = stringResource(R.string.my_space_context),
+            modifier = Modifier.size(IconSize.m),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = label.ifBlank { stringResource(R.string.my_space_context) },
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+        )
+        IconButton(onClick = onRemove) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = stringResource(R.string.my_space_remove_context),
+                modifier = Modifier.size(IconSize.m),
+            )
         }
-        if (explicit || includeThoughts) IconButton(onClick = onRemove) { Icon(Icons.Default.Close, stringResource(R.string.my_space_remove_context)) }
     }
 }
