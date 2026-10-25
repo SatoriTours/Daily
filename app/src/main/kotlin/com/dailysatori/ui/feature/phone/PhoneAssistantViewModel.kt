@@ -107,7 +107,7 @@ class PhoneAssistantViewModel(
         id?.let(coordinator::recompute)
         withContext(Dispatchers.Main) { onSaved() }
     }
-    fun complete(id: String) = action { reminders.complete(id); coordinator.recompute(id) }
+    fun complete(id: String) = action { coordinator.complete(id) }
     fun editLedger(entry: LedgerEntry, amount: String, currency: String, kind: LedgerKind, merchant: String, onSaved: () -> Unit) = action {
         service.editLedger(entry.id, amount, currency, kind, merchant)
         withContext(Dispatchers.Main) { onSaved() }

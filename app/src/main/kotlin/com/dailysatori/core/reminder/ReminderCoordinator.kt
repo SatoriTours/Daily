@@ -53,6 +53,7 @@ class RepositoryReminderDeliveryStore(
 ) : ReminderDeliveryStore {
     override fun get(id: String) = repository.get(id)
     override fun active(now: Instant): List<Reminder> = runBlocking {
+        repository.recoverCompletedRecurringReminders(now)
         repository.observeAll().first().filter { it.status in activeStatuses }
     }
     override fun state(id: String) = repository.state(id)

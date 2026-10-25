@@ -53,6 +53,42 @@ class ReminderRepositoryTest {
     }
 
     @Test
+    fun directYearlyCompletionKeepsNextYearPending() = withRepository { repo ->
+        val date = LocalDate(2026, 10, 5)
+        val at = Instant.parse("2026-10-25T08:00:00Z")
+        val reminder = repo.createConfirmed(draft().copy(
+            startDate = date, endDate = date,
+            recurrence = ReminderRecurrence.Yearly(10, 5, LeapDayPolicy.FEBRUARY_28),
+        ), strongProfile())
+
+        assertTrue(repo.complete(reminder.id, at))
+
+        val updated = repo.get(reminder.id)!!
+        assertEquals(ReminderStatus.ACTIVE, updated.status)
+        assertEquals(LocalDate(2027, 10, 5), updated.stateDate)
+        assertEquals(at, updated.completedAt)
+        assertEquals(0, com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(listOf(updated), LocalDate(2026, 10, 25)))
+        assertEquals(1, com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(listOf(updated), LocalDate(2027, 10, 5)))
+        assertFalse(repo.complete(reminder.id, reminder.version, at))
+    }
+
+    @Test
+    fun versionedMonthlyCompletionPreservesPauseAndCanBeUndone() = withRepository { repo ->
+        val reminder = repo.createConfirmed(draft().copy(recurrence = ReminderRecurrence.Monthly(30)), strongProfile())
+        assertTrue(repo.pause(reminder.id, now))
+        val snapshot = repo.completionSnapshot(reminder.id)!!
+
+        assertTrue(repo.complete(reminder.id, snapshot.reminder.version, now))
+
+        val updated = repo.get(reminder.id)!!
+        assertEquals(ReminderStatus.PAUSED, updated.status)
+        assertEquals(LocalDate(2026, 9, 30), updated.stateDate)
+        assertTrue(repo.undoCompletion(snapshot, now))
+        assertEquals(null, repo.get(reminder.id)?.completedAt)
+        assertEquals(snapshot.reminder.stateDate, repo.get(reminder.id)?.stateDate)
+    }
+
+    @Test
     fun editRejectsInvalidContentAndEmptySelectedWeekdays() = withRepository { repo ->
         val reminder = repo.createConfirmed(draft(), strongProfile())
 

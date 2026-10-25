@@ -1,6 +1,9 @@
 package com.dailysatori.ui.feature.reminder
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -10,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.reminder.ReminderRecurrence
+import com.dailysatori.ui.theme.*
 import org.koin.compose.koinInject
 
 @Composable
@@ -21,7 +25,7 @@ internal fun ReminderCompletionSnackbar(ui: ReminderUiState, viewModel: Reminder
         ReminderCompletionError.COMPLETE -> i18n.t("reminder_ui.complete_failed")
         ReminderCompletionError.UNDO -> i18n.t("reminder_ui.undo_failed")
         null -> undo?.reminder?.let {
-            if (it.recurrence == ReminderRecurrence.Once) i18n.t("reminder_ui.completed_message", *arrayOf(it.content))
+            if (it.recurrence == ReminderRecurrence.Once) i18n.t("reminder_ui.completed_message")
             else i18n.t("reminder_ui.cycle_completed")
         }
     }
@@ -34,5 +38,14 @@ internal fun ReminderCompletionSnackbar(ui: ReminderUiState, viewModel: Reminder
         if (result == SnackbarResult.ActionPerformed && undo != null) viewModel.undoCompletion(undo)
         else viewModel.dismissCompletion(undo.takeIf { canUndo })
     }
-    SnackbarHost(hostState = host, modifier = modifier)
+    SnackbarHost(hostState = host, modifier = modifier) { data ->
+        Snackbar(
+            snackbarData = data,
+            shape = RoundedCornerShape(Radius.card),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            actionColor = MaterialTheme.colorScheme.primary,
+            dismissActionContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

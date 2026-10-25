@@ -92,6 +92,35 @@ class ReminderCompletionTest {
     }
 
     @Test
+    fun recoveryRestoresLegacyCompletedYearlyTaskWithoutCompletingNextYear() {
+        val reminder = create(ReminderRecurrence.Yearly(9, 2, LeapDayPolicy.FEBRUARY_28))
+        val completedAt = now
+        driver.execute(null, "UPDATE reminder SET status = 'COMPLETED', completed_at = ? WHERE id = ?", 2) {
+            bindLong(0, completedAt.toEpochMilliseconds())
+            bindString(1, reminder.id)
+        }
+        val once = create(ReminderRecurrence.Once)
+        assertTrue(repository.complete(once.id, now))
+        val completedOnce = repository.get(once.id)
+        now = Instant.parse("2026-10-25T08:00:00Z")
+
+        coordinator.recomputeAll()
+
+        val restored = assertNotNull(repository.get(reminder.id))
+        assertEquals(ReminderStatus.ACTIVE, restored.status)
+        assertEquals(completedAt, restored.completedAt)
+        assertEquals(LocalDate(2027, 9, 2), restored.stateDate)
+        assertEquals(Instant.parse("2027-09-02T10:00:00Z"), scheduled[reminder.id])
+        val list = buildReminderListState(listOf(restored), LocalDate(2026, 10, 25), ReminderListMode.RECENT, ReminderListFilter())
+        val item = list.sections.single().items.single()
+        assertEquals(ReminderStatus.ACTIVE, item.status)
+        assertEquals(LocalDate(2027, 9, 2), item.occurrenceDate)
+        coordinator.recomputeAll()
+        assertEquals(restored, repository.get(reminder.id))
+        assertEquals(completedOnce, repository.get(once.id))
+    }
+
+    @Test
     fun undoCompletionRestoresOnceReminderAndRejectsOldNotificationGeneration() = runBlocking {
         val reminder = create(ReminderRecurrence.Once)
         coordinator.recompute(reminder.id)

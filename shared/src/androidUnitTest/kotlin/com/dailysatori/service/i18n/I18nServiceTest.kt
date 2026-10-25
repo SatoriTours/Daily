@@ -6,6 +6,8 @@ import com.dailysatori.shared.db.DailySatoriDatabase
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class I18nServiceTest {
     @Test fun loadingEnglishAfterChineseKeepsDefaultDiagnosticsInChinese() = withSettings { settings ->
@@ -40,6 +42,20 @@ class I18nServiceTest {
         assertEquals("zh", settings.get("app_language"))
         service.setLanguage("en")
         assertEquals("Diagnostics and logs", service.t("diagnostics.title"))
+    }
+
+    @Test fun completionFeedbackStaysCompactForLongTasksWithLinks() = withSettings { settings ->
+        val service = I18nService(settings)
+        loadTranslations(service, "zh", "en")
+        val content = "这个周末提醒我注册一个图区的 Google 账号，然后购买它的会员。".repeat(20) +
+            "https://x.com/Lniosytest/status/210787423749277786"
+        for (language in listOf("zh", "en")) {
+            service.setLanguage(language)
+            val message = service.t("reminder_ui.completed_message", *arrayOf(content))
+            assertTrue(message.length <= 30, "Completion feedback must not repeat the task: $language")
+            assertFalse(message.contains("https://"))
+            assertTrue(service.t("reminder_ui.cycle_completed").length <= 30)
+        }
     }
 
     private fun loadTranslations(service: I18nService, vararg languages: String) {

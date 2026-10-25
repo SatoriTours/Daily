@@ -5,6 +5,7 @@ import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.reminder.Reminder
 import com.dailysatori.service.reminder.isUnscheduledSmsTodo
+import com.dailysatori.service.reminder.nextCycleDate
 import com.dailysatori.service.reminder.ReminderActiveDayRule
 import com.dailysatori.service.reminder.ReminderDraft
 import com.dailysatori.service.reminder.ReminderDataIssue
@@ -185,7 +186,35 @@ class ReminderRepository(
         Lifecycle(ReminderStatus.DISMISSED, date, count, row.last_notified_at, at.toEpochMilliseconds(), row.completed_at, row.next_occurrence_at, "dismissed")
     }
 
-    fun complete(id: String, at: Instant = Clock.System.now()): Boolean = terminalTransition(id, ReminderStatus.COMPLETED, at, "completed")
+    fun complete(id: String, at: Instant = Clock.System.now()): Boolean {
+        repeat(MAX_CAS_RETRIES) {
+            val reminder = get(id) ?: return false
+            if (reminder.status == ReminderStatus.COMPLETED) return false
+            if (complete(id, reminder.version, at)) return true
+        }
+        return false
+    }
+
+    /** Older completion entry points ended the whole series instead of just its current cycle. */
+    fun recoverCompletedRecurringReminders(at: Instant) = q.transaction {
+        q.selectAllReminders().executeAsList().forEach { row ->
+            if (row.status != ReminderStatus.COMPLETED.name || row.completed_at == null) return@forEach
+            val state = recurringCompletion(row, Instant.fromEpochMilliseconds(row.completed_at)) ?: return@forEach
+            saveLifecycle(row, state.copy(eventType = "recurring_completion_recovered"), at)
+        }
+    }
+
+    private fun recurringCompletion(row: com.dailysatori.shared.db.Reminder, at: Instant): Lifecycle? {
+        val reminder = row.toReminder()
+        if (reminder.recurrence == ReminderRecurrence.Once || reminder.dataIssue != null || !reminder.activeDayRule.isValid()) return null
+        var nextDate = nextCycleDate(reminder, at.toLocalDateTime(reminder.timeZone).date) ?: return null
+        while (!reminder.activeDayRule.isActiveOn(nextDate)) {
+            nextDate = nextCycleDate(reminder, nextDate) ?: return null
+        }
+        val status = if (reminder.status == ReminderStatus.PAUSED) ReminderStatus.PAUSED else ReminderStatus.ACTIVE
+        return Lifecycle(status, nextDate, 0, row.last_notified_at, row.last_dismissed_at,
+            at.toEpochMilliseconds(), null, "cycle_completed")
+    }
 
     fun completionSnapshot(id: String): ReminderCompletionSnapshot? = q.selectReminderById(id).executeAsOneOrNull()?.let { row ->
         ReminderCompletionSnapshot(row.toReminder(), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.next_occurrence_at)
@@ -202,6 +231,7 @@ class ReminderRepository(
 
     fun complete(id: String, expectedVersion: Long, at: Instant): Boolean = transition(id, expectedVersion, at) { row ->
         if (row.status == ReminderStatus.COMPLETED.name) return@transition null
+        if (row.recurrence_rule.decodeRecurrence() != ReminderRecurrence.Once) return@transition recurringCompletion(row, at)
         Lifecycle(
             ReminderStatus.COMPLETED,
             row.state_date?.let(LocalDate::parse),
