@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -108,33 +110,19 @@ private fun SettingsMainPage(
     val i18n: I18nService = koinInject()
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
-    val focus = remember { FocusRequester() }
     BackHandler(enabled = searching) { searching = false; query = "" }
-    LaunchedEffect(searching) { if (searching) focus.requestFocus() }
     val results = searchSettings(query) { i18n.t(it) }
     AppScaffold(
         title = stringResource(R.string.personal_settings_title),
         onBack = onBack,
         showBack = onBack != null,
-        actions = {
-            IconButton(onClick = { searching = !searching; query = "" }) {
-                Icon(if (searching) Icons.Default.Close else Icons.Default.Search,
-                    i18n.t(if (searching) "settings_design.close_search" else "settings_design.search"))
-            }
-        },
+        search = if (searching) com.dailysatori.ui.component.appbar.PageSearch(
+            query, i18n.t("settings_design.search_hint"), { query = it }, { searching = false; query = "" },
+        ) else null,
+        pageActions = listOf(PageAction(i18n.t(if (searching) "settings_design.close_search" else "settings_design.search"),
+            if (searching) Icons.Default.Close else Icons.Default.Search) { searching = !searching; query = "" }),
     ) { modifier ->
         Column(modifier.fillMaxSize()) {
-            if (searching) OutlinedTextField(
-                value = query, onValueChange = { query = it },
-                placeholder = { Text(i18n.t("settings_design.search_hint")) },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                    Icon(Icons.Default.Close, i18n.t("settings_design.clear_search"))
-                } },
-                singleLine = true,
-                shape = RoundedCornerShape(Radius.l),
-                modifier = Modifier.fillMaxWidth().padding(Spacing.m).focusRequester(focus),
-            )
             Column(
                 Modifier.weight(1f).verticalScroll(if (searching) rememberScrollState() else scrollState)
                     .padding(horizontal = Spacing.m),

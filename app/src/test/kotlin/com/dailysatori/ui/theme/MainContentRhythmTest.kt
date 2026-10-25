@@ -82,7 +82,7 @@ class MainContentRhythmTest {
         assertFalse(diaryScreen.contains("DiaryQuickStrip(diaries)"))
         assertFalse(diaryScreen.contains("private fun DiaryQuickStrip("))
         assertTrue(diaryScreen.contains("DiaryMonthHeader("))
-        assertTrue(diaryScreen.contains("bottom = Height.navBar + Spacing.xxl + Spacing.m"))
+        assertTrue(diaryScreen.contains("bottom = FloatingControl.scrollClearance"))
         assertTrue(diaryScreen.contains("state = diaryListState"))
         assertFalse(diaryScreen.contains("DiaryDateHeader("))
         assertTrue(diary.contains("diaryCardDateTime("))

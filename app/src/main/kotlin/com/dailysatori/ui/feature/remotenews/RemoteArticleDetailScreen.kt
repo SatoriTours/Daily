@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.remotenews
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,7 +75,6 @@ fun RemoteArticleDetailScreen(
     sourceName: String? = null,
 ) {
     val density = LocalDensity.current
-    var showMenu by remember { mutableStateOf(false) }
     var showOriginalSheet by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
 
@@ -82,18 +83,15 @@ fun RemoteArticleDetailScreen(
     AppScaffold(
         title = article.domain ?: article.feedName ?: "文章",
         onBack = onBack,
-        actions = {
-            MarkNewsReadButton(article.toReadNewsArticle(sourceIdentity, localArticleId))
-            RemoteArticleDetailActions(
+        pageActions = listOf(RemoteArticleDetailActions(
                 article = article,
+                sourceIdentity = sourceIdentity,
+                localArticleId = localArticleId,
                 isFavorite = isFavorite,
                 showFavoriteAction = showFavoriteAction,
-                expanded = showMenu,
-                onExpandedChange = { showMenu = it },
                 onOriginalClick = { showOriginalSheet = true },
                 onFavoriteClick = onFavoriteClick,
-            )
-        },
+            )),
     ) { modifier ->
         Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleDetailPager(
@@ -114,25 +112,21 @@ fun RemoteArticleDetailScreen(
 @Composable
 private fun RemoteArticleDetailActions(
     article: RemoteArticle,
+    sourceIdentity: String,
+    localArticleId: Long?,
     isFavorite: Boolean,
     showFavoriteAction: Boolean,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
     onOriginalClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-) {
-    Box {
-        IconButton(onClick = { onExpandedChange(true) }) {
-            Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
-            RemoteArticleOriginalMenuItem(onExpandedChange, onOriginalClick)
-            if (showFavoriteAction) {
-                RemoteArticleFavoriteMenuItem(isFavorite, onExpandedChange, onFavoriteClick)
-            }
-            RemoteArticleOpenMenuItem(article, onExpandedChange)
-        }
-    }
+): PageAction {
+    val markRead = com.dailysatori.ui.feature.myspace.markNewsReadAction(article.toReadNewsArticle(sourceIdentity, localArticleId))
+    return PageAction("更多操作", Icons.Default.MoreVert, menuContent = { dismiss ->
+        val closeMenu: (Boolean) -> Unit = { dismiss() }
+        com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
+        RemoteArticleOriginalMenuItem(closeMenu, onOriginalClick)
+            if (showFavoriteAction) RemoteArticleFavoriteMenuItem(isFavorite, closeMenu, onFavoriteClick)
+            RemoteArticleOpenMenuItem(article, closeMenu)
+    }) {}
 }
 
 @Composable

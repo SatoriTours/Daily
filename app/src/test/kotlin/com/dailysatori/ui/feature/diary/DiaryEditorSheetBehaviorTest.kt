@@ -78,8 +78,10 @@ class DiaryEditorSheetBehaviorTest {
 
         assertTrue(header.indexOf("Text(\"保存\"") < metadataIndex,
             "Date and mood must follow the complete action row rather than consume button width")
-        assertTrue(header.substringBefore("DiaryEditorMetaRow(").contains("FlowRow("),
-            "Actions must wrap as whole buttons on narrow screens")
+        assertTrue(header.substringBefore("DiaryEditorMetaRow(").contains("AssistantTopBarAction()"),
+            "Save stays visible beside the far-right assistant action")
+        assertFalse(header.substringBefore("DiaryEditorMetaRow(").contains("收为点子"),
+            "Secondary tools must not compete with save in the header")
         assertTrue(source.substringAfter("private fun DiaryEditorMetaRow(").substringBefore("private fun MediaPickerButton(")
             .contains("FlowRow("), "Metadata must also allow whole items to wrap")
     }

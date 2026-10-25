@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -86,7 +88,6 @@ fun ArticleDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val density = LocalDensity.current
-    var showMenu by remember { mutableStateOf(false) }
     var showOriginalSheet by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -97,12 +98,8 @@ fun ArticleDetailScreen(
     AppScaffold(
         title = i18n.t("article.detail_title"),
         onBack = onBack,
-        actions = {
-            state.article?.let { MarkNewsReadButton(it.toReadNewsArticle()) }
-            ArticleDetailActions(
+        pageActions = listOf(ArticleDetailActions(
                 state = state,
-                expanded = showMenu,
-                onExpandedChange = { showMenu = it },
                 onOriginalClick = { showOriginalSheet = true },
                 onRefreshClick = { showRefreshConfirm = true },
                 onXApiRefreshClick = viewModel::refreshArticleWithXApi,
@@ -110,8 +107,7 @@ fun ArticleDetailScreen(
                 onCopyClick = { url -> copyArticleUrl(context, url) },
                 onOpenClick = { openArticleUrl(context, state.article?.url) },
                 onDeleteClick = { showDeleteConfirm = true },
-            )
-        },
+            )),
     ) { modifier ->
         ArticleDetailContent(
             state = state,
@@ -174,8 +170,6 @@ private fun ArticleDetailDialogs(
 @Composable
 private fun ArticleDetailActions(
     state: ArticleDetailState,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
     onOriginalClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onXApiRefreshClick: () -> Unit,
@@ -183,21 +177,19 @@ private fun ArticleDetailActions(
     onCopyClick: (String) -> Unit,
     onOpenClick: () -> Unit,
     onDeleteClick: () -> Unit,
-) {
-    Box {
-        IconButton(onClick = { onExpandedChange(true) }) {
-            Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
-            ArticleOriginalMenuItem(onExpandedChange, onOriginalClick)
-            ArticleRefreshMenuItem(state, onExpandedChange, onRefreshClick)
-            ArticleXApiRefreshMenuItem(state, onExpandedChange, onXApiRefreshClick)
-            ArticleFavoriteMenuItem(state, onExpandedChange, onFavoriteClick)
-            ArticleCopyLinkMenuItem(state.article?.url, onExpandedChange, onCopyClick)
-            ArticleOpenMenuItem(onExpandedChange, onOpenClick)
-            ArticleDeleteMenuItem(onExpandedChange, onDeleteClick)
-        }
-    }
+): PageAction {
+    val markRead = state.article?.let { com.dailysatori.ui.feature.myspace.markNewsReadAction(it.toReadNewsArticle()) }
+    return PageAction("更多操作", Icons.Default.MoreVert, menuContent = { dismiss ->
+        val closeMenu: (Boolean) -> Unit = { dismiss() }
+        com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
+        ArticleOriginalMenuItem(closeMenu, onOriginalClick)
+            ArticleRefreshMenuItem(state, closeMenu, onRefreshClick)
+            ArticleXApiRefreshMenuItem(state, closeMenu, onXApiRefreshClick)
+            ArticleFavoriteMenuItem(state, closeMenu, onFavoriteClick)
+            ArticleCopyLinkMenuItem(state.article?.url, closeMenu, onCopyClick)
+            ArticleOpenMenuItem(closeMenu, onOpenClick)
+            ArticleDeleteMenuItem(closeMenu, onDeleteClick)
+    }) {}
 }
 
 @Composable

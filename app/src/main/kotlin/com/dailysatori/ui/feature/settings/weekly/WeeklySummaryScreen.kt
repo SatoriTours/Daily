@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.weekly
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,21 +46,12 @@ fun WeeklySummaryScreen(
     AppScaffold(
         title = "周报",
         showBack = false,
-        actions = {
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Default.Settings, contentDescription = "设置")
-            }
-            IconButton(onClick = { /* history */ }) {
-                Icon(Icons.Default.History, contentDescription = "历史")
-            }
-            IconButton(onClick = { viewModel.checkAndGenerate() }, enabled = !state.isGenerating) {
-                if (state.isGenerating) {
-                    CircularProgressIndicator(modifier = Modifier.size(IconSize.s), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.Refresh, contentDescription = "生成")
-                }
-            }
-        },
+        pageActions = listOf(
+            PageAction("设置", Icons.Default.Settings, onClick = onSettings),
+            PageAction("历史", Icons.Default.History, enabled = false) { /* Existing history entry has no route yet. */ },
+            PageAction(if (state.isGenerating) "生成中" else "生成", Icons.Default.Refresh,
+                enabled = !state.isGenerating, onClick = viewModel::checkAndGenerate),
+        ),
     ) { modifier ->
         if (state.currentSummary == null) {
             Box(

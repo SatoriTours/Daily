@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.crayfishnews
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,7 +69,12 @@ private fun CrayfishNewsListScreen(
     viewModel: CrayfishNewsViewModel,
     onBackToRemoteNews: () -> Unit,
 ) {
-    AppScaffold(title = state.mode.title, showBack = false, actions = { CrayfishNewsMenu(state.mode, viewModel, onBackToRemoteNews) }) { modifier ->
+    AppScaffold(title = state.mode.title, showBack = false, pageActions = buildList {
+        if (state.mode != CrayfishNewsMode.LATEST) add(PageAction("综合新闻", Icons.Default.Article) { viewModel.switchMode(CrayfishNewsMode.LATEST) })
+        if (state.mode != CrayfishNewsMode.DJI) add(PageAction("大疆新闻", Icons.Default.Flight) { viewModel.switchMode(CrayfishNewsMode.DJI) })
+        add(PageAction("返回远程新闻", Icons.Default.Article, onClick = onBackToRemoteNews))
+        add(PageAction("刷新", Icons.Default.Refresh, onClick = viewModel::refresh))
+    }) { modifier ->
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
             onRefresh = viewModel::refresh,
@@ -78,39 +85,6 @@ private fun CrayfishNewsListScreen(
     }
 }
 
-@Composable
-private fun CrayfishNewsMenu(
-    mode: CrayfishNewsMode,
-    viewModel: CrayfishNewsViewModel,
-    onBackToRemoteNews: () -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "更多") }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (mode != CrayfishNewsMode.LATEST) DropdownMenuItem(
-                text = { Text("综合新闻") },
-                leadingIcon = { Icon(Icons.Default.Article, contentDescription = null) },
-                onClick = { viewModel.switchMode(CrayfishNewsMode.LATEST); expanded = false },
-            )
-            if (mode != CrayfishNewsMode.DJI) DropdownMenuItem(
-                text = { Text("大疆新闻") },
-                leadingIcon = { Icon(Icons.Default.Flight, contentDescription = null) },
-                onClick = { viewModel.switchMode(CrayfishNewsMode.DJI); expanded = false },
-            )
-            DropdownMenuItem(
-                text = { Text("返回远程新闻") },
-                leadingIcon = { Icon(Icons.Default.Article, contentDescription = null) },
-                onClick = { onBackToRemoteNews(); expanded = false },
-            )
-            DropdownMenuItem(
-                text = { Text("刷新") },
-                leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-                onClick = { viewModel.refresh(); expanded = false },
-            )
-        }
-    }
-}
 
 @Composable
 private fun CrayfishNewsListContent(state: CrayfishNewsState, viewModel: CrayfishNewsViewModel) {

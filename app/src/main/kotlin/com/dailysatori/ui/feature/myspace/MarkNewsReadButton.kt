@@ -1,5 +1,10 @@
 package com.dailysatori.ui.feature.myspace
 
+import com.dailysatori.ui.component.appbar.PageAction
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -28,8 +33,8 @@ fun RemoteArticle.toReadNewsArticle(sourceIdentity: String, localId: Long? = nul
 )
 
 @Composable
-fun MarkNewsReadButton(article: ReadNewsArticle, viewModel: MySpaceViewModel = koinViewModel()) {
-    if (!article.hasReadableBody()) return
+internal fun markNewsReadAction(article: ReadNewsArticle, viewModel: MySpaceViewModel = koinViewModel()): PageAction? {
+    if (!article.hasReadableBody()) return null
     var saved by rememberSaveable(article.key, article.content) { mutableStateOf(false) }
     var saving by remember(article.key) { mutableStateOf(false) }
     val failed by viewModel.operationFailed.collectAsStateWithLifecycle()
@@ -42,11 +47,27 @@ fun MarkNewsReadButton(article: ReadNewsArticle, viewModel: MySpaceViewModel = k
             android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    TextButton(enabled = !saving && !saved, onClick = {
+    return PageAction(stringResource(if (saved) R.string.my_space_read_marked else R.string.my_space_read),
+        Icons.Outlined.CheckCircle, enabled = !saving && !saved) {
         saving = true
         viewModel.markRead(article) {
             saved = true; saving = false
             android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show()
         }
-    }) { Text(stringResource(if (saved) R.string.my_space_read_marked else R.string.my_space_read)) }
+    }
+}
+
+@Composable
+fun MarkNewsReadButton(article: ReadNewsArticle, viewModel: MySpaceViewModel = koinViewModel()) {
+    markNewsReadAction(article, viewModel)?.let { action ->
+        TextButton(enabled = action.enabled, onClick = action::perform) { Text(action.label) }
+    }
+}
+
+@Composable
+fun MarkNewsReadMenuItem(action: PageAction?, onDismiss: () -> Unit) {
+    action?.let {
+        DropdownMenuItem(text = { Text(action.label) }, leadingIcon = { Icon(action.icon, null) },
+            enabled = action.enabled, onClick = { onDismiss(); action.perform() })
+    }
 }

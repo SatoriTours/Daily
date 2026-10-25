@@ -75,14 +75,10 @@ fun HomeCompactHeader(
                 }
             }
         }
-        onRefresh?.let { refresh ->
-            IconButton(onClick = refresh, modifier = Modifier.size(Height.appBar)) {
-                Icon(Icons.Default.Refresh, contentDescription = "刷新")
-            }
-        }
-        IconButton(onClick = onSearch, modifier = Modifier.size(Height.appBar)) {
-            Icon(Icons.Default.Search, contentDescription = "搜索")
-        }
+        PageActions(buildList {
+            add(PageAction("搜索", Icons.Default.Search, onClick = onSearch))
+            onRefresh?.let { add(PageAction("刷新", Icons.Default.Refresh, onClick = it)) }
+        })
         AssistantTopBarAction()
     }
 }

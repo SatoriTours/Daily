@@ -8,25 +8,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.dailysatori.core.recording.DiaryRecordingService
 import com.dailysatori.core.recording.DiaryRecordingState
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
 
 class DiaryRecordingController(private val context: Context) {
     fun start(diaryId: Long, attachmentId: Long) {
@@ -88,24 +89,31 @@ fun DiaryRecordingControls(
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(recordingStatusText(state), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-            Text(text = formatRecordingElapsed(state.elapsedMs), modifier = Modifier.width(48.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
+            val openModifier = if (onOpenDiary != null) Modifier.clickable(
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClickLabel = stringResource(R.string.diary_recording_action_open), onClick = onOpenDiary,
+            ) else Modifier
+            Column(Modifier.weight(1f).heightIn(min = Height.touchTarget).then(openModifier),
+                verticalArrangement = Arrangement.Center) {
+                Text(recordingStatusText(state), style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(text = formatRecordingElapsed(state.elapsedMs), modifier = Modifier.width(48.dp),
+                    style = MaterialTheme.typography.labelSmall)
+            }
             if (state is DiaryRecordingState.Recording || paused) {
                 IconButton(onClick = onPauseResume) {
                     Icon(if (paused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = if (paused) "继续" else "暂停")
                 }
             }
             if (state.showsRecordingControls()) {
-                IconButton(onClick = onStop) {
-                    Icon(
-                        Icons.Default.Stop,
-                        contentDescription = if (state is DiaryRecordingState.PersistenceFailed) "放弃保存" else "停止录音",
-                        tint = MaterialTheme.colorScheme.error,
+                androidx.compose.material3.TextButton(onClick = onStop, modifier = Modifier.heightIn(min = Height.touchTarget)) {
+                    Text(
+                        if (state is DiaryRecordingState.PersistenceFailed) "放弃保存"
+                        else stringResource(R.string.diary_recording_action_finish),
+                        color = if (state is DiaryRecordingState.PersistenceFailed) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
                     )
                 }
-            }
-            onOpenDiary?.let { open ->
-                IconButton(onClick = open) { Icon(Icons.Default.OpenInNew, contentDescription = "打开日记") }
             }
         }
     }

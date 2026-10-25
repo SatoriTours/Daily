@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.mcp
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -119,13 +121,7 @@ fun McpServerScreen(
         title = i18n.t("settings_design.mcp"),
         onBack = onBack,
         searchQuery = query, onSearchQueryChange = { query = it },
-        actions = {
-            IconButton(
-                onClick = { mode = McpScreenMode.PRESET_ADD },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = i18n.t("settings_design.mcp_add"))
-            }
-        },
+        pageActions = listOf(PageAction(i18n.t("settings_design.mcp_add"), Icons.Default.Add) { mode = McpScreenMode.PRESET_ADD }),
     ) { modifier ->
         if (query.isNotBlank() && visibleServers.isEmpty()) SettingsSearchEmptyState(modifier)
         else if (state.servers.isEmpty()) {

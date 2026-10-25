@@ -85,7 +85,7 @@ class RemoteArticleDetailLayoutTest {
         assertTrue(source.contains("showFavoriteAction: Boolean = false"))
         assertTrue(source.contains("if (showFavoriteAction)"))
         assertTrue(actionsBody.contains("Icons.Default.MoreVert"))
-        assertTrue(actionsBody.contains("DropdownMenu("))
+        assertTrue(actionsBody.contains("PageAction(\"更多操作\"") && actionsBody.contains("menuContent ="))
         assertTrue(actionsBody.contains("RemoteArticleOriginalMenuItem("))
         assertTrue(actionsBody.contains("RemoteArticleFavoriteMenuItem("))
         assertTrue(actionsBody.contains("RemoteArticleOpenMenuItem("))

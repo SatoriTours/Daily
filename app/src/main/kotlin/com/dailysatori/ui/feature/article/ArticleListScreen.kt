@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -209,9 +211,12 @@ private fun ArticleListContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         if (showTopBar) {
-            ArticleListTopBar(onBack, lockFavoritesFilter, state.showFavoritesOnly, onAddClick, onSearchClick, onFavoriteFilterClick)
+            ArticleListTopBar(onBack, lockFavoritesFilter, state.showFavoritesOnly, onAddClick, onSearchClick, onFavoriteFilterClick,
+                search = if (state.isSearchVisible) com.dailysatori.ui.component.appbar.PageSearch(
+                    state.searchQuery, "搜索", onSearch, onSearchClick,
+                ) else null)
         }
-        if (state.isSearchVisible) {
+        if (!showTopBar && state.isSearchVisible) {
             SearchBar(state.searchQuery, onQueryChange = onSearch, onSearch = onSearch, onClose = onSearchClick)
         }
         state.loadError?.let { message ->
@@ -322,57 +327,19 @@ private fun ArticleListTopBar(
     onAddClick: () -> Unit,
     onSearchClick: () -> Unit,
     onFavoriteFilterClick: () -> Unit,
+    search: com.dailysatori.ui.component.appbar.PageSearch? = null,
 ) {
     AppTopBar(
         title = "文章",
+        search = search,
         showBack = onBack != null,
         onBack = onBack,
-        actions = {
-            IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "添加文章") }
-            IconButton(onClick = onSearchClick) { Icon(Icons.Default.Search, contentDescription = "搜索") }
-            ArticleListMenu(lockFavoritesFilter, showFavoritesOnly, onFavoriteFilterClick)
-        },
-    )
-}
-
-@Composable
-private fun ArticleListMenu(
-    lockFavoritesFilter: Boolean,
-    showFavoritesOnly: Boolean,
-    onFavoriteFilterClick: () -> Unit,
-) {
-    var showMenu by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "更多") }
-        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-            DropdownMenuItem(
-                text = { Text("标签筛选") },
-                leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
-                onClick = { showMenu = false },
-            )
-            if (!lockFavoritesFilter) ArticleFavoriteFilterMenuItem(showFavoritesOnly, onFavoriteFilterClick) { showMenu = false }
-        }
-    }
-}
-
-@Composable
-private fun ArticleFavoriteFilterMenuItem(
-    showFavoritesOnly: Boolean,
-    onFavoriteFilterClick: () -> Unit,
-    onCloseMenu: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = { Text(if (showFavoritesOnly) "显示全部" else "只看收藏") },
-        leadingIcon = {
-            Icon(
-                if (showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = null,
-                tint = if (showFavoritesOnly) MaterialTheme.colorScheme.error else LocalContentColor.current,
-            )
-        },
-        onClick = {
-            onFavoriteFilterClick()
-            onCloseMenu()
+        pageActions = buildList {
+            add(PageAction("添加文章", Icons.Default.Add, onClick = onAddClick))
+            add(PageAction("搜索", Icons.Default.Search, onClick = onSearchClick))
+            add(PageAction("标签筛选", Icons.Default.FilterList, enabled = false) { /* Existing placeholder. */ })
+            if (!lockFavoritesFilter) add(PageAction(if (showFavoritesOnly) "显示全部" else "只看收藏",
+                if (showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder, onClick = onFavoriteFilterClick))
         },
     )
 }

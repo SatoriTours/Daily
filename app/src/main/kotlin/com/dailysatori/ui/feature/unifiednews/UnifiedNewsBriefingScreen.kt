@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,7 +35,6 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
     val state by viewModel.state.collectAsStateWithLifecycle()
     val opportunityState by opportunities.state.collectAsStateWithLifecycle()
     var selectedId by rememberSaveable(summaryId) { mutableLongStateOf(summaryId) }
-    var dates by remember { mutableStateOf(false) }
     LaunchedEffect(viewModel) { viewModel.loadInitial() }
     LaunchedEffect(state.navigationTarget) {
         val target = state.navigationTarget as? UnifiedNewsNavigationTarget.LocalArticle ?: return@LaunchedEffect
@@ -45,16 +46,13 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
     val sources = state.sourcesBySummaryId[selectedId].orEmpty()
     val listState = rememberLazyListState()
     LaunchedEffect(selectedId) { listState.scrollToItem(0) }
-    AppScaffold(title = stringResource(headlinesTitleResource(summary?.summary_date.orEmpty())), onBack = onBack, actions = {
-        Box {
-            IconButton(onClick = { dates = true }) { Icon(Icons.Outlined.CalendarMonth, stringResource(R.string.news_focus_history)) }
-            DropdownMenu(expanded = dates, onDismissRequest = { dates = false }) {
-                state.summaries.filter { it.content.isNotBlank() }.forEach { entry ->
-                    DropdownMenuItem(text = { Text(entry.summary_date) }, onClick = { selectedId = entry.id; dates = false })
-                }
+    AppScaffold(title = stringResource(headlinesTitleResource(summary?.summary_date.orEmpty())), onBack = onBack, pageActions = listOf(PageAction(stringResource(R.string.news_focus_history), Icons.Outlined.CalendarMonth,
+        menuContent = { dismiss ->
+            state.summaries.filter { it.content.isNotBlank() }.forEach { entry ->
+                DropdownMenuItem(text = { Text(entry.summary_date) }, onClick = { selectedId = entry.id; dismiss() })
             }
-        }
-    }) { modifier ->
+        },
+    ) {})) { modifier ->
         LazyColumn(state = listState, modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.l),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             if (summary == null) item {

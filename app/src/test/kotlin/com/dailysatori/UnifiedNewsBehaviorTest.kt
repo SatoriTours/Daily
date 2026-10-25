@@ -1655,7 +1655,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(mySpace.contains("AppScaffold("))
         assertTrue(mySpace.contains("isMainPage = true"))
         assertTrue(diary.contains("onOpenTranscriptionSettings = onMyClick"))
-        assertTrue(mySpace.contains("IconButton(onClick = onSettings)"))
+        assertTrue(mySpace.contains("Icons.Outlined.Settings, onClick = onSettings"))
     }
 
     @Test
@@ -1742,7 +1742,7 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(screen.contains("onRefresh = viewModel::refreshSelectedSource"))
         assertTrue(header.contains("onRefresh: (() -> Unit)? = null"))
-        assertTrue(header.contains("contentDescription = \"刷新\""))
+        assertTrue(header.contains("PageAction(\"刷新\", Icons.Default.Refresh, onClick = it)"))
     }
 
     @Test

@@ -44,10 +44,11 @@ internal fun NewsFocusHeader(
         MainPageHeader(
             title = stringResource(R.string.news_focus_title),
             modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.s),
-        ) {
-            IconButton(onClick = onSearch) { Icon(Icons.Default.Search, stringResource(R.string.news_focus_search)) }
-            IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, stringResource(R.string.news_focus_refresh)) }
-        }
+            pageActions = listOf(
+                com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.news_focus_search), Icons.Default.Search, onClick = onSearch),
+                com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.news_focus_refresh), Icons.Default.Refresh, onClick = onRefresh),
+            ),
+        )
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.m),
             horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
             tabs.forEachIndexed { index, tab ->

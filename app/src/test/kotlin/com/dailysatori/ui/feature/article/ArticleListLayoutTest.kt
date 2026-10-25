@@ -16,7 +16,6 @@ class ArticleListLayoutTest {
             "ArticleListBody",
             "ArticleAddDialog",
             "ArticleListTopBar",
-            "ArticleListMenu",
         ).forEach { functionName ->
             assertTrue(source.functionLineCount(functionName) <= 50, "$functionName exceeds 50 lines")
         }

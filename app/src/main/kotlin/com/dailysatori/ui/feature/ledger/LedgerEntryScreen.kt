@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.ledger
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,11 +34,7 @@ fun LedgerEntryScreen(entryId: String, onBack: () -> Unit, vm: LedgerViewModel =
     val entry = state.ledger.entries.firstOrNull { it.id == entryId && it.status != LedgerStatus.DELETED && it.status != LedgerStatus.IGNORED }
     var editing by remember(entryId) { mutableStateOf(false) }
     var settings by remember(entryId) { mutableStateOf(false) }
-    SettingsScaffold(title = i18n.t("phone.ledger_detail"), onBack = onBack, actions = {
-        if (entry != null) IconButton(onClick = { settings = true }) {
-            Icon(Icons.Default.MoreHoriz, i18n.t("phone.ledger_settings"))
-        }
-    }) { modifier ->
+    SettingsScaffold(title = i18n.t("phone.ledger_detail"), onBack = onBack, pageActions = if (entry != null) listOf(PageAction(i18n.t("phone.ledger_settings"), Icons.Default.MoreHoriz) { settings = true }) else emptyList()) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             when {
                 state.failed -> item { Text(i18n.t("ledger.failed"), color = MaterialTheme.colorScheme.error) }

@@ -43,6 +43,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import com.dailysatori.R
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.appbar.PageAction
+import com.dailysatori.ui.component.appbar.PageSearch
 import com.dailysatori.ui.theme.*
 import com.dailysatori.service.i18n.I18nService
 import org.koin.compose.koinInject
@@ -62,7 +64,8 @@ fun SettingsScaffold(
     title: String,
     onBack: (() -> Unit)? = null,
     showBack: Boolean = onBack != null,
-    actions: @Composable RowScope.() -> Unit = {},
+    pageActions: List<PageAction> = emptyList(),
+    search: PageSearch? = null,
     snackbarHost: @Composable () -> Unit = {},
     bottomBar: (@Composable () -> Unit)? = null,
     floatingActionButton: @Composable () -> Unit = {},
@@ -77,11 +80,9 @@ fun SettingsScaffold(
     val navigation = LocalSettingsGroupNavigation.current.takeIf { useGroupNavigation }
     var pendingTab by rememberSaveable { mutableIntStateOf(-1) }
     var searching by rememberSaveable { mutableStateOf(searchQuery.isNotBlank()) }
-    val focus = remember { FocusRequester() }
     val i18n: I18nService = koinInject()
     val closeSearch: () -> Unit = { searching = false; onSearchQueryChange?.invoke("") }
     BackHandler(enabled = searching, onBack = closeSearch)
-    LaunchedEffect(searching) { if (searching) focus.requestFocus() }
     if (pendingTab >= 0 && navigation != null) AlertDialog(
         onDismissRequest = { if (!navigationBusy) pendingTab = -1 },
         title = { Text(stringResource(R.string.settings_unsaved_title)) },
@@ -113,14 +114,14 @@ fun SettingsScaffold(
             title = navigation?.title ?: title,
             onBack = onBack?.let { { if (searching) closeSearch() else it() } },
             showBack = showBack,
-            actions = {
-                if (onSearchQueryChange != null) IconButton(onClick = {
-                    if (searching) closeSearch() else searching = true
-                }) {
-                    Icon(if (searching) Icons.Default.Close else Icons.Default.Search,
-                        i18n.t(if (searching) "settings_design.close_search" else "settings_design.search"))
-                }
-                actions()
+            search = search ?: if (searching && onSearchQueryChange != null) PageSearch(
+                searchQuery, i18n.t("settings_design.search_list_hint"), onSearchQueryChange, closeSearch,
+            ) else null,
+            pageActions = buildList {
+                if (onSearchQueryChange != null) add(PageAction(
+                    i18n.t("settings_design.search"), Icons.Default.Search,
+                ) { searching = true })
+                addAll(pageActions)
             },
             snackbarHost = snackbarHost,
             floatingActionButton = floatingActionButton,
@@ -135,13 +136,6 @@ fun SettingsScaffold(
             content = { modifier ->
                 if (navigation == null && !searching) content(modifier)
                 else Column(modifier.fillMaxSize()) {
-                    if (searching && onSearchQueryChange != null) OutlinedTextField(
-                        value = searchQuery, onValueChange = onSearchQueryChange,
-                        placeholder = { Text(i18n.t("settings_design.search_list_hint")) },
-                        leadingIcon = { Icon(Icons.Default.Search, null) },
-                        singleLine = true, shape = RoundedCornerShape(Radius.l),
-                        modifier = Modifier.fillMaxWidth().padding(Spacing.m).focusRequester(focus),
-                    )
                     if (navigation != null) SettingsGroupTabs(navigation, enabled = !navigationBusy) { index ->
                         if (hasUnsavedChanges) pendingTab = index else navigation.onSelect(index)
                     }

@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.ideatopic
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -67,13 +69,10 @@ fun IdeaTopicDetailScreen(
     AppScaffold(
         title = state.detail?.topic?.content?.title?.ifBlank { i18n.t("idea_topic.title") } ?: i18n.t("idea_topic.title"),
         onBack = { if (showResources) showResources = false else onBack() },
-        actions = {
-            if (state.detail != null && !state.deleted) {
-                TextButton(onClick = { showResources = !showResources }) {
-                    Text(i18n.t(if (showResources) "idea_topic.back_to_discussion" else "idea_topic.topic_materials"))
-                }
-            }
-        },
+        pageActions = if (state.detail != null && !state.deleted) listOf(
+            PageAction(i18n.t(if (showResources) "idea_topic.back_to_discussion" else "idea_topic.topic_materials"),
+                Icons.Outlined.Info) { showResources = !showResources },
+        ) else emptyList(),
     ) { modifier ->
         if (state.deleted) {
             Box(

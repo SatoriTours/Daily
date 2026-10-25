@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.myspace
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -67,11 +69,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     LaunchedEffect(state.hasAnalysisContext) { if (state.hasAnalysisContext) choosingContext = false }
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_recommendations_title), onBack = onBack,
-        snackbarHost = { SnackbarHost(snackbar) }, actions = {
-        if (state.hasAnalysisContext) IconButton(onClick = requestUpdate) {
-            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.my_space_analyze))
-        }
-    }) { modifier ->
+        snackbarHost = { SnackbarHost(snackbar) }, pageActions = if (state.hasAnalysisContext) listOf(PageAction(stringResource(R.string.my_space_analyze), Icons.Default.Refresh, onClick = requestUpdate)) else emptyList()) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             item {
                 Column(Modifier.padding(bottom = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {

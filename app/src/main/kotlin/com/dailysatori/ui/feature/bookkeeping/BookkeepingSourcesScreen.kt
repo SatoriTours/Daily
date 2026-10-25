@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.bookkeeping
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -70,12 +72,12 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
     LaunchedEffect(search, selectedOnly) { listState.scrollToItem(0) }
     Dialog(onDismissRequest = back, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         BackHandler(onBack = back)
-        SettingsScaffold(title = i18n.t("bookkeeping.select_sources"), onBack = back, actions = {
-            IconButton(onClick = { if (searchVisible) back() else searchVisible = true }) {
-                Icon(if (searchVisible) Icons.Default.Close else Icons.Default.Search,
-                    i18n.t(if (searchVisible) "bookkeeping.sources_close_search" else "bookkeeping.search_sources"))
-            }
-        }, bottomBar = {
+        SettingsScaffold(title = i18n.t("bookkeeping.select_sources"), onBack = back,
+            search = if (searchVisible) com.dailysatori.ui.component.appbar.PageSearch(
+                search, i18n.t("bookkeeping.search_sources"), { search = it }, back,
+            ) else null,
+            pageActions = listOf(PageAction(i18n.t(if (searchVisible) "bookkeeping.sources_close_search" else "bookkeeping.search_sources"),
+            if (searchVisible) Icons.Default.Close else Icons.Default.Search) { if (searchVisible) back() else searchVisible = true }), bottomBar = {
             BookkeepingSourcesFooter(state, onDone = { keyboard?.hide(); onDismiss() })
         }) { modifier ->
             Column(modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -84,7 +86,6 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
                     Text(i18n.t("bookkeeping.sources_new_only"), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (searchVisible) BookkeepingSourceSearch(search) { search = it }
                 BookkeepingSourceTabs(selectedOnly, state.selectedSources.size) { selectedOnly = it }
                 if (visible.isEmpty()) BookkeepingSourcesEmpty(search, selectedOnly, state.sources.isEmpty(), Modifier.weight(1f))
                 else Surface(Modifier.fillMaxWidth().weight(1f, fill = false), shape = RoundedCornerShape(Radius.l),
@@ -104,23 +105,6 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
     }
 }
 
-@Composable private fun BookkeepingSourceSearch(search: String, onSearch: (String) -> Unit) {
-    val i18n: I18nService = koinInject()
-    val focus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(Unit) { focus.requestFocus() }
-    TextField(search, onValueChange = onSearch, modifier = Modifier.fillMaxWidth().focusRequester(focus), singleLine = true,
-        placeholder = { Text(i18n.t("bookkeeping.search_sources")) }, leadingIcon = { Icon(Icons.Default.Search, null) },
-        trailingIcon = {
-            if (search.isNotEmpty()) IconButton(onClick = { onSearch("") }) {
-                Icon(Icons.Default.Clear, i18n.t("bookkeeping.sources_clear_search"))
-            }
-        }, shape = RoundedCornerShape(Radius.m), textStyle = MaterialTheme.typography.bodyMedium,
-        colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }))
-}
 
 @Composable private fun BookkeepingSourceTabs(selectedOnly: Boolean, count: Int, onChange: (Boolean) -> Unit) {
     val i18n: I18nService = koinInject()

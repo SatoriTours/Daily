@@ -7,6 +7,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.dailysatori.ui.component.appbar.PageAction
+import com.dailysatori.ui.component.appbar.PageSearch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -108,6 +118,14 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
     }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
+    var dockExpanded by rememberSaveable { mutableStateOf(false) }
+    var dockBounds by remember { mutableStateOf(Rect.Zero) }
+    val dockEvent: (DiaryDockEvent) -> Unit = { event ->
+        dockExpanded = DiaryDockState(dockExpanded).reduce(event, state.recordingState).expanded
+    }
+    LaunchedEffect(state.recordingState::class) { dockEvent(DiaryDockEvent.RecordingChanged) }
+    BackHandler(enabled = state.isSearchVisible) { viewModel.toggleSearch() }
+    BackHandler(enabled = dockExpanded) { dockEvent(DiaryDockEvent.Dismiss) }
     val context = LocalContext.current
     val recordingController = remember(context) { DiaryRecordingController(context) }
     var showNotificationSettingsAction by remember { mutableStateOf(false) }
@@ -259,78 +277,30 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
         showBack = false,
         isMainPage = true,
         showHeaderDivider = false,
-        actions = {
-            IconButton(onClick = { viewModel.toggleSearch() }) {
-                Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.m))
-            }
-            IconButton(onClick = { showTagFilter = true }) {
-                Icon(
-                    Icons.Default.FilterList,
-                    contentDescription = "筛选",
-                    tint = if (state.selectedTag != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(IconSize.m),
-                )
-            }
-            IconButton(
-                onClick = requestVoicePermissions,
-                enabled = state.recordingState is DiaryRecordingState.Idle,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-            ) {
-                Icon(
-                    Icons.Default.MicNone,
-                    contentDescription = stringResource(R.string.diary_feed_record_voice),
-                    modifier = Modifier.size(IconSize.m),
-                )
-            }
-            IconButton(onClick = { editingDiary = null; editingTag = null; showEditor = true }) {
-                Icon(
-                    Icons.Outlined.Edit,
-                    contentDescription = stringResource(R.string.diary_feed_write_now),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(IconSize.m),
-                )
-            }
-        },
+        search = if (state.isSearchVisible) PageSearch(state.searchQuery,
+            stringResource(R.string.diary_action_search), viewModel::search, viewModel::toggleSearch) else null,
+        pageActions = listOf(
+            PageAction(stringResource(R.string.diary_action_search), Icons.Default.Search) { viewModel.toggleSearch() },
+            PageAction(stringResource(R.string.diary_action_filter), Icons.Default.FilterList) { showTagFilter = true },
+            PageAction(stringResource(R.string.diary_action_tags), Icons.Default.Edit) { showTagSettings = true },
+        ),
     ) { scaffoldModifier ->
+        LaunchedEffect(diaryListState.isScrollInProgress) {
+            if (diaryListState.isScrollInProgress) dockEvent(DiaryDockEvent.Scroll)
+        }
+        Box(scaffoldModifier.fillMaxSize().pointerInput(dockExpanded) {
+            if (dockExpanded) awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (!dockBounds.contains(down.position)) dockEvent(DiaryDockEvent.Dismiss)
+                // Observe only: the same first tap must still reach the card underneath.
+            }
+        }) {
         Column(
-            modifier = scaffoldModifier
+            modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = Spacing.m),
         ) {
-            if (state.recordingState !is DiaryRecordingState.Idle) {
-                DiaryRecordingControls(
-                    state = state.recordingState,
-                    onPauseResume = { recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused) },
-                    onStop = recordingController::stop,
-                    onOpenDiary = {
-                        state.recordingState.diaryId?.let { id ->
-                            val diary = state.diaries.firstOrNull { it.id == id }
-                            if (diary != null) {
-                                val target = resolveDiaryEditorRouteTarget(diary)
-                                continuationRootId = target.continuationRootId
-                                continuationReplyId = target.continuationReplyId
-                                editingDiary = target.editingDiary
-                                editingTag = null
-                                showEditor = true
-                            } else {
-                                viewModel.viewModelScope.launch {
-                                    val fetched = viewModel.getDiaryById(id)
-                                    if (fetched != null) {
-                                        val target = resolveDiaryEditorRouteTarget(fetched)
-                                        continuationRootId = target.continuationRootId
-                                        continuationReplyId = target.continuationReplyId
-                                        editingDiary = target.editingDiary
-                                        editingTag = null
-                                        showEditor = true
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
             state.error?.let { error ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -346,14 +316,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
                     }
                 }
             }
-            if (state.isSearchVisible) {
-                SearchBar(
-                    query = state.searchQuery,
-                    onQueryChange = { viewModel.search(it) },
-                    onSearch = { viewModel.search(it) },
-                    onClose = { viewModel.toggleSearch() },
-                )
-            }
 
             state.selectedTag?.let { selectedTag ->
                 ActiveDiaryTagFilterChip(
@@ -365,7 +327,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 state = diaryListState,
-                contentPadding = PaddingValues(top = Spacing.m, bottom = Height.navBar + Spacing.xxl + Spacing.m),
+                contentPadding = PaddingValues(top = Spacing.m, bottom = FloatingControl.scrollClearance),
                 verticalArrangement = Arrangement.spacedBy(Spacing.l),
             ) {
                 if (state.isLoading && state.diaries.isEmpty()) {
@@ -425,6 +387,59 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
                     }
                 }
             }
+        }
+            if (DiaryDockState(dockExpanded).presentation(state.recordingState) == DiaryDockPresentation.Recording) {
+                DiaryRecordingControls(
+                    state = state.recordingState,
+                    onPauseResume = { recordingController.pauseResume(state.recordingState is DiaryRecordingState.Paused) },
+                    onStop = recordingController::stop,
+                    onOpenDiary = {
+                        state.recordingState.diaryId?.let { id ->
+                            val diary = state.diaries.firstOrNull { it.id == id }
+                            if (diary != null) {
+                                val target = resolveDiaryEditorRouteTarget(diary)
+                                continuationRootId = target.continuationRootId
+                                continuationReplyId = target.continuationReplyId
+                                editingDiary = target.editingDiary
+                                editingTag = null
+                                showEditor = true
+                            } else {
+                                viewModel.viewModelScope.launch {
+                                    val fetched = viewModel.getDiaryById(id)
+                                    if (fetched != null) {
+                                        val target = resolveDiaryEditorRouteTarget(fetched)
+                                        continuationRootId = target.continuationRootId
+                                        continuationReplyId = target.continuationReplyId
+                                        editingDiary = target.editingDiary
+                                        editingTag = null
+                                        showEditor = true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .padding(horizontal = Spacing.m).padding(bottom = FloatingControl.bottomClearance),
+                )
+            }
+            else DiaryCaptureDock(
+                expanded = dockExpanded,
+                onExpand = { dockEvent(DiaryDockEvent.Expand) },
+                onAdd = {
+                    dockEvent(DiaryDockEvent.ActionSelected)
+                    continuationRootId = null
+                    continuationReplyId = null
+                    editingDiary = null
+                    editingTag = null
+                    showEditor = true
+                },
+                onRecord = {
+                    dockEvent(DiaryDockEvent.ActionSelected)
+                    if (state.recordingState is DiaryRecordingState.Idle) requestVoicePermissions()
+                },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = FloatingControl.bottomClearance)
+                    .onGloballyPositioned { dockBounds = it.boundsInParent() },
+            )
         }
     }
 

@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.lifearchive
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
@@ -34,22 +36,22 @@ fun LifeArchiveScreen(
     var deletingRecord by remember { mutableStateOf<String?>(null) }
     val back = { if (!state.saving) { if (state.draft != null) viewModel.closeEditor() else onBack() } }
     BackHandler(onBack = back)
+    BackHandler(enabled = state.draft == null && state.searchVisible) { viewModel.toggleSearch() }
     DisposableEffect(viewModel) { onDispose { viewModel.cancelRequest() } }
     AppScaffold(
         title = stringResource(if (state.draft == null) R.string.life_archive_title else if (state.original == null) R.string.life_archive_add else R.string.life_archive_edit),
         onBack = back,
-        actions = {
-            if (state.draft == null) {
-                Text(stringResource(R.string.life_archive_local), style = MaterialTheme.typography.labelSmall)
-                IconButton(onClick = viewModel::toggleSearch) { Icon(Icons.Outlined.Search, stringResource(R.string.life_archive_search)) }
-            } else if (state.original != null) {
-                IconButton(onClick = { deletingRecord = state.draft?.id }, enabled = !state.busy) {
-                    Icon(Icons.Outlined.DeleteOutline, stringResource(R.string.life_archive_delete_record))
-                }
-            }
-        },
+        search = if (state.draft == null && state.searchVisible) com.dailysatori.ui.component.appbar.PageSearch(
+            state.query, stringResource(R.string.life_archive_search), viewModel::setQuery, viewModel::toggleSearch,
+        ) else null,
+        pageActions = if (state.draft == null) listOf(
+            PageAction(stringResource(R.string.life_archive_search), Icons.Outlined.Search, onClick = viewModel::toggleSearch),
+        ) else listOf(PageAction(stringResource(R.string.life_archive_save), Icons.Outlined.Check,
+            enabled = !state.busy && !state.loading && state.error != LifeArchiveError.STORAGE,
+            priority = com.dailysatori.ui.component.appbar.PageActionPriority.Primary,
+        ) { viewModel.save() }),
         bottomBar = {
-            Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(Spacing.m)) {
+            if (state.draft == null) Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(Spacing.m)) {
                 Button(onClick = { if (state.draft == null) viewModel.beginNew() else viewModel.save() },
                     modifier = Modifier.fillMaxWidth().height(Height.button), enabled = !state.busy && !state.loading && state.error != LifeArchiveError.STORAGE) {
                     Text(stringResource(if (state.draft == null) R.string.life_archive_add else R.string.life_archive_save))
@@ -60,7 +62,13 @@ fun LifeArchiveScreen(
         Column(modifier.fillMaxSize()) {
             ArchiveStatus(state, viewModel, onConfigureAi)
             if (state.draft == null) ArchiveList(state, viewModel, { addingType = true }, { managingType = it })
-            else LifeArchiveEditor(state, viewModel, onReminder, { addingType = true })
+            else {
+                if (state.original != null) TextButton(onClick = { deletingRecord = state.draft?.id }, enabled = !state.busy) {
+                    Icon(Icons.Outlined.DeleteOutline, null)
+                    Text(stringResource(R.string.life_archive_delete_record), color = MaterialTheme.colorScheme.error)
+                }
+                LifeArchiveEditor(state, viewModel, onReminder, { addingType = true })
+            }
         }
     }
     if (addingType || managingType != null) ArchiveTypeDialog(managingType, state.categories,
@@ -101,9 +109,7 @@ private fun ArchiveStatus(state: LifeArchiveUiState, vm: LifeArchiveViewModel, o
 @Composable
 private fun ArchiveList(state: LifeArchiveUiState, vm: LifeArchiveViewModel, onAddType: () -> Unit, onManageType: (LifeArchiveCategory) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        if (state.searchVisible) item { OutlinedTextField(state.query, vm::setQuery, modifier = Modifier.fillMaxWidth(), singleLine = true,
-            label = { Text(stringResource(R.string.life_archive_search)) },
-            trailingIcon = { IconButton(onClick = vm::toggleSearch) { Icon(Icons.Outlined.Close, stringResource(R.string.life_archive_cancel)) } }) }
+        item { Text(stringResource(R.string.life_archive_local), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { ArchiveCategoryChips(state.categories, state.selectedCategoryId, vm::selectCategory, onAddType, onManageType, !state.busy, all = true) }
         item { Text(stringResource(R.string.life_archive_type_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item {

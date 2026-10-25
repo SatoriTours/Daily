@@ -525,4 +525,10 @@
     <string name="assistant_delete_session_title">删除这个会话？</string>
     <string name="assistant_delete_session_impact">聊天记录将被删除，相关记忆引用也会失效。已创建的文章和提醒不受影响。</string>
     <string name="assistant_delete_failed">删除失败，请重试。</string>
+    <string name="page_actions_more">更多</string>
+    <string name="diary_dock_expand">展开添加和录音</string>
+    <string name="diary_action_search">搜索日记</string>
+    <string name="diary_action_filter">标签筛选</string>
+    <string name="diary_action_tags">标签管理</string>
+    <string name="diary_recording_action_finish">完成</string>
 </resources>

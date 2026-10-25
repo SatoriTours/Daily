@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.externalfavorites
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -150,14 +152,8 @@ private fun ExternalFavoriteSourceListPage(
         title = "外部收藏同步",
         onBack = onBack,
         searchQuery = query, onSearchQueryChange = { query = it },
-        actions = {
-            IconButton(onClick = openAddPage) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()),
-                )
-            }
-        },
+        pageActions = listOf(PageAction(externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()),
+            Icons.Default.Add, onClick = openAddPage)),
     ) { modifier ->
         if (query.isNotBlank() && visibleSources.isEmpty()) SettingsSearchEmptyState(modifier)
         else if (state.sources.isEmpty()) {

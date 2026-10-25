@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.remotenews
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -100,11 +102,7 @@ private fun RemoteNewsSourceListPage(
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHost) },
         searchQuery = query, onSearchQueryChange = { query = it },
-        actions = {
-            IconButton(onClick = viewModel::openAdd) {
-                Icon(Icons.Default.Add, contentDescription = "新增远程新闻")
-            }
-        },
+        pageActions = listOf(PageAction("新增远程新闻", Icons.Default.Add, onClick = viewModel::openAdd)),
     ) { modifier ->
         if (query.isNotBlank() && visibleSources.isEmpty()) SettingsSearchEmptyState(modifier)
         else if (state.sources.isEmpty()) {

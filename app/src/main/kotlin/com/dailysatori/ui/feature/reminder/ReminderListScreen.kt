@@ -102,6 +102,7 @@ fun ReminderListScreen(
     onBack: (() -> Unit)? = null,
 ) {
     val ui by viewModel.state.collectAsState()
+    androidx.activity.compose.BackHandler(enabled = ui.isListSearchVisible) { viewModel.toggleListSearch() }
     val all by viewModel.reminders.collectAsState()
     val sourceVm: com.dailysatori.ui.feature.phone.PhoneSourceViewModel = koinViewModel()
     val sourceState by sourceVm.state.collectAsState()
@@ -128,10 +129,11 @@ fun ReminderListScreen(
                 onOpenFilter = { viewModel.updateListFilter { it.copy(isPanelOpen = true) } },
                 onOpenSettings = onOpenSettings,
                 showSettings = showSettings,
+                search = if (ui.isListSearchVisible) com.dailysatori.ui.component.appbar.PageSearch(
+                    ui.listFilter.query, stringResource(R.string.reminder_list_search),
+                    { query -> viewModel.updateListFilter { it.copy(query = query) } }, viewModel::toggleListSearch,
+                ) else null,
             )
-            if (ui.isListSearchVisible) ReminderSearchField(ui.listFilter.query) { query ->
-                viewModel.updateListFilter { it.copy(query = query) }
-            }
             if (ui.listFilter.todayOnly) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.management_today_reminders, listState.sections.sumOf { it.items.size }), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
@@ -243,26 +245,30 @@ private fun ReminderTopBar(
     onOpenFilter: () -> Unit,
     onOpenSettings: () -> Unit,
     showSettings: Boolean,
+    search: com.dailysatori.ui.component.appbar.PageSearch? = null,
 ) {
     // Flow layout: the title always sits after the back button, never overlapping at any density.
     Row(
         Modifier.fillMaxWidth().height(Height.appBar).padding(end = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (onBack != null) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back), tint = MaterialTheme.colorScheme.primary) }
+        val back = search?.onClose ?: onBack
+        if (back != null) {
+            IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, stringResource(R.string.reminder_back), tint = MaterialTheme.colorScheme.primary) }
         }
-        Text(
+        if (search != null) Box(Modifier.weight(1f)) {
+            com.dailysatori.ui.component.appbar.PageSearchField(search)
+        } else Text(
             stringResource(R.string.reminder_list_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f).padding(start = if (onBack != null) Spacing.xs else Spacing.l),
         )
-        IconButton(onClick = onToggleSearch) { Icon(Icons.Default.Search, stringResource(R.string.reminder_list_search), tint = MaterialTheme.colorScheme.primary) }
-        IconButton(onClick = onOpenFilter) { Icon(Icons.Default.FilterList, stringResource(R.string.reminder_list_filter), tint = MaterialTheme.colorScheme.primary) }
-        if (showSettings) {
-            IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title), tint = MaterialTheme.colorScheme.primary) }
-        }
+        if (search == null) com.dailysatori.ui.component.appbar.PageActions(buildList {
+            add(com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.reminder_list_search), Icons.Default.Search, onClick = onToggleSearch))
+            add(com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.reminder_list_filter), Icons.Default.FilterList, onClick = onOpenFilter))
+            if (showSettings) add(com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.reminder_settings_title), Icons.Default.Settings, onClick = onOpenSettings))
+        })
         com.dailysatori.ui.component.appbar.AssistantTopBarAction()
     }
 }

@@ -20,12 +20,12 @@ class BooksScreenUiTextTest {
     fun moreMenuRefreshesCurrentBookOnly() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
         val menuBlock = source.extractBetween(
-            start = "DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {",
-            end = "\n                }",
+            start = "pageActions = buildList {",
+            end = "\n        },",
         )
 
         assertTrue(menuBlock.contains("booksRefreshCurrentBookMenuText()"))
-        assertTrue(menuBlock.contains("viewModel.refreshCurrentBook()"))
+        assertTrue(menuBlock.contains("onClick = viewModel::refreshCurrentBook"))
         assertTrue(menuBlock.contains("state.currentBookId != null"))
     }
 

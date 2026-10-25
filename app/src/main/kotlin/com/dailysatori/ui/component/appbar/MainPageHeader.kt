@@ -1,7 +1,6 @@
 package com.dailysatori.ui.component.appbar
 
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
@@ -20,7 +19,7 @@ import com.dailysatori.ui.theme.*
 fun MainPageHeader(
     title: String,
     modifier: Modifier = Modifier,
-    actions: @Composable RowScope.() -> Unit = {},
+    pageActions: List<PageAction> = emptyList(),
 ) {
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = Height.appBarCompact),
@@ -36,7 +35,7 @@ fun MainPageHeader(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        actions()
+        PageActions(pageActions)
         AssistantTopBarAction()
     }
 }

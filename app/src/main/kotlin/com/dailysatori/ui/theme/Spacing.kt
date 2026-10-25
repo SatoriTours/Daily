@@ -45,6 +45,17 @@ object Height {
     val navBar = 52.dp
     val chip = 30.dp
     val searchBar = 46.dp
+    val touchTarget = 48.dp
+}
+
+/** Shared proportions for compact floating controls, separate from their accessible hit targets. */
+object FloatingControl {
+    val visual = 36.dp
+    val edgeReveal = 14.dp
+    val gripWidth = 3.dp
+    val gripHeight = 12.dp
+    val bottomClearance = Height.navBar + Spacing.m
+    val scrollClearance = bottomClearance + Height.touchTarget + Spacing.l
 }
 
 object BorderWidth {

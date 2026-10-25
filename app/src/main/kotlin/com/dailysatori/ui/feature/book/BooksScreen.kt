@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.book
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -181,53 +183,16 @@ fun BooksScreen(
         title = booksReaderTitle(currentBook?.title, currentBook?.author),
         showBack = false,
         isMainPage = true,
-        actions = {
-            var showMenu by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = booksMoreActionsContentDescription())
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(booksAddActionContentDescription()) },
-                        leadingIcon = { Icon(Icons.Default.Add, null) },
-                        onClick = { inlineMode = BooksInlineMode.AddBook; showMenu = false },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(booksContentSearchActionContentDescription()) },
-                        leadingIcon = { Icon(Icons.Default.Search, null) },
-                        onClick = { inlineMode = BooksInlineMode.ContentSearch; showMenu = false },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(booksFilterMenuText()) },
-                        leadingIcon = { Icon(Icons.Default.FilterList, null) },
-                        onClick = { showBookSheet = true; showMenu = false },
-                    )
-                    if (state.currentBookId != null) {
-                        DropdownMenuItem(
-                            text = { Text(booksRefreshCurrentBookMenuText()) },
-                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
-                            enabled = state.refreshingBookId == null,
-                            onClick = { viewModel.refreshCurrentBook(); showMenu = false },
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { Text("随机") },
-                        leadingIcon = { Icon(Icons.Default.Refresh, null) },
-                        onClick = { viewModel.shuffle(); showMenu = false },
-                    )
-                    if (state.currentBookId != null) {
-                        DropdownMenuItem(
-                            text = { Text("删除") },
-                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                showDeleteDialog = state.books.find { it.id == state.currentBookId }
-                                showMenu = false
-                            },
-                        )
-                    }
-                }
-            }
+        pageActions = buildList {
+            add(PageAction(booksAddActionContentDescription(), Icons.Default.Add) { inlineMode = BooksInlineMode.AddBook })
+            add(PageAction(booksContentSearchActionContentDescription(), Icons.Default.Search) { inlineMode = BooksInlineMode.ContentSearch })
+            add(PageAction(booksFilterMenuText(), Icons.Default.FilterList) { showBookSheet = true })
+            if (state.currentBookId != null) add(PageAction(booksRefreshCurrentBookMenuText(), Icons.Default.Refresh,
+                enabled = state.refreshingBookId == null, onClick = viewModel::refreshCurrentBook))
+            add(PageAction("随机", Icons.Default.Refresh, onClick = viewModel::shuffle))
+            if (state.currentBookId != null) add(PageAction("删除", Icons.Default.Delete, destructive = true) {
+                showDeleteDialog = state.books.find { it.id == state.currentBookId }
+            })
         },
         floatingActionButton = {
             if (state.viewpoints.isNotEmpty()) {

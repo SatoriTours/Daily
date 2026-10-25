@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.plugin
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,7 +73,6 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
     val state by viewModel.state.collectAsState()
     val i18n: I18nService = koinInject()
     var query by rememberSaveable { mutableStateOf("") }
-    var showMenu by remember { mutableStateOf(false) }
     val visiblePlugins = state.plugins.filter { matchesSettingsQuery(query, it.fileName) }
     var editingServer by remember { mutableStateOf(false) }
 
@@ -95,22 +96,11 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
         title = "插件中心",
         onBack = onBack,
         searchQuery = query, onSearchQueryChange = { query = it },
-        actions = {
-            Box {
-                IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, i18n.t("settings_design.more")) }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text(pluginServerConfigTitle()) },
-                        onClick = { showMenu = false; editingServer = true },
-                        leadingIcon = { Icon(Icons.Default.Settings, null) })
-                    DropdownMenuItem(text = { Text("刷新") },
-                        onClick = { showMenu = false; viewModel.loadPlugins() },
-                        leadingIcon = { Icon(Icons.Default.Refresh, null) })
-                    DropdownMenuItem(text = { Text("全部更新") },
-                        onClick = { showMenu = false; viewModel.updateAllPlugins() },
-                        leadingIcon = { Icon(Icons.Default.CloudDownload, null) })
-                }
-            }
-        },
+        pageActions = listOf(
+            PageAction(pluginServerConfigTitle(), Icons.Default.Settings) { editingServer = true },
+            PageAction("刷新", Icons.Default.Refresh, onClick = viewModel::loadPlugins),
+            PageAction("全部更新", Icons.Default.CloudDownload, onClick = viewModel::updateAllPlugins),
+        ),
     ) { modifier ->
         if (state.isLoading) {
             Box(

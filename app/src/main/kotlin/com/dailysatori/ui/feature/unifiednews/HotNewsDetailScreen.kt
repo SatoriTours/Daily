@@ -266,7 +266,7 @@ private fun HotNewsDetailTopBar(
     ) {
         IconButton(
             onClick = onBack,
-            modifier = Modifier.size(Height.buttonSmall),
+            modifier = Modifier.size(Height.touchTarget),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -314,7 +314,7 @@ private fun HotNewsDetailTopBar(
         IconButton(
             onClick = onFavorite,
             enabled = isFavoriteEnabled,
-            modifier = Modifier.size(Height.buttonSmall),
+            modifier = Modifier.size(Height.touchTarget),
         ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,

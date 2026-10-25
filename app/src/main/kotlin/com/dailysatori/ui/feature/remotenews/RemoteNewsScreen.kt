@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.remotenews
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,7 +92,13 @@ fun RemoteNewsScreen(onArticleClick: (Long) -> Unit = {}) {
 private fun RemoteNewsListScreen(state: RemoteNewsState, viewModel: RemoteNewsViewModel) {
     LaunchedEffect(Unit) { viewModel.loadInitial() }
 
-    AppScaffold(title = state.mode.title, showBack = false, actions = { RemoteNewsMenu(state.mode, viewModel) }) { modifier ->
+    AppScaffold(title = state.mode.title, showBack = false, pageActions = buildList {
+        if (state.mode != RemoteNewsMode.DIGESTS) add(PageAction("查看总结", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.DIGESTS) })
+        if (state.mode != RemoteNewsMode.ARTICLES) add(PageAction("查看文章", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.ARTICLES) })
+        if (state.mode != RemoteNewsMode.FEEDS) add(PageAction("查看信息源", Icons.Default.RssFeed) { viewModel.switchMode(RemoteNewsMode.FEEDS) })
+        if (state.mode != RemoteNewsMode.CRAYFISH) add(PageAction("小龙虾新闻", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.CRAYFISH) })
+        add(PageAction("刷新", Icons.Default.Refresh, onClick = viewModel::refresh))
+    }) { modifier ->
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
             onRefresh = viewModel::refresh,
@@ -101,25 +109,7 @@ private fun RemoteNewsListScreen(state: RemoteNewsState, viewModel: RemoteNewsVi
     }
 }
 
-@Composable
-private fun RemoteNewsMenu(mode: RemoteNewsMode, viewModel: RemoteNewsViewModel) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "更多") }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (mode != RemoteNewsMode.DIGESTS) MenuItem("查看总结", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.DIGESTS); expanded = false }
-            if (mode != RemoteNewsMode.ARTICLES) MenuItem("查看文章", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.ARTICLES); expanded = false }
-            if (mode != RemoteNewsMode.FEEDS) MenuItem("查看信息源", Icons.Default.RssFeed) { viewModel.switchMode(RemoteNewsMode.FEEDS); expanded = false }
-            if (mode != RemoteNewsMode.CRAYFISH) MenuItem("小龙虾新闻", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.CRAYFISH); expanded = false }
-            MenuItem("刷新", Icons.Default.Refresh) { viewModel.refresh(); expanded = false }
-        }
-    }
-}
 
-@Composable
-private fun MenuItem(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    DropdownMenuItem(text = { Text(text) }, leadingIcon = { Icon(icon, contentDescription = null) }, onClick = onClick)
-}
 
 @Composable
 private fun RemoteNewsListContent(state: RemoteNewsState, viewModel: RemoteNewsViewModel) {

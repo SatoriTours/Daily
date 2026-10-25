@@ -1,7 +1,6 @@
 package com.dailysatori.ui.component.scaffold
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -12,6 +11,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.dailysatori.ui.component.appbar.PageSearch
+import com.dailysatori.ui.component.appbar.PageAction
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.ui.theme.*
@@ -24,7 +25,8 @@ fun AppScaffold(
     showBack: Boolean = onBack != null,
     myNavigationLabel: String? = null,
     onMyNavigationClick: (() -> Unit)? = null,
-    actions: @Composable RowScope.() -> Unit = {},
+    pageActions: List<PageAction> = emptyList(),
+    search: PageSearch? = null,
     snackbarHost: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
@@ -36,9 +38,9 @@ fun AppScaffold(
 ) {
     Scaffold(
         topBar = {
-            if (isMainPage) {
+            if (isMainPage && search == null) {
                 Column(Modifier.statusBarsPadding().padding(start = Spacing.m, end = Spacing.m, top = Spacing.s)) {
-                    MainPageHeader(title = title, actions = actions)
+                    MainPageHeader(title = title, pageActions = pageActions)
                     subtitle?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -58,7 +60,8 @@ fun AppScaffold(
                     showBack = showBack,
                     myNavigationLabel = myNavigationLabel,
                     onMyNavigationClick = onMyNavigationClick,
-                    actions = actions,
+                    pageActions = pageActions,
+                    search = search,
                 )
             }
         },

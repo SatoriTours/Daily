@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.myspace
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -97,11 +99,7 @@ fun MySpaceScreen(
     }
     com.dailysatori.ui.component.scaffold.AppScaffold(
         title = stringResource(R.string.personal_settings_my_title), isMainPage = true, showHeaderDivider = false,
-        actions = {
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
-            }
-        },
+        pageActions = listOf(PageAction(stringResource(R.string.personal_settings_title), Icons.Outlined.Settings, onClick = onSettings)),
     ) { contentModifier ->
         LazyColumn(
             contentModifier.fillMaxSize(),

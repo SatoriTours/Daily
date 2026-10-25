@@ -541,32 +541,14 @@ fun DiaryEditorSheet(
                         hasImages = images.isNotEmpty(),
                         isSaving = isSaving,
                     )
-                    FlowRow(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextButton(onClick = onDismiss) {
                             Text("取消", color = editorColors.primary, maxLines = 1, softWrap = false)
                         }
-                        if (onCaptureIdea != null && !isContinuation) {
-                            TextButton(
-                                enabled = canSave,
-                                onClick = {
-                                    onCaptureIdea(
-                                        content.text,
-                                        tagsText.ifBlank { null },
-                                        moodText.ifBlank { null },
-                                        images.joinToString(",").ifBlank { null },
-                                        tagDraft,
-                                        polishedTranscripts.takeIf { polishVersionsLoaded },
-                                    )
-                                },
-                            ) {
-                                Text("收为点子", maxLines = 1, softWrap = false,
-                                    color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
-                            }
-                        }
+                        Spacer(Modifier.weight(1f))
                         TextButton(
                             enabled = canSave,
                             onClick = {
@@ -592,12 +574,33 @@ fun DiaryEditorSheet(
                             Text("保存", maxLines = 1, softWrap = false,
                                 color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
                         }
+                        com.dailysatori.ui.component.appbar.AssistantTopBarAction()
                     }
                     DiaryEditorMetaRow(
                         dateText = diaryEditorDateText(existingDiary, continuationRootId),
                         mood = moodText,
                         colors = editorColors,
                         onMood = { showMoodEditor = true },
+                        captureIdea = {
+                        if (onCaptureIdea != null && !isContinuation) {
+                            TextButton(
+                                enabled = canSave,
+                                onClick = {
+                                    onCaptureIdea(
+                                        content.text,
+                                        tagsText.ifBlank { null },
+                                        moodText.ifBlank { null },
+                                        images.joinToString(",").ifBlank { null },
+                                        tagDraft,
+                                        polishedTranscripts.takeIf { polishVersionsLoaded },
+                                    )
+                                },
+                            ) {
+                                Text("收为点子", maxLines = 1, softWrap = false,
+                                    color = if (canSave) editorColors.primary else editorColors.muted.copy(alpha = 0.44f))
+                            }
+                        }
+                        },
                         onStartRecording = if (showRecording && (recordingState == null || recordingState is DiaryRecordingState.Idle)) {
                             {
                                 onStartRecording?.invoke(
@@ -855,6 +858,7 @@ private fun DiaryEditorMetaRow(
     colors: DiaryEditorColors,
     onMood: () -> Unit,
     onStartRecording: (() -> Unit)? = null,
+    captureIdea: (@Composable () -> Unit)? = null,
 ) {
     FlowRow(
         modifier = Modifier
@@ -904,6 +908,7 @@ private fun DiaryEditorMetaRow(
                 },
             )
         }
+        captureIdea?.invoke()
         if (onStartRecording != null) {
             Surface(
                 onClick = onStartRecording,

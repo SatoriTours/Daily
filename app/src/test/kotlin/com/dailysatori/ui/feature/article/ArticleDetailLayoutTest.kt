@@ -60,7 +60,7 @@ class ArticleDetailLayoutTest {
         val actionsBody = source.functionBody("ArticleDetailActions")
 
         assertTrue(actionsBody.contains("Icons.Default.MoreVert"))
-        assertTrue(actionsBody.contains("DropdownMenu("))
+        assertTrue(actionsBody.contains("PageAction(\"更多操作\"") && actionsBody.contains("menuContent ="))
         assertTrue(actionsBody.contains("ArticleOriginalMenuItem("))
         assertTrue(actionsBody.contains("ArticleRefreshMenuItem("))
         assertTrue(actionsBody.contains("ArticleXApiRefreshMenuItem("))

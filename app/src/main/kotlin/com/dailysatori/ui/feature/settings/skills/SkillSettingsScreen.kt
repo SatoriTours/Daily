@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.skills
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -111,11 +113,7 @@ private fun SkillListScreen(
         title = skillSettingsScreenTitle(),
         onBack = onBack,
         searchQuery = query, onSearchQueryChange = { query = it },
-        actions = {
-            IconButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, contentDescription = skillAddButtonText())
-            }
-        },
+        pageActions = listOf(PageAction(skillAddButtonText(), Icons.Default.Add, onClick = onAdd)),
     ) { modifier ->
         if (query.isNotBlank() && visibleSkills.isEmpty()) SettingsSearchEmptyState(modifier)
         else LazyColumn(

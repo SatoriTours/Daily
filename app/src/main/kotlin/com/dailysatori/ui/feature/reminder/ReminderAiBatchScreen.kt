@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,9 +45,8 @@ fun ReminderAiBatchScreen(
             else -> R.string.reminder_ai_batch_title
         }),
         onBack = onBack,
-        actions = {
-            if (ready) ReminderBatchMoreActions(enabled = !state.isSaving) { confirmDiscard = true }
-        },
+        pageActions = if (ready) listOf(PageAction(stringResource(R.string.reminder_ai_batch_discard),
+            Icons.Outlined.DeleteOutline, enabled = !state.isSaving, destructive = true) { confirmDiscard = true }) else emptyList(),
         bottomBar = {
             if (ready) ReminderBatchSaveBar(state, viewModel::confirmSelected)
             else if (processing) {
@@ -163,22 +164,6 @@ private fun ReminderBatchSaveBar(state: ReminderAiBatchScreenState, onSave: () -
                 Spacer(Modifier.width(Spacing.s))
                 Text(if (state.isSaving) stringResource(R.string.reminder_saving) else stringResource(R.string.reminder_batch_review_save, selected))
             }
-        }
-    }
-}
-
-@Composable
-private fun ReminderBatchMoreActions(enabled: Boolean, onDiscard: () -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { expanded = true }, enabled = enabled) {
-            Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.reminder_detail_more))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.reminder_ai_batch_discard), color = MaterialTheme.colorScheme.error) },
-                enabled = enabled, onClick = { expanded = false; onDiscard() },
-            )
         }
     }
 }

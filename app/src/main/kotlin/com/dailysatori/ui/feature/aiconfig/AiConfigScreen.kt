@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.aiconfig
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -92,20 +94,9 @@ fun AiConfigScreen(
         title = "AI 配置",
         onBack = onBack,
         searchQuery = query, onSearchQueryChange = { query = it },
-        actions = {
-            IconButton(
-                onClick = {
-                    if (onEditConfig != null) {
-                        onEditConfig(null)
-                    } else {
-                        isEditing = true
-                        editingConfigId = null
-                    }
-                },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "添加配置")
-            }
-        },
+        pageActions = listOf(PageAction("添加配置", Icons.Default.Add) {
+            if (onEditConfig != null) onEditConfig(null) else { isEditing = true; editingConfigId = null }
+        }),
     ) { modifier ->
         if (query.isNotBlank() && visibleConfigs.isEmpty()) SettingsSearchEmptyState(modifier)
         else if (state.configs.isEmpty()) {

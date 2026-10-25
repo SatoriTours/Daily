@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.diary
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -15,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.EditNote
@@ -120,11 +123,8 @@ internal fun DiaryThoughtScreen(
     AppScaffold(
         title = "我的思想",
         onBack = onBack,
-        actions = {
-            TextButton(onClick = viewModel::refresh, enabled = !state.isUpdating) {
-                Text(if (state.isUpdating) "整理中" else "更新")
-            }
-        },
+        pageActions = listOf(PageAction(if (state.isUpdating) "整理中" else "更新", Icons.Default.Refresh,
+            enabled = !state.isUpdating, onClick = viewModel::refresh)),
     ) { modifier ->
         LazyColumn(
             modifier = modifier.padding(horizontal = Spacing.m),

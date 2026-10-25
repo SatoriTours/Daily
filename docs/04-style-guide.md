@@ -151,6 +151,18 @@ FilledIconButton(
 )
 ```
 
+## 标题栏与页面操作层级
+
+- 普通页右侧最多 **一个页面操作位 + 最右 AI**；无页面操作不补空位。页面用 `PageAction(label, icon, enabled, priority, onClick)` 提供有名称的行为，由共享 `PageActions` 统一显示：一项直接展示，多项进入带文字的“更多”。
+- `AppScaffold`、`MainPageHeader`、`SettingsScaffold` 只接收 `pageActions`，不接受任意图标行；`AppTopBar.actions` 仅供 `showAssistant = false` 的助手内部任务栏使用。自定义标题栏也使用 `PageActions`，并在其右侧放 `AssistantTopBarAction`。
+- 编辑页保持 **保存 + AI**，保存不得溢出。共享操作设为 `PageActionPriority.Primary`，不允许与次要操作混排，也不允许保存打开菜单。附件、标签、“收为点子”等保留在任务工具区。批量确认流程保留既有可见的底部确认栏，不机械改写任务工作流。
+- 搜索态通过 `PageSearch` 替代普通标题，显示左侧退出、搜索字段、最右 AI；隐藏普通态操作，不在正文重复搜索行。嵌入式列表由所属页面管理搜索，避免重复顶栏。
+- 普通图标沿用次要文字色，AI 沿用主题强调色，删除仍须原有确认。标题栏固定在滚动区外，长标题在正文完整呈现。控件最小热区用 `Height.touchTarget`（48dp），不能把视觉尺寸当作触区。
+- 日记默认右侧手柄仅露 `FloatingControl.edgeReveal`（14dp），48dp 触区全部在屏内；点击只横向展开添加/录音，两枚视觉 36dp、触区 48dp。点击空白/正文或滚动收起，但不消费正文第一次点击；返回先收起，不设置自动隐藏计时器。
+- 日记手柄、按钮和录音条是真正浮层，位于底部导航上方，不占固定列表行。列表仅加 `FloatingControl.scrollClearance` 可滚动末尾余量。录音始终由原服务状态驱动，启动/停止时不能再启动；录音中不因滚动/收纳隐藏状态，完成后恢复收纳，转写继续归既有记录与任务。
+
+当前方案与浏览器设计稿见 [标题栏规范](./superpowers/specs/2026-10-25-top-bar-action-standard-design.md) 和 [V4 原型](./mockups/top-bar-standard-v4.html)。原型验证不代表 Android 视觉、触控、边缘手势或 IME 验收。
+
 ## 底部浮动 Liquid Glass
 
 Home 底部导航和 AI 输入条使用 iOS Liquid Glass 方向的浮动材质。目标不是实色卡片，也不是完全透明，而是在内容上方保留可辨认的背景轮廓，同时保证导航图标可读。

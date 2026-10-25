@@ -503,4 +503,10 @@
     <string name="assistant_delete_session_title">Delete this chat?</string>
     <string name="assistant_delete_session_impact">Chat messages will be deleted and their memory references invalidated. Articles and reminders already created are not affected.</string>
     <string name="assistant_delete_failed">Could not delete this chat. Try again.</string>
+    <string name="page_actions_more">More</string>
+    <string name="diary_dock_expand">Expand add and recording</string>
+    <string name="diary_action_search">Search diary</string>
+    <string name="diary_action_filter">Filter by tag</string>
+    <string name="diary_action_tags">Manage tags</string>
+    <string name="diary_recording_action_finish">Finish</string>
 </resources>

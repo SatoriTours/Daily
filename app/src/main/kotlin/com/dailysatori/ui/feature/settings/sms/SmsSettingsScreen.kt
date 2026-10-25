@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.sms
 
+import com.dailysatori.ui.component.appbar.PageAction
+
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -41,7 +43,6 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     var cloudConsent by remember { mutableStateOf(false) }
-    var pageMenu by remember { mutableStateOf(false) }
     val smsPermission = rememberSmsPermissionAccess(state.busy) {
         viewModel.setMonitoring(true)
     }
@@ -52,17 +53,10 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    AppScaffold(title = i18n.t("sms.title"), onBack = onBack, actions = {
-        Box {
-            IconButton(onClick = { pageMenu = true }) { Icon(Icons.Default.MoreVert, i18n.t("sms.more")) }
-            DropdownMenu(pageMenu, onDismissRequest = { pageMenu = false }) {
-                DropdownMenuItem(text = { Text(i18n.t("sms.sync_pending")) }, enabled = !state.busy,
-                    onClick = { pageMenu = false; viewModel.syncPending() })
-                DropdownMenuItem(text = { Text(i18n.t("sms.clear_blocked")) }, enabled = !state.busy,
-                    onClick = { pageMenu = false; viewModel.clearBlockedSenders() })
-            }
-        }
-    }) { modifier ->
+    AppScaffold(title = i18n.t("sms.title"), onBack = onBack, pageActions = listOf(
+        PageAction(i18n.t("sms.sync_pending"), Icons.Default.MoreVert, enabled = !state.busy, onClick = viewModel::syncPending),
+        PageAction(i18n.t("sms.clear_blocked"), Icons.Default.MoreVert, enabled = !state.busy, onClick = viewModel::clearBlockedSenders),
+    )) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {

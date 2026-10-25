@@ -29,16 +29,21 @@ fun AppTopBar(
     myNavigationLabel: String? = null,
     onMyNavigationClick: (() -> Unit)? = null,
     onTitleDoubleClick: (() -> Unit)? = null,
-    actions: @Composable RowScope.() -> Unit = {},
+    pageActions: List<PageAction> = emptyList(),
+    search: PageSearch? = null,
+    actions: (@Composable RowScope.() -> Unit)? = null,
     expandedHeight: Dp = Height.appBar,
     showAssistant: Boolean = true,
     backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
     backContentDescription: String = "返回",
 ) {
+    require(actions == null || !showAssistant) { "Ordinary headers must declare named pageActions" }
+    val navigateBack = search?.onClose ?: onBack
     CenterAlignedTopAppBar(
         expandedHeight = expandedHeight,
         windowInsets = TopAppBarDefaults.windowInsets,
         title = {
+            if (search != null) PageSearchField(search) else {
             val titleModifier = if (onTitleDoubleClick != null) {
                 Modifier.combinedClickable(onClick = {}, onDoubleClick = onTitleDoubleClick)
             } else {
@@ -51,10 +56,11 @@ fun AppTopBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            }
         },
         navigationIcon = {
-            if (showBack && onBack != null) {
-                IconButton(onClick = onBack) {
+            if ((showBack || search != null) && navigateBack != null) {
+                IconButton(onClick = navigateBack) {
                     Icon(
                         backIcon,
                         contentDescription = backContentDescription,
@@ -72,7 +78,10 @@ fun AppTopBar(
             }
         },
         actions = {
-            actions()
+            if (search == null) {
+                PageActions(pageActions)
+                actions?.invoke(this)
+            }
             if (showAssistant) AssistantTopBarAction()
         },
         colors = TopAppBarDefaults.topAppBarColors(
