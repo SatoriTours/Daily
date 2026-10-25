@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>个人助手 · 固定输入区设计稿</title>
+<style>
+/* 对齐 Daily 的 AppColors / Spacing / Radius；仅为设计稿，不是 App 实现。 */
+:root { color-scheme:dark; --bg:#000; --surface:#1c1c1e; --high:#2c2c2e; --low:#111113; --text:#f5f5f7; --muted:#a1a1a6; --line:#ffffff26; --blue:#0a84ff; --user:#073a5c; --s:8px; --m:16px; --l:24px; --xl:32px; --radius:22px; }
+* { box-sizing:border-box; }
+body { margin:0; font-family:"Noto Sans CJK SC","Noto Sans CJK KR",sans-serif; background:#111113; color:#f5f5f7; }
+button,textarea { font:inherit; }
+button { cursor:pointer; }
+.board { max-width:1360px; margin:auto; padding:36px 40px 24px; }
+.board-head { display:flex; justify-content:space-between; align-items:center; gap:24px; margin-bottom:24px; }
+.kicker { color:#a1a1a6; font-size:12px; letter-spacing:1px; margin-bottom:8px; }
+h1 { margin:0; font-size:28px; font-weight:650; letter-spacing:.2px; }
+.intro { margin:8px 0 0; font-size:14px; color:#a1a1a6; line-height:1.7; }
+.theme-switch { display:flex; background:#1c1c1e; padding:4px; border-radius:12px; flex-shrink:0; }
+.theme-switch button { border:0; background:none; color:#a1a1a6; border-radius:8px; padding:8px 14px; font-size:13px; }
+.theme-switch button[aria-pressed=true] { color:#f5f5f7; background:#3a3a3c; }
+.states { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; }
+.state-head { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+.state-head .number { color:#0a84ff; font-size:13px; }
+.state-head h2 { font-size:17px; font-weight:550; margin:0; }
+.state-head span:last-child { font-size:12px; color:#a1a1a6; margin-left:auto; }
+.phone { width:100%; height:844px; border:1px solid #ffffff26; border-radius:32px; background:var(--bg); color:var(--text); overflow:hidden; display:flex; flex-direction:column; position:relative; }
+.status { height:44px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 24px; font-size:14px; font-weight:600; }
+.status-right { display:flex; align-items:center; gap:6px; }
+.signal { width:13px; height:10px; display:flex; align-items:end; gap:2px; }
+.signal i { display:block; width:3px; background:var(--text); border-radius:1px; }
+.signal i:nth-child(1) { height:4px; }.signal i:nth-child(2) { height:7px; }.signal i:nth-child(3) { height:10px; }
+.battery { height:12px; width:23px; border:1px solid var(--muted); border-radius:3px; position:relative; padding:2px; }
+.battery:before { content:""; display:block; height:100%; width:75%; background:var(--text); border-radius:1px; }
+.battery:after { content:""; width:2px; height:5px; position:absolute; right:-4px; top:3px; background:var(--muted); border-radius:1px; }
+.toolbar { height:56px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; padding:0 var(--m); position:relative; }
+.toolbar .title { position:absolute; left:50%; transform:translateX(-50%); font-size:19px; font-weight:600; white-space:nowrap; }
+.icon { width:24px; height:24px; display:block; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.toolbar-actions { display:flex; gap:8px; }
+.tool { width:40px; height:48px; display:grid; place-items:center; color:var(--muted); }
+.avatar { color:var(--text); }
+.chat-area { flex:1; min-height:0; overflow:auto; padding:24px var(--m); }
+.welcome { padding:32px 8px 0; }
+.welcome h3 { font-size:24px; font-weight:600; margin:0 0 10px; }
+.welcome p { font-size:15px; line-height:1.7; color:var(--muted); margin:0 0 24px; }
+.prompt { display:flex; align-items:center; min-height:48px; padding:12px 14px; background:var(--low); border-radius:12px; margin-bottom:8px; font-size:14px; }
+.prompt .icon { width:18px; height:18px; margin-left:auto; color:var(--muted); }
+.composer-area { flex-shrink:0; background:var(--bg); padding:8px var(--m); }
+.composer { display:flex; gap:8px; align-items:flex-end; border:1px solid var(--line); border-radius:var(--radius); padding:8px; background:var(--surface); }
+.composer.focused { border-color:var(--blue); }
+.composer textarea { width:100%; flex:1; min-width:0; border:0; outline:0; padding:5px 4px 5px 6px; resize:none; background:none; color:var(--text); font-size:16px; line-height:28px; height:40px; caret-color:var(--blue); }
+.composer textarea::placeholder { color:var(--muted); }
+.send { width:44px; height:44px; flex-shrink:0; display:grid; place-items:center; background:var(--blue); border-radius:50%; border:0; color:white; }
+.send.disabled { background:var(--high); color:var(--muted); }
+.send .icon { width:21px; height:21px; fill:currentColor; stroke-width:0; }
+.nav { flex-shrink:0; display:flex; justify-content:space-around; padding:8px 12px 4px; color:var(--muted); background:var(--bg); }
+.nav-item { min-width:48px; display:flex; align-items:center; flex-direction:column; gap:3px; font-size:10px; }
+.nav-item .icon { width:23px; height:23px; }
+.nav-item.active { color:var(--blue); }
+.gesture { height:22px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--bg); }
+.gesture:before { content:""; width:116px; height:4px; background:var(--text); opacity:.5; border-radius:4px; }
+.draft-text { flex:1; min-width:0; font-size:16px; line-height:27px; padding:5px 4px 5px 6px; overflow-wrap:anywhere; }
+.preedit { border-bottom:1px solid var(--text); white-space:nowrap; }
+.caret { display:inline-block; height:20px; width:2px; vertical-align:-4px; background:var(--blue); margin-left:2px; }
+.keyboard { background:var(--keyboard,#202023); flex-shrink:0; padding:0 6px; }
+.candidates { display:flex; justify-content:space-between; align-items:center; height:44px; padding:0 14px; font-size:19px; color:var(--text); }
+.candidates span:first-child { color:var(--blue); }
+.candidates span:last-child { font-size:17px; color:var(--muted); }
+.key-row { display:flex; gap:5px; justify-content:center; margin-bottom:8px; }
+.key { background:var(--key,#3a3a3e); color:var(--text); height:41px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex:1; font-size:19px; }
+.key-row.indent { padding:0 14px; }
+.key.wide { flex:1.35; font-size:15px; background:var(--special,#303034); }
+.key.space { flex:4.2; font-size:14px; }.key.enter { flex:1.7; font-size:14px; }
+.keyboard .gesture { background:transparent; height:23px; }
+.messages { padding-top:16px; display:flex; flex-direction:column; gap:20px; }
+.user-bubble { align-self:flex-end; max-width:88%; background:var(--user); border-radius:18px 18px 4px 18px; padding:12px 16px; font-size:15px; line-height:1.7; }
+.assistant-bubble { background:var(--surface); border-radius:18px 18px 18px 4px; padding:14px 16px; font-size:15px; line-height:1.85; }
+.assistant-bubble p { margin:0 0 12px; }.assistant-bubble p:last-child { margin:0; }
+.typing-chat .chat-area { padding-top:16px; }
+.typing-chat .welcome { padding-top:16px; }
+.typing-chat .welcome h3 { font-size:22px; }
+.typing-chat .welcome p { margin-bottom:16px; }
+.typing-chat .prompt { background:none; padding-left:0; margin:0; border-radius:0; min-height:40px; }
+.caption { margin:14px 0 0; color:#a1a1a6; font-size:13px; line-height:1.8; }
+.caption strong { color:#f5f5f7; font-weight:500; }
+.notice { margin-top:20px; border-top:1px solid #ffffff1f; padding-top:14px; font-size:12px; color:#a1a1a6; line-height:1.9; }
+.light { color-scheme:light; --bg:#f5f5f7; --surface:#fff; --high:#e5e5ea; --low:#fff; --text:#1d1d1f; --muted:#6e6e73; --line:#3c3c4326; --blue:#006edb; --user:#d8ecff; --keyboard:#dddde3; --key:#fff; --special:#c7c7ce; }
+@media(max-width:950px) { .board { padding:24px 16px; } .board-head { align-items:start; } h1 { font-size:23px; } .intro { max-width:480px; } .states { display:flex; flex-wrap:wrap; justify-content:center; gap:28px; } .state { width:min(390px,100%); } }
+@media(max-width:540px) { .board-head { display:block; }.theme-switch { width:max-content; margin-top:16px; } }
+</style>
+</head>
+<body>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0"><defs>
+<symbol id="person" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="8.5" r="3"/><path d="M5 19c0-7 14-7 14 0"/></symbol>
+<symbol id="sessions" viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4z"/></symbol>
+<symbol id="memory" viewBox="0 0 24 24"><path d="M9 21v-4H6v-5H3l3-4a7 7 0 1 1 13 5v8"/><circle cx="13" cy="8" r="2.5"/><path d="M13 3.7v1.1m0 6.4v1.1M8.7 8h1.1m6.4 0h1.1"/></symbol>
+<symbol id="news" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18z"/></symbol>
+<symbol id="diary" viewBox="0 0 24 24"><path d="M6 3h14v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 0v18M10 8h6m-6 4h6"/></symbol>
+<symbol id="spark" viewBox="0 0 24 24"><path d="m13 3 2.2 6.8L22 12l-6.8 2.2L13 21l-2.2-6.8L4 12l6.8-2.2zM4 3v4M2 5h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M12 5C8 2 3 4 3 4v15s5-2 9 1c4-3 9-1 9-1V4s-5-2-9 1zm0 0v15"/></symbol>
+<symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h15m-5-5 5 5-5 5"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="m3 3 19 9-19 9 3-8 9-1-9-1z"/></symbol>
+</defs></svg>
+<main class="board">
+<header class="board-head"><div><div class="kicker">DAILY SATORI / 交互设计稿 · 不是 App 截图</div><h1>固定输入区，聊天与导航各归其位</h1><p class="intro">不再变形，不再滑入。不抢焦点；中文组词时，输入框始终留在原来的位置。</p></div><div class="theme-switch" aria-label="设计稿主题"><button aria-pressed="true" data-theme="dark">深色</button><button aria-pressed="false" data-theme="light">浅色</button></div></header>
+<div class="states">
+<section class="state"><div class="state-head"><span class="number">01</span><h2>键盘收起</h2><span>输入栏 + 五个导航</span></div><div class="phone" id="idle"></div><p class="caption"><strong>输入栏始终可见。</strong>不占用导航的位置，去掉左侧返回箭头和双层胶囊套框。</p></section>
+<section class="state"><div class="state-head"><span class="number">02</span><h2>中文输入中</h2><span>导航隐藏，输入紧贴键盘</span></div><div class="phone typing-chat" id="typing"></div><p class="caption"><strong>同一个输入框，不被替换。</strong>保留拼音组合、光标与选区；回车换行，点击发送才提交。</p></section>
+<section class="state"><div class="state-head"><span class="number">03</span><h2>发送后</h2><span>示例对话 / 键盘已收起</span></div><div class="phone" id="conversation"></div><p class="caption"><strong>多行输入向上增高。</strong>最多五行，再多则内部滚动；生成时，发送按钮原位变为停止。</p></section>
+</div>
+<footer class="notice">图中对话为示例，键盘与候选栏仅作位置示意，不代表已接入或验证任何输入法。发送不主动抢焦点或强制收键盘；右图是用户收起键盘后的状态。设计稿可切换深浅色，当前尚未修改 App。</footer>
+</main>
+<script>
+const icon=(id,extra='')=>`<svg class="icon ${extra}" aria-hidden="true"><use href="#${id}"></use></svg>`;
+const status=`<div class="status"><span>22:56</span><span class="status-right"><span class="signal"><i></i><i></i><i></i></span><span class="battery"></span></span></div>`;
+const toolbar=`<div class="toolbar"><span class="tool avatar" aria-label="我的">${icon('person')}</span><span class="title">个人助手</span><div class="toolbar-actions"><span class="tool" aria-label="会话列表">${icon('sessions')}</span><span class="tool" aria-label="记忆管理">${icon('memory')}</span></div></div>`;
+const nav=`<nav class="nav" aria-label="底部导航示意">${[['news','今日'],['diary','日记'],['spark','助手'],['book','读书'],['person','我的']].map(([id,text])=>`<div class="nav-item ${text==='助手'?'active':''}">${icon(id)}<span>${text}</span></div>`).join('')}</nav>`;
+const gesture='<div class="gesture" aria-hidden="true"></div>';
+const welcome=`<div class="welcome"><h3>想聊点什么？</h3><p>整理记录、找回记忆，<br>也可以从一个问题开始。</p>${['帮我整理今天的记录','找我最近保存的文章','回顾一段过去的想法'].map(t=>`<div class="prompt">${t}${icon('arrow')}</div>`).join('')}</div>`;
+const composer=(focused=false)=>`<div class="composer-area"><div class="composer ${focused?'focused':''}">${focused?'<div class="draft-text">想买 DeepSeek <span class="preedit">hui yuan</span><span class="caret"></span></div>':'<textarea rows="1" aria-label="设计稿输入框" placeholder="问点什么…"></textarea>'}<button class="send ${focused?'':'disabled'}" aria-label="设计稿发送示意" disabled>${icon('send')}</button></div></div>`;
+const row=keys=>`<div class="key-row">${keys.map(k=>`<div class="key">${k}</div>`).join('')}</div>`;
+const keyboard=`<div class="keyboard" aria-hidden="true"><div class="candidates"><span>会员</span><span>会元</span><span>汇源</span><span>⌄</span></div>${row('qwertyuiop'.split(''))}<div class="key-row indent">${'asdfghjkl'.split('').map(k=>`<div class="key">${k}</div>`).join('')}</div><div class="key-row"><div class="key wide">⇧</div>${'zxcvbnm'.split('').map(k=>`<div class="key">${k}</div>`).join('')}<div class="key wide">⌫</div></div><div class="key-row"><div class="key wide">123</div><div class="key wide">，</div><div class="key space">中文 / 空格</div><div class="key wide">。</div><div class="key enter">换行</div></div>${gesture}</div>`;
+document.querySelector('#idle').innerHTML=status+toolbar+`<div class="chat-area">${welcome}</div>`+composer()+nav+gesture;
+document.querySelector('#typing').innerHTML=status+toolbar+`<div class="chat-area">${welcome}</div>`+composer(true)+keyboard;
+document.querySelector('#conversation').innerHTML=status+toolbar+`<div class="chat-area messages"><div class="user-bubble">想买 DeepSeek 会员，帮我看看值不值得。</div><div class="assistant-bubble"><p>把你看到的套餐链接发来，我可以帮你核对服务方、价格和使用限制，再结合你的用途比较。</p><p>你主要用来写作、编程，还是日常问答？</p></div></div>`+composer()+nav+gesture;
+document.querySelectorAll('[data-theme]').forEach(b=>b.addEventListener('click',()=>{document.documentElement.classList.toggle('light',b.dataset.theme==='light');document.querySelectorAll('[data-theme]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
+if(new URLSearchParams(location.search).get('theme')==='light')document.querySelector('[data-theme=light]').click();
+</script>
+</body>
+</html>

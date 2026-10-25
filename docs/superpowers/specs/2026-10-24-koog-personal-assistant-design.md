@@ -590,4 +590,22 @@ Koog 的历史组件接入宿主数据库，恢复时由宿主选择有效原文
 - 用户实机反馈暴露了此前代码级验收的缺口：一级助手没有传出输入控制器，首页底栏却固定传 null；独立 AssistantRoute 也没有输入区宿主。原测试只证明组件/片段存在，未覆盖这些入口接线，不能代替设备交互验收。
 - 修复：接回首页输入/发送/停止控制器；仅助手内容为浮动输入区预留空间并避让键盘。独立聊天在没有外部输入宿主时自行显示输入栏；原 PersonalChat 的已有宿主保持不重复显示。默认聊天移除旧的 AI 协助/思想偏好说明和无效关闭按钮，仅主动选择参考资料时保留紧凑、可移除的资料行；不改变授权、检索及记忆逻辑。
 - 验证：3 项入口/上下文源码接线回归在原实现下真实 RED（3 失败）；修复后 `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` 退出 0，app 1463 项全部通过，无跳过。日志 `composer-fix-red.log` / `composer-fix-green.log`；这些是代码级接线与单元测试证据，**不是设备显示、点击、键盘或视觉验收**。未调用收费 AI、未启动模拟器。
-- 本轮改动尚未提交/推送，手机上已安装的旧包不会因此自动改变。仍在唯一关联空间 `wks_35389b6b65100daf`，没有新增代理、分支或空间；分项费用未知。
+- §18 随后已在用户第二次“提交代码”授权下交付 `3c12e6bf316a415746da92208d123a4c8d1914c3`；对应 Actions `40097090622` 全部成功。手机安装和运行时验证仍未执行。唯一关联空间继续保留，分项费用未知。
+
+## 19. 按已确认设计开发全局助手与会话管理
+
+- 授权：用户确认全局入口 V3、会话管理 V1 后要求“好的，就按照设计的开发”。设计依据为 `docs/mockups/assistant-global-overlay-v3.html`、`assistant-sessions-v1.html` 和轻薄输入栏 V2；不是新一轮提交或发布授权。
+- 导航：活动级 `GlobalAssistantHost` 位于 NavHost 之外，所有通用顶栏及新闻搜索、提醒自定义顶栏提供右上角入口。“我的”页顶栏移出滚动列表。首页仅保留今日、日记、读书、我的四栏；旧聊天路由桥接同一宿主，现有按钮直接打开覆盖层，不再借导航动画切换聊天。
+- 覆盖层：独立全屏 Dialog 覆盖原页面和底栏，原页面不卸载；窗口关闭动画关闭，无底栏变形/滑入。关闭不取消后台生成。系统返回先处理键盘，再返回聊天/关闭；会话页在助手内部全屏呈现。聊天工具栏为关闭、个人助手、会话、更多。
+- 输入：46dp 最小字段、主题小圆角、正常正文字号、独立 48dp 发送/停止热区，最多五行。编辑器直接绑定 ViewModel 的每会话 `TextFieldValue`，不再经 SideEffect 外传 String 控制器；迟到的 IME 回调绑定原会话。保存失败不清稿，成功只清除同一版本原稿，发送期间的新输入及其他会话草稿保留。
+- 草稿：跨开关/页面/会话保留；SavedStateHandle 保存原文、选区和当前会话，进程状态恢复不恢复已失效输入连接的 composition。新对话没有消息时不产生历史空行，重复新建及从历史返回新对话均复用未发送草稿。删除和外部删除同步清理该会话草稿/身份，不允许迟到回调复活。
+- 会话列表：从首条用户问题派生标题、最近消息派生预览，按最近活动分组/排序；数据库一次有界字段投影，不读整段历史、不调用 AI 生成标题、不显示内部 ID。仅搜索标题；更多菜单提供删除，确认注明记录/记忆失效且已创建文章和提醒保留。沿用原有删除和隐私失效服务，没有修改 Schema。
+- 引用：不自动读取或发送当前页面。仅具有明确已保存来源的文章、思想或机会详情启用“引用当前页”，其他页面禁用。新增文章选择复用安全数据网关的绑定参数、字段白名单、脱敏和 6000 字符分片；沿用既有不可信资料包装及原文优先保存流程。
+- RED：`global-ui-red.log` 实际执行 3 项、失败 3 项；`global-ui-draft-api-red.log` 是缺少新草稿 API 的编译 RED，不计作执行通过；`global-ui-unsent-session-red.log` 记录从历史返回未发送新会话时的真实断言失败。后续验证和独立验收在本节补记。
+- 首批完整自测：JDK21、`DAILY_AI_LIVE_TEST=0 ./gradlew :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest :shared:testDebugUnitTest` 退出 0；app 1481/0/0/0、shared 1478/0/0/23，合计 **2936 项实际通过、23 项跳过**。日志/完整 XML 为 `global-ui-final.log`、`global-ui-final-xml/`；`global-ui-results.json` 记录 30 文件 SHA256 清单及 APK 摘要。缺失内部测试 API 和旧滚动顶栏源码断言两次失败分别保留，未计为通过。
+- 真实接口：配置内的 `KoogAssistantLiveTest.configuredModelRetrievesCreatesBusinessActionsAndRemembersSourcedPreference` 实际执行 1/0/0/0、6.981s，沿用已授权的本地测试配置，不打印凭据。证据 `global-ui-ai-live.log/xml`；这是原接口/工具链基础验证，不是 Android 页面或候选输入验收。
+- 独立验收：复用既有验收端，同一快照已实际聚焦执行 app 40/0/0/0、shared 7/0/0/0（`global-ui-independent-xml/`）。形成结论时上游连接重置；已确认 error、无 activeTurn/待处理权限，原端有界续接一次，未换模型、重跑全量或读取凭据。原端续接形成 `global-ui-independent-review.md`；主控没有照单采纳其空 ID 判断及热点详情定级，而是按下文真实反例纠正并集中修复。
+- 收尾复核发现并集中修复两项契约缺口：①首次 Flow 发射前旧编辑器允许把稿写入空 ID，随后分支 4 实际选择首个持久化会话，而非保留空 ID；原审查报告 §5 的静态判断不能排除丢稿。现以 `canEditDraft` 禁止未建立会话身份时启动 IME，ViewModel 同时拒绝空 ID 的迟到更新。②用户批准每页右上入口，热点详情不能因使用自定义 Row 而例外；补同一全局入口，并在窄屏对来源名单行省略以保留排名及操作区域。
+- 收尾 TDD：3 项新回归实际 RED（3 执行/3 失败）→同批修复后实际 GREEN；模型用例显式延迟首次 sessions Flow，验证空 ID 不生成孤立稿、建立身份后可编辑、迟到空 ID 回调不串稿。输入可用性和热点入口源码接线断言仅证明接线，不冒充设备测试。
+- 收尾验证：`compileDebugKotlin + assembleDebug + app 受影响测试` 退出 0，275/0/0/0。复用未变化的 Shared 全量及真实接口结果，不重复全套或付费调用。`global-ui-closeout-red.log`、`global-ui-closeout-green.log`、`global-ui-closeout-xml/` 和 `global-ui-closeout-results.json` 留证；最终 31 文件 manifest hash `550fad5f344df306f488862cbb540b86b080159c4707f4ef5a391c9a8e0c7ba2`，原审查者仅复核这两处 Important：同一快照 31/31 匹配，独立实际执行 3 项具名回归，3/0/0/0，通过；`global-ui-closeout-review.md` 撤回原错误判断并确认两项已闭合，无新增 Critical/Important，结论为**代码级通过**。原报告其余不变范围复用，剩余两项未使用代码/导入 Minor 不扩大修复。原会话已复核当前清单、实际 XML、构建证据及 diff；Gradle/只读窗口已释放，未提交、推送、改索引或清理既有服务。
+- 限制：尚未启动 Android 模拟器、安装或运行 App。状态模型/源码接线测试不等于中文候选、真实 IME 连接、实际布局/系统栏/返回行为的验收；此前中文输入故障的设备根因仍未复现。浏览器设计稿也不作为 App 视觉证据。开发阶段未自动提交；用户现已另行要求“提交代码”，按既有主分支/Actions 流程交付，不打版本 Tag、不安装或更新客户端。唯一关联空间仍为 `wks_35389b6b65100daf`；早于本任务的 8077 预览服务不擅停，空间保留条件及本次 SHA/CI 证据另存工作区外 `global-ui-delivery.json`。

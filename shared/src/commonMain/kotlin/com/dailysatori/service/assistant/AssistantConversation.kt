@@ -1,6 +1,7 @@
 package com.dailysatori.service.assistant
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 data class AssistantReference(val source: String, val id: String, val title: String)
 data class AssistantActionView(
@@ -19,9 +20,16 @@ data class AssistantMemoryView(
     val sourceId: String, val active: Boolean, val evidence: String = "",
 )
 
+data class AssistantSessionSummary(
+    val id: String, val title: String, val preview: String, val updatedAt: Long,
+)
+
 /** Host-owned commands. No model/network work is tied to the screen's coroutine lifetime. */
 interface AssistantConversation {
     fun sessions(): Flow<List<String>>
+    fun sessionSummaries(): Flow<List<AssistantSessionSummary>> = sessions().map { ids ->
+        ids.map { AssistantSessionSummary(it, "", "", 0) }
+    }
     fun messages(sessionId: String): Flow<List<AssistantMessage>>
     fun memories(): Flow<List<AssistantMemoryView>>
     fun cloudConsent(): Boolean

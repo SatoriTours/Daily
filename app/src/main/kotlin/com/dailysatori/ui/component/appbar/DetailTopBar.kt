@@ -28,6 +28,7 @@ fun DetailTopBar(
                 )
             }
         },
+        actions = { AssistantTopBarAction() },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,

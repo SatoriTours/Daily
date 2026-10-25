@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.aichat
 
+import androidx.lifecycle.SavedStateHandle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import com.dailysatori.service.assistant.AssistantActionView
 import com.dailysatori.service.assistant.AssistantConversation
 import com.dailysatori.service.assistant.AssistantMemoryView
@@ -11,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -19,6 +23,7 @@ import org.junit.Before
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -90,6 +95,185 @@ class AssistantConversationViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun savedStateRestoresSessionOriginalDraftAndCursorButNotAnObsoleteImeConnection() {
+        val fake = FakeAssistantConversation()
+        val handle = SavedStateHandle()
+        val vm = AiChatViewModel(fake, handle)
+        val session = vm.startNewSession()
+        vm.updateDraft(TextFieldValue("未发送的中文 pin yin", TextRange(3, 8), TextRange(8, 14)))
+        val restored = AiChatViewModel(fake, SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) }))
+        assertEquals(session, restored.state.value.sessionId)
+        assertEquals("未发送的中文 pin yin", restored.state.value.draft.text)
+        assertEquals(TextRange(3, 8), restored.state.value.draft.selection)
+        assertNull(restored.state.value.draft.composition)
+        assertTrue(fake.sentCalls.isEmpty())
+    }
+
+    @Test
+    fun chineseCompositionSelectionAndPerSessionDraftSurviveSwitching() {
+        val fake = FakeAssistantConversation().apply { sessionsFlow.value = listOf("s1", "s2") }
+        val vm = AiChatViewModel(fake)
+        val composing = TextFieldValue("想买 hui yuan", TextRange(11), TextRange(3, 11))
+        vm.updateDraft(composing)
+        assertEquals(composing, vm.state.value.draft)
+        vm.switchSession("s2")
+        assertEquals("", vm.state.value.draft.text)
+        vm.updateDraft(TextFieldValue("第二段草稿", TextRange(2, 4)))
+        vm.switchSession("s1")
+        assertEquals(composing, vm.state.value.draft)
+        assertTrue(fake.cancelledTurns.isEmpty())
+    }
+
+    @Test
+    fun acceptanceDoesNotClearNewerEditsOrAnotherSessionDraft() {
+        lateinit var vm: AiChatViewModel
+        val fake = object : FakeAssistantConversation() {
+            override fun send(sessionId: String, clientMessageId: String, content: String): AssistantTurn {
+                vm.updateDraft(TextFieldValue("发送期间继续输入"))
+                return super.send(sessionId, clientMessageId, content)
+            }
+        }
+        vm = AiChatViewModel(fake)
+        vm.updateDraft(TextFieldValue("原始输入"))
+        vm.sendMessage(vm.state.value.draft.text)
+        assertEquals("原始输入", fake.sentCalls.single().third)
+        assertEquals("发送期间继续输入", vm.state.value.draft.text)
+    }
+
+    @Test
+    fun persistenceFailureKeepsChineseDraftAndSuccessfulAcceptanceClearsIt() {
+        var fail = true
+        val fake = object : FakeAssistantConversation() {
+            override fun send(sessionId: String, clientMessageId: String, content: String): AssistantTurn {
+                if (fail) error("local persistence unavailable")
+                return super.send(sessionId, clientMessageId, content)
+            }
+        }
+        val vm = AiChatViewModel(fake)
+        val draft = TextFieldValue("中文原文，不能丢", TextRange(3))
+        vm.updateDraft(draft)
+        vm.sendMessage(draft.text)
+        assertEquals(draft, vm.state.value.draft)
+        assertNotNull(vm.uiErrors.value)
+        fail = false
+        vm.sendMessage(draft.text)
+        assertEquals("", vm.state.value.draft.text)
+    }
+
+    @Test
+    fun equalTextInDifferentSessionsHasDifferentClientIdentity() {
+        val vm = AiChatViewModel(FakeAssistantConversation())
+        val first = vm.prepareInput("同一句话")
+        vm.startNewSession()
+        assertTrue(first != vm.prepareInput("同一句话"))
+    }
+
+    @Test
+    fun initialSessionLoadDoesNotAcceptOrResurrectEmptyIdentityDraft() {
+        val delayed = MutableStateFlow<List<String>?>(null)
+        val fake = object : FakeAssistantConversation() {
+            override fun sessions(): Flow<List<String>> = delayed.filterNotNull()
+        }
+        val vm = AiChatViewModel(fake)
+        assertEquals("", vm.state.value.sessionId)
+        assertFalse(vm.state.value.canEditDraft)
+        vm.updateDraft(TextFieldValue("hui", TextRange(3), TextRange(0, 3)), "")
+        assertFalse(vm.state.value.drafts.containsKey(""))
+        delayed.value = listOf("s1")
+        assertEquals("s1", vm.state.value.sessionId)
+        assertTrue(vm.state.value.canEditDraft)
+        vm.updateDraft(TextFieldValue("中文草稿"))
+        vm.updateDraft(TextFieldValue("迟到的空 ID 回调"), "")
+        assertEquals("中文草稿", vm.state.value.draft.text)
+        assertFalse(vm.state.value.drafts.containsKey(""))
+    }
+
+    @Test
+    fun lateImeCommitCannotOverwriteAnotherSessionOrResurrectADeletedDraft() {
+        val fake = FakeAssistantConversation().apply { sessionsFlow.value = listOf("s1", "s2") }
+        val vm = AiChatViewModel(fake)
+        vm.updateDraft(TextFieldValue("hui yuan"))
+        val originalFieldSession = vm.state.value.sessionId
+        vm.switchSession("s2")
+        vm.updateDraft(TextFieldValue("第二个会话的草稿"))
+        vm.updateDraft(TextFieldValue("会员"), originalFieldSession)
+        assertEquals("第二个会话的草稿", vm.state.value.draft.text)
+        assertEquals("会员", vm.state.value.drafts[originalFieldSession]?.value?.text)
+        fake.sessionsFlow.value = listOf("s2")
+        vm.updateDraft(TextFieldValue("不应复活"), originalFieldSession)
+        assertFalse(vm.state.value.drafts.containsKey(originalFieldSession))
+        assertEquals("第二个会话的草稿", vm.state.value.draft.text)
+    }
+
+    @Test
+    fun acceptanceAfterSessionSwitchClearsOnlyTheAcceptedSessionDraft() {
+        lateinit var vm: AiChatViewModel
+        val fake = object : FakeAssistantConversation() {
+            override fun send(sessionId: String, clientMessageId: String, content: String): AssistantTurn {
+                vm.switchSession("s2")
+                vm.updateDraft(TextFieldValue("其他会话草稿"))
+                return super.send(sessionId, clientMessageId, content)
+            }
+        }.apply { sessionsFlow.value = listOf("s1", "s2") }
+        vm = AiChatViewModel(fake)
+        vm.updateDraft(TextFieldValue("已保存原文"))
+        vm.sendMessage(vm.state.value.draft.text)
+        assertEquals("其他会话草稿", vm.state.value.draft.text)
+        assertFalse(vm.state.value.drafts.containsKey("s1"))
+    }
+
+    @Test
+    fun newChatResumesItsUnsentDraftAfterBrowsingPersistedHistory() {
+        val vm = AiChatViewModel(FakeAssistantConversation())
+        val blank = vm.startNewSession()
+        val draft = TextFieldValue("还没发送的独立草稿", TextRange(3))
+        vm.updateDraft(draft)
+        vm.switchSession("s1")
+        assertEquals(blank, vm.startNewSession())
+        assertEquals(draft, vm.state.value.draft)
+    }
+
+    @Test
+    fun repeatedNewChatKeepsOneUnsentSessionInsteadOfCreatingEmptyHistory() {
+        val vm = AiChatViewModel(FakeAssistantConversation())
+        val first = vm.startNewSession()
+        assertEquals(first, vm.startNewSession())
+        assertEquals(listOf("s1"), vm.state.value.availableSessions)
+    }
+
+    @Test
+    fun deletingCurrentSessionReturnsToNewChatEvenWhenPersistenceEmitsSynchronously() {
+        val fake = object : FakeAssistantConversation() {
+            override fun deleteSession(sessionId: String) {
+                super.deleteSession(sessionId)
+                sessionsFlow.value = sessionsFlow.value.filterNot { it == sessionId }
+            }
+        }
+        fake.sessionsFlow.value = listOf("s1", "s2")
+        val vm = AiChatViewModel(fake)
+        vm.setSessionsVisible(true)
+        vm.deleteSession("s1")
+        assertFalse(vm.state.value.showSessions)
+        assertTrue(vm.state.value.sessionId.startsWith("chat_"))
+        assertEquals(listOf("s2"), vm.state.value.availableSessions)
+        assertTrue(fake.cancelledTurns.isEmpty(), "switching sessions must not stop unrelated work")
+    }
+
+    @Test
+    fun deletingAnotherConversationKeepsCurrentChatDraftAndSessionListOpen() {
+        val fake = FakeAssistantConversation().apply { sessionsFlow.value = listOf("s1", "s2") }
+        val vm = AiChatViewModel(fake)
+        vm.updateDraft(TextFieldValue("保留当前草稿"))
+        vm.setSessionsVisible(true)
+        vm.deleteSession("s2")
+        assertTrue(vm.state.value.showSessions)
+        assertEquals("s1", vm.state.value.sessionId)
+        assertEquals("保留当前草稿", vm.state.value.draft.text)
+        assertEquals(listOf("s1"), vm.state.value.availableSessions)
+        assertTrue(fake.cancelledTurns.isEmpty())
     }
 
     @Test
@@ -329,7 +513,7 @@ class AssistantConversationViewModelTest {
     }
 
     @Test
-    fun deletedPersistedSessionFallsBackProperly() {
+    fun deletedPersistedSessionReturnsToBlankChatInsteadOfSelectingAnotherConversation() {
         val fake = FakeAssistantConversation()
         fake.sessionsFlow.value = listOf("s1", "s2")
         val vm = AiChatViewModel(fake)
@@ -339,18 +523,20 @@ class AssistantConversationViewModelTest {
         // Simulating that s1 was deleted and sessions flow emits updated list
         fake.sessionsFlow.value = listOf("s2")
 
-        assertEquals("s2", vm.state.value.sessionId)
+        assertTrue(vm.state.value.sessionId.startsWith("chat_"))
+        assertEquals(listOf("s2"), vm.state.value.availableSessions)
     }
 
     @Test
-    fun startNewSessionAvoidsSameIdCollisionWithinSameMillisecond() {
+    fun successiveAcceptedSessionsUseDistinctIds() {
         val fake = FakeAssistantConversation()
         val vm = AiChatViewModel(fake)
 
         val id1 = vm.startNewSession()
+        fake.sessionsFlow.value = listOf(id1, "s1")
         val id2 = vm.startNewSession()
 
-        // Even if called rapidly in the same millisecond, UUID guarantees globally distinct IDs
+        // Only accepted sessions need a fresh identity; repeated empty-chat actions are idempotent.
         kotlin.test.assertNotEquals(id1, id2)
     }
 }

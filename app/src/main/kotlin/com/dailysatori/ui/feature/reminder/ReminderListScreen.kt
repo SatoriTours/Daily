@@ -263,6 +263,7 @@ private fun ReminderTopBar(
         if (showSettings) {
             IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, stringResource(R.string.reminder_settings_title), tint = MaterialTheme.colorScheme.primary) }
         }
+        com.dailysatori.ui.component.appbar.AssistantTopBarAction()
     }
 }
 

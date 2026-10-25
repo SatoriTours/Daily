@@ -38,7 +38,6 @@ import com.dailysatori.bookkeeping.*
 import com.dailysatori.data.repository.BookkeepingRepository
 import com.dailysatori.data.repository.PhoneMessageRepository
 import com.dailysatori.R
-import com.dailysatori.ui.component.appbar.MainPageHeader
 import com.dailysatori.service.diary.DiaryThoughtState
 import com.dailysatori.service.diary.DiaryThought
 import com.dailysatori.service.reminder.ReminderSummary
@@ -96,77 +95,79 @@ fun MySpaceScreen(
     val previews = remember(thoughtState.archive.thoughts, previewSeed) {
         myThoughtPreviews(thoughtState.archive.thoughts, Random(previewSeed))
     }
-    LazyColumn(
-        Modifier.fillMaxSize().statusBarsPadding(),
-        state = listState,
-        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
-            bottom = Height.navBar + Spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        item(key = "header") {
-            MainPageHeader(title = stringResource(R.string.personal_settings_my_title)) {
-                IconButton(onClick = onSettings) {
-                    Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
+    com.dailysatori.ui.component.scaffold.AppScaffold(
+        title = stringResource(R.string.personal_settings_my_title), isMainPage = true, showHeaderDivider = false,
+        actions = {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Outlined.Settings, stringResource(R.string.personal_settings_title), tint = MaterialTheme.colorScheme.primary)
+            }
+        },
+    ) { contentModifier ->
+        LazyColumn(
+            contentModifier.fillMaxSize(),
+            state = listState,
+            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
+                bottom = Height.navBar + Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            item(key = "quick-actions") {
+                MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
+            }
+            item(key = "ledger") {
+                val i18n: I18nService = koinInject()
+                val repository: BookkeepingRepository = koinInject()
+                val ledger by produceState(initialValue = LedgerState(), key1 = Unit) { repository.observe().collect { value = it } }
+                val monthExpense = remember(ledger, today) {
+                    val range = LedgerEngine().range(LedgerPeriod.MONTH, today, TimeZone.currentSystemDefault())
+                    LedgerEngine().totals(ledger, range.first, range.second).firstOrNull { it.currency == "CNY" }?.expense ?: 0L
+                }
+                val pendingCount = ledger.entries.count { it.status == LedgerStatus.PENDING }
+                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                    .clickable(role = Role.Button, onClick = onLedger)) {
+                    MySectionHeading(i18n.t("ledger.title"), Icons.Outlined.AccountBalanceWallet, onLedger, titleClickable = false)
+                    Text(
+                        if (ledger.entries.isEmpty() && pendingCount == 0) i18n.t("myspace.ledger_empty")
+                        else i18n.t("myspace.ledger_hint", LedgerMoney.format(monthExpense, "CNY"), pendingCount),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        }
-        item(key = "quick-actions") {
-            MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
-        }
-        item(key = "ledger") {
-            val i18n: I18nService = koinInject()
-            val repository: BookkeepingRepository = koinInject()
-            val ledger by produceState(initialValue = LedgerState(), key1 = Unit) { repository.observe().collect { value = it } }
-            val monthExpense = remember(ledger, today) {
-                val range = LedgerEngine().range(LedgerPeriod.MONTH, today, TimeZone.currentSystemDefault())
-                LedgerEngine().totals(ledger, range.first, range.second).firstOrNull { it.currency == "CNY" }?.expense ?: 0L
-            }
-            val pendingCount = ledger.entries.count { it.status == LedgerStatus.PENDING }
-            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
-                .clickable(role = Role.Button, onClick = onLedger)) {
-                MySectionHeading(i18n.t("ledger.title"), Icons.Outlined.AccountBalanceWallet, onLedger, titleClickable = false)
-                Text(
-                    if (ledger.entries.isEmpty() && pendingCount == 0) i18n.t("myspace.ledger_empty")
-                    else i18n.t("myspace.ledger_hint", LedgerMoney.format(monthExpense, "CNY"), pendingCount),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        item(key = "life-archive") {
-            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
-                .clickable(role = Role.Button, onClick = onLifeArchive)) {
-                MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive,
-                    titleClickable = false)
-                Text(stringResource(R.string.life_archive_entry_hint), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        item(key = "idea-topics") {
-            val i18n: I18nService = koinInject()
-            MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
-                .clickable(role = Role.Button, onClick = onIdeaTopics)) {
-                MySectionHeading(i18n.t("idea_topic.title"), Icons.Outlined.Lightbulb, onIdeaTopics,
-                    titleClickable = false)
-                Text(i18n.t("idea_topic.entry_hint"), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        item(key = "reminders") {
-            MySectionCard {
-                MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders,
-                    pendingCount = todayPendingCount)
-                if (upcoming.isEmpty()) {
-                    Text(stringResource(R.string.my_space_reminder_empty), style = MaterialTheme.typography.bodyMedium,
+            item(key = "life-archive") {
+                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                    .clickable(role = Role.Button, onClick = onLifeArchive)) {
+                    MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive,
+                        titleClickable = false)
+                    Text(stringResource(R.string.life_archive_entry_hint), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else upcoming.forEachIndexed { index, item ->
-                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    MyReminderRow(item, today, reminderSources[item.id]) { onReminder(item.id) }
                 }
             }
-        }
-        item(key = "thoughts") {
-            MySectionCard {
-                MySectionHeading(stringResource(R.string.my_space_thoughts), Icons.Outlined.AutoAwesome, onThoughts)
-                MyThoughtSummary(thoughtState, previews, onThoughts, onThought)
+            item(key = "idea-topics") {
+                val i18n: I18nService = koinInject()
+                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                    .clickable(role = Role.Button, onClick = onIdeaTopics)) {
+                    MySectionHeading(i18n.t("idea_topic.title"), Icons.Outlined.Lightbulb, onIdeaTopics,
+                        titleClickable = false)
+                    Text(i18n.t("idea_topic.entry_hint"), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            item(key = "reminders") {
+                MySectionCard {
+                    MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders,
+                        pendingCount = todayPendingCount)
+                    if (upcoming.isEmpty()) {
+                        Text(stringResource(R.string.my_space_reminder_empty), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else upcoming.forEachIndexed { index, item ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        MyReminderRow(item, today, reminderSources[item.id]) { onReminder(item.id) }
+                    }
+                }
+            }
+            item(key = "thoughts") {
+                MySectionCard {
+                    MySectionHeading(stringResource(R.string.my_space_thoughts), Icons.Outlined.AutoAwesome, onThoughts)
+                    MyThoughtSummary(thoughtState, previews, onThoughts, onThought)
+                }
             }
         }
     }

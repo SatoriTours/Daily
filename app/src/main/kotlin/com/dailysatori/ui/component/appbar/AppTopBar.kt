@@ -15,6 +15,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import com.dailysatori.ui.theme.Height
 
@@ -29,6 +31,9 @@ fun AppTopBar(
     onTitleDoubleClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     expandedHeight: Dp = Height.appBar,
+    showAssistant: Boolean = true,
+    backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
+    backContentDescription: String = "返回",
 ) {
     CenterAlignedTopAppBar(
         expandedHeight = expandedHeight,
@@ -43,14 +48,16 @@ fun AppTopBar(
                 text = title,
                 modifier = titleModifier,
                 style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         },
         navigationIcon = {
             if (showBack && onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        backIcon,
+                        contentDescription = backContentDescription,
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
@@ -64,7 +71,10 @@ fun AppTopBar(
                 }
             }
         },
-        actions = actions,
+        actions = {
+            actions()
+            if (showAssistant) AssistantTopBarAction()
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             scrolledContainerColor = MaterialTheme.colorScheme.background,

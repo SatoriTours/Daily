@@ -37,5 +37,6 @@ fun MainPageHeader(
             overflow = TextOverflow.Ellipsis,
         )
         actions()
+        AssistantTopBarAction()
     }
 }

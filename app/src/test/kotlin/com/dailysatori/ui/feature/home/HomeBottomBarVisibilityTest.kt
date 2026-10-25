@@ -10,7 +10,6 @@ class HomeBottomBarVisibilityTest {
     fun bottomBarIsVisibleWhenNoDetailHidesIt() {
         assertTrue(shouldShowHomeBottomBar(tabIndex = TODAY_TAB_INDEX, isDetailHidingBottomBar = false))
         assertTrue(shouldShowHomeBottomBar(tabIndex = DIARY_TAB_INDEX, isDetailHidingBottomBar = false))
-        assertTrue(shouldShowHomeBottomBar(tabIndex = ASSISTANT_TAB_INDEX, isDetailHidingBottomBar = false))
         assertTrue(shouldShowHomeBottomBar(tabIndex = READING_TAB_INDEX, isDetailHidingBottomBar = false))
         assertTrue(shouldShowHomeBottomBar(tabIndex = MY_TAB_INDEX, isDetailHidingBottomBar = false))
     }
@@ -20,9 +19,8 @@ class HomeBottomBarVisibilityTest {
         // While hot news detail is open on Today tab, Today tab hides the bottom bar
         assertFalse(shouldShowHomeBottomBar(tabIndex = TODAY_TAB_INDEX, isDetailHidingBottomBar = true))
 
-        // But when switching to Diary, Assistant, Reading, or MySpace tabs, the bottom bar must still show!
+        // But when switching to Diary, Reading, or MySpace tabs, the bottom bar must still show!
         assertTrue(shouldShowHomeBottomBar(tabIndex = DIARY_TAB_INDEX, isDetailHidingBottomBar = true))
-        assertTrue(shouldShowHomeBottomBar(tabIndex = ASSISTANT_TAB_INDEX, isDetailHidingBottomBar = true))
         assertTrue(shouldShowHomeBottomBar(tabIndex = READING_TAB_INDEX, isDetailHidingBottomBar = true))
         assertTrue(shouldShowHomeBottomBar(tabIndex = MY_TAB_INDEX, isDetailHidingBottomBar = true))
     }

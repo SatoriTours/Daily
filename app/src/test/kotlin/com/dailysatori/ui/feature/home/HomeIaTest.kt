@@ -13,7 +13,6 @@ class HomeIaTest {
         assertEquals(0, homeReminderBadgeCount(MY_TAB_INDEX, 0))
         assertEquals(0, homeReminderBadgeCount(MY_TAB_INDEX, -1))
         assertEquals(0, homeReminderBadgeCount(DIARY_TAB_INDEX, 3))
-        assertEquals(0, homeReminderBadgeCount(ASSISTANT_TAB_INDEX, 3))
         assertEquals(0, homeReminderBadgeCount(TODAY_TAB_INDEX, 3))
         assertEquals(0, homeReminderBadgeCount(READING_TAB_INDEX, 3))
     }
@@ -27,12 +26,11 @@ class HomeIaTest {
 
     @Test
     fun homeTabsUseWeChatStyleInformationArchitecture() {
-        assertEquals(listOf("今日", "日记", "助手", "读书", "我的"), tabs.map { it.label })
+        assertEquals(listOf("今日", "日记", "读书", "我的"), tabs.map { it.label })
         assertEquals(0, TODAY_TAB_INDEX)
         assertEquals(1, DIARY_TAB_INDEX)
-        assertEquals(2, ASSISTANT_TAB_INDEX)
-        assertEquals(3, READING_TAB_INDEX)
-        assertEquals(4, MY_TAB_INDEX)
+        assertEquals(2, READING_TAB_INDEX)
+        assertEquals(3, MY_TAB_INDEX)
         assertTrue(tabs.indices.all(::homeBottomBarVisibleForTab))
     }
 
@@ -44,13 +42,20 @@ class HomeIaTest {
         assertTrue(source.contains("DIARY_TAB_INDEX -> DiaryScreen"))
         assertFalse(source.contains("DiaryTheme"))
         assertTrue(source.contains("DiaryScreen(onMyClick = onProfileClick)"))
-        assertTrue(source.contains("ASSISTANT_TAB_INDEX -> com.dailysatori.ui.feature.aichat.AiChatScreen"))
+        assertFalse(source.contains("AiChatScreen("))
         assertTrue(source.contains("READING_TAB_INDEX -> BooksScreen"))
         assertTrue(source.contains("MY_TAB_INDEX -> MySpaceScreen"))
         assertFalse(source.contains("RECORDS_TAB_INDEX"))
         assertFalse(source.contains("RecordsScreen"))
         assertFalse(source.contains("TabItem(\"记录\""))
         assertFalse(source.contains("TabItem(\"新闻汇总\""))
+    }
+
+    @Test
+    fun restoredFiveTabIndexCannotLeaveTheFourTabHomeBlank() {
+        assertEquals(MY_TAB_INDEX, homeTabStateSaver.restore(4))
+        assertEquals(TODAY_TAB_INDEX, homeTabStateSaver.restore(-1))
+        assertEquals(READING_TAB_INDEX, homeTabStateSaver.restore(READING_TAB_INDEX))
     }
 
     @Test
@@ -79,15 +84,13 @@ class HomeIaTest {
     }
 
     @Test
-    fun onlyAssistantReservesSpaceForItsFloatingComposer() {
+    fun noHomeTabReservesAssistantComposerSpace() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         val tabContent = source.extractCallBlock("Crossfade(")
 
         assertTrue(tabContent.contains("modifier = Modifier.fillMaxSize()"))
-        val assistant = tabContent.substringAfter("ASSISTANT_TAB_INDEX ->").substringBefore("READING_TAB_INDEX ->")
-        assertTrue(assistant.contains(".padding(bottom = HomeAiInputHeight + Spacing.m)"))
-        assertFalse(tabContent.substringBefore("ASSISTANT_TAB_INDEX ->").contains("padding(bottom ="))
-        assertFalse(tabContent.substringAfter("READING_TAB_INDEX ->").contains("padding(bottom ="))
+        assertFalse(tabContent.contains("HomeAiInputHeight"))
+        assertFalse(tabContent.contains("padding(bottom ="))
         assertFalse(source.contains("homeBottomBarContentBottomPadding"))
     }
 

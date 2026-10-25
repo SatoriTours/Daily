@@ -7,6 +7,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import com.dailysatori.ui.feature.aichat.AssistantOpenRequest
+import com.dailysatori.ui.feature.aichat.GlobalAssistantHost
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,12 +55,15 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
         )
     }
     CompositionLocalProvider(LocalPhoneNavigation provides phoneNavigation) {
-        DailySatoriNavigationGraph(navController, settingsViewModel)
+        GlobalAssistantHost(navController) { openAssistant ->
+            DailySatoriNavigationGraph(navController, settingsViewModel, openAssistant)
+        }
     }
 }
 
 @Composable
-private fun DailySatoriNavigationGraph(navController: NavHostController, settingsViewModel: SettingsViewModel) {
+private fun DailySatoriNavigationGraph(navController: NavHostController, settingsViewModel: SettingsViewModel,
+    openAssistant: (AssistantOpenRequest) -> Unit) {
     NavHost(navController, startDestination = HomeRoute) {
         composable<LifeArchiveRoute> {
             com.dailysatori.ui.feature.lifearchive.LifeArchiveScreen(
@@ -110,7 +116,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
                 onOpportunities = { navController.navigate(MyOpportunitiesRoute) },
                 onBriefing = { navController.navigate(NewsBriefingRoute(it)) },
                 onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
-                onChat = { navController.navigate(PersonalChatRoute()) },
+                onChat = { openAssistant(AssistantOpenRequest()) },
                 onIdeaTopics = { navController.navigate(IdeaTopicListRoute) },
                 onIdeaTopic = { navController.navigate(IdeaTopicDetailRoute(it)) },
                 onLedger = { navController.navigate(LedgerRoute) },
@@ -131,7 +137,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             DiaryThoughtScreen(viewModel, onBack = { navController.popBackStack() }, onDiaryClick = {
                 com.dailysatori.core.recording.DiaryRecordingOpenRequest.open(it)
                 navController.popBackStack(HomeRoute, inclusive = false)
-            }, onDiscuss = { navController.navigate(PersonalChatRoute("thought", thoughtChatKey(it))) },
+            }, onDiscuss = { openAssistant(AssistantOpenRequest("thought", thoughtChatKey(it))) },
                 focusThoughtKey = entry.toRoute<MyThoughtsRoute>().thoughtKey)
         }
         composable<MyOpportunitiesRoute> {
@@ -144,21 +150,23 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
         composable<MyOpportunityRoute> { entry ->
             val route = entry.toRoute<MyOpportunityRoute>()
             NewsOpportunityDetailScreen(route.id, onBack = { navController.popBackStack() },
-                onChat = { navController.navigate(PersonalChatRoute("opportunity", route.id)) },
+                onChat = { openAssistant(AssistantOpenRequest("opportunity", route.id)) },
                 onArticle = { navController.navigate(ArticleDetailRoute(it)) },
                 onTopic = { navController.navigate(IdeaTopicDetailRoute(it)) })
         }
         composable<PersonalChatRoute> { entry ->
             val route = entry.toRoute<PersonalChatRoute>()
-            PersonalChatScreen(route.kind, route.key, onBack = { navController.popBackStack() }, onArticle = { navController.navigate(ArticleDetailRoute(it)) })
+            LaunchedEffect(route) {
+                openAssistant(AssistantOpenRequest(route.kind, route.key))
+                navController.popBackStack()
+            }
         }
-        composable<AssistantRoute> {
-            com.dailysatori.ui.feature.aichat.AiChatScreen(
-                onArticleClick = { navController.navigate(ArticleDetailRoute(it)) },
-                onReminderClick = { navController.navigate(ReminderDetailRoute(it)) },
-                onTaskCenterClick = { navController.navigate(TaskCenterRoute()) },
-                onBack = { navController.popBackStack() },
-            )
+        composable<AssistantRoute> { entry ->
+            val route = entry.toRoute<AssistantRoute>()
+            LaunchedEffect(route) {
+                openAssistant(AssistantOpenRequest(sessionId = route.sessionId))
+                navController.popBackStack()
+            }
         }
         composable<ProfileRoute> {
             SettingsScreen(

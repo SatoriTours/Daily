@@ -35,6 +35,21 @@ class PersistentAssistantConversation(
     private val settings = SettingRepository(db)
 
     override fun sessions(): Flow<List<String>> = store.observe("chat_conversation") { chats.getSessions() }
+    override fun sessionSummaries(): Flow<List<AssistantSessionSummary>> = store.observe("chat_conversation") {
+        store.rows("""SELECT c.session_id,
+            (SELECT substr(first.content,1,240) FROM chat_conversation first
+                WHERE first.session_id=c.session_id AND first.role='user'
+                ORDER BY first.created_at,first.id LIMIT 1),
+            (SELECT substr(last.content,1,240) FROM chat_conversation last
+                WHERE last.session_id=c.session_id ORDER BY last.created_at DESC,last.id DESC LIMIT 1),
+            MAX(c.created_at)
+            FROM chat_conversation c GROUP BY c.session_id
+            ORDER BY MAX(c.created_at) DESC,MAX(c.id) DESC""") { row ->
+            val preview = row.getString(2).orEmpty().replace(Regex("\\s+"), " ").trim()
+            val title = row.getString(1).orEmpty().lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+            AssistantSessionSummary(row.getString(0)!!, title.ifBlank { preview }, preview, row.getLong(3) ?: 0)
+        }
+    }
     override fun memories(): Flow<List<AssistantMemoryView>> = store.observe("memory_entry", "assistant_memory_exclusion") { memory.list() }
     override fun cloudConsent(): Boolean = settings.get(CONSENT_KEY) == "true"
     override fun setCloudConsent(accepted: Boolean) {

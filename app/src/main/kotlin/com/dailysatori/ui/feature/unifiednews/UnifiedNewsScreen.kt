@@ -425,6 +425,7 @@ private fun UnifiedNewsSearchTopBar(
             TextButton(onClick = onClose) {
                 Text("取消")
             }
+            com.dailysatori.ui.component.appbar.AssistantTopBarAction()
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,

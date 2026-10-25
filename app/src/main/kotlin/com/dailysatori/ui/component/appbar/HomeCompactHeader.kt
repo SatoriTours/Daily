@@ -83,5 +83,6 @@ fun HomeCompactHeader(
         IconButton(onClick = onSearch, modifier = Modifier.size(Height.appBar)) {
             Icon(Icons.Default.Search, contentDescription = "搜索")
         }
+        AssistantTopBarAction()
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,7 +28,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
+import com.dailysatori.R
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,9 +49,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,29 +75,23 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import org.koin.androidx.compose.koinViewModel
 
-data class AiChatInputController(
-    val inputText: String,
-    val onInputChange: (String) -> Unit,
-    val onSend: () -> Unit,
-    val onStop: () -> Unit,
-    val isProcessing: Boolean,
-)
-
 @Composable
 fun AiChatScreen(
     onArticleClick: (Long) -> Unit = {},
     onReminderClick: (String) -> Unit = {},
     onTaskCenterClick: () -> Unit = {},
-    onMyClick: () -> Unit = {},
-    onInputControllerChange: ((AiChatInputController?) -> Unit)? = null,
     onBack: (() -> Unit)? = null,
     explicitContext: com.dailysatori.service.diary.DiaryThoughtChatContext? = null,
     contextLabel: String = "",
     includeThoughts: Boolean = true,
     onRemoveContext: () -> Unit = {},
     modifier: Modifier = Modifier,
+    viewModel: AiChatViewModel,
+    canAttachCurrentPage: Boolean = false,
+    onAttachCurrentPage: () -> Unit = {},
+    contextLoading: Boolean = false,
+    contextError: Int? = null,
 ) {
-    val viewModel: AiChatViewModel = koinViewModel()
     val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
     val reminderViewModel: ReminderViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
@@ -96,10 +100,12 @@ fun AiChatScreen(
     val reminderProfiles by reminderViewModel.profiles.collectAsState()
     val uiError by viewModel.uiErrors.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var inputText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    val androidContext = LocalContext.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+    var showMore by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     var showReferenceSheet by remember { mutableStateOf(false) }
-    var showSessionSheet by remember { mutableStateOf(false) }
     var showMemorySheet by remember { mutableStateOf(false) }
 
     val loadOlderMessages = viewModel::loadOlderMessages
@@ -109,11 +115,11 @@ fun AiChatScreen(
         hasStreamingAssistant = displayMessages.any { it.isStreaming },
     )
     val showStoppedStatus = !state.isProcessing && state.currentStep == aiChatStoppedStatusText()
-    var hasCompletedInitialScroll by remember { mutableStateOf(false) }
+    var hasCompletedInitialScroll by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiError) {
         uiError?.let {
-            snackbarHostState.showSnackbar(it.message)
+            snackbarHostState.showSnackbar(it.resourceId?.let { id -> androidContext.getString(id) } ?: it.message)
             viewModel.clearUiError()
         }
     }
@@ -183,15 +189,14 @@ fun AiChatScreen(
     }
 
     val sendCurrentInput = {
-        if (inputText.isNotBlank()) {
-            val content = inputText
+        if (!contextLoading && viewModel.state.value.sessionId == state.sessionId && state.draft.text.isNotBlank()) {
+            val content = state.draft.text
             viewModel.sendMessage(
                 content = content,
                 explicitContext = explicitContext,
                 includeThoughts = includeThoughts,
                 onSuccess = {
-                    inputText = ""
-                    if (!state.cloudConsentAccepted) {
+                    if (!viewModel.state.value.cloudConsentAccepted) {
                         viewModel.promptCloudConsent()
                     }
                 },
@@ -199,35 +204,32 @@ fun AiChatScreen(
         }
     }
 
-    SideEffect {
-        onInputControllerChange?.invoke(
-            AiChatInputController(
-                inputText = inputText,
-                onInputChange = { inputText = it },
-                onSend = sendCurrentInput,
-                onStop = viewModel::stopGeneration,
-                isProcessing = state.isProcessing,
-            ),
+    if (state.showSessions) {
+        SessionListScreen(
+            sessions = state.sessionSummaries,
+            currentSessionId = state.sessionId,
+            onSelectSession = { viewModel.switchSession(it); viewModel.setSessionsVisible(false) },
+            onNewSession = { viewModel.startNewSession(); viewModel.setSessionsVisible(false) },
+            onDeleteSession = viewModel::deleteSession,
+            onDismiss = { keyboard?.hide(); viewModel.setSessionsVisible(false) },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
         )
-    }
-
-    DisposableEffect(Unit) {
-        onDispose { onInputControllerChange?.invoke(null) }
+        return
     }
 
     Scaffold(
         modifier = modifier,
         bottomBar = {
-            if (onInputControllerChange == null) {
-                Box(Modifier.navigationBarsPadding()) {
-                    ChatInputBar(
-                        inputText = inputText,
-                        onInputChange = { inputText = it },
-                        onSend = sendCurrentInput,
-                        onStop = viewModel::stopGeneration,
-                        isProcessing = state.isProcessing,
-                    )
-                }
+            Box(Modifier.navigationBarsPadding().imePadding()) {
+                ChatInputBar(
+                    value = state.draft,
+                    onValueChange = { viewModel.updateDraft(it, state.sessionId) },
+                    onSend = sendCurrentInput,
+                    onStop = viewModel::stopGeneration,
+                    isProcessing = state.isProcessing,
+                    canSend = !contextLoading,
+                    canEdit = state.canEditDraft,
+                )
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -238,17 +240,34 @@ fun AiChatScreen(
                     title = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_title),
                     showBack = onBack != null,
                     onBack = onBack,
-                    myNavigationLabel = "我的",
-                    onMyNavigationClick = onMyClick,
+                    showAssistant = false,
+                    backIcon = Icons.Default.Close,
+                    backContentDescription = stringResource(R.string.assistant_close),
                     actions = {
-                        IconButton(onClick = { showSessionSheet = true }) {
-                            Icon(Icons.Filled.ChatBubbleOutline, contentDescription = "会话列表")
+                        IconButton(onClick = { keyboard?.hide(); focus.clearFocus(); viewModel.setSessionsVisible(true) }) {
+                            Icon(Icons.Filled.ChatBubbleOutline, contentDescription = stringResource(R.string.assistant_sessions))
                         }
-                        IconButton(onClick = { showMemorySheet = true }) {
-                            Icon(Icons.Filled.Psychology, contentDescription = "记忆管理")
+                        Box {
+                            IconButton(onClick = { showMore = true }) {
+                                Icon(Icons.Default.MoreHoriz, stringResource(R.string.assistant_more))
+                            }
+                            DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
+                                DropdownMenuItem(text = { Text(stringResource(R.string.assistant_attach_page)) },
+                                    enabled = canAttachCurrentPage,
+                                    onClick = { showMore = false; onAttachCurrentPage() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.assistant_memory)) },
+                                    onClick = { showMore = false; showMemorySheet = true })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.assistant_tasks)) },
+                                    onClick = { showMore = false; onTaskCenterClick() })
+                                DropdownMenuItem(text = { Text(stringResource(R.string.assistant_cloud_consent)) },
+                                    onClick = { showMore = false; viewModel.promptCloudConsent() })
+                            }
                         }
                     },
                 )
+                if (contextLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                contextError?.let { Text(stringResource(it), Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                 if (explicitContext != null) {
                     com.dailysatori.ui.feature.myspace.PersonalChatContextBanner(
                         label = contextLabel,
@@ -258,7 +277,9 @@ fun AiChatScreen(
             }
         },
     ) { padding ->
-        if (state.messages.isEmpty()) {
+        if (state.isLoadingMessages && state.messages.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else if (state.messages.isEmpty()) {
             AiChatWelcomeBrief(modifier = Modifier.fillMaxSize().padding(padding))
         } else {
             LazyColumn(
@@ -323,17 +344,6 @@ fun AiChatScreen(
                 referenceDetailViewModel.clear()
                 onArticleClick(articleId)
             },
-        )
-    }
-
-    if (showSessionSheet) {
-        SessionListSheet(
-            sessions = state.availableSessions,
-            currentSessionId = state.sessionId,
-            onSelectSession = viewModel::switchSession,
-            onNewSession = { viewModel.startNewSession() },
-            onDeleteSession = viewModel::deleteSession,
-            onDismiss = { showSessionSheet = false },
         )
     }
 

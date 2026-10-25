@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dailysatori.R
+import com.dailysatori.ui.component.appbar.AssistantTopBarAction
 import com.dailysatori.data.repository.articleOriginalMarkdown
 import com.dailysatori.service.hotnews.HotNewsItem
 import com.dailysatori.service.opportunity.newsArticleKey
@@ -286,6 +287,9 @@ private fun HotNewsDetailTopBar(
         ) {
             Text(
                 text = platformName,
+                modifier = Modifier.weight(1f, fill = false),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium,
@@ -318,6 +322,7 @@ private fun HotNewsDetailTopBar(
                 tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
         }
+        AssistantTopBarAction()
     }
 }
 

@@ -1,7 +1,6 @@
 package com.dailysatori.ui.feature.aichat
 
 import com.dailysatori.service.mcp.McpSearchResult
-import com.dailysatori.ui.feature.home.AI_CHAT_TAB_INDEX
 import com.dailysatori.ui.feature.home.TODAY_TAB_INDEX
 import com.dailysatori.ui.feature.home.homeBottomBarVisibleForTab
 import kotlin.test.Test
@@ -12,25 +11,16 @@ import kotlin.test.assertTrue
 
 class AiChatUiStateTest {
     @Test
-    fun chatInputUsesCompactLiquidGlassSizing() {
+    fun chatInputUsesThinThemeSizingWithoutShrinkingTextOrHitTargets() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
-        val compactSource = source.replace(Regex("\\s+"), " ")
-
-        assertTrue(source.contains("private val ChatInputButtonSize = 34.dp"))
-        assertTrue(source.contains("private val ChatInputContentMinHeight = Height.input"))
-        assertFalse(source.contains("ChatInputMinHeight"))
-        assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
-        assertTrue(source.contains("MaterialTheme.colorScheme.surfaceContainerHighest"))
-        assertTrue(compactSource.contains("contentAlignment = Alignment.CenterStart"))
-        assertTrue(compactSource.contains("heightIn(min = ChatInputContentMinHeight)"))
-        assertTrue(compactSource.contains("padding(contentPadding)"))
-        assertFalse(compactSource.contains(".heightIn(min = ChatInputMinHeight) .padding(contentPadding)"))
-        assertTrue(source.contains("contentPadding = PaddingValues"))
-        assertTrue(source.contains("modifier = Modifier.size(ChatInputButtonSize)"))
-        assertTrue(source.contains("textStyle = MaterialTheme.typography.bodyMedium.copy"))
-        assertTrue(source.contains("style = MaterialTheme.typography.bodyMedium"))
-        assertTrue(source.contains("minLines = 1"))
-        assertTrue(source.contains("maxLines = if (compact) 1 else 3"))
+        assertTrue(source.contains("heightIn(min = Height.input)"))
+        assertTrue(source.contains("RoundedCornerShape(Radius.m)"))
+        assertFalse(source.contains("RoundedCornerShape(Radius.circular)"))
+        assertTrue(source.contains("Modifier.size(Spacing.xxl)"))
+        assertTrue(source.contains("Modifier.size(IconSize.xl)"))
+        assertTrue(source.contains("textStyle = MaterialTheme.typography.bodyLarge.copy"))
+        assertTrue(source.contains("maxLines = if (compact) 1 else 5"))
+        assertTrue(source.contains("value: TextFieldValue"))
     }
 
     @Test
@@ -279,7 +269,7 @@ class AiChatUiStateTest {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatViewModel.kt").readText()
 
         assertTrue(source.contains("conversation: AssistantConversation"))
-        assertTrue(source.contains("conversation.sessions()"))
+        assertTrue(source.contains("conversation.sessionSummaries()"))
         assertTrue(source.contains("conversation.messages("))
         assertTrue(source.contains("conversation.memories()"))
         assertTrue(source.contains("conversation.sendWithContext(") || source.contains("conversation.send("))
@@ -345,22 +335,11 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun chatInputOffersEditorialQuickPrompts() {
-        assertEquals(listOf("整理今天", "提炼主题", "搜索记忆"), chatInputSuggestionLabels())
+    fun chatComposerHasNoExtraQuickPromptRow() {
+        val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
         assertEquals("问点什么", chatInputPlaceholderText())
-    }
-
-    @Test
-    fun chatInputSuggestionsOnlyShowWhenIdleAndEmpty() {
-        assertTrue(chatInputShowsSuggestions(inputText = "", isProcessing = false))
-        assertFalse(chatInputShowsSuggestions(inputText = "已有内容", isProcessing = false))
-        assertFalse(chatInputShowsSuggestions(inputText = "", isProcessing = true))
-    }
-
-    @Test
-    fun chatInputSuggestionKeepsExistingText() {
-        assertEquals("整理今天", chatInputTextAfterSuggestion(currentText = "", suggestion = "整理今天"))
-        assertEquals("已有内容 整理今天", chatInputTextAfterSuggestion(currentText = "已有内容", suggestion = "整理今天"))
+        assertFalse(input.contains("SuggestionChip("))
+        assertFalse(input.contains("chatInputSuggestionLabels"))
     }
 
     @Test
@@ -591,13 +570,11 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun homeBottomBarRemainsVisibleOnAiTab() {
+    fun ordinaryHomeTabsKeepTheirOwnBottomBar() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
         val scaffoldCall = home.substringAfter("Scaffold(").substringBefore(") { innerPadding ->")
 
-        assertTrue(chatInputUsesImePadding())
-        assertTrue(homeBottomBarVisibleForTab(AI_CHAT_TAB_INDEX))
         assertTrue(homeBottomBarVisibleForTab(TODAY_TAB_INDEX))
         assertTrue(home.contains("contentAlignment = Alignment.BottomCenter"))
         assertTrue(home.contains("HomeBottomBarSurface("))
@@ -609,22 +586,27 @@ class AiChatUiStateTest {
     fun standaloneChatAlwaysHasAnInputOwner() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
 
-        assertTrue(screen.contains("onInputControllerChange: ((AiChatInputController?) -> Unit)? = null"))
-        assertTrue(screen.contains("if (onInputControllerChange == null)"))
+        assertFalse(screen.contains("onInputControllerChange"))
+        assertTrue(screen.contains("value = state.draft"))
+        assertTrue(screen.contains("viewModel.updateDraft(it, state.sessionId)"))
+        assertTrue(screen.contains("navigationBarsPadding().imePadding()"))
         assertTrue(screen.contains("ChatInputBar("))
         assertTrue(screen.contains("onSend = sendCurrentInput"))
         assertTrue(screen.contains("onStop = viewModel::stopGeneration"))
     }
 
     @Test
-    fun assistantTabConnectsItsInputControllerAndReservesComposerSpace() {
+    fun assistantIsAFullWindowAboveTheNavigationTree() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val assistant = home.substringAfter("ASSISTANT_TAB_INDEX ->").substringBefore("READING_TAB_INDEX ->")
-
-        assertTrue(assistant.contains("onInputControllerChange = { aiInputController = it }"))
-        assertTrue(assistant.contains(".padding(bottom = HomeAiInputHeight + Spacing.m)"))
-        assertTrue(assistant.contains(".imePadding()"))
-        assertTrue(home.contains("aiInputController = if (selectedIndex == ASSISTANT_TAB_INDEX) aiInputController else null"))
+        val navigation = java.io.File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
+        val host = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/GlobalAssistantHost.kt").readText()
+        assertFalse(home.contains("AiChatScreen("))
+        assertFalse(home.contains("HomeAiInputHeight"))
+        assertTrue(navigation.contains("GlobalAssistantHost(navController)"))
+        assertTrue(host.contains("Dialog("))
+        assertTrue(host.contains("usePlatformDefaultWidth = false"))
+        assertTrue(host.contains("decorFitsSystemWindows = false"))
+        assertTrue(host.contains("key = \"global-assistant\""))
     }
 
     @Test
@@ -642,50 +624,18 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun aiTabUsesSharedMorphingHomeBottomBar() {
+    fun assistantDoesNotMorphOrSlideTheHomeNavigation() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
-        val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
-
-        assertTrue(home.contains("shouldShowHomeBottomBar(selectedIndex, isHotNewsDetailOpen)"))
-        assertTrue(home.contains("val isAiMode = aiInputController != null"))
-        assertTrue(home.contains("visible = isAiMode"))
-        assertTrue(home.contains("HomeBottomBarSurface("))
-        assertTrue(home.contains("Icons.Filled.Language"))
-        assertTrue(home.contains("ChatInputField("))
-        assertTrue(home.contains("selectedIndex = TODAY_TAB_INDEX"))
-        assertFalse(screen.contains("AiChatCompactBottomBar("))
-        assertFalse(screen.contains("Icons.Filled.Home"))
-        assertTrue(screen.contains("bottomBar = {"))
-        assertTrue(screen.contains("if (onInputControllerChange == null)"))
-        assertTrue(input.contains("fun ChatInputField("))
-        assertTrue(input.contains("compact: Boolean = false"))
-        assertTrue(input.contains("singleLine = compact"))
-        assertTrue(home.contains("compact = true"))
+        val host = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/GlobalAssistantHost.kt").readText()
+        assertFalse(home.contains("isAiMode"))
+        assertFalse(home.contains("AiCompactInputRow"))
+        assertFalse(home.contains("homeBottomBarEnterTransition"))
+        assertTrue(host.contains("setWindowAnimations(0)"))
+        assertFalse(host.contains("AnimatedVisibility"))
     }
 
     @Test
-    fun aiBottomBarUsesDirectionalSlideInsteadOfWeightMorph() {
-        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
-
-        assertTrue(home.contains("AnimatedVisibility("))
-        assertFalse(home.contains("AnimatedContent("))
-        assertTrue(home.contains("visible = isAiMode"))
-        assertTrue(home.contains("enter = homeBottomBarEnterTransition()"))
-        assertTrue(home.contains("exit = homeBottomBarExitTransition()"))
-        assertTrue(home.contains("private const val HomeBottomBarSlideDurationMillis = 480"))
-        assertTrue(home.contains("animationSpec = tween(HomeBottomBarSlideDurationMillis)"))
-        assertTrue(home.contains("slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis))"))
-        assertTrue(home.contains("slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis))"))
-        assertTrue(home.contains("selectedIndex = TODAY_TAB_INDEX"))
-        assertFalse(bottomBar.contains("home-bottom-ai-input-weight"))
-        assertFalse(bottomBar.contains("home-bottom-tabs-weight"))
-        assertFalse(bottomBar.contains("Modifier.weight(inputWeight)"))
-    }
-
-    @Test
-    fun aiExpandedBottomBarKeepsStableOuterContainerDuringSlide() {
+    fun ordinaryHomeBottomBarKeepsItsExistingGlassSurface() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
         val glassBody = home.substringAfter("private fun HomeGlassSurface(").substringBefore("@Composable\nprivate fun HomeTabNavigationBar(")
@@ -702,7 +652,6 @@ class AiChatUiStateTest {
         assertTrue(glassBody.contains("style = homeBottomBarHazeStyle(MaterialTheme.colorScheme.surface)"))
         assertTrue(home.contains("private val HomeBottomBarHazeBlurRadius = 10.dp"))
         assertTrue(home.contains("private const val HomeBottomBarGlassAlpha = 0.10f"))
-        assertTrue(home.contains("private const val HomeBottomBarAiGlassAlpha = 0.16f"))
         assertTrue(home.contains("private const val HomeBottomBarHazeTintAlpha = 0.08f"))
         assertTrue(home.contains("private const val HomeBottomBarHazeNoiseFactor = 0.02f"))
         assertTrue(home.contains("private const val HomeBottomBarGlassTopHighlightAlpha = 0.08f"))
@@ -724,25 +673,42 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun aiOverlayHidesUnderlyingTabsToAvoidDuplicateMapIcon() {
-        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
-
-        assertTrue(bottomBar.contains("visible = !isAiMode"))
-        assertTrue(bottomBar.contains("label = \"home-bottom-tabs\""))
-        assertFalse(bottomBar.contains("HomeTabNavigationBar(\n                selectedIndex = selectedIndex"))
+    fun allSharedHeadersProvideAFixedAssistantEntry() {
+        listOf("AppTopBar", "MainPageHeader", "DetailTopBar", "HomeCompactHeader").forEach { name ->
+            val source = java.io.File("src/main/kotlin/com/dailysatori/ui/component/appbar/$name.kt").readText()
+            assertTrue(source.contains("AssistantTopBarAction()"), name)
+        }
     }
 
     @Test
-    fun aiOverlayDoesNotAddSeparateRowBackground() {
-        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val compactBody = home.substringAfter("private fun AiCompactInputRow(").substringBefore("@Composable\nprivate fun HomeTabNavigationBar(")
+    fun myPageHeaderIsFixedOutsideItsScrollingContent() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/myspace/MySpaceScreen.kt").readText()
+        assertTrue(source.contains("AppScaffold("))
+        assertFalse(source.contains("item(key = \"header\")"))
+    }
 
-        assertFalse(compactBody.contains("color = MaterialTheme.colorScheme.surfaceContainerHigh"))
-        assertFalse(compactBody.contains("border ="))
-        assertTrue(compactBody.contains("color = MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarAiGlassAlpha)"))
-        assertTrue(compactBody.contains("HomeGlassSurface("))
-        assertTrue(compactBody.contains("Row("))
+    @Test
+    fun composerWaitsForStableSessionBeforeStartingIme() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+        val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
+        assertTrue(screen.contains("canEdit = state.canEditDraft"))
+        assertTrue(input.contains("enabled = canEdit"))
+    }
+
+    @Test
+    fun hotNewsDetailKeepsTheGlobalAssistantEntry() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/HotNewsDetailScreen.kt").readText()
+        assertTrue(source.contains("AssistantTopBarAction()"))
+    }
+
+    @Test
+    fun sessionManagementIsNotANestedBottomSheet() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/SessionListSheet.kt").readText()
+        assertTrue(source.contains("fun SessionListScreen("))
+        assertTrue(source.contains("Scaffold("))
+        assertFalse(source.contains("ModalBottomSheet("))
+        assertTrue(source.contains("assistant_delete_session_impact"))
+        assertFalse(source.contains("Text(session.id"))
     }
 
     @Test

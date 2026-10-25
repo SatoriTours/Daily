@@ -84,7 +84,7 @@ val viewModelModule: Module = module {
     viewModel { com.dailysatori.ui.feature.phone.PhoneSourceViewModel(get(), get(), androidContext()) }
     viewModel { com.dailysatori.ui.feature.lifearchive.LifeArchiveViewModel(get(), get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.myspace.MySpaceViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { com.dailysatori.ui.feature.myspace.PersonalChatViewModel(get(), get(), get()) }
+    viewModel { com.dailysatori.ui.feature.myspace.PersonalChatViewModel(get(), get(), get(), get()) }
     viewModel { com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsViewModel(get(), androidContext()) }
     single { DiaryRecordingStore() }
     single<DiaryRecordingPersistence> { DiaryRecordingRepositoryPersistence(get(), get(), get()) }
@@ -196,6 +196,7 @@ val viewModelModule: Module = module {
     viewModel {
         AiChatViewModel(
             conversation = get<com.dailysatori.service.assistant.AssistantConversation>(),
+            savedStateHandle = get(),
         )
     }
     viewModel {

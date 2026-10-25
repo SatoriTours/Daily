@@ -1651,7 +1651,9 @@ class UnifiedNewsBehaviorTest {
             assertFalse(it.contains("onMyNavigationClick ="))
             assertFalse(it.contains("myNavigationLabel ="))
         }
-        listOf(scaffold, news, mySpace).forEach { assertTrue(it.contains("MainPageHeader(")) }
+        listOf(scaffold, news).forEach { assertTrue(it.contains("MainPageHeader(")) }
+        assertTrue(mySpace.contains("AppScaffold("))
+        assertTrue(mySpace.contains("isMainPage = true"))
         assertTrue(diary.contains("onOpenTranscriptionSettings = onMyClick"))
         assertTrue(mySpace.contains("IconButton(onClick = onSettings)"))
     }
