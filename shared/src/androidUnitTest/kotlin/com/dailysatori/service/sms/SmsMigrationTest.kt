@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.config.*
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.migration.ReminderLegacyFixture
 import com.dailysatori.service.security.*
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlin.test.*
@@ -13,6 +14,7 @@ class SmsMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            ReminderLegacyFixture.installLegacyTables(driver)
             driver.execute(null, "DROP TABLE sms_reminder_source", 0)
             driver.execute(null, "ALTER TABLE reminder DROP COLUMN deadline_at", 0)
             driver.execute(null, "INSERT INTO reminder(id,content,status,start_date,end_date,first_reminder_time,active_day_rule,time_zone_id,profile_json,created_at,updated_at) VALUES('old','保留旧待办','ACTIVE','2026-10-05','2026-10-06','15:00','daily','UTC','{}',1,1)", 0)

@@ -5,6 +5,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.migration.DiaryLegacyFieldsFixture
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlin.test.*
 
@@ -62,14 +63,15 @@ class NewsListQueryPerformanceTest {
     }
 
     @Test fun version34UpgradeInstallsOrderedIndexesWithoutLosingDataAndIsRepeatable() = withDatabase { driver, db ->
+        DiaryLegacyFieldsFixture.install(driver)
         val articles = ArticleRepository(db)
         val id = articles.insert(title = "preserved", url = "https://example.com/preserved", aiMarkdownContent = "original body", isFavorite = 1)
         driver.execute(null, "DROP INDEX IF EXISTS idx_article_manual_cards", 0)
         driver.execute(null, "DROP INDEX IF EXISTS idx_article_favorite_cards", 0)
         driver.execute(null, "DROP INDEX IF EXISTS idx_unified_news_source_normalized_url", 0)
         val settings = SettingRepository(db)
+        settings.upsert(SettingKeys.schemaVersion, "34")
         repeat(2) {
-            settings.upsert(SettingKeys.schemaVersion, "34")
             DatabaseMigration(driver, settings).runMigrations()
             assertEquals("original body", articles.getById(id)?.ai_markdown_content)
             articles.getCardsSync(limit = 31)

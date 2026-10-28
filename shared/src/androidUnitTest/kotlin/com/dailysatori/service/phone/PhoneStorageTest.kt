@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.config.*
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.migration.DiaryLegacyFieldsFixture
 import com.dailysatori.service.security.*
 import com.dailysatori.service.sms.*
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -15,6 +16,7 @@ class PhoneStorageTest {
     private val message = PhoneMessage(PhoneEvent(PhoneChannel.SMS, "bank", "one", "", "消费56元", 1000, "UTC"), generation = 0)
 
     @Test fun version30UpgradePreservesLedgerAndSettings() = withDatabase { db, driver ->
+        DiaryLegacyFieldsFixture.install(driver)
         driver.execute(null, "DROP TABLE phone_message", 0)
         val settings = SettingRepository(db)
         settings.upsert(SettingKeys.schemaVersion, "30")
@@ -40,6 +42,7 @@ class PhoneStorageTest {
     }
 
     @Test fun oldBackupCanPrepareSecretsBeforeSourceMigration() = withDatabase { db, driver ->
+        DiaryLegacyFieldsFixture.install(driver)
         driver.execute(null, "DROP TABLE phone_message", 0)
         SettingRepository(db).upsert(SettingKeys.schemaVersion, "30")
         SecretFieldProcessor(driver, Cipher).prepareRestoredSecrets()

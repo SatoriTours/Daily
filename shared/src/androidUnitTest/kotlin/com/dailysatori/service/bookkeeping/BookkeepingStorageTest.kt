@@ -5,6 +5,7 @@ import com.dailysatori.bookkeeping.*
 import com.dailysatori.config.*
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.migration.DiaryLegacyFieldsFixture
 import com.dailysatori.service.security.*
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.runBlocking
@@ -67,6 +68,7 @@ class BookkeepingStorageTest {
 
     @Test fun version29DatabaseKeepsExistingDataAndAddsLedger() {
         withDatabase { db, driver ->
+            DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "DROP TABLE bookkeeping_entry", 0)
             val settings = SettingRepository(db)
             settings.upsert("existing.user.setting", "keep-me")
@@ -92,6 +94,7 @@ class BookkeepingStorageTest {
 
     @Test fun version29BackupCanPrepareSecretsBeforeLedgerMigration() {
         withDatabase { db, driver ->
+            DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "DROP TABLE bookkeeping_entry", 0)
             SettingRepository(db).upsert(SettingKeys.schemaVersion, "29")
             SecretFieldProcessor(driver, Cipher).prepareRestoredSecrets()
