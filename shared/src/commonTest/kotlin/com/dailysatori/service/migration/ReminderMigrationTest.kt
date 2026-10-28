@@ -40,12 +40,14 @@ class ReminderMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
+            legacyReminder(driver)
             driver.execute(null, "ALTER TABLE reminder DROP COLUMN recurrence_rule", 0)
             driver.execute(null, "INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, time_zone_id, profile_json, version, dismissal_count, created_at, updated_at) VALUES ('legacy', 'legacy', 'ACTIVE', '2026-09-01', '2026-09-01', '09:00', 'daily', 'UTC', '{}', 0, 0, 1, 1)", 0)
 
             DatabaseMigration.migrateReminderRecurrenceSchema { sql -> driver.execute(null, sql, 0) }
 
-            assertEquals("once", DailySatoriDatabase(driver).dailySatoriQueries.selectReminderById("legacy").executeAsOne().recurrence_rule)
+            assertEquals(listOf("once"),DatabaseSchemaInventory.strings(driver,"SELECT recurrence_rule FROM reminder WHERE id='legacy'"))
         } finally {
             driver.close()
         }
@@ -56,6 +58,7 @@ class ReminderMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "DROP INDEX IF EXISTS idx_reminder_ai_draft_batch_source", 0)
             driver.execute(null, "DROP INDEX IF EXISTS idx_reminder_ai_batch_task", 0)
             driver.execute(null, "DROP INDEX IF EXISTS idx_reminder_ai_batch_status_updated", 0)
@@ -64,7 +67,7 @@ class ReminderMigrationTest {
             driver.execute(null, "DROP TABLE reminder_ai_batch", 0)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
-            db.dailySatoriQueries.insertReminder("legacy", "preserved", "", "ACTIVE", "2026-09-02", "2026-09-02", "09:00", "daily", "once", "UTC", "{}", 0, null, 0, null, null, null, null, 1, 1)
+            db.dailySatoriQueries.insertReminder("legacy", "preserved", "", "ACTIVE", "2026-09-02", "2026-09-02", "09:00", "daily", "once", "UTC", com.dailysatori.data.repository.ReminderPolicySnapshots(db).intern("{}"), 0, null, 0, null, null, null, null, 1, 1)
             settings.upsert(SettingKeys.schemaVersion, "24")
 
             DatabaseMigration(driver, settings).runMigrations()
@@ -93,8 +96,11 @@ class ReminderMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "DROP TABLE reminder_ai_draft", 0)
             driver.execute(null, "CREATE TABLE reminder_ai_draft (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL REFERENCES reminder_ai_batch(id) ON DELETE CASCADE, source_index INTEGER NOT NULL, source_text TEXT NOT NULL, draft_json TEXT NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0, confirmed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(batch_id, source_index))", 0)
+            // This index already existed in v25; rebuilding the legacy fixture table removed it.
+            driver.execute(null, "CREATE INDEX idx_reminder_ai_draft_batch_source ON reminder_ai_draft(batch_id,source_index ASC)", 0)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
             db.dailySatoriQueries.insertReminderAiBatch("v26", null, "source", "source", "UTC", "2026-09-02", "READY_FOR_CONFIRMATION", null, 0, 3, null, "", null, 1, 1)
@@ -107,8 +113,8 @@ class ReminderMigrationTest {
             assertEquals("keep", draft.source_text)
             assertEquals("", draft.override_json)
             assertEquals(1L, draft.selected)
-            assertEquals(0L, draft.discarded)
-            assertEquals("PENDING", draft.confirmation_state)
+            assertEquals("PENDING", draft.state)
+            assertEquals(0L,draft.revision)
             assertEquals(null, draft.reminder_id)
         } finally {
             driver.close()
@@ -120,6 +126,8 @@ class ReminderMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
+            legacyReminder(driver)
             driver.execute(null, "ALTER TABLE reminder DROP COLUMN notes", 0)
             driver.execute(null, "INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, time_zone_id, profile_json, version, dismissal_count, created_at, updated_at) VALUES ('legacy-note', '保留原提醒', 'ACTIVE', '2026-09-01', '2026-09-01', '09:00', 'daily', 'UTC', '{}', 0, 0, 1, 1)", 0)
             val settings = SettingRepository(DailySatoriDatabase(driver))
@@ -143,6 +151,17 @@ class ReminderMigrationTest {
         } finally {
             driver.close()
         }
+    }
+
+    private fun legacyReminder(driver:JdbcSqliteDriver) {
+        driver.execute(null,"DROP TRIGGER IF EXISTS reminder_policy_referenced",0)
+        driver.execute(null,"DROP VIEW reminder_record",0)
+        driver.execute(null,"DROP TABLE reminder",0)
+        driver.execute(null,ReminderPolicyMigration.reminderTable.replace(
+            "policy_snapshot_id TEXT NOT NULL REFERENCES reminder_policy_snapshot(id) ON DELETE RESTRICT",
+            "profile_json TEXT NOT NULL"),0)
+        driver.execute(null,"CREATE INDEX idx_reminder_status_dates ON reminder(status,start_date,end_date)",0)
+        driver.execute(null,"CREATE INDEX idx_reminder_next_occurrence ON reminder(status,next_occurrence_at)",0)
     }
 
     private fun schemaCount(driver: JdbcSqliteDriver, name: String): Long = driver.executeQuery(null, "SELECT count(*) FROM sqlite_master WHERE name = '$name'", { cursor ->

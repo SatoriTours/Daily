@@ -13,6 +13,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(23,'diary','diary_images/photo.jpg,https://example.com/remote.jpg',1,1)", 0)
             driver.execute(null, "INSERT INTO diary_attachment(id,diary_id,kind,local_path,created_at,updated_at) VALUES(7,23,'audio','/old/app_flutter/diary/audio/23/voice.m4a',1,1)", 0)
             driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(31,'images/shared.jpg',1,1)", 0)
@@ -39,6 +40,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(1,'null',1,1)", 0)
             driver.execute(null, "INSERT INTO image(path,article_id,created_at,updated_at) VALUES('images/null',1,1,1)", 0)
             driver.execute(null, "INSERT INTO book(title,author,category,cover_image,introduction,created_at,updated_at) VALUES('book','','','/old/app_flutter/images/null','',1,1)", 0)
@@ -49,8 +51,8 @@ class BackupDatabaseDataTest {
             data.prepareRestore("/app", "backup-dir")
 
             val queries = DailySatoriDatabase(driver).dailySatoriQueries
-            assertEquals("keep text", queries.selectAllDiaries().executeAsOne().content)
-            assertEquals("diary_images/photo.jpg", queries.selectAllDiaries().executeAsOne().images)
+            assertEquals("keep text", com.dailysatori.service.migration.DiaryLegacyFieldsFixture.readDiary(driver,1).content)
+            assertEquals("diary_images/photo.jpg", com.dailysatori.service.migration.DiaryLegacyFieldsFixture.readDiary(driver,1).images)
         } finally { driver.close() }
     }
 
@@ -59,6 +61,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(1,'diary','diary_images/null.jpg',1,1)", 0)
             driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(1,'audio','diary/audio/null',1,1)", 0)
             val data = BackupDatabaseData(driver)
@@ -66,7 +69,7 @@ class BackupDatabaseDataTest {
             assertEquals(setOf("diary_images/null.jpg", "diary/audio/null"), data.userFiles("/app").toSet())
             data.prepareRestore("/app", "backup-dir")
             val queries = DailySatoriDatabase(driver).dailySatoriQueries
-            assertEquals("diary_images/null.jpg", queries.selectAllDiaries().executeAsOne().images)
+            assertEquals("diary_images/null.jpg", com.dailysatori.service.migration.DiaryLegacyFieldsFixture.readDiary(driver,1).images)
             assertEquals("/app/diary/audio/null", queries.selectAllDiaryAttachments().executeAsOne().local_path)
         } finally { driver.close() }
     }
@@ -76,6 +79,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "PRAGMA foreign_keys = OFF", 0)
             driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(99,'audio','diary/audio/voice.m4a',1,1)", 0)
 
@@ -89,6 +93,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "DROP TABLE sms_reminder_source", 0)
             driver.execute(null, "DROP TABLE bookkeeping_entry", 0)
             driver.execute(null, "DROP TABLE phone_message", 0)
@@ -114,6 +119,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "INSERT INTO diary(id,content,created_at,updated_at) VALUES(23,'diary',1,1)", 0)
             driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(23,'audio','/data/user/0/old/files/DailySatori/diary/audio/23/voice.m4a',1,1)", 0)
             driver.execute(null, "INSERT INTO setting(key,value,created_at,updated_at) VALUES('backup_directory','content://old-device',1,1)", 0)
@@ -131,6 +137,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "INSERT INTO diary(id,content,created_at,updated_at) VALUES(1,'diary',1,1)", 0)
             driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(1,'audio','diary/audio/lost.m4a',1,1)", 0)
             BackupDatabaseData(driver).prepareRestore("/new/DailySatori", "new")
@@ -144,6 +151,7 @@ class BackupDatabaseDataTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(1,'private diary','diary_images/present.jpg,diary_images/private-photo.jpg',1,1)", 0)
             driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(1,'audio','/old/DailySatori/diary/audio/present.m4a',1,1)", 0)
             driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(1,'audio','/old/DailySatori/diary/audio/private-voice.m4a',1,1)", 0)
@@ -155,7 +163,7 @@ class BackupDatabaseDataTest {
             val queries = DailySatoriDatabase(driver).dailySatoriQueries
             assertEquals(setOf("/new/DailySatori/diary/audio/present.m4a", "/new/DailySatori/diary/audio/private-voice.m4a"),
                 queries.selectAllDiaryAttachments().executeAsList().map { it.local_path }.toSet())
-            assertEquals("diary_images/present.jpg,diary_images/private-photo.jpg", queries.selectAllDiaries().executeAsOne().images)
+            assertEquals("diary_images/present.jpg,diary_images/private-photo.jpg", com.dailysatori.service.migration.DiaryLegacyFieldsFixture.readDiary(driver,1).images)
             assertEquals("images/private-cover.jpg", queries.selectArticleById(1).executeAsOne().cover_image)
             assertEquals("content://new-device", queries.selectSettingByKey("backup_directory").executeAsOne().value_)
         } finally { driver.close() }

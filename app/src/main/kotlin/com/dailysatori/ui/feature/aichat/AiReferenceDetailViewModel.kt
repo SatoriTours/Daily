@@ -12,7 +12,7 @@ import com.dailysatori.service.mcp.searchResultOpenTarget
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

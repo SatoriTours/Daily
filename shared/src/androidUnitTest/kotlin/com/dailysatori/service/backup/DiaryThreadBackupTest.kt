@@ -22,8 +22,8 @@ class DiaryThreadBackupTest {
         val attachments = DiaryAttachmentRepository(db, driver)
         val rootId = diaries.create(content = "根原文")
         val replyId = threads.createReply(rootId, "第一次续写")
-        db.dailySatoriQueries.updateDiary("根原文", null, null, "$appDataDir/diary_images/root.png", 1_000, rootId)
-        db.dailySatoriQueries.updateDiary("第一次续写", null, null, "$appDataDir/diary_images/reply.png", 2_000, replyId)
+        diaries.update(rootId,"根原文",null,null,"$appDataDir/diary_images/root.png")
+        diaries.update(replyId,"第一次续写",null,null,"$appDataDir/diary_images/reply.png")
         attachments.create(rootId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "$appDataDir/diary/audio/root.m4a"))
         attachments.create(replyId, DiaryAttachmentDraft(DiaryAttachmentKind.audio, "$appDataDir/diary/audio/reply.m4a"))
         val summarizedRevision = threads.getSnapshot(rootId)!!.revision
@@ -40,10 +40,10 @@ class DiaryThreadBackupTest {
 
         backupData.prepareRestore(appDataDir, "/backups")
 
-        assertEquals("diary_images/reply.png", diaries.getById(replyId)!!.images)
+        assertEquals("$appDataDir/diary_images/reply.png", diaries.getById(replyId)!!.images)
         assertEquals(
             "$appDataDir/diary/audio/reply.m4a",
-            attachments.getForDiary(replyId).single().local_path,
+            attachments.getForDiary(replyId).single { it.kind=="audio" }.local_path,
         )
         val source = requireNotNull(threads.getSource(rootId))
         assertTrue(source.content.contains("根原文"))

@@ -2,7 +2,6 @@ package com.dailysatori.ui.feature.reminder
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailysatori.core.reminder.ReminderCoordinator
 import com.dailysatori.core.task.ReminderAiParseTaskHandler
 import com.dailysatori.core.task.reminderAiParseTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
@@ -42,11 +41,11 @@ class ReminderAiBatchViewModel(
     private val asyncTaskRepository: AsyncTaskRepository,
     private val taskScheduler: AsyncTaskScheduler,
     private val reminderRepository: ReminderRepository,
-    private val coordinator: ReminderCoordinator,
     private val draftCodec: ReminderDraftCodec,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReminderAiBatchScreenState())
     val state: StateFlow<ReminderAiBatchScreenState> = _state
+    private val revisions=mutableMapOf<Int,Long>()
     val profiles = reminderRepository.observeProfiles()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -54,11 +53,13 @@ class ReminderAiBatchViewModel(
         viewModelScope.launch {
             batchRepository.observeBatch(batchId).collect { batch ->
                 val current = _state.value
-                val refreshPreview = batch?.status == ReminderAiBatchStatus.READY_FOR_CONFIRMATION &&
-                    (current.preview == null || current.batch?.updatedAt != batch.updatedAt)
+                batch?.drafts?.forEach { revisions[it.sourceIndex]=maxOf(revisions[it.sourceIndex] ?: 0,it.revision) }
+                val refreshPreview = batch?.status in setOf(ReminderAiBatchStatus.READY_FOR_CONFIRMATION,
+                    ReminderAiBatchStatus.CONFIRMED,ReminderAiBatchStatus.DISCARDED) &&
+                    (current.preview == null || current.batch != batch)
                 _state.value = current.copy(
                     batch = batch,
-                    preview = if (refreshPreview) batch.toPreview() else current.preview,
+                    preview = if (refreshPreview) batch?.toPreview() else current.preview,
                     isSaving = current.isSaving && batch?.status == ReminderAiBatchStatus.READY_FOR_CONFIRMATION,
                 )
             }
@@ -88,35 +89,34 @@ class ReminderAiBatchViewModel(
         val selection = preview.selectedIds
         if (selection.isEmpty() || _state.value.isSaving) return
         _state.value = _state.value.copy(isSaving = true, error = null, preview = preview.markSaving(selection))
+        val expected=revisions.toMap()
         viewModelScope.launch(Dispatchers.IO) {
-            var failed = false
-            selection.forEach { id ->
-                val item = preview.items.getValue(id)
-                val payload = item.draft.confirmationPayload() ?: run { failed = true; return@forEach }
-                try {
-                    val reminder = reminderRepository.get(id)
-                        ?: reminderRepository.createConfirmed(payload.draft, payload.profileSnapshot)
-                    try {
-                        coordinator.recompute(reminder.id)
-                        batchRepository.markDraftConfirmed(batchId, id.sourceIndex(), reminder.id)
-                        updatePreview { it.markSaved(id, reminder.id) }
-                    } catch (_: Exception) {
-                        failed = true
-                        batchRepository.markDraftSchedulingFailed(batchId, id.sourceIndex(), reminder.id)
-                        updatePreview {
-                            it.markSchedulingFailed(
-                                id,
-                                reminder.id,
-                                ReminderBatchErrorCode.SCHEDULING_FAILED,
-                            )
-                        }
-                    }
-                } catch (_: Exception) {
-                    failed = true
-                    updatePreview { it.markFailed(id, ReminderBatchErrorCode.SAVE_FAILED) }
+            try {
+                selection.forEach { id ->
+                    val payload=preview.items.getValue(id).draft.confirmationPayload() ?: return@forEach
+                    val task=batchRepository.confirmDraft(batchId,id.sourceIndex(),expected[id.sourceIndex()] ?: 0,
+                        payload.draft,payload.profileSnapshot)
+                    if(task!=null) taskScheduler.enqueue(task)
+                    else _state.update { it.copy(error=ReminderBatchErrorCode.SAVE_FAILED) }
                 }
-            }
-            _state.value = _state.value.copy(isSaving = false)
+            } catch(cancelled:kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch(failure:Exception) {
+                _state.update { it.copy(error=ReminderBatchErrorCode.SAVE_FAILED) }
+            } finally { _state.update { it.copy(isSaving=false) } }
+        }
+    }
+
+    fun retrySchedule(id:String) {
+        if(_state.value.isSaving) return
+        _state.update { it.copy(isSaving=true,error=null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val task=batchRepository.retryDraftSchedule(batchId,id.sourceIndex())
+                if(task!=null) taskScheduler.enqueue(task)
+                else _state.update { it.copy(error=ReminderBatchErrorCode.SCHEDULING_FAILED) }
+            } catch(cancelled:kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch(failure:Exception) { _state.update { it.copy(error=ReminderBatchErrorCode.SCHEDULING_FAILED) } }
+            finally { _state.update { it.copy(isSaving=false) } }
         }
     }
 
@@ -141,28 +141,43 @@ class ReminderAiBatchViewModel(
 
     private fun updatePreview(transform: (ReminderBatchUiState) -> ReminderBatchUiState) {
         val current = _state.value
+        if(current.isSaving) return
         current.preview?.let { original ->
             val updated = transform(original)
-            _state.value = current.copy(preview = updated)
+            var stale=false
             updated.items.forEach { (id, item) ->
                 val old = original.items[id]
-                if (old != item) batchRepository.updateDraftUiState(
-                    batchId, id.sourceIndex(), encodeReminderBatchItem(item), item.selected, id !in updated.items,
-                )
+                if(old!=item) {
+                    val index=id.sourceIndex()
+                    if(batchRepository.updateDraftUiState(batchId,index,encodeReminderBatchItem(item),item.selected,false,
+                        expectedRevision=revisions[index] ?: 0)) revisions[index]=(revisions[index] ?: 0)+1 else stale=true
+                }
             }
             (original.items.keys - updated.items.keys).forEach { id ->
                 val old = original.items.getValue(id)
-                batchRepository.updateDraftUiState(batchId, id.sourceIndex(), encodeReminderBatchItem(old), false, true)
+                val index=id.sourceIndex()
+                if(batchRepository.updateDraftUiState(batchId,index,encodeReminderBatchItem(old),false,true,
+                    expectedRevision=revisions[index] ?: 0)) revisions[index]=(revisions[index] ?: 0)+1 else stale=true
             }
+            if(stale) {
+                val fresh=batchRepository.getBatch(batchId)
+                fresh?.drafts?.forEach { revisions[it.sourceIndex]=it.revision }
+                _state.value=current.copy(batch=fresh,preview=fresh?.toPreview(),error=ReminderBatchErrorCode.SAVE_FAILED)
+            } else _state.value=current.copy(preview=updated)
         }
     }
 
-    private fun ReminderAiBatch.toPreview(): ReminderBatchUiState = ReminderBatchUiState(
+    private fun ReminderAiBatch.toPreview()=toReminderBatchPreview(draftCodec)
+    private fun String.sourceIndex():Int=substringAfterLast(':').toInt()
+}
+
+internal fun ReminderAiBatch.toReminderBatchPreview(draftCodec:ReminderDraftCodec):ReminderBatchUiState = ReminderBatchUiState(
         batchId = id,
-        items = drafts.associateTo(linkedMapOf()) { record ->
+        items = drafts.filterNot { it.discarded }.associateTo(linkedMapOf()) { record ->
             val reminderId = "$id:${record.sourceIndex}"
             val decoded = draftCodec.decodeInterpretationResponse(record.draftJson, timeZone).copy(id = reminderId)
             val persisted = record.overrideJson.takeIf { it.isNotBlank() }?.let(::decodeReminderBatchItem)
+                ?.let { it.copy(id=reminderId,draft=it.draft.copy(id=reminderId)) }
             reminderId to (persisted ?: ReminderBatchUiItem(
                 id = reminderId,
                 sourceText = record.sourceText,
@@ -171,9 +186,14 @@ class ReminderAiBatchViewModel(
                 saveStatus = if (record.confirmed) BatchSaveStatus.SAVED else if (record.confirmationState == "SCHEDULING_FAILED") BatchSaveStatus.FAILED else BatchSaveStatus.PENDING,
                 createdReminderId = record.reminderId,
                 saveError = if (record.confirmationState == "SCHEDULING_FAILED") ReminderBatchErrorCode.SCHEDULING_FAILED else null,
-            )).copy(selected = record.selected && !record.discarded && !record.confirmed)
+            )).copy(selected=record.selected && !record.discarded && !record.confirmed,
+                saveStatus=when(record.confirmationState) {
+                    "CONFIRMED"->BatchSaveStatus.SAVED
+                    "SCHEDULE_PENDING"->BatchSaveStatus.SAVING
+                    "SCHEDULING_FAILED"->BatchSaveStatus.FAILED
+                    else->BatchSaveStatus.PENDING
+                },
+                createdReminderId=record.reminderId,
+                saveError=if(record.confirmationState=="SCHEDULING_FAILED") ReminderBatchErrorCode.SCHEDULING_FAILED else null)
         },
     )
-
-    private fun String.sourceIndex(): Int = substringAfterLast(':').toInt()
-}

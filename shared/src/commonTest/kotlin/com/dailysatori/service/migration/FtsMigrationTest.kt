@@ -22,12 +22,14 @@ class FtsMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             driver.execute(null, "DROP TABLE diary_fts", 0)
 
             DatabaseMigration.migrateFts4Schema { sql -> driver.execute(null, sql, 0) }
 
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.readProjection(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("修复后的语音日记", "语音", null, null, 1, 1)
+            db.dailySatoriQueries.insertDiary("修复后的语音日记", null, 1, 1)
             assertEquals(1, db.dailySatoriQueries.searchDiariesFts("\"语音日记\"", "语音日记").executeAsList().size)
             val module = driver.executeQuery(
                 null,

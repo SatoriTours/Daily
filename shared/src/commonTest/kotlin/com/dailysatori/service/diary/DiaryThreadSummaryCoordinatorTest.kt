@@ -326,12 +326,12 @@ class DiaryThreadSummaryCoordinatorTest {
         val tasks: AsyncTaskRepository,
     ) {
         fun root(content: String, createdAt: Long = 1_000): Long {
-            db.dailySatoriQueries.insertDiary(content, null, null, null, createdAt, createdAt)
+            db.dailySatoriQueries.insertDiary(content, null, createdAt, createdAt)
             return db.dailySatoriQueries.selectAllDiaries().executeAsList().maxBy { it.id }.id
         }
 
         fun reply(rootId: Long, content: String, createdAt: Long = 2_000): Long {
-            db.dailySatoriQueries.insertDiaryReply(content, null, null, null, createdAt, createdAt, rootId)
+            db.dailySatoriQueries.insertDiaryReply(content, null, createdAt, createdAt, rootId)
             return db.dailySatoriQueries.selectDiaryRepliesForRoot(rootId).executeAsList().last().id
         }
 

@@ -24,6 +24,76 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class ReminderBatchUiStateTest {
+    @Test fun unselectedCreatedFailureHasIndependentRetryEvenWhenOldDraftIsInvalid() {
+        val initial=ReminderBatchUiState.from(batch(item("a")))
+        val failed=initial.items.getValue("a").copy(selected=false,createdReminderId="stored-reminder",
+            saveStatus=BatchSaveStatus.FAILED,requiresConfirmation=true,
+            draft=initial.items.getValue("a").draft.editContent(""))
+        assertFalse(failed.canSave)
+        assertTrue(failed.canRetrySchedule)
+        val state=initial.copy(items=mapOf("a" to failed))
+        assertEquals(state,state.toggleItem("a"))
+        assertEquals(state,state.removeItem("a"))
+        assertEquals(state,state.updateItem("a") { it.copy(draft=it.draft.editContent("must not replace")) })
+        assertFalse(failed.copy(saveStatus=BatchSaveStatus.SAVING).canRetrySchedule)
+        assertFalse(failed.copy(saveStatus=BatchSaveStatus.SAVED).canRetrySchedule)
+        assertFalse(failed.copy(createdReminderId=null).canRetrySchedule)
+    }
+
+    @Test fun persistedUiCacheCannotOverrideDomainStateOrStableIdentity() {
+        app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver(
+            app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            com.dailysatori.shared.db.DailySatoriDatabase.Schema.create(driver)
+            val repo=com.dailysatori.data.repository.ReminderAiBatchRepository(com.dailysatori.shared.db.DailySatoriDatabase(driver))
+            val domain=repo.enqueueOrReuse("one",kotlinx.datetime.TimeZone.UTC,LocalDate(2026,9,2))
+            repo.markReady(domain.id,listOf(com.dailysatori.service.reminder.ReminderAiBatchDraft(0,"source","{}")))
+            val ui=ReminderBatchUiState.from(batch(item("a"))).items.getValue("a")
+            repo.updateDraftUiState(domain.id,0,encodeReminderBatchItem(ui.copy(saveStatus=BatchSaveStatus.SAVED,
+                createdReminderId="retired",saveError="retired")),true,false)
+            val codec=com.dailysatori.service.reminder.ReminderDraftCodec()
+            fun current()=repo.getBatch(domain.id)!!.toReminderBatchPreview(codec).items.values.single()
+            val stable="${domain.id}:0"
+            assertEquals(stable,current().id)
+            assertEquals(stable,current().draft.id)
+            assertEquals(BatchSaveStatus.PENDING,current().saveStatus)
+            assertNull(current().createdReminderId)
+            assertNull(current().saveError)
+            assertTrue(current().selected)
+            val payload=ui.draft.confirmationPayload()!!
+            repo.confirmDraft(domain.id,0,1,payload.draft,payload.profileSnapshot)
+            assertEquals(BatchSaveStatus.SAVING,current().saveStatus)
+            repo.finishSchedule(stable,0,false)
+            assertEquals(BatchSaveStatus.FAILED,current().saveStatus)
+            repo.beginSchedule(stable,0)
+            repo.finishSchedule(stable,0,true)
+            assertEquals(BatchSaveStatus.SAVED,current().saveStatus)
+        }
+    }
+
+    @Test fun discardedDomainDraftRemainsStoredButIsAbsentFromPreview() {
+        app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver(
+            app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            com.dailysatori.shared.db.DailySatoriDatabase.Schema.create(driver)
+            val repo=com.dailysatori.data.repository.ReminderAiBatchRepository(com.dailysatori.shared.db.DailySatoriDatabase(driver))
+            val domain=repo.enqueueOrReuse("one",kotlinx.datetime.TimeZone.UTC,LocalDate(2026,9,2))
+            repo.markReady(domain.id,listOf(com.dailysatori.service.reminder.ReminderAiBatchDraft(0,"source","{}")))
+            repo.updateDraftUiState(domain.id,0,"original override",false,true)
+            val reloaded=repo.getBatch(domain.id)!!
+            assertEquals(1,reloaded.drafts.size)
+            assertEquals("original override",reloaded.drafts.single().overrideJson)
+            assertTrue(reloaded.toReminderBatchPreview(com.dailysatori.service.reminder.ReminderDraftCodec()).items.isEmpty())
+        }
+    }
+
+    @Test fun existingReminderOnSchedulingFailureCannotBeEditedOrRemovedButCanRetry() {
+        val initial=ReminderBatchUiState.from(batch(item("a")))
+        val failed=initial.markSchedulingFailed("a","created-a",ReminderBatchErrorCode.SCHEDULING_FAILED)
+        assertEquals(failed,failed.updateItem("a") { it.copy(draft=it.draft.editContent("must not replace created reminder")) })
+        assertEquals(failed,failed.removeItem("a"))
+        assertEquals(failed,failed.toggleItem("a"))
+        assertTrue("a" in failed.selectedIds)
+    }
+
     @Test
     fun invalidSelectedDraftRemainsCountedAsSelectedButCannotBeSaved() {
         val initial = ReminderBatchUiState.from(batch(item("a")))

@@ -17,7 +17,7 @@ import com.dailysatori.R
 import com.dailysatori.core.util.diaryMonthKey
 import com.dailysatori.core.util.diaryPreviewText
 import com.dailysatori.core.util.diaryTags
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.ui.theme.*
 import com.mikepenz.markdown.m3.Markdown
 import java.time.YearMonth

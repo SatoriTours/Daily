@@ -2,7 +2,7 @@ package com.dailysatori.service.ideatopic
 
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

@@ -2,7 +2,7 @@ package com.dailysatori.ui.feature.diary
 
 import com.dailysatori.core.util.diaryDayKey
 import com.dailysatori.core.util.diaryMonthKey
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.test.Test

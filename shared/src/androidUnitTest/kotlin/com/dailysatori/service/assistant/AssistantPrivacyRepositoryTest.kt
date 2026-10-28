@@ -44,6 +44,7 @@ class AssistantPrivacyRepositoryTest {
         settings.upsert("unrelated.setting", "unchanged")
         driver.execute(null, "DROP TABLE assistant_memory_exclusion", 0)
         repeat(2) {
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             settings.upsert(SettingKeys.schemaVersion, "35")
             DatabaseMigration(driver, settings).runMigrations()
             AssistantPrivacyRepository(driver).exclude("chat", "999")

@@ -208,7 +208,7 @@ val viewModelModule: Module = module {
     viewModel { params ->
         ReminderAiBatchViewModel(
             batchId = params.get(), batchRepository = get(), asyncTaskRepository = get(), taskScheduler = get(),
-            reminderRepository = get(), coordinator = get(), draftCodec = get(),
+            reminderRepository = get(), draftCodec = get(),
         )
     }
     viewModel {

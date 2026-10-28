@@ -50,6 +50,27 @@ class AssistantPrivacyRepository(private val driver: SqlDriver) {
         driver.notifyListeners("chat_conversation")
     }
 
+    /** One deletion owner for both the assistant UI and legacy chat/Web entry points. */
+    fun deleteConversationMessage(id:Long) {
+        val db=com.dailysatori.shared.db.DailySatoriDatabase(driver)
+        transactions.transaction {
+            val turnId=driver.executeQuery(null,"SELECT id FROM assistant_turn WHERE id=? OR response_message_id=?",{
+                QueryResult.Value(if(it.next().value) it.getLong(0) else null)
+            },2) { bindLong(0,id);bindLong(1,id) }.value
+            if(turnId!=null) {
+                val turn=checkNotNull(AssistantTurnRepository(driver).get(turnId))
+                com.dailysatori.data.repository.AsyncTaskRepository(db).cancel(turn.taskId)
+                turn.responseMessageId?.let { deleteChatMessage(it.toString()) }
+                driver.execute(null,"DELETE FROM assistant_reference WHERE turn_id=?",1) { bindLong(0,turnId) }
+                driver.execute(null,"DELETE FROM assistant_index_segment WHERE source_id=?",1) { bindLong(0,turnId) }
+                driver.execute(null,"UPDATE assistant_action SET parameters_json='{}' WHERE turn_id=?",1) { bindLong(0,turnId) }
+                driver.execute(null,"UPDATE assistant_turn SET action_plan_json='',context_json='' WHERE id=?",1) { bindLong(0,turnId) }
+                deleteChatMessage(turnId.toString())
+            } else deleteChatMessage(id.toString())
+        }
+        driver.notifyListeners("assistant_turn","assistant_action","assistant_reference","assistant_index_segment","memory_entry","chat_conversation","async_task")
+    }
+
     /** Bounded, oldest-first context; original messages remain unchanged in the durable log. */
     fun history(sessionId: String, limit: Int = 24, beforeInputId: Long? = null): List<AssistantHistoryMessage> = driver.executeQuery(
         null, """SELECT c.id, c.role, c.content FROM chat_conversation c
@@ -60,7 +81,7 @@ class AssistantPrivacyRepository(private val driver: SqlDriver) {
             ))
             AND NOT EXISTS (SELECT 1 FROM assistant_memory_exclusion x
                 WHERE x.source_type = 'chat' AND x.source_id = CAST(c.id AS TEXT))
-            ORDER BY c.id DESC LIMIT ?""".trimIndent(),
+            ORDER BY c.created_at DESC,c.id DESC LIMIT ?""".trimIndent(),
         { cursor ->
             val rows = mutableListOf<AssistantHistoryMessage>()
             while (cursor.next().value) rows += AssistantHistoryMessage(

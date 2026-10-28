@@ -43,6 +43,46 @@ class BackupArchiveTest {
     }
 
     @Test
+    fun unsafeArchivePathsAreRejectedBeforeAnyPayloadIsWritten() {
+        val root = Files.createTempDirectory("backup-paths").toFile()
+        try {
+            for (name in listOf("../outside.txt", "/absolute.txt", "folder/../../outside.txt",
+                    "folder\\\\outside.txt", "./payload.txt", "folder//payload.txt")) {
+                val zip = root.resolve("unsafe.zip")
+                java.util.zip.ZipOutputStream(zip.outputStream()).use { output ->
+                    for (path in listOf("safe.txt", name)) {
+                        output.putNextEntry(java.util.zip.ZipEntry(path))
+                        output.write("must not extract".toByteArray())
+                        output.closeEntry()
+                    }
+                }
+                val destination = root.resolve("output")
+                assertFails(name) { FileManager().extractZip(zip.path, destination.path) }
+                assertFalse(destination.resolve("safe.txt").exists(), name)
+                assertFalse(root.resolve("outside.txt").exists(), name)
+            }
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test
+    fun extractionCannotFollowAnExistingDirectorySymlinkOutsideTheDestination() {
+        val root = Files.createTempDirectory("backup-symlink").toFile()
+        try {
+            val outside = root.resolve("outside").apply { mkdirs() }
+            val destination = root.resolve("output").apply { mkdirs() }
+            Files.createSymbolicLink(destination.resolve("images").toPath(), outside.toPath())
+            val zip = root.resolve("backup.zip")
+            java.util.zip.ZipOutputStream(zip.outputStream()).use { output ->
+                output.putNextEntry(java.util.zip.ZipEntry("images/private.txt"))
+                output.write("must not escape".toByteArray())
+                output.closeEntry()
+            }
+            assertFails { FileManager().extractZip(zip.path, destination.path) }
+            assertTrue(outside.listFiles().orEmpty().isEmpty())
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test
     fun largeFilesReportIntermediateProgressThroughoutArchiveAndEncryption() {
         val root = Files.createTempDirectory("backup-progress").toFile()
         try {

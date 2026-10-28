@@ -7,7 +7,7 @@ import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant

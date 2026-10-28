@@ -47,7 +47,7 @@ class DiaryThreadSearchTest {
     @Test
     fun tagAliasSearchStillWorksWithoutReplies() = withThread { fixture ->
         val rootId = fixture.root("今天去健身房", createdAt = 1_000)
-        fixture.db.dailySatoriQueries.updateDiaryTags("健身", rootId)
+        DiaryTagStore(fixture.db).initializeImported(rootId,listOf("健身"))
 
         assertTrue(fixture.diaries.searchSync("健身").any { it.id == rootId })
     }
@@ -66,12 +66,12 @@ class DiaryThreadSearchTest {
 
     private class Fixture(val db: DailySatoriDatabase, val diaries: DiaryRepository) {
         fun root(content: String, createdAt: Long): Long {
-            db.dailySatoriQueries.insertDiary(content, null, null, null, createdAt, createdAt)
+            db.dailySatoriQueries.insertDiary(content, null, createdAt, createdAt)
             return db.dailySatoriQueries.selectAllDiaries().executeAsList().maxBy { it.id }.id
         }
 
         fun reply(rootId: Long, content: String, createdAt: Long): Long {
-            db.dailySatoriQueries.insertDiaryReply(content, null, null, null, createdAt, createdAt, rootId)
+            db.dailySatoriQueries.insertDiaryReply(content, null, createdAt, createdAt, rootId)
             return db.dailySatoriQueries.selectDiaryRepliesForRoot(rootId).executeAsList().last().id
         }
     }

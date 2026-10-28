@@ -86,9 +86,13 @@ class ReminderAiParseTaskHandlerTest {
             val codec = ReminderDraftCodec(now = { FixedClock.now() }, currentTimeZone = { TimeZone.UTC })
             val draft = codec.decodeInterpretationResponse(ready.drafts.single().draftJson, TimeZone.UTC).copy(id = reminderId)
             val reminders = ReminderRepository(database, TimeZone.UTC)
-            reminders.get(reminderId) ?: reminders.createConfirmed(draft, ReminderProfileSnapshot.standard())
-            batches.markDraftConfirmed(orphan.id, 0, reminderId)
-            reminders.get(reminderId) ?: reminders.createConfirmed(draft, ReminderProfileSnapshot.standard())
+            val scheduleId=kotlin.test.assertNotNull(batches.confirmDraft(orphan.id,0,0,draft,ReminderProfileSnapshot.standard()))
+            assertEquals(scheduleId,batches.confirmDraft(orphan.id,0,0,draft,ReminderProfileSnapshot.standard()))
+            val scheduled=mutableSetOf<String>()
+            val scheduling=com.dailysatori.service.reminder.ReminderScheduleTaskHandler(batches,tasks) { scheduled+=it }
+            val schedulingRunner=AsyncTaskRunner(tasks,AsyncTaskHandlerRegistry(listOf(scheduling)))
+            assertEquals(AsyncTaskRunOutcome.Succeeded,schedulingRunner.run(scheduleId))
+            assertEquals(setOf(reminderId),scheduled)
 
             assertEquals(reminderId, reminders.get(reminderId)?.id)
             assertEquals(ReminderAiBatchStatus.CONFIRMED, batches.getBatch(orphan.id)?.status)

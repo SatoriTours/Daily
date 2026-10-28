@@ -1,6 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -30,6 +30,17 @@ class DatabaseStartupSafetyTest {
         assertFalse(context.getDatabasePath("daily_satori.db").exists())
     }
 
+    @Test fun ambiguousPendingOperationsStopBeforeReplacingAnyUserData() = withContext { context ->
+        val database = context.getDatabasePath("daily_satori.db").apply { parentFile!!.mkdirs(); writeText("keep-original-db") }
+        val roots = listOf("database-install", "database-schema-install")
+        roots.forEach { name ->
+            File(context.noBackupFilesDir, name).apply { mkdirs(); File(this, "ready").writeText("ready") }
+        }
+        assertFails { DatabaseBootstrap.prepare(PlatformContext(context)) }
+        assertEquals("keep-original-db", database.readText())
+        roots.forEach { assertTrue(File(context.noBackupFilesDir, "$it/ready").isFile) }
+    }
+
     private fun withContext(block: (TestContext) -> Unit) {
         val root = createTempDirectory().toFile()
         try {

@@ -1,6 +1,6 @@
 package com.dailysatori.core.util
 
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -8,10 +8,11 @@ import java.util.Locale
 
 internal fun diaryTags(value: String?): List<String> = com.dailysatori.service.diary.parseDiaryTags(value)
 
-internal fun diaryImagePaths(value: String?): List<String> = cleanDiaryListValues(value)
+internal fun diaryImagePaths(value: String?): List<String> = com.dailysatori.service.diary.parseDiaryImagePaths(value)
 
-private fun cleanDiaryListValues(value: String?): List<String> =
-    value?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() && it != "null" }.orEmpty()
+internal fun diaryImageModel(path: String, filesDir: java.io.File): String =
+    if (path.startsWith("/") || path.startsWith("https://") || path.startsWith("http://")) path
+    else java.io.File(filesDir, "DailySatori/$path").path
 
 internal fun stripDiaryInlineTags(content: String): String {
     val lines = content.lines().toMutableList()

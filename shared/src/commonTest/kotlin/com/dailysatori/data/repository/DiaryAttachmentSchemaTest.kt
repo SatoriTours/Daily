@@ -48,7 +48,11 @@ class DiaryAttachmentSchemaTest {
     fun attachmentDeletionDelegatesOwnershipChecksToTheFileManager() {
         val repository = File("src/commonMain/kotlin/com/dailysatori/data/repository/DiaryAttachmentRepository.kt").readText()
 
-        assertTrue(repository.contains("fileManager?.deleteAppOwnedFile(path)"))
+        assertTrue(repository.contains("deleteUnreferencedMedia(db,fileManager,listOfNotNull(localPath))"))
+        val cleanup = File("src/commonMain/kotlin/com/dailysatori/data/repository/MediaFileCleanup.kt").readText()
+        assertTrue(cleanup.contains("mediaFileIsReferenced"))
+        assertTrue(cleanup.contains("files.isAppDataPath(candidate)"))
+        assertTrue(cleanup.contains("files.deleteAppOwnedFile(candidate)"))
         assertFalse(repository.contains("path.startsWith(manager.getAppDataDir())"))
     }
 
@@ -80,7 +84,7 @@ class DiaryAttachmentSchemaTest {
             val db = DailySatoriDatabase(driver)
             val q = db.dailySatoriQueries
 
-            q.insertDiary("diary with attachment", null, null, null, 1, 1)
+            q.insertDiary("diary with attachment", null, 1, 1)
             q.insertDiaryAttachment(
                 diary_id = 1,
                 kind = "image",

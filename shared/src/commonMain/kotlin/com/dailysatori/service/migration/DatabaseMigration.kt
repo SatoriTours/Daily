@@ -8,6 +8,7 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.TransacterImpl
 
 class DatabaseMigration(
     private val driver: SqlDriver,
@@ -18,7 +19,7 @@ class DatabaseMigration(
     fun runMigrations() {
         DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_START, DiagnosticSource.MIGRATION)
         try {
-            runMigrationsRecorded()
+            object : TransacterImpl(driver) {}.transaction { runMigrationsRecorded() }
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_END, DiagnosticSource.MIGRATION)
         } catch (failure: Exception) {
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.MIGRATION,
@@ -30,17 +31,23 @@ class DatabaseMigration(
     private fun runMigrationsRecorded() {
         val storedVersion = settingRepo.get(SettingKeys.schemaVersion)
         if (storedVersion == null) {
+            DatabaseSchemaInventory.validate(driver)
             settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
             log.i { "Fresh database already uses schema version ${DatabaseConfig.currentSchemaVersion}" }
             return
         }
-        val currentVersion = storedVersion.toLongOrNull() ?: 0L
+        val currentVersion = checkNotNull(storedVersion.toLongOrNull()) { "数据库版本无效" }
+        check(currentVersion in 0..DatabaseConfig.currentSchemaVersion) { "数据库版本无效或较新，请使用兼容版本" }
         log.i { "Current schema version: $currentVersion, target: ${DatabaseConfig.currentSchemaVersion}" }
 
-        if (currentVersion >= DatabaseConfig.currentSchemaVersion) {
+        if (currentVersion == DatabaseConfig.currentSchemaVersion) {
+            DatabaseSchemaInventory.validate(driver)
             log.i { "Database is up to date" }
             return
         }
+
+        // Known source contracts must be intact before a later rebuild can hide missing history.
+        if (currentVersion >= 38) DatabaseSchemaInventory.validate(driver,currentVersion)
 
         if (currentVersion < 1) {
             migrateV0ToV1()
@@ -154,8 +161,16 @@ class DatabaseMigration(
             migrateV36ToV37()
         }
         if (currentVersion < 38) migrateV37ToV38()
+        if (currentVersion < 39) migrateV38ToV39()
+        if (currentVersion < 40) migrateV39ToV40()
+        if (currentVersion < 41) migrateV40ToV41()
+        if (currentVersion < 42) migrateV41ToV42()
+        if (currentVersion < 43) migrateV42ToV43()
+        if (currentVersion < 44) migrateV43ToV44()
+        if (currentVersion < 45) migrateV44ToV45()
+        DatabaseSchemaInventory.validate(driver)
 
-        // After migrations, update version
+        // Metadata commits only after the complete target is verified.
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
         log.i { "Migration complete, updated to version ${DatabaseConfig.currentSchemaVersion}" }
     }
@@ -1210,6 +1225,41 @@ class DatabaseMigration(
             } catch (e: Exception) {
                 log.w(e) { "Could not create news list index" }
             }
+        }
+    }
+
+    private fun migrateV44ToV45() {
+        SchemaRetirementMigration.migrate(driver)
+    }
+
+    private fun migrateV43ToV44() {
+        AssistantRelationsMigration.migrate(driver)
+    }
+
+    private fun migrateV42ToV43() {
+        IdeaSnapshotMigration.migrate(driver)
+    }
+
+    private fun migrateV41ToV42() {
+        ReminderPolicyMigration.migrate(driver)
+        ReminderDraftMigration.migrate(driver)
+    }
+
+    private fun migrateV40ToV41() {
+        DiaryTagMigration.migrate(driver)
+    }
+
+    private fun migrateV39ToV40() {
+        addColumnIfMissing("diary_attachment", "position", "INTEGER NOT NULL DEFAULT 0 CHECK(position >= 0)")
+        addColumnIfMissing("diary_attachment", "remote_url", "TEXT")
+        DiaryImageMigration.migrate(driver)
+    }
+
+    private fun migrateV38ToV39() {
+        try { DatabaseSchemaInventory.validate(driver, version = 39) }
+        catch (failure: Exception) {
+            log.e { "Migration target verification failed" }
+            throw failure
         }
     }
 

@@ -25,6 +25,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ReminderRepositoryTest {
+    @Test fun metadataEditsRetainUnknownPolicyFieldsWithoutReencoding() = withDriverDatabase { db,driver ->
+        val repo=ReminderRepository(db,TimeZone.UTC)
+        val saved=repo.createConfirmed(draft(),strongProfile())
+        val raw=profileJson(strongProfile()).dropLast(1)+""","future":{"keep":"raw"}}"""
+        val policy=ReminderPolicySnapshots(db).intern(raw)
+        driver.execute(null,"UPDATE reminder SET policy_snapshot_id=? WHERE id=?",2) {
+            bindString(0,policy); bindString(1,saved.id)
+        }
+        assertTrue(repo.update(saved.id,ReminderEdit(saved.version,notes="new notes")))
+        assertEquals(raw,db.dailySatoriQueries.selectReminderById(saved.id).executeAsOne().profile_json)
+    }
+
     private val now = Instant.parse("2026-08-30T10:00:00Z")
 
     @Test
@@ -276,7 +288,8 @@ class ReminderRepositoryTest {
             val repo = ReminderRepository(db, TimeZone.UTC)
             repo.createConfirmed(draft(id = "corrupt"), strongProfile())
             val healthy = repo.createConfirmed(draft(id = "healthy"), strongProfile())
-            driver.execute(null, "UPDATE reminder SET profile_json = '{broken' WHERE id = 'corrupt'", 0)
+            val broken=ReminderPolicySnapshots(db).intern("{broken")
+            driver.execute(null, "UPDATE reminder SET policy_snapshot_id = ? WHERE id = 'corrupt'",1) { bindString(0,broken) }
 
             val reminders = runBlocking { repo.observeAll().first() }
             val corrupt = reminders.first { it.id == "corrupt" }
@@ -295,7 +308,8 @@ class ReminderRepositoryTest {
         val repo = ReminderRepository(db, TimeZone.UTC)
         val saved = repo.createConfirmed(draft(id = "invalid-values"), strongProfile())
         val invalid = profileJson(strongProfile()).replace("\"backoff\":[120,240]", "\"backoff\":[0]")
-        driver.execute(null, "UPDATE reminder SET profile_json = '${invalid.replace("'", "''")}' WHERE id = 'invalid-values'", 0)
+        val broken=ReminderPolicySnapshots(db).intern(invalid)
+        driver.execute(null, "UPDATE reminder SET policy_snapshot_id = ? WHERE id = 'invalid-values'",1) { bindString(0,broken) }
 
         val quarantined = repo.get(saved.id)!!
         assertEquals(ReminderDataIssue.CORRUPT_PROFILE, quarantined.dataIssue)

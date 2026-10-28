@@ -22,6 +22,17 @@ class DiaryFormatUtilsTest {
     }
 
     @Test
+    fun imageTransportAndModelsPreserveSpecialAbsoluteAndRemotePaths() {
+        val paths = listOf("diary_images/a,b.png", " leading.png", "https://example.test/a.png?p=1,2")
+        val encoded = com.dailysatori.service.diary.encodeDiaryImagePaths(paths)
+        assertEquals(paths, diaryImagePaths(encoded))
+        val files = java.io.File("/app/files")
+        assertEquals("/app/files/DailySatori/diary_images/a.png", diaryImageModel("diary_images/a.png", files))
+        assertEquals("/restored/DailySatori/a.png", diaryImageModel("/restored/DailySatori/a.png", files))
+        assertEquals(paths.last(), diaryImageModel(paths.last(), files))
+    }
+
+    @Test
     fun stripsTrailingInlineTagLinesOnly() {
         val content = "# 标题\n今天很好\n\n#生活 #记录\n#daily"
 

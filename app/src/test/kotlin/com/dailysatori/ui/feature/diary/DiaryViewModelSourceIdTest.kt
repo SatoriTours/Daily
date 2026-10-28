@@ -19,7 +19,7 @@ import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CompletableDeferred
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi

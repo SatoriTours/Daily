@@ -327,9 +327,9 @@ class DiaryCaptureTaskTest {
         withFixture { fixture ->
             val diaryId = fixture.diaries.create("原文", "标签", "开心", "图片")
             val original = fixture.diaries.getById(diaryId)!!
-            fixture.db.dailySatoriQueries.updateDiary(
-                original.content, "新标签", original.mood, original.images, original.updated_at + 1, diaryId,
-            )
+            fixture.diaries.update(diaryId,original.content,"新标签",original.mood,original.images)
+            // Keep the original explicit stale-time boundary independent of wall-clock millisecond resolution.
+            fixture.db.dailySatoriQueries.updateDiary(original.content, original.mood, maxOf(fixture.diaries.getById(diaryId)!!.updated_at,original.updated_at+1), diaryId)
             assertEquals(false, fixture.diaries.prependGeneratedTitleIfUnchanged(original, "旧标题"))
             val current = fixture.diaries.getById(diaryId)!!
             assertEquals(true, fixture.diaries.prependGeneratedTitleIfUnchanged(current, "新标题"))

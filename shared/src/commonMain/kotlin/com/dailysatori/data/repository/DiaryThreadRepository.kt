@@ -14,7 +14,7 @@ import com.dailysatori.service.diary.hasRenderableThreadContent
 import com.dailysatori.service.diary.pendingThreadAttachmentCount
 import com.dailysatori.service.diary.renderDiaryThreadContent
 import com.dailysatori.shared.db.DailySatoriDatabase
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.shared.db.Diary_thread_revision
 import com.dailysatori.shared.db.Diary_thread_summary
@@ -48,8 +48,8 @@ class DiaryThreadRepository(
         val entries = listOf(root) + q.selectDiaryRepliesForRoot(rootId).executeAsList()
         val attachments = q.selectDiaryThreadAttachments(rootId).executeAsList()
         return DiaryThreadSnapshot(
-            root = root,
-            entries = entries,
+            root = DiaryImages(db).project(root,attachments),
+            entries = entries.map { DiaryImages(db).project(it,attachments) },
             attachments = attachments,
             revision = revisionOf(rootId),
             pendingAttachmentCount = pendingThreadAttachmentCount(attachments),
@@ -58,7 +58,7 @@ class DiaryThreadRepository(
     }
 
     fun observeThread(rootId: Long): Flow<DiaryThreadSnapshot?> = combine(
-        q.selectDiaryById(rootId).asFlow().mapToOneOrNull(Dispatchers.IO),
+        combine(q.selectDiaryById(rootId).asFlow().mapToOneOrNull(Dispatchers.IO),DiaryTagStore(db).signal()) { root,_ -> root },
         q.selectDiaryRepliesForRoot(rootId).asFlow().mapToList(Dispatchers.IO),
         q.selectDiaryThreadAttachments(rootId).asFlow().mapToList(Dispatchers.IO),
         q.selectDiaryThreadRevision(rootId).asFlow().mapToOneOrNull(Dispatchers.IO),
@@ -66,8 +66,8 @@ class DiaryThreadRepository(
     ) { root, replies, attachments, revision, summary ->
         val main = root?.takeIf { it.parent_diary_id == null } ?: return@combine null
         DiaryThreadSnapshot(
-            root = main,
-            entries = listOf(main) + replies,
+            root = DiaryImages(db).project(main,attachments),
+            entries = (listOf(main) + replies).map { DiaryImages(db).project(it,attachments) },
             attachments = attachments,
             revision = revision?.revision ?: 0L,
             pendingAttachmentCount = pendingThreadAttachmentCount(attachments),
@@ -87,8 +87,8 @@ class DiaryThreadRepository(
             "Diary $rootId is not an existing root diary"
         }
         val now = Clock.System.now().toEpochMilliseconds()
-        q.insertDiaryReply(content, null, mood, images, now, now, rootId)
-        lastInsertRowId()
+        q.insertDiaryReply(content, mood, now, now, rootId)
+        lastInsertRowId().also { DiaryImages(db).replace(it,images) }
     }
 
     /** 只清理没有任何真实正文、图片或附件的续写，避免误删录音成果。 */
@@ -96,8 +96,8 @@ class DiaryThreadRepository(
         val reply = q.selectDiaryById(replyId).executeAsOneOrNull()
         if (reply == null || reply.parent_diary_id == null) return@transactionWithResult false
         if (reply.hasRenderableThreadContent()) return@transactionWithResult false
-        if (!reply.images.isNullOrBlank()) return@transactionWithResult false
         if (q.selectAttachmentsForDiary(replyId).executeAsList().isNotEmpty()) return@transactionWithResult false
+        DiaryTagStore(db).deleteDomain(replyId)
         q.deleteDiary(replyId)
         true
     }

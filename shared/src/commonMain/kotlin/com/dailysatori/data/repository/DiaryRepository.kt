@@ -6,7 +6,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.platform.FileManager
 import com.dailysatori.shared.db.DailySatoriDatabase
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -23,12 +23,12 @@ class DiaryRepository(
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Diary>> =
-        q.selectDiaryRoots().asFlow().mapToList(Dispatchers.IO)
+        DiaryImages(db).observe(q.selectDiaryRoots().asFlow().mapToList(Dispatchers.IO))
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Diary>> =
-        q.selectDiaryRootsPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
+        DiaryImages(db).observe(q.selectDiaryRootsPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO))
 
-    fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()
+    fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()?.let(DiaryImages(db)::project)
 
     fun search(query: String): Flow<List<Diary>> {
         val matches = if (query.isBlank()) {
@@ -36,14 +36,14 @@ class DiaryRepository(
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
         }
-        if (query.isBlank()) return matches
-        return combine(matches, getAll(), q.selectAllSettings().asFlow()) { found, all, _ ->
+        if (query.isBlank()) return DiaryImages(db).observe(matches)
+        return combine(DiaryImages(db).observe(matches), getAll(), DiaryTagStore(db).signal()) { found, all, _ ->
             includeTagAliases(found, all, query)
         }
     }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Diary>> =
-        q.selectDiaryRootsByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO)
+        DiaryImages(db).observe(q.selectDiaryRootsByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO))
 
     fun insert(
         content: String,
@@ -52,7 +52,12 @@ class DiaryRepository(
         images: String? = null,
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.insertDiary(content, tags, mood, images, now, now)
+        q.transaction {
+            q.insertDiary(content, mood, now, now)
+            val id=lastInsertRowId()
+            DiaryTagStore(db).initializeImported(id,com.dailysatori.service.diary.parseDiaryTags(tags))
+            DiaryImages(db).replace(id, images)
+        }
     }
 
     suspend fun create(
@@ -62,8 +67,11 @@ class DiaryRepository(
         images: String? = null,
     ): Long = q.transactionWithResult {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.insertDiary(content, tags, mood, images, now, now)
-        lastInsertRowId()
+        q.insertDiary(content, mood, now, now)
+        lastInsertRowId().also {
+            DiaryTagStore(db).initializeImported(it,com.dailysatori.service.diary.parseDiaryTags(tags))
+            DiaryImages(db).replace(it, images)
+        }
     }
 
     private fun lastInsertRowId(): Long =
@@ -80,7 +88,20 @@ class DiaryRepository(
         images: String?,
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.updateDiary(content, tags, mood, images, now, id)
+        val removed = q.transactionWithResult {
+            val diary=q.selectDiaryById(id).executeAsOneOrNull() ?: return@transactionWithResult emptyList<String>()
+            val store=DiaryTagStore(db)
+            val desired=com.dailysatori.service.diary.parseDiaryTags(tags)
+            if(desired!=store.tags(id)) {
+                val state=store.state(id)
+                store.save(id,desired,state.copy(automatic=state.automatic.filter { it in desired },
+                    suppressed=(state.suppressed+state.automatic.filterNot { it in desired }).distinct().filterNot { it in desired },
+                    revision=state.revision+1))
+            }
+            q.updateDiary(content, mood, now, id)
+            DiaryImages(db).replace(id, images)
+        }
+        deleteUnreferencedMedia(db, fileManager, removed)
     }
 
     /** Compare and save in one transaction so an AI request cannot overwrite editor changes. */
@@ -90,7 +111,7 @@ class DiaryRepository(
             return@transactionWithResult false
         }
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.updateDiary("# $title\n\n${current.content}", current.tags, current.mood, current.images, now, current.id)
+        q.updateDiary("# $title\n\n${current.content}", current.mood, now, current.id)
         true
     }
 
@@ -110,20 +131,18 @@ class DiaryRepository(
                 settings.delete("diary_polished_transcript_v1:${attachment.id}")
                 q.deleteDiaryAttachmentById(attachment.id)
             }
-            val paths = attachments.map { it.local_path } + (listOfNotNull(root) + replies).flatMap { diaryImagePaths(it.images) }
+            val paths = attachments.map { it.local_path }
+            (replies.map { it.id }+id).forEach { DiaryTagStore(db).deleteDomain(it) }
             replies.forEach { reply -> q.deleteDiary(reply.id) }
             q.deleteDiary(id)
             paths
         }
-        attachmentPaths.filter { it.isNotBlank() }.forEach { path -> fileManager?.deleteAppOwnedFile(path) }
+        deleteUnreferencedMedia(db, fileManager, attachmentPaths)
     }
-
-    private fun diaryImagePaths(images: String?): List<String> =
-        images.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
     fun count(): Long = q.diaryRootCount().executeAsOne()
 
-    fun getAllSync(): List<Diary> = q.selectDiaryRoots().executeAsList()
+    fun getAllSync(): List<Diary> = DiaryImages(db).project(q.selectDiaryRoots().executeAsList())
 
     fun searchSync(query: String): List<Diary> {
         val matches = if (query.isBlank()) {
@@ -131,20 +150,18 @@ class DiaryRepository(
         } else {
             q.searchDiariesFts(query.toFtsPhraseQuery(), query).executeAsList()
         }
-        return if (query.isBlank()) matches else includeTagAliases(matches, getAllSync(), query)
+        return if (query.isBlank()) DiaryImages(db).project(matches) else includeTagAliases(DiaryImages(db).project(matches), getAllSync(), query)
     }
 
     private fun includeTagAliases(found: List<Diary>, all: List<Diary>, query: String): List<Diary> {
-        val stored = q.selectSettingByKey("diary_tag_vocabulary_v1").executeAsOneOrNull()?.value_
-        val vocabulary = stored?.let { runCatching { Json.decodeFromString<DiaryTagVocabulary>(it) }.getOrNull() }
-            ?: DiaryTagVocabulary()
+        val vocabulary = DiaryTagStore(db).vocabulary()
         return (found + all.filter { matchesDiaryTag(it.tags, query.trim().removePrefix("#"), vocabulary) })
             .distinctBy { it.id }.sortedByDescending { it.created_at }
     }
 
     fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
-        q.selectDiaryRootsByDateRange(startMs, endMs).executeAsList()
+        DiaryImages(db).project(q.selectDiaryRootsByDateRange(startMs, endMs).executeAsList())
 
     fun getLatestSync(limit: Int = 5): List<Diary> =
-        q.selectDiaryRootsPaginated(limit.toLong(), 0).executeAsList()
+        DiaryImages(db).project(q.selectDiaryRootsPaginated(limit.toLong(), 0).executeAsList())
 }

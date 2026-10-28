@@ -32,7 +32,7 @@ class DiaryThreadConsumersTest {
     @Test
     fun tagsSeeReplyButKeepManualPolicy() = withFixture { fixture ->
         val rootId = fixture.root("原始想法")
-        fixture.db.dailySatoriQueries.updateDiaryTags("手动标签", rootId)
+        fixture.tags.edit(rootId,listOf("手动标签"))
         fixture.reply(rootId, "我现在改主意了")
 
         val snapshot = requireNotNull(fixture.tags.prepare(rootId))
@@ -42,7 +42,7 @@ class DiaryThreadConsumersTest {
         assertTrue(fixture.tags.apply(snapshot, listOf("自动标签辉")))
         assertEquals(
             listOf("手动标签", "自动标签辉"),
-            parseDiaryTags(fixture.db.dailySatoriQueries.selectDiaryById(rootId).executeAsOne().tags),
+            fixture.tags.tags(rootId),
         )
     }
 
@@ -56,7 +56,7 @@ class DiaryThreadConsumersTest {
         assertFalse(fixture.tags.apply(snapshotBeforeReply, listOf("旧标签")))
         val refreshed = requireNotNull(fixture.tags.prepare(rootId, force = true))
         assertTrue(fixture.tags.apply(refreshed, listOf("新标签")))
-        assertEquals("新标签", fixture.db.dailySatoriQueries.selectDiaryById(rootId).executeAsOne().tags)
+        assertEquals(listOf("新标签"), fixture.tags.tags(rootId))
     }
 
     @Test
@@ -197,12 +197,12 @@ class DiaryThreadConsumersTest {
         val tags: DiaryTagRepository,
     ) {
         fun root(content: String, createdAt: Long = 1_000): Long {
-            db.dailySatoriQueries.insertDiary(content, null, null, null, createdAt, createdAt)
+            db.dailySatoriQueries.insertDiary(content, null, createdAt, createdAt)
             return db.dailySatoriQueries.selectAllDiaries().executeAsList().maxBy { it.id }.id
         }
 
         fun reply(rootId: Long, content: String, createdAt: Long = 2_000): Long {
-            db.dailySatoriQueries.insertDiaryReply(content, null, null, null, createdAt, createdAt, rootId)
+            db.dailySatoriQueries.insertDiaryReply(content, null, createdAt, createdAt, rootId)
             return db.dailySatoriQueries.selectDiaryRepliesForRoot(rootId).executeAsList().last().id
         }
     }

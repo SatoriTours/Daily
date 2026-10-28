@@ -32,6 +32,7 @@ fun ReminderBatchPreview(
     onConfirmItem: (String) -> Unit,
     onUpdateItem: (String, (ReminderBatchUiItem) -> ReminderBatchUiItem) -> Unit,
     modifier: Modifier = Modifier,
+    onRetrySchedule: ((String) -> Unit)? = null,
 ) {
     val savedCount = batch.items.values.count { it.saveStatus == BatchSaveStatus.SAVED }
     val failedCount = batch.items.values.count { it.saveStatus == BatchSaveStatus.FAILED }
@@ -47,7 +48,7 @@ fun ReminderBatchPreview(
         if (savedCount > 0 || failedCount > 0) Text(stringResource(R.string.reminder_batch_result_summary, savedCount, failedCount))
         batch.failure?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
         batch.items.values.forEachIndexed { index, item ->
-            BatchReminderCard(index + 1, item, profiles, onToggleItem, onRemoveItem, onConfirmItem, onUpdateItem)
+            BatchReminderCard(index + 1, item, profiles, onToggleItem, onRemoveItem, onConfirmItem, onUpdateItem, onRetrySchedule)
         }
     }
 }
@@ -61,6 +62,7 @@ private fun BatchReminderCard(
     onRemoveItem: (String) -> Unit,
     onConfirmItem: (String) -> Unit,
     onUpdateItem: (String, (ReminderBatchUiItem) -> ReminderBatchUiItem) -> Unit,
+    onRetrySchedule: ((String) -> Unit)?,
 ) {
     var editing by remember(item.id) { mutableStateOf(item.parseError != null || item.draft.validationErrors.isNotEmpty()) }
     val saved = item.saveStatus == BatchSaveStatus.SAVED
@@ -79,11 +81,16 @@ private fun BatchReminderCard(
             Text(stringResource(R.string.reminder_batch_review_work_quiet), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             item.parseError?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
             item.saveError?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
+            if(item.canRetrySchedule && onRetrySchedule!=null) {
+                TextButton(onClick={ onRetrySchedule(item.id) }) {
+                    Text(stringResource(R.string.assistant_task_retry_btn))
+                }
+            }
             if (!editing && !saved && item.draft.validationErrors.isNotEmpty()) {
                 Text(item.draft.validationHint(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             when {
-                saved -> Text(stringResource(R.string.reminder_batch_saved_read_only), style = MaterialTheme.typography.bodySmall)
+                saved || item.createdReminderId!=null && !item.isSaving -> Text(stringResource(R.string.reminder_batch_saved_read_only), style = MaterialTheme.typography.bodySmall)
                 item.isSaving -> Text(stringResource(R.string.reminder_batch_editing_disabled), style = MaterialTheme.typography.bodySmall)
                 else -> {
                     TextButton(onClick = { editing = !editing }) {
@@ -121,7 +128,7 @@ private fun ReminderDraftUiState.validationHint(): String = stringResource(when 
 @Composable
 private fun BatchReminderCardHeader(ordinal: Int, item: ReminderBatchUiItem, onToggleItem: (String) -> Unit, onRemoveItem: (String) -> Unit) {
     var showMenu by remember(item.id) { mutableStateOf(false) }
-    val editable = item.saveStatus in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED)
+    val editable = item.createdReminderId==null && item.saveStatus in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         IconToggleButton(
             checked = item.selected, onCheckedChange = { onToggleItem(item.id) },

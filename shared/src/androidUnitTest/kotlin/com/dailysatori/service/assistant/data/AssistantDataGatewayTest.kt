@@ -8,6 +8,20 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class AssistantDataGatewayTest {
+    @Test fun diaryTagProjectionUsesCurrentRelationsNotRetiredCsv() = runBlocking<Unit> {
+        withGateway { data,driver ->
+            val db=DailySatoriDatabase(driver)
+            val diaries=com.dailysatori.data.repository.DiaryRepository(db,driver)
+            diaries.insert("body","current")
+            assertFails { driver.execute(null,"UPDATE diary SET tags='retired'",0) }
+            assertEquals("current",data.query(AssistantQuery("diary",fields=listOf("tags")))["rows"]!!
+                .jsonArray.single().jsonObject["tags"]!!.jsonPrimitive.content)
+            assertTrue(data.search("retired",sources=listOf("diary"))["rows"]!!.jsonArray.isEmpty())
+            assertEquals(1,data.search("current",sources=listOf("diary"))["rows"]!!.jsonArray.size)
+            assertFalse(data.query(AssistantQuery("diary_tag_history"))["ok"]!!.jsonPrimitive.boolean)
+        }
+    }
+
     @Test
     fun everyCatalogProjectionCanActuallyBeQueriedAndNewFieldsRemainClosed() = runBlocking<Unit> {
         withGateway { data, driver ->
@@ -74,7 +88,9 @@ class AssistantDataGatewayTest {
             assertTrue(tail["snippet"]!!.jsonPrimitive.content.contains("尾部独特喜好"))
             assertTrue(tail["offset"]!!.jsonPrimitive.int > 6000)
             assertEquals(26, data.query(AssistantQuery("diary", limit = Int.MAX_VALUE))["rows"]!!.jsonArray.size)
-            driver.execute(null, "INSERT INTO reminder(id,content,status,start_date,end_date,first_reminder_time,active_day_rule,time_zone_id,profile_json,created_at,updated_at) VALUES ('todo-uuid','去香山','ACTIVE','2026-10-24','2026-10-24','10:00','daily','Asia/Shanghai','{}',1,1)", 0)
+            driver.execute(null, "INSERT INTO reminder(id,content,status,start_date,end_date,first_reminder_time,active_day_rule,time_zone_id,policy_snapshot_id,created_at,updated_at) VALUES ('todo-uuid','去香山','ACTIVE','2026-10-24','2026-10-24','10:00','daily','Asia/Shanghai',?,1,1)", 1) {
+                bindString(0,com.dailysatori.data.repository.ReminderPolicySnapshots(com.dailysatori.shared.db.DailySatoriDatabase(driver)).intern("{}"))
+            }
             assertTrue(data.read("reminder", "todo-uuid")["ok"]!!.jsonPrimitive.boolean)
             AssistantPrivacyRepository(driver).exclude("reminder", "todo-uuid")
             assertFalse(data.read("reminder", "todo-uuid")["ok"]!!.jsonPrimitive.boolean)

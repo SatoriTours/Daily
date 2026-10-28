@@ -30,7 +30,7 @@ import com.dailysatori.shared.db.Idea_topic
 import com.dailysatori.shared.db.Idea_topic_event
 import com.dailysatori.shared.db.Idea_topic_message
 import com.dailysatori.shared.db.Idea_topic_session
-import com.dailysatori.shared.db.Idea_topic_source
+import com.dailysatori.shared.db.Idea_source_record
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -77,10 +77,10 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
     fun observeDetail(topicId: String): Flow<IdeaTopicDetail?> = combine(
         q.selectIdeaTopicById(topicId).asFlow().mapToOneOrNull(Dispatchers.IO),
         q.selectIdeaTopicSourcesByTopic(topicId).asFlow().mapToList(Dispatchers.IO),
-        q.selectIdeaTopicEventsByTopic(topicId).asFlow().mapToList(Dispatchers.IO),
+        q.selectIdeaTopicEventsForRead(topicId).asFlow().mapToList(Dispatchers.IO),
         q.selectIdeaTopicSessionsByTopic(topicId).asFlow().mapToList(Dispatchers.IO),
     ) { topic, sources, events, sessions ->
-        topic?.let { toDetail(it, sources, events, sessions) }
+        topic?.let { toDetail(it,sources,com.dailysatori.service.ideatopic.readIdeaEvents(events),sessions) }
     }
 
     fun getDetailSync(topicId: String): IdeaTopicDetail? = q.transactionWithResult {
@@ -88,7 +88,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         toDetail(
             topic = topic,
             sources = q.selectIdeaTopicSourcesByTopic(topicId).executeAsList(),
-            events = q.selectIdeaTopicEventsByTopic(topicId).executeAsList(),
+            events = com.dailysatori.service.ideatopic.readIdeaEvents(q.selectIdeaTopicEventsForRead(topicId).executeAsList()),
             sessions = q.selectIdeaTopicSessionsByTopic(topicId).executeAsList(),
         )
     }
@@ -115,7 +115,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         while (guard++ < 64) {
             val row = q.selectIdeaTopicById(current).executeAsOneOrNull() ?: return null
             val next = row.merged_into_topic_id ?: return current
-            if (next == current) return current
+            if (next == current) throw IdeaTopicException(IdeaTopicError.StorageFailure)
             current = next
         }
         throw IdeaTopicException(IdeaTopicError.StorageFailure)
@@ -160,7 +160,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         q.selectIdeaTopicMessagesByStatus(com.dailysatori.service.ideatopic.IdeaMessageStatus.Pending).executeAsList()
 
     fun eventsByTopicSync(topicId: String): List<IdeaTopicEvent> =
-        q.selectIdeaTopicEventsByTopic(topicId).executeAsList().map(::toEvent)
+        com.dailysatori.service.ideatopic.readIdeaEvents(q.selectIdeaTopicEventsForRead(topicId).executeAsList())
 
     fun sessionsByTopicSync(topicId: String): List<IdeaTopicSession> =
         q.selectIdeaTopicSessionsByTopic(topicId).executeAsList().map(::toSession)
@@ -255,7 +255,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             original_topic_id = originalTopicId,
             source_type = source.key.type,
             source_record_id = source.key.recordId,
-            snapshot_json = json.encodeToString(IdeaSourceSnapshot.serializer(), source),
+            snapshot_id = IdeaSnapshots(db).intern(json.encodeToString(IdeaSourceSnapshot.serializer(), source),createdAt=now),
             captured_at = now,
             created_at = now,
             updated_at = now,
@@ -271,6 +271,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             ),
             created_at = now,
         )
+        IdeaSnapshots(db).normalizeEvent(newEventId)
         com.dailysatori.service.ideatopic.IdeaCaptureResult(topicId, alreadyCaptured = false)
     }
 
@@ -349,13 +350,13 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         val into = q.selectIdeaTopicById(intoTopicId).executeAsOneOrNull()
             ?: throw IdeaTopicException(IdeaTopicError.NotFound)
 
-        val duplicateSnapshots = mutableListOf<IdeaSourceSnapshot>()
+        val duplicateSnapshots = mutableListOf<String>()
         val targetKeys = q.selectIdeaTopicSourcesByTopic(intoTopicId).executeAsList()
             .map { it.source_type to it.source_record_id }
             .toSet()
         q.selectIdeaTopicSourcesByTopic(fromTopicId).executeAsList().forEach { source ->
             if ((source.source_type to source.source_record_id) in targetKeys) {
-                decodeOrNull<IdeaSourceSnapshot>(source.snapshot_json)?.let { duplicateSnapshots += it }
+                duplicateSnapshots += source.snapshot_id
                 q.deleteIdeaTopicSource(source.id)
             } else {
                 q.moveIdeaTopicSource(topic_id = intoTopicId, updated_at = now, id = source.id)
@@ -381,17 +382,24 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
                     intoTopicId = intoTopicId,
                     intoTitle = into.title,
                     intoContent = into.toContent(),
-                    duplicateSourceSnapshots = duplicateSnapshots,
+                    duplicateSourceSnapshots = emptyList(),
                 ),
             ),
             created_at = now,
         )
+        val mergePayload=q.selectIdeaTopicEventById(eventId).executeAsOne().payload_json
+        // Use existing snapshot IDs so unknown historical fields never pass through a model encoder.
+        val cleaned=if(duplicateSnapshots.isEmpty()) mergePayload
+            else com.dailysatori.service.ideatopic.IdeaSnapshotJson.withoutEmptyDuplicates(mergePayload)
+        IdeaSnapshots(db).setEvent(eventId,cleaned,"merged_duplicate",duplicateSnapshots)
         q.markIdeaTopicMergedInto(merged_into_topic_id = intoTopicId, updated_at = now, id = fromTopicId)
         bumpRevisionInternal(intoTopicId, now)
     }
 
     fun deleteComponent(mainTopicId: String) = q.transactionWithResult {
-        componentTopicIdsSync(mainTopicId).forEach { topicId ->
+        val component=componentTopicIdsSync(mainTopicId)
+        component.forEach { q.markIdeaTopicMergedInto(null,0,it) }
+        component.forEach { topicId ->
             q.selectIdeaTopicSessionsByTopic(topicId).executeAsList().forEach { session ->
                 q.selectIdeaTopicMessagesBySession(session.id).executeAsList().forEach { message ->
                     q.deleteIdeaTopicMessage(message.id)
@@ -399,7 +407,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
                 q.deleteIdeaTopicSession(session.id)
             }
             q.selectIdeaTopicSourcesByTopic(topicId).executeAsList().forEach { q.deleteIdeaTopicSource(it.id) }
-            q.selectIdeaTopicEventsByTopic(topicId).executeAsList().forEach { q.deleteIdeaTopicEvent(it.id) }
+            q.selectIdeaTopicEventsByTopic(topicId).executeAsList().forEach { q.deleteIdeaEventSnapshots(it.id);q.deleteIdeaTopicEvent(it.id) }
             q.deleteIdeaTopic(topicId)
         }
     }
@@ -644,14 +652,14 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
 
     private fun toDetail(
         topic: Idea_topic,
-        sources: List<Idea_topic_source>,
-        events: List<Idea_topic_event>,
+        sources: List<Idea_source_record>,
+        events: List<IdeaTopicEvent>,
         sessions: List<Idea_topic_session>,
     ): IdeaTopicDetail {
         val latestProgress = events
             .filter { it.kind == IdeaEventKinds.Progress }
-            .maxWithOrNull(compareBy<Idea_topic_event>({ it.created_at }, { it.id }))
-            ?.let { decodeProgressText(it.payload_json) }
+            .maxWithOrNull(compareBy<IdeaTopicEvent>({ it.createdAt }, { it.id }))
+            ?.let { decodeProgressText(it.payload) }
         return IdeaTopicDetail(
             topic = IdeaTopicSummary(
                 id = topic.id,
@@ -663,7 +671,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
             ),
             contextRevision = topic.context_revision,
             sources = sources.map(::toSource),
-            events = events.map(::toEvent),
+            events = events,
             sessions = sessions.map(::toSession),
         )
     }
@@ -678,7 +686,7 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
 
     private fun Idea_topic.originalOwnerId(): String = id
 
-    private fun toSource(row: Idea_topic_source) = IdeaTopicSource(
+    private fun toSource(row: Idea_source_record) = IdeaTopicSource(
         id = row.id,
         topicId = row.topic_id,
         originalTopicId = row.original_topic_id,
@@ -686,19 +694,10 @@ class IdeaTopicRepository(private val db: DailySatoriDatabase) {
         capturedAt = row.captured_at,
     )
 
-    private fun emptySnapshot(row: Idea_topic_source) = IdeaSourceSnapshot(
+    private fun emptySnapshot(row: Idea_source_record) = IdeaSourceSnapshot(
         key = IdeaSourceKey(row.source_type, row.source_record_id),
         originalTitle = "",
         originalContent = "",
-    )
-
-    private fun toEvent(row: Idea_topic_event) = IdeaTopicEvent(
-        id = row.id,
-        topicId = row.topic_id,
-        originalTopicId = row.original_topic_id,
-        kind = row.kind,
-        payload = row.payload_json,
-        createdAt = row.created_at,
     )
 
     private fun toSession(row: Idea_topic_session) = IdeaTopicSession(

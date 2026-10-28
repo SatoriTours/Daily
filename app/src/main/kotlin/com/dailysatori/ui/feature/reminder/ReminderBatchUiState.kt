@@ -30,6 +30,7 @@ data class ReminderBatchUiItem(
     val saveError: String? = null,
 ) {
     val canSave: Boolean get() = selected && !requiresConfirmation && saveStatus in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED) && draft.confirmationPayload() != null
+    val canRetrySchedule:Boolean get()=saveStatus==BatchSaveStatus.FAILED && createdReminderId!=null
     val isSaving: Boolean get() = saveStatus == BatchSaveStatus.SAVING
 }
 
@@ -56,12 +57,12 @@ data class ReminderBatchUiState(
 
     fun removeItem(id: String): ReminderBatchUiState {
         val item = items[id] ?: return this
-        return if (item.saveStatus !in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED)) this else copy(items = items - id)
+        return if (item.createdReminderId!=null || item.saveStatus !in setOf(BatchSaveStatus.PENDING, BatchSaveStatus.FAILED)) this else copy(items = items - id)
     }
 
     fun updateItem(id: String, transform: (ReminderBatchUiItem) -> ReminderBatchUiItem): ReminderBatchUiState {
         val item = items[id] ?: return this
-        if (item.saveStatus in setOf(BatchSaveStatus.SAVING, BatchSaveStatus.SAVED)) return this
+        if (item.createdReminderId!=null || item.saveStatus in setOf(BatchSaveStatus.SAVING, BatchSaveStatus.SAVED)) return this
         val updated = transform(item)
         val recovered = if (item.parseError != null && updated.draft.confirmationPayload() != null) {
             updated.copy(parseError = null, requiresConfirmation = false, selected = true)

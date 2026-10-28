@@ -287,15 +287,13 @@ class ImportService(
             val oldId = obj.getLong("id") ?: return@forEach
             val imagesStr = obj.getString("images")
             val remappedImages = remapDiaryImages(imagesStr)
-            insertAndGetNewId("diary", oldId) {
-                db.dailySatoriQueries.insertDiary(
-                    obj.getString("content") ?: "",
-                    obj.getString("tags"),
-                    obj.getString("mood"),
-                    remappedImages,
-                    obj.getEpochMs("created_at") ?: nowMs(),
-                    obj.getEpochMs("updated_at") ?: nowMs(),
-                )
+            db.dailySatoriQueries.transaction {
+                val newId = insertAndGetNewId("diary", oldId) {
+                    db.dailySatoriQueries.insertDiary(obj.getString("content") ?: "", obj.getString("mood"), obj.getEpochMs("created_at") ?: nowMs(), obj.getEpochMs("updated_at") ?: nowMs())
+                }
+                com.dailysatori.data.repository.DiaryTagStore(db).initializeImported(newId,
+                    com.dailysatori.service.diary.parseDiaryTags(obj.getString("tags")))
+                com.dailysatori.data.repository.DiaryImages(db).initializeImported(newId,remappedImages)
             }
             count++
         }

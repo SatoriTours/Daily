@@ -38,6 +38,7 @@ enum class AsyncTaskType(val displayName: String) {
     diary_tag_generate("日记自动标签"),
     diary_thread_summarize("日记续写汇总"),
     reminder_ai_parse("提醒智能解析"),
+    reminder_schedule("提醒调度"),
     sms_reminder_parse("短信生成待办"),
     news_opportunity_analysis("新闻机会点分析"),
 }

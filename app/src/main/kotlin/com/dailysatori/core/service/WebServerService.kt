@@ -265,10 +265,7 @@ class WebServerService(private val ctx: Context) {
 
     private fun diaryImagesToJson(images: String?): JsonArray {
         if (images.isNullOrBlank()) return JsonArray(emptyList())
-        val list = images.split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && it != "null" && !it.endsWith("/null") }
-            .map { fileUrl(it) }
+        val list = com.dailysatori.service.diary.parseDiaryImagePaths(images).map { fileUrl(it) }
         return JsonArray(list.map { JsonPrimitive(it) })
     }
 

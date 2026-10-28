@@ -163,20 +163,7 @@ class PersistentAssistantConversation(
     }
 
     override fun deleteMessage(messageId: Long) {
-        store.transaction {
-            val turnId = store.rows("SELECT id FROM assistant_turn WHERE id=? OR response_message_id=?", messageId, messageId) { it.getLong(0)!! }.firstOrNull()
-            if (turnId != null) {
-                val turn = requireNotNull(turns.get(turnId))
-                turns.cancel(turnId)
-                turn.responseMessageId?.let { privacy.deleteChatMessage(it.toString()) }
-                store.exec("DELETE FROM assistant_reference WHERE turn_id=?", turnId)
-                store.exec("DELETE FROM assistant_index_segment WHERE source_id=?", turnId)
-                // Keep minimal action identity/target links, not quotations or input copies. Business objects survive.
-                store.exec("UPDATE assistant_action SET parameters_json='{}' WHERE turn_id=?", turnId)
-                store.exec("UPDATE assistant_turn SET action_plan_json='',context_json='' WHERE id=?", turnId)
-                privacy.deleteChatMessage(turnId.toString())
-            } else privacy.deleteChatMessage(messageId.toString())
-        }
+        privacy.deleteConversationMessage(messageId)
         store.changed()
     }
 

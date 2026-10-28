@@ -64,7 +64,7 @@ import com.dailysatori.core.util.diaryImagePaths
 import com.dailysatori.core.util.diaryTags
 import com.dailysatori.core.util.stripDiaryInlineTags
 import com.dailysatori.service.diary.DiaryThreadOverview
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.feature.diary.DiaryAttachmentList
 import com.dailysatori.ui.feature.diary.resolveDiaryCardBodyPresentation
@@ -398,11 +398,11 @@ internal fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File, expanded: 
 
 @Composable
 internal fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, photoCount: Int? = null) {
-    val file = File(filesDir, "DailySatori/$path")
-    if (!file.exists()) return
+    val imageModel = com.dailysatori.core.util.diaryImageModel(path, filesDir)
+    if (!imageModel.startsWith("http://") && !imageModel.startsWith("https://") && !File(imageModel).exists()) return
     Box(modifier = modifier.clip(RoundedCornerShape(Radius.s))) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(file).crossfade(true).build(),
+            model = ImageRequest.Builder(LocalContext.current).data(imageModel).crossfade(true).build(),
             contentDescription = "日记图片",
             contentScale = ContentScale.Crop,
             modifier = Modifier.matchParentSize(),

@@ -11,6 +11,8 @@ class AssistantProductTest {
     @Test fun v37PhysicalSchemaMigratesProductColumnsWithoutLosingExistingBusinessData() {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.ReminderLegacyFixture.installLegacyTables(driver)
+            com.dailysatori.service.migration.AssistantLegacyFixture.install(driver)
             val db = DailySatoriDatabase(driver)
             val chats = ChatConversationRepository(db)
             val original = chats.acceptUserInput("old-session","迁移前用户原文")
@@ -27,7 +29,7 @@ class AssistantProductTest {
             settings.upsert("assistant-migration-sentinel","保留原设置")
             settings.upsert(com.dailysatori.config.SettingKeys.schemaVersion,"37")
             com.dailysatori.service.migration.DatabaseMigration(driver,settings).runMigrations()
-            assertEquals("38",settings.get(com.dailysatori.config.SettingKeys.schemaVersion))
+            assertEquals(com.dailysatori.config.DatabaseConfig.currentSchemaVersion.toString(),settings.get(com.dailysatori.config.SettingKeys.schemaVersion))
             assertEquals("保留原设置",settings.get("assistant-migration-sentinel"))
             assertEquals("迁移前用户原文",chats.getById(original)?.content)
             assertEquals("旧记忆正文",AssistantStore(driver).text("SELECT content FROM memory_entry WHERE source_id=7"))

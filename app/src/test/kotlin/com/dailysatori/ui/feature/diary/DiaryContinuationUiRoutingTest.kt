@@ -3,7 +3,7 @@ package com.dailysatori.ui.feature.diary
 import com.dailysatori.service.diary.DiaryThreadOverview
 import com.dailysatori.service.diary.DiaryThreadSummary
 import com.dailysatori.service.diary.DiaryThreadSummaryStatus
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals

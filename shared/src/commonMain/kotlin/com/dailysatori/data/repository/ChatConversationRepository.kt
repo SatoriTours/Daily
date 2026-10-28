@@ -3,7 +3,7 @@ package com.dailysatori.data.repository
 import com.dailysatori.shared.db.Chat_conversation
 import com.dailysatori.shared.db.DailySatoriDatabase
 
-class ChatConversationRepository(private val db: DailySatoriDatabase) {
+class ChatConversationRepository(private val db: DailySatoriDatabase,private val privacy:com.dailysatori.service.assistant.AssistantPrivacyRepository?=null) {
     private val q get() = db.dailySatoriQueries
 
     fun getById(id: Long): Chat_conversation? = q.selectChatById(id).executeAsOneOrNull()
@@ -15,7 +15,10 @@ class ChatConversationRepository(private val db: DailySatoriDatabase) {
         q.selectLatestChatBySession(sessionId, limit).executeAsList().asReversed()
 
     fun getBefore(sessionId: String, beforeCreatedAt: Long, limit: Long): List<Chat_conversation> =
-        q.selectChatBefore(sessionId, beforeCreatedAt, limit).executeAsList().asReversed()
+        q.selectChatBefore(sessionId, beforeCreatedAt, Long.MIN_VALUE,limit).executeAsList().asReversed()
+
+    fun getBefore(sessionId:String,beforeCreatedAt:Long,beforeId:Long,limit:Long):List<Chat_conversation> =
+        q.selectChatBefore(sessionId,beforeCreatedAt,beforeId,limit).executeAsList().asReversed()
 
     fun getSessions(): List<String> =
         q.selectChatSessions().executeAsList()
@@ -27,7 +30,9 @@ class ChatConversationRepository(private val db: DailySatoriDatabase) {
         searchResults: String? = null,
         steps: String? = null,
         createdAt: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-    ) {
+    ) = q.transaction {
+        require(sessionId.isNotBlank())
+        q.ensureChatSession(sessionId,createdAt)
         q.insertChat(sessionId, role, content, searchResults, steps, createdAt)
     }
 
@@ -38,9 +43,15 @@ class ChatConversationRepository(private val db: DailySatoriDatabase) {
         q.selectLastInsertedChatId().executeAsOne()
     }
 
-    fun deleteBySession(sessionId: String) =
-        q.deleteChatBySession(sessionId)
+    fun deleteMessage(id:Long) = checkNotNull(privacy) { "Privacy deletion owner required" }.deleteConversationMessage(id)
 
-    fun deleteMessage(sessionId: String, role: String, content: String, createdAt: Long) =
-        q.deleteChatMessage(sessionId, role, content, createdAt)
+    fun deleteBySession(sessionId: String) = q.transaction {
+        getBySession(sessionId).forEach { deleteMessage(it.id) }
+    }
+
+    fun deleteMessage(sessionId: String, role: String, content: String, createdAt: Long) {
+        val matches=getBySession(sessionId).filter { it.role==role && it.content==content && it.created_at==createdAt }
+        require(matches.size<=1) { "Ambiguous message identity; delete by ID" }
+        matches.singleOrNull()?.let { deleteMessage(it.id) }
+    }
 }

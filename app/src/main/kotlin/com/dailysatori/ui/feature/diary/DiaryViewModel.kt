@@ -25,7 +25,7 @@ import com.dailysatori.service.diary.DiaryTagDraft
 import com.dailysatori.service.diary.DiaryPolishedTranscript
 import com.dailysatori.service.diary.DiaryTagVocabulary
 import com.dailysatori.service.diary.matchesDiaryTag
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.shared.db.Diary_attachment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

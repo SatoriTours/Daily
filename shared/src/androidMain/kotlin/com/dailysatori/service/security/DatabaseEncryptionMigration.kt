@@ -11,7 +11,11 @@ internal class DatabaseEncryptionMigration(private val context: PlatformContext)
     private val keys = DatabaseKeyStore(context)
     private val database get() = context.context.getDatabasePath("daily_satori.db")
     private val root get() = File(context.context.noBackupFilesDir, "database-install")
-    internal fun transaction() = DatabaseInstallTransaction(root, database, File(keys.storagePath()))
+    internal fun transaction() = DatabaseInstallTransaction(root, database, File(keys.storagePath()),
+        validateInstalled = {
+            val key = keys.readExisting() ?: throw DatabaseSecurityException()
+            factory.createBackupDriver(database.path, key).useDriver { validate(it) }
+        })
 
     fun ensureEncrypted() {
         val existingKey = keys.readExisting()

@@ -46,7 +46,7 @@ class IdeaTopicTestFixture {
             original_topic_id = topicId,
             source_type = snapshot.key.type,
             source_record_id = snapshot.key.recordId,
-            snapshot_json = json.encodeToString(IdeaSourceSnapshot.serializer(), snapshot),
+            snapshot_id = com.dailysatori.data.repository.IdeaSnapshots(db).intern(json.encodeToString(IdeaSourceSnapshot.serializer(), snapshot),createdAt=capturedAt),
             captured_at = capturedAt,
             created_at = capturedAt,
             updated_at = capturedAt,
@@ -56,14 +56,14 @@ class IdeaTopicTestFixture {
     fun insertReminderDirect(id: String, content: String) {
         db.dailySatoriQueries.insertReminder(
             id, content, "", "ACTIVE", "2026-09-01", "2026-09-01", "09:00", "daily", "once", "UTC",
-            "{}", 0, null, 0, null, null, null, null, 1, 1,
+            com.dailysatori.data.repository.ReminderPolicySnapshots(db).intern("{}"), 0, null, 0, null, null, null, null, 1, 1,
         )
     }
 
     private val json = Json { ignoreUnknownKeys = true }
 
     fun createDiary(content: String, createdAt: Long = clockMs, tags: String? = null): Long {
-        db.dailySatoriQueries.insertDiary(content, tags, null, null, createdAt, createdAt)
+        db.dailySatoriQueries.insertDiary(content, null, createdAt, createdAt)
         return lastInsertRowId()
     }
 

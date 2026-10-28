@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.media.SmartImage
@@ -35,11 +35,7 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.mikepenz.markdown.m3.Markdown
 
-fun diaryReferenceImagePaths(images: String?): List<String> = images
-    ?.split(",")
-    ?.map { it.trim() }
-    ?.filter { it.isNotBlank() && it != "null" }
-    .orEmpty()
+fun diaryReferenceImagePaths(images: String?): List<String> = com.dailysatori.service.diary.parseDiaryImagePaths(images)
 
 fun diaryReferenceTags(tags: String?): List<String> = tags
     ?.split(",")
@@ -129,7 +125,7 @@ private fun DiaryReferenceSummary(diary: Diary) {
         if (imagePaths.isNotEmpty()) {
             Spacer(modifier = Modifier.height(Spacing.m))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                items(imagePaths, key = { it }) { imagePath ->
+                itemsIndexed(imagePaths) { _, imagePath ->
                     SmartImage(
                         imagePath = imagePath,
                         size = 96.dp,

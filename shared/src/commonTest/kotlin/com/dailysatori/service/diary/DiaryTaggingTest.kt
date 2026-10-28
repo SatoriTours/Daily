@@ -41,7 +41,7 @@ class DiaryTaggingTest {
     fun aliasOnlyMergeRefreshesAnAlreadyOpenSearch() = withDiary { tags, diaries, id ->
         tags.edit(id, listOf("焦虑"))
         runBlocking {
-            val results = Channel<List<com.dailysatori.shared.db.Diary>>(Channel.UNLIMITED)
+            val results = Channel<List<com.dailysatori.shared.db.Diary_record>>(Channel.UNLIMITED)
             val job = launch { diaries.search("压力").collect { results.send(it) } }
             try {
                 assertTrue(withTimeout(2_000) { results.receive() }.isEmpty())

@@ -127,7 +127,7 @@ val sharedModule: Module = module {
     single { BookRepository(get()) }
     single { BookViewpointAiRepository(get()) }
     single { BookViewpointRepository(get()) }
-    single { ChatConversationRepository(get()) }
+    single { ChatConversationRepository(get(),com.dailysatori.service.assistant.AssistantPrivacyRepository(get())) }
     single { com.dailysatori.service.assistant.AssistantTurnRepository(get()) }
     single { com.dailysatori.service.assistant.AssistantPrivacyRepository(get()) }
     single { com.dailysatori.service.assistant.data.AssistantDataGateway(get()) }

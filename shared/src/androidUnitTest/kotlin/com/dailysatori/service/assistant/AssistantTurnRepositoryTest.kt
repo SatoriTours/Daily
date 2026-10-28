@@ -128,6 +128,7 @@ class AssistantTurnRepositoryTest {
     }
 
     @Test fun migrationFromV36KeepsOriginalsAndExclusions() = fixture { driver, db, _, _ ->
+        com.dailysatori.service.migration.AssistantLegacyFixture.install(driver)
         val chats = ChatConversationRepository(db)
         val id = chats.acceptUserInput("legacy", "已有原文")
         AssistantPrivacyRepository(driver).exclude("chat", id.toString())

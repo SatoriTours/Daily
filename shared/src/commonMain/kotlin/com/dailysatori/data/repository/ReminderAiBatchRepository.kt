@@ -2,6 +2,8 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToOneOrNull
+import app.cash.sqldelight.coroutines.mapToList
+import kotlinx.coroutines.flow.combine
 import com.dailysatori.service.reminder.ReminderAiBatch
 import com.dailysatori.service.reminder.ReminderAiBatchDraft
 import com.dailysatori.service.reminder.ReminderAiBatchStatus
@@ -67,20 +69,89 @@ class ReminderAiBatchRepository(private val db: DailySatoriDatabase) {
         }
     }
 
-    fun updateDraftUiState(batchId: String, sourceIndex: Int, overrideJson: String, selected: Boolean, discarded: Boolean) {
-        q.updateReminderAiDraftUiState(overrideJson, if (selected) 1 else 0, if (discarded) 1 else 0, Clock.System.now().toEpochMilliseconds(), batchId, sourceIndex.toLong())
+    fun updateDraftUiState(batchId:String,sourceIndex:Int,overrideJson:String,selected:Boolean,discarded:Boolean,
+        expectedRevision:Long?=null):Boolean=q.transactionWithResult {
+        val row=q.selectReminderAiDraft(batchId,sourceIndex.toLong()).executeAsOneOrNull() ?: return@transactionWithResult false
+        q.updateReminderAiDraftUiState(overrideJson,if(selected) 1 else 0,if(discarded) "DISCARDED" else "PENDING",
+            Clock.System.now().toEpochMilliseconds(),batchId,sourceIndex.toLong(),expectedRevision ?: row.revision).value==1L
     }
 
-    fun markDraftSchedulingFailed(batchId: String, sourceIndex: Int, reminderId: String) {
-        q.markReminderAiDraftSchedulingFailed(reminderId, Clock.System.now().toEpochMilliseconds(), batchId, sourceIndex.toLong())
+    fun markDraftSchedulingFailed(batchId:String,sourceIndex:Int,reminderId:String) {
+        val row=q.selectReminderAiDraft(batchId,sourceIndex.toLong()).executeAsOneOrNull() ?: return
+        if(row.reminder_id==reminderId) q.markReminderAiDraftSchedulingFailed(Clock.System.now().toEpochMilliseconds(),reminderId)
     }
 
-    fun markDraftConfirmed(batchId: String, sourceIndex: Int, reminderId: String): Boolean = q.transactionWithResult {
-        val now = Clock.System.now().toEpochMilliseconds()
-        q.markReminderAiDraftConfirmed(reminderId, now, now, batchId, sourceIndex.toLong())
-        val remaining = q.selectReminderAiDraftsByBatchId(batchId).executeAsList().any { !it.confirmed.asBoolean() && !it.discarded.asBoolean() && it.selected.asBoolean() }
-        if (!remaining) q.markReminderAiBatchConfirmed(now, batchId)
+    fun markDraftConfirmed(batchId:String,sourceIndex:Int,reminderId:String):Boolean {
+        val row=q.selectReminderAiDraft(batchId,sourceIndex.toLong()).executeAsOneOrNull() ?: return false
+        if(row.reminder_id!=reminderId) return false
+        val version=q.selectReminderById(reminderId).executeAsOneOrNull()?.version ?: return false
+        return finishSchedule(reminderId,version,true)
+    }
+
+    /** Version, policy, identity and intent are one commit, before platform side effects. */
+    fun confirmDraft(batchId:String,sourceIndex:Int,expectedRevision:Long,
+        draft:com.dailysatori.service.reminder.ReminderDraft,
+        profile:com.dailysatori.service.reminder.ReminderProfileSnapshot):Long?=q.transactionWithResult {
+        val row=q.selectReminderAiDraft(batchId,sourceIndex.toLong()).executeAsOneOrNull() ?: return@transactionWithResult null
+        val reminders=ReminderRepository(db)
+        if(row.state=="DISCARDED" || row.state=="CONFIRMED") return@transactionWithResult null
+        if(row.state=="PENDING" && (row.revision!=expectedRevision || row.selected==0L ||
+            getBatch(batchId)?.status!=ReminderAiBatchStatus.READY_FOR_CONFIRMATION)) return@transactionWithResult null
+        val id=row.reminder_id ?: "$batchId:$sourceIndex"
+        val reminder=if(row.reminder_id==null) {
+            check(reminders.get(id)==null) { "Reminder confirmation identity conflict" }
+            reminders.createConfirmed(draft.copy(id=id),profile)
+        } else checkNotNull(reminders.get(id))
+        if(row.state!="SCHEDULE_PENDING") check(q.scheduleReminderAiDraft(id,Clock.System.now().toEpochMilliseconds(),
+            batchId,sourceIndex.toLong(),row.revision).value==1L)
+        com.dailysatori.service.reminder.ReminderScheduleOutbox(db).enqueue(id,reminder.version)
+    }
+
+    /** Retry the stored reminder definition, never the retired AI suggestion or UI override. */
+    fun retryDraftSchedule(batchId:String,sourceIndex:Int):Long?=q.transactionWithResult {
+        val row=q.selectReminderAiDraft(batchId,sourceIndex.toLong()).executeAsOneOrNull()
+            ?: return@transactionWithResult null
+        if(row.state !in setOf("SCHEDULING_FAILED","SCHEDULE_PENDING")) return@transactionWithResult null
+        val id=row.reminder_id ?: return@transactionWithResult null
+        val reminder=q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult null
+        if(row.state=="SCHEDULING_FAILED") check(q.scheduleReminderAiDraft(id,Clock.System.now().toEpochMilliseconds(),
+            batchId,sourceIndex.toLong(),row.revision).value==1L)
+        com.dailysatori.service.reminder.ReminderScheduleOutbox(db).enqueue(id,reminder.version)
+    }
+
+    /** Old interrupted confirmations have durable pending state but predate the outbox. */
+    fun reconcileScheduleIntents():List<Long> = q.transactionWithResult {
+        q.selectPendingReminderSchedules().executeAsList().mapNotNull { row ->
+            val key="reminder_schedule:${row.reminder_id}:${row.version}"
+            if(q.selectAsyncTaskByUniqueKey(key).executeAsOneOrNull()!=null) null
+            else com.dailysatori.service.reminder.ReminderScheduleOutbox(db).enqueue(row.reminder_id,row.version)
+        }
+    }
+
+    fun beginSchedule(id:String,version:Long):Boolean=q.transactionWithResult {
+        if(!currentScheduleVersion(id,version)) return@transactionWithResult false
+        q.beginReminderAiDraftSchedule(Clock.System.now().toEpochMilliseconds(),id)
         true
+    }
+
+    fun finishSchedule(id:String,version:Long,successful:Boolean):Boolean=q.transactionWithResult {
+        if(!currentScheduleVersion(id,version)) return@transactionWithResult false
+        val row=q.selectReminderAiDraftByReminder(id).executeAsOneOrNull()
+        val now=Clock.System.now().toEpochMilliseconds()
+        if(successful) {
+            q.markReminderAiDraftConfirmed(now,now,id)
+            if(row!=null && q.selectReminderAiDraftsByBatchId(row.batch_id).executeAsList().none {
+                it.selected!=0L && it.state !in setOf("CONFIRMED","DISCARDED")
+            }) q.markReminderAiBatchConfirmed(now,row.batch_id)
+        } else q.markReminderAiDraftSchedulingFailed(now,id)
+        true
+    }
+
+    private fun currentScheduleVersion(id:String,version:Long):Boolean {
+        val current=q.selectReminderById(id).executeAsOneOrNull() ?: return false
+        if(current.version==version) return true
+        com.dailysatori.service.reminder.ReminderScheduleOutbox(db).enqueue(id,current.version)
+        return false
     }
 
     fun markRunning(batchId: String, taskId: Long, attemptCount: Long): Boolean {
@@ -131,21 +202,28 @@ class ReminderAiBatchRepository(private val db: DailySatoriDatabase) {
         ReminderAiBatchSubmission(requireNotNull(getBatch(successor.id)), taskId)
     }
 
-    fun discardReady(batchId: String): Boolean =
-        q.discardReadyReminderAiBatch(Clock.System.now().toEpochMilliseconds(), batchId).value == 1L
+    fun discardReady(batchId:String):Boolean=q.transactionWithResult {
+        val now=Clock.System.now().toEpochMilliseconds()
+        if(q.discardReadyReminderAiBatch(now,batchId).value!=1L) return@transactionWithResult false
+        q.discardPendingReminderAiDrafts(now,batchId)
+        true
+    }
 
-    fun observeBatch(batchId: String): Flow<ReminderAiBatch?> = q.selectReminderAiBatchById(batchId)
-        .asFlow().mapToOneOrNull(Dispatchers.IO).map { it?.let(::toBatch) }
+    fun observeBatch(batchId:String):Flow<ReminderAiBatch?> = combine(
+        q.selectReminderAiBatchById(batchId).asFlow().mapToOneOrNull(Dispatchers.IO),
+        q.selectReminderAiDraftsByBatchId(batchId).asFlow().mapToList(Dispatchers.IO),
+    ) { _,_ -> getBatch(batchId) }
 
-    fun getBatch(batchId: String): ReminderAiBatch? = q.selectReminderAiBatchById(batchId).executeAsOneOrNull()?.let(::toBatch)
+    fun getBatch(batchId:String):ReminderAiBatch?=q.transactionWithResult {
+        q.selectReminderAiBatchById(batchId).executeAsOneOrNull()?.let(::toBatch)
+    }
 
     fun markConfirmed(batchId: String, sourceIndexes: Set<Int>): Boolean = q.transactionWithResult {
         val batch = q.selectReminderAiBatchById(batchId).executeAsOneOrNull() ?: return@transactionWithResult false
         if (batch.status != ReminderAiBatchStatus.READY_FOR_CONFIRMATION.name) return@transactionWithResult false
-        val now = Clock.System.now().toEpochMilliseconds()
-        sourceIndexes.forEach { q.markReminderAiDraftConfirmed(null, now, now, batchId, it.toLong()) }
-        q.markReminderAiBatchConfirmed(now, batchId)
-        true
+        val rows=q.selectReminderAiDraftsByBatchId(batchId).executeAsList().filter { it.source_index.toInt() in sourceIndexes }
+        if(rows.size!=sourceIndexes.size || rows.any { it.state!="CONFIRMED" }) return@transactionWithResult false
+        q.markReminderAiBatchConfirmed(Clock.System.now().toEpochMilliseconds(),batchId).value==1L
     }
 
     fun claimTerminalNotification(batchId: String): Boolean {
@@ -171,8 +249,8 @@ class ReminderAiBatchRepository(private val db: DailySatoriDatabase) {
         drafts = q.selectReminderAiDraftsByBatchId(row.id).executeAsList().map {
             ReminderAiDraftRecord(
                 it.source_index.toInt(), it.source_text, it.draft_json, it.override_json,
-                it.selected.asBoolean(), it.discarded.asBoolean(), it.confirmation_state, it.reminder_id,
-                it.confirmed.asBoolean(), it.confirmed_at?.let(Instant::fromEpochMilliseconds),
+                it.selected.asBoolean(), it.state=="DISCARDED", it.state, it.reminder_id,
+                it.state=="CONFIRMED", it.confirmed_at?.let(Instant::fromEpochMilliseconds),it.revision,
             )
         },
     )

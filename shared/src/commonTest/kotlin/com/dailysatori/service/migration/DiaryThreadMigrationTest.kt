@@ -18,10 +18,12 @@ class DiaryThreadMigrationTest {
         try {
             driver.execute(null, "PRAGMA foreign_keys=ON", 0)
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             stripThreadStructures(driver)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
-            db.dailySatoriQueries.insertDiary("旧日记正文", "旧标签", "平静", "[\"/tmp/old.png\"]", 1_000, 1_000)
+            db.dailySatoriQueries.insertDiary("旧日记正文", "平静", 1_000, 1_000)
+            driver.execute(null, """UPDATE diary SET images='["/tmp/old.png"]' WHERE id=1""",0)
             db.dailySatoriQueries.insertDiaryAttachment(
                 diary_id = 1, kind = "audio", local_path = "/tmp/old.m4a", display_name = "old.m4a",
                 mime_type = "audio/mp4", size_bytes = 10, duration_ms = 20, transcript = "旧转写",
@@ -30,13 +32,13 @@ class DiaryThreadMigrationTest {
             )
             val migration = DatabaseMigration(driver, settings)
 
+            settings.upsert(SettingKeys.schemaVersion, "32")
             repeat(2) {
-                settings.upsert(SettingKeys.schemaVersion, "32")
                 migration.runMigrations()
 
                 val diary = db.dailySatoriQueries.selectDiaryById(1).executeAsOne()
                 assertEquals("旧日记正文", diary.content)
-                assertEquals("[\"/tmp/old.png\"]", diary.images)
+                assertEquals(listOf("""["/tmp/old.png"]"""),com.dailysatori.service.diary.parseDiaryImagePaths(com.dailysatori.data.repository.DiaryRepository(db,driver).getById(1)!!.images))
                 assertNull(diary.parent_diary_id)
                 val attachment = db.dailySatoriQueries.selectDiaryAttachmentById(1).executeAsOne()
                 assertEquals("/tmp/old.m4a", attachment.local_path)
@@ -55,15 +57,16 @@ class DiaryThreadMigrationTest {
         try {
             driver.execute(null, "PRAGMA foreign_keys=ON", 0)
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             stripThreadStructures(driver)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
-            db.dailySatoriQueries.insertDiary("根", null, null, null, 1_000, 1_000)
+            db.dailySatoriQueries.insertDiary("根", null, 1_000, 1_000)
             settings.upsert(SettingKeys.schemaVersion, "32")
 
             DatabaseMigration(driver, settings).runMigrations()
 
-            db.dailySatoriQueries.insertDiaryReply("迁移后的续写", null, null, null, 2_000, 2_000, 1)
+            db.dailySatoriQueries.insertDiaryReply("迁移后的续写", null, 2_000, 2_000, 1)
             assertEquals(1L, db.dailySatoriQueries.selectDiaryRepliesForRoot(1).executeAsOne().parent_diary_id)
             assertTrue(db.dailySatoriQueries.selectDiaryThreadRevision(1).executeAsOne().revision >= 2L)
         } finally {
@@ -77,10 +80,11 @@ class DiaryThreadMigrationTest {
         try {
             driver.execute(null, "PRAGMA foreign_keys=ON", 0)
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             stripThreadStructures(driver)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
-            db.dailySatoriQueries.insertDiary("升级前日记", null, null, null, 1_000, 1_000)
+            db.dailySatoriQueries.insertDiary("升级前日记", null, 1_000, 1_000)
             driver.execute(null, "INSERT INTO idea_topic(id,title,status,created_at,updated_at) VALUES('topic33','升级前点子','active',1,1)", 0)
             settings.upsert(SettingKeys.schemaVersion, "33")
 
@@ -89,7 +93,7 @@ class DiaryThreadMigrationTest {
             assertEquals("升级前点子", db.dailySatoriQueries.selectIdeaTopicById("topic33").executeAsOne().title)
             assertEquals("升级前日记", db.dailySatoriQueries.selectDiaryById(1).executeAsOne().content)
             assertNull(db.dailySatoriQueries.selectDiaryById(1).executeAsOne().parent_diary_id)
-            db.dailySatoriQueries.insertDiaryReply("升级后续写", null, null, null, 2_000, 2_000, 1)
+            db.dailySatoriQueries.insertDiaryReply("升级后续写", null, 2_000, 2_000, 1)
             assertEquals(1L, db.dailySatoriQueries.selectDiaryRepliesForRoot(1).executeAsOne().parent_diary_id)
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
         } finally {

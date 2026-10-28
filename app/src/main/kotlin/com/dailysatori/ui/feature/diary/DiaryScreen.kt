@@ -69,7 +69,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.todayIn
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.ui.component.card.DiaryCard
 import com.dailysatori.service.ideatopic.IdeaCaptureInput
 import com.dailysatori.service.ideatopic.diaryIdeaCaptureInput

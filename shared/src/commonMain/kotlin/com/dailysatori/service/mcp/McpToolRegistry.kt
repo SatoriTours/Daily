@@ -10,7 +10,7 @@ import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.service.reminder.ReminderDraftCodec
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 

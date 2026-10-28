@@ -5,7 +5,7 @@ import com.dailysatori.service.diary.DiaryThreadOverview
 import com.dailysatori.service.diary.DiaryThreadSummary
 import com.dailysatori.service.diary.DiaryThreadSummaryStatus
 import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

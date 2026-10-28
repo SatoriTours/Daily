@@ -46,7 +46,7 @@ class AssistantBusinessCatalogTest {
                 assertEquals(JsonPrimitive(true), data.read(source, id)["ok"], source)
                 assertEquals(1, data.aggregate(AssistantAggregate(source))["rows"]!!.jsonArray.single().jsonObject["count"]!!.jsonPrimitive.int)
             }
-            insert("idea_topic_source", mapOf("topic_id" to "fixture", "original_topic_id" to "fixture", "source_type" to "diary", "source_record_id" to "1", "snapshot_json" to "{}"))
+            insert("idea_topic_source", mapOf("topic_id" to "fixture", "original_topic_id" to "fixture", "source_type" to "diary", "source_record_id" to "1", "snapshot_id" to com.dailysatori.data.repository.IdeaSnapshots(com.dailysatori.shared.db.DailySatoriDatabase(driver)).intern("{}")))
             AssistantPrivacyRepository(driver).exclude("diary", "1")
             assertTrue(data.search("检索哨兵", listOf("idea_topic"))["rows"]!!.jsonArray.isEmpty())
             for (source in listOf("session", "phone_message", "sms_reminder_source", "bookkeeping_entry", "sqlite_master"))

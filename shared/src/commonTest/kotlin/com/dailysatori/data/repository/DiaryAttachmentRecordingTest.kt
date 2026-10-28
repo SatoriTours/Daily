@@ -13,7 +13,7 @@ class DiaryAttachmentRecordingTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("voice diary", null, null, null, 1, 1)
+            db.dailySatoriQueries.insertDiary("voice diary", null, 1, 1)
             val repository = DiaryAttachmentRepository(db, driver)
             val attachmentId = repository.create(
                 diaryId = 1,
@@ -49,8 +49,8 @@ class DiaryAttachmentRecordingTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("first", null, null, null, 1, 1)
-            db.dailySatoriQueries.insertDiary("second", null, null, null, 1, 1)
+            db.dailySatoriQueries.insertDiary("first", null, 1, 1)
+            db.dailySatoriQueries.insertDiary("second", null, 1, 1)
             val repository = DiaryAttachmentRepository(db, driver)
             val audioId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
             val imageId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.image, "/image.jpg"))
@@ -89,7 +89,7 @@ class DiaryAttachmentRecordingTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("voice diary", null, null, null, 1, 1)
+            db.dailySatoriQueries.insertDiary("voice diary", null, 1, 1)
             val repository = DiaryAttachmentRepository(db, driver)
             val attachmentId = repository.create(
                 1,
@@ -127,7 +127,7 @@ class DiaryAttachmentRecordingTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("voice diary", null, null, null, 1, 1)
+            db.dailySatoriQueries.insertDiary("voice diary", null, 1, 1)
             val repository = DiaryAttachmentRepository(db, driver)
             val interruptedId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
             val untouchedId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
@@ -150,7 +150,7 @@ class DiaryAttachmentRecordingTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("voice diary", null, null, null, 1, 1)
+            db.dailySatoriQueries.insertDiary("voice diary", null, 1, 1)
             val repository = DiaryAttachmentRepository(db, driver)
             val attachmentId = repository.create(1, DiaryAttachmentDraft(DiaryAttachmentKind.audio, ""))
 

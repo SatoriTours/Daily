@@ -12,6 +12,7 @@ internal class DatabaseInstallTransaction(
     private val root: File,
     private val database: File,
     private val keyFile: File,
+    private val validateInstalled: () -> Unit = {},
     private val move: (File, File) -> Unit = { from, to ->
         to.parentFile?.mkdirs(); Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE)
     },
@@ -50,6 +51,8 @@ internal class DatabaseInstallTransaction(
                 val source = File(incoming, item.name)
                 if (source.exists()) move(source, target)
             }
+            check(database.isFile && keyFile.isFile) { "待安装数据库或密钥缺失" }
+            validateInstalled()
             durableWrite(File(root, "committed"), "done")
         } catch (_: Exception) {
             recover(plan)

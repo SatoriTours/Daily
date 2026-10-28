@@ -3,7 +3,7 @@ package com.dailysatori.service.ideatopic
 import com.dailysatori.service.diary.DiaryThreadSnapshot
 import com.dailysatori.service.diary.renderDiaryThreadContent
 import com.dailysatori.service.opportunity.NewsOpportunity
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 
 /**
  * Pure adapters from the two existing capture entry points. They build snapshots only:

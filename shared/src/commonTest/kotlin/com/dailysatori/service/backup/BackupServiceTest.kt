@@ -33,6 +33,8 @@ class BackupServiceTest {
         assertTrue(fixture.service.restore("portable.enc", "password"))
         assertContentEquals(key.sqlCipherPassword(), fixture.secrets.restoredKeys.single()!!.sqlCipherPassword())
         assertTrue(fixture.files.exists("/pending/database_key.sec"))
+        assertFalse(fixture.files.exists("/cache/restore_temp/database_key.json"))
+        assertFalse(fixture.files.exists("/pending/database_key.json"))
         val missing = backupFixture()
         missing.files.seedRestorableBackup("missing.enc", "password", extraFiles = extra - "database_key.json")
         assertFalse(missing.service.restore("missing.enc", "password"))
@@ -51,6 +53,227 @@ class BackupServiceTest {
         assertFalse("database_key.sec" in entries)
         assertFalse("backup_password.sec" in entries)
     }
+    @Test fun portableKeyIsRemovedBeforePreparingTheRestoredDatabase() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedPortableBackup("portable.enc", "password")
+        fixture.secrets.onPrepare = {
+            assertFalse(fixture.files.exists("/cache/restore_temp/database_key.json"))
+        }
+        assertTrue(fixture.service.restore("portable.enc", "password"))
+    }
+
+    @Test fun portableKeyDeletionFailureStopsRestoreBeforeStagingAndAllowsRetry() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedPortableBackup("portable.enc", "password")
+        fixture.files.refusePortableKeyDeletion = true
+        assertFalse(fixture.service.restore("portable.enc", "password"))
+        assertTrue(fixture.secrets.preparedRestoredDatabases.isEmpty())
+        assertFalse(fixture.files.restartCalled)
+        assertFalse(fixture.files.exists("/pending/database.db"))
+        assertFalse(fixture.service.isBackingUp.value)
+        fixture.files.refusePortableKeyDeletion = false
+        assertTrue(fixture.service.restore("portable.enc", "password"))
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test fun backupDoesNotReportSuccessWhenPlaintextKeyCleanupFailsAndAllowsRetry() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.getDatabasePath(), "database")
+        fixture.files.refusePortableKeyDeletion = true
+        assertFalse(fixture.service.backupNow())
+        assertTrue(fixture.files.listFilesRecursively("/cache").any { it.endsWith("/database_key.json") })
+        assertFalse(fixture.service.isBackingUp.value)
+        fixture.files.refusePortableKeyDeletion = false
+        assertTrue(fixture.service.backupNow())
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test fun portableVerificationRemovesKeyBeforeDatabasePreparation() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedPortableBackup("daily_satori_backup_2026-05-21-12-00-00.zip.enc", "password")
+        fixture.secrets.onPrepare = {
+            assertFalse(fixture.files.exists("/cache/verify_temp/content/database_key.json"))
+        }
+        assertEquals(BackupVerificationStatus.PASSED, fixture.service.verifyLatestBackup("password").status)
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test fun backupStageFailuresPreserveLiveDataAndHistoryAndCanBeRetried() = runBlocking {
+        for (stage in listOf("snapshot", "zip", "encrypt", "publish")) {
+            val fixture = backupFixture()
+            fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+            fixture.files.seedFile("/app/diary/audio/voice.m4a", "original voice")
+            fixture.files.seedBackup("daily_satori_backup_2026-05-20-12-00-00.zip.enc")
+            fixture.files.checkpoint = { if (it == stage) error("simulated disk failure") }
+            assertFalse(fixture.service.backupNow(), stage)
+            assertEquals("original database", fixture.files.readText(fixture.files.getDatabasePath()), stage)
+            assertEquals("original voice", fixture.files.readText("/app/diary/audio/voice.m4a"), stage)
+            assertTrue(fixture.service.listBackups().any { it.name == "daily_satori_backup_2026-05-20-12-00-00.zip.enc" }, stage)
+            assertTrue(fixture.files.deletedBackups.isEmpty(), stage)
+            assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty(), stage)
+            assertFalse(fixture.service.isBackingUp.value, stage)
+            fixture.files.checkpoint = null
+            assertTrue(fixture.service.backupNow(), stage)
+        }
+    }
+
+    @Test fun restoreStageFailuresLeaveAllLiveFilesUntouchedAndCanBeRetried() = runBlocking {
+        for (stage in listOf("decrypt", "extract", "stage")) {
+            val fixture = backupFixture()
+            fixture.files.seedPortableBackup("portable.enc", "password")
+            fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+            fixture.files.seedFile("/app/diary/audio/voice.m4a", "original voice")
+            fixture.files.seedFile("/app/database_key.sec", "original wrapped key")
+            fixture.files.checkpoint = { if (it == stage) error("simulated disk failure") }
+            assertFalse(fixture.service.restore("portable.enc", "password"), stage)
+            assertEquals("original database", fixture.files.readText(fixture.files.getDatabasePath()), stage)
+            assertEquals("original voice", fixture.files.readText("/app/diary/audio/voice.m4a"), stage)
+            assertEquals("original wrapped key", fixture.files.readText("/app/database_key.sec"), stage)
+            assertFalse(fixture.files.exists("/pending/database.db"), stage)
+            assertFalse(fixture.files.restartCalled, stage)
+            assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty(), stage)
+            assertFalse(fixture.service.isBackingUp.value, stage)
+            fixture.files.checkpoint = null
+            assertTrue(fixture.service.restore("portable.enc", "password"), stage)
+        }
+    }
+
+    @Test fun backupAndRestoreCancellationCleanPartialFilesAndReleaseTheLock() = runBlocking {
+        for (stage in listOf("snapshot", "zip", "encrypt", "decrypt", "extract", "stage")) {
+            val fixture = backupFixture()
+            fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+            fixture.files.seedPortableBackup("portable.enc", "password")
+            fixture.files.checkpoint = { if (it == stage) throw kotlinx.coroutines.CancellationException("cancel") }
+            val backingUp = stage in listOf("snapshot", "zip", "encrypt")
+            kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+                if (backingUp) fixture.service.backupNow() else fixture.service.restore("portable.enc", "password")
+            }
+            assertEquals("original database", fixture.files.readText(fixture.files.getDatabasePath()), stage)
+            assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty(), stage)
+            assertFalse(fixture.files.exists("/pending/database.db"), stage)
+            assertFalse(fixture.service.isBackingUp.value, stage)
+            fixture.files.checkpoint = null
+            assertTrue(if (backingUp) fixture.service.backupNow() else fixture.service.restore("portable.enc", "password"), stage)
+        }
+    }
+
+    @Test fun plaintextZipCleanupFailureCannotReportBackupSuccess() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+        fixture.files.refuseZipDeletion = true
+        assertFalse(fixture.service.backupNow())
+        assertTrue(fixture.service.lastMessage.value.contains("清理失败"))
+        assertFalse(fixture.service.isBackingUp.value)
+        fixture.files.refuseZipDeletion = false
+        assertTrue(fixture.service.backupNow())
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+    }
+
+    @Test fun malformedPortableKeysNeverStageRestoreAndLeaveNoPlaintext() = runBlocking {
+        for (invalid in listOf("", "not-json", "{}",
+                """{"version":1,"encoding":"raw-256-hex","keyHex":"bad","cipherCompatibility":4}""",
+                "x".repeat(1025))) {
+            val fixture = backupFixture()
+            fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+            fixture.files.seedPortableBackup("portable.enc", "password", portableKey = invalid)
+            assertFalse(fixture.service.restore("portable.enc", "password"))
+            assertEquals("original database", fixture.files.readText(fixture.files.getDatabasePath()))
+            assertFalse(fixture.files.exists("/pending/database.db"))
+            assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+            fixture.files.seedPortableBackup("portable.enc", "password")
+            assertTrue(fixture.service.restore("portable.enc", "password"))
+        }
+    }
+
+    @Test fun publishedBackupMustBeReadBackIntactBeforeAdvancingSuccessOrPruningHistory() = runBlocking {
+        for (fault in listOf("missing", "truncated", "corrupt", "renamed", "unreadable")) {
+            val fixture = backupFixture()
+            fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+            fixture.settings[SettingKeys.lastBackupTime] = "123"
+            fixture.files.seedBackup(nameAt(fixture.clock.time - 1.days))
+            fixture.files.seedBackup(nameAt(fixture.clock.time - 20.days))
+            fixture.files.publicationFault = fault
+            assertFalse(fixture.service.backupNow(), fault)
+            assertEquals("123", fixture.settings[SettingKeys.lastBackupTime], fault)
+            assertTrue(fixture.files.deletedBackups.isEmpty(), fault)
+            assertEquals("original database", fixture.files.readText(fixture.files.getDatabasePath()), fault)
+            assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty(), fault)
+            assertFalse(fixture.service.isBackingUp.value, fault)
+            fixture.files.publicationFault = null
+            fixture.clock.time += 1.seconds
+            assertTrue(fixture.service.backupNow(), fault)
+        }
+    }
+
+    @Test fun cancellationDuringPublishedReadbackNeverCommitsBackupSuccess() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+        fixture.settings[SettingKeys.lastBackupTime] = "123"
+        fixture.files.checkpoint = { if (it == "readback") throw kotlinx.coroutines.CancellationException("cancel readback") }
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> { fixture.service.backupNow() }
+        assertEquals("123", fixture.settings[SettingKeys.lastBackupTime])
+        assertTrue(fixture.files.deletedBackups.isEmpty())
+        assertTrue(fixture.files.listFilesRecursively("/cache").isEmpty())
+        assertFalse(fixture.service.isBackingUp.value)
+        fixture.files.checkpoint = null
+        fixture.clock.time += 1.seconds
+        assertTrue(fixture.service.backupNow())
+    }
+
+    @Test fun cleanupFailureCannotCommitBackupTimeOrPrunePreviousSnapshots() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+        fixture.settings[SettingKeys.lastBackupTime] = "123"
+        fixture.files.seedBackup(nameAt(fixture.clock.time - 1.days))
+        fixture.files.seedBackup(nameAt(fixture.clock.time - 20.days))
+        fixture.files.refusePortableKeyDeletion = true
+        assertFalse(fixture.service.backupNow())
+        assertEquals("123", fixture.settings[SettingKeys.lastBackupTime])
+        assertTrue(fixture.files.deletedBackups.isEmpty())
+        assertFalse(fixture.service.isBackingUp.value)
+        fixture.files.refusePortableKeyDeletion = false
+        fixture.clock.time += 1.seconds
+        assertTrue(fixture.service.backupNow())
+    }
+
+    @Test fun restoreDeletesSourcePlaintextBeforePublishingThePendingSnapshot() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedPortableBackup("portable.enc", "password")
+        fixture.files.checkpoint = {
+            if (it == "stage") {
+                assertTrue(fixture.files.listFilesRecursively("/cache/restore_temp").all {
+                    path -> path.startsWith("/cache/restore_temp/_restore/")
+                })
+            }
+        }
+        assertTrue(fixture.service.restore("portable.enc", "password"))
+    }
+
+    @Test fun stagedRestoreCannotBeReportedAsFailedBecauseItsEmptySourceDirectoryCannotBeDeleted() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedFile(fixture.files.getDatabasePath(), "original database")
+        fixture.files.seedPortableBackup("portable.enc", "password")
+        fixture.files.checkpoint = { if (it == "stage") fixture.files.refuseRestoreDirectoryDeletion = true }
+        assertTrue(fixture.service.restore("portable.enc", "password"))
+        assertTrue(fixture.files.exists("/pending/database.db"))
+        assertEquals("original database", fixture.files.readText(fixture.files.getDatabasePath()))
+        assertTrue(fixture.service.lastMessage.value.contains("恢复已准备"))
+        assertTrue(fixture.service.lastMessage.value.contains("restart manually"))
+        assertTrue(fixture.service.lastMessage.value.contains("重启"))
+        assertTrue(fixture.files.listFilesRecursively("/cache/restore_temp").isEmpty())
+        assertFalse(fixture.service.isBackingUp.value)
+    }
+
+    @Test fun stagedLegacyRestoreRetainsManualRestartAndMissingLifeArchiveWarnings() = runBlocking {
+        val fixture = backupFixture()
+        fixture.files.seedRestorableBackup("legacy.enc", "password")
+        fixture.files.checkpoint = { if (it == "stage") fixture.files.refuseRestoreDirectoryDeletion = true }
+        assertTrue(fixture.service.restore("legacy.enc", "password"))
+        assertTrue(fixture.service.lastMessage.value.contains("restart manually"))
+        assertTrue(fixture.service.lastMessage.value.contains("legacy backup"))
+        assertTrue(fixture.files.exists("/pending/preserve-life-archive"))
+    }
+
     @Test
     fun verificationNeverFallsBackToSavedPassword() = runBlocking {
         val fixture = backupFixture()
@@ -825,6 +1048,11 @@ private class FakeBackupFiles : BackupFiles {
     var failList = false
     var failRead = false
     var failCleanup = false
+    var refusePortableKeyDeletion = false
+    var refuseZipDeletion = false
+    var checkpoint: ((String) -> Unit)? = null
+    var publicationFault: String? = null
+    var refuseRestoreDirectoryDeletion = false
 
     private val files = mutableMapOf<String, String>()
     private val directories = mutableSetOf("/cache", appDataDirPath, imagesDirPath, diaryImagesDirPath)
@@ -851,6 +1079,18 @@ private class FakeBackupFiles : BackupFiles {
         ))
     }
 
+    fun seedPortableBackup(name: String, password: String,
+        portableKey: String = com.dailysatori.service.security.DatabaseKey.fromHex("12".repeat(32)).portableJson()) {
+        val content = mapOf("daily_satori.db" to "restored-db", "life_archive.json" to "{\"records\":[]}",
+            "database_key.json" to portableKey)
+        val manifest = BackupManifest(formatVersion = 2, schemaVersion = DatabaseConfig.currentSchemaVersion,
+            sourceAppDataDir = "/old", files = content.map {
+                BackupManifestFile(it.key, it.value.encodeToByteArray().size.toLong(), it.value)
+            })
+        seedRestorableBackup(name, password, extraFiles = content.filterKeys { it != "daily_satori.db" } +
+            ("manifest.json" to Json.encodeToString(manifest)))
+    }
+
     fun seedBackup(name: String) {
         directoryBackups.getValue("content://selected-backup-dir")[name] = "old-backup"
     }
@@ -872,7 +1112,10 @@ private class FakeBackupFiles : BackupFiles {
     override fun getImagesDir(): String = imagesDirPath
     override fun getDiaryImagesDir(): String = diaryImagesDirPath
     override fun getCacheDir(): String = "/cache"
-    override fun createDatabaseSnapshot(destination: String) = copyFile(databasePathValue, destination)
+    override fun createDatabaseSnapshot(destination: String) {
+        copyFile(databasePathValue, destination)
+        checkpoint?.invoke("snapshot")
+    }
     override fun listFilesRecursively(path: String) = files.keys.filter { it.startsWith("$path/") }.sorted()
     override fun readFile(path: String) = files.getValue(path).encodeToByteArray()
     override fun writeFile(path: String, bytes: ByteArray) {
@@ -882,10 +1125,16 @@ private class FakeBackupFiles : BackupFiles {
     override fun fileSize(path: String) = readFile(path).size.toLong()
     override fun sha256(path: String) = files.getValue(path) // Stable fingerprint for this in-memory filesystem.
     override fun stageRestore(directory: String) {
-        listFilesRecursively(directory).forEach { path -> copyFile(path, "/pending/${path.removePrefix("$directory/")}") }
+        checkpoint?.invoke("stage")
+        listFilesRecursively(directory).forEach { path -> moveFile(path, "/pending/${path.removePrefix("$directory/")}") }
     }
 
     override fun deleteFile(path: String): Boolean {
+        if (refuseRestoreDirectoryDeletion && path == "/cache/restore_temp") return false
+        if (refuseZipDeletion && files.keys.any { (it == path || it.startsWith("$path/")) && it.endsWith(".zip") }) return false
+        if (refusePortableKeyDeletion && files.keys.any {
+                (it == path || it.startsWith("$path/")) && it.endsWith("/database_key.json")
+            }) return false
         check(!failCleanup || path != "/cache/verify_temp") { "Cannot remove private temporary directory" }
         val existed = files.remove(path) != null || directories.remove(path)
         files.keys.filter { it.startsWith("$path/") }.toList().forEach { files.remove(it) }
@@ -921,6 +1170,7 @@ private class FakeBackupFiles : BackupFiles {
         backup.images.forEach { (name, content) -> seedFile("$destDir/images/$name", content) }
         backup.diaryImages.forEach { (name, content) -> seedFile("$destDir/diary_images/$name", content) }
         backup.extraFiles.forEach { (name, content) -> seedFile("$destDir/$name", content) }
+        checkpoint?.invoke("extract")
     }
 
     override fun createZip(sourceDir: String, zipPath: String, files: List<String>) {
@@ -929,12 +1179,14 @@ private class FakeBackupFiles : BackupFiles {
         }
         zipEntries += entries
         seedFile(zipPath, entries.joinToString("\n"))
+        checkpoint?.invoke("zip")
     }
 
     override fun encryptFile(inputPath: String, outputPath: String, password: String) {
         encryptPasswords += password
         encryptedPayloadPasswords[outputPath] = password
         seedFile(outputPath, files.getValue(inputPath))
+        checkpoint?.invoke("encrypt")
     }
 
     override fun decryptFile(inputPath: String, outputPath: String, password: String) {
@@ -942,6 +1194,7 @@ private class FakeBackupFiles : BackupFiles {
         val expected = restorableBackups.getValue(backupName).password
         check(password == expected) { "Invalid backup password or corrupted backup" }
         seedFile(outputPath, "zip:$backupName")
+        checkpoint?.invoke("decrypt")
     }
 
     override fun listBackupFilesInDirectory(uri: String): List<String> {
@@ -951,16 +1204,25 @@ private class FakeBackupFiles : BackupFiles {
     }
 
     override fun writeFileToDirectory(uri: String, name: String, sourcePath: String): String {
+        checkpoint?.invoke("publish")
         check(!failWrite) { "Could not write backup" }
-        writtenBackups += WrittenBackup(uri, name)
-        directoryBackups.getOrPut(uri) { mutableMapOf() }[name] = files.getValue(sourcePath)
-        return name
+        val actualName = if (publicationFault == "renamed") "provider_$name" else name
+        writtenBackups += WrittenBackup(uri, actualName)
+        val content = files.getValue(sourcePath)
+        val stored = when (publicationFault) {
+            "truncated" -> content.dropLast(1)
+            "corrupt" -> "!" + content.drop(1)
+            else -> content
+        }
+        if (publicationFault != "missing") directoryBackups.getOrPut(uri) { mutableMapOf() }[actualName] = stored
+        return actualName
     }
 
     override fun readFileFromDirectory(uri: String, name: String, destPath: String): Boolean {
-        if (failRead) return false
+        if (failRead || publicationFault == "unreadable" && writtenBackups.any { it.name == name }) return false
         val content = directoryBackups[uri]?.get(name) ?: return false
         seedFile(destPath, content)
+        if (writtenBackups.any { it.name == name }) checkpoint?.invoke("readback")
         return true
     }
 

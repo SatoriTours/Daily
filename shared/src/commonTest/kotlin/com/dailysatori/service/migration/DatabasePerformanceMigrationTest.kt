@@ -37,8 +37,8 @@ class DatabasePerformanceMigrationTest {
         val taskId = tasks.enqueue("external_favorite_sync", "{\"sourceId\":7}")
         val settings = SettingRepository(db)
         val migration = DatabaseMigration(driver, settings)
+        settings.upsert(SettingKeys.schemaVersion, "27")
         repeat(2) {
-            settings.upsert(SettingKeys.schemaVersion, "27")
             migration.runMigrations()
             assertLocalArticlePlans(driver)
             assertTypedTaskPlans(driver)
@@ -87,6 +87,7 @@ class DatabasePerformanceMigrationTest {
     private fun withDatabase(block: (JdbcSqliteDriver, DailySatoriDatabase) -> Unit) {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             block(driver, DailySatoriDatabase(driver))
         }
     }

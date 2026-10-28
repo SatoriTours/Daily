@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -28,7 +28,6 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import java.io.File
 
 @Composable
 fun DiaryImageRow(
@@ -42,11 +41,11 @@ fun DiaryImageRow(
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
         contentPadding = PaddingValues(vertical = Spacing.xs),
     ) {
-        items(images.toList(), key = { it }) { imagePath ->
+        itemsIndexed(images.toList()) { _, imagePath ->
             Box(modifier = Modifier.size(103.dp)) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(File(context.filesDir, "DailySatori/$imagePath"))
+                        .data(com.dailysatori.core.util.diaryImageModel(imagePath, context.filesDir))
                         .crossfade(true)
                         .build(),
                     contentDescription = null,

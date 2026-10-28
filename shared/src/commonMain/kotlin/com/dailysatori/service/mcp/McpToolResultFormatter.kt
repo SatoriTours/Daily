@@ -2,7 +2,7 @@ package com.dailysatori.service.mcp
 
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject

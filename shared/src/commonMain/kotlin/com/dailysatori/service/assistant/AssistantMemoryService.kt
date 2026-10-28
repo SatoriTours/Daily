@@ -27,13 +27,13 @@ class AssistantMemoryService(driver: SqlDriver) {
         insert(turn.id, kind, data.redact(content), data.redact(quote), sha256Hex(original))
     }.also { store.changed() }
 
-    private fun insert(sourceId: Long, kind: String, content: String, evidence: String, version: String): Long {
+    private fun insert(sourceId: Long, kind: String, content: String, evidence: String, version: String, origin:String="automatic"): Long {
         val existing = store.rows("SELECT id FROM memory_entry WHERE source_type='chat' AND source_id=? AND content=? AND assistant_state='active'", sourceId, content) { it.getLong(0)!! }.firstOrNull()
         if (existing != null) return existing
         val now = Clock.System.now().toEpochMilliseconds()
         store.exec("""INSERT INTO memory_entry(type,source_type,source_id,title,content,tags,created_at,updated_at,
-            assistant_kind,assistant_state,evidence,source_version) VALUES('assistant','chat',?,?,?,?,?,? ,?,'active',?,?)""".trimIndent(),
-            sourceId, content.take(80), content, "", now, now, kind, evidence, version)
+            assistant_kind,assistant_state,evidence,source_version,content_origin) VALUES('assistant','chat',?,?,?,?,?,? ,?,'active',?,?,?)""".trimIndent(),
+            sourceId, content.take(80), content, "", now, now, kind, evidence, version,origin)
         return store.rows("SELECT last_insert_rowid()") { it.getLong(0)!! }.single()
     }
 
@@ -51,7 +51,7 @@ class AssistantMemoryService(driver: SqlDriver) {
             val sourceId = chats.acceptUserInput(original?.session_id ?: "assistant-memory", corrected)
             store.exec("UPDATE memory_entry SET assistant_state='superseded' WHERE id=?", id)
             privacy.exclude("memory_entry", id.toString())
-            insert(sourceId, "fact", data.redact(corrected), data.redact(corrected), sha256Hex(corrected))
+            insert(sourceId, "fact", data.redact(corrected), data.redact(corrected), sha256Hex(corrected),origin="accepted")
         }
         store.changed()
     }
@@ -104,7 +104,7 @@ class AssistantMemoryService(driver: SqlDriver) {
             if (original == null || original.role != "user" || privacy.isExcluded("chat",sourceId.toString()) ||
                 sha256Hex(original.content) != segment.version) return@withRunningLease false
             require(items.size <= 4)
-            val corrected = store.text("SELECT CAST(id AS TEXT) FROM memory_entry WHERE source_type='chat' AND source_id=? AND assistant_state!='active' LIMIT 1",sourceId) != null
+            val corrected = store.text("SELECT CAST(id AS TEXT) FROM memory_entry WHERE source_type='chat' AND source_id=? AND (assistant_state!='active' OR content_origin!='automatic') LIMIT 1",sourceId) != null
             if (!corrected) items.forEach { item ->
                 require(item.kind in setOf("fact","preference","goal","project","candidate","note"))
                 require(item.content.isNotBlank() && item.content.length <= 1000 && data.redact(item.content) == item.content)

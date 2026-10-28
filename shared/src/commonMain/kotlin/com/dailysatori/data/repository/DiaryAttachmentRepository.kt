@@ -50,6 +50,7 @@ data class DiaryAttachmentDraft(
     val transcriptStatus: String = DiaryAttachmentProcessingStatus.none,
     val knowledgeStatus: String = DiaryAttachmentProcessingStatus.none,
     val errorMessage: String = "",
+    val remoteUrl: String? = null,
 )
 
 class DiaryAttachmentRepository(
@@ -61,6 +62,7 @@ class DiaryAttachmentRepository(
 
     fun create(diaryId: Long, draft: DiaryAttachmentDraft): Long {
         require(diaryId > 0) { "diaryId must be positive" }
+        require(draft.kind == DiaryAttachmentKind.audio || draft.localPath.isNotBlank() || !draft.remoteUrl.isNullOrBlank()) { "Attachment requires a local path or remote URL" }
         val now = Clock.System.now().toEpochMilliseconds()
         return q.transactionWithResult {
             q.insertDiaryAttachment(
@@ -78,7 +80,10 @@ class DiaryAttachmentRepository(
                 created_at = now,
                 updated_at = now,
             )
-            lastInsertRowId()
+            lastInsertRowId().also { id ->
+                q.setDiaryAttachmentRemoteUrl(draft.remoteUrl,id)
+                if(draft.kind==DiaryAttachmentKind.image) DiaryImages(db).changed(diaryId,now)
+            }
         }
     }
 
@@ -131,7 +136,7 @@ class DiaryAttachmentRepository(
                     .joinToString("\n\n")
             }
             val now = Clock.System.now().toEpochMilliseconds()
-            q.updateDiary(content, diary.tags, diary.mood, diary.images, now, diary.id)
+            q.updateDiary(content, diary.mood, now, diary.id)
             q.updateDiaryAttachmentTranscriptStatus(
                 transcript = transcript,
                 transcript_status = DiaryAttachmentProcessingStatus.completed,
@@ -271,14 +276,11 @@ class DiaryAttachmentRepository(
         val localPath = q.transactionWithResult {
             val attachment = q.selectDiaryAttachmentById(id).executeAsOneOrNull()
             q.deleteDiaryAttachmentById(id)
+            if(attachment?.kind=="image") DiaryImages(db).changed(attachment.diary_id)
             SettingRepository(db).delete("diary_polished_transcript_v1:$id")
             attachment?.local_path
         }
-        deleteAppOwnedFile(localPath)
-    }
-
-    private fun deleteAppOwnedFile(path: String?) {
-        fileManager?.deleteAppOwnedFile(path)
+        deleteUnreferencedMedia(db,fileManager,listOfNotNull(localPath))
     }
 
     private fun lastInsertRowId(): Long =

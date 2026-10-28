@@ -17,8 +17,8 @@ class DiaryAttachmentObservationTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
-            db.dailySatoriQueries.insertDiary("first", null, null, null, 1, 1)
-            db.dailySatoriQueries.insertDiary("second", null, null, null, 2, 2)
+            db.dailySatoriQueries.insertDiary("first", null, 1, 1)
+            db.dailySatoriQueries.insertDiary("second", null, 2, 2)
             val repository = DiaryAttachmentRepository(db, driver)
             repository.create(2, DiaryAttachmentDraft(DiaryAttachmentKind.image, "/second.jpg"))
 

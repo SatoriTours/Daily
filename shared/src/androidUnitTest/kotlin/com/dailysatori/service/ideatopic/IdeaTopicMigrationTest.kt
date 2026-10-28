@@ -35,6 +35,7 @@ class IdeaTopicMigrationTest {
                 "INSERT INTO chat_conversation (session_id, role, content, created_at) VALUES ('global-session', 'user', '旧聊天', 333)",
                 0,
             )
+            com.dailysatori.service.migration.ReminderLegacyFixture.installLegacyTables(driver)
             driver.execute(
                 null,
                 "INSERT INTO reminder (id, content, status, start_date, end_date, first_reminder_time, active_day_rule, time_zone_id, profile_json, version, dismissal_count, created_at, updated_at) VALUES ('legacy-reminder', '旧提醒', 'ACTIVE', '2026-09-01', '2026-09-01', '09:00', 'daily', 'UTC', '{}', 0, 0, 444, 444)",
@@ -83,6 +84,7 @@ class IdeaTopicMigrationTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
+            com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
             val db = DailySatoriDatabase(driver)
             val settings = SettingRepository(db)
             settings.upsert(SettingKeys.schemaVersion, "32")
@@ -101,6 +103,8 @@ class IdeaTopicMigrationTest {
 
     private fun legacySchemaWithoutIdeaTopics(driver: JdbcSqliteDriver) {
         DailySatoriDatabase.Schema.create(driver)
+        com.dailysatori.service.migration.AssistantLegacyFixture.install(driver)
+        com.dailysatori.service.migration.IdeaLegacyFixture.install(driver)
         driver.execute(null, "DROP TABLE IF EXISTS idea_topic_message", 0)
         driver.execute(null, "DROP TABLE IF EXISTS idea_topic_session", 0)
         driver.execute(null, "DROP TABLE IF EXISTS idea_topic_event", 0)

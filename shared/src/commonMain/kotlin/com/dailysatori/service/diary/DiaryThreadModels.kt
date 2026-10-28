@@ -1,6 +1,6 @@
 package com.dailysatori.service.diary
 
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.shared.db.Diary_attachment
 import kotlinx.datetime.Instant
 

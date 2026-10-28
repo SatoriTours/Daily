@@ -28,11 +28,17 @@ class MemoryExtractService(
         title: String,
         content: String,
     ) {
+        val diary=if(sourceType=="diary") memoryRepo.diarySource(sourceId) ?: return else null
+        extractCanonical(sourceType,diary?.rootId ?: sourceId,if(diary==null) title else "日记",diary?.content ?: content)
+    }
+
+    private suspend fun extractCanonical(sourceType:String,sourceId:Long,title:String,content:String) {
         try {
             coroutineContext.ensureActive()
             val config = aiConfigService.getDefaultConfig() ?: return
             if (config.api_address.isBlank()) return
 
+            val writeSnapshot=memoryRepo.automaticSnapshot(sourceType,sourceId,title,content) ?: return
             val truncatedContent = if (content.length > 3000) content.take(3000) + "..." else content
 
             val messages = listOf(
@@ -63,26 +69,8 @@ class MemoryExtractService(
             } ?: ""
 
             if (summary.isNotBlank()) {
-                val existing = memoryRepo.getBySource(sourceType, sourceId)
                 coroutineContext.ensureActive()
-                if (existing != null) {
-                    memoryRepo.update(
-                        id = existing.id,
-                        title = title,
-                        content = summary,
-                        tags = null,
-                    )
-                    log.d { "Updated memory for $sourceType:$sourceId" }
-                } else {
-                    memoryRepo.insert(
-                        type = "content",
-                        sourceType = sourceType,
-                        sourceId = sourceId,
-                        title = title,
-                        content = summary,
-                    )
-                    log.d { "Created memory for $sourceType:$sourceId" }
-                }
+                memoryRepo.saveAutomatic(sourceType,sourceId,title,summary,writeSnapshot)
             }
         } catch (e: CancellationException) {
             throw e
@@ -169,7 +157,7 @@ class MemoryExtractService(
                     extractAndSave("article", article.id, t, text)
                 }
 
-                val diaries = diaryRepo.getAllSync()
+                val diaries = diaryRepo.getAllSync().filter { it.parent_diary_id == null }
                 diaries.forEachIndexed { index, diary ->
                     coroutineContext.ensureActive()
                     onProgress("处理日记 (${index + 1}/${diaries.size})...")

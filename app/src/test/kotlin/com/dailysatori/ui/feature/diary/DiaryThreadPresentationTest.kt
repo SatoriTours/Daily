@@ -311,7 +311,7 @@ class DiaryThreadPresentationTest {
 
     @Test
     fun resolveDiaryEditorRouteTargetSeparatesRootAndChild() {
-        val rootDiary = com.dailysatori.shared.db.Diary(
+        val rootDiary = com.dailysatori.shared.db.Diary_record(
             id = 100L,
             content = "主日记",
             tags = "日常",
@@ -321,7 +321,7 @@ class DiaryThreadPresentationTest {
             updated_at = 1000L,
             parent_diary_id = null,
         )
-        val childDiary = com.dailysatori.shared.db.Diary(
+        val childDiary = com.dailysatori.shared.db.Diary_record(
             id = 200L,
             content = "续写回复",
             tags = null,

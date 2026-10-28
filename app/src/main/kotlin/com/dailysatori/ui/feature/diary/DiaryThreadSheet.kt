@@ -47,7 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.R
 import com.dailysatori.core.util.diaryImagePaths
 import com.dailysatori.service.diary.DiaryThreadSnapshot
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.ui.component.card.DiaryPhotoWall
 import com.dailysatori.ui.theme.*
 import com.mikepenz.markdown.m3.Markdown

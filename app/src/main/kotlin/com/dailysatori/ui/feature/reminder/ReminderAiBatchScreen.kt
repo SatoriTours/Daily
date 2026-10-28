@@ -80,6 +80,7 @@ fun ReminderAiBatchScreen(
                                 batch = preview, profiles = profiles,
                                 onToggleItem = viewModel::toggleItem, onRemoveItem = viewModel::removeItem,
                                 onConfirmItem = viewModel::confirmItem, onUpdateItem = viewModel::updateItem,
+                                onRetrySchedule = if(state.isSaving) null else viewModel::retrySchedule,
                             )
                         }
                         item {
@@ -114,7 +115,14 @@ fun ReminderAiBatchScreen(
                     }
                 }
                 ReminderAiBatchStatus.CONFIRMED, ReminderAiBatchStatus.DISCARDED -> item {
-                    Column(Modifier.fillMaxWidth().padding(vertical = Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    val outstanding=state.preview?.takeIf { batch.status==ReminderAiBatchStatus.CONFIRMED &&
+                        it.items.values.any { row -> row.createdReminderId!=null && row.saveStatus!=BatchSaveStatus.SAVED } }
+                    if(outstanding!=null) ReminderBatchPreview(
+                        batch=outstanding,profiles=profiles,
+                        onToggleItem=viewModel::toggleItem,onRemoveItem=viewModel::removeItem,
+                        onConfirmItem=viewModel::confirmItem,onUpdateItem=viewModel::updateItem,
+                        onRetrySchedule = if(state.isSaving) null else viewModel::retrySchedule,
+                    ) else Column(Modifier.fillMaxWidth().padding(vertical = Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                         val saved = batch.status == ReminderAiBatchStatus.CONFIRMED
                         Icon(if (saved) Icons.Outlined.CheckCircle else Icons.Outlined.DeleteOutline, null, Modifier.size(IconSize.xxl), tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(if (saved) R.string.reminder_batch_review_saved else R.string.reminder_batch_review_discarded), style = MaterialTheme.typography.titleMedium)

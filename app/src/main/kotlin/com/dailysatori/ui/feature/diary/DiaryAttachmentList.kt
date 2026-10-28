@@ -66,9 +66,9 @@ fun DiaryAttachmentList(
     onOpenTranscript: ((Diary_attachment, Boolean) -> Unit)? = null,
 ) {
     val displayableAttachments = attachments.filterNot {
-        it.kind == "audio" &&
+        it.kind == "image" || (it.kind == "audio" &&
             it.local_path.isBlank() &&
-            it.transcript_status != DiaryAttachmentProcessingStatus.failed
+            it.transcript_status != DiaryAttachmentProcessingStatus.failed)
     }
     if (displayableAttachments.isEmpty()) return
     var expanded by remember { mutableStateOf(false) }

@@ -412,7 +412,7 @@ class IdeaTopicViewModelTest {
         val fixture = ViewModelFixture()
         try {
             val diaryId = 1L
-            fixture.db.dailySatoriQueries.insertDiary("来源内容", null, null, null, 1_000L, 1_000L)
+            fixture.db.dailySatoriQueries.insertDiary("来源内容", null, 1_000L, 1_000L)
             val snapshot = IdeaSourceSnapshot(
                 key = IdeaSourceKey(IdeaSourceTypes.Diary, diaryId.toString()),
                 originalTitle = "来源内容",
@@ -469,7 +469,7 @@ private class ViewModelFixture {
 
     suspend fun captureTopic(title: String, description: String = ""): String {
         val id = db.dailySatoriQueries.let {
-            it.insertDiary("来源-$title", null, null, null, clockMs, clockMs)
+            it.insertDiary("来源-$title", null, clockMs, clockMs)
             lastDiaryId()
         }
         return service.capture(

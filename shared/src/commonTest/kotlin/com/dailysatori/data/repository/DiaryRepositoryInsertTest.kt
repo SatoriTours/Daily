@@ -19,7 +19,8 @@ class DiaryRepositoryInsertTest {
         assertFalse(schema.contains("insertDiaryReturningId:"))
         assertTrue(repository.contains("suspend fun create("))
         assertTrue(repository.contains("q.transactionWithResult"))
-        assertTrue(repository.contains("q.insertDiary(content, tags, mood, images, now, now)"))
+        assertTrue(repository.contains("q.insertDiary(content, mood, now, now)"))
+        assertTrue(repository.contains("DiaryImages(db).replace(it, images)"))
         assertTrue(repository.contains("SELECT last_insert_rowid()"))
         assertTrue(repository.contains("driver.executeQuery"))
     }

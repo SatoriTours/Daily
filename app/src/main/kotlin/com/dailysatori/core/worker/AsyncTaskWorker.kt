@@ -70,6 +70,7 @@ class AsyncTaskScheduler(private val context: Context) {
 
     fun recoverAfterProcessStart() {
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        GlobalContext.get().get<ReminderAiBatchRepository>().reconcileScheduleIntents()
         GlobalContext.get().get<ReminderAiBatchRepository>().reconcileOrphanedActiveBatches(
             taskType = ReminderAiParseTaskHandler.TYPE,
             payloadForBatch = ::reminderAiParseTaskPayloadJson,

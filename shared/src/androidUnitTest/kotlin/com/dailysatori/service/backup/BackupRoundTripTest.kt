@@ -5,6 +5,9 @@ import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.IdeaTopicRepository
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.data.repository.MemoryRepository
+import com.dailysatori.service.assistant.AssistantTurnRepository
+import com.dailysatori.service.assistant.AssistantPrivacyRepository
 import com.dailysatori.service.ideatopic.*
 import com.dailysatori.service.diagnostics.*
 import com.dailysatori.platform.FileManager
@@ -22,6 +25,226 @@ import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class BackupRoundTripTest {
+    @Test fun physical44RetirementSurvivesRebackupAndRestoreAfterDeletingSourceDevice()=runBlocking {
+        var time=Instant.parse("2026-10-30T00:00:00Z").toEpochMilliseconds()
+        val clock=object:Clock { override fun now()=Instant.fromEpochMilliseconds(time.also { time+=60_000 }) }
+        withVerificationFixture(clock) { files,source,oldBackup ->
+            withDatabase(files.getDatabasePath()) { d ->
+                val db=DailySatoriDatabase(d)
+                com.dailysatori.data.repository.DiaryRepository(db,d).update(23,"完整日记\u0000tail","保留标签",null,
+                    """["diary_images/photo.jpg","diary_images/photo.jpg","https://example.test/remote.png"]""")
+                SettingRepository(db).upsert("diary_tag_state_v1_023","unknown\u0000tail")
+                com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(d)
+                SettingRepository(db).upsert("schema_version","44")
+                d.execute(null,"UPDATE diary SET tags='retired-csv' WHERE id=23",0)
+            }
+            val original=File(files.getDatabasePath()).readBytes()
+            assertTrue(source.backupNow(),source.lastMessage.value)
+            assertContentEquals(original,File(files.getDatabasePath()).readBytes())
+            val backup=oldBackup.parentFile!!.listFiles()!!.single { it.name!=oldBackup.name }
+            val sourceRoot=File(files.getDatabasePath()).parentFile!!
+            check(!backup.toPath().startsWith(sourceRoot.toPath()))
+            assertTrue(sourceRoot.deleteRecursively())
+            val destinationRoot=Files.createTempDirectory("retired-history-destination").toFile()
+            try {
+                val destination=DiskFiles(destinationRoot)
+                val restored=service(destination,backup.parentFile!!,DeviceCipher("retired-other-device"),"unused",configured=false)
+                assertTrue(restored.restoreFile(backup.path,"correct horse battery"),restored.lastMessage.value)
+                withDatabase(destination.getDatabasePath()) { d ->
+                    val db=DailySatoriDatabase(d)
+                    val row=com.dailysatori.data.repository.DiaryRepository(db,d).getById(23)!!
+                    assertEquals("完整日记\u0000tail",row.content);assertEquals("保留标签",row.tags)
+                    assertEquals(listOf("${destination.getAppDataDir()}/diary_images/photo.jpg",
+                        "${destination.getAppDataDir()}/diary_images/photo.jpg","https://example.test/remote.png"),
+                        com.dailysatori.service.diary.parseDiaryImagePaths(row.images))
+                    assertEquals(listOf(0L,1L,2L),db.dailySatoriQueries.selectAttachmentsForDiary(23).executeAsList().filter { it.kind=="image" }.map { it.position })
+                    assertEquals("45",SettingRepository(db).get("schema_version"))
+                    assertEquals("unknown\u0000tail",SettingRepository(db).get("diary_tag_state_v1_023"))
+                    val fields=com.dailysatori.service.migration.DatabaseSchemaInventory.strings(d,"SELECT name FROM pragma_table_info('diary')")
+                    assertFalse("images" in fields);assertFalse("tags" in fields)
+                }
+                assertContentEquals("voice bytes".toByteArray(),File(destination.getAppDataDir(),"diary/audio/23/voice.m4a").readBytes())
+                assertContentEquals("photo bytes".toByteArray(),File(destination.getAppDataDir(),"diary_images/photo.jpg").readBytes())
+            } finally { destinationRoot.deleteRecursively() }
+        }
+    }
+    @Test fun assistantOwnershipDeletedBodiesAndRestoreHoldsSurviveEncryptedCrossDeviceRestore()=runBlocking {
+        var time=Instant.parse("2026-10-29T00:00:00Z").toEpochMilliseconds()
+        val clock=object:Clock { override fun now()=Instant.fromEpochMilliseconds(time.also { time+=60_000 }) }
+        withVerificationFixture(clock) { files,source,oldBackup ->
+            var deletedId=0L;var pendingId=0L
+            withDatabase(files.getDatabasePath()) { driver ->
+                com.dailysatori.service.migration.AssistantLegacyFixture.seed(driver)
+                val db=DailySatoriDatabase(driver)
+                val turns=AssistantTurnRepository(driver)
+                val deleted=turns.accept("owned","private-client","已删原文",4,"UTC");deletedId=deleted.id
+                AssistantPrivacyRepository(driver).deleteConversationMessage(deleted.id)
+                pendingId=turns.accept("owned","pending-client","完整输入\u0000tail",5,"UTC").id
+                val settings=SettingRepository(db);settings.upsert("schema_version","43")
+                com.dailysatori.service.migration.DatabaseMigration(driver,settings).runMigrations()
+                MemoryRepository(db).insert("content","diary",998,"人工","人工正文")
+                driver.execute(null,"INSERT INTO memory_entry(type,title,content,content_origin,created_at,updated_at) VALUES('assistant','采纳','采纳正文','accepted',6,6)",0)
+            }
+            assertTrue(source.backupNow(),source.lastMessage.value)
+            val backup=oldBackup.parentFile!!.listFiles()!!.single { it.name!=oldBackup.name }
+            val destinationRoot=Files.createTempDirectory("assistant-history-destination").toFile()
+            try {
+                val destination=DiskFiles(destinationRoot)
+                val restored=service(destination,backup.parentFile!!,DeviceCipher("other-device"),"unused",configured=false)
+                assertTrue(restored.restoreFile(backup.path,"correct horse battery"),restored.lastMessage.value)
+                withDatabase(destination.getDatabasePath()) { driver ->
+                    val db=DailySatoriDatabase(driver);val q=db.dailySatoriQueries
+                    assertNull(q.selectChatById(deletedId).executeAsOneOrNull())
+                    assertNotNull(AssistantTurnRepository(driver).get(deletedId))
+                    assertTrue(AssistantPrivacyRepository(driver).isExcluded("chat",deletedId.toString()))
+                    assertEquals("完整输入\u0000tail",q.selectChatById(pendingId).executeAsOne().content)
+                    assertTrue(AssistantTurnRepository(driver).get(pendingId)!!.requiresResume)
+                    val tasks=com.dailysatori.data.repository.AsyncTaskRepository(db)
+                    assertEquals("restore_requires_resume",tasks.getById(AssistantTurnRepository(driver).get(pendingId)!!.taskId)!!.last_error_code)
+                    val rows=q.selectAllMemory().executeAsList()
+                    assertEquals(setOf("legacy_unknown","manual","accepted"),rows.map { it.content_origin }.toSet())
+                    assertTrue(rows.any { it.content=="保留正文\u0000tail" && it.evidence=="未知证据" && it.source_version=="历史指纹\u0000tail" })
+                    assertEquals(listOf(71L,72L),q.selectChatBySession("missing-session").executeAsList().map { it.id })
+                    assertTrue(tasks.runnableTasks(Long.MAX_VALUE,100).none { it.type=="assistant_turn" })
+                }
+            } finally { destinationRoot.deleteRecursively() }
+        }
+    }
+
+    @Test fun migratedIdeaReferencesOpaqueHistoryAndMessagesSurviveEncryptedCrossDeviceRestore()=runBlocking {
+        var time=Instant.parse("2026-10-28T00:00:00Z").toEpochMilliseconds()
+        val clock=object:Clock { override fun now()=Instant.fromEpochMilliseconds(time.also { time+=60_000 }) }
+        withVerificationFixture(clock) { files,source,oldBackup ->
+            withDatabase(files.getDatabasePath()) { driver ->
+                com.dailysatori.service.migration.IdeaLegacyFixture.seed(driver)
+                val db=DailySatoriDatabase(driver);val settings=SettingRepository(db)
+                settings.upsert("schema_version","42")
+                com.dailysatori.service.migration.DatabaseMigration(driver,settings).runMigrations()
+                driver.execute(null,"""INSERT INTO idea_topic_event(id,topic_id,original_topic_id,kind,payload_json,created_at)
+                    VALUES('confirmed-draft','legacy-idea','gone-owner','draft_applied',?,10)""",1) {
+                    bindString(0,"""{"draftId":"old","before":{"title":"用户旧稿"},"after":{"title":"用户确认稿"},"unknown":true}""")
+                }
+                com.dailysatori.data.repository.IdeaTopicRepository(db).updateContent(
+                    "legacy-idea",IdeaTopicContent(title="当前主题",conclusions="保留结论"),"content-edit",11)
+            }
+            assertTrue(source.backupNow(),source.lastMessage.value)
+            val backup=oldBackup.parentFile!!.listFiles()!!.single { it.name!=oldBackup.name }
+            val destinationRoot=Files.createTempDirectory("idea-history-destination").toFile()
+            try {
+                val destination=DiskFiles(destinationRoot)
+                val restored=service(destination,backup.parentFile!!,DeviceCipher("other-device"),"unused",configured=false)
+                assertTrue(restored.restoreFile(backup.path,"correct horse battery"),restored.lastMessage.value)
+                withDatabase(destination.getDatabasePath()) { driver ->
+                    val db=DailySatoriDatabase(driver);val q=db.dailySatoriQueries
+                    assertEquals(com.dailysatori.service.migration.IdeaLegacyFixture.raw,
+                        q.selectIdeaTopicSourceById("legacy-source").executeAsOne().snapshot_json)
+                    val detail=com.dailysatori.data.repository.IdeaTopicRepository(db).getDetailSync("legacy-idea")!!
+                    assertEquals("保留结论",detail.topic.content.conclusions)
+                    val captured=Json.parseToJsonElement(detail.events.single { it.id=="legacy-captured" }.payload).toString()
+                    assertTrue(captured.contains("retained"));assertTrue(captured.contains("unknown"))
+                    assertEquals("unknown\u0000tail",detail.events.single { it.id=="legacy-opaque" }.payload)
+                    assertTrue(detail.events.single { it.id=="confirmed-draft" }.payload.contains("用户确认稿"))
+                    assertEquals("gone-owner",q.selectIdeaTopicSourceById("legacy-source").executeAsOne().original_topic_id)
+                    assertEquals("完整回复\u0000tail",q.selectIdeaTopicMessagesBySession("legacy-session").executeAsOne().content)
+                    assertEquals(1,q.selectIdeaEventSnapshots("legacy-captured").executeAsList().size)
+                }
+            } finally { destinationRoot.deleteRecursively() }
+        }
+    }
+
+    @Test fun pendingReminderSchedulingAndImmutableUnknownPolicySurviveCrossDeviceRestore()=runBlocking {
+        var time=Instant.parse("2026-10-27T00:00:00Z").toEpochMilliseconds()
+        val clock=object:Clock { override fun now()=Instant.fromEpochMilliseconds(time.also { time+=60_000 }) }
+        withVerificationFixture(clock) { files,source,oldBackup ->
+            var taskId=0L; var batchId=""; var raw=""; var policyId=""
+            val draft=com.dailysatori.service.reminder.ReminderDraft("untrusted-id","preserve reminder",
+                kotlinx.datetime.LocalDate(2026,9,1),kotlinx.datetime.LocalDate(2027,9,1),kotlinx.datetime.LocalTime(10,0),
+                timeZone=kotlinx.datetime.TimeZone.UTC)
+            val profile=com.dailysatori.service.reminder.ReminderProfileSnapshot.gentle()
+            withDatabase(files.getDatabasePath()) { driver ->
+                val db=DailySatoriDatabase(driver); val q=db.dailySatoriQueries
+                val batches=com.dailysatori.data.repository.ReminderAiBatchRepository(db)
+                batchId=batches.enqueueOrReuse("original input",draft.timeZone,draft.startDate!!).id
+                batches.markReady(batchId,listOf(com.dailysatori.service.reminder.ReminderAiBatchDraft(0,"source","AI original")))
+                taskId=assertNotNull(batches.confirmDraft(batchId,0,0,draft,profile))
+                raw=q.selectReminderById("$batchId:0").executeAsOne().profile_json.removeSuffix("}")+""","unknown":"keep\\u0000tail"}"""
+                policyId=com.dailysatori.data.repository.ReminderPolicySnapshots(db).intern(raw)
+                driver.execute(null,"UPDATE reminder SET policy_snapshot_id=? WHERE id=?",2) {
+                    bindString(0,policyId);bindString(1,"$batchId:0")
+                }
+                assertTrue(com.dailysatori.data.repository.AsyncTaskRepository(db).claimForRun(taskId,"interrupted-owner",Long.MAX_VALUE))
+            }
+            assertTrue(source.backupNow(),source.lastMessage.value)
+            val backup=oldBackup.parentFile!!.listFiles()!!.single { it.name!=oldBackup.name }
+            val destinationRoot=Files.createTempDirectory("reminder-outbox-destination").toFile()
+            try {
+                val destination=DiskFiles(destinationRoot)
+                val restored=service(destination,backup.parentFile!!,DeviceCipher("other-device"),"unused",configured=false)
+                assertTrue(restored.restoreFile(backup.path,"correct horse battery"),restored.lastMessage.value)
+                withDatabase(destination.getDatabasePath()) { driver ->
+                    val db=DailySatoriDatabase(driver); val q=db.dailySatoriQueries
+                    val batches=com.dailysatori.data.repository.ReminderAiBatchRepository(db)
+                    val tasks=com.dailysatori.data.repository.AsyncTaskRepository(db)
+                    val current=q.selectReminderById("$batchId:0").executeAsOne()
+                    assertEquals(raw,current.profile_json); assertEquals(policyId,current.policy_snapshot_id)
+                    assertEquals(taskId,batches.confirmDraft(batchId,0,0,draft,profile))
+                    tasks.markRunningForRetryAfterProcessRestart(Clock.System.now().toEpochMilliseconds())
+                    val scheduled=mutableSetOf<String>()
+                    val handler=com.dailysatori.service.reminder.ReminderScheduleTaskHandler(batches,tasks) { scheduled+=it }
+                    val runner=com.dailysatori.service.asynctask.AsyncTaskRunner(tasks,com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry(listOf(handler)))
+                    assertEquals(com.dailysatori.service.asynctask.AsyncTaskRunOutcome.Succeeded,runBlocking { runner.run(taskId) })
+                    assertEquals(setOf("$batchId:0"),scheduled)
+                    assertEquals("CONFIRMED",batches.getBatch(batchId)!!.drafts.single().confirmationState)
+                    assertEquals(listOf("1"),com.dailysatori.service.migration.DatabaseSchemaInventory.strings(driver,
+                        "SELECT COUNT(*) FROM reminder_event WHERE reminder_id='$batchId:0' AND event_type='confirmed'"))
+                }
+            } finally { destinationRoot.deleteRecursively() }
+        }
+    }
+
+    @Test fun legacySuppressionReactivationHistoryAndMergeUndoSurviveEncryptedCrossDeviceRestore() = runBlocking {
+        var time=Instant.parse("2026-10-26T00:00:00Z").toEpochMilliseconds()
+        val clock=object:Clock { override fun now()=Instant.fromEpochMilliseconds(time.also { time+=60_000 }) }
+        withVerificationFixture(clock) { files,source,oldBackup ->
+            withDatabase(files.getDatabasePath()) { driver ->
+                val db=DailySatoriDatabase(driver)
+                val settings=SettingRepository(db)
+                com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
+                settings.upsert("schema_version","40")
+                settings.upsert("diary_tag_state_v1_23",Json.encodeToString(com.dailysatori.service.diary.DiaryTagState(
+                    suppressed=listOf("读书"),contentFingerprint=com.dailysatori.service.diary.diaryTagFingerprint("journal entry"),revision=4)))
+                com.dailysatori.service.migration.DatabaseMigration(driver,settings).runMigrations()
+                val tags=com.dailysatori.data.repository.DiaryTagRepository(db,
+                    com.dailysatori.data.repository.DiaryThreadRepository(db,driver))
+                assertEquals(listOf("读书"),tags.state(23).suppressed)
+                com.dailysatori.data.repository.DiaryRepository(db,driver).update(23,"changed body",null,null,"diary_images/photo.jpg")
+                assertTrue(tags.apply(assertNotNull(tags.prepare(23)),listOf("读书")))
+                tags.merge("读书","阅读")
+            }
+            assertTrue(source.backupNow(),source.lastMessage.value)
+            val backup=oldBackup.parentFile!!.listFiles()!!.single { it.name!=oldBackup.name }
+            val destinationRoot=Files.createTempDirectory("tag-history-destination").toFile()
+            try {
+                val destination=DiskFiles(destinationRoot)
+                val service=service(destination,backup.parentFile!!,DeviceCipher("other-device"),"unused",configured=false)
+                assertTrue(service.restoreFile(backup.path,"correct horse battery"),service.lastMessage.value)
+                withDatabase(destination.getDatabasePath()) { driver ->
+                    val db=DailySatoriDatabase(driver)
+                    val tags=com.dailysatori.data.repository.DiaryTagRepository(db,
+                        com.dailysatori.data.repository.DiaryThreadRepository(db,driver))
+                    assertEquals(listOf("阅读"),tags.tags(23))
+                    assertTrue(tags.state(23).suppressed.isEmpty())
+                    assertEquals(listOf("1"),com.dailysatori.service.migration.DatabaseSchemaInventory.strings(driver,
+                        "SELECT COUNT(*) FROM diary_tag_history WHERE diary_id=23 AND decision='suppressed' AND occurred_at IS NULL AND source_fingerprint IS NOT NULL"))
+                    assertTrue(tags.undoMerge())
+                    assertEquals(listOf("读书"),tags.tags(23))
+                    assertNull(SettingRepository(db).get("diary_tag_state_v1_23"))
+                }
+                assertTrue(File(destination.getCacheDir()).listFiles().orEmpty().isEmpty())
+            } finally { destinationRoot.deleteRecursively() }
+        }
+    }
+
     @Test
     fun assistantPrivacyAndTurnsSurviveArchiveRestoreWithoutAutomaticallyReplayingWork() = runBlocking {
         withVerificationFixture { files, service, _ ->
@@ -131,9 +354,9 @@ class BackupRoundTripTest {
     fun missingImagesAllowBackupVerificationAndRestoreWithoutDroppingReferences() = runBlocking {
         withVerificationFixture { files, service, _ ->
             withDatabase(files.getDatabasePath()) { driver ->
-                driver.execute(null, "UPDATE diary SET images = 'diary_images/photo.jpg,diary_images/missing.jpg' WHERE id = 23", 0)
+                com.dailysatori.data.repository.DiaryImages(DailySatoriDatabase(driver)).replace(23,"diary_images/photo.jpg,diary_images/missing.jpg")
                 driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(71,'images/20241025_140752-2408',1,1)", 0)
-                driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(23,'image','diary/images/missing-without-extension',1,1)", 0)
+                driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,position,created_at,updated_at) VALUES(23,'image','diary/images/missing-without-extension',(SELECT MAX(position)+1 FROM diary_attachment WHERE diary_id=23),1,1)", 0)
             }
             val source = File(files.getDatabasePath()).readBytes()
             assertTrue(service.backupNow(), service.lastMessage.value)
@@ -149,7 +372,9 @@ class BackupRoundTripTest {
             withDatabase(files.getDatabasePath()) { driver ->
                 val queries = DailySatoriDatabase(driver).dailySatoriQueries
                 assertEquals("journal entry", queries.selectAllDiaries().executeAsOne().content)
-                assertEquals("diary_images/photo.jpg,diary_images/missing.jpg", queries.selectAllDiaries().executeAsOne().images)
+                assertEquals(listOf("diary_images/photo.jpg","diary_images/missing.jpg","diary/images/missing-without-extension"),
+                    queries.selectAllDiaryAttachments().executeAsList().filter { it.kind=="image" }
+                        .map { it.local_path.removePrefix(files.getAppDataDir()+"/") })
                 assertEquals("images/20241025_140752-2408", queries.selectArticleById(71).executeAsOne().cover_image)
                 assertTrue(queries.selectAllDiaryAttachments().executeAsList().any {
                     it.kind == "image" && it.local_path == "${files.getAppDataDir()}/diary/images/missing-without-extension"
@@ -198,6 +423,8 @@ class BackupRoundTripTest {
             withDatabase(files.getDatabasePath()) { driver ->
                 driver.execute(null, "INSERT INTO article(id,cover_image,created_at,updated_at) VALUES(1,'null',1,1)", 0)
                 driver.execute(null, "INSERT INTO image(path,article_id,created_at,updated_at) VALUES('images/null',1,1,1)", 0)
+                com.dailysatori.service.migration.DiaryLegacyFieldsFixture.install(driver)
+                SettingRepository(DailySatoriDatabase(driver)).upsert("schema_version","39")
                 driver.execute(null, "UPDATE diary SET images = 'diary_images/null,diary_images/photo.jpg' WHERE id = 23", 0)
             }
             val source = File(files.getDatabasePath()).readBytes()
@@ -236,6 +463,68 @@ class BackupRoundTripTest {
             assertNull(files.restoreResult)
             assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
         }
+    }
+
+    @Test
+    fun orphanedReminderEventsAreRejectedBeforeRestoreChangesAnyLiveData() = runBlocking {
+        withVerificationFixture { files, service, backup ->
+            rewriteBackup(backup) { content ->
+                withDatabase(content.resolve(DatabaseConfig.name).path) { driver ->
+                    driver.execute(null, "PRAGMA foreign_keys=OFF", 0)
+                    driver.execute(null, """INSERT INTO reminder_event(reminder_id,event_type,actual_at)
+                        VALUES('nonexistent-reminder','completed',123)""", 0)
+                }
+            }
+            assertRejectedRestorePreservesFiles(files, service, backup)
+        }
+    }
+
+    @Test
+    fun portableDescriptorDamageIsRejectedEvenWithAConsistentManifest() = runBlocking {
+        for (mode in listOf("missing", "malformed", "oversized")) {
+            withVerificationFixture { files, service, backup ->
+                rewriteBackup(backup) { content ->
+                    val key = content.resolve(DatabaseKeyBackupName)
+                    when (mode) {
+                        "missing" -> key.delete()
+                        "malformed" -> key.writeText("{}")
+                        else -> key.writeText("x".repeat(1025))
+                    }
+                }
+                assertRejectedRestorePreservesFiles(files, service, backup)
+            }
+        }
+    }
+
+    @Test
+    fun duplicateManifestEntriesAndUnregisteredFilesCannotBeRestored() = runBlocking {
+        for (mode in listOf("duplicate", "unregistered")) {
+            withVerificationFixture { files, service, backup ->
+                rewriteBackup(backup, updateManifest = false) { content ->
+                    if (mode == "unregistered") content.resolve("extra-secret.txt").writeText("not registered")
+                    else {
+                        val path = content.resolve(BackupManifestName)
+                        val manifest = Json.decodeFromString<BackupManifest>(path.readText())
+                        path.writeText(Json.encodeToString(manifest.copy(files = manifest.files + manifest.files.first())))
+                    }
+                }
+                assertRejectedRestorePreservesFiles(files, service, backup)
+            }
+        }
+    }
+
+    private suspend fun assertRejectedRestorePreservesFiles(files: DiskFiles, service: BackupService, backup: File) {
+        val database = File(files.getDatabasePath()).readBytes()
+        val media = File(files.getAppDataDir()).walkTopDown().filter { it.isFile }.associate { it.path to it.readBytes() }
+        val archive = backup.readBytes()
+        assertFalse(service.restore(backup.name, "correct horse battery"))
+        assertContentEquals(database, File(files.getDatabasePath()).readBytes())
+        media.forEach { (path, bytes) -> assertContentEquals(bytes, File(path).readBytes()) }
+        assertContentEquals(archive, backup.readBytes())
+        assertFalse(files.pending.exists())
+        assertNull(files.restoreResult)
+        assertFalse(service.isBackingUp.value)
+        assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
     }
 
     @Test
@@ -305,6 +594,21 @@ class BackupRoundTripTest {
     }
 
     @Test
+    fun incompleteLiveSchemaCannotPublishABackupOrReplacePreviousArchives() = runBlocking {
+        withVerificationFixture { files, service, backup ->
+            val previous = backup.readBytes()
+            withDatabase(files.getDatabasePath()) { it.execute(null, "DROP TABLE assistant_reference", 0) }
+            val original = File(files.getDatabasePath()).readBytes()
+            assertFalse(service.backupNow())
+            assertContentEquals(previous, backup.readBytes())
+            assertContentEquals(original, File(files.getDatabasePath()).readBytes())
+            assertEquals(listOf(backup.name), backup.parentFile?.listFiles().orEmpty().map { it.name })
+            assertFalse(service.isBackingUp.value)
+            assertTrue(File(files.getCacheDir()).listFiles().orEmpty().isEmpty())
+        }
+    }
+
+    @Test
     fun verificationRejectsDatabaseMissingCurrentApplicationTables() = runBlocking {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup) { content -> withDatabase(content.resolve(DatabaseConfig.name).path) {
@@ -331,7 +635,7 @@ class BackupRoundTripTest {
     fun verificationRejectsMissingRequiredDatabaseColumns() = runBlocking {
         withVerificationFixture { files, service, backup ->
             rewriteBackup(backup) { content -> withDatabase(content.resolve(DatabaseConfig.name).path) {
-                it.execute(null, "ALTER TABLE diary RENAME COLUMN images TO lost_images", 0)
+                it.execute(null, "ALTER TABLE diary RENAME COLUMN mood TO lost_mood", 0)
             } }
             assertVerificationFailure(files, service, BackupVerificationStage.PREPARING)
         }
@@ -355,6 +659,7 @@ class BackupRoundTripTest {
                 content.resolve(DatabaseKeyBackupName).delete()
                 content.resolve(LifeArchiveBackupName).delete()
                 withDatabase(content.resolve(DatabaseConfig.name).path) {
+                    com.dailysatori.service.migration.IdeaLegacyFixture.install(it)
                     it.execute(null, "UPDATE setting SET value = '32' WHERE key = 'schema_version'", 0)
                     listOf("idea_topic_message", "idea_topic_session", "idea_topic_event", "idea_topic_source", "idea_topic").forEach { table ->
                         it.execute(null, "DROP TABLE $table", 0)
@@ -447,6 +752,7 @@ class BackupRoundTripTest {
             sourceFiles.writeFile("${sourceFiles.getAppDataDir()}/diary_images/photo.jpg", "photo bytes".toByteArray())
             val archive = "{\"categories\":[{\"id\":\"insurance\",\"name\":\"保险\"}],\"records\":[{\"title\":\"policy\"}]}"
             val source = service(sourceFiles, backups, sourceCipher, archive)
+            seedPersonalRecords(sourceFiles)
             assertTrue(source.backupNow(), source.lastMessage.value)
             val name = backups.listFiles()!!.single().name
             assertFalse(backups.resolve(name).readBytes().decodeToString().contains("private-token"))
@@ -466,23 +772,73 @@ class BackupRoundTripTest {
             assertEquals(archive, destinationCipher.decrypt(File(destinationFiles.life, "archive.json.enc").readText()))
             withDatabase(destinationFiles.getDatabasePath()) { driver ->
                 val queries = DailySatoriDatabase(driver).dailySatoriQueries
-                assertEquals("journal entry", queries.selectAllDiaries().executeAsOne().content)
+                assertEquals("journal entry", queries.selectAllDiaries().executeAsList().single { it.id == 23L }.content)
                 assertEquals("${destinationFiles.getAppDataDir()}/diary/audio/23/voice.m4a",
-                    queries.selectAllDiaryAttachments().executeAsOne().local_path)
+                    queries.selectAllDiaryAttachments().executeAsList().single { it.kind=="audio" }.local_path)
                 assertEquals("private-token", destinationCipher.decrypt(queries.selectSettingByKey("weread_api_key").executeAsOne().value_!!))
                 assertEquals("{\"amount\":12345,\"note\":\"original ledger\"}",
                     destinationCipher.decrypt(queries.selectBookkeepingEntries().executeAsOne().encrypted_payload))
                 assertEquals(if (directFile) "" else backups.path, queries.selectSettingByKey("backup_directory").executeAsOne().value_)
                 assertIdeaTopicData(DailySatoriDatabase(driver))
+                assertPersonalRecords(driver)
             }
             assertEquals("secured:correct horse battery", destinationFiles.password.readText())
             assertTrue(File(destinationFiles.getCacheDir()).listFiles().orEmpty().isEmpty())
         } finally { root.deleteRecursively() }
     }
 
+    private fun seedPersonalRecords(files: DiskFiles) = withDatabase(files.getDatabasePath()) { driver ->
+        val q = DailySatoriDatabase(driver).dailySatoriQueries
+        q.insertReminder("personal-reminder", "每月缴费，不能丢", "保留备注", "ACTIVE",
+            "2026-05-01", "2027-05-01", "09:30", "every_day", "monthly", "Asia/Shanghai",
+            com.dailysatori.data.repository.ReminderPolicySnapshots(DailySatoriDatabase(driver)).intern("""{"name":"original profile"}"""), 7, "2026-05-21", 2, 123, 124, null, 999999, 100, 200)
+        q.setReminderDeadline(888888, "personal-reminder")
+        driver.execute(null, """INSERT INTO reminder_event(reminder_id,event_type,scheduled_at,actual_at,metadata_json)
+            VALUES('personal-reminder','dismissed',123,124,'{"cycle":"2026-05"}')""", 0)
+        driver.execute(null, """INSERT INTO diary(id,content,mood,created_at,updated_at,parent_diary_id)
+            VALUES(24,'续写原文：不是摘要','calm',2,3,23)""", 0)
+        driver.execute(null, """UPDATE diary_attachment SET transcript='录音原始转写',transcript_status='ready',
+            duration_ms=65432,display_name='我的录音.m4a' WHERE diary_id=23 AND kind='audio'""", 0)
+        com.dailysatori.data.repository.DiaryTagStore(DailySatoriDatabase(driver)).initializeImported(24,listOf("工作","点子"))
+        q.ensureChatSession("personal-chat",10)
+        q.insertChat("personal-chat", "user", "我输入的原文，保留换行\n以及表情 🌱", null, null, 10)
+        q.insertChat("personal-chat", "assistant", "完整助手回复", "source evidence", "tool steps", 11)
+    }
+
+    private fun assertPersonalRecords(driver: JdbcSqliteDriver) {
+        val q = DailySatoriDatabase(driver).dailySatoriQueries
+        val reminder = q.selectReminderById("personal-reminder").executeAsOne()
+        assertEquals("每月缴费，不能丢", reminder.content)
+        assertEquals("保留备注", reminder.notes)
+        assertEquals("monthly", reminder.recurrence_rule)
+        assertEquals("Asia/Shanghai", reminder.time_zone_id)
+        assertEquals(7L, reminder.version)
+        assertEquals(2L, reminder.dismissal_count)
+        assertEquals(999999L, reminder.next_occurrence_at)
+        assertEquals(888888L, reminder.deadline_at)
+        assertEquals("""{"name":"original profile"}""", reminder.profile_json)
+        val child = q.selectAllDiaries().executeAsList().single { it.id == 24L }
+        assertEquals(23L, child.parent_diary_id)
+        assertEquals("续写原文：不是摘要", child.content)
+        assertEquals("工作,点子", child.tags)
+        val attachment = q.selectAllDiaryAttachments().executeAsList().single { it.kind=="audio" }
+        assertEquals("录音原始转写", attachment.transcript)
+        assertEquals(65432L, attachment.duration_ms)
+        val messages = q.selectChatBySession("personal-chat").executeAsList()
+        assertEquals(listOf("user", "assistant"), messages.map { it.role })
+        assertEquals("我输入的原文，保留换行\n以及表情 🌱", messages.first().content)
+        assertEquals("完整助手回复", messages.last().content)
+        assertEquals("source evidence", messages.last().search_results)
+        assertEquals("tool steps", messages.last().steps)
+        driver.executeQuery(null, "SELECT metadata_json FROM reminder_event WHERE reminder_id='personal-reminder'",
+            { cursor -> assertTrue(cursor.next().value); assertEquals("""{"cycle":"2026-05"}""", cursor.getString(0))
+                app.cash.sqldelight.db.QueryResult.Value(Unit) }, 0)
+    }
+
     private fun seedDatabase(files: DiskFiles, cipher: SecretValueCipher) = withDatabase(files.getDatabasePath()) { driver ->
         DailySatoriDatabase.Schema.create(driver)
-        driver.execute(null, "INSERT INTO diary(id,content,images,created_at,updated_at) VALUES(23,'journal entry','diary_images/photo.jpg',1,1)", 0)
+        driver.execute(null, "INSERT INTO diary(id,content,created_at,updated_at) VALUES(23,'journal entry',1,1)", 0)
+        com.dailysatori.data.repository.DiaryImages(DailySatoriDatabase(driver)).replace(23,"diary_images/photo.jpg")
         driver.execute(null, "INSERT INTO diary_attachment(diary_id,kind,local_path,created_at,updated_at) VALUES(23,'audio',?,1,1)", 1) {
             bindString(0, "${files.getAppDataDir()}/diary/audio/23/voice.m4a")
         }
@@ -508,9 +864,9 @@ class BackupRoundTripTest {
         val duplicate = original.copy(originalTitle = "Earlier capture", originalContent = "duplicate snapshot must survive")
         val opportunity = IdeaSourceSnapshot(IdeaSourceKey("news_opportunity", "opportunity-9"), "News source", "news snapshot",
             originalUrl = "https://example.test/news", analysisId = "analysis-9", analysisContent = "analysis snapshot", analysisVersion = "v2")
-        q.insertIdeaTopicSource("source-main", "topic-main", "topic-main", "diary", "23", Json.encodeToString(original), 3, 3, 3)
-        q.insertIdeaTopicSource("source-duplicate", "topic-merged", "topic-merged", "diary", "23", Json.encodeToString(duplicate), 4, 4, 4)
-        q.insertIdeaTopicSource("source-news", "topic-merged", "topic-merged", "news_opportunity", "opportunity-9", Json.encodeToString(opportunity), 5, 5, 5)
+        q.insertIdeaTopicSource("source-main", "topic-main", "topic-main", "diary", "23", com.dailysatori.data.repository.IdeaSnapshots(database).intern(Json.encodeToString(original),createdAt=3), 3, 3, 3)
+        q.insertIdeaTopicSource("source-duplicate", "topic-merged", "topic-merged", "diary", "23", com.dailysatori.data.repository.IdeaSnapshots(database).intern(Json.encodeToString(duplicate),createdAt=4), 4, 4, 4)
+        q.insertIdeaTopicSource("source-news", "topic-merged", "topic-merged", "news_opportunity", "opportunity-9", com.dailysatori.data.repository.IdeaSnapshots(database).intern(Json.encodeToString(opportunity),createdAt=5), 5, 5, 5)
         q.insertIdeaTopicEvent("progress-1", "topic-merged", "topic-merged", "progress", "{\"text\":\"prototype completed\"}", 6)
         q.insertIdeaTopicSession("session-main", "topic-main", "topic-main", "First conversation", "Retained summary",
             "main-reply", "[\"main-user\",\"main-reply\"]", "ready", 7, 10)
@@ -578,7 +934,11 @@ class BackupRoundTripTest {
         assertEquals("topic-main", progress.topic_id)
         assertEquals("topic-merged", progress.original_topic_id)
         assertEquals("prototype completed", Json.decodeFromString<IdeaProgressEventPayload>(progress.payload_json).text)
-        val merge = Json.decodeFromString<IdeaMergedEventPayload>(q.selectIdeaTopicEventById("merge-1").executeAsOne().payload_json)
+        val mergeRow=q.selectIdeaTopicEventById("merge-1").executeAsOne()
+        assertEquals(2L,mergeRow.payload_version)
+        assertEquals(1,q.selectIdeaEventSnapshots("merge-1").executeAsList().size)
+        val merge = Json.decodeFromString<IdeaMergedEventPayload>(com.dailysatori.data.repository.IdeaTopicRepository(database)
+            .getDetailSync("topic-main")!!.events.single { it.id=="merge-1" }.payload)
         assertEquals("topic-merged", merge.fromTopicId)
         assertEquals("topic-main", merge.intoTopicId)
         assertEquals("Merged conclusions", merge.fromContent.conclusions)

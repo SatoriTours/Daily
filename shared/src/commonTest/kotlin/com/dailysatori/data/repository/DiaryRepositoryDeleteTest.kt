@@ -16,17 +16,17 @@ class DiaryRepositoryDeleteTest {
         val source = File("src/commonMain/kotlin/com/dailysatori/data/repository/DiaryRepository.kt").readText()
         val transactionStart = source.indexOf("q.transactionWithResult")
         val deleteCall = source.indexOf("q.deleteDiary(id)")
-        val cleanupCall = source.indexOf("deleteAppOwnedFile(path)")
+        val cleanupCall = source.indexOf("deleteUnreferencedMedia(db, fileManager, attachmentPaths)")
 
         assertTrue(source.contains("q.selectDiaryRepliesForRoot(id).executeAsList()"))
         assertTrue(source.contains("q.selectAttachmentsForDiary(record.id).executeAsList()"))
-        assertTrue(source.contains("flatMap { diaryImagePaths(it.images) }"))
+        assertTrue(!source.contains("flatMap { diaryImagePaths(it.images) }"))
         assertTrue(source.contains("replies.forEach { reply -> q.deleteDiary(reply.id) }"))
         assertTrue(source.contains("map { it.local_path }"))
         assertTrue(transactionStart >= 0)
         assertTrue(deleteCall > transactionStart)
         assertTrue(cleanupCall > deleteCall)
-        assertTrue(source.contains("attachmentPaths.filter { it.isNotBlank() }.forEach"))
+        assertTrue(source.contains("deleteUnreferencedMedia(db, fileManager, attachmentPaths)"))
     }
 
     @Test
@@ -44,7 +44,7 @@ class DiaryRepositoryDeleteTest {
 
             val rootId = diaries.create(content = "根日记")
             val replyId = threads.createReply(rootId, "续写")
-            q.updateDiary("续写", null, null, "/images/reply-a.png,/images/reply-b.png", 5_000, replyId)
+            q.updateDiary("续写", null, 5_000, replyId)
             val rootAttachment = attachments.create(
                 rootId,
                 DiaryAttachmentDraft(DiaryAttachmentKind.audio, "/audio/root.m4a"),
@@ -87,7 +87,7 @@ class DiaryRepositoryDeleteTest {
             val repository = DiaryRepository(db, driver)
             val q = db.dailySatoriQueries
 
-            q.insertDiary("delete failure", null, null, null, 1, 1)
+            q.insertDiary("delete failure", null, 1, 1)
             q.insertDiaryAttachment(
                 diary_id = 1,
                 kind = "file",
@@ -122,7 +122,7 @@ class DiaryRepositoryDeleteTest {
 
             val source = File("src/commonMain/kotlin/com/dailysatori/data/repository/DiaryRepository.kt").readText()
             assertTrue(source.contains("q.transactionWithResult"))
-            assertTrue(source.contains("attachmentPaths.filter { it.isNotBlank() }.forEach"))
+            assertTrue(source.contains("deleteUnreferencedMedia(db, fileManager, attachmentPaths)"))
         } finally {
             driver.close()
         }

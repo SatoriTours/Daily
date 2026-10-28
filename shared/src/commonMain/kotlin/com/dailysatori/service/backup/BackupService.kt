@@ -251,7 +251,8 @@ class BackupService internal constructor(
         _isBackingUp.value = true
         _progress.value = 0.0
         var tempDirToClean: String? = null
-        return try {
+        var cleanupSucceeded = true
+        val result = try {
             val backupDir = selectedBackupDir() ?: return failBackup("请先选择备份目录")
             val password = currentBackupPassword() ?: return failBackup("请先设置备份密码")
             if (!files.exists(files.getDatabasePath())) return failBackup("数据库文件不存在，无法创建完整备份")
@@ -264,6 +265,8 @@ class BackupService internal constructor(
             val content = prepareBackupContent(tempDir)
             val finalName = backupFileName(timestamp, password)
             publishBackup(tempDir, content, backupDir, finalName, password)
+            // Commit success/retention only after both verified readback and private cleanup.
+            deleteRecursive(tempDir)
             _progress.value = 0.9
             settings.upsert(SettingKeys.lastBackupTime, backupTime.toEpochMilliseconds().toString())
             cleanUpOldBackups(backupDir, finalName)
@@ -278,10 +281,11 @@ class BackupService internal constructor(
             _lastMessage.value = "Backup failed: ${e.message}"
             false
         } finally {
-            tempDirToClean?.let { deleteRecursive(it) }
+            cleanupSucceeded = tempDirToClean?.let(::cleanupTemporaryDirectory) ?: true
             _isBackingUp.value = false
             operationMutex.unlock()
         }
+        return result && cleanupSucceeded
     }
 
     private suspend fun prepareBackupContent(directory: String): List<String> {
@@ -289,6 +293,7 @@ class BackupService internal constructor(
         _lastMessage.value = "Preparing backup..."
         val database = "$directory/${DatabaseConfig.name}"
         val key = secrets.exportSnapshot(database)
+        secrets.backupDatabaseSummary(database, key)
         val keyPath = "$directory/$DatabaseKeyBackupName"
         files.writeFile(keyPath, key.portableJson().encodeToByteArray())
         _progress.value = 0.1
@@ -352,8 +357,9 @@ class BackupService internal constructor(
     }
 
     private fun publishBackup(directory: String, content: List<String>, backupDir: String, name: String, password: String) {
-        val encrypted = "${files.getCacheDir()}/$name"
-        val zip = encrypted.removeSuffix(".enc")
+        // Keep every plaintext artifact under the same checked cleanup owner.
+        val encrypted = "$directory/$name"
+        val zip = "$directory/backup.zip"
         try {
             _lastMessage.value = "Creating ZIP archive (${content.size} files)..."
             files.createZip(directory, zip, content) { _progress.value = 0.5 + it * 0.2 }
@@ -361,7 +367,13 @@ class BackupService internal constructor(
             _lastMessage.value = "Encrypting backup..."
             files.encryptFile(zip, encrypted, password) { _progress.value = 0.7 + it * 0.15 }
             _lastMessage.value = "Saving backup..."
-            files.writeFileToDirectory(backupDir, name, encrypted)
+            val publishedName = files.writeFileToDirectory(backupDir, name, encrypted)
+            check(publishedName == name) { "备份目录返回了非预期文件名" }
+            _lastMessage.value = "Verifying saved backup..."
+            val readback = "$directory/published.enc"
+            check(files.readFileFromDirectory(backupDir, publishedName, readback)) { "写出的备份无法重新读取" }
+            check(files.fileSize(readback) == files.fileSize(encrypted) &&
+                files.sha256(readback) == files.sha256(encrypted)) { "写出的备份内容不完整或已损坏" }
         } finally {
             runCatching { files.deleteFile(zip) }
             runCatching { files.deleteFile(encrypted) }
@@ -381,7 +393,10 @@ class BackupService internal constructor(
         _isBackingUp.value = true
         _progress.value = 0.0
         var tempDirToClean: String? = null
-        return try {
+        var cleanupSucceeded = true
+        var restoreStaged = false
+        var stagedWarning = "Restore ready; restart manually; 恢复已准备，请手动重启完成恢复；临时空目录待清理"
+        val result = try {
             val backupDir = selectedBackupDir() ?: if (fileUri != null) "" else return failRestore("请先选择备份目录")
             if (password.isBlank()) return failRestore("请输入备份密码")
             require('/' !in name && '\\' !in name && name != "." && name != "..") { "无效的备份文件名" }
@@ -392,10 +407,14 @@ class BackupService internal constructor(
             files.createDirectory(tempDir)
             if (!extractRestore(backupDir, name, password, tempDir, fileUri)) return false
             val prepared = prepareRestoreData(tempDir, backupDir, password)
+            // Remove plaintext sources before publishing the durable restore intent.
+            files.listFilesRecursively(tempDir).filterNot { it.startsWith("$prepared/") }.forEach(::deleteRecursive)
             currentCoroutineContext().ensureActive()
             val preservesLifeArchive = files.exists("$prepared/preserve-life-archive")
+            if (preservesLifeArchive) stagedWarning += "; legacy backup"
             _lastMessage.value = "Staging restore..."
             files.stageRestore(prepared)
+            restoreStaged = true
             _progress.value = 0.95
 
             // Clean up temp
@@ -413,14 +432,16 @@ class BackupService internal constructor(
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (e: Exception) {
-            log.e(e) { "Restore failed" }
-            _lastMessage.value = "Restore failed: ${e.message}"
-            false
+            log.e(e) { if (restoreStaged) "Restore staged; source directory cleanup failed" else "Restore failed" }
+            _lastMessage.value = if (restoreStaged) stagedWarning else "Restore failed: ${e.message}"
+            restoreStaged
         } finally {
-            tempDirToClean?.let(::deleteRecursive)
+            cleanupSucceeded = tempDirToClean?.let(::cleanupTemporaryDirectory) ?: true
+            if (restoreStaged && !cleanupSucceeded) _lastMessage.value = stagedWarning
             _isBackingUp.value = false
             operationMutex.unlock()
         }
+        return result && (cleanupSucceeded || restoreStaged)
     }
 
     private fun extractRestore(backupDir: String, name: String, password: String, tempDir: String, fileUri: String?): Boolean {
@@ -432,11 +453,11 @@ class BackupService internal constructor(
         _lastMessage.value = "Decrypting backup..."
         val tempZip = "$tempDir/backup.zip"
         files.decryptFile(encrypted, tempZip, password) { _progress.value = 0.1 + it * 0.3 }
-        files.deleteFile(encrypted)
+        deleteRecursive(encrypted)
         _progress.value = 0.4
         _lastMessage.value = "Extracting backup..."
         files.extractZip(tempZip, tempDir) { _progress.value = 0.4 + it * 0.2 }
-        files.deleteFile(tempZip)
+        deleteRecursive(tempZip)
         _progress.value = 0.6
         return true
     }
@@ -500,7 +521,7 @@ class BackupService internal constructor(
         if (manifest?.formatVersion != 2) return null
         val path = "$directory/$DatabaseKeyBackupName"
         require(DatabaseKeyBackupName in actual && files.fileSize(path) in 1..1024) { "无效数据库密钥描述" }
-        return DatabaseKey.fromPortableJson(files.readFile(path).decodeToString())
+        return DatabaseKey.fromPortableJson(files.readFile(path).decodeToString()).also { deleteRecursive(path) }
     }
 
     fun listBackups(): List<BackupEntry> {
@@ -571,9 +592,17 @@ class BackupService internal constructor(
     }
 
     private fun deleteRecursive(dir: String) {
-        try {
-            files.deleteFile(dir)
-        } catch (_: Exception) {}
+        files.deleteFile(dir)
+        check(!files.exists(dir)) { "临时文件清理失败" }
+    }
+
+    private fun cleanupTemporaryDirectory(dir: String): Boolean = try {
+        deleteRecursive(dir)
+        true
+    } catch (failure: Exception) {
+        log.e(failure) { "Private backup temporary files could not be removed" }
+        _lastMessage.value = "临时文件清理失败，请重启 App 后重试"
+        false
     }
 
     private fun selectedBackupDir(): String? = settings.get(SettingKeys.backupDir)?.takeIf { it.isNotBlank() }

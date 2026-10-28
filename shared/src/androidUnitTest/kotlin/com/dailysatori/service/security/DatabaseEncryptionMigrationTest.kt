@@ -12,6 +12,24 @@ import org.junit.Assume.assumeTrue
 
 /** Runs the production export/validation SQL against the real host SQLCipher, not JDBC SQLite. */
 class DatabaseEncryptionMigrationTest {
+    @Test fun hostSqlCipherTextTransportPreservesNulTabsAndNewlines() {
+        val binary=System.getenv("SQLCIPHER_BIN")
+        assumeTrue(binary!=null && File(binary).canExecute())
+        val root=createTempDirectory().toFile()
+        try {
+            HostSqlCipherDriver(binary!!,File(root,"text.db")).use { driver ->
+                driver.run("PRAGMA key='test-only-key'; CREATE TABLE data(value TEXT)")
+                val expected="a\u0000b\t\nc"
+                fun read(sql:String)=driver.executeQuery(null,sql,{ c ->
+                    check(c.next().value); QueryResult.Value(c.getString(0))
+                },0).value
+                assertEquals(expected,read("SELECT 'a'||char(0)||'b'||char(9)||char(10)||'c'"))
+                driver.execute(null,"INSERT INTO data VALUES(?)",1) { bindString(0,expected) }
+                assertEquals(expected,read("SELECT value FROM data"))
+            }
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun everyRegisteredLegacyFieldIsConvertedInsideARealEncryptedDatabase() {
         val binary = System.getenv("SQLCIPHER_BIN")
         assumeTrue("Requires real host SQLCipher", binary != null && File(binary).canExecute())
@@ -83,6 +101,52 @@ class DatabaseEncryptionMigrationTest {
         } finally { root.deleteRecursively() }
     }
 
+    @Test fun encryptedArchiveRecoversPersonalDataAfterTheSourceDeviceIsGone() {
+        val binary = System.getenv("SQLCIPHER_BIN")
+        assumeTrue("Requires real host SQLCipher", binary != null && File(binary).canExecute())
+        val root = createTempDirectory().toFile()
+        try {
+            val source = root.resolve("source").apply { mkdirs() }
+            val snapshot = source.resolve("snapshot").apply { mkdirs() }
+            val key = DatabaseKey.generate()
+            val expected = listOf("assistant" to "用户对话及完整回答", "diary" to "原始日记 🌱",
+                "idea" to "我的点子", "reminder" to "每月提醒及原始备注")
+            HostSqlCipherDriver(binary!!, source.resolve("live.db")).use { driver ->
+                driver.run("PRAGMA key = \"${key.sqlCipherPassword().decodeToString()}\"; CREATE TABLE personal_data(kind TEXT PRIMARY KEY,content TEXT);")
+                expected.forEach { (kind, content) ->
+                    driver.execute(null, "INSERT INTO personal_data VALUES(?,?)", 2) {
+                        bindString(0, kind); bindString(1, content)
+                    }
+                }
+                exportEncryptedDatabase(driver, snapshot.resolve("daily_satori.db").path, key)
+            }
+            snapshot.resolve("database_key.json").writeText(key.portableJson())
+            snapshot.resolve("voice.m4a").writeBytes(byteArrayOf(0, 1, -1, 42))
+            val manager = com.dailysatori.platform.FileManager()
+            val zip = source.resolve("backup.zip")
+            val archive = root.resolve("backup.zip.enc")
+            manager.createZip(snapshot.path, zip.path, manager.listFilesRecursively(snapshot.path))
+            manager.encryptFile(zip.path, archive.path, "independent backup password")
+            assertTrue(source.deleteRecursively()) // No original database or device-key envelope remains.
+            val restored = root.resolve("new-device")
+            val restoredZip = root.resolve("restored.zip")
+            manager.decryptFile(archive.path, restoredZip.path, "independent backup password")
+            manager.extractZip(restoredZip.path, restored.path)
+            val portable = DatabaseKey.fromPortableJson(restored.resolve("database_key.json").readText())
+            val database = restored.resolve("daily_satori.db")
+            assertFalse(com.dailysatori.platform.isPlaintextDatabase(database))
+            expected.forEach { (_, text) -> assertFalse(database.readBytes().toString(Charsets.UTF_8).contains(text)) }
+            HostSqlCipherDriver(binary, database).use { driver ->
+                driver.run("PRAGMA key = \"${portable.sqlCipherPassword().decodeToString()}\"")
+                validate(driver)
+                assertEquals(expected.map { listOf(it.first, it.second) },
+                    driver.run("SELECT kind,content FROM personal_data ORDER BY kind"))
+            }
+            HostSqlCipherDriver(binary, database).use { driver -> assertFails { driver.run("SELECT * FROM personal_data") } }
+            assertContentEquals(byteArrayOf(0, 1, -1, 42), restored.resolve("voice.m4a").readBytes())
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun portableBackupUsesTheSameKeyAndPreservesNonzeroVersion() {
         val binary = System.getenv("SQLCIPHER_BIN")
         assumeTrue("Requires real host SQLCipher", binary != null && File(binary).canExecute())
@@ -123,12 +187,13 @@ private object LegacyProbeCipher : SecretValueCipher {
     }
 }
 
-private class HostSqlCipherDriver(binary: String, database: File) : SqlDriver {
+internal class HostSqlCipherDriver(binary: String, database: File) : SqlDriver {
     private val process = ProcessBuilder(binary, "-batch", database.path).redirectErrorStream(true).start()
     private val input = process.outputStream.bufferedWriter()
     private val output = process.inputStream.bufferedReader()
     private var transaction: Transacter.Transaction? = null
-    init { input.write(".bail on\n.mode list\n.separator \"\t\"\n.headers off\n"); input.flush() }
+    private val nullMarker = "NULL_" + UUID.randomUUID().toString().replace("-", "")
+    init { input.write(".bail on\n.mode list\n.separator \"\t\"\n.headers off\n.nullvalue $nullMarker\n"); input.flush() }
 
     fun run(sql: String): List<List<String>> {
         val end = "END_" + UUID.randomUUID().toString().replace("-", "")
@@ -146,13 +211,16 @@ private class HostSqlCipherDriver(binary: String, database: File) : SqlDriver {
     }
     override fun <R> executeQuery(identifier: Int?, sql: String, mapper: (SqlCursor) -> QueryResult<R>, parameters: Int,
         binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<R> {
-        val rows = run(bind(sql, parameters, binders))
+        val bound=bind(sql,parameters,binders)
+        val rows:List<List<String?>> = if(bound.trimStart().startsWith("SELECT",ignoreCase=true) ||
+            bound.trimStart().startsWith("WITH",ignoreCase=true)) queryTextSafely(bound)
+            else run(bound).map { row -> row.map { it.takeUnless { value -> value==nullMarker } } }
         val cursor = object : SqlCursor {
             var position = -1
             override fun next() = QueryResult.Value(++position < rows.size)
             override fun getString(index: Int) = rows[position][index]
-            override fun getLong(index: Int) = getString(index).toLongOrNull()
-            override fun getDouble(index: Int) = getString(index).toDoubleOrNull()
+            override fun getLong(index: Int) = getString(index)?.toLongOrNull()
+            override fun getDouble(index: Int) = getString(index)?.toDoubleOrNull()
             override fun getBoolean(index: Int) = getLong(index)?.let { it != 0L }
             override fun getBytes(index: Int) = error("Unused blob query")
         }
@@ -178,10 +246,27 @@ private class HostSqlCipherDriver(binary: String, database: File) : SqlDriver {
     override fun notifyListeners(vararg queryKeys: String) = Unit
     override fun close() { input.close(); process.destroy(); output.close() }
 
+    /** The CLI truncates TEXT at NUL and splits tabs/newlines. Only typed hex crosses stdout. */
+    private fun queryTextSafely(sql:String):List<List<String?>> {
+        val view="probe_"+UUID.randomUUID().toString().replace("-","")
+        run("CREATE TEMP VIEW $view AS $sql")
+        try {
+            val columns=run("PRAGMA table_info('$view')").map { it[1] }
+            val fields=columns.joinToString { name ->
+                val quoted="\""+name.replace("\"","\"\"")+"\""
+                "typeof($quoted),hex(CAST($quoted AS BLOB))"
+            }
+            return run("SELECT $fields FROM $view").map { row -> columns.indices.map { index ->
+                if(row[index*2]=="null") null else row[index*2+1].chunked(2)
+                    .map { it.toInt(16).toByte() }.toByteArray().toString(Charsets.UTF_8)
+            } }
+        } finally { run("DROP VIEW $view") }
+    }
+
     private fun bind(sql: String, size: Int, binders: (SqlPreparedStatement.() -> Unit)?): String {
         val values = Array(size) { "NULL" }
         val statement = object : SqlPreparedStatement {
-            override fun bindString(index: Int, string: String?) { values[index] = string?.let { "'${it.replace("'", "''")}'" } ?: "NULL" }
+            override fun bindString(index: Int, string: String?) { values[index] = string?.let { "CAST(X'"+it.toByteArray(Charsets.UTF_8).joinToString("") { byte -> (byte.toInt() and 255).toString(16).padStart(2,'0') }+"' AS TEXT)" } ?: "NULL" }
             override fun bindLong(index: Int, long: Long?) { values[index] = long?.toString() ?: "NULL" }
             override fun bindDouble(index: Int, double: Double?) { values[index] = double?.toString() ?: "NULL" }
             override fun bindBoolean(index: Int, boolean: Boolean?) = bindLong(index, boolean?.let { if (it) 1 else 0 })

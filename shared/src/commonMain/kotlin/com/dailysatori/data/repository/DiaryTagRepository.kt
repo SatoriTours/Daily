@@ -16,12 +16,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** Diary-only vocabulary and provenance live in the existing, backed-up settings table. */
+/** Current tag projection and historical decisions are separate, transactional diary-domain facts. */
 class DiaryTagRepository(
     private val db: DailySatoriDatabase,
     private val threads: DiaryThreadRepository,
 ) {
     private val settings = SettingRepository(db)
+    private val store = DiaryTagStore(db)
     private val q get() = db.dailySatoriQueries
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -79,25 +80,23 @@ class DiaryTagRepository(
     private fun tagIndex(): List<DiaryTagIndexEntry> = q.selectDiaryTagIndex().executeAsList()
         .map { DiaryTagIndexEntry(it.id, it.tags, it.has_content == 1L) }
 
-    private fun observeValue(key: String): Flow<String?> = q.selectSettingByKey(key).asFlow()
-        .mapToOneOrNull(Dispatchers.IO).map { it?.value_ }.distinctUntilChanged()
+    private fun observeValue(key: String): Flow<String?> = if(key==ENABLED_KEY)
+        q.selectSettingByKey(key).asFlow().mapToOneOrNull(Dispatchers.IO).map { it?.value_ }.distinctUntilChanged()
+        else store.signal().map { value(key) }.distinctUntilChanged()
 
     fun observeEditor(id: Long): Flow<DiaryTagEditorSnapshot> = combine(
-        q.selectDiaryThreadEntries(id).asFlow().mapToList(Dispatchers.IO), observeValue(stateKey(id)),
-    ) { entries, raw ->
-        DiaryTagEditorSnapshot(id, entries.firstOrNull()?.tags, stateFor(decoded<DiaryTagState>(raw), renderDiaryThreadContent(entries)))
-    }.distinctUntilChanged().flowOn(Dispatchers.IO)
+        q.selectDiaryThreadEntries(id).asFlow().mapToList(Dispatchers.IO),
+        q.selectDiaryTagEditorState(id).asFlow().mapToList(Dispatchers.IO),
+    ) { entries,rows -> store.editor(id,renderDiaryThreadContent(entries),rows) }
+        .distinctUntilChanged().flowOn(Dispatchers.IO)
 
     fun observeState(id: Long): Flow<DiaryTagState> = observeEditor(id).map { it.state }.distinctUntilChanged()
 
     fun canonical(name: String): String = vocabulary().canonical(name)
 
-    fun tags(id: Long): List<String> = parseDiaryTags(q.selectDiaryById(id).executeAsOneOrNull()?.tags)
+    fun tags(id: Long): List<String> = store.tags(id)
 
-    fun state(id: Long): DiaryTagState {
-        val stored = read<DiaryTagState>(stateKey(id)) ?: DiaryTagState()
-        return stateFor(stored, threads.getSource(id)?.content.orEmpty())
-    }
+    fun state(id: Long): DiaryTagState = store.state(id)
 
     private fun stateFor(storedValue: DiaryTagState?, content: String): DiaryTagState {
         val stored = storedValue ?: DiaryTagState()
@@ -111,29 +110,28 @@ class DiaryTagRepository(
         val diary = q.selectDiaryById(id).executeAsOneOrNull() ?: return@transactionWithResult null
         if (diary.parent_diary_id != null) return@transactionWithResult null
         val source = threads.getSource(id) ?: return@transactionWithResult null
-        val state = stateFor(read<DiaryTagState>(stateKey(id)), source.content)
+        val state = stateFor(store.state(id), source.content)
         if (source.content.isBlank() || (!force && (!enabled() || state.processedFingerprint == state.contentFingerprint))) {
             return@transactionWithResult null
         }
-        val manual = parseDiaryTags(diary.tags).filterNot { it in state.automatic }
+        val manual = tags(id).filterNot { it in state.automatic }
         if (manual.size >= DIARY_AUTO_TAG_LIMIT) return@transactionWithResult null
-        DiaryTagSnapshot(id, source.content, diary.tags, state, settings.get(ENABLED_KEY), source.revision)
+        DiaryTagSnapshot(id, source.content, tags(id).joinToString(",").ifBlank { null }, state, settings.get(ENABLED_KEY), source.revision)
     }
 
     fun apply(snapshot: DiaryTagSnapshot, generated: List<String>): Boolean = q.transactionWithResult {
         val diary = q.selectDiaryById(snapshot.diaryId).executeAsOneOrNull() ?: return@transactionWithResult false
         val source = threads.getSource(snapshot.diaryId) ?: return@transactionWithResult false
-        val current = stateFor(read<DiaryTagState>(stateKey(snapshot.diaryId)), source.content)
-        if (source.content != snapshot.content || diary.tags != snapshot.tags || current.revision != snapshot.state.revision ||
+        val current = stateFor(store.state(snapshot.diaryId), source.content)
+        if (source.content != snapshot.content || tags(snapshot.diaryId).joinToString(",").ifBlank { null } != snapshot.tags || current.revision != snapshot.state.revision ||
             settings.get(ENABLED_KEY) != snapshot.policy) return@transactionWithResult false
         if (snapshot.threadRevision != null && source.revision != snapshot.threadRevision) return@transactionWithResult false
         val vocabulary = vocabulary()
-        val manual = parseDiaryTags(diary.tags).filterNot { it in current.automatic }.map(vocabulary::canonical).distinct()
+        val manual = tags(snapshot.diaryId).filterNot { it in current.automatic }.map(vocabulary::canonical).distinct()
         val automatic = generated.mapNotNull(::cleanDiaryTag).map(vocabulary::canonical).distinct()
             .filterNot { it in manual || it in current.suppressed.map(vocabulary::canonical) }
             .take((DIARY_AUTO_TAG_LIMIT - manual.size).coerceAtLeast(0))
-        writeTags(snapshot.diaryId, manual + automatic)
-        write(stateKey(snapshot.diaryId), current.copy(automatic = automatic,
+        store.save(snapshot.diaryId, manual + automatic, current.copy(automatic = automatic,
             processedFingerprint = current.contentFingerprint, revision = current.revision + 1))
         write(VOCABULARY_KEY, vocabulary.copy(names = (vocabulary.names + automatic).distinct()))
         true
@@ -146,9 +144,8 @@ class DiaryTagRepository(
         val current = state(id)
         val automatic = current.automatic.map(vocabulary::canonical)
         val suppressed = (current.suppressed + automatic.filterNot { it in canonical }).distinct()
-        writeTags(id, canonical)
-        write(stateKey(id), current.copy(automatic = automatic.filter { it in canonical && it !in pinned },
-            suppressed = suppressed, revision = current.revision + 1))
+        store.save(id, canonical, current.copy(automatic = automatic.filter { it in canonical && it !in pinned },
+            suppressed = suppressed.filterNot { it in canonical }, revision = current.revision + 1))
         write(VOCABULARY_KEY, vocabulary.copy(names = (vocabulary.names + canonical).distinct()))
     }
 
@@ -156,29 +153,26 @@ class DiaryTagRepository(
         draft: DiaryTagDraft? = null) = q.transaction {
         val diary = q.selectDiaryById(id).executeAsOneOrNull() ?: return@transaction
         // Record removals against the old body; a body change deliberately resets suppression.
-        if (desired != null) {
-            if (draft == null) edit(id, desired) else {
-                val vocabulary = vocabulary()
-                val canonical = normalizedSelection(id, desired, vocabulary)
-                writeTags(id, canonical)
-                write(VOCABULARY_KEY, vocabulary.copy(names = (vocabulary.names + canonical).distinct()))
-            }
-        }
-        val tags = q.selectDiaryById(id).executeAsOne().tags
-        q.updateDiary(content, tags, mood, images, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), diary.id)
-        if (draft != null) saveDraft(id, draft)
+        if(desired!=null && draft==null) edit(id,desired)
+        q.updateDiary(content, mood, kotlinx.datetime.Clock.System.now().toEpochMilliseconds(), diary.id)
+        DiaryImages(db).replace(id,images)
+        if (draft != null) saveDraft(id, draft,desired)
     }
 
-    fun saveDraft(id: Long, draft: DiaryTagDraft) = q.transaction {
-        if (!draft.edited) return@transaction
+    fun saveDraft(id: Long, draft: DiaryTagDraft, desired:List<String>? = null) = q.transaction {
+        if (!draft.edited && desired==null) return@transaction
         val vocabulary = vocabulary()
         val current = state(id)
-        val automatic = draft.automatic.map(vocabulary::canonical).filter { it in tags(id) }.distinct()
+        val selected=desired?.let { normalizedSelection(id,it,vocabulary) } ?: tags(id)
+        val automatic = (if(draft.edited) draft.automatic else current.automatic)
+            .map(vocabulary::canonical).filter { it in selected }.distinct()
         val blocked = (draft.suppressed.takeIf { draft.contentFingerprint == current.contentFingerprint }.orEmpty() + draft.removed)
             .map(vocabulary::canonical).distinct()
-        write(stateKey(id), current.copy(automatic = automatic, suppressed = (current.suppressed + blocked).distinct(),
+        store.save(id,selected,current.copy(automatic = automatic,
+            suppressed = (current.suppressed + blocked).distinct().filterNot { it in selected },
             processedFingerprint = draft.generatedFingerprint?.takeIf { it == current.contentFingerprint }
                 ?: current.processedFingerprint, revision = current.revision + 1))
+        write(VOCABULARY_KEY,vocabulary.copy(names=(vocabulary.names+selected).distinct()))
         if (draft.generatedFingerprint == current.contentFingerprint) suggestPending(draft.pendingTags)
     }
 
@@ -235,21 +229,21 @@ class DiaryTagRepository(
         val aliases = before.aliases.mapValues { (_, value) -> if (value == source) target else value } + (source to target)
         val after = before.copy(names = (before.names - source + target).distinct(), aliases = aliases,
             suggestions = before.suggestions.filterNot { (aliases[it.from] ?: it.from) == (aliases[it.to] ?: it.to) })
-        val entries = tagIndex().filter { matchesDiaryTag(it.tags, source, before) }.map { diary ->
+        val affected=store.diaryIdsMatching(source,before)
+        val entries = tagIndex().filter { it.id in affected }.map { diary ->
             val oldState = state(diary.id)
             val newTags = parseDiaryTags(diary.tags).map(after::canonical).distinct()
             val manual = parseDiaryTags(diary.tags).filterNot { it in oldState.automatic }.map(after::canonical)
             val newState = oldState.copy(automatic = oldState.automatic.map(after::canonical).distinct().filterNot { it in manual },
                 suppressed = oldState.suppressed.map(after::canonical).distinct(), revision = oldState.revision + 1)
-            writeTags(diary.id, newTags)
-            write(stateKey(diary.id), newState)
-            MergeEntry(diary.id, diary.tags, oldState, newTags.joinToString(",").ifBlank { null }, newState)
+            store.save(diary.id,newTags,newState)
+            MergeEntry(diary.id, diary.tags, oldState, newTags.joinToString(",").ifBlank { null }, state(diary.id))
         }
         write(VOCABULARY_KEY, after)
         write(UNDO_KEY, MergeUndo(before, after, entries))
     }
 
-    fun canUndoMerge(): Boolean = settings.get(UNDO_KEY) != null
+    fun canUndoMerge(): Boolean = store.undo() != null
 
     fun undoMerge(): Boolean = q.transactionWithResult {
         val undo = read<MergeUndo>(UNDO_KEY) ?: return@transactionWithResult false
@@ -258,11 +252,10 @@ class DiaryTagRepository(
         val changedAliases = (undo.before.aliases.keys + undo.after.aliases.keys)
             .filter { undo.before.aliases[it] != undo.after.aliases[it] }
         if (changedAliases.any { stored.aliases[it] != undo.after.aliases[it] } || undo.entries.any { entry ->
-                q.selectDiaryById(entry.id).executeAsOneOrNull()?.tags != entry.afterTags || state(entry.id) != entry.afterState
+                tags(entry.id).joinToString(",").ifBlank { null } != entry.afterTags || state(entry.id) != entry.afterState
             }) return@transactionWithResult false
         undo.entries.forEach { entry ->
-            writeTags(entry.id, parseDiaryTags(entry.beforeTags))
-            write(stateKey(entry.id), entry.beforeState.copy(revision = entry.afterState.revision + 1))
+            store.save(entry.id,parseDiaryTags(entry.beforeTags), entry.beforeState.copy(revision = entry.afterState.revision + 1))
         }
         val aliases = stored.aliases.toMutableMap()
         changedAliases.forEach { key ->
@@ -277,13 +270,13 @@ class DiaryTagRepository(
         val suggestions = (stored.suggestions + (undo.before.suggestions - undo.after.suggestions.toSet())).distinct()
             .filter { restored.canonical(it.from) != restored.canonical(it.to) }
         write(VOCABULARY_KEY, restored.copy(names = names, suggestions = suggestions))
-        settings.delete(UNDO_KEY)
+        store.writeUndo(null)
         true
     }
 
-    fun deleteState(id: Long) = settings.delete(stateKey(id))
-
-    private fun writeTags(id: Long, tags: List<String>) = q.updateDiaryTags(tags.joinToString(",").ifBlank { null }, id)
+    fun deleteState(id: Long)=q.transaction {
+        if(q.selectDiaryById(id).executeAsOneOrNull()!=null) store.save(id,tags(id),DiaryTagState())
+    }
 
     private fun normalizedSelection(id: Long, desired: List<String>, vocabulary: DiaryTagVocabulary): List<String> {
         val existing = tags(id)
@@ -291,13 +284,28 @@ class DiaryTagRepository(
             .map(vocabulary::canonical).distinct()
     }
 
-    private inline fun <reified T> read(key: String): T? = decoded(settings.get(key))
+    private fun value(key:String):String? = when(key) {
+        VOCABULARY_KEY -> Json.encodeToString(store.vocabulary())
+        UNDO_KEY -> store.undo()
+        BASELINE_KEY -> store.baseline()
+        else -> key.removePrefix("diary_tag_state_v1_").toLongOrNull()?.let { Json.encodeToString(store.state(it)) }
+    }
+
+    private inline fun <reified T> read(key: String): T? = decoded(value(key))
 
     private inline fun <reified T> decoded(value: String?): T? = value?.let {
         runCatching { json.decodeFromString<T>(it) }.getOrNull()
     }
 
-    private inline fun <reified T> write(key: String, value: T) = settings.upsert(key, Json.encodeToString(value))
+    private inline fun <reified T> write(key: String, value: T) {
+        val raw=Json.encodeToString(value)
+        when(key) {
+            VOCABULARY_KEY -> store.writeVocabulary(Json.decodeFromString(raw))
+            UNDO_KEY -> store.writeUndo(raw)
+            BASELINE_KEY -> store.writeBaseline(raw)
+            else -> error("Retired tag state write")
+        }
+    }
 
     private fun stateKey(id: Long) = "diary_tag_state_v1_$id"
 

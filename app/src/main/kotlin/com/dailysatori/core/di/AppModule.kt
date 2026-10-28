@@ -115,6 +115,17 @@ val appModule: Module = module {
     single { UnifiedNewsArticleQueue(get(), get(), get(), get(), get(), get<AsyncTaskScheduler>()::enqueue) }
     single { UnifiedNewsGenerateTaskHandler(get(), get()) }
     single { com.dailysatori.core.task.NewsOpportunityTaskHandler(get()) }
+    single {
+        val reminders=get<com.dailysatori.data.repository.ReminderRepository>()
+        val coordinator=get<ReminderCoordinator>()
+        com.dailysatori.service.reminder.ReminderScheduleTaskHandler(get(),get()) { id ->
+            val current=reminders.get(id)
+            if(current!=null) {
+                check(current.dataIssue==null) { "提醒配置无效" }
+                coordinator.recompute(id)
+            }
+        }
+    }
     single { ReminderAiParseTaskHandler(get(), get<ReminderAiInterpretationRemote>(), get<ReminderBatchCodec>(), get(), get()) }
     single { com.dailysatori.core.sms.SmsPendingNotifier(androidContext(), get(), get()) }
     single { com.dailysatori.core.phone.PhoneIntake(get(), get()) }
@@ -139,6 +150,7 @@ val appModule: Module = module {
                 get<UnifiedNewsGenerateTaskHandler>(),
                 get<com.dailysatori.core.task.NewsOpportunityTaskHandler>(),
                 get<ReminderAiParseTaskHandler>(),
+                get<com.dailysatori.service.reminder.ReminderScheduleTaskHandler>(),
                 get<com.dailysatori.core.task.SmsReminderTaskHandler>(),
                 get<com.dailysatori.core.task.PhoneAssistantTaskHandler>(),
                 get<DiaryTranscriptionCoordinator>(),

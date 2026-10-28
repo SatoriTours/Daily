@@ -12,17 +12,33 @@ object DatabaseBootstrap {
         directory.mkdirs()
         return RandomAccessFile(File(directory, "database-init.lock"), "rw").use { file ->
             file.channel.lock().use {
+                requireSinglePendingOperation(directory)
                 val migration = DatabaseEncryptionMigration(context)
+                val schema = DatabaseSchemaUpgrade.forContext(context)
                 migration.transaction().applyPending()
-                directory.listFiles().orEmpty().filter { it.name.startsWith("database-install.finished-") }
+                schema.recoverPending()
+                directory.listFiles().orEmpty().filter {
+                    it.name.startsWith("database-install.finished-") || it.name.startsWith("database-schema-install.finished-")
+                }
                     .forEach { check(it.deleteRecursively()) }
                 cleanBackupTemporaries(context.context.cacheDir)
                 val message = FileManager().apply { init(context.context) }.applyPendingRestore()
                 migration.ensureEncrypted()
+                schema.upgrade()
                 message
             }
         }
     }
+}
+
+/** Multiple live install intents cannot be ordered safely: keep all inputs and stop. */
+private fun requireSinglePendingOperation(directory: File) {
+    val pending = listOf("database-install", "database-schema-install", "pending-restore").count { name ->
+        val root = File(directory, name)
+        !File(root, "committed").exists() && !File(root, "rolled-back").exists() &&
+            listOf("ready", "transaction.json", "journal.json").any { File(root, it).exists() }
+    }
+    check(pending <= 1) { "存在多个待处理数据库操作，原有数据已保留" }
 }
 
 /** Interrupted private plaintext archives/key descriptors must not survive a new business startup. */

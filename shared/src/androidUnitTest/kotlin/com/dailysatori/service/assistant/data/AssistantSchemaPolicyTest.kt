@@ -20,6 +20,7 @@ class AssistantSchemaPolicyTest {
             for ((table, fields) in actual) for (field in fields) assertNotNull(AssistantSchemaPolicy.classify(table, field))
             assertEquals(AssistantFieldPolicy.DENIED, AssistantSchemaPolicy.classify("article", "new_unreviewed_secret"))
             assertEquals(AssistantFieldPolicy.DENIED, AssistantSchemaPolicy.classify("new_table", "content"))
+            assertEquals(AssistantFieldPolicy.DENIED, AssistantSchemaPolicy.classify("diary_record", "content"))
             listOf("session", "phone_message", "bookkeeping_entry", "sms_reminder_source").forEach { table ->
                 actual[table]!!.forEach { assertEquals(AssistantFieldPolicy.DENIED, AssistantSchemaPolicy.classify(table, it)) }
             }

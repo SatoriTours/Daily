@@ -59,25 +59,26 @@ class ReminderAiBatchRepositoryTest {
     }
 
     @Test
-    fun markConfirmedMarksSelectedDraftsAndBatch() = withRepository { repo ->
+    fun confirmationWithoutLinkedRemindersCannotFabricateConfirmedState() = withRepository { repo ->
         val batch = repo.enqueueOrReuse("one\ntwo", TimeZone.UTC, LocalDate(2026, 9, 2))
         repo.markReady(batch.id, listOf(
             ReminderAiBatchDraft(0, "one", "{}"),
             ReminderAiBatchDraft(1, "two", "{}"),
         ))
 
-        assertTrue(repo.markConfirmed(batch.id, setOf(1)))
+        assertFalse(repo.markConfirmed(batch.id, setOf(1)))
 
         val confirmed = assertNotNull(repo.getBatch(batch.id))
-        assertEquals(ReminderAiBatchStatus.CONFIRMED, confirmed.status)
-        assertEquals(listOf(false, true), confirmed.drafts.map { it.confirmed })
+        assertEquals(ReminderAiBatchStatus.READY_FOR_CONFIRMATION, confirmed.status)
+        assertEquals(listOf(false, false), confirmed.drafts.map { it.confirmed })
     }
 
     @Test
     fun staleTerminalResultsDoNotOverwriteConfirmedBatchOrDrafts() = withRepository { repo ->
         val batch = repo.enqueueOrReuse("original", TimeZone.UTC, LocalDate(2026, 9, 2))
         repo.markReady(batch.id, listOf(ReminderAiBatchDraft(0, "original", "{\"version\":1}")))
-        repo.markConfirmed(batch.id, setOf(0))
+        confirm(repo,batch.id,0)
+        assertTrue(repo.finishSchedule("${batch.id}:0",0,true))
 
         assertFalse(repo.markReady(batch.id, listOf(ReminderAiBatchDraft(0, "stale", "{\"version\":2}"))))
         assertFalse(repo.markFailed(batch.id, "stale worker failure"))
@@ -132,14 +133,21 @@ class ReminderAiBatchRepositoryTest {
         repo.markReady(batch.id, listOf(ReminderAiBatchDraft(0, "one", "{}"), ReminderAiBatchDraft(1, "two", "{}")))
 
         repo.updateDraftUiState(batch.id, 0, "edited-json", selected = false, discarded = true)
-        repo.markDraftSchedulingFailed(batch.id, 1, "reminder-1")
+        confirm(repo,batch.id,1)
+        assertTrue(repo.finishSchedule("${batch.id}:1",0,false))
 
         val reloaded = assertNotNull(repo.getBatch(batch.id))
         assertEquals("edited-json", reloaded.drafts[0].overrideJson)
         assertFalse(reloaded.drafts[0].selected)
         assertTrue(reloaded.drafts[0].discarded)
         assertEquals("SCHEDULING_FAILED", reloaded.drafts[1].confirmationState)
-        assertEquals("reminder-1", reloaded.drafts[1].reminderId)
+        assertEquals("${batch.id}:1", reloaded.drafts[1].reminderId)
+    }
+
+    private fun confirm(repo:ReminderAiBatchRepository,batch:String,index:Int) {
+        val draft=com.dailysatori.service.reminder.ReminderDraft("ignored","body",
+            LocalDate(2026,9,2),LocalDate(2026,9,3),kotlinx.datetime.LocalTime(10,0),timeZone=TimeZone.UTC)
+        assertNotNull(repo.confirmDraft(batch,index,0,draft,com.dailysatori.service.reminder.ReminderProfileSnapshot.gentle()))
     }
 
     private fun withRepository(block: (ReminderAiBatchRepository) -> Unit) {

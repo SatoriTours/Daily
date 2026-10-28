@@ -7,6 +7,7 @@ import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.diary.isLegacyNullImagePath
 import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.service.security.SecretValueCipher
 
@@ -14,6 +15,7 @@ import com.dailysatori.service.security.SecretValueCipher
 internal class BackupDatabaseData(private val driver: SqlDriver) {
     fun checkBackupDatabase() {
         check(strings("PRAGMA quick_check") == listOf("ok")) { "数据库完整性检查失败" }
+        check(strings("PRAGMA foreign_key_check").isEmpty()) { "数据库关联完整性检查失败" }
         val tables = schemaColumns().keys
         check(tables.containsAll(listOf("setting", "diary", "article", "book", "image"))) { "备份不是完整的应用数据库" }
         val version = SettingRepository(DailySatoriDatabase(driver)).get(SettingKeys.schemaVersion)
@@ -122,6 +124,8 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
     private fun pathRows(): List<PathRow> = BackupAttachmentSource.entries.flatMap { source ->
         val table = source.table
         val column = source.column
+        // The retained legacy field is not an active file association after schema 40.
+        if (source == BackupAttachmentSource.DIARY_IMAGE && (SettingRepository(DailySatoriDatabase(driver)).get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0) >= 40) return@flatMap emptyList()
         val columns = strings("SELECT name FROM pragma_table_info('$table')")
         if (column !in columns) emptyList() else {
             val owner = source.ownerColumn?.takeIf { it in columns } ?: "rowid"
@@ -152,10 +156,6 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         }
     }
 }
-
-private fun isLegacyNullImagePath(path: String): Boolean =
-    path in setOf("null", "images/null", "diary_images/null") ||
-        (path.startsWith('/') && (path.endsWith("/images/null") || path.endsWith("/diary_images/null")))
 
 internal fun portablePath(path: String, appDataDir: String): String? {
     if (path.isBlank() || path.startsWith("http://") || path.startsWith("https://")) return null

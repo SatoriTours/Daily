@@ -7,6 +7,22 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ReminderUiSourceTest {
+    @Test fun failedCreatedReminderRetryIsWiredIndependentlyOfSelectionAndOldDraft() {
+        val screen=source("ui/feature/reminder/ReminderAiBatchScreen.kt")
+        val preview=source("ui/feature/reminder/ReminderBatchPreview.kt")
+        val vm=source("ui/feature/reminder/ReminderAiBatchViewModel.kt")
+        assertTrue(screen.contains("onRetrySchedule ="))
+        assertTrue(screen.contains("viewModel::retrySchedule"))
+        assertTrue(preview.contains("item.canRetrySchedule"))
+        assertTrue(preview.contains("onRetrySchedule(item.id)"))
+        val retry=vm.substringAfter("fun retrySchedule(").substringBefore("fun retryBatch()")
+        assertTrue(retry.contains("batchRepository.retryDraftSchedule("))
+        assertTrue(retry.contains("taskScheduler.enqueue(task)"))
+        assertFalse(retry.contains("confirmationPayload()"))
+        assertFalse(retry.contains("selectedIds"))
+        assertFalse(retry.contains("confirmDraft("))
+    }
+
     @Test
     fun reminderEditorUsesBatchPreviewAndBatchActions() {
         val editor = source("ui/feature/reminder/ReminderEditScreen.kt")
@@ -35,10 +51,12 @@ class ReminderUiSourceTest {
 
         val confirmation = batchViewModel.substringAfter("fun confirmSelected()")
             .substringBefore("fun retryBatch()")
-        assertTrue(confirmation.contains("val reminder = reminderRepository.get(id)"))
-        assertTrue(confirmation.contains("?: reminderRepository.createConfirmed"))
-        assertTrue(confirmation.contains("batchRepository.markDraftConfirmed(batchId, id.sourceIndex(), reminder.id)"))
-        assertTrue(confirmation.contains("coordinator.recompute(reminder.id)"))
+        assertTrue(confirmation.contains("batchRepository.confirmDraft("))
+        assertTrue(confirmation.contains("taskScheduler.enqueue(task)"))
+        assertTrue(!confirmation.contains("createConfirmed("))
+        assertTrue(!confirmation.contains("coordinator.recompute"))
+        assertTrue(source("core/worker/AsyncTaskWorker.kt").contains("reconcileScheduleIntents()"))
+        assertTrue(source("core/di/AppModule.kt").contains("get<com.dailysatori.service.reminder.ReminderScheduleTaskHandler>()"))
     }
 
     @Test

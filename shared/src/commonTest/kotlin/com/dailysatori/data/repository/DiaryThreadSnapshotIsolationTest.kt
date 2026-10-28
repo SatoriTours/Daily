@@ -100,8 +100,8 @@ class DiaryThreadSnapshotIsolationTest {
         val concurrentWriteBlocked: Boolean get() = concurrentWriteBlockedProvider()
 
         fun seedRootWithReply(): Long {
-            db.dailySatoriQueries.insertDiary("主日记正文", null, null, null, 1_000, 1_000)
-            db.dailySatoriQueries.insertDiaryReply("续写正文", null, null, null, 2_000, 2_000, 1)
+            db.dailySatoriQueries.insertDiary("主日记正文", null, 1_000, 1_000)
+            db.dailySatoriQueries.insertDiaryReply("续写正文", null, 2_000, 2_000, 1)
             return 1L
         }
     }

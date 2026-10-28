@@ -45,5 +45,91 @@ class DatabaseInstallTransactionTest {
             assertEquals("media", media.readText())
         } finally { root.deleteRecursively() }
     }
+    @Test fun rejectedInstalledDatabaseRollsBackKeyAndSidecarsBeforeCommit() {
+        val root = createTempDirectory().toFile()
+        try {
+            val db = File(root, "db").apply { writeText("old-db") }
+            val key = File(root, "key").apply { writeText("old-key") }
+            File("${db.path}-wal").writeText("old-wal")
+            val pending = File(root, "pending")
+            val candidate = File(root, "candidate").apply { writeText("bad-db") }
+            val transaction = DatabaseInstallTransaction(pending, db, key, validateInstalled = {
+                assertEquals("bad-db", db.readText())
+                assertEquals("new-key", key.readText())
+                File("${db.path}-shm").writeText("new-shm")
+                error("candidate validation failed")
+            })
+            transaction.stage(candidate, "new-key".toByteArray())
+            assertFailsWith<DatabaseSecurityException> { transaction.applyPending() }
+            assertEquals("old-db", db.readText())
+            assertEquals("old-key", key.readText())
+            assertEquals("old-wal", File("${db.path}-wal").readText())
+            assertFalse(File("${db.path}-shm").exists())
+            DatabaseInstallTransaction(pending, db, key).applyPending()
+            assertEquals("old-db", db.readText())
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun interruptedInstalledValidationIsRolledBackOnNextStartup() {
+        val root = createTempDirectory().toFile()
+        try {
+            val db = File(root, "db").apply { writeText("old-db") }
+            val key = File(root, "key").apply { writeText("old-key") }
+            val pending = File(root, "pending")
+            val candidate = File(root, "candidate").apply { writeText("new-db") }
+            val transaction = DatabaseInstallTransaction(pending, db, key,
+                validateInstalled = { throw Interrupted() })
+            transaction.stage(candidate, "new-key".toByteArray())
+            assertFailsWith<Interrupted> { transaction.applyPending() }
+            DatabaseInstallTransaction(pending, db, key).applyPending()
+            assertEquals("old-db", db.readText())
+            assertEquals("old-key", key.readText())
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun committedValidationIsNotRepeatedWhenCleanupFailedAfterNewWrites() {
+        val root = createTempDirectory().toFile()
+        try {
+            val db = File(root, "db").apply { writeText("old-db") }
+            val key = File(root, "key").apply { writeText("old-key") }
+            val pending = File(root, "pending")
+            val candidate = File(root, "candidate").apply { writeText("new-db") }
+            var checks = 0
+            val transaction = DatabaseInstallTransaction(pending, db, key,
+                validateInstalled = { checks++ },
+                move = { source, target ->
+                    if (source == pending) error("cleanup unavailable")
+                    target.parentFile?.mkdirs()
+                    Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+                })
+            transaction.stage(candidate, "new-key".toByteArray())
+            transaction.applyPending()
+            assertEquals(1, checks)
+            assertTrue(File(pending, "committed").exists())
+            db.writeText("new-user-data")
+            transaction.applyPending()
+            assertEquals(1, checks)
+            assertEquals("new-user-data", db.readText())
+            DatabaseInstallTransaction(pending, db, key).applyPending()
+            assertEquals("new-user-data", db.readText())
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test fun missingStagedPayloadCannotCommitAnEmptyDatabase() {
+        val root = createTempDirectory().toFile()
+        try {
+            val db = File(root, "db").apply { writeText("old-db") }
+            val key = File(root, "key").apply { writeText("old-key") }
+            val pending = File(root, "pending")
+            val candidate = File(root, "candidate").apply { writeText("new-db") }
+            val transaction = DatabaseInstallTransaction(pending, db, key)
+            transaction.stage(candidate, "new-key".toByteArray())
+            assertTrue(File(pending, "incoming/database").delete())
+            assertFails { transaction.applyPending() }
+            assertEquals("old-db", db.readText())
+            assertEquals("old-key", key.readText())
+        } finally { root.deleteRecursively() }
+    }
+
     private class Interrupted : Error()
 }

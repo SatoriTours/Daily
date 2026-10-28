@@ -17,7 +17,7 @@ class DiaryThreadMcpTest {
     fun replyEvidenceKeepsRootIdAndTheReplyPassage() = withThread { db, diaries, threads ->
         val rootId = runBlocking { diaries.create(content = "主正文".repeat(200)) }
         val replyId = db.dailySatoriQueries.transactionWithResult {
-            db.dailySatoriQueries.insertDiaryReply("后续补充的关键事实", null, null, null, 5_000, 5_000, rootId)
+            db.dailySatoriQueries.insertDiaryReply("后续补充的关键事实", null, 5_000, 5_000, rootId)
             db.dailySatoriQueries.selectDiaryRepliesForRoot(rootId).executeAsList().single().id
         }
         val matches = diaries.searchSync("后续补充的关键事实")

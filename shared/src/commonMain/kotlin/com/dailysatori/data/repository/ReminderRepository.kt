@@ -81,7 +81,7 @@ class ReminderRepository(
         get(draft.id) ?: createConfirmed(draft, profileSnapshot)
     }
 
-    fun createConfirmed(draft: ReminderDraft, profileSnapshot: ReminderProfileSnapshot): Reminder {
+    fun createConfirmed(draft: ReminderDraft, profileSnapshot: ReminderProfileSnapshot): Reminder = q.transactionWithResult {
         val startDate = requireNotNull(draft.startDate) { "Confirmed reminder requires a start date" }
         val endDate = requireNotNull(draft.endDate) { "Confirmed reminder requires an end date" }
         val firstTime = requireNotNull(draft.firstReminderTime) { "Confirmed reminder requires a first time" }
@@ -101,7 +101,7 @@ class ReminderRepository(
             active_day_rule = draft.activeDayRule.encode(),
             recurrence_rule = draft.recurrence.encode(),
             time_zone_id = draft.timeZone.id,
-            profile_json = profileJson,
+            policy_snapshot_id = ReminderPolicySnapshots(db).intern(profileJson),
             version = 0,
             state_date = null,
             dismissal_count = 0,
@@ -114,7 +114,7 @@ class ReminderRepository(
         )
         draft.deadlineAt?.let { q.setReminderDeadline(it.toEpochMilliseconds(), draft.id) }
         recordEvent(draft.id, "confirmed", Instant.fromEpochMilliseconds(now))
-        return requireNotNull(get(draft.id))
+        requireNotNull(get(draft.id))
     }
 
     fun get(id: String): Reminder? = q.selectReminderById(id).executeAsOneOrNull()?.toReminder()
@@ -150,6 +150,7 @@ class ReminderRepository(
         if (get(id) == null) return false
         q.transaction {
             // SQLite JDBC tests do not enable foreign keys by default; keep deletion correct on every driver.
+            q.deleteReminderAiDraftsByReminder(id)
             q.deleteAllReminderEvents(id)
             q.deleteReminder(id)
         }
@@ -204,7 +205,7 @@ class ReminderRepository(
         }
     }
 
-    private fun recurringCompletion(row: com.dailysatori.shared.db.Reminder, at: Instant): Lifecycle? {
+    private fun recurringCompletion(row: com.dailysatori.shared.db.Reminder_record, at: Instant): Lifecycle? {
         val reminder = row.toReminder()
         if (reminder.recurrence == ReminderRecurrence.Once || reminder.dataIssue != null || !reminder.activeDayRule.isValid()) return null
         var nextDate = nextCycleDate(reminder, at.toLocalDateTime(reminder.timeZone).date) ?: return null
@@ -277,13 +278,15 @@ class ReminderRepository(
         if ((row.deadline_at != null || edit.deadlineAt != null) && recurrence != ReminderRecurrence.Once) return@transactionWithResult false
         if (edit.deadlineAt != null && edit.deadlineAt <= at) return@transactionWithResult false
         if (end < start || content.isBlank() || content.length > MAX_CONTENT_LENGTH || !rule.isValid()) return@transactionWithResult false
-        val profile = edit.profile ?: runCatching { row.profile_json.toProfile() }.getOrNull() ?: return@transactionWithResult false
-        if (q.updateReminderEditableIfVersion(content, edit.notes ?: row.notes, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), profile.toBoundedJson(), row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
+        if(edit.profile==null && !row.hasValidProfile()) return@transactionWithResult false
+        val policyId=edit.profile?.let { ReminderPolicySnapshots(db).intern(it.toBoundedJson()) } ?: row.policy_snapshot_id
+        if (q.updateReminderEditableIfVersion(content, edit.notes ?: row.notes, start.toString(), end.toString(), (edit.firstReminderTime ?: LocalTime.parse(row.first_reminder_time)).toString(), rule.encode(), recurrence.encode(), policyId, row.version + 1, at.toEpochMilliseconds(), id, row.version).value != 1L) return@transactionWithResult false
         edit.deadlineAt?.let { q.setReminderDeadline(it.toEpochMilliseconds(), id) }
         if (((id.startsWith("sms:") && row.deadline_at == null && edit.deadlineAt != null) ||
                 (id.startsWith("assistant:todo:") && edit.firstReminderTime != null)) && row.status == ReminderStatus.PAUSED.name) {
             simpleTransition(id, ReminderStatus.ACTIVE, at, "resumed")
         }
+        com.dailysatori.service.reminder.ReminderScheduleOutbox(db).enqueue(id,checkNotNull(get(id)).version)
         recordEvent(id, "edited", at)
         true
     }
@@ -297,7 +300,7 @@ class ReminderRepository(
 
     fun events(id: String): List<Reminder_event> = q.selectReminderEvents(id, MAX_EVENT_HISTORY.toLong()).executeAsList()
 
-    private fun transition(id: String, expectedVersion: Long, at: Instant, next: (com.dailysatori.shared.db.Reminder) -> Lifecycle?): Boolean = q.transactionWithResult {
+    private fun transition(id: String, expectedVersion: Long, at: Instant, next: (com.dailysatori.shared.db.Reminder_record) -> Lifecycle?): Boolean = q.transactionWithResult {
         val row = q.selectReminderById(id).executeAsOneOrNull() ?: return@transactionWithResult false
         if (row.version != expectedVersion) return@transactionWithResult false
         val lifecycle = next(row) ?: return@transactionWithResult false
@@ -323,7 +326,7 @@ class ReminderRepository(
         saveLifecycle(row, Lifecycle(target, row.state_date?.let(LocalDate::parse), row.dismissal_count.toInt(), row.last_notified_at, row.last_dismissed_at, row.completed_at, if (target == ReminderStatus.PAUSED) null else row.next_occurrence_at, eventType), at)
     }
 
-    private fun saveLifecycle(row: com.dailysatori.shared.db.Reminder, state: Lifecycle, at: Instant): Boolean {
+    private fun saveLifecycle(row: com.dailysatori.shared.db.Reminder_record, state: Lifecycle, at: Instant): Boolean {
         if (q.updateReminderLifecycleIfVersion(state.status.name, row.version + 1, state.stateDate?.toString(), state.dismissalCount.toLong(), state.lastNotifiedAt, state.lastDismissedAt, state.completedAt, state.nextOccurrenceAt, at.toEpochMilliseconds(), row.id, row.version).value != 1L) return false
         insertBoundedEvent(row.id, state.eventType, at, emptyMap(), null)
         return true
@@ -334,7 +337,7 @@ class ReminderRepository(
         q.deleteReminderEventsAfterLimit(id, id, MAX_EVENT_HISTORY.toLong())
     }
 
-    private fun com.dailysatori.shared.db.Reminder.toReminder(): Reminder {
+    private fun com.dailysatori.shared.db.Reminder_record.toReminder(): Reminder {
         val decodedProfile = runCatching { profile_json.toProfile() }
         // Older versions stored the expiry timestamp in completed_at, without any manual completion.
         val completedAt = completed_at?.takeUnless { status == ReminderStatus.EXPIRED.name && it == updated_at }
@@ -352,7 +355,7 @@ class ReminderRepository(
         )
     }
 
-    private fun com.dailysatori.shared.db.Reminder.hasValidProfile() = runCatching { profile_json.toProfile() }.isSuccess
+    private fun com.dailysatori.shared.db.Reminder_record.hasValidProfile() = runCatching { profile_json.toProfile() }.isSuccess
 
     private data class Lifecycle(val status: ReminderStatus, val stateDate: LocalDate?, val dismissalCount: Int, val lastNotifiedAt: Long?, val lastDismissedAt: Long?, val completedAt: Long?, val nextOccurrenceAt: Long?, val eventType: String)
 

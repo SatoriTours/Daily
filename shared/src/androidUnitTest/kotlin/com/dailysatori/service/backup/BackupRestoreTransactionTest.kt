@@ -202,6 +202,45 @@ class BackupRestoreTransactionTest {
         assertFalse(pending.exists())
     }
 
+    @Test
+    fun everyReplacementBoundaryRollsBackDatabaseKeysMediaAndSidecarsAfterProcessDeath() {
+        for (boundary in 1..14) for (afterMove in listOf(false, true)) withFiles { root ->
+            val originals = mapOf("db" to "old database", "db-wal" to "old WAL", "db-shm" to "old SHM",
+                "db-journal" to "old journal", "key" to "old key", "password" to "old password",
+                "app/diary/old.m4a" to "old recording", "app/images/old.jpg" to "old image",
+                "life/archive.json.enc" to "old life")
+            originals.forEach { (path, content) ->
+                File(root, path).apply { parentFile?.mkdirs(); writeText(content) }
+            }
+            val pending = File(root, "pending")
+            val incoming = File(pending, "incoming").toPath()
+            val rollback = File(pending, "rollback").toPath()
+            var replacementMoves = 0
+            val interrupted = BackupRestoreTransaction(pending, File(root, "app"), File(root, "db"),
+                File(root, "life"), File(root, "password"), databaseKey = File(root, "key"),
+                move = { from, to ->
+                    val replacing = from.toPath().startsWith(incoming) || to.toPath().startsWith(rollback)
+                    if (replacing) replacementMoves++
+                    if (replacing && replacementMoves == boundary && !afterMove) throw SimulatedProcessDeath()
+                    to.parentFile?.mkdirs()
+                    Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE)
+                    if (replacing && replacementMoves == boundary && afterMove) throw SimulatedProcessDeath()
+                })
+            interrupted.stage(prepare(root).apply { resolve("database_key.sec").writeText("new key") })
+            assertFailsWith<SimulatedProcessDeath>("boundary=$boundary afterMove=$afterMove") { interrupted.applyPending() }
+            val restarted = BackupRestoreTransaction(pending, File(root, "app"), File(root, "db"),
+                File(root, "life"), File(root, "password"), databaseKey = File(root, "key"))
+            assertEquals("恢复中断，已还原原有数据", restarted.applyPending())
+            originals.forEach { (path, content) -> assertEquals(content, File(root, path).readText(), path) }
+            assertEquals(originals.keys, root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).path }.toSet())
+            assertNull(restarted.applyPending())
+            // A later normal launch must never replay the old rollback over new user edits.
+            File(root, "db").writeText("new user data")
+            assertNull(restarted.applyPending())
+            assertEquals("new user data", File(root, "db").readText())
+        }
+    }
+
     private fun prepare(root: File): File = File(root, "prepared").apply {
         mkdirs()
         resolve("database.db").writeText("new db")

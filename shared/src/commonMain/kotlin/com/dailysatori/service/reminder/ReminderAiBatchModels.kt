@@ -12,7 +12,7 @@ data class ReminderAiDraftRecord(
     val sourceIndex: Int, val sourceText: String, val draftJson: String,
     val overrideJson: String = "", val selected: Boolean = true, val discarded: Boolean = false,
     val confirmationState: String = "PENDING", val reminderId: String? = null,
-    val confirmed: Boolean, val confirmedAt: Instant?,
+    val confirmed: Boolean, val confirmedAt: Instant?, val revision:Long=0,
 )
 
 data class ReminderAiBatch(

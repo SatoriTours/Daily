@@ -80,7 +80,7 @@ import com.dailysatori.service.diary.DiaryTagVocabulary
 import com.dailysatori.service.diary.diaryTagFingerprint
 import com.dailysatori.service.diary.parseDiaryTags
 import com.dailysatori.service.i18n.I18nService
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import com.dailysatori.shared.db.Diary_attachment
 import com.dailysatori.ui.theme.*
 import java.io.File
@@ -217,11 +217,7 @@ fun DiaryEditorSheet(
     var pendingPastedUrl by remember { mutableStateOf<String?>(null) }
     var assistantPreview by remember { mutableStateOf<DiaryAssistantPreviewState?>(null) }
     val images = remember(existingDiary) {
-        val existingImages = existingDiary?.images
-            ?.split(",")
-            ?.map { it.trim() }
-            ?.filter { it.isNotBlank() && it != "null" }
-            ?: emptyList()
+        val existingImages = com.dailysatori.service.diary.parseDiaryImagePaths(existingDiary?.images)
         mutableStateListOf<String>().apply { addAll(existingImages) }
     }
 
@@ -450,7 +446,7 @@ fun DiaryEditorSheet(
                                 DiaryContinuationDraftSnapshot(
                                     content = content.text,
                                     mood = moodText.ifBlank { null },
-                                    images = images.joinToString(",").ifBlank { null },
+                                    images = com.dailysatori.service.diary.encodeDiaryImagePaths(images),
                                     polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
                                 ),
                             )
@@ -556,7 +552,7 @@ fun DiaryEditorSheet(
                                     onSaveContinuation(
                                         content.text,
                                         moodText.ifBlank { null },
-                                        images.joinToString(",").ifBlank { null },
+                                        com.dailysatori.service.diary.encodeDiaryImagePaths(images),
                                         polishedTranscripts.takeIf { polishVersionsLoaded },
                                     )
                                 } else {
@@ -564,7 +560,7 @@ fun DiaryEditorSheet(
                                         content.text,
                                         tagsText.ifBlank { null },
                                         moodText.ifBlank { null },
-                                        images.joinToString(",").ifBlank { null },
+                                        com.dailysatori.service.diary.encodeDiaryImagePaths(images),
                                         tagDraft,
                                         polishedTranscripts.takeIf { polishVersionsLoaded },
                                     )
@@ -590,7 +586,7 @@ fun DiaryEditorSheet(
                                         content.text,
                                         tagsText.ifBlank { null },
                                         moodText.ifBlank { null },
-                                        images.joinToString(",").ifBlank { null },
+                                        com.dailysatori.service.diary.encodeDiaryImagePaths(images),
                                         tagDraft,
                                         polishedTranscripts.takeIf { polishVersionsLoaded },
                                     )
@@ -607,7 +603,7 @@ fun DiaryEditorSheet(
                                     DiaryContinuationDraftSnapshot(
                                         content = content.text,
                                         mood = moodText.ifBlank { null },
-                                        images = images.joinToString(",").ifBlank { null },
+                                        images = com.dailysatori.service.diary.encodeDiaryImagePaths(images),
                                         polishedTranscripts = polishedTranscripts.takeIf { polishVersionsLoaded },
                                     ),
                                 )

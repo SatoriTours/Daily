@@ -34,8 +34,8 @@ class DiaryThreadRepositoryTest {
     @Test
     fun sameMillisecondRepliesKeepInsertionOrder() = withThreads { fixture ->
         val rootId = fixture.createRoot(content = "同一毫秒")
-        fixture.db.dailySatoriQueries.insertDiaryReply("a", null, null, null, 1000, 1000, rootId)
-        fixture.db.dailySatoriQueries.insertDiaryReply("b", null, null, null, 1000, 1000, rootId)
+        fixture.db.dailySatoriQueries.insertDiaryReply("a", null, 1000, 1000, rootId)
+        fixture.db.dailySatoriQueries.insertDiaryReply("b", null, 1000, 1000, rootId)
 
         val ids = requireNotNull(fixture.threads.getSnapshot(rootId)).entries.map { it.id }
 
@@ -67,7 +67,7 @@ class DiaryThreadRepositoryTest {
         fixture.reply(rootId, "续写")
         val oldRevision = requireNotNull(fixture.threads.getSnapshot(rootId)).revision
 
-        fixture.db.dailySatoriQueries.updateDiary("转写回写的正文", null, null, null, 2000, rootId)
+        fixture.db.dailySatoriQueries.updateDiary("转写回写的正文", null, 2000, rootId)
 
         assertFalse(fixture.threads.commitSummary(rootId, oldRevision, "过期结果"))
         val newRevision = requireNotNull(fixture.threads.getSnapshot(rootId)).revision
@@ -82,7 +82,7 @@ class DiaryThreadRepositoryTest {
         val rootId = fixture.createRoot(content = "原始")
         val revision = requireNotNull(fixture.threads.getSnapshot(rootId)).revision
 
-        fixture.db.dailySatoriQueries.updateDiaryTags("标签", rootId)
+        DiaryTagStore(fixture.db).initializeImported(rootId,listOf("标签"))
 
         assertEquals(revision, requireNotNull(fixture.threads.getSnapshot(rootId)).revision)
     }
@@ -105,7 +105,7 @@ class DiaryThreadRepositoryTest {
         val revision = requireNotNull(fixture.threads.getSnapshot(rootId)).revision
         val updatedBefore = fixture.diaries.getById(rootId)!!.updated_at
 
-        fixture.db.dailySatoriQueries.updateDiary("自动标题\n\n原始", null, null, null, 5, rootId)
+        fixture.db.dailySatoriQueries.updateDiary("自动标题\n\n原始", null, 5, rootId)
 
         val revisionAfter = requireNotNull(fixture.threads.getSnapshot(rootId)).revision
         val updatedAfter = fixture.diaries.getById(rootId)!!.updated_at
@@ -119,7 +119,7 @@ class DiaryThreadRepositoryTest {
         val replyId = fixture.reply(rootId, "录音中")
         val revision = requireNotNull(fixture.threads.getSnapshot(rootId)).revision
 
-        fixture.db.dailySatoriQueries.updateDiary("真实转写", null, null, null, 9, replyId)
+        fixture.db.dailySatoriQueries.updateDiary("真实转写", null, 9, replyId)
 
         assertTrue(requireNotNull(fixture.threads.getSnapshot(rootId)).revision > revision)
     }
@@ -237,10 +237,10 @@ class DiaryThreadRepositoryTest {
         val rootId = fixture.createRoot(content = "原始")
         val replyId = fixture.reply(rootId, "续写")
         // 主日记因其他变化被推到远更新的时间，旧续写回写不能把它拖回去。
-        fixture.db.dailySatoriQueries.updateDiary("原始", null, null, null, 9_000_000_000_000, rootId)
+        fixture.db.dailySatoriQueries.updateDiary("原始", null, 9_000_000_000_000, rootId)
         val before = fixture.diaries.getById(rootId)!!.updated_at
 
-        fixture.db.dailySatoriQueries.updateDiary("续写补充", null, null, null, 2_000, replyId)
+        fixture.db.dailySatoriQueries.updateDiary("续写补充", null, 2_000, replyId)
 
         val after = fixture.diaries.getById(rootId)!!.updated_at
         assertTrue(after > before, "root updated_at $after 必须严格大于 $before")

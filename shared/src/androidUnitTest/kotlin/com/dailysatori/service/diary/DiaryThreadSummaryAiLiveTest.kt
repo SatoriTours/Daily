@@ -2,7 +2,7 @@ package com.dailysatori.service.diary
 
 import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
-import com.dailysatori.shared.db.Diary
+import com.dailysatori.shared.db.Diary_record as Diary
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout

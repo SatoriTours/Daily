@@ -202,9 +202,7 @@ ON book_viewpoint_ai_message(session_id, created_at ASC, id ASC);
 CREATE TABLE diary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT NOT NULL,
-    tags TEXT,
     mood TEXT,
-    images TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     parent_diary_id INTEGER REFERENCES diary(id) ON DELETE CASCADE
@@ -216,24 +214,67 @@ ON diary(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_diary_parent_created
 ON diary(parent_diary_id, created_at ASC, id ASC);
 
+CREATE TABLE diary_tag_definition (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, vocabulary_position INTEGER);
+
+CREATE TABLE diary_tag_alias (
+            alias TEXT PRIMARY KEY NOT NULL, tag_id INTEGER NOT NULL REFERENCES diary_tag_definition(id) ON DELETE RESTRICT);
+
+CREATE TABLE diary_tag_assignment (
+            diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
+            tag_id INTEGER NOT NULL REFERENCES diary_tag_definition(id) ON DELETE RESTRICT,
+            origin TEXT NOT NULL CHECK(origin IN ('manual','automatic')),
+            state TEXT NOT NULL CHECK(state IN ('active','suppressed')),
+            position INTEGER NOT NULL CHECK(position >= 0), source_revision INTEGER,
+            PRIMARY KEY(diary_id,tag_id));
+
+CREATE TABLE diary_tag_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
+            tag_id INTEGER NOT NULL REFERENCES diary_tag_definition(id) ON DELETE RESTRICT,
+            operation_id TEXT NOT NULL, decision TEXT NOT NULL CHECK(decision IN ('active','suppressed','removed')),
+            origin TEXT NOT NULL CHECK(origin IN ('manual','automatic')), position INTEGER NOT NULL CHECK(position >= 0),
+            source_revision INTEGER, source_fingerprint TEXT, edit_revision INTEGER NOT NULL CHECK(edit_revision >= 0),
+            occurred_at INTEGER, UNIQUE(operation_id,diary_id,tag_id));
+
+CREATE INDEX idx_diary_tag_history_revision ON diary_tag_history(diary_id,edit_revision,id);
+
+CREATE TABLE diary_tag_processing (
+            root_diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE,
+            processed_revision INTEGER, edit_revision INTEGER NOT NULL CHECK(edit_revision >= 0));
+
+CREATE TABLE diary_tag_catalog_state (
+            id INTEGER PRIMARY KEY CHECK(id=1), format_version INTEGER NOT NULL CHECK(format_version=1),
+            pending_names_json TEXT NOT NULL, suggestions_json TEXT NOT NULL, merge_undo_json TEXT, baseline_json TEXT);
+
+CREATE VIEW diary_active_tags AS
+SELECT diary_id,group_concat(name,',') AS tags
+FROM (SELECT a.diary_id,t.name FROM diary_tag_assignment a
+JOIN diary_tag_definition t ON t.id=a.tag_id WHERE a.state='active'
+ORDER BY a.diary_id,a.position,a.tag_id)
+GROUP BY diary_id;
+
 CREATE VIRTUAL TABLE diary_fts USING fts4(
     content,
     tags
 );
 
+CREATE VIEW diary_record AS
+SELECT d.id,d.content,p.tags,d.mood,CAST(NULL AS TEXT) AS images,d.created_at,d.updated_at,d.parent_diary_id
+FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id;
+
 CREATE TRIGGER diary_fts_insert AFTER INSERT ON diary BEGIN
     INSERT INTO diary_fts(rowid, content, tags)
-    VALUES (new.id, new.content, new.tags);
+    VALUES (new.id, new.content, (SELECT tags FROM diary_active_tags WHERE diary_id=new.id));
 END;
 
 CREATE TRIGGER diary_fts_delete AFTER DELETE ON diary BEGIN
     DELETE FROM diary_fts WHERE rowid = old.id;
 END;
 
-CREATE TRIGGER diary_fts_update AFTER UPDATE OF content, tags ON diary BEGIN
+CREATE TRIGGER diary_fts_update AFTER UPDATE OF content ON diary BEGIN
     DELETE FROM diary_fts WHERE rowid = old.id;
     INSERT INTO diary_fts(rowid, content, tags)
-    VALUES (new.id, new.content, new.tags);
+    VALUES (new.id, new.content, (SELECT tags FROM diary_active_tags WHERE diary_id=new.id));
 END;
 
 -- 日记串原文版本：一次原文变化递增一次，纯时间戳或汇总写入不递增。
@@ -242,6 +283,47 @@ CREATE TABLE diary_thread_revision (
     revision INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TRIGGER diary_tag_fts_insert AFTER INSERT ON diary_tag_assignment BEGIN
+DELETE FROM diary_fts WHERE rowid IN (SELECT id FROM diary WHERE id=new.diary_id);
+INSERT INTO diary_fts(rowid,content,tags)
+SELECT d.id,d.content,p.tags FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id WHERE d.id=new.diary_id;
+
+END;
+
+CREATE TRIGGER diary_tag_fts_update AFTER UPDATE ON diary_tag_assignment BEGIN
+DELETE FROM diary_fts WHERE rowid IN (SELECT id FROM diary WHERE id=new.diary_id);
+INSERT INTO diary_fts(rowid,content,tags)
+SELECT d.id,d.content,p.tags FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id WHERE d.id=new.diary_id;
+DELETE FROM diary_fts WHERE rowid IN (SELECT id FROM diary WHERE id=old.diary_id);
+INSERT INTO diary_fts(rowid,content,tags)
+SELECT d.id,d.content,p.tags FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id WHERE d.id=old.diary_id;
+END;
+
+CREATE TRIGGER diary_tag_fts_delete AFTER DELETE ON diary_tag_assignment BEGIN
+DELETE FROM diary_fts WHERE rowid IN (SELECT id FROM diary WHERE id=old.diary_id);
+INSERT INTO diary_fts(rowid,content,tags)
+SELECT d.id,d.content,p.tags FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id WHERE d.id=old.diary_id;
+
+END;
+
+CREATE TRIGGER diary_tag_fts_definition AFTER UPDATE OF name ON diary_tag_definition BEGIN
+DELETE FROM diary_fts WHERE rowid IN (SELECT diary_id FROM diary_tag_assignment WHERE tag_id=new.id);
+INSERT INTO diary_fts(rowid,content,tags)
+SELECT d.id,d.content,p.tags FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id
+WHERE d.id IN (SELECT diary_id FROM diary_tag_assignment WHERE tag_id=new.id);
+END;
+
+CREATE TRIGGER diary_tag_expire_after_revision AFTER UPDATE OF revision ON diary_thread_revision
+WHEN new.revision IS NOT old.revision BEGIN
+UPDATE diary_tag_processing SET edit_revision=edit_revision+1 WHERE root_diary_id=new.root_diary_id AND EXISTS(
+SELECT 1 FROM diary_tag_assignment WHERE diary_id=new.root_diary_id AND state='suppressed' AND source_revision IS NOT new.revision);
+INSERT INTO diary_tag_history(diary_id,tag_id,operation_id,decision,origin,position,source_revision,edit_revision,occurred_at)
+SELECT a.diary_id,a.tag_id,'body:'||new.root_diary_id||':'||new.revision,'removed',a.origin,a.position,a.source_revision,
+p.edit_revision,CAST(strftime('%s','now') AS INTEGER)*1000 FROM diary_tag_assignment a JOIN diary_tag_processing p ON p.root_diary_id=a.diary_id
+WHERE a.diary_id=new.root_diary_id AND a.state='suppressed' AND a.source_revision IS NOT new.revision;
+DELETE FROM diary_tag_assignment WHERE diary_id=new.root_diary_id AND state='suppressed' AND source_revision IS NOT new.revision;
+END;
 
 CREATE TABLE diary_thread_summary (
     diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE,
@@ -264,8 +346,8 @@ END;
 
 -- 转写、自动标题等直接 SQL 回写同样递增版本。
 CREATE TRIGGER diary_thread_revision_after_content_update
-AFTER UPDATE OF content, images ON diary
-WHEN new.content IS NOT old.content OR new.images IS NOT old.images
+AFTER UPDATE OF content ON diary
+WHEN new.content IS NOT old.content
 BEGIN
     UPDATE diary_thread_revision
     SET revision = revision + 1,
@@ -275,8 +357,8 @@ END;
 
 -- 主日记自身正文变化：以其旧更新时间为基准，保证严格前移。
 CREATE TRIGGER diary_thread_root_updated_after_content_update
-AFTER UPDATE OF content, images ON diary
-WHEN new.parent_diary_id IS NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+AFTER UPDATE OF content ON diary
+WHEN new.parent_diary_id IS NULL AND new.content IS NOT old.content
 BEGIN
     UPDATE diary
     SET updated_at = MAX(new.updated_at, old.updated_at + 1)
@@ -285,8 +367,8 @@ END;
 
 -- 续写正文变化：以主日记当前更新时间为基准；旧续写回写不得把主时间拖回。
 CREATE TRIGGER diary_thread_child_updated_after_content_update
-AFTER UPDATE OF content, images ON diary
-WHEN new.parent_diary_id IS NOT NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+AFTER UPDATE OF content ON diary
+WHEN new.parent_diary_id IS NOT NULL AND new.content IS NOT old.content
 BEGIN
     UPDATE diary
     SET updated_at = MAX(new.updated_at, updated_at + 1)
@@ -306,6 +388,8 @@ CREATE TABLE diary_attachment (
     diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
     kind TEXT NOT NULL,
     local_path TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
+    remote_url TEXT,
     display_name TEXT NOT NULL DEFAULT '',
     mime_type TEXT NOT NULL DEFAULT '',
     size_bytes INTEGER NOT NULL DEFAULT 0,
@@ -317,6 +401,9 @@ CREATE TABLE diary_attachment (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_position
+ON diary_attachment(diary_id, position, id);
 
 CREATE INDEX IF NOT EXISTS idx_diary_attachment_diary_created
 ON diary_attachment(diary_id, created_at ASC, id ASC);
@@ -656,15 +743,19 @@ CREATE TABLE reminder_ai_draft (
     draft_json TEXT NOT NULL,
     override_json TEXT NOT NULL DEFAULT '',
     selected INTEGER NOT NULL DEFAULT 1,
-    discarded INTEGER NOT NULL DEFAULT 0,
-    confirmation_state TEXT NOT NULL DEFAULT 'PENDING',
-    reminder_id TEXT,
-    confirmed INTEGER NOT NULL DEFAULT 0,
+    state TEXT NOT NULL DEFAULT 'PENDING' CHECK(state IN ('PENDING','DISCARDED','SCHEDULE_PENDING','SCHEDULING_FAILED','CONFIRMED')),
+    reminder_id TEXT REFERENCES reminder(id) ON DELETE RESTRICT,
     confirmed_at INTEGER,
+    revision INTEGER NOT NULL DEFAULT 0 CHECK(revision >= 0),
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
+    CHECK((state IN ('PENDING','DISCARDED') AND reminder_id IS NULL AND confirmed_at IS NULL)
+       OR (state IN ('SCHEDULE_PENDING','SCHEDULING_FAILED') AND reminder_id IS NOT NULL AND confirmed_at IS NULL)
+       OR (state='CONFIRMED' AND reminder_id IS NOT NULL AND confirmed_at IS NOT NULL)),
     UNIQUE(batch_id, source_index)
 );
+
+CREATE UNIQUE INDEX idx_reminder_ai_draft_reminder ON reminder_ai_draft(reminder_id) WHERE reminder_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_reminder_ai_draft_batch_source ON reminder_ai_draft(batch_id, source_index ASC);
 
@@ -1110,25 +1201,46 @@ WHERE id = ? AND status = 'PARSE_FAILED';
 
 discardReadyReminderAiBatch:
 UPDATE reminder_ai_batch SET status = 'DISCARDED', updated_at = ?
-WHERE id = ? AND status = 'READY_FOR_CONFIRMATION';
+WHERE id = ? AND status = 'READY_FOR_CONFIRMATION'
+AND NOT EXISTS(SELECT 1 FROM reminder_ai_draft WHERE batch_id=reminder_ai_batch.id AND reminder_id IS NOT NULL);
+
+discardPendingReminderAiDrafts:
+UPDATE reminder_ai_draft SET state='DISCARDED',revision=revision+1,updated_at=? WHERE batch_id=? AND state='PENDING';
 
 deleteReminderAiDraftsByBatchId:
 DELETE FROM reminder_ai_draft WHERE batch_id = ?;
 
 insertReminderAiDraft:
-INSERT INTO reminder_ai_draft(batch_id, source_index, source_text, draft_json, override_json, selected, discarded, confirmation_state, reminder_id, confirmed, confirmed_at, created_at, updated_at)
-VALUES (?, ?, ?, ?, '', 1, 0, 'PENDING', NULL, 0, NULL, ?, ?);
+INSERT INTO reminder_ai_draft(batch_id, source_index, source_text, draft_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectReminderAiDraft:
+SELECT * FROM reminder_ai_draft WHERE batch_id=? AND source_index=?;
+selectPendingReminderSchedules:
+SELECT r.id AS reminder_id,r.version FROM reminder_ai_draft d JOIN reminder r ON r.id=d.reminder_id WHERE d.state='SCHEDULE_PENDING';
+selectReminderAiDraftByReminder:
+SELECT * FROM reminder_ai_draft WHERE reminder_id=?;
+deleteReminderAiDraftsByReminder:
+DELETE FROM reminder_ai_draft WHERE reminder_id=?;
+scheduleReminderAiDraft:
+UPDATE reminder_ai_draft SET state='SCHEDULE_PENDING',reminder_id=?,revision=revision+1,updated_at=?
+WHERE batch_id=? AND source_index=? AND revision=? AND state IN ('PENDING','SCHEDULING_FAILED');
+beginReminderAiDraftSchedule:
+UPDATE reminder_ai_draft SET state='SCHEDULE_PENDING',revision=revision+1,updated_at=?
+WHERE reminder_id=? AND state='SCHEDULING_FAILED';
 
 updateReminderAiDraftUiState:
-UPDATE reminder_ai_draft SET override_json = ?, selected = ?, discarded = ?, updated_at = ?
-WHERE batch_id = ? AND source_index = ? AND confirmed = 0;
+UPDATE reminder_ai_draft SET override_json=?,selected=?,state=?,updated_at=?,revision=revision+1
+WHERE batch_id=? AND source_index=? AND revision=? AND state='PENDING'
+AND EXISTS(SELECT 1 FROM reminder_ai_batch WHERE id=reminder_ai_draft.batch_id AND status='READY_FOR_CONFIRMATION');
 
 markReminderAiDraftSchedulingFailed:
-UPDATE reminder_ai_draft SET confirmation_state = 'SCHEDULING_FAILED', reminder_id = ?, updated_at = ?
-WHERE batch_id = ? AND source_index = ? AND confirmed = 0;
+UPDATE reminder_ai_draft SET state='SCHEDULING_FAILED',revision=revision+1,updated_at=?
+WHERE reminder_id=? AND state='SCHEDULE_PENDING';
 
 markReminderAiDraftConfirmed:
-UPDATE reminder_ai_draft SET confirmed = 1, selected = 0, confirmation_state = 'CONFIRMED', reminder_id = ?, confirmed_at = ?, updated_at = ? WHERE batch_id = ? AND source_index = ? AND confirmed = 0;
+UPDATE reminder_ai_draft SET state='CONFIRMED',selected=0,confirmed_at=?,updated_at=?,revision=revision+1
+WHERE reminder_id=? AND state='SCHEDULE_PENDING';
 
 attachReminderAiBatchTask:
 UPDATE reminder_ai_batch SET task_id = ?, updated_at = ? WHERE id = ? AND task_id IS NULL AND status = 'PARSING';
@@ -1615,49 +1727,50 @@ WHERE session_id IN (
 
 -- Diary queries
 selectAllDiaries:
-SELECT * FROM diary ORDER BY created_at DESC;
+SELECT * FROM diary_record ORDER BY created_at DESC;
 
 selectDiaryTagIndex:
-SELECT id, tags, CASE WHEN content = '' THEN 0 ELSE 1 END AS has_content
-FROM diary WHERE parent_diary_id IS NULL ORDER BY id;
+SELECT d.id,p.tags,CASE WHEN d.content='' THEN 0 ELSE 1 END AS has_content
+FROM diary d LEFT JOIN diary_active_tags p ON p.diary_id=d.id WHERE d.parent_diary_id IS NULL ORDER BY d.id;
 
 selectDiariesPaginated:
-SELECT * FROM diary ORDER BY created_at DESC LIMIT ? OFFSET ?;
+SELECT * FROM diary_record ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 selectDiaryRootsPaginated:
-SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?;
+SELECT * FROM diary_record WHERE parent_diary_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 selectDiaryById:
-SELECT * FROM diary WHERE id = ?;
+SELECT * FROM diary_record WHERE id = ?;
 
 searchDiaries:
-SELECT * FROM diary
+SELECT * FROM diary_record
 WHERE parent_diary_id IS NULL
   AND (
       content LIKE '%' || :legacyQuery || '%'
-      OR tags LIKE '%' || :legacyQuery || '%'
+      OR id IN (SELECT diary_id FROM diary_active_tags WHERE tags LIKE '%' || :legacyQuery || '%')
       OR id IN (
           SELECT child.parent_diary_id FROM diary child
           WHERE child.parent_diary_id IS NOT NULL
-            AND (child.content LIKE '%' || :legacyQuery || '%' OR child.tags LIKE '%' || :legacyQuery || '%')
+            AND (child.content LIKE '%' || :legacyQuery || '%' OR child.id IN (
+                SELECT diary_id FROM diary_active_tags WHERE tags LIKE '%' || :legacyQuery || '%'))
       )
   )
 ORDER BY created_at DESC;
 
 searchDiariesFts:
-SELECT * FROM diary
+SELECT * FROM diary_record
 WHERE parent_diary_id IS NULL
   AND (
       id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
       OR content LIKE '%' || :legacyQuery || '%'
-      OR tags LIKE '%' || :legacyQuery || '%'
+      OR id IN (SELECT diary_id FROM diary_active_tags WHERE tags LIKE '%' || :legacyQuery || '%')
       OR id IN (
           SELECT child.parent_diary_id FROM diary child
           WHERE child.parent_diary_id IS NOT NULL
             AND (
                 child.id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
                 OR child.content LIKE '%' || :legacyQuery || '%'
-                OR child.tags LIKE '%' || :legacyQuery || '%'
+                OR child.id IN (SELECT diary_id FROM diary_active_tags WHERE tags LIKE '%' || :legacyQuery || '%')
             )
       )
   )
@@ -1666,50 +1779,47 @@ ORDER BY
     created_at DESC;
 
 selectDiariesByDateRange:
-SELECT * FROM diary
+SELECT * FROM diary_record
 WHERE created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
 
 selectDiaryRootsByDateRange:
-SELECT * FROM diary
+SELECT * FROM diary_record
 WHERE parent_diary_id IS NULL AND created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
 
 insertDiary:
-INSERT INTO diary (content, tags, mood, images, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO diary (content, mood, created_at, updated_at)
+VALUES (?, ?, ?, ?);
 
 updateDiary:
-UPDATE diary SET content = ?, tags = ?, mood = ?, images = ?, updated_at = ? WHERE id = ?;
-
-updateDiaryTags:
-UPDATE diary SET tags = ? WHERE id = ?;
+UPDATE diary SET content = ?, mood = ?, updated_at = ? WHERE id = ?;
 
 deleteDiary:
 DELETE FROM diary WHERE id = ?;
 
 insertDiaryReply:
-INSERT INTO diary (content, tags, mood, images, created_at, updated_at, parent_diary_id)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO diary (content, mood, created_at, updated_at, parent_diary_id)
+VALUES (?, ?, ?, ?, ?);
 
 selectDiaryRoots:
-SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC;
+SELECT * FROM diary_record WHERE parent_diary_id IS NULL ORDER BY created_at DESC;
 
 selectDiaryRepliesForRoot:
-SELECT * FROM diary WHERE parent_diary_id = ? ORDER BY created_at ASC, id ASC;
+SELECT * FROM diary_record WHERE parent_diary_id = ? ORDER BY created_at ASC, id ASC;
 
 selectDiaryRootIds:
 SELECT id, parent_diary_id FROM diary;
 
 selectDiaryThreadEntries:
-SELECT * FROM diary
+SELECT * FROM diary_record
 WHERE id = :rootId OR parent_diary_id = :rootId
 ORDER BY CASE WHEN id = :rootId THEN 0 ELSE 1 END, created_at ASC, id ASC;
 
 selectDiaryThreadAttachments:
 SELECT * FROM diary_attachment
 WHERE diary_id IN (SELECT id FROM diary WHERE id = :rootId OR parent_diary_id = :rootId)
-ORDER BY diary_id ASC, created_at ASC, id ASC;
+ORDER BY diary_id ASC, position ASC, id ASC;
 
 selectDiaryThreadRevision:
 SELECT * FROM diary_thread_revision WHERE root_diary_id = ?;
@@ -1748,15 +1858,124 @@ SELECT COUNT(*) FROM diary WHERE parent_diary_id IS NULL;
 insertDiaryAttachment:
 INSERT INTO diary_attachment (
     diary_id, kind, local_path, display_name, mime_type, size_bytes, duration_ms,
-    transcript, transcript_status, knowledge_status, error_message, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    transcript, transcript_status, knowledge_status, error_message, created_at, updated_at, position
+) VALUES (:diary_id, :kind, :local_path, :display_name, :mime_type, :size_bytes, :duration_ms,
+    :transcript, :transcript_status, :knowledge_status, :error_message, :created_at, :updated_at,
+    (SELECT COALESCE(MAX(position), -1) + 1 FROM diary_attachment WHERE diary_id = :diary_id))
 ;
 
 selectAttachmentsForDiary:
-SELECT * FROM diary_attachment WHERE diary_id = ? ORDER BY created_at ASC, id ASC;
+SELECT * FROM diary_attachment WHERE diary_id = ? ORDER BY position ASC, id ASC;
 
 selectAllDiaryAttachments:
-SELECT * FROM diary_attachment ORDER BY diary_id ASC, created_at ASC, id ASC;
+SELECT * FROM diary_attachment ORDER BY diary_id ASC, position ASC, id ASC;
+
+deleteDiaryTagHistory:
+DELETE FROM diary_tag_history WHERE diary_id=?;
+
+deleteDiaryTagProcessing:
+DELETE FROM diary_tag_processing WHERE root_diary_id=?;
+
+selectDiaryTagDefinitions:
+SELECT * FROM diary_tag_definition ORDER BY id;
+
+selectDiaryTagAliases:
+SELECT a.alias,t.name FROM diary_tag_alias a JOIN diary_tag_definition t ON t.id=a.tag_id ORDER BY a.alias;
+
+selectDiaryTagAssignments:
+SELECT a.*,t.name FROM diary_tag_assignment a JOIN diary_tag_definition t ON t.id=a.tag_id ORDER BY a.diary_id,a.position,a.tag_id;
+
+selectDiaryTagEditorState:
+SELECT d.id,r.revision AS body_revision,p.processed_revision,p.edit_revision,
+a.origin,a.state,a.position,a.source_revision,t.name
+FROM diary d LEFT JOIN diary_thread_revision r ON r.root_diary_id=d.id
+LEFT JOIN diary_tag_processing p ON p.root_diary_id=d.id
+LEFT JOIN diary_tag_assignment a ON a.diary_id=d.id
+LEFT JOIN diary_tag_definition t ON t.id=a.tag_id
+WHERE d.id=? ORDER BY a.position,a.tag_id;
+
+selectDiaryTagAssignmentsForDiary:
+SELECT a.*,t.name FROM diary_tag_assignment a JOIN diary_tag_definition t ON t.id=a.tag_id
+WHERE a.diary_id=? ORDER BY a.position,a.tag_id;
+
+selectDiaryTagProcessing:
+SELECT * FROM diary_tag_processing WHERE root_diary_id=?;
+
+selectDiaryTagCatalog:
+SELECT * FROM diary_tag_catalog_state WHERE id=1;
+
+ensureDiaryTagCatalog:
+INSERT OR IGNORE INTO diary_tag_catalog_state(id,format_version,pending_names_json,suggestions_json)
+VALUES(1,1,'[]','[]');
+
+ensureDiaryTagDefinition:
+INSERT OR IGNORE INTO diary_tag_definition(name) VALUES(?);
+
+clearDiaryTagVocabularyPositions:
+UPDATE diary_tag_definition SET vocabulary_position=NULL;
+
+setDiaryTagVocabularyPosition:
+UPDATE diary_tag_definition SET vocabulary_position=? WHERE name=?;
+
+clearDiaryTagAliases:
+DELETE FROM diary_tag_alias;
+
+insertDiaryTagAlias:
+INSERT INTO diary_tag_alias(alias,tag_id) SELECT ?,id FROM diary_tag_definition WHERE name=?;
+
+setDiaryTagVocabulary:
+UPDATE diary_tag_catalog_state SET pending_names_json=?,suggestions_json=? WHERE id=1;
+
+setDiaryTagUndo:
+UPDATE diary_tag_catalog_state SET merge_undo_json=? WHERE id=1;
+
+setDiaryTagBaseline:
+UPDATE diary_tag_catalog_state SET baseline_json=? WHERE id=1;
+
+deleteDiaryTagAssignments:
+DELETE FROM diary_tag_assignment WHERE diary_id=?;
+
+insertDiaryTagAssignment:
+INSERT INTO diary_tag_assignment(diary_id,tag_id,origin,state,position,source_revision)
+SELECT ?,id,?,?,?,? FROM diary_tag_definition WHERE name=?;
+
+insertDiaryTagDecision:
+INSERT INTO diary_tag_history(diary_id,tag_id,operation_id,decision,origin,position,
+source_revision,source_fingerprint,edit_revision,occurred_at)
+SELECT ?,id,?,?,?,?,?,?,?,? FROM diary_tag_definition WHERE name=?;
+
+upsertDiaryTagProcessing:
+INSERT INTO diary_tag_processing(root_diary_id,processed_revision,edit_revision) VALUES(?,?,?)
+ON CONFLICT(root_diary_id) DO UPDATE SET processed_revision=excluded.processed_revision,edit_revision=excluded.edit_revision;
+
+selectDiaryImageReferences:
+SELECT diary_id, local_path, remote_url FROM diary_attachment WHERE kind = 'image' ORDER BY diary_id, position, id;
+
+insertDiaryImage:
+INSERT INTO diary_attachment(diary_id,kind,local_path,remote_url,position,created_at,updated_at)
+VALUES (?, 'image', ?, ?, ?, ?, ?);
+
+setDiaryAttachmentPosition:
+UPDATE diary_attachment SET position = ? WHERE id = ?;
+
+setDiaryAttachmentRemoteUrl:
+UPDATE diary_attachment SET remote_url = ? WHERE id = ?;
+
+advanceDiaryImageRevision:
+UPDATE diary_thread_revision SET revision = revision + 1, updated_at = MAX(updated_at, :now)
+WHERE root_diary_id = (SELECT COALESCE(parent_diary_id,id) FROM diary WHERE id = :diaryId);
+
+touchDiaryImageRecords:
+UPDATE diary SET updated_at = MAX(updated_at + 1, ?) WHERE id = ? OR id = (SELECT parent_diary_id FROM diary WHERE id = ?);
+
+selectMediaFileReferences:
+SELECT local_path AS path FROM diary_attachment WHERE local_path <> ''
+UNION ALL SELECT path FROM image WHERE path IS NOT NULL AND path <> ''
+UNION ALL SELECT cover_image FROM article WHERE cover_image IS NOT NULL AND cover_image <> ''
+UNION ALL SELECT cover_image FROM book WHERE cover_image IS NOT NULL AND cover_image <> '';
+
+acquireMediaCleanupLock:
+UPDATE diary_attachment SET local_path = local_path WHERE 0;
 
 selectDiaryAttachmentById:
 SELECT * FROM diary_attachment WHERE id = ?;
@@ -2348,6 +2567,7 @@ SELECT
 -- Memory Entry
 CREATE TABLE memory_entry (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_origin TEXT NOT NULL DEFAULT 'legacy_unknown' CHECK(content_origin IN ('automatic','manual','accepted','legacy_unknown')),
     assistant_kind TEXT NOT NULL DEFAULT 'legacy',
     assistant_state TEXT NOT NULL DEFAULT 'active',
     evidence TEXT NOT NULL DEFAULT '',
@@ -2391,7 +2611,7 @@ END;
 -- Chat Conversation
 CREATE TABLE chat_conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
+    session_id TEXT NOT NULL REFERENCES assistant_session(id) ON DELETE RESTRICT,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     search_results TEXT,
@@ -2400,7 +2620,7 @@ CREATE TABLE chat_conversation (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_conversation_session_created
-ON chat_conversation(session_id, created_at DESC);
+ON chat_conversation(session_id, created_at DESC, id DESC);
 
 -- Assistant privacy tombstones are independent of original records and survive memory rebuilds.
 CREATE TABLE assistant_memory_exclusion (
@@ -2421,9 +2641,9 @@ CREATE TABLE assistant_session (
 
 CREATE TABLE assistant_turn (
     id INTEGER PRIMARY KEY NOT NULL,
-    session_id TEXT NOT NULL,
+    session_id TEXT NOT NULL REFERENCES assistant_session(id) ON DELETE RESTRICT,
     client_message_id TEXT NOT NULL,
-    task_id INTEGER NOT NULL UNIQUE,
+    task_id INTEGER NOT NULL UNIQUE REFERENCES async_task(id) ON DELETE RESTRICT,
     received_at INTEGER NOT NULL,
     time_zone_id TEXT NOT NULL,
     response_message_id INTEGER,
@@ -2435,19 +2655,19 @@ CREATE TABLE assistant_turn (
 
 CREATE TABLE assistant_action (
     id TEXT PRIMARY KEY NOT NULL,
-    turn_id INTEGER NOT NULL,
+    turn_id INTEGER NOT NULL REFERENCES assistant_turn(id) ON DELETE RESTRICT,
     kind TEXT NOT NULL,
     parameters_json TEXT NOT NULL,
     fingerprint TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
     target_id TEXT,
-    task_id INTEGER,
+    task_id INTEGER REFERENCES async_task(id) ON DELETE RESTRICT,
     error_code TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX idx_assistant_action_turn ON assistant_action(turn_id);
 
 CREATE TABLE assistant_reference (
-    turn_id INTEGER NOT NULL,
+    turn_id INTEGER NOT NULL REFERENCES assistant_turn(id) ON DELETE RESTRICT,
     source_type TEXT NOT NULL,
     source_id TEXT NOT NULL,
     title TEXT NOT NULL DEFAULT '',
@@ -2462,6 +2682,48 @@ CREATE TABLE assistant_index_segment (
     ai_state TEXT NOT NULL DEFAULT 'pending',
     PRIMARY KEY (source_id, segment_index)
 );
+
+CREATE TRIGGER assistant_turn_links_insert BEFORE INSERT ON assistant_turn BEGIN
+SELECT RAISE(ABORT,'Invalid assistant input relation') WHERE
+    EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.id AND (c.role!='user' OR c.session_id!=new.session_id))
+    OR (NOT EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.id)
+        AND NOT EXISTS(SELECT 1 FROM assistant_memory_exclusion x WHERE x.source_type='chat' AND x.source_id=CAST(new.id AS TEXT)));
+SELECT RAISE(ABORT,'Invalid assistant response relation') WHERE new.response_message_id IS NOT NULL AND (
+    EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.response_message_id AND (c.role!='assistant' OR c.session_id!=new.session_id))
+    OR (NOT EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.response_message_id)
+        AND NOT EXISTS(SELECT 1 FROM assistant_memory_exclusion x WHERE x.source_type='chat' AND x.source_id=CAST(new.response_message_id AS TEXT))));
+END;
+CREATE TRIGGER assistant_turn_links_update BEFORE UPDATE ON assistant_turn BEGIN
+SELECT RAISE(ABORT,'Invalid assistant input relation') WHERE
+    EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.id AND (c.role!='user' OR c.session_id!=new.session_id))
+    OR (NOT EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.id)
+        AND NOT EXISTS(SELECT 1 FROM assistant_memory_exclusion x WHERE x.source_type='chat' AND x.source_id=CAST(new.id AS TEXT)));
+SELECT RAISE(ABORT,'Invalid assistant response relation') WHERE new.response_message_id IS NOT NULL AND (
+    EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.response_message_id AND (c.role!='assistant' OR c.session_id!=new.session_id))
+    OR (NOT EXISTS(SELECT 1 FROM chat_conversation c WHERE c.id=new.response_message_id)
+        AND NOT EXISTS(SELECT 1 FROM assistant_memory_exclusion x WHERE x.source_type='chat' AND x.source_id=CAST(new.response_message_id AS TEXT))));
+END;
+CREATE TRIGGER assistant_message_links_insert AFTER INSERT ON chat_conversation BEGIN
+SELECT RAISE(ABORT,'Invalid assistant message relation') WHERE EXISTS(
+    SELECT 1 FROM assistant_turn t WHERE (t.id=new.id AND (new.role!='user' OR new.session_id!=t.session_id))
+        OR(t.response_message_id=new.id AND (new.role!='assistant' OR new.session_id!=t.session_id))); END;
+CREATE TRIGGER assistant_message_links_update BEFORE UPDATE OF role,session_id ON chat_conversation BEGIN
+SELECT RAISE(ABORT,'Invalid assistant message relation') WHERE EXISTS(
+    SELECT 1 FROM assistant_turn t WHERE (t.id=old.id AND (new.role!='user' OR new.session_id!=t.session_id))
+        OR(t.response_message_id=old.id AND (new.role!='assistant' OR new.session_id!=t.session_id))); END;
+CREATE TRIGGER assistant_task_history_restrict BEFORE DELETE ON async_task
+WHEN EXISTS(SELECT 1 FROM assistant_turn WHERE task_id=old.id) OR EXISTS(SELECT 1 FROM assistant_action WHERE task_id=old.id)
+BEGIN SELECT RAISE(ABORT,'Referenced assistant task'); END;
+
+ensureChatSession:
+INSERT OR IGNORE INTO assistant_session(id,created_at) VALUES(?,?);
+selectMemorySourceExclusion:
+SELECT COUNT(*) FROM assistant_memory_exclusion WHERE source_type=? AND source_id=CAST(? AS TEXT);
+insertAutomaticMemory:
+INSERT INTO memory_entry(type,source_type,source_id,title,content,created_at,updated_at,content_origin,source_version)
+VALUES('content',?,?,?,?,?,?,'automatic',?);
+updateAutomaticMemory:
+UPDATE memory_entry SET title=?,content=?,updated_at=?,source_version=? WHERE id=? AND content_origin='automatic';
 
 -- Memory queries
 selectMemoryByType:
@@ -2487,20 +2749,20 @@ selectAllMemory:
 SELECT * FROM memory_entry ORDER BY created_at DESC;
 
 insertMemory:
-INSERT INTO memory_entry (type, source_type, source_id, title, content, tags, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO memory_entry (type, source_type, source_id, title, content, tags, created_at, updated_at,content_origin)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?,'manual');
 
 updateMemory:
-UPDATE memory_entry SET title = ?, content = ?, tags = ?, updated_at = ? WHERE id = ?;
+UPDATE memory_entry SET title = ?, content = ?, tags = ?, updated_at = ?,content_origin='manual' WHERE id = ?;
 
 deleteMemory:
 DELETE FROM memory_entry WHERE id = ?;
 
 deleteMemoryBySource:
-DELETE FROM memory_entry WHERE source_type = ? AND source_id = ?;
+DELETE FROM memory_entry WHERE source_type = ? AND source_id = ? AND content_origin='automatic';
 
 deleteAllMemoryByType:
-DELETE FROM memory_entry WHERE type = ?;
+DELETE FROM memory_entry WHERE type = ? AND content_origin='automatic';
 
 memoryCountByType:
 SELECT COUNT(*) FROM memory_entry WHERE type = ?;
@@ -2510,13 +2772,13 @@ selectChatById:
 SELECT * FROM chat_conversation WHERE id = ?;
 
 selectChatBySession:
-SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at ASC;
+SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at ASC,id ASC;
 
 selectLatestChatBySession:
-SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at DESC LIMIT ?;
+SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at DESC,id DESC LIMIT ?;
 
 selectChatBefore:
-SELECT * FROM chat_conversation WHERE session_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?;
+SELECT * FROM chat_conversation WHERE session_id = :sessionId AND (created_at < :beforeCreatedAt OR (created_at=:beforeCreatedAt AND id<:beforeId)) ORDER BY created_at DESC,id DESC LIMIT :limit;
 
 insertChat:
 INSERT INTO chat_conversation (session_id, role, content, search_results, steps, created_at)
@@ -2541,6 +2803,22 @@ CREATE TABLE reminder_profile (
     updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE reminder_policy_snapshot (
+    id TEXT PRIMARY KEY NOT NULL,
+    format_version INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX idx_reminder_policy_hash ON reminder_policy_snapshot(format_version,sha256);
+CREATE TRIGGER reminder_policy_immutable BEFORE UPDATE ON reminder_policy_snapshot BEGIN
+    SELECT RAISE(ABORT,'Immutable reminder policy');
+END;
+CREATE TRIGGER reminder_policy_referenced BEFORE DELETE ON reminder_policy_snapshot
+WHEN EXISTS(SELECT 1 FROM reminder WHERE policy_snapshot_id=old.id) BEGIN
+    SELECT RAISE(ABORT,'Referenced reminder policy');
+END;
+
 CREATE TABLE reminder (
     id TEXT PRIMARY KEY NOT NULL,
     content TEXT NOT NULL,
@@ -2552,7 +2830,7 @@ CREATE TABLE reminder (
     active_day_rule TEXT NOT NULL,
     recurrence_rule TEXT NOT NULL DEFAULT 'once',
     time_zone_id TEXT NOT NULL,
-    profile_json TEXT NOT NULL,
+    policy_snapshot_id TEXT NOT NULL REFERENCES reminder_policy_snapshot(id) ON DELETE RESTRICT,
     version INTEGER NOT NULL DEFAULT 0,
     state_date TEXT,
     dismissal_count INTEGER NOT NULL DEFAULT 0,
@@ -2564,6 +2842,18 @@ CREATE TABLE reminder (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+
+CREATE VIEW reminder_record AS
+SELECT r.*,p.payload_json AS profile_json FROM reminder r JOIN reminder_policy_snapshot p ON p.id=r.policy_snapshot_id;
+
+selectReminderPoliciesByHash:
+SELECT * FROM reminder_policy_snapshot WHERE format_version=? AND sha256=? ORDER BY id;
+selectReminderPolicyById:
+SELECT * FROM reminder_policy_snapshot WHERE id=?;
+countReminderPolicies:
+SELECT COUNT(*) FROM reminder_policy_snapshot;
+insertReminderPolicy:
+INSERT INTO reminder_policy_snapshot(id,format_version,payload_json,sha256,created_at) VALUES(?,?,?,?,?);
 
 CREATE INDEX idx_reminder_status_dates ON reminder(status, start_date, end_date);
 CREATE INDEX idx_reminder_next_occurrence ON reminder(status, next_occurrence_at);
@@ -2598,11 +2888,11 @@ deleteReminderProfile:
 DELETE FROM reminder_profile WHERE id = ?;
 
 insertReminder:
-INSERT INTO reminder (id, content, notes, status, start_date, end_date, first_reminder_time, active_day_rule, recurrence_rule, time_zone_id, profile_json, version, state_date, dismissal_count, last_notified_at, last_dismissed_at, completed_at, next_occurrence_at, created_at, updated_at)
+INSERT INTO reminder (id, content, notes, status, start_date, end_date, first_reminder_time, active_day_rule, recurrence_rule, time_zone_id, policy_snapshot_id, version, state_date, dismissal_count, last_notified_at, last_dismissed_at, completed_at, next_occurrence_at, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectReminderById:
-SELECT * FROM reminder WHERE id = ?;
+SELECT * FROM reminder_record WHERE id = ?;
 
 setReminderDeadline:
 UPDATE reminder SET deadline_at = ? WHERE id = ?;
@@ -2685,10 +2975,10 @@ deleteAllReminderEvents:
 DELETE FROM reminder_event WHERE reminder_id = ?;
 
 selectAllReminders:
-SELECT * FROM reminder ORDER BY created_at DESC;
+SELECT * FROM reminder_record ORDER BY created_at DESC;
 
 selectActiveReminders:
-SELECT * FROM reminder
+SELECT * FROM reminder_record
 WHERE status IN ('ACTIVE', 'NOTIFIED', 'DISMISSED')
 ORDER BY next_occurrence_at ASC, created_at ASC;
 
@@ -2696,7 +2986,7 @@ updateReminderLifecycleIfVersion:
 UPDATE reminder SET status = ?, version = ?, state_date = ?, dismissal_count = ?, last_notified_at = ?, last_dismissed_at = ?, completed_at = ?, next_occurrence_at = ?, updated_at = ? WHERE id = ? AND version = ?;
 
 updateReminderEditableIfVersion:
-UPDATE reminder SET content = ?, notes = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, recurrence_rule = ?, profile_json = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?;
+UPDATE reminder SET content = ?, notes = ?, start_date = ?, end_date = ?, first_reminder_time = ?, active_day_rule = ?, recurrence_rule = ?, policy_snapshot_id = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?;
 
 insertReminderEvent:
 INSERT INTO reminder_event (reminder_id, event_type, scheduled_at, actual_at, metadata_json) VALUES (?, ?, ?, ?, ?);
@@ -2713,6 +3003,17 @@ selectChatSessions:
 SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;
 
 -- Idea topics: manual capture, provenance snapshots, append-only events, multi-session AI chat.
+CREATE TABLE idea_source_snapshot (
+    id TEXT PRIMARY KEY NOT NULL,
+    format_version INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX idx_idea_snapshot_hash ON idea_source_snapshot(format_version,sha256);
+CREATE TRIGGER idea_snapshot_immutable BEFORE UPDATE ON idea_source_snapshot
+BEGIN SELECT RAISE(ABORT,'Immutable idea snapshot'); END;
+
 CREATE TABLE idea_topic (
     id TEXT PRIMARY KEY NOT NULL,
     title TEXT NOT NULL,
@@ -2721,7 +3022,7 @@ CREATE TABLE idea_topic (
     conclusions TEXT NOT NULL DEFAULT '',
     next_action TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
-    merged_into_topic_id TEXT,
+    merged_into_topic_id TEXT REFERENCES idea_topic(id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
     context_revision INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
@@ -2732,11 +3033,11 @@ CREATE INDEX idx_idea_topic_updated ON idea_topic(updated_at);
 
 CREATE TABLE idea_topic_source (
     id TEXT PRIMARY KEY NOT NULL,
-    topic_id TEXT NOT NULL,
+    topic_id TEXT NOT NULL REFERENCES idea_topic(id) ON DELETE RESTRICT,
     original_topic_id TEXT NOT NULL,
     source_type TEXT NOT NULL,
     source_record_id TEXT NOT NULL,
-    snapshot_json TEXT NOT NULL,
+    snapshot_id TEXT NOT NULL REFERENCES idea_source_snapshot(id) ON DELETE RESTRICT,
     captured_at INTEGER NOT NULL,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
@@ -2748,10 +3049,11 @@ CREATE INDEX idx_idea_topic_source_topic ON idea_topic_source(topic_id, captured
 
 CREATE TABLE idea_topic_event (
     id TEXT PRIMARY KEY NOT NULL,
-    topic_id TEXT NOT NULL,
+    topic_id TEXT NOT NULL REFERENCES idea_topic(id) ON DELETE RESTRICT,
     original_topic_id TEXT NOT NULL,
     kind TEXT NOT NULL,
     payload_json TEXT NOT NULL DEFAULT '{}',
+    payload_version INTEGER NOT NULL DEFAULT 1 CHECK(payload_version IN (1,2)),
     created_at INTEGER NOT NULL
 );
 
@@ -2760,7 +3062,7 @@ CREATE INDEX idx_idea_topic_event_kind ON idea_topic_event(topic_id, kind, creat
 
 CREATE TABLE idea_topic_session (
     id TEXT PRIMARY KEY NOT NULL,
-    topic_id TEXT NOT NULL,
+    topic_id TEXT NOT NULL REFERENCES idea_topic(id) ON DELETE RESTRICT,
     original_topic_id TEXT NOT NULL,
     title TEXT NOT NULL,
     summary TEXT NOT NULL DEFAULT '',
@@ -2775,7 +3077,7 @@ CREATE INDEX idx_idea_topic_session_topic ON idea_topic_session(topic_id, update
 
 CREATE TABLE idea_topic_message (
     id TEXT PRIMARY KEY NOT NULL,
-    session_id TEXT NOT NULL,
+    session_id TEXT NOT NULL REFERENCES idea_topic_session(id) ON DELETE RESTRICT,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     status TEXT NOT NULL,
@@ -2785,6 +3087,51 @@ CREATE TABLE idea_topic_message (
 
 CREATE INDEX idx_idea_topic_message_session ON idea_topic_message(session_id, created_at, id);
 CREATE INDEX idx_idea_topic_message_status ON idea_topic_message(status, created_at, id);
+
+CREATE TABLE idea_event_snapshot (
+    event_id TEXT NOT NULL REFERENCES idea_topic_event(id) ON DELETE RESTRICT,
+    role TEXT NOT NULL CHECK(role IN ('captured_source','merged_duplicate')),
+    ordinal INTEGER NOT NULL CHECK(ordinal>=0),
+    snapshot_id TEXT NOT NULL REFERENCES idea_source_snapshot(id) ON DELETE RESTRICT,
+    PRIMARY KEY(event_id,role,ordinal)
+);
+CREATE INDEX idx_idea_event_snapshot_id ON idea_event_snapshot(snapshot_id);
+CREATE INDEX idx_idea_source_snapshot_id ON idea_topic_source(snapshot_id);
+CREATE TRIGGER idea_snapshot_referenced BEFORE DELETE ON idea_source_snapshot
+WHEN EXISTS(SELECT 1 FROM idea_topic_source WHERE snapshot_id=old.id)
+    OR EXISTS(SELECT 1 FROM idea_event_snapshot WHERE snapshot_id=old.id)
+BEGIN SELECT RAISE(ABORT,'Referenced idea snapshot'); END;
+CREATE VIEW idea_source_record AS SELECT s.*,p.payload_json AS snapshot_json
+FROM idea_topic_source s JOIN idea_source_snapshot p ON p.id=s.snapshot_id;
+CREATE TRIGGER idea_topic_merge_cycle_insert BEFORE INSERT ON idea_topic
+WHEN new.merged_into_topic_id IS NOT NULL BEGIN
+SELECT RAISE(ABORT,'Idea merge cycle') WHERE EXISTS(
+    WITH RECURSIVE chain(id) AS (SELECT new.merged_into_topic_id UNION
+        SELECT t.merged_into_topic_id FROM idea_topic t JOIN chain c ON c.id=t.id WHERE t.merged_into_topic_id IS NOT NULL)
+    SELECT 1 FROM chain WHERE id=new.id); END;
+CREATE TRIGGER idea_topic_merge_cycle_update BEFORE UPDATE OF merged_into_topic_id ON idea_topic
+WHEN new.merged_into_topic_id IS NOT NULL BEGIN
+SELECT RAISE(ABORT,'Idea merge cycle') WHERE EXISTS(
+    WITH RECURSIVE chain(id) AS (SELECT new.merged_into_topic_id UNION
+        SELECT t.merged_into_topic_id FROM idea_topic t JOIN chain c ON c.id=t.id WHERE t.merged_into_topic_id IS NOT NULL)
+    SELECT 1 FROM chain WHERE id=new.id); END;
+
+selectIdeaSnapshotsByHash:
+SELECT * FROM idea_source_snapshot WHERE format_version=? AND sha256=? ORDER BY id;
+selectIdeaSnapshot:
+SELECT * FROM idea_source_snapshot WHERE id=?;
+countIdeaSnapshots:
+SELECT COUNT(*) FROM idea_source_snapshot;
+insertIdeaSnapshot:
+INSERT INTO idea_source_snapshot(id,format_version,payload_json,sha256,created_at) VALUES(?,?,?,?,?);
+insertIdeaEventSnapshot:
+INSERT INTO idea_event_snapshot(event_id,role,ordinal,snapshot_id) VALUES(?,?,?,?);
+selectIdeaEventSnapshots:
+SELECT * FROM idea_event_snapshot WHERE event_id=? ORDER BY role,ordinal;
+deleteIdeaEventSnapshots:
+DELETE FROM idea_event_snapshot WHERE event_id=?;
+setIdeaEventPayload:
+UPDATE idea_topic_event SET payload_json=?,payload_version=? WHERE id=?;
 
 selectMainIdeaTopics:
 SELECT t.id, t.title, t.description, t.provenance_summary, t.conclusions, t.next_action,
@@ -2821,18 +3168,18 @@ markIdeaTopicMergedInto:
 UPDATE idea_topic SET merged_into_topic_id = ?, updated_at = ? WHERE id = ?;
 
 selectIdeaTopicSourcesByTopic:
-SELECT * FROM idea_topic_source WHERE topic_id = ? ORDER BY captured_at ASC, id ASC;
+SELECT * FROM idea_source_record WHERE topic_id = ? ORDER BY captured_at ASC, id ASC;
 
 selectIdeaTopicSourceById:
-SELECT * FROM idea_topic_source WHERE id = ?;
+SELECT * FROM idea_source_record WHERE id = ?;
 
 selectIdeaTopicSourceByKey:
-SELECT * FROM idea_topic_source WHERE source_type = ? AND source_record_id = ?
+SELECT * FROM idea_source_record WHERE source_type = ? AND source_record_id = ?
 ORDER BY captured_at ASC, id ASC LIMIT 1;
 
 insertIdeaTopicSource:
 INSERT INTO idea_topic_source (id, topic_id, original_topic_id, source_type, source_record_id,
-    snapshot_json, captured_at, created_at, updated_at)
+    snapshot_id, captured_at, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 moveIdeaTopicSource:
@@ -2843,6 +3190,14 @@ DELETE FROM idea_topic_source WHERE id = ?;
 
 selectIdeaTopicEventsByTopic:
 SELECT * FROM idea_topic_event WHERE topic_id = ? ORDER BY created_at ASC, id ASC;
+
+selectIdeaTopicEventsForRead:
+SELECT e.*,r.role AS snapshot_role,r.ordinal,p.payload_json AS snapshot_json
+FROM idea_topic_event e
+LEFT JOIN idea_event_snapshot r ON r.event_id=e.id
+LEFT JOIN idea_source_snapshot p ON p.id=r.snapshot_id
+WHERE e.topic_id=?
+ORDER BY e.created_at,e.id,r.role,r.ordinal;
 
 selectIdeaTopicEventById:
 SELECT * FROM idea_topic_event WHERE id = ?;
