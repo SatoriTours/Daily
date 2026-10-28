@@ -81,6 +81,7 @@ phone_message:id,encrypted_payload,received_at
 reminder:id,content,notes,status,start_date,end_date,first_reminder_time,active_day_rule,recurrence_rule,time_zone_id,policy_snapshot_id,version,state_date,dismissal_count,last_notified_at,last_dismissed_at,completed_at,next_occurrence_at,deadline_at,created_at,updated_at
 reminder_ai_batch:id,parent_batch_id,original_input,normalized_key,time_zone_id,local_date,status,task_id,attempt_count,max_attempts,last_attempt_at,error_summary,terminal_notification_at,created_at,updated_at
 reminder_ai_draft:id,batch_id,source_index,source_text,draft_json,override_json,selected,state,reminder_id,confirmed_at,revision,created_at,updated_at
+reminder_ai_draft_legacy:id,batch_id,source_index,source_text,draft_json,override_json,selected,discarded,confirmation_state,reminder_id,confirmed,confirmed_at,created_at,updated_at
 reminder_event:id,reminder_id,event_type,scheduled_at,actual_at,metadata_json
 reminder_profile:id,name,kind,profile_json,created_at,updated_at
 reminder_policy_snapshot:id,format_version,payload_json,sha256,created_at
@@ -99,7 +100,8 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
     }
 
     fun validate(driver: SqlDriver, version: Long = com.dailysatori.config.DatabaseConfig.currentSchemaVersion) {
-        columns.filterKeys { (version>=45 || it!="diary_record") && (version>=41 || !it.startsWith("diary_tag_")) &&
+        columns.filterKeys { (version>=46 || it!="reminder_ai_draft_legacy") &&
+            (version>=45 || it!="diary_record") && (version>=41 || !it.startsWith("diary_tag_")) &&
             (version>=42 || it!="reminder_policy_snapshot") &&
             (version>=43 || it !in setOf("idea_source_snapshot","idea_event_snapshot")) }.forEach { (table, all) ->
             val found = strings(driver, "SELECT name FROM pragma_table_info('$table')").toSet()
@@ -118,6 +120,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
         }
         val actual = strings(driver, "SELECT type || ':' || name FROM sqlite_master").toSet()
         val expected=expectedObjects(driver).filterNot { name ->
+            (version<46 && name=="table:reminder_ai_draft_legacy") ||
             (version<45 && name=="view:diary_record") ||
             (version<44 && name.substringAfter(':') in setOf("assistant_turn_links_insert","assistant_turn_links_update","assistant_message_links_insert","assistant_message_links_update","assistant_task_history_restrict")) ||
             (version<43 && (name.substringAfter(':').startsWith("idea_snapshot_") || name.substringAfter(':').startsWith("idea_topic_merge_cycle_") ||

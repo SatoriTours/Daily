@@ -1,0 +1,84 @@
+name: Code And Startup Safety Gate
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4.5.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install host SQLCipher build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev tcl-dev pkg-config
+
+      - name: Build pinned host SQLCipher
+        timeout-minutes: 10
+        run: |
+          bash scripts/build-test-sqlcipher.sh "$RUNNER_TEMP/daily-sqlcipher"
+          echo "SQLCIPHER_BIN=$RUNNER_TEMP/daily-sqlcipher/sqlcipher-4.19.0/sqlite3" >> "$GITHUB_ENV"
+
+      - name: Verify actual encrypted files before startup regression tests
+        run: python3 scripts/test-database-encryption.py --sqlcipher "$SQLCIPHER_BIN"
+
+      - name: Compile and run all code-level tests including encrypted startup upgrades
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
+
+      - name: Require startup regressions to actually execute
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          required = {"DatabaseSchemaUpgradeTest": (
+              "hostSqlCipherCursorDistinguishesNullFromEmptyString",
+              "realSqlCipherUpgradeUsesSameKeyAndNeverWritesAPlaintextCandidate",
+              "conflictingLegacyDraftIsRetainedThroughVerifiedCandidateInstallation",
+              "physical45ReceivesArchiveWithoutChangingExistingContent",
+          ), "HistoricalSchemaUpgradeTest": (
+              "emptyFrozenVersion38UpgradesAndReopensWithoutExport",
+              "populatedFrozenVersion38PreservesAllDraftCombinationsAndOriginalDomains",
+              "legacyManuallyReaddedSuppressedTagKeepsVisibleTagAndSuppressionHistory",
+              "eachTamperedDomainRejectsCandidateAndPreservesOriginalDatabaseAndKey",
+              "realEncryptedFrozenVersion38SurvivesUpgradeRekeyedSnapshotAndReopen",
+          )}
+          for suite, names in required.items():
+              report = ET.parse(f"shared/build/test-results/testDebugUnitTest/TEST-com.dailysatori.service.security.{suite}.xml").getroot()
+              cases = {case.get("name"): case for case in report.findall("testcase")}
+              for name in names:
+                  case = cases.get(name)
+                  if case is None or any(case.find(tag) is not None for tag in ("skipped", "failure", "error")):
+                      raise SystemExit(f"Required startup regression did not pass: {suite}.{name}")
+          print("PASS: all required startup regressions executed without skips")
+          PY
+
+      - name: Test release metadata
+        run: python3 -m unittest discover -s scripts -p 'test_ci_release.py'
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: test-results
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            shared/build/reports/tests/
+            shared/build/test-results/
+          retention-days: 7

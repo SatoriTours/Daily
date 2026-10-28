@@ -168,6 +168,7 @@ class DatabaseMigration(
         if (currentVersion < 43) migrateV42ToV43()
         if (currentVersion < 44) migrateV43ToV44()
         if (currentVersion < 45) migrateV44ToV45()
+        if (currentVersion < 46) migrateV45ToV46()
         DatabaseSchemaInventory.validate(driver)
 
         // Metadata commits only after the complete target is verified.
@@ -1225,6 +1226,14 @@ class DatabaseMigration(
             } catch (e: Exception) {
                 log.w(e) { "Could not create news list index" }
             }
+        }
+    }
+
+    private fun migrateV45ToV46() {
+        try { ReminderDraftLegacyArchive.create(driver) }
+        catch (failure: Exception) {
+            log.e(failure) { "Could not create legacy reminder draft archive" }
+            throw failure // The outer transaction preserves the original database and version.
         }
     }
 

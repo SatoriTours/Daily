@@ -31,7 +31,7 @@ internal class MigrationContentSnapshot private constructor(
         tagPlan?.requireApplied(driver)
         if(migratedReminders) { expectedPolicies?.requireApplied(driver); expectedDrafts?.requireApplied(driver) }
         tables.filterKeys { (!legacy || it in personalTables) && (tagPlan==null || it !in DiaryTagMigration.columns) &&
-            !(migratedReminders && expectedDrafts!=null && it=="reminder_ai_draft") &&
+            !(migratedReminders && expectedDrafts!=null && it in setOf("reminder_ai_draft","reminder_ai_draft_legacy")) &&
             !(migratedReminders && expectedPolicies!=null && it=="reminder_policy_snapshot") &&
             !(ideaPlan!=null && it in setOf("idea_topic_event","idea_source_snapshot","idea_event_snapshot")) &&
             !(assistantPlan!=null && it=="assistant_session") }

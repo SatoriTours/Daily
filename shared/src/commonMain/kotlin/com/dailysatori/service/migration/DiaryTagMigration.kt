@@ -209,9 +209,8 @@ END"""
         val fingerprint=diaryTagFingerprint(content)
         val mapped=revision.takeIf { state.contentFingerprint==fingerprint }
         val active=parseDiaryTags(diary.tags)
-        check(active.none { it in state.suppressed && mapped!=null }) {
-            "日记标签激活与抑制冲突"
-        }
+        // Legacy saveDraft could retain an older suppression after the tag was re-added.
+        // Keep the visible tags authoritative; preserve suppression separately in history below.
         rows.getValue("diary_tag_processing")+=listOf(diary.id,
             revision.takeIf { state.processedFingerprint==fingerprint },state.revision)
         active.forEachIndexed { position,name ->

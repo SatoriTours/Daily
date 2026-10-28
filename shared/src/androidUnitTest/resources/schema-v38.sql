@@ -1,0 +1,1071 @@
+-- Frozen production schema from 3dd073a5d3babb09b1c496cf325095d793de06e3, schema_version=38.
+-- DDL only; SQLDelight queries intentionally excluded. Do not derive from the current schema.
+-- Statement boundaries preserve trigger bodies.
+
+-- statement
+CREATE TABLE article (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    ai_title TEXT,
+    ai_content TEXT,
+    ai_markdown_content TEXT,
+    original_markdown_content TEXT,
+    url TEXT UNIQUE,
+    is_favorite INTEGER DEFAULT 0,
+    source_type TEXT NOT NULL DEFAULT 'local',
+    comment TEXT,
+    status TEXT DEFAULT 'pending',
+    cover_image TEXT,
+    cover_image_url TEXT,
+    pub_date INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE tag (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    icon TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE article_tag (
+    article_id INTEGER NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+    PRIMARY KEY (article_id, tag_id)
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_source_created
+ON article(source_type, created_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_local_created
+ON article(created_at DESC)
+WHERE source_type != 'remote_news';
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_manual_cards
+ON article(created_at DESC, id DESC)
+WHERE source_type != 'remote_news';
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_favorite_cards
+ON article(is_favorite, created_at DESC, id DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_status_updated
+ON article(status, updated_at ASC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_favorite_created
+ON article(is_favorite, created_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_no_url_remote_content
+ON article(title)
+WHERE url IS NULL;
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_article_tag_tag_article
+ON article_tag(tag_id, article_id);
+
+-- statement
+CREATE VIRTUAL TABLE article_fts USING fts4(
+    title,
+    ai_title,
+    ai_content
+);
+
+-- statement
+CREATE TRIGGER article_fts_insert AFTER INSERT ON article BEGIN
+    INSERT INTO article_fts(rowid, title, ai_title, ai_content)
+    VALUES (new.id, new.title, new.ai_title, new.ai_content);
+END;
+
+-- statement
+CREATE TRIGGER article_fts_delete AFTER DELETE ON article BEGIN
+    DELETE FROM article_fts WHERE rowid = old.id;
+END;
+
+-- statement
+CREATE TRIGGER article_fts_update AFTER UPDATE OF title, ai_title, ai_content ON article BEGIN
+    DELETE FROM article_fts WHERE rowid = old.id;
+    INSERT INTO article_fts(rowid, title, ai_title, ai_content)
+    VALUES (new.id, new.title, new.ai_title, new.ai_content);
+END;
+
+-- statement
+CREATE TABLE image (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT,
+    path TEXT,
+    article_id INTEGER REFERENCES article(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_image_article
+ON image(article_id);
+
+-- statement
+CREATE TABLE book (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    category TEXT NOT NULL,
+    cover_image TEXT NOT NULL,
+    introduction TEXT NOT NULL,
+    has_update INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE book_viewpoint (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    example TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ready',
+    error_message TEXT NOT NULL DEFAULT '',
+    outline_json TEXT NOT NULL DEFAULT '',
+    source_notes TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_book_created
+ON book(created_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_book_viewpoint_book_created
+ON book_viewpoint(book_id, created_at DESC);
+
+-- statement
+CREATE VIRTUAL TABLE book_fts USING fts4(
+    title,
+    author
+);
+
+-- statement
+CREATE TRIGGER book_fts_insert AFTER INSERT ON book BEGIN
+    INSERT INTO book_fts(rowid, title, author)
+    VALUES (new.id, new.title, new.author);
+END;
+
+-- statement
+CREATE TRIGGER book_fts_delete AFTER DELETE ON book BEGIN
+    DELETE FROM book_fts WHERE rowid = old.id;
+END;
+
+-- statement
+CREATE TRIGGER book_fts_update AFTER UPDATE OF title, author ON book BEGIN
+    DELETE FROM book_fts WHERE rowid = old.id;
+    INSERT INTO book_fts(rowid, title, author)
+    VALUES (new.id, new.title, new.author);
+END;
+
+-- statement
+CREATE VIRTUAL TABLE book_viewpoint_fts USING fts4(
+    title,
+    content,
+    example
+);
+
+-- statement
+CREATE TRIGGER book_viewpoint_fts_insert AFTER INSERT ON book_viewpoint BEGIN
+    INSERT INTO book_viewpoint_fts(rowid, title, content, example)
+    VALUES (new.id, new.title, new.content, new.example);
+END;
+
+-- statement
+CREATE TRIGGER book_viewpoint_fts_delete AFTER DELETE ON book_viewpoint BEGIN
+    DELETE FROM book_viewpoint_fts WHERE rowid = old.id;
+END;
+
+-- statement
+CREATE TRIGGER book_viewpoint_fts_update AFTER UPDATE OF title, content, example ON book_viewpoint BEGIN
+    DELETE FROM book_viewpoint_fts WHERE rowid = old.id;
+    INSERT INTO book_viewpoint_fts(rowid, title, content, example)
+    VALUES (new.id, new.title, new.content, new.example);
+END;
+
+-- statement
+CREATE TABLE book_viewpoint_ai_session (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    viewpoint_id INTEGER NOT NULL REFERENCES book_viewpoint(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    summary_status TEXT NOT NULL DEFAULT 'none',
+    summary_error TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_opened_at INTEGER NOT NULL,
+    summarized_at INTEGER
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_book_ref_session_viewpoint_updated
+ON book_viewpoint_ai_session(viewpoint_id, updated_at DESC, id DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_book_ref_session_viewpoint_last_opened
+ON book_viewpoint_ai_session(viewpoint_id, last_opened_at DESC, id DESC);
+
+-- statement
+CREATE TABLE book_viewpoint_ai_message (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES book_viewpoint_ai_session(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ready',
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_book_ref_message_session_created
+ON book_viewpoint_ai_message(session_id, created_at ASC, id ASC);
+
+-- statement
+CREATE TABLE diary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    tags TEXT,
+    mood TEXT,
+    images TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    parent_diary_id INTEGER REFERENCES diary(id) ON DELETE CASCADE
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_diary_created
+ON diary(created_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_diary_parent_created
+ON diary(parent_diary_id, created_at ASC, id ASC);
+
+-- statement
+CREATE VIRTUAL TABLE diary_fts USING fts4(
+    content,
+    tags
+);
+
+-- statement
+CREATE TRIGGER diary_fts_insert AFTER INSERT ON diary BEGIN
+    INSERT INTO diary_fts(rowid, content, tags)
+    VALUES (new.id, new.content, new.tags);
+END;
+
+-- statement
+CREATE TRIGGER diary_fts_delete AFTER DELETE ON diary BEGIN
+    DELETE FROM diary_fts WHERE rowid = old.id;
+END;
+
+-- statement
+CREATE TRIGGER diary_fts_update AFTER UPDATE OF content, tags ON diary BEGIN
+    DELETE FROM diary_fts WHERE rowid = old.id;
+    INSERT INTO diary_fts(rowid, content, tags)
+    VALUES (new.id, new.content, new.tags);
+END;
+
+-- statement
+CREATE TABLE diary_thread_revision (
+    root_diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE,
+    revision INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0
+);
+
+-- statement
+CREATE TABLE diary_thread_summary (
+    diary_id INTEGER PRIMARY KEY REFERENCES diary(id) ON DELETE CASCADE,
+    source_revision INTEGER NOT NULL DEFAULT 0,
+    summary_revision INTEGER NOT NULL DEFAULT 0,
+    summary TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    error_message TEXT NOT NULL DEFAULT '',
+    generated_at INTEGER,
+    updated_at INTEGER NOT NULL DEFAULT 0
+);
+
+-- statement
+CREATE TRIGGER diary_thread_revision_after_insert AFTER INSERT ON diary BEGIN
+    INSERT INTO diary_thread_revision(root_diary_id, revision, updated_at)
+    VALUES (COALESCE(new.parent_diary_id, new.id), 1, new.updated_at)
+    ON CONFLICT(root_diary_id) DO UPDATE SET
+        revision = revision + 1,
+        updated_at = MAX(excluded.updated_at, updated_at + 1);
+END;
+
+-- statement
+CREATE TRIGGER diary_thread_revision_after_content_update
+AFTER UPDATE OF content, images ON diary
+WHEN new.content IS NOT old.content OR new.images IS NOT old.images
+BEGIN
+    UPDATE diary_thread_revision
+    SET revision = revision + 1,
+        updated_at = MAX(new.updated_at, updated_at + 1)
+    WHERE root_diary_id = COALESCE(new.parent_diary_id, new.id);
+END;
+
+-- statement
+CREATE TRIGGER diary_thread_root_updated_after_content_update
+AFTER UPDATE OF content, images ON diary
+WHEN new.parent_diary_id IS NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+BEGIN
+    UPDATE diary
+    SET updated_at = MAX(new.updated_at, old.updated_at + 1)
+    WHERE id = new.id;
+END;
+
+-- statement
+CREATE TRIGGER diary_thread_child_updated_after_content_update
+AFTER UPDATE OF content, images ON diary
+WHEN new.parent_diary_id IS NOT NULL AND (new.content IS NOT old.content OR new.images IS NOT old.images)
+BEGIN
+    UPDATE diary
+    SET updated_at = MAX(new.updated_at, updated_at + 1)
+    WHERE id = new.parent_diary_id;
+END;
+
+-- statement
+CREATE TRIGGER diary_thread_root_updated_after_insert AFTER INSERT ON diary
+WHEN new.parent_diary_id IS NOT NULL
+BEGIN
+    UPDATE diary
+    SET updated_at = MAX(new.created_at, updated_at + 1)
+    WHERE id = new.parent_diary_id;
+END;
+
+-- statement
+CREATE TABLE diary_attachment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    diary_id INTEGER NOT NULL REFERENCES diary(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    local_path TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    mime_type TEXT NOT NULL DEFAULT '',
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    transcript TEXT NOT NULL DEFAULT '',
+    transcript_status TEXT NOT NULL DEFAULT 'none',
+    knowledge_status TEXT NOT NULL DEFAULT 'none',
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_diary_created
+ON diary_attachment(diary_id, created_at ASC, id ASC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_transcript_status
+ON diary_attachment(transcript_status, updated_at ASC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_diary_attachment_knowledge_status
+ON diary_attachment(knowledge_status, updated_at ASC);
+
+-- statement
+CREATE TABLE diary_month_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    month_key TEXT NOT NULL UNIQUE,
+    summary TEXT NOT NULL DEFAULT '',
+    diary_count INTEGER NOT NULL DEFAULT 0,
+    latest_diary_updated_at INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    error_message TEXT,
+    generated_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE ai_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL DEFAULT 'openai',
+    api_address TEXT NOT NULL,
+    api_token TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    is_default INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE mcp_server (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    server_url TEXT NOT NULL,
+    api_key TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    provider TEXT NOT NULL DEFAULT '',
+    template_id TEXT NOT NULL DEFAULT '',
+    template_type TEXT NOT NULL DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE skill_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    gateway_url TEXT NOT NULL,
+    api_token TEXT NOT NULL DEFAULT '',
+    skill_version TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 0,
+    builtin INTEGER NOT NULL DEFAULT 0,
+    provider TEXT NOT NULL DEFAULT '',
+    template_id TEXT NOT NULL DEFAULT '',
+    tool_schema_json TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE remote_news_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    base_url TEXT NOT NULL,
+    api_token TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE remote_article_sync_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    remote_source_id INTEGER NOT NULL REFERENCES remote_news_source(id) ON DELETE CASCADE,
+    remote_article_id INTEGER NOT NULL,
+    article_id INTEGER NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+    url TEXT,
+    source_date TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL DEFAULT '',
+    processed_content_hash TEXT NOT NULL DEFAULT '',
+    processing_state TEXT NOT NULL DEFAULT 'pending',
+    processing_error TEXT NOT NULL DEFAULT '',
+    processing_version TEXT NOT NULL DEFAULT '',
+    favorited_at INTEGER,
+    first_seen_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL,
+    UNIQUE(remote_source_id, remote_article_id)
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_remote_article_sync_source_date
+ON remote_article_sync_item(remote_source_id, source_date, last_seen_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_remote_article_sync_source_url
+ON remote_article_sync_item(remote_source_id, url);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_remote_article_sync_article
+ON remote_article_sync_item(article_id);
+
+-- statement
+CREATE TABLE external_favorite_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    account_name TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    sync_interval_minutes INTEGER NOT NULL DEFAULT 720,
+    last_sync_started_at INTEGER,
+    last_sync_completed_at INTEGER,
+    last_success_at INTEGER,
+    last_sync_window_started_at INTEGER,
+    last_items_seen_count INTEGER NOT NULL DEFAULT 0,
+    last_pages_seen_count INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    last_error_code TEXT NOT NULL DEFAULT '',
+    last_error_message TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'idle',
+    last_sync_mode TEXT NOT NULL DEFAULT 'recent',
+    rate_limit_reset_at INTEGER,
+    auth_json TEXT NOT NULL DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '',
+    capabilities_json TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(provider, account_id)
+);
+
+-- statement
+CREATE TABLE external_favorite_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES external_favorite_source(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    canonical_url TEXT,
+    title TEXT NOT NULL DEFAULT '',
+    text TEXT NOT NULL DEFAULT '',
+    author_name TEXT NOT NULL DEFAULT '',
+    source_created_at INTEGER,
+    favorited_at INTEGER,
+    normalized_json TEXT NOT NULL DEFAULT '',
+    debug_json TEXT NOT NULL DEFAULT '',
+    content_hash TEXT NOT NULL DEFAULT '',
+    ai_input_hash TEXT NOT NULL DEFAULT '',
+    article_id INTEGER REFERENCES article(id) ON DELETE SET NULL,
+    sync_status TEXT NOT NULL DEFAULT 'seen',
+    import_status TEXT NOT NULL DEFAULT 'not_imported',
+    ai_status TEXT NOT NULL DEFAULT 'pending',
+    last_error_code TEXT NOT NULL DEFAULT '',
+    last_error_message TEXT NOT NULL DEFAULT '',
+    first_seen_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(source_id, external_id)
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_first_seen
+ON external_favorite_item(source_id, first_seen_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_article
+ON external_favorite_item(article_id);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_import_first_seen
+ON external_favorite_item(import_status, first_seen_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_ai_first_seen
+ON external_favorite_item(ai_status, first_seen_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_ai_first_seen
+ON external_favorite_item(source_id, ai_status, first_seen_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_external_favorite_item_source_import_first_seen
+ON external_favorite_item(source_id, import_status, first_seen_at DESC);
+
+-- statement
+CREATE TABLE setting (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE,
+    value TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE weekly_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_start_date INTEGER NOT NULL,
+    week_end_date INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    article_count INTEGER DEFAULT 0,
+    diary_count INTEGER DEFAULT 0,
+    viewpoint_count INTEGER DEFAULT 0,
+    article_ids TEXT,
+    diary_ids TEXT,
+    viewpoint_ids TEXT,
+    app_ideas TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_weekly_summary_week_range
+ON weekly_summary(week_start_date, week_end_date);
+
+-- statement
+CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_summary_unique_week_range
+ON weekly_summary(week_start_date, week_end_date);
+
+-- statement
+CREATE TABLE unified_news_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    summary_date TEXT NOT NULL,
+    window_key TEXT NOT NULL,
+    window_start_ms INTEGER NOT NULL,
+    window_end_ms INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error_message TEXT,
+    source_warnings TEXT,
+    generated_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(summary_date, window_key)
+);
+
+-- statement
+CREATE TABLE unified_news_source (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    summary_id INTEGER NOT NULL REFERENCES unified_news_summary(id) ON DELETE CASCADE,
+    ref_key TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_id INTEGER,
+    source_filename TEXT,
+    source_url TEXT,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    source_time INTEGER,
+    UNIQUE(summary_id, ref_key)
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_unified_news_summary_window_end
+ON unified_news_summary(window_end_ms DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_unified_news_source_normalized_url
+ON unified_news_source(CAST(rtrim(substr(source_url, 1, instr(source_url || '#', '#') - 1), '/') AS TEXT))
+WHERE source_type IN ('hot_news', 'remote_article') AND source_url IS NOT NULL;
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_unified_news_source_summary
+ON unified_news_source(summary_id, id ASC);
+
+-- statement
+CREATE TABLE async_task_batch (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    total_count INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE async_task (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    checkpoint_json TEXT NOT NULL DEFAULT '',
+    result_json TEXT NOT NULL DEFAULT '',
+    progress_current INTEGER NOT NULL DEFAULT 0,
+    progress_total INTEGER NOT NULL DEFAULT 0,
+    progress_message TEXT NOT NULL DEFAULT '',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 5,
+    priority INTEGER NOT NULL DEFAULT 0,
+    unique_key TEXT,
+    batch_id INTEGER REFERENCES async_task_batch(id) ON DELETE SET NULL,
+    run_after_ms INTEGER,
+    lease_owner TEXT,
+    lease_until_ms INTEGER,
+    started_at INTEGER,
+    finished_at INTEGER,
+    last_error_code TEXT NOT NULL DEFAULT '',
+    last_error_message TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE UNIQUE INDEX IF NOT EXISTS idx_async_task_active_unique_key
+ON async_task(unique_key)
+WHERE unique_key IS NOT NULL
+  AND status IN ('queued', 'running', 'retrying');
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_async_task_status_run_after_priority
+ON async_task(status, run_after_ms, priority DESC, created_at ASC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_async_task_type_status_run_after
+ON async_task(type, status, run_after_ms);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_async_task_updated
+ON async_task(updated_at DESC, id DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_async_task_unique_created
+ON async_task(unique_key, created_at DESC, id DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_async_task_batch
+ON async_task(batch_id);
+
+-- statement
+CREATE TABLE reminder_ai_batch (
+    id TEXT PRIMARY KEY NOT NULL,
+    parent_batch_id TEXT,
+    original_input TEXT NOT NULL,
+    normalized_key TEXT NOT NULL,
+    time_zone_id TEXT NOT NULL,
+    local_date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    task_id INTEGER,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    last_attempt_at INTEGER,
+    error_summary TEXT NOT NULL DEFAULT '',
+    terminal_notification_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_ai_batch_active_key
+ON reminder_ai_batch(normalized_key, time_zone_id, local_date)
+WHERE status IN ('PARSING', 'RUNNING');
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_reminder_ai_batch_status_updated ON reminder_ai_batch(status, updated_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_reminder_ai_batch_task ON reminder_ai_batch(task_id);
+
+-- statement
+CREATE TABLE reminder_ai_draft (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT NOT NULL REFERENCES reminder_ai_batch(id) ON DELETE CASCADE,
+    source_index INTEGER NOT NULL,
+    source_text TEXT NOT NULL,
+    draft_json TEXT NOT NULL,
+    override_json TEXT NOT NULL DEFAULT '',
+    selected INTEGER NOT NULL DEFAULT 1,
+    discarded INTEGER NOT NULL DEFAULT 0,
+    confirmation_state TEXT NOT NULL DEFAULT 'PENDING',
+    reminder_id TEXT,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    confirmed_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(batch_id, source_index)
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_reminder_ai_draft_batch_source ON reminder_ai_draft(batch_id, source_index ASC);
+
+-- statement
+CREATE TABLE session (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT UNIQUE NOT NULL,
+    is_authenticated INTEGER DEFAULT 0,
+    username TEXT,
+    last_accessed_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE memory_entry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assistant_kind TEXT NOT NULL DEFAULT 'legacy',
+    assistant_state TEXT NOT NULL DEFAULT 'active',
+    evidence TEXT NOT NULL DEFAULT '',
+    source_version TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL,
+    source_type TEXT,
+    source_id INTEGER,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tags TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_memory_entry_type_created
+ON memory_entry(type, created_at DESC);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_memory_entry_source
+ON memory_entry(source_type, source_id);
+
+-- statement
+CREATE VIRTUAL TABLE memory_entry_fts USING fts4(
+    title,
+    content
+);
+
+-- statement
+CREATE TRIGGER memory_entry_fts_insert AFTER INSERT ON memory_entry BEGIN
+    INSERT INTO memory_entry_fts(rowid, title, content)
+    VALUES (new.id, new.title, new.content);
+END;
+
+-- statement
+CREATE TRIGGER memory_entry_fts_delete AFTER DELETE ON memory_entry BEGIN
+    DELETE FROM memory_entry_fts WHERE rowid = old.id;
+END;
+
+-- statement
+CREATE TRIGGER memory_entry_fts_update AFTER UPDATE OF title, content ON memory_entry BEGIN
+    DELETE FROM memory_entry_fts WHERE rowid = old.id;
+    INSERT INTO memory_entry_fts(rowid, title, content)
+    VALUES (new.id, new.title, new.content);
+END;
+
+-- statement
+CREATE TABLE chat_conversation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    search_results TEXT,
+    steps TEXT,
+    created_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX IF NOT EXISTS idx_chat_conversation_session_created
+ON chat_conversation(session_id, created_at DESC);
+
+-- statement
+CREATE TABLE assistant_memory_exclusion (
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (source_type, source_id)
+);
+
+-- statement
+CREATE TABLE assistant_session (
+    id TEXT PRIMARY KEY NOT NULL,
+    created_at INTEGER NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    summary_sources_json TEXT NOT NULL DEFAULT '[]',
+    summary_version INTEGER NOT NULL DEFAULT 0
+);
+
+-- statement
+CREATE TABLE assistant_turn (
+    id INTEGER PRIMARY KEY NOT NULL,
+    session_id TEXT NOT NULL,
+    client_message_id TEXT NOT NULL,
+    task_id INTEGER NOT NULL UNIQUE,
+    received_at INTEGER NOT NULL,
+    time_zone_id TEXT NOT NULL,
+    response_message_id INTEGER,
+    requires_resume INTEGER NOT NULL DEFAULT 0,
+    action_plan_json TEXT NOT NULL DEFAULT '',
+    context_json TEXT NOT NULL DEFAULT '',
+    UNIQUE (session_id, client_message_id)
+);
+
+-- statement
+CREATE TABLE assistant_action (
+    id TEXT PRIMARY KEY NOT NULL,
+    turn_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    parameters_json TEXT NOT NULL,
+    fingerprint TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    target_id TEXT,
+    task_id INTEGER,
+    error_code TEXT NOT NULL DEFAULT ''
+);
+
+-- statement
+CREATE INDEX idx_assistant_action_turn ON assistant_action(turn_id);
+
+-- statement
+CREATE TABLE assistant_reference (
+    turn_id INTEGER NOT NULL,
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (turn_id, source_type, source_id)
+);
+
+-- statement
+CREATE TABLE assistant_index_segment (
+    source_id INTEGER NOT NULL,
+    source_version TEXT NOT NULL,
+    segment_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    ai_state TEXT NOT NULL DEFAULT 'pending',
+    PRIMARY KEY (source_id, segment_index)
+);
+
+-- statement
+CREATE TABLE reminder_profile (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    profile_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE reminder (
+    id TEXT PRIMARY KEY NOT NULL,
+    content TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    first_reminder_time TEXT NOT NULL,
+    active_day_rule TEXT NOT NULL,
+    recurrence_rule TEXT NOT NULL DEFAULT 'once',
+    time_zone_id TEXT NOT NULL,
+    profile_json TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    state_date TEXT,
+    dismissal_count INTEGER NOT NULL DEFAULT 0,
+    last_notified_at INTEGER,
+    last_dismissed_at INTEGER,
+    completed_at INTEGER,
+    next_occurrence_at INTEGER,
+    deadline_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX idx_reminder_status_dates ON reminder(status, start_date, end_date);
+
+-- statement
+CREATE INDEX idx_reminder_next_occurrence ON reminder(status, next_occurrence_at);
+
+-- statement
+CREATE TABLE reminder_event (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reminder_id TEXT NOT NULL REFERENCES reminder(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    scheduled_at INTEGER,
+    actual_at INTEGER NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}'
+);
+
+-- statement
+CREATE INDEX idx_reminder_event_reminder_id ON reminder_event(reminder_id, id DESC);
+
+-- statement
+CREATE TABLE sms_reminder_source (
+    id TEXT PRIMARY KEY NOT NULL,
+    encrypted_source TEXT NOT NULL,
+    received_at INTEGER NOT NULL,
+    time_zone_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    draft_json TEXT NOT NULL DEFAULT '',
+    reminder_id TEXT,
+    notified INTEGER NOT NULL DEFAULT 0
+);
+
+-- statement
+CREATE TABLE bookkeeping_entry (
+    id TEXT PRIMARY KEY NOT NULL,
+    encrypted_payload TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE phone_message (
+    id TEXT PRIMARY KEY NOT NULL,
+    encrypted_payload TEXT NOT NULL,
+    received_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE TABLE idea_topic (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    provenance_summary TEXT NOT NULL DEFAULT '',
+    conclusions TEXT NOT NULL DEFAULT '',
+    next_action TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    merged_into_topic_id TEXT,
+    context_revision INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX idx_idea_topic_merged ON idea_topic(merged_into_topic_id);
+
+-- statement
+CREATE INDEX idx_idea_topic_updated ON idea_topic(updated_at);
+
+-- statement
+CREATE TABLE idea_topic_source (
+    id TEXT PRIMARY KEY NOT NULL,
+    topic_id TEXT NOT NULL,
+    original_topic_id TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_record_id TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    captured_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE UNIQUE INDEX idx_idea_topic_source_key ON idea_topic_source(topic_id, source_type, source_record_id);
+
+-- statement
+CREATE INDEX idx_idea_topic_source_lookup ON idea_topic_source(source_type, source_record_id);
+
+-- statement
+CREATE INDEX idx_idea_topic_source_topic ON idea_topic_source(topic_id, captured_at, id);
+
+-- statement
+CREATE TABLE idea_topic_event (
+    id TEXT PRIMARY KEY NOT NULL,
+    topic_id TEXT NOT NULL,
+    original_topic_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX idx_idea_topic_event_topic ON idea_topic_event(topic_id, created_at, id);
+
+-- statement
+CREATE INDEX idx_idea_topic_event_kind ON idea_topic_event(topic_id, kind, created_at, id);
+
+-- statement
+CREATE TABLE idea_topic_session (
+    id TEXT PRIMARY KEY NOT NULL,
+    topic_id TEXT NOT NULL,
+    original_topic_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    summary_through_message_id TEXT,
+    summary_covered_message_ids TEXT NOT NULL DEFAULT '[]',
+    summary_status TEXT NOT NULL DEFAULT 'none',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX idx_idea_topic_session_topic ON idea_topic_session(topic_id, updated_at, id);
+
+-- statement
+CREATE TABLE idea_topic_message (
+    id TEXT PRIMARY KEY NOT NULL,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at INTEGER NOT NULL
+);
+
+-- statement
+CREATE INDEX idx_idea_topic_message_session ON idea_topic_message(session_id, created_at, id);
+
+-- statement
+CREATE INDEX idx_idea_topic_message_status ON idea_topic_message(status, created_at, id);

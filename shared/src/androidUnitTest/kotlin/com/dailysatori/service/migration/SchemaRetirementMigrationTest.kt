@@ -32,7 +32,7 @@ class SchemaRetirementMigrationTest {
             DatabaseMigration(d,settings).runMigrations()
             val fields=DatabaseSchemaInventory.strings(d,"SELECT name FROM pragma_table_info('diary')")
             assertFalse("tags" in fields);assertFalse("images" in fields)
-            assertEquals("45",settings.get("schema_version"))
+            assertEquals(com.dailysatori.config.DatabaseConfig.currentSchemaVersion.toString(),settings.get("schema_version"))
             assertEquals(expected,diaries.getById(id))
             assertEquals(images,db.dailySatoriQueries.selectAttachmentsForDiary(id).executeAsList())
             assertEquals(history,DatabaseSchemaInventory.strings(d,"SELECT id||':'||operation_id FROM diary_tag_history ORDER BY id"))

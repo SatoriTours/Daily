@@ -102,7 +102,7 @@ processedFingerprint 只有匹配时才映射已处理，不能证明时保持�
 
 `diary_tag_vocabulary_v1` 的名称、别名、建议和待定名称全部迁入。`diary_tag_merge_undo_v1` 的 before/after 完整保存在版本化撤销载荷，撤销校验 edit_revision，不覆盖迁移后编辑。`diary_auto_tags` 仍是全局配置，保留在 setting。未识别 key 不按前缀删除。
 
-损坏 JSON、无法解释的激活/抑制冲突、别名循环，阻止候选升级，不静默回退默认值。迁移保留当前界面语义，不套用只适用于新输入的清洗规则。
+损坏 JSON、别名循环，阻止候选升级，不静默回退默认值。旧保存逻辑会把重新添加标签前的抑制合并回来；可见激活项与抑制并存时，以 diary.tags 保留当前显示，抑制决定及原指纹完整保存在 history，不为同标签再插当前 suppressed 关联，不因此阻断启动。迁移保留当前界面语义，不套用只适用于新输入的清洗规则。
 
 FTS 的 tags 只是投影。由数据库触发器在日记正文、标签关联及名称变化的同一事务维护 diary_fts，标签按 position 聚合。迁移后重建核对；FTS shadow 表不是待去重的原始数据。
 

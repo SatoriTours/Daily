@@ -755,6 +755,25 @@ CREATE TABLE reminder_ai_draft (
     UNIQUE(batch_id, source_index)
 );
 
+-- Non-runnable history: retain legacy flags and dangling IDs without recreating reminders.
+CREATE TABLE reminder_ai_draft_legacy (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    batch_id TEXT NOT NULL REFERENCES reminder_ai_batch(id) ON DELETE CASCADE,
+    source_index INTEGER NOT NULL,
+    source_text TEXT NOT NULL,
+    draft_json TEXT NOT NULL,
+    override_json TEXT NOT NULL DEFAULT '',
+    selected INTEGER NOT NULL DEFAULT 1,
+    discarded INTEGER NOT NULL DEFAULT 0,
+    confirmation_state TEXT NOT NULL DEFAULT 'PENDING',
+    reminder_id TEXT,
+    confirmed INTEGER NOT NULL DEFAULT 0,
+    confirmed_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(batch_id, source_index)
+);
+
 CREATE UNIQUE INDEX idx_reminder_ai_draft_reminder ON reminder_ai_draft(reminder_id) WHERE reminder_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_reminder_ai_draft_batch_source ON reminder_ai_draft(batch_id, source_index ASC);

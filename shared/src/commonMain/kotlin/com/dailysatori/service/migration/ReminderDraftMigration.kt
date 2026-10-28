@@ -43,32 +43,39 @@ internal object ReminderDraftMigration {
             fun number(value:Long)=Cell("integer",of(value.toString()).hex)
         }
     }
-    class Plan(val rows:List<Map<String,Cell>>,val intents:List<ReminderScheduleIntent>) {
+    class Plan(val rows:List<Map<String,Cell>>,val intents:List<ReminderScheduleIntent>,
+        val retainedRows:List<Map<String,Cell>>,private val previousLegacyRows:List<Map<String,Cell>>) {
         fun requireApplied(driver:SqlDriver) {
             check(read(driver,"reminder_ai_draft",columns)==rows) { "提醒草稿迁移核对失败" }
+            val expected=(previousLegacyRows+retainedRows).sortedBy { it.getValue("id").long() }
+            check(ReminderDraftLegacyArchive.read(driver)==expected) { "历史提醒草稿保留核对失败" }
         }
     }
 
     fun plan(driver:SqlDriver):Plan? {
         val found=DatabaseSchemaInventory.strings(driver,"SELECT name FROM pragma_table_info('reminder_ai_draft')")
         if(found.isEmpty() || "state" in found) return null
-        val defaults=mapOf("override_json" to Cell.of(""),"selected" to Cell.number(1),"discarded" to Cell.number(0),
-            "confirmation_state" to Cell.of("PENDING"),"reminder_id" to Cell.of(null))
+        val defaults=ReminderDraftLegacyArchive.defaults
         check((found-legacyColumns.toSet()).isEmpty() && (legacyColumns-found.toSet()).all { it in defaults }) { "提醒草稿结构不完整" }
         val reminders=driver.executeQuery(null,"SELECT id,version FROM reminder",{ c ->
             val result=mutableMapOf<String,Long>()
             while(c.next().value) result[checkNotNull(c.getString(0))]=checkNotNull(c.getLong(1))
             QueryResult.Value(result)
         },0).value
-        val intents=mutableListOf<ReminderScheduleIntent>()
-        val rows=read(driver,"reminder_ai_draft",legacyColumns,defaults.filterKeys { it !in found }).map { row -> convert(driver,row,reminders,intents) }
-        val ids=rows.mapNotNull { it.getValue("reminder_id").takeIf { c -> c.type!="null" } }
-        check(ids.distinct().size==ids.size) { "提醒草稿关联冲突" }
-        return Plan(rows,intents)
+        val candidates=read(driver,"reminder_ai_draft",legacyColumns,defaults.filterKeys { it !in found })
+            .map { it to convert(driver,it,reminders) }
+        val duplicateIds=candidates.mapNotNull { it.second?.getValue("reminder_id")?.takeIf { c -> c.type!="null" } }
+            .groupingBy { it }.eachCount().filterValues { it>1 }.keys
+        val (valid,retained)=candidates.partition { (_,row) -> row!=null && row.getValue("reminder_id") !in duplicateIds }
+        val rows=valid.map { checkNotNull(it.second) }
+        val intents=rows.filter { it.getValue("state").text() in setOf("SCHEDULE_PENDING","SCHEDULING_FAILED") }.map {
+            val id=it.getValue("reminder_id").text()
+            ReminderScheduleIntent(id,reminders.getValue(id))
+        }
+        return Plan(rows,intents,retained.map { it.first },ReminderDraftLegacyArchive.read(driver))
     }
 
-    private fun convert(driver:SqlDriver,row:Map<String,Cell>,reminders:Map<String,Long>,
-        intents:MutableList<ReminderScheduleIntent>):Map<String,Cell> {
+    private fun convert(driver:SqlDriver,row:Map<String,Cell>,reminders:Map<String,Long>):Map<String,Cell>? {
         val confirmed=row.getValue("confirmed").long()
         val discarded=row.getValue("discarded").long()
         val old=row.getValue("confirmation_state").text()
@@ -84,11 +91,9 @@ internal object ReminderDraftMigration {
             confirmed==0L && discarded==0L && old=="PENDING" && oldId==null && at==null && stable !in reminders -> "PENDING"
             confirmed==0L && discarded==1L && old=="PENDING" && oldId==null && at==null && stable !in reminders -> "DISCARDED"
             confirmed==0L && discarded==0L && old=="PENDING" && at==null && recovered -> "SCHEDULE_PENDING"
-            else -> error("提醒草稿状态冲突，保留原库")
+            else -> return null
         }
         val id=if(recovered) stable else oldId
-        if(state in setOf("SCHEDULE_PENDING","SCHEDULING_FAILED"))
-            intents+=ReminderScheduleIntent(checkNotNull(id),reminders.getValue(id))
         return columns.associateWith { when(it) {
             "state"->Cell.of(state); "revision"->Cell.number(0); "reminder_id"->Cell.of(id); else->row.getValue(it)
         } }
@@ -96,6 +101,7 @@ internal object ReminderDraftMigration {
 
     fun migrate(driver:SqlDriver)=object:TransacterImpl(driver) {}.transaction {
         val plan=plan(driver) ?: return@transaction
+        ReminderDraftLegacyArchive.retain(driver,plan.retainedRows)
         val sequence=DatabaseSchemaInventory.strings(driver,"SELECT seq FROM sqlite_sequence WHERE name='reminder_ai_draft'").singleOrNull()
         val objects=DatabaseSchemaInventory.strings(driver,"""SELECT sql FROM sqlite_master WHERE tbl_name='reminder_ai_draft'
             AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY type,name""")

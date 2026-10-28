@@ -10,7 +10,11 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    uses: ./.github/workflows/code-test-gate.yml
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     concurrency:
       group: stable-release-publication

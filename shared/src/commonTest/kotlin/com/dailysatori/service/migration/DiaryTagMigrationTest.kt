@@ -83,13 +83,19 @@ class DiaryTagMigrationTest {
         }
     }
 
-    @Test fun conflictingActiveAndSuppressedManualTagIsNotSilentlyDiscarded() = fixture { driver,db ->
+    @Test fun readdedActiveTagAndEarlierSuppressionAreBothPreserved() = fixture { driver,db ->
         db.dailySatoriQueries.insertDiary("body", null, 10, 20)
         driver.execute(null,"UPDATE diary SET tags='读书' WHERE id=1",0)
         val raw=Json.encodeToString(DiaryTagState(suppressed=listOf("读书"),contentFingerprint=diaryTagFingerprint("body")))
         SettingRepository(db).upsert("diary_tag_state_v1_1",raw)
-        assertFails { migrate(driver) }
-        assertEquals(raw,SettingRepository(db).get("diary_tag_state_v1_1"))
+        migrate(driver)
+        assertEquals(listOf("读书"),strings(driver,"SELECT tags FROM diary_record WHERE id=1"))
+        assertEquals(listOf("active:manual"),strings(driver,"SELECT state||':'||origin FROM diary_tag_assignment"))
+        assertEquals(listOf("active:manual","suppressed:automatic"),strings(driver,
+            "SELECT decision||':'||origin FROM diary_tag_history ORDER BY decision"))
+        assertEquals(listOf(diaryTagFingerprint("body"),diaryTagFingerprint("body")),strings(driver,
+            "SELECT source_fingerprint FROM diary_tag_history ORDER BY decision"))
+        assertNull(SettingRepository(db).get("diary_tag_state_v1_1"))
     }
 
     private fun migrate(driver:JdbcSqliteDriver) {

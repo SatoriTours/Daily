@@ -82,11 +82,37 @@ class ReminderDraftMigrationTest {
         assertEquals(listOf("1"),strings(driver,"SELECT COUNT(*) FROM async_task WHERE type='reminder_schedule'"))
     }
 
-    @Test fun unprovableConfirmationIsRejectedWithoutChangingOriginalRow() = fixture { driver,_,batch ->
-        insert(driver,batch,0,1,0,"CONFIRMED",null,99)
-        assertFails { ReminderDraftMigration.migrate(driver) }
-        assertEquals(listOf("1|CONFIRMED"),strings(driver,"SELECT confirmed||'|'||confirmation_state FROM reminder_ai_draft"))
-        assertTrue("confirmed" in strings(driver,"SELECT name FROM pragma_table_info('reminder_ai_draft')"))
+    @Test fun conflictingLegacyDraftsAreRetainedWithoutBlockingMigrationOrRecreatingReminders() = fixture { driver,db,batch ->
+        insert(driver,batch,0,0,0,"PENDING",null,null)
+        insert(driver,batch,1,1,0,"CONFIRMED",null,99)
+        insert(driver,batch,2,1,0,"CONFIRMED","deleted-reminder",99)
+        insert(driver,batch,3,0,0,"SCHEDULING_FAILED","deleted-reminder",null)
+        insert(driver,batch,4,1,1,"CONFIRMED",null,99)
+        val original=ReminderDraftMigration.read(driver,"reminder_ai_draft",ReminderDraftMigration.legacyColumns)
+        ReminderDraftMigration.migrate(driver)
+        assertEquals(listOf("PENDING"),strings(driver,"SELECT state FROM reminder_ai_draft"))
+        assertEquals(original.drop(1),ReminderDraftMigration.read(driver,"reminder_ai_draft_legacy",ReminderDraftMigration.legacyColumns))
+        val batches=ReminderAiBatchRepository(db)
+        assertEquals(listOf(0),batches.getBatch(batch)!!.drafts.map { it.sourceIndex })
+        assertNull(batches.confirmDraft(batch,1,0,draft("$batch:1"),ReminderProfileSnapshot.gentle()))
+        assertNull(batches.retryDraftSchedule(batch,3))
+        assertTrue(batches.reconcileScheduleIntents().isEmpty())
+        assertEquals(listOf("0"),strings(driver,"SELECT COUNT(*) FROM reminder"))
+        assertEquals(listOf("0"),strings(driver,"SELECT COUNT(*) FROM async_task WHERE type='reminder_schedule'"))
+        ReminderDraftMigration.migrate(driver)
+        assertEquals(original.drop(1),ReminderDraftMigration.read(driver,"reminder_ai_draft_legacy",ReminderDraftMigration.legacyColumns))
+    }
+
+    @Test fun duplicateLegacyReminderLinksAreRetainedWithoutSchedulingEitherDraft() = fixture { driver,db,batch ->
+        ReminderRepository(db,TimeZone.UTC).createConfirmed(draft("kept-reminder"),ReminderProfileSnapshot.gentle())
+        insert(driver,batch,0,0,0,"SCHEDULING_FAILED","kept-reminder",null)
+        insert(driver,batch,1,1,0,"CONFIRMED","kept-reminder",99)
+        val original=ReminderDraftMigration.read(driver,"reminder_ai_draft",ReminderDraftMigration.legacyColumns)
+        ReminderDraftMigration.migrate(driver)
+        assertEquals(original,ReminderDraftMigration.read(driver,"reminder_ai_draft_legacy",ReminderDraftMigration.legacyColumns))
+        assertTrue(ReminderAiBatchRepository(db).getBatch(batch)!!.drafts.isEmpty())
+        assertTrue(ReminderAiBatchRepository(db).reconcileScheduleIntents().isEmpty())
+        assertEquals(listOf("1"),strings(driver,"SELECT COUNT(*) FROM reminder"))
     }
 
     private fun insert(driver:JdbcSqliteDriver,batch:String,index:Int,confirmed:Long,discarded:Long,state:String,id:String?,at:Long?) {

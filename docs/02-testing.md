@@ -19,6 +19,34 @@
 
 ## 环境配置
 
+### 启动升级回归（无模拟器）
+
+新装编译通过不能证明旧数据能启动。数据库改动需覆盖物理旧结构、旧状态组合、升级副本安装、
+版本连续升级、原始内容保留及不会重复调度。`ReminderDraftMigrationTest` 覆盖无法证明的历史确认、
+已删除提醒关联、冲突标记和重复关联；`DatabaseSchemaUpgradeTest` 覆盖完整副本升级及真实加密文件。
+`HistoricalSchemaUpgradeTest` 使用从重构前提交冻结的完整 schema38 DDL（133条建表/索引/触发器语句），
+覆盖空旧库、96种提醒状态组合、跨领域内容核对、8类候选数据篡改拒绝、手动重新添加已屏蔽标签，
+以及真实加密旧库升级后用新密钥导出、重开和重复启动；不从最新表结构反向拼造“旧库”。
+
+本地有可执行的 SQLCipher 4 CLI 时，显式启用，避免真实加密用例被跳过：
+
+```bash
+export SQLCIPHER_BIN="$PWD/.local/tools/sqlcipher-src/sqlite3"
+python3 scripts/test-database-encryption.py --sqlcipher "$SQLCIPHER_BIN"
+./gradlew :shared:testDebugUnitTest --tests '*ReminderDraftMigrationTest' --tests '*DatabaseSchemaUpgradeTest' --tests '*HistoricalSchemaUpgradeTest' :app:compileDebugKotlin
+```
+
+缺少工具时可在专用临时目录运行 `bash scripts/build-test-sqlcipher.sh <目录>` 构建锁定版本
+（需 C 编译器、make、OpenSSL 开发库、Tcl、curl、sha256sum）；将 `SQLCIPHER_BIN` 指向输出的
+`sqlcipher-4.19.0/sqlite3`。它不是 Android SQLCipher JNI/Keystore 的设备验证替代品。
+
+GitHub Actions 的 PR、主分支构建及版本发布共用 `code-test-gate.yml`：校验固定源码 SHA256、
+构建真实 SQLCipher、验证加密文件，再运行两个模块全部代码级测试。工具构建或探针失败即失败，
+不把缺失环境当成功；另校验关键启动升级用例必须实际执行，缺失或跳过也失败。
+测试未通过不得进入 APK 构建发布。报告保存为 `test-results` artifact。
+这能自动拦截上述启动升级回归，不保证覆盖所有机型、系统权限和 Android 生命周期异常；
+发布前仍需遵守设备覆盖安装和冷启动验证要求。
+
 ### 基础环境
 
 确保已安装：

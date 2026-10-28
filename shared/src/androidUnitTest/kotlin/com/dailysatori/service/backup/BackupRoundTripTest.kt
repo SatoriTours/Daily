@@ -58,7 +58,7 @@ class BackupRoundTripTest {
                         "${destination.getAppDataDir()}/diary_images/photo.jpg","https://example.test/remote.png"),
                         com.dailysatori.service.diary.parseDiaryImagePaths(row.images))
                     assertEquals(listOf(0L,1L,2L),db.dailySatoriQueries.selectAttachmentsForDiary(23).executeAsList().filter { it.kind=="image" }.map { it.position })
-                    assertEquals("45",SettingRepository(db).get("schema_version"))
+                    assertEquals(DatabaseConfig.currentSchemaVersion.toString(),SettingRepository(db).get("schema_version"))
                     assertEquals("unknown\u0000tail",SettingRepository(db).get("diary_tag_state_v1_023"))
                     val fields=com.dailysatori.service.migration.DatabaseSchemaInventory.strings(d,"SELECT name FROM pragma_table_info('diary')")
                     assertFalse("images" in fields);assertFalse("tags" in fields)

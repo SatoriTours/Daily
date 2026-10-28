@@ -14,6 +14,40 @@ import kotlin.test.*
 import org.junit.Assume.assumeTrue
 
 class DatabaseSchemaUpgradeTest {
+    @Test fun conflictingLegacyDraftIsRetainedThroughVerifiedCandidateInstallation() = fixture { root, db, key ->
+        val expected=jdbc(db).use { driver ->
+            com.dailysatori.service.migration.ReminderLegacyFixture.seed(driver)
+            driver.execute(null,"UPDATE reminder_ai_draft SET confirmed=1,confirmation_state='CONFIRMED',reminder_id='deleted-reminder',confirmed_at=99",0)
+            com.dailysatori.service.migration.ReminderDraftMigration.read(driver,"reminder_ai_draft",
+                com.dailysatori.service.migration.ReminderDraftMigration.legacyColumns)
+        }
+        upgrade(root,db,key).upgrade()
+        jdbc(db).use { driver ->
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(),settings(driver).get(SettingKeys.schemaVersion))
+            assertEquals(expected,com.dailysatori.service.migration.ReminderDraftMigration.read(driver,"reminder_ai_draft_legacy",
+                com.dailysatori.service.migration.ReminderDraftMigration.legacyColumns))
+            assertEquals(listOf("0"),sqlStrings(driver,"SELECT COUNT(*) FROM reminder_ai_draft"))
+            assertEquals(listOf("2"),sqlStrings(driver,"SELECT COUNT(*) FROM reminder"))
+            assertTrue(com.dailysatori.data.repository.ReminderAiBatchRepository(DailySatoriDatabase(driver)).reconcileScheduleIntents().isEmpty())
+            assertOriginal(driver)
+        }
+        assertEquals("wrapped-original-key",key.readText())
+    }
+
+    @Test fun physical45ReceivesArchiveWithoutChangingExistingContent() = fixture { root, db, key ->
+        jdbc(db).use { driver ->
+            migrate(driver)
+            driver.execute(null,"DROP TABLE reminder_ai_draft_legacy",0)
+            settings(driver).upsert(SettingKeys.schemaVersion,"45")
+        }
+        upgrade(root,db,key).upgrade()
+        jdbc(db).use { driver ->
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(),settings(driver).get(SettingKeys.schemaVersion))
+            assertEquals(listOf("0"),sqlStrings(driver,"SELECT COUNT(*) FROM reminder_ai_draft_legacy"))
+            assertOriginal(driver)
+        }
+    }
+
     @Test fun version38IsUpgradedOnCopyAndOriginalInputsAndWrappedKeySurvive() = fixture { root, db, key ->
         val envelope = key.readBytes()
         upgrade(root, db, key).upgrade()
@@ -169,6 +203,9 @@ class DatabaseSchemaUpgradeTest {
                 seed(driver)
                 driver.execute(null,"INSERT INTO diary_attachment(id,diary_id,kind,local_path,transcript,created_at,updated_at) VALUES(7,1,'audio','diary/audio/kept.m4a','原始转写',3,4)",0)
                 com.dailysatori.service.migration.ReminderLegacyFixture.seed(driver)
+                driver.execute(null,"""INSERT INTO reminder_ai_draft(id,batch_id,source_index,source_text,draft_json,
+                    confirmed,confirmation_state,reminder_id,confirmed_at,created_at,updated_at)
+                    VALUES(8,'policy-batch',1,'retained source','opaque retained draft',1,'CONFIRMED','deleted-reminder',99,10,20)""",0)
                 com.dailysatori.service.migration.IdeaLegacyFixture.seed(driver)
                 // A physical pre-40 attachment table, not only a historical version marker.
                 driver.execute(null,"DROP INDEX idx_diary_attachment_position",0)
@@ -192,6 +229,8 @@ class DatabaseSchemaUpgradeTest {
                 assertEquals("diary/audio/kept.m4a",retained.local_path)
                 assertEquals("原始转写",retained.transcript)
                 com.dailysatori.service.migration.ReminderLegacyFixture.assertMigrated(driver)
+                assertEquals(listOf("1|CONFIRMED|deleted-reminder|99|opaque retained draft"),sqlStrings(driver,
+                    "SELECT confirmed||'|'||confirmation_state||'|'||reminder_id||'|'||confirmed_at||'|'||draft_json FROM reminder_ai_draft_legacy"))
                 assertEquals(com.dailysatori.service.migration.IdeaLegacyFixture.raw,
                     DailySatoriDatabase(driver).dailySatoriQueries.selectIdeaTopicSourceById("legacy-source").executeAsOne().snapshot_json)
                 assertEquals(listOf("unknown\u0000tail"),sqlStrings(driver,"SELECT payload_json FROM idea_topic_event WHERE id='legacy-opaque'"))
