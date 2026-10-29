@@ -1,6 +1,6 @@
 package com.dailysatori
 
-import android.app.Activity
+import com.dailysatori.core.startup.StartupActivity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -8,18 +8,19 @@ import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.data.repository.ArticleRepository
 import org.koin.android.ext.android.inject
 
-class ShareReceiverActivity : Activity() {
+class ShareReceiverActivity : StartupActivity() {
     private val articleRepo: ArticleRepository by inject()
     private val articleProcessingScheduler: ArticleProcessingScheduler by inject()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onStartupReady(savedInstanceState: Bundle?) {
         handleShareIntent(intent)
         finish()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        if (!businessReady) return
         handleShareIntent(intent)
         finish()
     }

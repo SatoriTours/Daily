@@ -21,6 +21,19 @@
 
 ### 启动升级回归（无模拟器）
 
+数据库内容校验通过不代表 Android 启动没有 ANR。应用通过进程级 `StartupCoordinator` 在 IO
+执行数据库准备、DI 和必要恢复；`Application.onCreate` 不等待它，业务入口只在 Ready 后开放。
+`StartupCoordinatorTest` 覆盖两分钟虚拟慢准备、多入口等待、失败后显式重试与等待者取消。
+`ApplicationStartupTest` 用 Robolectric 执行实际 Application 回调、Activity 生命周期和
+CoroutineWorker 门禁，覆盖主线程可响应、等待期间多 Intent 与重建保留、Worker 失败重试和
+通知服务提前连接/销毁；就绪发生在保存状态/退到后台之后时，不激活旧 Activity 或清空待处理
+Intent。分享入口不再设置 noHistory，防止等待升级期间切到后台直接丢掉分享。
+这些测试不执行真实 SQLCipher JNI，也不等于手机冷启动或视觉验收。
+短信接收器先保存私有加密待处理文件，不在广播期限内等待升级；WorkManager 只携带文件 ID，
+就绪后入库，失败保留待重试，进程重启会重挂队列。`PendingSmsStoreTest` 验证长内容、重开、
+密钥错误保留和路径边界；测试使用 JVM AES-GCM，不代表 Android Keystore 已经设备验证。
+CI 强制上述关键方法实际执行，不接受缺失、跳过或失败。日常不为这些检查启动模拟器。
+
 新装编译通过不能证明旧数据能启动。数据库改动需覆盖物理旧结构、旧状态组合、升级副本安装、
 版本连续升级、原始内容保留及不会重复调度。`ReminderDraftMigrationTest` 覆盖无法证明的历史确认、
 已删除提醒关联、冲突标记和重复关联；`DatabaseSchemaUpgradeTest` 覆盖完整副本升级及真实加密文件。

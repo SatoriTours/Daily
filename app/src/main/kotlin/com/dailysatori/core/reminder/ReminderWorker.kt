@@ -1,15 +1,15 @@
 package com.dailysatori.core.reminder
 
 import android.content.Context
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.WorkerParameters
 import org.koin.core.context.GlobalContext
 
 class ReminderWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
+) : StartupWorker(appContext, params) {
+    override suspend fun doReadyWork(): Result {
         val id = inputData.getString(KEY_REMINDER_ID) ?: return Result.failure()
         if (!inputData.keyValueMap.containsKey(KEY_EXPECTED_VERSION)) return Result.failure()
         val version = inputData.getLong(KEY_EXPECTED_VERSION, -1)

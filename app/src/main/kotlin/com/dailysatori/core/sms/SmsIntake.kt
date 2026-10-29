@@ -7,15 +7,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Telephony
 import androidx.core.content.ContextCompat
-import com.dailysatori.core.worker.AsyncTaskScheduler
-import com.dailysatori.data.repository.SettingRepository
-import com.dailysatori.data.repository.SmsSourceRepository
 import com.dailysatori.service.sms.*
 import kotlinx.coroutines.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
-import org.koin.core.context.GlobalContext
 import java.security.MessageDigest
 
 internal fun smsFingerprint(sender: String, body: String, sentAt: Long, subscription: Int): String {
@@ -48,9 +44,11 @@ class SmsReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 withTimeout(8_000) {
-                    val koin = GlobalContext.get()
-                    if (koin.get<SettingRepository>().get(SmsReminderService.ENABLED_KEY) == "true")
-                        koin.get<SmsIntake>().accept(id, source, receivedAt, TimeZone.currentSystemDefault())
+                    val app = context.applicationContext
+                    val pendingId = pendingSmsStore(app).save(PendingSms(id, source.sender, source.body,
+                        receivedAt.toEpochMilliseconds(), TimeZone.currentSystemDefault().id))
+                    // Only a private encrypted file ID enters WorkManager's input database.
+                    enqueuePendingSms(app, pendingId).result.get(5, java.util.concurrent.TimeUnit.SECONDS)
                 }
             } catch (_: Exception) {
                 android.util.Log.w("SmsReceiver", "SMS intake could not finish; no message content logged")

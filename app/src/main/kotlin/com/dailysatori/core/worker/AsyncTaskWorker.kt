@@ -7,7 +7,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
@@ -98,14 +98,14 @@ class AsyncTaskScheduler(private val context: Context) {
 class GenericAsyncTaskWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
+) : StartupWorker(appContext, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo = createAsyncTaskForegroundInfo(
         applicationContext,
         inputData.getLong(KEY_TASK_ID, -1L),
         inputData.getString(KEY_TASK_TYPE).orEmpty(),
     )
 
-    override suspend fun doWork(): Result {
+    override suspend fun doReadyWork(): Result {
         val taskId = inputData.getLong(KEY_TASK_ID, -1L)
         if (taskId <= 0L) return Result.failure()
 

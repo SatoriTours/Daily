@@ -77,6 +77,37 @@ jobs:
                   if case is None or any(case.find(tag) is not None for tag in ("skipped", "failure", "error")):
                       raise SystemExit(f"Required startup regression did not pass: {suite}.{name}")
           print("PASS: all required startup regressions executed without skips")
+          required_app = {
+              "core.startup.StartupCoordinatorTest": (
+                  "startNeverRunsSlowPreparationOnCallingThread",
+                  "concurrentConsumersCannotAccessBusinessRuntimeUntilPreparationFinishes",
+                  "failureKeepsConsumersClosedAndExplicitRetryHasOnlyOneOwner",
+                  "cancellingAWorkerOrRecreatedActivityDoesNotCancelTheUpgrade",
+              ),
+              "core.startup.ApplicationStartupTest": (
+                  "applicationOnCreateReturnsAndMainLooperStaysResponsiveDuringSlowNativePreparation",
+                  "activityWaitsAndReplaysAllIntentsOnlyAfterReady",
+                  "activityRecreationKeepsPendingIntentsWithoutStartingAnotherUpgrade",
+                  "readinessAfterSavedStateDoesNotActivateStoppedActivityOrErasePendingIntents",
+                  "realCoroutineWorkerWaitsAndCancellationCannotCancelApplicationPreparation",
+                  "failedWorkerRetriesWithoutResolvingBusinessDependenciesAndExplicitRetryRecovers",
+                  "everyBusinessWorkerUsesTheReadinessGate",
+                  "notificationServiceConnectionAndDestructionDoNotResolveDiWhilePreparing",
+              ),
+              "core.sms.PendingSmsStoreTest": (
+                  "largeMessageSurvivesReopenWithoutPlaintextOrWorkManagerSizeLimit",
+                  "unreadableKeyOrCorruptPayloadIsRetainedRatherThanSilentlyDeleted",
+                  "unexpectedNamesCannotReadOrDeleteFilesOutsideInbox",
+              ),
+          }
+          for suite, names in required_app.items():
+              report = ET.parse(f"app/build/test-results/testDebugUnitTest/TEST-com.dailysatori.{suite}.xml").getroot()
+              cases = {case.get("name"): case for case in report.findall("testcase")}
+              for name in names:
+                  case = cases.get(name)
+                  if case is None or any(case.find(tag) is not None for tag in ("skipped", "failure", "error")):
+                      raise SystemExit(f"Required Android startup regression did not pass: {suite}.{name}")
+          print("PASS: Android application/worker startup regressions executed without skips")
           PY
 
       - name: Test release metadata

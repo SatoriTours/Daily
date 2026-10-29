@@ -6,7 +6,7 @@ import android.app.NotificationManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
@@ -134,10 +134,10 @@ internal fun buildArticleSaveWorkRequest(url: String, normalizedUrl: String): On
 class ArticleProcessingWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
+) : StartupWorker(appContext, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo = createForegroundInfo()
 
-    override suspend fun doWork(): Result {
+    override suspend fun doReadyWork(): Result {
         val parser = GlobalContext.get().get<WebpageParserService>()
         return try {
             when (inputData.getString(KEY_MODE)) {

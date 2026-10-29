@@ -7,6 +7,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.dailysatori.core.startup.appStartup
 
 internal fun isReminderRestoreAction(action: String?): Boolean = action in REMINDER_RESTORE_ACTIONS
 
@@ -15,25 +18,21 @@ class ReminderReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val coordinator = GlobalContext.get().get<ReminderCoordinator>()
-                when (intent.action) {
-                    ACTION_DELIVER -> withIdentity(intent) { id, version -> coordinator.deliver(id, version) }
-                    ACTION_CUTOFF -> withIdentity(intent) { id, version -> coordinator.cutoff(id, version) }
-                    ACTION_DISMISS -> withIdentity(intent) { id, version -> coordinator.dismiss(id, version) }
-                    ACTION_COMPLETE -> withIdentity(intent) { id, version -> coordinator.complete(id, version) }
-                    in REMINDER_RESTORE_ACTIONS -> coordinator.recomputeAll()
-                    else -> Unit
+                val id = intent.getStringExtra(EXTRA_REMINDER_ID)
+                val version = if (intent.hasExtra(EXTRA_EXPECTED_VERSION)) intent.getLongExtra(EXTRA_EXPECTED_VERSION, -1) else null
+                if (context.appStartup.isReady) {
+                    GlobalContext.get().get<ReminderCoordinator>().handleBroadcast(intent.action, id, version)
+                } else {
+                    val work = OneTimeWorkRequestBuilder<ReminderBroadcastWorker>()
+                        .setInputData(reminderBroadcastData(intent.action, id, version)).build()
+                    WorkManager.getInstance(context).enqueue(work).result.get(5, java.util.concurrent.TimeUnit.SECONDS)
                 }
+            } catch (_: Exception) {
+                android.util.Log.w("ReminderReceiver", "Reminder broadcast could not finish")
             } finally {
                 pendingResult.finish()
             }
         }
-    }
-
-    private fun withIdentity(intent: Intent, block: (String, Long) -> Unit) {
-        val id = intent.getStringExtra(EXTRA_REMINDER_ID) ?: return
-        if (!intent.hasExtra(EXTRA_EXPECTED_VERSION)) return
-        block(id, intent.getLongExtra(EXTRA_EXPECTED_VERSION, -1))
     }
 
     companion object {

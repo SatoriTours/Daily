@@ -7,7 +7,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
@@ -34,8 +34,8 @@ class DiaryThoughtScheduler(private val context: Context) {
     }
 }
 
-class DiaryThoughtWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    override suspend fun doWork(): Result = coroutineScope {
+class DiaryThoughtWorker(context: Context, params: WorkerParameters) : StartupWorker(context, params) {
+    override suspend fun doReadyWork(): Result = coroutineScope {
         val service = GlobalContext.get().get<DiaryThoughtService>()
         setForeground(thoughtForegroundInfo(applicationContext, "准备整理我的思想…"))
         val progress = launch {

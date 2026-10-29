@@ -2,7 +2,7 @@ package com.dailysatori.core.worker
 
 import android.content.Context
 import androidx.work.Constraints
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
@@ -47,8 +47,8 @@ class WeeklySummaryScheduler(private val context: Context) {
 class WeeklySummaryWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
+) : StartupWorker(appContext, params) {
+    override suspend fun doReadyWork(): Result {
         val service = GlobalContext.get().get<WeeklySummaryService>()
         val range = service.getLastCompletedWeekRange() ?: return Result.success()
         return if (service.generateWeeklySummary(range.first, range.second)) {

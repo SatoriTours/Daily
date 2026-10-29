@@ -30,27 +30,61 @@ import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import kotlinx.coroutines.flow.first
+import com.dailysatori.core.startup.StartupCoordinator
+import com.dailysatori.core.startup.StartupState
 import org.koin.java.KoinJavaComponent.get
 
-class DailySatoriApplication : Application() {
+open class DailySatoriApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val startup = StartupCoordinator(applicationScope, onFailure = {
+        com.dailysatori.core.diagnostics.SafeAndroidLog.e("DailySatoriStartup", "Database preparation failed", it)
+    }) { initializeRuntime() }
+    var startupNotice: String? = null
+        private set
+    var startupLanguage: String? = null
+        private set
+
+    @Synchronized
+    fun consumeStartupNotice(): String? = startupNotice.also { startupNotice = null }
 
     override fun onCreate() {
         super.onCreate()
         // The launcher/export process must remain usable even when DI, SQLite or workers crash.
         if (isDiagnosticProcess()) return
         DiagnosticRuntime.initialize(this)
-        com.dailysatori.service.security.DatabaseBootstrap.prepare(com.dailysatori.platform.PlatformContext(this))
-            ?.let { message -> android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show() }
-        startKoin {
-            androidLogger()
-            androidContext(this@DailySatoriApplication)
-            modules(sharedModule, platformModule, appModule, viewModelModule)
+        startup.start()
+        applicationScope.launch {
+            startup.state.first { it == StartupState.Ready }
+            initializeBackgroundServices()
         }
-        get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
-        get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
-        I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
-        applicationScope.launch { initializeBackgroundServices() }
+    }
+
+    protected open suspend fun initializeRuntime() {
+        startupNotice = com.dailysatori.service.security.DatabaseBootstrap.prepare(
+            com.dailysatori.platform.PlatformContext(this),
+        )
+        var driver: app.cash.sqldelight.db.SqlDriver? = null
+        try {
+            startKoin {
+                androidLogger()
+                androidContext(this@DailySatoriApplication)
+                modules(sharedModule, platformModule, appModule, viewModelModule)
+            }
+            driver = get<app.cash.sqldelight.db.SqlDriver>(app.cash.sqldelight.db.SqlDriver::class.java)
+            get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
+            get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
+            I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
+            startupLanguage = get<I18nService>(I18nService::class.java).getCurrentLanguage()
+        } catch (failure: Exception) {
+            try { driver?.close() } finally { stopKoin() }
+            throw failure
+        }
+    }
+
+    protected open fun initializeBackgroundServices() {
+        initializeSchedulers()
         if (com.dailysatori.BuildConfig.DEBUG) {
             applicationScope.launch {
                 try {
@@ -64,7 +98,10 @@ class DailySatoriApplication : Application() {
         }
     }
 
-    private fun initializeBackgroundServices() {
+    private fun initializeSchedulers() {
+        runCatching { com.dailysatori.core.sms.recoverPendingSms(this) }.onFailure {
+            com.dailysatori.core.diagnostics.SafeAndroidLog.w("DailySatoriStartup", "Pending SMS recovery deferred", it)
+        }
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAndEnqueueRunnable()
         get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope) {
             DiaryThoughtScheduler(this).enqueue()

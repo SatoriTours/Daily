@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="startup_preparing">Preparing your data</string>
+    <string name="startup_preparing_description">Safely checking and upgrading your data. Large databases may take a few minutes. Please keep the app open.</string>
+    <string name="startup_failed">Data preparation incomplete</string>
+    <string name="startup_failed_description">The main app has not been opened to protect your existing data. You can retry or export diagnostics.</string>
+    <string name="startup_retry">Retry</string>
+    <string name="startup_diagnostics">Export diagnostics</string>
     <string name="diary_assistant_missing_config_title">AI service not configured</string>
     <string name="diary_assistant_missing_config_message">Configure an AI service in Settings, then retry this action.</string>
     <string name="diary_assistant_action_open_ai_settings">Open AI settings</string>

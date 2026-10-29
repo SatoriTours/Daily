@@ -1,7 +1,7 @@
 package com.dailysatori.core.worker
 
 import android.content.Context
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
@@ -44,8 +44,8 @@ class UnifiedNewsScheduler(private val context: Context) {
 class UnifiedNewsWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
+) : StartupWorker(appContext, params) {
+    override suspend fun doReadyWork(): Result {
         return try {
             val mode = unifiedNewsWorkerMode(inputData.getString(KEY_MODE))
             if (mode == UnifiedNewsWorkerMode.DUE) {

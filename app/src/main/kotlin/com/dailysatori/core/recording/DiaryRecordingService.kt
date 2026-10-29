@@ -11,6 +11,7 @@ import android.os.PowerManager
 import com.dailysatori.core.diagnostics.SafeAndroidLog as Log
 import androidx.core.content.ContextCompat
 import org.koin.android.ext.android.inject
+import com.dailysatori.core.startup.appStartup
 
 class DiaryRecordingService : Service() {
     private val runtimeManager: DiaryRecordingRuntimeManager by inject()
@@ -51,6 +52,15 @@ class DiaryRecordingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Do not resolve repositories or leave a foreground-service start waiting on migration.
+        if (!appStartup.isReady) {
+            android.widget.Toast.makeText(this,
+                if (appStartup.state.value == com.dailysatori.core.startup.StartupState.Failed)
+                    com.dailysatori.R.string.startup_failed else com.dailysatori.R.string.startup_preparing,
+                android.widget.Toast.LENGTH_LONG).show()
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         when (intent?.action) {
             ACTION_START -> {
                 val diaryId = intent.getLongExtra(EXTRA_DIARY_ID, 0)
@@ -81,7 +91,7 @@ class DiaryRecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        runtimeManager.detachHost(androidHost)
+        if (appStartup.isReady) runtimeManager.detachHost(androidHost)
         androidResourcesOpen = false
         stopRecordingForeground()
         releaseRecordingWakeLock()

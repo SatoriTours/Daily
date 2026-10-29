@@ -2,7 +2,7 @@ package com.dailysatori.core.worker
 
 import android.content.Context
 import androidx.work.Constraints
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -36,8 +36,8 @@ class BackupScheduler(private val context: Context) {
 class BackupWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result = runBackupWork { GlobalContext.get().get<BackupService>().backupNow() }
+) : StartupWorker(appContext, params) {
+    override suspend fun doReadyWork(): Result = runBackupWork { GlobalContext.get().get<BackupService>().backupNow() }
 }
 
 internal suspend fun runBackupWork(attempt: suspend () -> Boolean): androidx.work.ListenableWorker.Result = try {

@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="startup_preparing">正在准备数据</string>
+    <string name="startup_preparing_description">正在安全检查和升级数据。数据较多时可能需要几分钟，请保持应用开启。</string>
+    <string name="startup_failed">数据准备未完成</string>
+    <string name="startup_failed_description">为保护原有数据，暂未打开业务页面。可以重试，或导出诊断信息。</string>
+    <string name="startup_retry">重试</string>
+    <string name="startup_diagnostics">导出诊断</string>
     <string name="diary_recording_channel_name">语音日记录音</string>
     <string name="diary_recording_channel_description">显示语音日记的录音状态与控制操作</string>
     <string name="diary_recording_starting">正在启动语音日记</string>

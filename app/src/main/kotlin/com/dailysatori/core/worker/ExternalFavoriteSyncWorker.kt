@@ -9,7 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
-import androidx.work.CoroutineWorker
+import com.dailysatori.core.startup.StartupWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
@@ -217,11 +217,11 @@ private fun runOnMainThread(block: () -> Unit) {
 class ExternalFavoriteSyncWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
+) : StartupWorker(appContext, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo =
         createExternalFavoriteForegroundInfo(applicationContext)
 
-    override suspend fun doWork(): Result {
+    override suspend fun doReadyWork(): Result {
         val sourceId = inputData.getLong(KEY_SOURCE_ID, -1L)
         val mode = externalFavoriteSyncMode(inputData.getString(KEY_MODE)) ?: return Result.failure()
         if (sourceId <= 0L) return Result.failure()
@@ -248,11 +248,11 @@ class ExternalFavoriteSyncWorker(
 class ExternalFavoriteQueueWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
+) : StartupWorker(appContext, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo =
         createExternalFavoriteForegroundInfo(applicationContext)
 
-    override suspend fun doWork(): Result {
+    override suspend fun doReadyWork(): Result {
         val koin = GlobalContext.get()
         val repository = koin.get<AsyncTaskRepository>()
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
@@ -315,8 +315,8 @@ class ExternalFavoriteQueueWorker(
 class ExternalFavoriteQueueDelayWorker(
     appContext: Context,
     params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
+) : StartupWorker(appContext, params) {
+    override suspend fun doReadyWork(): Result {
         GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
         return Result.success()
     }

@@ -1,16 +1,14 @@
 package com.dailysatori
 
 import android.content.Intent
-import android.content.Context
 import android.os.Bundle
 import com.dailysatori.core.diagnostics.SafeAndroidLog as Log
-import androidx.activity.ComponentActivity
+import com.dailysatori.core.startup.StartupActivity
+import androidx.lifecycle.Lifecycle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import com.dailysatori.core.diagnostics.DiagnosticRecoveryReader
-import com.dailysatori.core.service.I18nInitializer
-import com.dailysatori.service.i18n.I18nService
 import java.io.File
 import androidx.lifecycle.lifecycleScope
 import com.dailysatori.core.reminder.ReminderRecoveryController
@@ -30,16 +28,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.context.GlobalContext
 
-class MainActivity : ComponentActivity() {
+class MainActivity : StartupActivity() {
     private lateinit var reminderRecovery: ReminderRecoveryController
 
-    override fun attachBaseContext(newBase: Context) {
-        val language = GlobalContext.get().get<I18nService>().getCurrentLanguage()
-        super.attachBaseContext(I18nInitializer.localizedContext(newBase, language))
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    override fun onStartupReady(savedInstanceState: Bundle?) {
         reminderRecovery = GlobalContext.get().get()
         reminderRecovery.startup()
         handleOAuthIntent(intent)
@@ -59,10 +51,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) resumeBusiness()
     }
 
     override fun onResume() {
         super.onResume()
+        if (businessReady) resumeBusiness()
+    }
+
+    private fun resumeBusiness() {
         reminderRecovery.resume()
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
@@ -75,6 +72,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (!businessReady) return
         handleOAuthIntent(intent)
         handleRecordingIntent(intent)
         handleReminderViewIntent(intent)

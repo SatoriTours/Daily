@@ -14,6 +14,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import org.koin.android.ext.android.inject
+import com.dailysatori.core.startup.appStartup
 
 data class BookkeepingCaptureStatus(val connected: Boolean = false, val failed: Boolean = false, val lastStoredAt: Long? = null)
 
@@ -33,8 +34,10 @@ class BookkeepingNotificationListener : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val captures = Channel<suspend () -> Unit>(Channel.UNLIMITED)
 
-    init {
+    override fun onCreate() {
+        super.onCreate()
         scope.launch {
+            appStartup.state.first { it == com.dailysatori.core.startup.StartupState.Ready }
             for (capture in captures) {
                 try { capture() }
                 catch (cancelled: CancellationException) { throw cancelled }
@@ -45,16 +48,14 @@ class BookkeepingNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        recovery.connected()
         val activeEvents = try {
             activeNotifications.orEmpty().associate { it.key to (it.notification.`when`.takeIf { time -> time > 0 } ?: it.postTime) }
-        } catch (_: Exception) { monitor.failed(); return }
-        captures.trySend { identity.reconcile(activeEvents) }
+        } catch (_: Exception) { captures.trySend { monitor.failed() }; return }
+        captures.trySend { recovery.connected(); identity.reconcile(activeEvents) }
     }
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
-        monitor.connected(false)
-        recovery.request()
+        captures.trySend { monitor.connected(false); recovery.request() }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -85,7 +86,12 @@ class BookkeepingNotificationListener : NotificationListenerService() {
         captures.trySend { identity.removed(key) }
     }
 
-    override fun onDestroy() { monitor.connected(false); captures.close(); scope.cancel(); super.onDestroy() }
+    override fun onDestroy() {
+        if (appStartup.isReady) monitor.connected(false)
+        captures.close()
+        scope.cancel()
+        super.onDestroy()
+    }
 
     private fun CharSequence?.toStringOrEmpty(): String = this?.toString().orEmpty()
 }
