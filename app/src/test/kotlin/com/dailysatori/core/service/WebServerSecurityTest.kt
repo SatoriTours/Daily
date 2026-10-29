@@ -42,7 +42,7 @@ class WebServerSecurityTest {
         val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
 
         assertTrue(source.contains("ArticleProcessingScheduler::class.java).enqueueSave(url)"))
-        assertTrue(source.contains("repo.update("))
+        assertTrue(source.contains("repo.updateDetailsIfUnchanged("))
         assertTrue(source.contains("repo.toggleFavorite(id)"))
         assertTrue(source.contains("WebpageParserService::class.java).reprocessArticle(id)"))
     }
@@ -61,7 +61,7 @@ class WebServerSecurityTest {
         val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
 
         assertTrue(source.contains("DiaryAttachmentRepository::class.java).getForDiary(id)"))
-        assertTrue(source.contains("repo.update(id, content, tags, mood, existing.images)"))
+        assertTrue(source.contains("repo.updateIfUnchanged(existing, content, tags, mood)"))
         assertTrue(source.contains("insertAndReturnId("))
         assertTrue(source.contains("BookViewpointRepository::class.java).insert("))
         assertTrue(source.contains("repo.delete(id)"))

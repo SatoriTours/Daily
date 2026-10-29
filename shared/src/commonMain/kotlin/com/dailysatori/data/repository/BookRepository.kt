@@ -60,6 +60,15 @@ class BookRepository(private val db: DailySatoriDatabase) {
         q.updateBook(title, author, category, coverImage, introduction, hasUpdate, now, id)
     }
 
+    fun updateIfUnchanged(
+        expected: Book, title: String, author: String, category: String,
+        coverImage: String, introduction: String,
+    ): Boolean = q.transactionWithResult {
+        if (getById(expected.id) != expected) return@transactionWithResult false
+        update(expected.id, title, author, category, coverImage, introduction, expected.has_update ?: 0L)
+        true
+    }
+
     fun delete(id: Long) = q.deleteBook(id)
 
     fun count(): Long = q.bookCount().executeAsOne()

@@ -104,6 +104,13 @@ class DiaryRepository(
         deleteUnreferencedMedia(db, fileManager, removed)
     }
 
+    fun updateIfUnchanged(expected: Diary, content: String, tags: String?, mood: String?): Boolean =
+        q.transactionWithResult {
+            if (getById(expected.id) != expected) return@transactionWithResult false
+            update(expected.id, content, tags, mood, expected.images)
+            true
+        }
+
     /** Compare and save in one transaction so an AI request cannot overwrite editor changes. */
     fun prependGeneratedTitleIfUnchanged(expected: Diary, title: String): Boolean = q.transactionWithResult {
         val current = q.selectDiaryById(expected.id).executeAsOneOrNull() ?: return@transactionWithResult false

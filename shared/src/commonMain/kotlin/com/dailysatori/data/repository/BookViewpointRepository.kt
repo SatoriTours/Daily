@@ -48,6 +48,14 @@ class BookViewpointRepository(private val db: DailySatoriDatabase) {
         q.updateViewpoint(title, content, example, now, id)
     }
 
+    fun updateIfUnchanged(
+        expected: Book_viewpoint, title: String, content: String, example: String,
+    ): Boolean = q.transactionWithResult {
+        if (getById(expected.id) != expected) return@transactionWithResult false
+        update(expected.id, title, content, example)
+        true
+    }
+
     fun updateStatusContext(
         id: Long,
         title: String,

@@ -31,7 +31,7 @@ import io.ktor.server.application.call
 import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.path
@@ -93,7 +93,7 @@ private fun detectFileContentType(file: File, requestedPath: String): ContentTyp
 
 class WebServerService(private val ctx: Context) {
     private val log = Logger.withTag("WebServer")
-    private var server: Any? = null
+    private var server: EmbeddedServer<*, *>? = null
     private var currentPort: Int = 0
 
     private val json = Json {
@@ -174,7 +174,7 @@ class WebServerService(private val ctx: Context) {
     }
 
     fun stop() {
-        (server as? ApplicationEngine)?.stop(1000, 2000)
+        server?.stop(1000, 2000)
         server = null
         currentPort = 0
         log.i { "Web server stopped" }
@@ -273,11 +273,13 @@ class WebServerService(private val ctx: Context) {
         route("/articles") {
             get {
                 val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val page = call.request.queryParameters["page"]?.toLongOrNull() ?: 1L
+                val page = (call.request.queryParameters["page"]?.toLongOrNull() ?: 1L).coerceIn(1L, 1_000_000L)
                 val limit = 20L
                 val offset = (page - 1) * limit
-                val articles = try { repo.getPaginated(limit, offset).first() } catch (_: Exception) { emptyList() }
-                val total = try { repo.count() } catch (_: Exception) { 0L }
+                val favorites = call.request.queryParameters["favorites"] == "true"
+                val favoriteItems = if (favorites) repo.searchSync("").filter { (it.is_favorite ?: 0L) > 0L } else null
+                val articles = favoriteItems?.drop(offset.toInt())?.take(limit.toInt()) ?: repo.getPaginated(limit, offset).first()
+                val total = favoriteItems?.size?.toLong() ?: repo.count()
                 call.respondText(respondOk(buildJsonObject {
                     put("items", JsonArray(
                         articles.map { a -> buildJsonObject {
@@ -291,6 +293,7 @@ class WebServerService(private val ctx: Context) {
                             put("status", JsonPrimitive(a.status ?: ""))
                             put("createdAt", JsonPrimitive(a.created_at))
                             put("updatedAt", JsonPrimitive(a.updated_at))
+                            put("version", JsonPrimitive(webVersion(a)))
                         }}
                     ))
                     put("pagination", buildJsonObject {
@@ -305,7 +308,9 @@ class WebServerService(private val ctx: Context) {
             get("/search") {
                 val repo = get<ArticleRepository>(ArticleRepository::class.java)
                 val query = call.request.queryParameters["q"] ?: ""
-                val results = try { repo.searchSync(query) } catch (_: Exception) { emptyList() }
+                val page = (call.request.queryParameters["page"]?.toIntOrNull() ?: 1).coerceIn(1, 1_000_000)
+                val matches = repo.searchSync(query).filter { call.request.queryParameters["favorites"] != "true" || (it.is_favorite ?: 0L) > 0L }
+                val results = matches.drop((page - 1) * 20).take(20)
                 call.respondText(respondOk(buildJsonObject {
                     put("items", JsonArray(
                         results.map { a -> buildJsonObject {
@@ -319,9 +324,10 @@ class WebServerService(private val ctx: Context) {
                             put("status", JsonPrimitive(a.status ?: ""))
                             put("createdAt", JsonPrimitive(a.created_at))
                             put("updatedAt", JsonPrimitive(a.updated_at))
+                            put("version", JsonPrimitive(webVersion(a)))
                         }}
                     ))
-                    put("count", JsonPrimitive(results.size))
+                    put("pagination", webPagination(page, matches.size))
                 }), ContentType.Application.Json)
             }
 
@@ -345,6 +351,7 @@ class WebServerService(private val ctx: Context) {
                         put("status", JsonPrimitive(a.status ?: ""))
                         put("createdAt", JsonPrimitive(a.created_at))
                         put("updatedAt", JsonPrimitive(a.updated_at))
+                            put("version", JsonPrimitive(webVersion(a)))
                     }), ContentType.Application.Json)
                 } else {
                     call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
@@ -389,20 +396,12 @@ class WebServerService(private val ctx: Context) {
                         return@put
                     }
                     val body = call.receive<JsonObject>()
-                    repo.update(
-                        id = id,
-                        title = body.optionalStringValue("title", article.title),
-                        aiTitle = article.ai_title,
-                        aiContent = article.ai_content,
-                        aiMarkdownContent = article.ai_markdown_content,
-                        url = body.optionalStringValue("url", article.url),
-                        isFavorite = body.booleanValue("isFavorite")?.let { if (it) 1L else 0L } ?: article.is_favorite ?: 0L,
-                        comment = body.optionalStringValue("comment", article.comment),
-                        status = article.status ?: "pending",
-                        coverImage = article.cover_image,
-                        coverImageUrl = article.cover_image_url,
-                        pubDate = article.pub_date,
+                    if (!call.checkEditVersion(body, webVersion(article))) return@put
+                    val saved = repo.updateDetailsIfUnchanged(
+                        article, body.optionalStringValue("title", article.title),
+                        body.optionalStringValue("comment", article.comment),
                     )
+                    if (!saved) { call.editConflict(); return@put }
                     call.respondText(respondOk(articleSummary(repo.getById(id)!!)), ContentType.Application.Json)
                 } catch (e: Exception) {
                     call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
@@ -444,11 +443,11 @@ class WebServerService(private val ctx: Context) {
         route("/diary") {
             get {
                 val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                val page = call.request.queryParameters["page"]?.toLongOrNull() ?: 1L
+                val page = (call.request.queryParameters["page"]?.toLongOrNull() ?: 1L).coerceIn(1L, 1_000_000L)
                 val limit = 20L
                 val offset = (page - 1) * limit
-                val diaries = try { repo.getPaginated(limit, offset).first() } catch (_: Exception) { emptyList() }
-                val total = try { repo.count() } catch (_: Exception) { 0L }
+                val diaries = repo.getPaginated(limit, offset).first()
+                val total = repo.count()
                 call.respondText(respondOk(buildJsonObject {
                     put("items", JsonArray(
                         diaries.map { d -> buildJsonObject {
@@ -459,6 +458,7 @@ class WebServerService(private val ctx: Context) {
                             put("images", diaryImagesToJson(d.images))
                             put("createdAt", JsonPrimitive(d.created_at))
                             put("updatedAt", JsonPrimitive(d.updated_at))
+                            put("version", JsonPrimitive(webVersion(d)))
                         }}
                     ))
                     put("pagination", buildJsonObject {
@@ -473,15 +473,23 @@ class WebServerService(private val ctx: Context) {
             get("/search") {
                 val repo = get<DiaryRepository>(DiaryRepository::class.java)
                 val query = call.request.queryParameters["q"] ?: ""
-                val results = try { repo.searchSync(query) } catch (_: Exception) { emptyList() }
+                val page = (call.request.queryParameters["page"]?.toIntOrNull() ?: 1).coerceIn(1, 1_000_000)
+                val matches = repo.searchSync(query)
+                val results = matches.drop((page - 1) * 20).take(20)
                 call.respondText(respondOk(buildJsonObject {
                     put("items", JsonArray(
                         results.map { d -> buildJsonObject {
                             put("id", JsonPrimitive(d.id))
                             put("content", JsonPrimitive(d.content ?: ""))
+                            put("mood", JsonPrimitive(d.mood ?: ""))
+                            put("tags", JsonPrimitive(d.tags ?: ""))
+                            put("images", diaryImagesToJson(d.images))
+                            put("updatedAt", JsonPrimitive(d.updated_at))
+                            put("version", JsonPrimitive(webVersion(d)))
                             put("createdAt", JsonPrimitive(d.created_at))
                         }}
                     ))
+                    put("pagination", webPagination(page, matches.size))
                 }), ContentType.Application.Json)
             }
 
@@ -510,6 +518,7 @@ class WebServerService(private val ctx: Context) {
                         } }))
                         put("createdAt", JsonPrimitive(d.created_at))
                         put("updatedAt", JsonPrimitive(d.updated_at))
+                            put("version", JsonPrimitive(webVersion(d)))
                     }), ContentType.Application.Json)
                 } else {
                     call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
@@ -523,8 +532,12 @@ class WebServerService(private val ctx: Context) {
                     val mood = (body["mood"] as? JsonPrimitive)?.content
                     val tags = (body["tags"] as? JsonPrimitive)?.content
                     val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                    repo.insert(content, tags, mood, null)
-                    call.respondText(respondOk(), ContentType.Application.Json)
+                    if (content.isBlank()) {
+                        call.respondText(respondFail("日记内容不能为空"), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                        return@post
+                    }
+                    val id = repo.create(content, tags, mood, null)
+                    call.respondText(respondOk(diaryEditResult(repo.getById(id)!!)), ContentType.Application.Json)
                 } catch (e: Exception) {
                     call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
                 }
@@ -543,8 +556,15 @@ class WebServerService(private val ctx: Context) {
                         call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
                         return@put
                     }
-                    repo.update(id, content, tags, mood, existing.images)
-                    call.respondText(respondOk(), ContentType.Application.Json)
+                    if (content.isBlank()) {
+                        call.respondText(respondFail("日记内容不能为空"), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                        return@put
+                    }
+                    if (!call.checkEditVersion(body, webVersion(existing))) return@put
+                    if (!repo.updateIfUnchanged(existing, content, tags, mood)) {
+                        call.editConflict(); return@put
+                    }
+                    call.respondText(respondOk(diaryEditResult(repo.getById(id)!!)), ContentType.Application.Json)
                 } catch (e: Exception) {
                     call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
                 }
@@ -574,6 +594,7 @@ class WebServerService(private val ctx: Context) {
                             put("coverImage", JsonPrimitive(b.cover_image))
                             put("introduction", JsonPrimitive(b.introduction))
                             put("createdAt", JsonPrimitive(b.created_at))
+                        put("version", JsonPrimitive(webVersion(b)))
                         }}
                     ))
                 }), ContentType.Application.Json)
@@ -592,6 +613,7 @@ class WebServerService(private val ctx: Context) {
                         put("coverImage", JsonPrimitive(b.cover_image))
                         put("introduction", JsonPrimitive(b.introduction))
                         put("createdAt", JsonPrimitive(b.created_at))
+                        put("version", JsonPrimitive(webVersion(b)))
                     }), ContentType.Application.Json)
                 } else {
                     call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
@@ -618,6 +640,7 @@ class WebServerService(private val ctx: Context) {
                             put("content", JsonPrimitive(v.content))
                             put("example", JsonPrimitive(v.example))
                             put("createdAt", JsonPrimitive(v.created_at))
+                            put("version", JsonPrimitive(webVersion(v)))
                         }}
                     ))
                 }), ContentType.Application.Json)
@@ -660,15 +683,15 @@ class WebServerService(private val ctx: Context) {
                         call.respondText(respondFail("Title is required"), ContentType.Application.Json, HttpStatusCode.BadRequest)
                         return@put
                     }
-                    repo.update(
-                        id = id,
-                        title = title,
-                        author = body.optionalStringValue("author", existing.author).orEmpty(),
-                        category = body.optionalStringValue("category", existing.category).orEmpty(),
-                        coverImage = body.optionalStringValue("coverImage", existing.cover_image).orEmpty(),
-                        introduction = body.optionalStringValue("introduction", existing.introduction).orEmpty(),
-                        hasUpdate = existing.has_update ?: 0L,
+                    if (!call.checkEditVersion(body, webVersion(existing))) return@put
+                    val saved = repo.updateIfUnchanged(
+                        existing, title,
+                        body.optionalStringValue("author", existing.author).orEmpty(),
+                        body.optionalStringValue("category", existing.category).orEmpty(),
+                        body.optionalStringValue("coverImage", existing.cover_image).orEmpty(),
+                        body.optionalStringValue("introduction", existing.introduction).orEmpty(),
                     )
+                    if (!saved) { call.editConflict(); return@put }
                     call.respondText(respondOk(bookToJson(repo.getById(id)!!)), ContentType.Application.Json)
                 } catch (e: Exception) {
                     call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
@@ -700,6 +723,20 @@ class WebServerService(private val ctx: Context) {
                 }
             }
 
+            get("/viewpoints/{viewpointId}") {
+                val id = call.parameters["viewpointId"]?.toLongOrNull() ?: 0L
+                val existing = get<BookViewpointRepository>(BookViewpointRepository::class.java).getById(id)
+                if (existing == null) {
+                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
+                } else call.respondText(respondOk(buildJsonObject {
+                    put("id", JsonPrimitive(existing.id))
+                    put("title", JsonPrimitive(existing.title))
+                    put("content", JsonPrimitive(existing.content))
+                    put("example", JsonPrimitive(existing.example))
+                    put("version", JsonPrimitive(webVersion(existing)))
+                }), ContentType.Application.Json)
+            }
+
             put("/viewpoints/{viewpointId}") {
                 val repo = get<BookViewpointRepository>(BookViewpointRepository::class.java)
                 val id = call.parameters["viewpointId"]?.toLongOrNull() ?: 0L
@@ -709,12 +746,17 @@ class WebServerService(private val ctx: Context) {
                     return@put
                 }
                 val body = call.receive<JsonObject>()
-                repo.update(
-                    id = id,
-                    title = body.optionalStringValue("title", existing.title).orEmpty(),
-                    content = body.optionalStringValue("content", existing.content).orEmpty(),
-                    example = body.optionalStringValue("example", existing.example).orEmpty(),
+                val title = body.optionalStringValue("title", existing.title).orEmpty()
+                if (title.isBlank()) {
+                    call.respondText(respondFail("标题不能为空"), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                    return@put
+                }
+                if (!call.checkEditVersion(body, webVersion(existing))) return@put
+                val saved = repo.updateIfUnchanged(
+                    existing, title, body.optionalStringValue("content", existing.content).orEmpty(),
+                    body.optionalStringValue("example", existing.example).orEmpty(),
                 )
+                if (!saved) { call.editConflict(); return@put }
                 call.respondText(respondOk(), ContentType.Application.Json)
             }
 
@@ -801,6 +843,7 @@ class WebServerService(private val ctx: Context) {
                             put("type", JsonPrimitive("book"))
                             put("title", JsonPrimitive(b.title))
                             put("createdAt", JsonPrimitive(b.created_at))
+                        put("version", JsonPrimitive(webVersion(b)))
                         }}
                     ))
                 }), ContentType.Application.Json)
@@ -962,6 +1005,17 @@ class WebServerService(private val ctx: Context) {
         }
     }
 
+    private suspend fun ApplicationCall.checkEditVersion(body: JsonObject, current: String): Boolean {
+        if (body.stringValue("version") == current) return true
+        editConflict()
+        return false
+    }
+
+    private suspend fun ApplicationCall.editConflict() {
+        respondText(respondFail("手机上的内容已有更新，请保留当前修改并重新读取"),
+            ContentType.Application.Json, HttpStatusCode.Conflict)
+    }
+
     private fun Route.setupAuthRoutes() {
         route("/auth") {
             post("/login") {
@@ -1035,6 +1089,7 @@ private fun JsonObject.booleanValue(name: String): Boolean? =
 
 private fun articleSummary(article: com.dailysatori.shared.db.Article): JsonObject = buildJsonObject {
     put("id", JsonPrimitive(article.id))
+    put("version", JsonPrimitive(webVersion(article)))
     put("title", JsonPrimitive(article.title.orEmpty()))
     put("isFavorite", JsonPrimitive((article.is_favorite ?: 0L) > 0L))
     put("comment", JsonPrimitive(article.comment.orEmpty()))
@@ -1049,6 +1104,7 @@ private fun bookToJson(book: com.dailysatori.shared.db.Book): JsonObject = build
     put("coverImage", JsonPrimitive(book.cover_image))
     put("introduction", JsonPrimitive(book.introduction))
     put("createdAt", JsonPrimitive(book.created_at))
+    put("version", JsonPrimitive(webVersion(book)))
 }
 
 private fun mcpReferenceToJson(reference: McpSearchResult): JsonObject = buildJsonObject {
@@ -1058,4 +1114,20 @@ private fun mcpReferenceToJson(reference: McpSearchResult): JsonObject = buildJs
     put("summary", JsonPrimitive(reference.summary.orEmpty()))
     put("createdAt", JsonPrimitive(reference.createdAt.orEmpty()))
     put("matchReason", JsonPrimitive(reference.matchReason.orEmpty()))
+}
+
+private fun webPagination(page: Int, total: Int): JsonObject = buildJsonObject {
+    put("page", JsonPrimitive(page))
+    put("totalItems", JsonPrimitive(total))
+    put("totalPages", JsonPrimitive(maxOf(1, (total + 19) / 20)))
+}
+
+private fun diaryEditResult(d: com.dailysatori.shared.db.Diary_record): JsonObject = buildJsonObject {
+    put("id", JsonPrimitive(d.id))
+    put("content", JsonPrimitive(d.content.orEmpty()))
+    put("tags", JsonPrimitive(d.tags.orEmpty()))
+    put("mood", JsonPrimitive(d.mood.orEmpty()))
+    put("createdAt", JsonPrimitive(d.created_at))
+    put("updatedAt", JsonPrimitive(d.updated_at))
+    put("version", JsonPrimitive(webVersion(d)))
 }

@@ -188,6 +188,19 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         )
     }
 
+    /** The comparison and metadata update share one database transaction. */
+    fun updateDetailsIfUnchanged(expected: Article, title: String?, comment: String?): Boolean =
+        q.transactionWithResult {
+            if (getById(expected.id) != expected) return@transactionWithResult false
+            update(
+                expected.id, title, expected.ai_title, expected.ai_content,
+                expected.ai_markdown_content, expected.url, expected.is_favorite ?: 0L,
+                comment, expected.status ?: "pending", expected.cover_image,
+                expected.cover_image_url, expected.pub_date,
+            )
+            true
+        }
+
     fun updateAiTitle(id: Long, aiTitle: String?) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateArticleAiTitle(aiTitle, now, id)

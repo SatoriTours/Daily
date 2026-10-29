@@ -3,7 +3,7 @@ const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 createApp({
     setup() {
         const isLoggedIn = ref(localStorage.getItem('ds_logged_in') === '1');
-        const connected = ref(true);
+        const connected = ref(false);
         const dark = ref(initDark());
         const sidebarCollapsed = ref(localStorage.getItem('ds_sidebar') === '1');
 
@@ -13,7 +13,7 @@ createApp({
         const toasts = ref([]);
         let connInterval = null;
 
-        const page = ref('dashboard');
+        const page = ref('articles');
         const searchKeyword = ref('');
         const pageTitles = { dashboard: '今日', articles: '文章', diary: '日记', books: '阅读', ai: 'AI 助手', tasks: '任务中心' };
         const pageTitle = computed(() => pageTitles[page.value] || '');
@@ -47,18 +47,32 @@ createApp({
         }
 
         async function apiReq(endpoint, options) {
-            options = options || {};
-            var headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
-            const res = await fetch('/api/v2' + endpoint, Object.assign({}, options, {
-                credentials: 'same-origin',
-                headers: headers
-            }));
-            const data = await res.json();
-            if (res.status === 401) {
-                throw new Error('未登录，请重新登录');
-            }
-            if (data.code !== 0) throw new Error(data.msg || '请求失败');
-            return data.data;
+            const controller = new AbortController();
+            const timeout = setTimeout(function() { controller.abort(); }, 20000);
+            try {
+                const res = await fetch('/api/v2' + endpoint, Object.assign({}, options || {}, {
+                    credentials: 'same-origin', signal: controller.signal,
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, (options || {}).headers || {})
+                }));
+                if (res.status === 401) {
+                    isLoggedIn.value = false;
+                    localStorage.removeItem('ds_logged_in');
+                    throw Object.assign(new Error('登录已失效，请重新输入手机上的访问令牌；编辑内容仍保留'), { status: 401 });
+                }
+                const data = await res.json();
+                connected.value = true;
+                if (!res.ok || data.code !== 0) {
+                    if (res.status === 409) editConflict.value = true;
+                    throw Object.assign(new Error(data.msg || '请求失败'), { status: res.status });
+                }
+                return data.data;
+            } catch (e) {
+                if (!e.status) {
+                    connected.value = false;
+                    throw new Error('连接中断或超时。修改已保留，请检查同一 Wi-Fi 和手机 Web 服务；重试前确认是否已保存。');
+                }
+                throw e;
+            } finally { clearTimeout(timeout); }
         }
 
         function formatDate(s) {
@@ -69,15 +83,38 @@ createApp({
 
         function truncate(s, n) { return !s ? '' : s.length > n ? s.substring(0, n) + '...' : s; }
 
-        function formatContent(c) {
-            if (!c) return '';
-            const html = typeof marked !== 'undefined' ? marked.parse(c) : c.replaceAll('\n', '<br>');
-            return html.replace(/<img\s/gi, '<img loading="lazy" referrerpolicy="no-referrer" ');
+        function safeUrl(value, image) {
+            if(!value)return '';
+            try {
+                const url = new URL(value, location.origin);
+                return ['http:', 'https:'].includes(url.protocol) || (!image && url.protocol === 'mailto:') ? url.href : '';
+            } catch (e) { return ''; }
+        }
+
+        function formatContent(content) {
+            if (!content) return '';
+            const template = document.createElement('template');
+            template.innerHTML = typeof marked !== 'undefined' ? marked.parse(content) : content.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br>');
+            const allowed = new Set(['P','BR','H1','H2','H3','H4','H5','H6','STRONG','EM','DEL','S','BLOCKQUOTE','UL','OL','LI','PRE','CODE','HR','A','IMG','TABLE','THEAD','TBODY','TR','TH','TD']);
+            Array.from(template.content.querySelectorAll('*')).forEach(function(el) {
+                if (!allowed.has(el.tagName)) { el.replaceWith(document.createTextNode(el.textContent)); return; }
+                const href = el.getAttribute('href'), src = el.getAttribute('src'), alt = el.getAttribute('alt');
+                Array.from(el.attributes).forEach(function(a) { el.removeAttribute(a.name); });
+                if (el.tagName === 'A' && safeUrl(href, false)) {
+                    el.setAttribute('href', safeUrl(href, false)); el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener noreferrer');
+                }
+                if (el.tagName === 'IMG' && safeUrl(src, true)) {
+                    el.setAttribute('src', safeUrl(src, true)); el.setAttribute('alt', alt || '');
+                    el.setAttribute('loading', 'lazy'); el.setAttribute('referrerpolicy', 'no-referrer');
+                }
+            });
+            // Images use referrerpolicy="no-referrer" and all event/style attributes are removed.
+            return template.innerHTML;
         }
 
         async function checkConnection() {
             try {
-                const r = await fetch('/ping');
+                const r = await fetch('/ping', { signal: AbortSignal.timeout(5000) });
                 connected.value = r.ok && await r.text() === 'pong';
             } catch (e) { connected.value = false; }
         }
@@ -101,21 +138,25 @@ createApp({
                     showToast('登录成功', 'success');
                     await nextTick();
                     checkConnection();
+                    if (connInterval) clearInterval(connInterval);
                     connInterval = setInterval(checkConnection, 10000);
-                    navigate('dashboard');
+                    loginToken.value = '';
+                    if (!editorOpen.value) loadPage(page.value);
                 } else { loginError.value = data.msg || 'Token 错误'; }
             } catch (e) { loginError.value = e.message; }
             loading.value = false;
         };
 
         const logout = async function() {
+            if (!leaveEditor()) return;
+            closeEditors();showArticleModal.value=false;showDeleteModal.value=false;imageViewer.value.visible=false;
             try { await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) {}
             isLoggedIn.value = false;
             localStorage.removeItem('ds_logged_in'); localStorage.removeItem('ds_token'); loginToken.value = '';
             if (connInterval) { clearInterval(connInterval); connInterval = null; }
         };
 
-        const navigate = function(p) { page.value = p; loadPage(p); };
+        const navigate = function(p) { if (!leaveEditor()) return; closeEditors(); articleRequest++;diaryRequest++;bookRequest++; page.value = p; searchKeyword.value = ''; mobileDetail.value = false; loadPage(p); };
         const loadPage = function(p) {
             if (p === 'dashboard') loadDashboard();
             else if (p === 'articles') loadArticles();
@@ -178,6 +219,123 @@ createApp({
         }
 
 
+        const isCollectionPage = computed(function() { return ['articles','diary','books'].includes(page.value); });
+        const mobileDetail = ref(false);
+        const listError = ref('');
+        const editConflict = ref(false);
+        const editorDraftStatus = ref('');
+        const editorInitial = ref('');
+        const editorVersion = ref('');
+        const articleFilter = ref('all');
+        const showArticleEditor = ref(false);
+        const articleEditTitle = ref('');
+        const articleEditComment = ref('');
+        const savingArticle = ref(false);
+        const reloadingEditor = ref(false);
+        let articleRequest = 0, diaryRequest = 0, bookRequest = 0, detailRequest = 0;
+        const editorOpen = computed(function() { return showArticleEditor.value || showDiaryEditorModal.value || showAddBookModal.value || showViewpointModal.value; });
+        const editorBusy = computed(function() { return reloadingEditor.value || savingArticle.value || savingDiary.value || addingBook.value || savingViewpoint.value; });
+        const editorDirty = computed(function() { return showDiaryEditorModal.value ? diaryHasUnsavedChanges.value : editorOpen.value && editorSnapshot() !== editorInitial.value; });
+
+        function editorSnapshot() {
+            if (showArticleEditor.value) return JSON.stringify({title:articleEditTitle.value,comment:articleEditComment.value});
+            if (showViewpointModal.value) return JSON.stringify({title:viewpointTitle.value,content:viewpointContent.value,example:viewpointExample.value});
+            if (showAddBookModal.value) return JSON.stringify({title:newBookTitle.value,author:newBookAuthor.value,category:newBookCategory.value,cover:newBookCover.value,introduction:newBookIntroduction.value});
+            return '';
+        }
+        function editorDraftKey() {
+            if (showArticleEditor.value) return 'ds_article_draft_' + detailItem.value.id;
+            if (showViewpointModal.value) return 'ds_viewpoint_draft_' + (editingViewpointId.value || ('new_' + (currentBook.value || {}).id));
+            return 'ds_book_draft_' + (editingBookId.value || 'new');
+        }
+        function saveEditorDraft() {
+            if (!editorOpen.value || showDiaryEditorModal.value || !editorDirty.value) return;
+            try { localStorage.setItem(editorDraftKey(), JSON.stringify({snapshot:editorSnapshot(),sourceVersion:editorVersion.value})); editorDraftStatus.value = '草稿已保存到本机'; }
+            catch (e) { editorDraftStatus.value = '草稿保存失败，请勿关闭页面'; }
+        }
+        function beginEditor(version) {
+            editorVersion.value = version || ''; editConflict.value = false;
+            editorInitial.value = editorSnapshot(); editorDraftStatus.value = '';
+            try {
+                const saved = JSON.parse(localStorage.getItem(editorDraftKey()) || 'null');
+                if (!saved || !saved.snapshot) return;
+                const values = JSON.parse(saved.snapshot);
+                if (showArticleEditor.value) { articleEditTitle.value=values.title||''; articleEditComment.value=values.comment||''; }
+                else if (showViewpointModal.value) { viewpointTitle.value=values.title||'';viewpointContent.value=values.content||'';viewpointExample.value=values.example||''; }
+                else { newBookTitle.value=values.title||'';newBookAuthor.value=values.author||'';newBookCategory.value=values.category||'';newBookCover.value=values.cover||'';newBookIntroduction.value=values.introduction||''; }
+                editConflict.value = saved.sourceVersion !== editorVersion.value;
+                if (editConflict.value) editorVersion.value = saved.sourceVersion || '';
+                editorDraftStatus.value = '已恢复本机草稿';
+            } catch (e) { editorDraftStatus.value = '草稿读取失败，请保留原草稿'; }
+        }
+        function leaveEditor() {
+            if (editorBusy.value) { showToast('正在保存，请稍候'); return false; }
+            if (!editorDirty.value) return true;
+            if (showDiaryEditorModal.value) persistDiaryDraft(); else saveEditorDraft();
+            const status=showDiaryEditorModal.value?diaryDraftStatus.value:editorDraftStatus.value;
+            return window.confirm(status.includes('失败')?'草稿保存失败，离开可能丢失修改。建议先导出草稿。仍要离开？':'修改尚未保存到手机。确定离开编辑器？本机草稿将保留。');
+        }
+        function closeEditors() {
+            detailRequest++; detailLoading.value=false;diaryDetailLoading.value=false;
+            persistDiaryDraft(); saveEditorDraft();
+            if (diaryDraftTimer) clearTimeout(diaryDraftTimer);
+            showArticleEditor.value = showDiaryEditorModal.value = showAddBookModal.value = showViewpointModal.value = false;
+            editConflict.value = false;
+        }
+        function cancelEditor() { if (leaveEditor()) closeEditors(); }
+        function refreshCollection() { loadPage(page.value); checkConnection(); }
+        function newItem() {
+            if (!leaveEditor()) return;
+            closeEditors(); mobileDetail.value=true;
+            if (page.value==='articles') showArticleModal.value=true;
+            else if (page.value==='diary') openDiaryEditor();
+            else openBookEditor(null);
+        }
+        function openArticleEditor() {
+            if (!leaveEditor()) return;
+            closeEditors(); articleEditTitle.value=detailItem.value.title||detailItem.value.aiTitle||'';
+            articleEditComment.value=detailItem.value.comment||'';showArticleEditor.value=true;
+            beginEditor(detailItem.value.version);
+        }
+        async function saveArticle() {
+            if (editorBusy.value || !articleEditTitle.value.trim()) return;
+            savingArticle.value=true;
+            try {
+                const result=await apiReq('/articles/'+detailItem.value.id,{method:'PUT',body:JSON.stringify({title:articleEditTitle.value.trim(),comment:articleEditComment.value,version:editorVersion.value})});
+                Object.assign(detailItem.value,result); localStorage.removeItem(editorDraftKey());
+                showArticleEditor.value=false; editConflict.value=false; loadArticles(pagination.value.page); showToast('文章已更新');
+            } catch(e) { saveEditorDraft(); showToast(e.message,'error'); }
+            savingArticle.value=false;
+        }
+        async function reloadEditor() {
+            if(editorBusy.value)return;
+            if (!window.confirm('重新读取会替换当前编辑文字，并清除本机草稿。请先导出草稿。仍要继续吗？')) return;
+            const kind=showArticleEditor.value?'article':showDiaryEditorModal.value?'diary':showViewpointModal.value?'viewpoint':'book';
+            const id=kind==='article'?detailItem.value.id:kind==='diary'?editingDiaryId.value:kind==='viewpoint'?editingViewpointId.value:editingBookId.value;
+            if (!id) return;
+            reloadingEditor.value=true;
+            try {
+                const endpoint={article:'/articles/',diary:'/diary/',viewpoint:'/books/viewpoints/',book:'/books/'}[kind];
+                const fresh=await apiReq(endpoint+id);
+                // Do not restore the stale draft over the explicitly reloaded record.
+                if(kind==='diary') { clearDiaryDraft(); diaryContent.value=fresh.content||'';diaryTags.value=fresh.tags||'';diaryMood.value=fresh.mood||'';diarySourceVersion.value=fresh.version;diaryInitialSnapshot.value=diarySnapshot(); }
+                else {
+                    localStorage.removeItem(editorDraftKey());
+                    if(kind==='article') {detailItem.value=fresh;articleEditTitle.value=fresh.title||'';articleEditComment.value=fresh.comment||'';}
+                    else if(kind==='viewpoint') {viewpointTitle.value=fresh.title;viewpointContent.value=fresh.content;viewpointExample.value=fresh.example;}
+                    else {newBookTitle.value=fresh.title;newBookAuthor.value=fresh.author;newBookCategory.value=fresh.category;newBookCover.value=fresh.coverImage;newBookIntroduction.value=fresh.introduction;}
+                    editorVersion.value=fresh.version;editorInitial.value=editorSnapshot();
+                }
+                editConflict.value=false;
+            } catch(e) {showToast(e.message,'error');}
+            finally{reloadingEditor.value=false;}
+        }
+        function downloadCurrentDraft() {
+            const content=showDiaryEditorModal.value?diaryContent.value:editorSnapshot();
+            const url=URL.createObjectURL(new Blob([content],{type:'text/plain;charset=utf-8'}));
+            const a=document.createElement('a');a.href=url;a.download='Daily-Satori-draft.txt';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+        }
+
         // Articles
         const articles = ref([]);
         const articlesLoading = ref(false);
@@ -191,25 +349,27 @@ createApp({
         const articleActionLoading = ref(false);
         const articleTab = ref('summary');
 
-        async function loadArticles(p, search) {
+        async function loadArticles(p) {
             p = p || 1;
-            articlesLoading.value = true;
+            const request = ++articleRequest; articlesLoading.value = true; listError.value = '';
             try {
-                const ep = search && searchKeyword.value
-                    ? '/articles/search?q=' + encodeURIComponent(searchKeyword.value)
-                    : '/articles?page=' + p;
+                const query = searchKeyword.value.trim();
+                const ep = (query ? '/articles/search?q=' + encodeURIComponent(query) + '&' : '/articles?') +
+                    'page=' + p + '&favorites=' + (articleFilter.value === 'favorite');
                 const data = await apiReq(ep);
+                if (request !== articleRequest) return;
                 articles.value = data.items || [];
-                pagination.value = data.pagination || { page: 1, totalPages: 1, totalItems: 0 };
-            } catch (e) { showToast(e.message, 'error'); }
-            articlesLoading.value = false;
+                pagination.value = data.pagination || {page:1,totalPages:1,totalItems:articles.value.length};
+            } catch (e) { if(request===articleRequest) listError.value=e.message; }
+            finally { if(request===articleRequest) articlesLoading.value=false; }
         }
-
         const viewArticle = async function(a) {
-            showDetailModal.value = true; detailLoading.value = true; articleTab.value = 'summary';
-            try { detailItem.value = await apiReq('/articles/' + a.id); }
-            catch (e) { showToast(e.message, 'error'); showDetailModal.value = false; }
-            detailLoading.value = false;
+            if (!leaveEditor()) return;
+            closeEditors(); mobileDetail.value=true;
+            const request=++detailRequest; showDetailModal.value=true;detailLoading.value=true;detailItem.value={};articleTab.value='summary';
+            try { const item=await apiReq('/articles/'+a.id);if(request===detailRequest)detailItem.value=item; }
+            catch(e) { if(request===detailRequest)showToast(e.message,'error'); }
+            finally {if(request===detailRequest)detailLoading.value=false;}
         };
 
         const submitArticle = async function() {
@@ -229,7 +389,7 @@ createApp({
             articleActionLoading.value = true;
             try {
                 const result = await apiReq('/articles/' + detailItem.value.id + '/favorite', { method: 'POST' });
-                detailItem.value.isFavorite = result.isFavorite;
+                Object.assign(detailItem.value,result);
                 showToast(result.isFavorite ? '已收藏' : '已取消收藏');
                 loadArticles(pagination.value.page);
             } catch (e) { showToast(e.message, 'error'); }
@@ -261,10 +421,11 @@ createApp({
         const diaryTags = ref('');
         const diaryMood = ref('');
         const savingDiary = ref(false);
-        const showDiaryPreview = ref(false);
+        const showDiaryPreview = ref(true);
         const diaryEditorInput = ref(null);
         const diaryInitialSnapshot = ref('');
         const diarySourceUpdatedAt = ref(0);
+        const diarySourceVersion = ref('');
         const diaryDraftStatus = ref('');
         const diaryInspirationPrompts = [
             '此刻，最想诚实面对的是什么？',
@@ -306,28 +467,23 @@ createApp({
             });
         });
 
-        async function loadDiaries(p, search) {
-            p = p || 1;
-            diariesLoading.value = true;
+        async function loadDiaries(p) {
+            p=p||1; const request=++diaryRequest; diariesLoading.value=true;listError.value='';
             try {
-                const ep = search && searchKeyword.value
-                    ? '/diary/search?q=' + encodeURIComponent(searchKeyword.value)
-                    : '/diary?page=' + p;
-                const data = await apiReq(ep);
-                diaries.value = data.items || [];
-                diaryPagination.value = data.pagination || { page: 1, totalPages: 1, totalItems: 0 };
-                selectedDiary.value = null;
-                if (selectedDiaryMonth.value !== 'all' && !diaryMonths.value.some(function(month) { return month.key === selectedDiaryMonth.value; })) selectedDiaryMonth.value = 'all';
-            } catch (e) { showToast(e.message, 'error'); }
-            diariesLoading.value = false;
+                const query=searchKeyword.value.trim();
+                const ep=(query?'/diary/search?q='+encodeURIComponent(query)+'&':'/diary?')+'page='+p;
+                const data=await apiReq(ep);if(request!==diaryRequest)return;
+                diaries.value=data.items||[];
+                diaryPagination.value=data.pagination||{page:1,totalPages:1,totalItems:diaries.value.length};
+            } catch(e) {if(request===diaryRequest)listError.value=e.message;}
+            finally{if(request===diaryRequest)diariesLoading.value=false;}
         }
-
-        const viewDiary = async function(d) {
-            if (!d) return;
-            diaryDetailLoading.value = true;
-            try { selectedDiary.value = await apiReq('/diary/' + d.id); }
-            catch (e) { showToast(e.message, 'error'); }
-            diaryDetailLoading.value = false;
+        const viewDiary=async function(d){
+            if(!d||!leaveEditor())return;
+            closeEditors();mobileDetail.value=true;const request=++detailRequest;diaryDetailLoading.value=true;selectedDiary.value=null;
+            try{const item=await apiReq('/diary/'+d.id);if(request===detailRequest)selectedDiary.value=item;}
+            catch(e){if(request===detailRequest)showToast(e.message,'error');}
+            finally{if(request===detailRequest)diaryDetailLoading.value=false;}
         };
 
         function closeDiaryReader() { selectedDiary.value = null; }
@@ -353,11 +509,14 @@ createApp({
         function diaryWeekday(value) { return new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(new Date(value)); }
 
         const editDiary = function(d) {
+            if (!leaveEditor()) return;
+            closeEditors(); mobileDetail.value=true; editConflict.value=false;
             editingDiaryId.value = d.id;
             diaryContent.value = d.content || '';
             diaryTags.value = d.tags || '';
             diaryMood.value = d.mood || '';
             diarySourceUpdatedAt.value = d.updatedAt || 0;
+            diarySourceVersion.value = d.version || '';
             diaryInitialSnapshot.value = diarySnapshot();
             showDiaryDetailModal.value = false;
             showDiaryEditorModal.value = true;
@@ -366,9 +525,11 @@ createApp({
         };
 
         const openDiaryEditor = function() {
+            if (!leaveEditor()) return;
+            closeEditors(); mobileDetail.value=true; editConflict.value=false;
             editingDiaryId.value = null;
             diaryContent.value = ''; diaryTags.value = ''; diaryMood.value = '';
-            diarySourceUpdatedAt.value = 0;
+            diarySourceUpdatedAt.value = 0; diarySourceVersion.value='';
             diaryInitialSnapshot.value = diarySnapshot();
             showDiaryEditorModal.value = true;
             restoreDiaryDraft();
@@ -387,7 +548,8 @@ createApp({
             try {
                 const saved = JSON.parse(localStorage.getItem(diaryDraftKey()) || 'null');
                 if (!saved || !saved.snapshot) return;
-                if (editingDiaryId.value && saved.sourceUpdatedAt !== diarySourceUpdatedAt.value) return;
+                editConflict.value = !!editingDiaryId.value && saved.sourceVersion !== diarySourceVersion.value;
+                if(editConflict.value) diarySourceVersion.value=saved.sourceVersion||'';
                 const draft = JSON.parse(saved.snapshot);
                 diaryContent.value = draft.content || '';
                 diaryTags.value = draft.tags || '';
@@ -397,18 +559,17 @@ createApp({
             } catch (e) { localStorage.removeItem(diaryDraftKey()); }
         }
 
+        function persistDiaryDraft() {
+            if(!showDiaryEditorModal.value || !diaryHasUnsavedChanges.value)return;
+            try {
+                localStorage.setItem(diaryDraftKey(),JSON.stringify({snapshot:diarySnapshot(),sourceUpdatedAt:diarySourceUpdatedAt.value,sourceVersion:diarySourceVersion.value,savedAt:Date.now()}));
+                diaryDraftStatus.value='草稿已保存到本机';
+            } catch(e) {diaryDraftStatus.value='草稿保存失败，请勿关闭页面';}
+        }
         function scheduleDiaryDraft() {
-            if (!showDiaryEditorModal.value) return;
-            if (diaryDraftTimer) clearTimeout(diaryDraftTimer);
-            diaryDraftStatus.value = '正在保存草稿…';
-            diaryDraftTimer = setTimeout(function() {
-                try {
-                    localStorage.setItem(diaryDraftKey(), JSON.stringify({
-                        snapshot: diarySnapshot(), sourceUpdatedAt: diarySourceUpdatedAt.value, savedAt: Date.now()
-                    }));
-                    diaryDraftStatus.value = '草稿已保存';
-                } catch (e) { diaryDraftStatus.value = '草稿保存失败'; }
-            }, 650);
+            if(!showDiaryEditorModal.value)return;
+            if(diaryDraftTimer)clearTimeout(diaryDraftTimer);
+            diaryDraftTimer=setTimeout(persistDiaryDraft,650);
         }
 
         function clearDiaryDraft() {
@@ -418,10 +579,7 @@ createApp({
             diaryDraftStatus.value = '';
         }
 
-        function closeDiaryEditor() {
-            if (diaryHasUnsavedChanges.value && !window.confirm('当前修改尚未发布，草稿会保留在这台电脑上。确定关闭编辑器吗？')) return;
-            showDiaryEditorModal.value = false;
-        }
+        function closeDiaryEditor() { cancelEditor(); }
 
         function focusDiaryEditor() {
             nextTick(function() { if (diaryEditorInput.value) diaryEditorInput.value.focus(); });
@@ -461,24 +619,21 @@ createApp({
         watch([diaryContent, diaryTags, diaryMood], scheduleDiaryDraft);
 
         const saveDiary = async function() {
-            if (!diaryContent.value.trim()) return;
+            if (editorBusy.value || !diaryContent.value.trim()) return;
             savingDiary.value = true;
             const body = JSON.stringify({
                 content: diaryContent.value.trim(),
                 tags: diaryTags.value.trim() || null,
-                mood: diaryMood.value.trim() || null
+                mood: diaryMood.value.trim() || null, version: diarySourceVersion.value
             });
             try {
-                if (editingDiaryId.value) {
-                    await apiReq('/diary/' + editingDiaryId.value, { method: 'PUT', body: body });
-                } else {
-                    await apiReq('/diary', { method: 'POST', body: body });
-                }
+                const saved = await apiReq(editingDiaryId.value ? '/diary/' + editingDiaryId.value : '/diary', { method: editingDiaryId.value ? 'PUT' : 'POST', body: body });
+                selectedDiary.value=Object.assign({},selectedDiary.value||{},saved);
                 showToast(editingDiaryId.value ? '日记已更新' : '日记已添加');
                 clearDiaryDraft();
                 diaryInitialSnapshot.value = diarySnapshot();
-                showDiaryEditorModal.value = false;
-                loadDiaries();
+                showDiaryEditorModal.value = false; editConflict.value=false;
+                loadDiaries(diaryPagination.value.page);
             } catch (e) { showToast(e.message, 'error'); }
             savingDiary.value = false;
         };
@@ -507,12 +662,13 @@ createApp({
         const currentBook = computed(function() { return books.value[currentBookIndex.value] || null; });
 
         async function loadBooks(search) {
-            booksLoading.value = true;
+            const request=++bookRequest; booksLoading.value = true;listError.value='';
             try {
-                const endpoint = search && searchKeyword.value
+                const endpoint = searchKeyword.value
                     ? '/books/search?q=' + encodeURIComponent(searchKeyword.value)
                     : '/books';
                 const data = await apiReq(endpoint);
+                if(request!==bookRequest)return;
                 const selectedBookId = currentBook.value && currentBook.value.id;
                 books.value = data.items || [];
                 if (books.value.length > 0 && showBookDetail.value) {
@@ -520,11 +676,12 @@ createApp({
                     currentBookIndex.value = preservedIndex >= 0 ? preservedIndex : 0;
                     await loadViewpoints(books.value[currentBookIndex.value].id);
                 } else if (!showBookDetail.value || books.value.length === 0) currentBookIndex.value = -1;
-            } catch (e) { showToast(e.message, 'error'); }
-            booksLoading.value = false;
+            } catch (e) { if(request===bookRequest)listError.value=e.message; }
+            finally {if(request===bookRequest)booksLoading.value=false;}
         }
 
         const selectBook = async function(i) {
+            if(!leaveEditor())return;closeEditors();mobileDetail.value=true;
             currentBookIndex.value = i;
             showBookDetail.value = true;
             if (books.value[i]) await loadViewpoints(books.value[i].id);
@@ -537,66 +694,84 @@ createApp({
         }
 
         async function loadViewpoints(bookId) {
+            const request=++detailRequest;
             bookViewpointsLoading.value = true;
             currentBookViewpoints.value = [];
             try {
                 const data = await apiReq('/books/' + bookId + '/viewpoints');
-                currentBookViewpoints.value = data.items || [];
-            } catch (e) {}
-            bookViewpointsLoading.value = false;
+                if(request===detailRequest)currentBookViewpoints.value = data.items || [];
+            } catch (e) { if(request===detailRequest)showToast(e.message,'error'); }
+            finally{if(request===detailRequest)bookViewpointsLoading.value=false;}
         }
 
         const openBookEditor = function(book) {
+            if(!leaveEditor())return;closeEditors();mobileDetail.value=true;
             editingBookId.value = book ? book.id : null;
             newBookTitle.value = book ? book.title : '';
             newBookAuthor.value = book ? book.author : '';
             newBookCategory.value = book ? book.category : '';
             newBookCover.value = book ? book.coverImage : '';
             newBookIntroduction.value = book ? book.introduction : '';
-            showAddBookModal.value = true;
+            showAddBookModal.value = true;beginEditor(book&&book.version);
         };
 
         const submitNewBook = async function() {
-            if (!newBookTitle.value.trim()) return;
+            if (editorBusy.value || !newBookTitle.value.trim()) return;
             addingBook.value = true;
             try {
                 const body = JSON.stringify({
                     title: newBookTitle.value.trim(), author: newBookAuthor.value.trim(),
                     category: newBookCategory.value.trim(), coverImage: newBookCover.value.trim(),
-                    introduction: newBookIntroduction.value.trim()
+                    introduction: newBookIntroduction.value.trim(), version:editorVersion.value
                 });
                 const endpoint = editingBookId.value ? '/books/' + editingBookId.value : '/books';
                 await apiReq(endpoint, { method: editingBookId.value ? 'PUT' : 'POST', body: body });
                 showToast(editingBookId.value ? '书籍已更新' : '书籍已添加');
-                showAddBookModal.value = false;
+                localStorage.removeItem(editorDraftKey());showAddBookModal.value = false;editConflict.value=false;
                 loadBooks();
             } catch (e) { showToast(e.message, 'error'); }
             addingBook.value = false;
         };
 
         const openViewpointEditor = function(viewpoint) {
+            if(!leaveEditor())return;closeEditors();mobileDetail.value=true;
             editingViewpointId.value = viewpoint ? viewpoint.id : null;
             viewpointTitle.value = viewpoint ? viewpoint.title : '';
             viewpointContent.value = viewpoint ? viewpoint.content : '';
             viewpointExample.value = viewpoint ? viewpoint.example : '';
-            showViewpointModal.value = true;
+            showViewpointModal.value = true;beginEditor(viewpoint&&viewpoint.version);
         };
 
         const saveViewpoint = async function() {
-            if (!currentBook.value || !viewpointTitle.value.trim()) return;
+            if (editorBusy.value || !currentBook.value || !viewpointTitle.value.trim()) return;
             savingViewpoint.value = true;
             try {
-                const body = JSON.stringify({ title: viewpointTitle.value.trim(), content: viewpointContent.value.trim(), example: viewpointExample.value.trim() });
+                const body = JSON.stringify({ title: viewpointTitle.value.trim(), content: viewpointContent.value.trim(), example: viewpointExample.value.trim(), version:editorVersion.value });
                 const endpoint = editingViewpointId.value
                     ? '/books/viewpoints/' + editingViewpointId.value
                     : '/books/' + currentBook.value.id + '/viewpoints';
                 await apiReq(endpoint, { method: editingViewpointId.value ? 'PUT' : 'POST', body: body });
                 showToast(editingViewpointId.value ? '感悟已更新' : '感悟已添加');
-                showViewpointModal.value = false;
+                localStorage.removeItem(editorDraftKey());showViewpointModal.value = false;editConflict.value=false;
                 loadViewpoints(currentBook.value.id);
             } catch (e) { showToast(e.message, 'error'); }
             savingViewpoint.value = false;
         };
+
+        let editorDraftTimer=null;
+        function scheduleEditorDraft(){clearTimeout(editorDraftTimer);editorDraftTimer=setTimeout(saveEditorDraft,400);}
+        watch([articleEditTitle,articleEditComment,newBookTitle,newBookAuthor,newBookCategory,newBookCover,newBookIntroduction,viewpointTitle,viewpointContent,viewpointExample],scheduleEditorDraft);
+
+        const collectionItems=computed(function(){return page.value==='articles'?articles.value:page.value==='diary'?filteredDiaries.value:books.value;});
+        const collectionLoading=computed(function(){return page.value==='articles'?articlesLoading.value:page.value==='diary'?diariesLoading.value:booksLoading.value;});
+        const collectionPagination=computed(function(){return page.value==='articles'?pagination.value:page.value==='diary'?diaryPagination.value:{page:1,totalPages:1};});
+        const collectionCount=computed(function(){return page.value==='books'?books.value.length:(collectionPagination.value.totalItems||collectionItems.value.length);});
+        const selectedItemId=computed(function(){return page.value==='articles'?detailItem.value.id:page.value==='diary'?(selectedDiary.value||{}).id:(currentBook.value||{}).id;});
+        const diaryEditorDate=computed(function(){const d=diaries.value.find(function(d){return d.id===editingDiaryId.value;});return d?formatDiaryDay(d.createdAt,true):diaryDateLabel.value;});
+        function articleSource(url){try{return new URL(url).hostname.replace(/^www\./,'');}catch(e){return '个人收藏';}}
+        function selectItem(item){if(page.value==='articles')viewArticle(item);else if(page.value==='diary')viewDiary(item);else selectBook(books.value.findIndex(function(b){return b.id===item.id;}));}
+        function collectionPage(p){if(page.value==='articles')loadArticles(p);else loadDiaries(p);}
+        function saveActiveEditor(){if(showDiaryEditorModal.value)saveDiary();else if(showArticleEditor.value)saveArticle();else if(showViewpointModal.value)saveViewpoint();else submitNewBook();}
 
         // AI assistant
         const aiSessions = ref([]);
@@ -701,7 +876,9 @@ createApp({
         const deleteTarget = ref({ type: '', id: 0 });
         const confirmDelete = function(type, id) { deleteTarget.value = { type: type, id: id }; showDeleteModal.value = true; };
 
+        const deleting = ref(false);
         const executeDelete = async function() {
+            if(deleting.value||!leaveEditor())return;deleting.value=true;
             const t = deleteTarget.value;
             const map = { article: 'articles', diary: 'diary', book: 'books', viewpoint: 'books/viewpoints' };
             try {
@@ -709,47 +886,49 @@ createApp({
                 showToast('已删除');
                 showDeleteModal.value = showDetailModal.value = showDiaryDetailModal.value = false;
                 if (t.type === 'viewpoint' && currentBook.value) loadViewpoints(currentBook.value.id);
-                else loadPage(page.value);
+                else { if(t.type==='diary')selectedDiary.value=null;if(t.type==='book')closeBookDetail();loadPage(page.value); }
             } catch (e) { showToast(e.message, 'error'); }
+            finally {deleting.value=false;}
         };
 
         // Image viewer
         const imageViewer = ref({ visible: false, src: '' });
 
-        // Keyboard shortcuts
+        // Keyboard and page-lifecycle guards use the same editor ownership rules.
         function onKeydown(e) {
-            if (showDiaryEditorModal.value && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-                e.preventDefault(); saveDiary(); return;
-            }
-            if (e.ctrlKey && e.key === 'k') { e.preventDefault(); var el = document.querySelector('.search-input'); if (el) el.focus(); }
-            if (e.key === 'Escape') {
-                if (selectedDiary.value) selectedDiary.value = null;
-                else if (page.value === 'books' && showBookDetail.value) closeBookDetail();
-                showDetailModal.value = showDiaryDetailModal.value = false;
-                if (showDiaryEditorModal.value) closeDiaryEditor();
-                showArticleModal.value = showAddBookModal.value = showDeleteModal.value = false;
-                showViewpointModal.value = false;
-                imageViewer.value.visible = false;
-            }
-            if (e.key === 'n' && e.ctrlKey && !e.target.closest('input,textarea')) {
+            if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s' && editorOpen.value) {
                 e.preventDefault();
-                if (page.value === 'articles') showArticleModal.value = true;
-                if (page.value === 'diary') openDiaryEditor();
-                if (page.value === 'books') openBookEditor(null);
-                if (page.value === 'ai') newAiSession();
+                saveActiveEditor();
+                return;
             }
+            if (((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k') || (e.key==='/'&&!e.target.closest('input,textarea,select'))) {
+                e.preventDefault();const el=document.querySelector('.search-input');if(el)el.focus();
+            }
+            if(e.key==='Escape') {
+                if(imageViewer.value.visible){imageViewer.value.visible=false;return;}
+                if(showDeleteModal.value){showDeleteModal.value=false;return;}
+                if(editorOpen.value){cancelEditor();return;}
+                showArticleModal.value=false;mobileDetail.value=false;
+            }
+        }
+        function beforeUnload(e) {
+            persistDiaryDraft();saveEditorDraft();
+            if(editorDirty.value||editorBusy.value){e.preventDefault();e.returnValue='';}
         }
 
         // Init
         onMounted(async function() {
             document.addEventListener('keydown', onKeydown);
+            window.addEventListener('beforeunload',beforeUnload);
+            document.addEventListener('visibilitychange',function(){persistDiaryDraft();saveEditorDraft();});
             if (!isLoggedIn.value) return;
             try {
                 const data = await apiReq('/auth/status');
                 if (data.authenticated) {
                     checkConnection();
+                    if (connInterval) clearInterval(connInterval);
                     connInterval = setInterval(checkConnection, 10000);
-                    loadDashboard();
+                    loadPage(page.value);
                 } else { isLoggedIn.value = false; localStorage.removeItem('ds_logged_in'); }
             } catch (e) { isLoggedIn.value = false; localStorage.removeItem('ds_logged_in'); }
         });
@@ -758,6 +937,10 @@ createApp({
 
         return {
             isLoggedIn, connected, dark, sidebarCollapsed, toggleTheme,
+            collectionItems,collectionLoading,collectionPagination,collectionCount,selectedItemId,diaryEditorDate,articleSource,selectItem,collectionPage,saveActiveEditor,
+            isCollectionPage,mobileDetail,listError,editConflict,editorDraftStatus,editorDirty,editorBusy,editorOpen,
+            articleFilter,showArticleEditor,articleEditTitle,articleEditComment,savingArticle,openArticleEditor,saveArticle,
+            cancelEditor,refreshCollection,newItem,reloadEditor,downloadCurrentDraft,safeUrl,
             loginToken, loading, loginError, toasts, login, logout,
             page, pageTitle, searchKeyword, doSearch, navigate,
             formatDate, truncate, formatContent,
@@ -783,7 +966,7 @@ createApp({
             aiSessions, aiSessionsLoading, activeAiSessionId, aiMessages, aiMessagesLoading,
             aiInput, aiSending, loadAiSessions, selectAiSession, newAiSession, deleteAiSession, sendAiMessage,
             tasks, tasksLoading, showFinishedTasks, loadTasks, cancelTask, taskTypeName, taskStatusName,
-            showDeleteModal, confirmDelete, executeDelete,
+            showDeleteModal, confirmDelete, executeDelete,deleting,checkConnection,
             imageViewer,
         };
     }
