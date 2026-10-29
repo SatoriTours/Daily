@@ -39,7 +39,8 @@ internal class DatabaseSchemaUpgrade(
         try {
             open(database).useDriver { source ->
                 sourceVersion = version(source)
-                if (sourceVersion?.toLongOrNull() == DatabaseConfig.currentSchemaVersion) {
+                if (sourceVersion?.toLongOrNull() == DatabaseConfig.currentSchemaVersion &&
+                    DatabaseSchemaInventory.missingObjects(source).isEmpty()) {
                     DatabaseSchemaInventory.validate(source)
                     return
                 }

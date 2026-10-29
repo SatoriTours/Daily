@@ -41,13 +41,18 @@ class DatabaseMigration(
         log.i { "Current schema version: $currentVersion, target: ${DatabaseConfig.currentSchemaVersion}" }
 
         if (currentVersion == DatabaseConfig.currentSchemaVersion) {
+            DatabaseSchemaRepair.repair(driver, currentVersion)
             DatabaseSchemaInventory.validate(driver)
             log.i { "Database is up to date" }
             return
         }
 
-        // Known source contracts must be intact before a later rebuild can hide missing history.
-        if (currentVersion >= 38) DatabaseSchemaInventory.validate(driver,currentVersion)
+        // Old releases tolerated secondary DDL failures; recover only known projections/indexes.
+        // Missing business tables, columns, history or invalid relations still cannot be hidden.
+        if (currentVersion >= 38) {
+            DatabaseSchemaRepair.repair(driver, currentVersion)
+            DatabaseSchemaInventory.validate(driver,currentVersion)
+        }
 
         if (currentVersion < 1) {
             migrateV0ToV1()
@@ -1265,7 +1270,10 @@ class DatabaseMigration(
     }
 
     private fun migrateV38ToV39() {
-        try { DatabaseSchemaInventory.validate(driver, version = 39) }
+        try {
+            DatabaseSchemaRepair.repair(driver, 39)
+            DatabaseSchemaInventory.validate(driver, version = 39)
+        }
         catch (failure: Exception) {
             log.e { "Migration target verification failed" }
             throw failure

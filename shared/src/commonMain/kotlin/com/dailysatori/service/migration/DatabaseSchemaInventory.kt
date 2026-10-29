@@ -100,10 +100,19 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
     }
 
     fun validate(driver: SqlDriver, version: Long = com.dailysatori.config.DatabaseConfig.currentSchemaVersion) {
+        validateColumns(driver, version)
+        val missing = missingObjects(driver, version).keys
+        check(missing.isEmpty()) { "数据库索引或触发器不完整: ${missing.sorted().joinToString()}" }
+        if(version>=44) AssistantRelationsMigration.validateRelations(driver)
+        check(strings(driver, "PRAGMA foreign_key_check").isEmpty()) { "数据库关联完整性检查失败" }
+    }
+
+    internal fun validateColumns(driver: SqlDriver, version: Long, includeProjection: Boolean = true) {
         columns.filterKeys { (version>=46 || it!="reminder_ai_draft_legacy") &&
             (version>=45 || it!="diary_record") && (version>=41 || !it.startsWith("diary_tag_")) &&
             (version>=42 || it!="reminder_policy_snapshot") &&
-            (version>=43 || it !in setOf("idea_source_snapshot","idea_event_snapshot")) }.forEach { (table, all) ->
+            (version>=43 || it !in setOf("idea_source_snapshot","idea_event_snapshot")) &&
+            (includeProjection || it!="diary_record") }.forEach { (table, all) ->
             val found = strings(driver, "SELECT name FROM pragma_table_info('$table')").toSet()
             val expected=when {
                 version<45 && table=="diary" -> all+setOf("tags","images")
@@ -118,8 +127,11 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
             check(found.containsAll(expected)) { "数据库结构不完整: $table" }
             check(version<45 || table!="diary" || found.intersect(setOf("tags","images")).isEmpty()) { "日记退役字段仍存在" }
         }
+    }
+
+    fun missingObjects(driver: SqlDriver, version: Long = com.dailysatori.config.DatabaseConfig.currentSchemaVersion): Map<String, String> {
         val actual = strings(driver, "SELECT type || ':' || name FROM sqlite_master").toSet()
-        val expected=expectedObjects(driver).filterNot { name ->
+        return objectStatements(driver).filterKeys { name -> name !in actual && !(
             (version<46 && name=="table:reminder_ai_draft_legacy") ||
             (version<45 && name=="view:diary_record") ||
             (version<44 && name.substringAfter(':') in setOf("assistant_turn_links_insert","assistant_turn_links_update","assistant_message_links_insert","assistant_message_links_update","assistant_task_history_restrict")) ||
@@ -129,20 +141,17 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
                 name=="view:reminder_record" || name=="index:idx_reminder_policy_hash" || name=="index:idx_reminder_ai_draft_reminder")) ||
             (version<40 && name=="index:idx_diary_attachment_position") ||
                 (version<41 && (name.substringAfter(':').startsWith("diary_tag_") ||
-                    name=="index:idx_diary_tag_history_revision" || name=="view:diary_active_tags"))
+                    name=="index:idx_diary_tag_history_revision" || name=="view:diary_active_tags")))
         }
-        check(actual.containsAll(expected)) { "数据库索引或触发器不完整" }
-        if(version>=44) AssistantRelationsMigration.validateRelations(driver)
-        check(strings(driver, "PRAGMA foreign_key_check").isEmpty()) { "数据库关联完整性检查失败" }
     }
 
-    private fun expectedObjects(driver: SqlDriver): Set<String> {
-        val objects = mutableSetOf<String>()
+    private fun objectStatements(driver: SqlDriver): Map<String, String> {
+        val objects = linkedMapOf<String, String>()
         val pattern = Regex("CREATE\\s+(?:UNIQUE\\s+)?(TABLE|INDEX|TRIGGER|VIEW)\\s+(?:IF NOT EXISTS\\s+)?([a-zA-Z0-9_]+)", RegexOption.IGNORE_CASE)
         val recorder = object : SqlDriver by driver {
             override fun execute(identifier: Int?, sql: String, parameters: Int,
                 binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<Long> {
-                pattern.find(sql)?.let { objects += "${it.groupValues[1].lowercase()}:${it.groupValues[2]}" }
+                pattern.find(sql)?.let { objects["${it.groupValues[1].lowercase()}:${it.groupValues[2]}"] = sql }
                 return QueryResult.Value(0L)
             }
         }
