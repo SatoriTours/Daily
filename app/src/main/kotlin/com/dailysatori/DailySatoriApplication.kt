@@ -64,6 +64,7 @@ open class DailySatoriApplication : Application() {
     protected open suspend fun initializeRuntime() {
         startupNotice = com.dailysatori.service.security.DatabaseBootstrap.prepare(
             com.dailysatori.platform.PlatformContext(this),
+            onPreparationRequired = startup::requireDataPreparation,
         )
         var driver: app.cash.sqldelight.db.SqlDriver? = null
         try {

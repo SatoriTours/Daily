@@ -19,6 +19,13 @@ class StartupCoordinator(
 ) {
     private val mutableState = MutableStateFlow(StartupState.Idle)
     val state = mutableState.asStateFlow()
+    private val mutableDataPreparation = MutableStateFlow(false)
+    val dataPreparation = mutableDataPreparation.asStateFlow()
+
+    /** Only real migration/restore work opts into the data-preparation page. */
+    fun requireDataPreparation() {
+        mutableDataPreparation.value = true
+    }
 
     val isReady: Boolean get() = state.value == StartupState.Ready
 
@@ -26,6 +33,7 @@ class StartupCoordinator(
     @Synchronized
     fun start() {
         if (state.value == StartupState.Preparing || isReady) return
+        mutableDataPreparation.value = false
         mutableState.value = StartupState.Preparing
         scope.launch(dispatcher) {
             try {

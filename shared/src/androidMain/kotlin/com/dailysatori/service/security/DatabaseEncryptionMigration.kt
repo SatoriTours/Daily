@@ -17,7 +17,7 @@ internal class DatabaseEncryptionMigration(private val context: PlatformContext)
             factory.createBackupDriver(database.path, key).useDriver { validate(it) }
         })
 
-    fun ensureEncrypted() {
+    fun ensureEncrypted(onPreparationRequired: () -> Unit = {}) {
         val existingKey = keys.readExisting()
         if (database.exists() && !isPlaintextDatabase(database)) {
             val key = existingKey ?: throw DatabaseSecurityException()
@@ -27,6 +27,7 @@ internal class DatabaseEncryptionMigration(private val context: PlatformContext)
         val candidate = File(database.parentFile, "daily_satori.encrypted-candidate")
         if (!database.exists() && (existingKey != null || candidate.exists()))
             throw DatabaseSecurityException("数据库文件缺失，密钥和待转换数据已保留")
+        onPreparationRequired()
         candidate.parentFile?.mkdirs()
         cleanCandidate(candidate)
         val key = existingKey ?: DatabaseKey.generate()

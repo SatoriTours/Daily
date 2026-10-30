@@ -31,7 +31,7 @@ internal class DatabaseSchemaUpgrade(
 
     fun recoverPending() = transaction().applyPending()
 
-    fun upgrade() {
+    fun upgrade(onPreparationRequired: () -> Unit = {}) {
         recoverPending()
         check(database.isFile && keyFile.isFile) { "数据库或密钥缺失，待升级数据已保留" }
         var before: MigrationContentSnapshot? = null
@@ -45,6 +45,7 @@ internal class DatabaseSchemaUpgrade(
                     return
                 }
                 requireSupportedVersion(sourceVersion)
+                onPreparationRequired()
                 if (sourceVersion == null) DatabaseSchemaInventory.validate(source)
                 requireSpace()
                 cleanCandidate()

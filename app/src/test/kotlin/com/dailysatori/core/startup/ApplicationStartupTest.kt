@@ -54,7 +54,23 @@ class ApplicationStartupTest {
     }
 
     @Test
+    fun ordinaryInitializationDoesNotShowDataPreparationPage() {
+        val controller = Robolectric.buildActivity(WaitingStartupActivity::class.java, request("normal"))
+            .create().start().resume()
+        assertFalse(controller.get().waitingShown, "Ordinary database opening is not a data migration")
+        val content = controller.get().findViewById<android.view.View>(android.R.id.content)
+        assertTrue(content.viewTreeObserver.dispatchOnPreDraw(), "Keep the launch window while DI is unavailable")
+        assertTrue(controller.get().handled.isEmpty(), "Business DI must still wait for readiness")
+        completePreparation()
+        assertFalse(content.viewTreeObserver.dispatchOnPreDraw(), "Allow the normal page to draw immediately")
+        assertFalse(controller.get().waitingShown)
+        assertEquals(listOf("normal"), controller.get().handled)
+        controller.pause().stop().destroy()
+    }
+
+    @Test
     fun activityWaitsAndReplaysAllIntentsOnlyAfterReady() {
+        app.startup.requireDataPreparation()
         val controller = Robolectric.buildActivity(WaitingStartupActivity::class.java, request("initial"))
             .create().start().resume()
         val activity = controller.get()
@@ -65,6 +81,39 @@ class ApplicationStartupTest {
         completePreparation()
         assertEquals(listOf("initial", "oauth", "reminder"), activity.handled)
         assertEquals(1, app.runtimeStarts.get())
+        controller.pause().stop().destroy()
+    }
+
+    @Test
+    fun ordinaryInitializationFailureShowsRecoveryAndRetryStillWaitsForReadiness() {
+        val controller = Robolectric.buildActivity(WaitingStartupActivity::class.java, request("retry"))
+            .create().start().resume()
+        app.failPreparation = true
+        app.release.countDown()
+        runBlocking { withTimeout(5_000) { app.initializingJob.join() } }
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(controller.get().waitingShown)
+        assertTrue(controller.get().handled.isEmpty())
+        app.failPreparation = false
+        app.startup.start()
+        completePreparation()
+        assertEquals(listOf("retry"), controller.get().handled)
+        controller.pause().stop().destroy()
+    }
+
+    @Test
+    fun migrationDetectedAfterActivityStartShowsPreparationPage() {
+        val controller = Robolectric.buildActivity(WaitingStartupActivity::class.java, request("upgrade"))
+            .create().start().resume()
+        assertFalse(controller.get().waitingShown)
+        app.startup.requireDataPreparation()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(controller.get().waitingShown)
+        val content = controller.get().findViewById<android.view.View>(android.R.id.content)
+        assertFalse(content.viewTreeObserver.dispatchOnPreDraw(), "Real migration progress must be drawable")
+        assertTrue(controller.get().handled.isEmpty())
+        completePreparation()
+        assertEquals(listOf("upgrade"), controller.get().handled)
         controller.pause().stop().destroy()
     }
 

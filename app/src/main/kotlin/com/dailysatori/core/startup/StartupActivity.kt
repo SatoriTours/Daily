@@ -16,7 +16,8 @@ import com.dailysatori.DailySatoriApplication
 import com.dailysatori.DiagnosticRecoveryActivity
 import com.dailysatori.core.service.I18nInitializer
 import com.dailysatori.ui.theme.DailySatoriTheme
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import android.view.ViewTreeObserver
 import kotlinx.coroutines.launch
 
 /** No business DI, locale lookup or saved-state consumer runs before the database is ready. */
@@ -25,6 +26,7 @@ abstract class StartupActivity : ComponentActivity() {
         private set
     private var attachedLanguage: String? = null
     private val pendingIntents = arrayListOf<Intent>()
+    private var startupShown = false
 
     override fun attachBaseContext(newBase: Context) {
         val app = newBase.applicationContext as DailySatoriApplication
@@ -43,14 +45,35 @@ abstract class StartupActivity : ComponentActivity() {
         else if (!appStartup.isReady) pendingIntents.add(Intent(intent))
         enableEdgeToEdge()
         if (appStartup.isReady) openBusiness(savedInstanceState) else {
-            showStartup()
+            retainLaunchWindow()
             lifecycleScope.launch {
                 lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    appStartup.state.first { it == StartupState.Ready }
-                    openBusiness(savedInstanceState)
+                    combine(appStartup.state, appStartup.dataPreparation) { state, preparing ->
+                        state to preparing
+                    }.collect { (state, preparing) ->
+                        when {
+                            state == StartupState.Ready -> openBusiness(savedInstanceState)
+                            !startupShown && (preparing || state == StartupState.Failed) -> {
+                                startupShown = true
+                                showStartup()
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /** Keep the launch window for ordinary initialization; do not flash a migration page. */
+    private fun retainLaunchWindow() {
+        val content = findViewById<android.view.View>(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (!businessReady && !startupShown) return false
+                content.viewTreeObserver.removeOnPreDrawListener(this)
+                return true
+            }
+        })
     }
 
     protected open fun showStartup() {

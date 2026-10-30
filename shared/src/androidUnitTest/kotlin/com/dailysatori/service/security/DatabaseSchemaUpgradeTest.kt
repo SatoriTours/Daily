@@ -50,14 +50,18 @@ class DatabaseSchemaUpgradeTest {
 
     @Test fun version38IsUpgradedOnCopyAndOriginalInputsAndWrappedKeySurvive() = fixture { root, db, key ->
         val envelope = key.readBytes()
-        upgrade(root, db, key).upgrade()
+        var preparationNotices = 0
+        upgrade(root, db, key).upgrade { preparationNotices++ }
+        assertEquals(1, preparationNotices, "A real schema upgrade must opt into the preparation page")
         jdbc(db).use { driver ->
             assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings(driver).get(SettingKeys.schemaVersion))
             assertOriginal(driver)
         }
         assertContentEquals(envelope, key.readBytes())
         assertFalse(File(db.path + ".schema-candidate").exists())
-        upgrade(root, db, key, export = { _, _ -> error("must not export current schema") }).upgrade()
+        upgrade(root, db, key, export = { _, _ -> error("must not export current schema") }).upgrade {
+            error("Completed migration must not show the preparation page on subsequent launches")
+        }
         jdbc(db).use(::assertOriginal)
     }
 
