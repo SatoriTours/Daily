@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.dailysatori.core.diagnostics.DiagnosticRecoveryReader
@@ -37,18 +38,29 @@ class DiagnosticRecoveryActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Transfer the launch window to MainActivity without drawing an empty routing frame.
+        splashScreen.setKeepOnScreenCondition { !viewModel.state.value.showRecovery }
         enableEdgeToEdge()
         setContent {
             DailySatoriTheme {
                 DiagnosticRecoveryScreen(viewModel, onInstall = ::installUpdate) {
-                    // Only a foreground launch owns this marker; background workers are not failed UI launches.
-                    DiagnosticRecoveryReader.startupStarted(File(noBackupFilesDir, "diagnostics"))
-                    startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
-                    finish()
+                    continueToMain()
                 }
             }
         }
+    }
+
+    private fun continueToMain() {
+        // Keep consuming the one-shot startup event and routing atomic across Activity recreation.
+        DiagnosticRecoveryReader.startupStarted(File(noBackupFilesDir, "diagnostics"))
+        startActivity(Intent(this, MainActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NO_ANIMATION,
+        ))
+        finish()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
     }
 
     private fun installUpdate() {

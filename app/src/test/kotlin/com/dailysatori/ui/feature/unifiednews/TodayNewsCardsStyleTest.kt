@@ -26,18 +26,23 @@ class TodayNewsCardsStyleTest {
     }
 
     @Test
-    fun focusCardsPutMetadataAndActionsBelowTheContent() {
+    fun focusCardsKeepReadableContentAndCompactMetadataWithIndependentTopicAction() {
         val card = cards.substringAfter("internal fun TodayNewsOpportunityCard(")
-        val description = card.indexOf("Text(item.relevance.ifBlank { item.action }")
-        val divider = card.indexOf("HorizontalDivider(")
-        val source = card.indexOf("Text(item.article.source")
+        val title = card.indexOf("Text(item.title")
+        val description = card.indexOf("Text(description")
+        val metadata = card.indexOf("listOf(item.category, item.article.source)")
 
-        assertTrue(description >= 0 && divider > description && source > divider,
-            "关注卡片先展示分类、标题和摘要，再展示底部来源与操作")
-        assertTrue(card.contains("Text(stringResource(R.string.news_focus_view_opportunity)"))
-        assertTrue(card.contains("RoundedCornerShape(Radius.m)"))
+        assertTrue(title >= 0 && description > title && metadata > description,
+            "标题和摘要优先，分类与来源合并为底部元信息")
+        assertFalse(card.contains("Card(onClick"), "关注条目不再使用卡片容器")
+        assertTrue(card.contains("if (showDivider) HorizontalDivider"), "只在条目之间使用分隔线")
+        assertTrue(card.contains("onClickLabel = stringResource(R.string.news_focus_view_opportunity)"),
+            "详情操作保留无障碍说明")
+        assertFalse(card.contains("maxLines"), "长标题和摘要完整展示")
+        assertFalse(card.contains("Height.buttonSmall"), "点子操作保留默认触摸区域")
         assertTrue(card.contains("onClick = onOpen"))
-        assertTrue(card.contains("IconButton(onClick = onTopicAction"), "保留收为点子和查看已有点子的入口")
+        assertTrue(card.contains("TextButton(onClick = onTopicAction"))
+        assertTrue(card.contains("opportunityActionLabelKey(isCaptured)"), "保留收为点子和查看已有点子的入口")
     }
 
     @Test

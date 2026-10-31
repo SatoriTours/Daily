@@ -2015,7 +2015,7 @@ class UnifiedNewsBehaviorTest {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
         assertTrue(screen.contains("DailyHeadlinesPreview(entry,"))
-        assertTrue(screen.contains("items(recommendations,"))
+        assertTrue(screen.contains("itemsIndexed(recommendations,"))
         assertTrue(screen.contains("OpportunitySectionHeader"))
         assertFalse(screen.contains("Text(summary.title"))
         assertTrue(viewModel.contains("summaryRepo.getAll()"))

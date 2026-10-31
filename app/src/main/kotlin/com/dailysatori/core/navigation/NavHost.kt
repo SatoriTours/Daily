@@ -1,6 +1,7 @@
 package com.dailysatori.core.navigation
 
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -73,7 +74,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
         composable<HomeRoute>(
-            enterTransition = { fadeIn(animationSpec = tween(ANIM_DURATION)) },
+            enterTransition = { EnterTransition.None },
+            popEnterTransition = { fadeIn(animationSpec = tween(ANIM_DURATION)) },
             exitTransition = {
                 slideOutHorizontally(
                     animationSpec = tween(ANIM_DURATION),

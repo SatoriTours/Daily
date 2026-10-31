@@ -55,7 +55,35 @@ class ApplicationStartupTest {
 
     @Test
     fun ordinaryInitializationDoesNotShowDataPreparationPage() {
-        val controller = Robolectric.buildActivity(WaitingStartupActivity::class.java, request("normal"))
+        assertLaunchWindowUntilReady(WaitingStartupActivity::class.java)
+    }
+
+    @Test
+    fun systemSplashStaysUntilBusinessCanDraw() {
+        assertLaunchWindowUntilReady(SplashWaitingStartupActivity::class.java)
+    }
+
+    @Test
+    fun destroyedActivityDoesNotKeepRetainedSplashWindowBlocked() {
+        assertDestroyedActivityReleasesWindow(SplashWaitingStartupActivity::class.java)
+    }
+
+    @Test
+    fun destroyedActivityDoesNotKeepLegacyLaunchWindowBlocked() {
+        assertDestroyedActivityReleasesWindow(WaitingStartupActivity::class.java)
+    }
+
+    private fun assertDestroyedActivityReleasesWindow(activityClass: Class<out WaitingStartupActivity>) {
+        val controller = Robolectric.buildActivity(activityClass, request("recreated"))
+            .create().start().resume()
+        val observer = controller.get().findViewById<android.view.View>(android.R.id.content).viewTreeObserver
+        assertTrue(observer.dispatchOnPreDraw(), "Initialization still owns the launch window")
+        controller.pause().stop().destroy()
+        assertFalse(observer.dispatchOnPreDraw(), "An old Activity must not block the window reused by its replacement")
+    }
+
+    private fun assertLaunchWindowUntilReady(activityClass: Class<out WaitingStartupActivity>) {
+        val controller = Robolectric.buildActivity(activityClass, request("normal"))
             .create().start().resume()
         assertFalse(controller.get().waitingShown, "Ordinary database opening is not a data migration")
         val content = controller.get().findViewById<android.view.View>(android.R.id.content)
@@ -103,7 +131,16 @@ class ApplicationStartupTest {
 
     @Test
     fun migrationDetectedAfterActivityStartShowsPreparationPage() {
-        val controller = Robolectric.buildActivity(WaitingStartupActivity::class.java, request("upgrade"))
+        assertMigrationReleasesLaunchWindow(WaitingStartupActivity::class.java)
+    }
+
+    @Test
+    fun systemSplashDoesNotHideMigrationProgress() {
+        assertMigrationReleasesLaunchWindow(SplashWaitingStartupActivity::class.java)
+    }
+
+    private fun assertMigrationReleasesLaunchWindow(activityClass: Class<out WaitingStartupActivity>) {
+        val controller = Robolectric.buildActivity(activityClass, request("upgrade"))
             .create().start().resume()
         assertFalse(controller.get().waitingShown)
         app.startup.requireDataPreparation()
@@ -263,7 +300,7 @@ class SlowStartupApplication : DailySatoriApplication() {
     override fun initializeBackgroundServices() { backgroundStarts.incrementAndGet() }
 }
 
-class WaitingStartupActivity : StartupActivity() {
+open class WaitingStartupActivity : StartupActivity() {
     var waitingShown = false
     val handled = mutableListOf<String>()
     override fun showStartup() { waitingShown = true }
@@ -273,4 +310,8 @@ class WaitingStartupActivity : StartupActivity() {
         setIntent(intent)
         if (businessReady) handled.add(intent.getStringExtra("request").orEmpty())
     }
+}
+
+class SplashWaitingStartupActivity : WaitingStartupActivity() {
+    override val useLaunchSplash = true
 }

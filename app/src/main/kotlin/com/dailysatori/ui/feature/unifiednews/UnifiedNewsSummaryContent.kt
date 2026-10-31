@@ -9,6 +9,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -43,13 +44,14 @@ internal fun NewsFocusHeader(
     Column(Modifier.fillMaxWidth().statusBarsPadding().background(MaterialTheme.colorScheme.background)) {
         MainPageHeader(
             title = stringResource(R.string.news_focus_title),
-            modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.s),
+            modifier = Modifier.padding(start = Spacing.l, end = Spacing.l, top = Spacing.s),
+            titleWeight = FontWeight.SemiBold,
             pageActions = listOf(
                 com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.news_focus_search), Icons.Default.Search, onClick = onSearch),
                 com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.news_focus_refresh), Icons.Default.Refresh, onClick = onRefresh),
             ),
         )
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.m),
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.l),
             horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
             tabs.forEachIndexed { index, tab ->
                 val selected = index == selectedTabIndex
@@ -110,7 +112,7 @@ internal fun UnifiedNewsSummaryContent(
         if (state.scrollToTopRequestKey > 0) listState.animateScrollToItem(0)
     }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
+        contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.l, bottom = Height.navBar + Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         items(headlineSummaries, key = { "headlines-${it.id}" }) { entry ->
             DailyHeadlinesPreview(entry, state.sourcesBySummaryId[entry.id].orEmpty(), articleSummariesBySource,
@@ -139,13 +141,14 @@ internal fun UnifiedNewsSummaryContent(
                 }
             }
         }
-        items(recommendations, key = { it.id }) { item ->
+        itemsIndexed(recommendations, key = { _, item -> item.id }) { index, item ->
             val topicId = topicLinks[item.id]
             val isCaptured = topicId != null
             TodayNewsOpportunityCard(
                 item = item,
                 onOpen = { onOpportunity(item.id) },
                 isCaptured = isCaptured,
+                showDivider = index < recommendations.lastIndex,
                 onTopicAction = {
                     if (topicId != null) {
                         onTopic(topicId)
@@ -181,26 +184,30 @@ internal fun latestHeadlinesSummary(
 
 @Composable
 private fun OpportunitySectionHeader(onMore: () -> Unit, progress: String?, onCancel: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-            Text(stringResource(R.string.news_focus_for_you),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            if (progress != null) {
-                Text(progress, style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Column {
+        HorizontalDivider(Modifier.padding(top = Spacing.s, bottom = Spacing.m),
+            color = MaterialTheme.colorScheme.outlineVariant)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(stringResource(R.string.news_focus_for_you),
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                if (progress != null) {
+                    Text(progress, style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
-        }
-        if (progress != null) {
-            IconButton(onClick = onCancel, modifier = Modifier.size(Height.buttonSmall)) {
-                Icon(Icons.Default.Close, stringResource(R.string.my_space_cancel), Modifier.size(IconSize.s),
+            if (progress != null) {
+                IconButton(onClick = onCancel, modifier = Modifier.size(Height.buttonSmall)) {
+                    Icon(Icons.Default.Close, stringResource(R.string.my_space_cancel), Modifier.size(IconSize.s),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            TextButton(onClick = onMore, contentPadding = PaddingValues(Spacing.xs)) {
+                Text(stringResource(R.string.news_focus_view_all), style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        }
-        TextButton(onClick = onMore, contentPadding = PaddingValues(Spacing.xs)) {
-            Text(stringResource(R.string.news_focus_view_all), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

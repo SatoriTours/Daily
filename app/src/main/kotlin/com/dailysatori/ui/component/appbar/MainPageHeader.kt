@@ -20,6 +20,7 @@ fun MainPageHeader(
     title: String,
     modifier: Modifier = Modifier,
     pageActions: List<PageAction> = emptyList(),
+    titleWeight: FontWeight = FontWeight.Bold,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = Height.appBarCompact),
@@ -29,7 +30,7 @@ fun MainPageHeader(
             text = title,
             modifier = Modifier.weight(1f).semantics { heading() },
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
+            fontWeight = titleWeight,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Start,
             maxLines = 1,

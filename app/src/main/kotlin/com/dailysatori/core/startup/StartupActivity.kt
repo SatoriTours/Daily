@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -22,11 +23,15 @@ import kotlinx.coroutines.launch
 
 /** No business DI, locale lookup or saved-state consumer runs before the database is ready. */
 abstract class StartupActivity : ComponentActivity() {
+    protected open val useLaunchSplash = false
     protected var businessReady = false
         private set
     private var attachedLanguage: String? = null
     private val pendingIntents = arrayListOf<Intent>()
     private var startupShown = false
+    // A locale recreation may reuse the window and its pre-draw observers.
+    private val shouldRetainLaunchWindow: Boolean
+        get() = !isDestroyed && !isFinishing && !businessReady && !startupShown
 
     override fun attachBaseContext(newBase: Context) {
         val app = newBase.applicationContext as DailySatoriApplication
@@ -36,7 +41,9 @@ abstract class StartupActivity : ComponentActivity() {
     }
 
     final override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = if (useLaunchSplash) installSplashScreen() else null
         super.onCreate(savedInstanceState)
+        splashScreen?.setKeepOnScreenCondition { shouldRetainLaunchWindow }
         @Suppress("DEPRECATION")
         savedInstanceState?.getParcelable<Intent>(PENDING_INTENT)?.let { setIntent(it) }
         @Suppress("DEPRECATION")
@@ -45,7 +52,7 @@ abstract class StartupActivity : ComponentActivity() {
         else if (!appStartup.isReady) pendingIntents.add(Intent(intent))
         enableEdgeToEdge()
         if (appStartup.isReady) openBusiness(savedInstanceState) else {
-            retainLaunchWindow()
+            if (splashScreen == null) retainLaunchWindow()
             lifecycleScope.launch {
                 lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                     combine(appStartup.state, appStartup.dataPreparation) { state, preparing ->
@@ -69,7 +76,7 @@ abstract class StartupActivity : ComponentActivity() {
         val content = findViewById<android.view.View>(android.R.id.content)
         content.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
-                if (!businessReady && !startupShown) return false
+                if (shouldRetainLaunchWindow) return false
                 content.viewTreeObserver.removeOnPreDrawListener(this)
                 return true
             }

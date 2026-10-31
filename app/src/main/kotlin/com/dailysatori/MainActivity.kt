@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import org.koin.core.context.GlobalContext
 
 class MainActivity : StartupActivity() {
+    override val useLaunchSplash = true
     private lateinit var reminderRecovery: ReminderRecoveryController
 
     override fun onStartupReady(savedInstanceState: Bundle?) {
