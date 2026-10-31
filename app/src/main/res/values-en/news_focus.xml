@@ -7,6 +7,7 @@
     <string name="news_focus_refresh">Refresh news</string>
     <string name="news_focus_tab">Today</string>
     <string name="news_focus_read_briefing">Read full briefing</string>
+    <string name="news_focus_key_points">Today’s key points</string>
     <string name="news_focus_view_report">View original report</string>
     <string name="news_focus_for_you">Highlights</string>
     <string name="news_focus_view_all">View all</string>

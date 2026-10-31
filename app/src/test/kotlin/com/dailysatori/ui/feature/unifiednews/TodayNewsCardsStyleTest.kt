@@ -12,14 +12,15 @@ class TodayNewsCardsStyleTest {
     private val cards = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/TodayNewsCards.kt").readText()
 
     @Test
-    fun headlineRowsKeepTheReportClickWithoutASeparateSourceLine() {
+    fun headlineRowsKeepOriginalPointsAndReportClicksWithoutArticlePreviews() {
         val row = cards.substringAfter("private fun DailyHeadlineStoryRow(")
             .substringBefore("@Composable")
 
         assertTrue(row.contains("clickable(enabled = source != null)"))
         assertTrue(row.contains("source?.let(onOpen)"))
         assertTrue(row.contains("Text(story.title"))
-        assertTrue(row.contains("Text(description"))
+        assertFalse(row.contains("story.description"), "要点不再拼接来源摘要、正文或原始 HTML")
+        assertFalse(row.contains("maxLines"), "要点必须完整展示")
         assertFalse(row.contains("source.source_"), "来源只在报道详情展示，不占用要闻行")
         assertFalse(row.contains("OpenInNew"))
         assertFalse(row.contains("news_focus_view_report"))
