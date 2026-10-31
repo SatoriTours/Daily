@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 class MainContentRhythmTest {
     @Test
-    fun newsSummaryUsesCardSpacingBelowTitleBar() {
+    fun newsSummaryUsesConsistentReadingInsetsBelowTitleBar() {
         val news = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val summary = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
         val layouts = File("src/main/kotlin/com/dailysatori/ui/component/news/NewsListLayouts.kt").readText()
@@ -21,9 +21,9 @@ class MainContentRhythmTest {
         val summaryPadding = summary.extractCallBlock("LazyColumn(")
             .extractCallExpression("contentPadding = PaddingValues(")
             .replace(Regex("\\s+"), "")
-        assertTrue(summaryPadding.contains("start=Spacing.m"))
-        assertTrue(summaryPadding.contains("end=Spacing.m"))
-        assertTrue(summaryPadding.contains("top=Spacing.m"))
+        assertTrue(summaryPadding.contains("start=Spacing.l"))
+        assertTrue(summaryPadding.contains("end=Spacing.l"))
+        assertTrue(summaryPadding.contains("top=Spacing.l"))
         assertTrue(summaryPadding.contains("bottom=Height.navBar+Spacing.xxl"))
         assertTrue(layouts.contains("PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)"))
         assertFalse(summary.contains("contentPadding = PaddingValues(Spacing.m)"))
