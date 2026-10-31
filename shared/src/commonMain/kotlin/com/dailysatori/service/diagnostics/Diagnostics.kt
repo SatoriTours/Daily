@@ -31,13 +31,13 @@ class Diagnostics(
                     val failed = isFailure(it)
                     emit(if (failed) DiagnosticCode.OPERATION_FAILED else DiagnosticCode.OPERATION_END,
                         source, if (failed) DiagnosticLevel.WARNING else DiagnosticLevel.INFO,
-                        fields = mapOf("durationMs" to (DiagnosticLog.elapsed() - start).toString()))
+                        fields = fields + ("durationMs" to (DiagnosticLog.elapsed() - start).toString()))
                 }
             } catch (cancelled: CancellationException) {
-                emit(DiagnosticCode.OPERATION_CANCELLED, source, error = cancelled)
+                emit(DiagnosticCode.OPERATION_CANCELLED, source, fields = fields, error = cancelled)
                 throw cancelled
             } catch (failure: Exception) {
-                emit(DiagnosticCode.OPERATION_FAILED, source, DiagnosticLevel.ERROR, error = failure)
+                emit(DiagnosticCode.OPERATION_FAILED, source, DiagnosticLevel.ERROR, fields = fields, error = failure)
                 throw failure
             }
         }

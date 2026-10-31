@@ -9,6 +9,48 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class StartupCoordinatorTest {
     @Test
+    fun maintenanceSharesOneGracePeriodWithoutDelayingBusinessOrLateWorkers() = runTest {
+        val startup = StartupCoordinator(backgroundScope, StandardTestDispatcher(testScheduler)) {}
+        startup.start()
+        runCurrent()
+        assertTrue(startup.awaitReady())
+        var maintenanceStarts = 0
+        val first = launch { if (startup.awaitMaintenanceWindow()) maintenanceStarts++ }
+        val cancelled = launch { startup.awaitMaintenanceWindow() }
+        runCurrent()
+        assertEquals(0, maintenanceStarts)
+        cancelled.cancelAndJoin()
+        advanceTimeBy(9_999)
+        runCurrent()
+        assertEquals(0, maintenanceStarts)
+        advanceTimeBy(1)
+        runCurrent()
+        first.join()
+        assertEquals(1, maintenanceStarts)
+        assertTrue(startup.awaitMaintenanceWindow(), "Late workers must not wait another ten seconds")
+    }
+
+    @Test
+    fun failedPreparationDoesNotReleaseMaintenanceAndRetryStartsANewGracePeriod() = runTest {
+        var fail = true
+        val startup = StartupCoordinator(backgroundScope, StandardTestDispatcher(testScheduler)) {
+            if (fail) error("preparation failed")
+        }
+        startup.start()
+        runCurrent()
+        assertFalse(startup.awaitMaintenanceWindow())
+        fail = false
+        startup.start()
+        runCurrent()
+        val waiting = async { startup.awaitMaintenanceWindow() }
+        runCurrent()
+        assertFalse(waiting.isCompleted)
+        advanceTimeBy(10_000)
+        runCurrent()
+        assertTrue(waiting.await())
+    }
+
+    @Test
     fun concurrentConsumersCannotAccessBusinessRuntimeUntilPreparationFinishes() = runTest {
         val release = CompletableDeferred<Unit>()
         var preparations = 0

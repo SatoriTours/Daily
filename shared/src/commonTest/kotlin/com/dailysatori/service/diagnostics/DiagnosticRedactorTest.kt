@@ -7,6 +7,16 @@ import kotlinx.serialization.json.Json
 
 class DiagnosticRedactorTest {
     @Test
+    fun startupTimingsKeepStageOnCompletionWithoutAllowingArbitraryText() = runBlocking {
+        val events = mutableListOf<SafeDiagnosticEvent>()
+        val diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+        diagnostics.operation(DiagnosticSource.APP, fields = mapOf("startupStage" to "database_prepare")) { }
+        assertEquals(listOf("database_prepare", "database_prepare"), events.map { it.attributes["startupStage"] })
+        assertNotNull(events.last().attributes["durationMs"])
+        assertTrue(DiagnosticRedactor.fields(mapOf("startupStage" to "private-path-canary")).isEmpty())
+    }
+
+    @Test
     fun hotNewsDiagnosticsKeepOnlyPublicIdentifiersAndBoundedMetadata() {
         val fields = DiagnosticRedactor.fields(mapOf(
             "provider" to "deepseek", "model" to "deepseek-v4-flash",

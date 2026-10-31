@@ -20,7 +20,9 @@ import com.dailysatori.core.worker.WeeklySummaryScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
-import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSource
+import com.dailysatori.service.diagnostics.DiagnosticCode
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +42,11 @@ open class DailySatoriApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val startup = StartupCoordinator(applicationScope, onFailure = {
         com.dailysatori.core.diagnostics.SafeAndroidLog.e("DailySatoriStartup", "Database preparation failed", it)
-    }) { initializeRuntime() }
+    }) {
+        initializeRuntime()
+        DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.APP,
+            fields = mapOf("startupStage" to "runtime_ready"))
+    }
     var startupNotice: String? = null
         private set
     var startupLanguage: String? = null
@@ -62,27 +68,41 @@ open class DailySatoriApplication : Application() {
     }
 
     protected open suspend fun initializeRuntime() {
-        startupNotice = com.dailysatori.service.security.DatabaseBootstrap.prepare(
-            com.dailysatori.platform.PlatformContext(this),
-            onPreparationRequired = startup::requireDataPreparation,
-        )
+        startupNotice = startupStep("database_prepare") {
+            com.dailysatori.service.security.DatabaseBootstrap.prepare(
+                com.dailysatori.platform.PlatformContext(this),
+                onPreparationRequired = startup::requireDataPreparation,
+            )
+        }
         var driver: app.cash.sqldelight.db.SqlDriver? = null
         try {
-            startKoin {
-                androidLogger()
-                androidContext(this@DailySatoriApplication)
-                modules(sharedModule, platformModule, appModule, viewModelModule)
+            startupStep("dependency_graph") {
+                startKoin {
+                    androidLogger()
+                    androidContext(this@DailySatoriApplication)
+                    modules(sharedModule, platformModule, appModule, viewModelModule)
+                }
             }
-            driver = get<app.cash.sqldelight.db.SqlDriver>(app.cash.sqldelight.db.SqlDriver::class.java)
-            get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
-            get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
-            I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
-            startupLanguage = get<I18nService>(I18nService::class.java).getCurrentLanguage()
+            driver = startupStep("database_open") {
+                get<app.cash.sqldelight.db.SqlDriver>(app.cash.sqldelight.db.SqlDriver::class.java)
+            }
+            // Bootstrap already migrates/repairs and validates the installed schema, before DI.
+            // Running DatabaseMigration again scans the same columns, identities and foreign keys.
+            startupStep("task_recovery") {
+                get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
+            }
+            startupStep("translations") {
+                I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
+                startupLanguage = get<I18nService>(I18nService::class.java).getCurrentLanguage()
+            }
         } catch (failure: Exception) {
             try { driver?.close() } finally { stopKoin() }
             throw failure
         }
     }
+
+    private suspend fun <T> startupStep(stage: String, block: suspend () -> T): T =
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.APP, fields = mapOf("startupStage" to stage), block = block)
 
     protected open fun initializeBackgroundServices() {
         initializeSchedulers()

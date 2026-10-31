@@ -26,6 +26,8 @@ object DiagnosticRedactor {
         input.forEach { (key, value) ->
             when {
                 key in numeric -> value.toLongOrNull()?.takeIf { it >= 0 }?.let { put(key, it.toString()) }
+                key == "startupStage" && value in setOf("runtime_ready", "database_prepare", "dependency_graph",
+                    "database_open", "task_recovery", "translations", "first_draw") -> put(key, value)
                 key == "articleStage" && value in setOf("queued", "extraction", "overview", "translation", "cover") -> put(key, value)
                 key == "aiPurpose" && value in aiPurposes -> put(key, value)
                 key == "hotNewsPlatform" && value in hotNewsPlatforms -> put(key, value)

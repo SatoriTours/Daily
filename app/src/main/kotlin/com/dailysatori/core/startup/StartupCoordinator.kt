@@ -1,6 +1,8 @@
 package com.dailysatori.core.startup
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CancellationException
@@ -21,6 +23,7 @@ class StartupCoordinator(
     val state = mutableState.asStateFlow()
     private val mutableDataPreparation = MutableStateFlow(false)
     val dataPreparation = mutableDataPreparation.asStateFlow()
+    private val maintenanceReady = CompletableDeferred<Unit>()
 
     /** Only real migration/restore work opts into the data-preparation page. */
     fun requireDataPreparation() {
@@ -38,6 +41,11 @@ class StartupCoordinator(
         scope.launch(dispatcher) {
             try {
                 initialize()
+                // Process-owned grace period: cancelling one Worker must not restart the clock.
+                scope.launch(dispatcher) {
+                    delay(10_000)
+                    maintenanceReady.complete(Unit)
+                }
                 mutableState.value = StartupState.Ready
             } catch (cancelled: CancellationException) {
                 mutableState.value = StartupState.Failed
@@ -52,4 +60,11 @@ class StartupCoordinator(
     suspend fun awaitReady(): Boolean = state.first {
         it == StartupState.Ready || it == StartupState.Failed
     } == StartupState.Ready
+
+    /** Automatic full-database backups must not compete with initial composition and reads. */
+    suspend fun awaitMaintenanceWindow(): Boolean {
+        if (!awaitReady()) return false
+        maintenanceReady.await()
+        return true
+    }
 }

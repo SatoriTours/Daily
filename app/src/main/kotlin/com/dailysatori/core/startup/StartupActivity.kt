@@ -101,7 +101,27 @@ abstract class StartupActivity : ComponentActivity() {
         queued.firstOrNull()?.let { setIntent(it) }
         app.consumeStartupNotice()?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
         onStartupReady(savedInstanceState)
+        recordFirstBusinessDraw()
         queued.drop(1).forEach { onNewIntent(it) }
+    }
+
+    private fun recordFirstBusinessDraw() {
+        val content = findViewById<android.view.View>(android.R.id.content)
+        var recorded = false
+        content.viewTreeObserver.addOnDrawListener(object : ViewTreeObserver.OnDrawListener {
+            override fun onDraw() {
+                if (recorded) return
+                recorded = true
+                com.dailysatori.service.diagnostics.DiagnosticLog.diagnostics.emit(
+                    com.dailysatori.service.diagnostics.DiagnosticCode.OPERATION_PROGRESS,
+                    com.dailysatori.service.diagnostics.DiagnosticSource.APP,
+                    fields = mapOf("startupStage" to "first_draw"),
+                )
+                content.post {
+                    if (content.viewTreeObserver.isAlive) content.viewTreeObserver.removeOnDrawListener(this)
+                }
+            }
+        })
     }
 
     override fun onNewIntent(intent: Intent) {
