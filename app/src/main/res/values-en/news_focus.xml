@@ -8,6 +8,10 @@
     <string name="news_focus_tab">Today</string>
     <string name="news_focus_read_briefing">Read full briefing</string>
     <string name="news_focus_key_points">Today’s key points</string>
+    <string name="news_focus_reason">Why</string>
+    <string name="news_focus_opportunity">Idea</string>
+    <string name="news_focus_preview_pending">Brief summary pending</string>
+    <string name="news_focus_preview_pending_hint">Tap for the existing analysis. A new analysis will generate a brief summary.</string>
     <string name="news_focus_view_report">View original report</string>
     <string name="news_focus_for_you">Highlights</string>
     <string name="news_focus_view_all">View all</string>

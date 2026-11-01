@@ -107,14 +107,19 @@ class HotNewsAiLiveTest {
                         "Bleached corals recover within days after contact with healthy neighbours",
                         "https://example.com/corals", "https://archive.ph/zIPG4",
                         discussionUrl = "https://news.ycombinator.com/item?id=50126253"),
+                    HotNewsItem("short-title", HotNewsPlatform.HACKER_NEWS, 10, "Using Rust",
+                        "https://example.com/rust"),
+                    HotNewsItem("mixed-title", HotNewsPlatform.HACKER_NEWS, 11, "sqlite with Rust",
+                        "https://example.com/sqlite", "Using sqlite for local storage."),
                 )
                 val result = HotNewsTranslator(AiService(http), AiConfigService(configs)).translate(input)
                 assertEquals(input.map { it.identity }, result.map { it.identity })
                 assertEquals(input.map { it.url }, result.map { it.url })
-                assertEquals(input.last().discussionUrl, result.last().discussionUrl)
+                val reference = result.single { it.id == "50126253" }
+                assertEquals("https://news.ycombinator.com/item?id=50126253", reference.discussionUrl)
                 result.forEach { assertTrue(isChineseHotNewsText(it.chineseTitle.orEmpty())) }
                 result.take(2).forEach { assertTrue(isChineseHotNewsText(it.chineseSummary.orEmpty())) }
-                assertEquals("https://archive.ph/zIPG4", result.last().chineseSummary)
+                assertEquals("https://archive.ph/zIPG4", reference.chineseSummary)
             }
         }
     }

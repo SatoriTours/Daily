@@ -53,6 +53,25 @@ class NewsOpportunityAiLiveTest {
                 service.state.value.items.forEach { item ->
                     assertTrue(item.quote.isNotBlank())
                     assertTrue(item.article.content.contains(item.quote))
+                    val preview = assertNotNull(item.preview)
+                    assertTrue(preview.title.length in 1..32)
+                    assertTrue(preview.reason.length in 1..64)
+                    assertTrue(preview.opportunity.length in 1..64)
+                    assertTrue(item.fact.isNotBlank() && item.relevance.isNotBlank() && item.action.isNotBlank())
+                }
+                val evidence = buildJsonArray {
+                    service.state.value.items.forEach { item -> add(buildJsonObject {
+                        put("title", item.title)
+                        put("fact", item.fact)
+                        put("relevance", item.relevance)
+                        put("action", item.action)
+                        put("quote", item.quote)
+                        put("preview", Json.encodeToJsonElement(assertNotNull(item.preview)))
+                    }) }
+                }
+                File("../build/ai-live/opportunity-preview.json").apply {
+                    parentFile.mkdirs()
+                    writeText(evidence.toString())
                 }
                 assertEquals(0, service.state.value.pendingCount)
                 assertNull(service.state.value.error)

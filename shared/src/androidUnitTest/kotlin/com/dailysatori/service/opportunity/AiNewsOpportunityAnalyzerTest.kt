@@ -17,6 +17,34 @@ import kotlin.test.*
 
 class AiNewsOpportunityAnalyzerTest {
     @Test
+    fun compactPreviewIsParsedSeparatelyFromTheFullAnalysis() = runBlocking {
+        withAnalyzer(listOf(response("Teams need to retry failed jobs."))) { analyzer, requests ->
+            val draft = assertNotNull(analyzer.analyze(input))
+            val encoded = Json.encodeToJsonElement(draft).jsonObject
+            assertEquals(preview, encoded["preview"])
+            assertEquals("Failed job tracker", draft.title)
+            assertEquals("List failed jobs and send alerts", draft.action)
+            assertContains(requests.single()["messages"]!!.jsonArray.first().jsonObject["content"]!!.jsonPrimitive.content, "preview")
+        }
+    }
+
+    @Test
+    fun missingBlankAndOverlongPreviewsAreRejectedInsteadOfTruncated() {
+        val full = Json.parseToJsonElement(response("Teams need to retry failed jobs.")).jsonObject
+        val invalid = listOf<JsonElement?>(null, JsonNull,
+            buildJsonObject { put("title", " "); put("reason", "关注原因"); put("opportunity", "机会点") },
+            buildJsonObject { put("title", "长".repeat(33)); put("reason", "原因"); put("opportunity", "机会") },
+            buildJsonObject { put("title", "短标题"); put("reason", "长".repeat(65)); put("opportunity", "机会") },
+            buildJsonObject { put("title", "短标题"); put("reason", "原因"); put("opportunity", "长".repeat(65)) },
+            buildJsonObject { put("title", "短标题"); put("reason", "两行\n原因"); put("opportunity", "机会") })
+        invalid.forEach { value ->
+            val fields = full.toMutableMap().apply { if (value == null) remove("preview") else put("preview", value) }
+            val failure = assertFailsWith<NewsOpportunityAnalysisException> { parseOpportunityResponse(JsonObject(fields).toString()) }
+            assertEquals(OpportunityFailureReason.INVALID_RESPONSE, failure.reason)
+        }
+    }
+
+    @Test
     fun translatedQuoteGetsOneCorrectionRequestUsingOriginalBody() = runBlocking {
         withAnalyzer(listOf(response("团队需要重试失败的任务。"), response("Teams need to retry failed jobs."))) { analyzer, requests ->
             assertEquals("Teams need to retry failed jobs.", analyzer.analyze(input)?.quote)
@@ -95,7 +123,14 @@ class AiNewsOpportunityAnalyzerTest {
         put("mvp", "List failed jobs and send alerts")
         put("caveat", "Verify access to job status")
         put("quote", quote)
+        put("preview", preview)
     }.toString()
+
+    private val preview = buildJsonObject {
+        put("title", "定时任务失败提醒")
+        put("reason", "手工检查失败任务费时，集中提醒存在需求。")
+        put("opportunity", "可做失败提醒与重试记录工具，先验证团队需求。")
+    }
 
     private val input = OpportunityAnalysisInput(
         ReadNewsArticle("news:1", "Job failures", "Teams need to retry failed jobs.", source = "Example", readAt = 0),

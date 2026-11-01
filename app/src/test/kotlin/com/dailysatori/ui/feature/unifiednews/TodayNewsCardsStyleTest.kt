@@ -12,6 +12,15 @@ class TodayNewsCardsStyleTest {
     private val cards = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/TodayNewsCards.kt").readText()
 
     @Test
+    fun headlinesHaveNoOuterCardOrCollapseControl() {
+        val headlines = cards.substringBefore("internal fun dailyHeadlineLeadText")
+        assertFalse(headlines.contains("Surface("))
+        assertFalse(headlines.contains("BorderStroke("))
+        assertFalse(headlines.contains("maxLines"))
+        assertFalse(headlines.contains("AnimatedVisibility"))
+    }
+
+    @Test
     fun headlineRowsKeepOriginalPointsAndReportClicksWithoutArticlePreviews() {
         val row = cards.substringAfter("private fun DailyHeadlineStoryRow(")
             .substringBefore("@Composable")
@@ -29,12 +38,14 @@ class TodayNewsCardsStyleTest {
     @Test
     fun focusCardsKeepReadableContentAndCompactMetadataWithIndependentTopicAction() {
         val card = cards.substringAfter("internal fun TodayNewsOpportunityCard(")
-        val title = card.indexOf("Text(item.title")
-        val description = card.indexOf("Text(description")
+        val title = card.indexOf("Text(preview.title")
+        val description = card.indexOf("preview.reason")
         val metadata = card.indexOf("listOf(item.category, item.article.source)")
 
         assertTrue(title >= 0 && description > title && metadata > description,
             "标题和摘要优先，分类与来源合并为底部元信息")
+        assertTrue(card.contains("preview.opportunity"))
+        assertFalse(card.contains("item.relevance"), "详细分析留在详情页")
         assertFalse(card.contains("Card(onClick"), "关注条目不再使用卡片容器")
         assertTrue(card.contains("if (showDivider) HorizontalDivider"), "只在条目之间使用分隔线")
         assertTrue(card.contains("onClickLabel = stringResource(R.string.news_focus_view_opportunity)"),

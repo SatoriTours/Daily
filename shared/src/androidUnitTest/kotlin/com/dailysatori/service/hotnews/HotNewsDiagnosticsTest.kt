@@ -57,7 +57,7 @@ class HotNewsDiagnosticsTest {
         Fixture(invalidTranslation = true).use { fixture ->
             fixture.service.retryTranslations(HotNewsPlatform.GITHUB)
             assertEquals(HotNewsError.TRANSLATION_FAILED, fixture.board.error)
-            assertEquals(1, fixture.requests)
+            assertEquals(2, fixture.requests)
             assertTrue(fixture.events.any { it.attributes["hotNewsFailure"] == "format" })
             assertFalse(fixture.events.any { it.attributes["hotNewsFailure"] == "network" })
             assertPrivateDataAbsent(fixture.events.toList())
@@ -93,6 +93,24 @@ class HotNewsDiagnosticsTest {
             assertEquals(HotNewsError.AI_NOT_CONFIGURED, fixture.board.error)
             assertTrue(fixture.events.any { it.attributes["hotNewsFailure"] == "configuration" })
             assertEquals(DiagnosticCode.OPERATION_FAILED, fixture.events.last().eventCode)
+        }
+    }
+
+    @Test
+    fun titleValidationExplainsLengthChineseCountAndUntranslatedProseWithoutContent() {
+        Fixture().use { fixture ->
+            val item = HotNewsItem("private-id-canary", HotNewsPlatform.HACKER_NEWS, 1,
+                "private-title-canary", "https://private-canary.invalid")
+            listOf("", "用 Rust", "中文 private english prose remains").forEach { title ->
+                val response = buildJsonArray { addJsonObject {
+                    put("id", item.identity); put("title", title); put("summary", "")
+                } }.toString()
+                assertFailsWith<HotNewsTranslationFormatException> { parseHotNewsTranslations(response, listOf(item)) }
+            }
+            assertEquals(listOf("title_length", "title_chinese_count", "title_untranslated"),
+                fixture.events.mapNotNull { it.attributes["hotNewsValidationDetail"] })
+            assertTrue(DiagnosticRedactor.fields(mapOf("hotNewsValidationDetail" to "private-detail-canary")).isEmpty())
+            assertPrivateDataAbsent(fixture.events.toList())
         }
     }
 

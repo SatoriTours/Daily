@@ -32,7 +32,18 @@ data class NewsOpportunity(
     val savedAt: Long? = null,
     val relevanceScore: Int = 50,
     val actionabilityScore: Int = 50,
+    val preview: OpportunityPreview? = null,
 )
+
+@Serializable
+data class OpportunityPreview(val title: String, val reason: String, val opportunity: String) {
+    internal fun validated(): OpportunityPreview = copy(
+        title = title.trim(), reason = reason.trim(), opportunity = opportunity.trim(),
+    ).also {
+        require(it.title.length in 1..32 && it.reason.length in 1..64 && it.opportunity.length in 1..64)
+        require(listOf(it.title, it.reason, it.opportunity).none { text -> '\n' in text || '\r' in text })
+    }
+}
 
 @Serializable
 data class OpportunityState(
@@ -65,6 +76,7 @@ data class OpportunityDraft(
     val quote: String,
     val relevanceScore: Int = 50,
     val actionabilityScore: Int = 50,
+    val preview: OpportunityPreview? = null,
 )
 
 data class OpportunityAnalysisInput(

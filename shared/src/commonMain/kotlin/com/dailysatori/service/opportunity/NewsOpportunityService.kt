@@ -176,7 +176,10 @@ class NewsOpportunityService(
         if (listOf(title, category, fact, relevance, action, caveat).any { it.isBlank() }) {
             throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_RESPONSE)
         }
-        return copy(quote = originalQuote)
+        val compact = try { preview?.validated() } catch (error: IllegalArgumentException) {
+            throw NewsOpportunityAnalysisException(OpportunityFailureReason.INVALID_RESPONSE, error)
+        }
+        return copy(quote = originalQuote, preview = compact)
     }
 
     private fun OpportunityDraft.toOpportunity(article: ReadNewsArticle, old: NewsOpportunity?) = NewsOpportunity(
@@ -188,6 +191,7 @@ class NewsOpportunityService(
         saved = old?.saved ?: false, ignored = old?.ignored ?: false, reminderId = old?.reminderId,
         savedAt = old?.savedAt,
         relevanceScore = relevanceScore.coerceIn(0, 100), actionabilityScore = actionabilityScore.coerceIn(0, 100),
+        preview = preview,
     )
 
     private fun checkAnalysisContext(expected: AnalysisContext) {
@@ -203,12 +207,21 @@ class NewsOpportunityService(
 
     private fun pendingArticles(context: AnalysisContext): List<ReadNewsArticle> {
         val checkpoints = archive.checkpoints.associate { it.identity to it.fingerprint }
-        return analysisArticles().filter { article ->
+        val pending = analysisArticles().filter { article ->
             article.content.isNotBlank() && checkpoints[article.identity()] != article.fingerprint(context.version)
-        }.sortedBy { it.readAt }
+        }
+        val regularIds = (archive.candidates + archive.articles).map { it.identity() }.toSet()
+        // Retained recommendations may no longer belong to the latest candidate window.
+        // Backfill them in bounded batches without delaying or limiting regular analysis.
+        val regular = pending.filter { it.identity() in regularIds }
+        val backfill = pending.filterNot { it.identity() in regularIds }.take(MAX_CANDIDATES)
+        return (regular + backfill).sortedBy { it.readAt }
     }
 
-    private fun analysisArticles() = (archive.candidates + archive.articles).distinctBy { it.identity() }
+    private fun analysisArticles(): List<ReadNewsArticle> {
+        val legacy = archive.items.filter { it.preview == null && !it.ignored && it.reminderId == null }.map { it.article }
+        return (archive.candidates + archive.articles + legacy).distinctBy { it.identity() }
+    }
 
     private fun buildState(context: AnalysisContext = currentContext()) = OpportunityState(
         items = archive.items.sortedByDescending { it.createdAt },
@@ -245,7 +258,7 @@ class NewsOpportunityService(
     private data class AnalysisContext(val thoughts: String?, val version: String)
 
     private companion object {
-        const val ANALYSIS_VERSION = "v4"
+        const val ANALYSIS_VERSION = "v5"
         const val AUTO_REFRESH_INTERVAL = 30 * 60 * 1_000L
         const val MAX_CANDIDATES = 20
         const val MAX_FOCUS_LENGTH = 2_000

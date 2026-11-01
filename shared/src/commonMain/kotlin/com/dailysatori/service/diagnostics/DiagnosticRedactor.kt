@@ -36,6 +36,8 @@ object DiagnosticRedactor {
                 key == "retryState" && value in setOf("accepted", "ignored_running") -> put(key, value)
                 key == "hotNewsFailure" && value in setOf("network", "timeout", "format", "configuration", "other") -> put(key, value)
                 key == "hotNewsValidation" && value in setOf("json", "identity", "title", "summary", "missing_summary") -> put(key, value)
+                key == "hotNewsValidationDetail" && value in setOf("json", "identity", "title_length", "title_chinese_count",
+                    "title_untranslated", "summary_length", "summary_untranslated", "missing_summary") -> put(key, value)
                 key == "method" && value in methods -> put(key, value)
                 key == "reminderField" && value in reminderFields -> put(key, value)
                 key == "backupAttachmentSource" && value in setOf("diary_attachment.local_path", "diary.images",

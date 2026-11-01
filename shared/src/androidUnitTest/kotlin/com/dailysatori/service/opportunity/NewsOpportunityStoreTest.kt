@@ -12,8 +12,28 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 class NewsOpportunityStoreTest {
+    @Test
+    fun previewRoundTripsAndOldEntriesWithoutItKeepAllDetailedAndSavedFields() = withDatabase { _, settings ->
+        val article = ReadNewsArticle("legacy", "旧新闻", "正文", source = "来源", readAt = 123L)
+        val item = NewsOpportunity("id", article, "完整产品方案", "效率工具", "事实", "详细关联", "最小方案", "风险", "正文", 456L,
+            saved = true, ignored = true, reminderId = "reminder", savedAt = 789L,
+            preview = OpportunityPreview("短标题", "关注原因。", "可做一个效率工具。"))
+        val store = NewsOpportunityStore(settings)
+        val archive = OpportunityArchive(items = listOf(item))
+        store.save(archive)
+        assertEquals(archive, NewsOpportunityStore(settings).load())
+        val legacy = archive.copy(items = listOf(item.copy(preview = null)))
+        val encoded = Json.encodeToString(legacy)
+        assertTrue(!encoded.contains("\"preview\""))
+        settings.upsert(KEY, encoded)
+        val restored = store.load()
+        assertEquals(legacy, restored)
+        assertNull(restored.items.single().preview)
+    }
+
     @Test
     fun largeArchiveRoundTripsWithoutOversizedRowsOrUnicodeLoss() = withDatabase { _, settings ->
         val archive = largeArchive()

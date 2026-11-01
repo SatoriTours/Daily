@@ -1,9 +1,7 @@
 package com.dailysatori.ui.feature.unifiednews
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
@@ -13,10 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import com.dailysatori.R
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.service.i18n.I18nService
@@ -49,10 +44,7 @@ internal fun DailyHeadlinesPreview(
                 TimeUtils.formatDateTime(summary.updated_at).substringAfter(' ')), Modifier.padding(top = Spacing.xs),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Surface(shape = RoundedCornerShape(Radius.card), color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant)) {
-            DailyHeadlinesReadingContent(briefing.lead, stories, query, onOpen, onCitationClick)
-        }
+        DailyHeadlinesReadingContent(briefing.lead, stories, query, onOpen, onCitationClick)
     }
 }
 
@@ -67,10 +59,10 @@ private fun DailyHeadlinesReadingContent(
     Column(Modifier.fillMaxWidth()) {
         lead?.let {
             Text(remember(it) { dailyHeadlineLeadText(it) },
-                Modifier.padding(horizontal = Spacing.m + Spacing.xs, vertical = Spacing.m),
+                Modifier.padding(bottom = Spacing.m),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         }
-        Column(Modifier.padding(horizontal = Spacing.m + Spacing.xs)) {
+        Column {
             if (stories.isNotEmpty()) {
                 Row(Modifier.padding(bottom = Spacing.xs)
                     .then(if (lead == null) Modifier.padding(top = Spacing.m) else Modifier),
@@ -90,9 +82,8 @@ private fun DailyHeadlinesReadingContent(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         TextButton(onClick = onOpen, modifier = Modifier.fillMaxWidth().heightIn(min = Height.touchTarget),
-            contentPadding = PaddingValues(horizontal = Spacing.m + Spacing.xs, vertical = Spacing.s)) {
+            contentPadding = PaddingValues(vertical = Spacing.s)) {
             Text(stringResource(R.string.news_focus_read_briefing), Modifier.weight(1f),
                 style = MaterialTheme.typography.labelLarge)
             Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
@@ -100,16 +91,8 @@ private fun DailyHeadlinesReadingContent(
     }
 }
 
-internal fun dailyHeadlineLeadText(lead: String): AnnotatedString {
-    val text = visibleUnifiedNewsTextWithoutCitation(lead)
-    val openingEnd = text.indexOfFirst { it in "。！？" } + 1
-    return buildAnnotatedString {
-        if (openingEnd > 0) {
-            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(text.take(openingEnd)) }
-        }
-        append(text.drop(openingEnd))
-    }
-}
+internal fun dailyHeadlineLeadText(lead: String): AnnotatedString =
+    AnnotatedString(visibleUnifiedNewsTextWithoutCitation(lead))
 
 @Composable
 private fun DailyHeadlineStoryRow(index: Int, story: DailyHeadlineStory, onOpen: (Unified_news_source) -> Unit) {
@@ -137,11 +120,17 @@ internal fun TodayNewsOpportunityCard(
         Column(Modifier.fillMaxWidth()
             .clickable(onClickLabel = stringResource(R.string.news_focus_view_opportunity), onClick = onOpen)
             .padding(top = Spacing.s, bottom = Spacing.s)) {
-            Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-            val description = item.relevance.ifBlank { item.action }
-            if (description.isNotBlank()) {
-                Text(description, Modifier.padding(top = Spacing.s), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val preview = item.preview
+            if (preview != null) {
+                Text(preview.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                OpportunityPreviewLine(stringResource(R.string.news_focus_reason), preview.reason,
+                    Modifier.padding(top = Spacing.s), emphasized = false)
+                OpportunityPreviewLine(stringResource(R.string.news_focus_opportunity), preview.opportunity,
+                    Modifier.padding(top = Spacing.xs), emphasized = true)
+            } else {
+                Text(stringResource(R.string.news_focus_preview_pending), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.news_focus_preview_pending_hint), Modifier.padding(top = Spacing.s),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row(Modifier.fillMaxWidth().padding(top = Spacing.xs), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -156,5 +145,16 @@ internal fun TodayNewsOpportunityCard(
             }
         }
         if (showDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun OpportunityPreviewLine(label: String, text: String, modifier: Modifier, emphasized: Boolean) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
+        verticalAlignment = Alignment.Top) {
+        Text(label, Modifier.padding(top = Spacing.xxs), style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+            color = if (emphasized) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

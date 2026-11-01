@@ -253,7 +253,7 @@ class NewsOpportunityServiceTest {
 
     @Test
     fun productOpportunityNamesTheUserProblemAndSmallestBuildableVersion() {
-        val response = """{"hasOpportunity":true,"productIdea":"合规提醒工具","targetUser":"独立开发者","userProblem":"难以及时跟踪新规则","category":"效率软件","fact":"新闻披露了新规则","relevance":"与用户关注的软件项目有关（推断）","mvp":"先做规则变更提醒页","caveat":"确认数据源是否可用","quote":"新规则"}"""
+        val response = """{"hasOpportunity":true,"productIdea":"合规提醒工具","targetUser":"独立开发者","userProblem":"难以及时跟踪新规则","category":"效率软件","fact":"新闻披露了新规则","relevance":"与用户关注的软件项目有关（推断）","mvp":"先做规则变更提醒页","caveat":"确认数据源是否可用","quote":"新规则","preview":{"title":"规则变更提醒工具","reason":"独立开发者难以及时跟踪新规则。","opportunity":"可做规则变更提醒页，先确认数据源可用。"}}"""
         val draft = assertNotNull(parseOpportunityResponse(response))
         assertEquals("合规提醒工具", draft.title)
         assertContains(draft.relevance, "独立开发者")
@@ -265,7 +265,7 @@ class NewsOpportunityServiceTest {
     fun legacyAnalysisIsPendingForProductOpportunityReanalysis() {
         val article = article(readAt = 0)
         val contextVersion = sha256Hex("\n已验证思想")
-        val oldFingerprint = sha256Hex("news-opportunity-analysis-v2:${article.key}:${sha256Hex(article.content)}:$contextVersion")
+        val oldFingerprint = sha256Hex("news-opportunity-analysis-v4:${article.key}:${sha256Hex(article.content)}:$contextVersion")
         val archive = OpportunityArchive(candidates = listOf(article), checkpoints = listOf(OpportunityCheckpoint(article.key, oldFingerprint)))
         withFixture(initialArchive = archive) { fixture ->
             fixture.service.refresh()
@@ -273,6 +273,65 @@ class NewsOpportunityServiceTest {
             fixture.service.analyze()
             assertEquals(1, fixture.analyzer.inputs.size)
         }
+    }
+
+    @Test
+    fun compactPreviewPersistsWithoutReplacingDetailedAnalysisOrSavedState() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        fixture.service.analyze()
+        val id = fixture.service.state.value.items.single().id
+        fixture.service.setSaved(id, true)
+        fixture.service.linkReminder(id, "existing-reminder")
+        val savedAt = fixture.service.state.value.items.single().savedAt
+        fixture.service.saveFocus("新关注")
+        val preview = OpportunityPreview("失败任务提醒", "手工检查费时。", "可做集中失败提醒工具。")
+        fixture.analyzer.results += draft(title = "保持完整的详细产品方案").copy(preview = preview)
+        fixture.service.analyze()
+        val reopened = fixture.newService()
+        reopened.refresh()
+        val item = reopened.state.value.items.single()
+        assertEquals(preview, item.preview)
+        assertEquals("保持完整的详细产品方案", item.title)
+        assertEquals("关联推断", item.relevance)
+        assertEquals("先做小范围验证", item.action)
+        assertEquals("这是可核对的正文", item.quote)
+        assertEquals(id, item.id)
+        assertTrue(item.saved)
+        assertEquals(savedAt, item.savedAt)
+        assertEquals("existing-reminder", item.reminderId)
+    }
+
+    @Test
+    fun retainedLegacyItemsOutsideTheLatestCandidatesReceiveAPreview() {
+        val old = legacyItem("old")
+        val preview = OpportunityPreview("短标题", "关注原因。", "可做一个小工具。")
+        withFixture(initialArchive = OpportunityArchive(items = listOf(old)),
+            results = mutableListOf(draft().copy(preview = preview)),
+            candidateSource = OpportunityCandidateSource { emptyList() }) { fixture ->
+            fixture.service.refresh()
+            assertEquals(1, fixture.service.state.value.pendingCount)
+            fixture.service.analyze()
+            val item = fixture.service.state.value.items.single()
+            assertEquals(preview, item.preview)
+            assertEquals(old.id, item.id)
+            assertTrue(item.saved)
+            assertEquals(old.savedAt, item.savedAt)
+            assertEquals(0, fixture.service.state.value.pendingCount)
+        }
+    }
+
+    @Test
+    fun legacyPreviewBackfillIsBoundedAndLaterBatchesDoNotRetryCompletedItems() = withFixture(
+        initialArchive = OpportunityArchive(items = (1..21).map { legacyItem("old-$it") } +
+            listOf(legacyItem("ignored").copy(ignored = true), legacyItem("acted").copy(reminderId = "task"))),
+    ) { fixture ->
+        fixture.service.analyze()
+        assertEquals(20, fixture.analyzer.inputs.size)
+        assertEquals(1, fixture.service.state.value.pendingCount)
+        fixture.service.analyze()
+        assertEquals(21, fixture.analyzer.inputs.size)
+        assertEquals(21, fixture.analyzer.inputs.map { it.article.key }.distinct().size)
+        assertEquals(0, fixture.service.state.value.pendingCount)
     }
 
     @Test
@@ -511,6 +570,10 @@ class NewsOpportunityServiceTest {
     }
 
     private companion object {
+        fun legacyItem(key: String) = NewsOpportunity(key, article(key = key), "旧完整方案", "效率工具",
+            "旧事实", "旧关联", "旧行动", "旧风险", "这是可核对的正文", 100,
+            saved = true, savedAt = 200)
+
         fun article(
             key: String = "article-1",
             title: String = "标题",
