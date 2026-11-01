@@ -14,6 +14,7 @@ data class AssistantMessage(
     val error: String = "", val excluded: Boolean = false,
     val references: List<AssistantReference> = emptyList(),
     val actions: List<AssistantActionView> = emptyList(),
+    val requestStage: String = "",
 )
 data class AssistantMemoryView(
     val id: Long, val content: String, val kind: String, val source: String,

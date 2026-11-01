@@ -1,5 +1,7 @@
 package com.dailysatori.service.parser
 
+import com.dailysatori.data.repository.reusableOriginalBody
+
 import co.touchlab.kermit.Logger
 import com.dailysatori.service.diagnostics.*
 import com.dailysatori.config.AIConfig
@@ -897,7 +899,7 @@ class WebpageParserService(
         }
         val original = extracted?.let { articleOriginalMarkdown(it, article.url.orEmpty()) }
             ?.takeIf { it.isNotBlank() } ?: article.original_markdown_content.orEmpty()
-        require(original.isNotBlank()) { "文章没有可处理的正文" }
+        if (original.isBlank()) throw ArticleBodyMissingException()
         articleRepo.updateOriginalMarkdownContent(article.id, original)
         if (article.ai_markdown_content.isNullOrBlank()) articleRepo.updateAiMarkdownContent(article.id, original)
         return original
@@ -1173,8 +1175,10 @@ class WebpageParserService(
         awaitProcessingOwnership(articleId)
         try {
             val article = articleRepo.getById(articleId) ?: throw CancellationException("文章已删除")
-            val extracted = existingArticleOriginalExtractedContent(article)
-                ?: throw IllegalStateException("Article has no reusable original content")
+            val body = article.reusableOriginalBody()
+                ?: throw ArticleBodyMissingException()
+            val extracted = existingArticleOriginalExtractedContent(article)?.copy(content = body)
+                ?: throw ArticleBodyMissingException()
             val expectedSourceHash = remoteArticleSyncRepo?.findByArticleId(articleId)?.source_content_hash.orEmpty()
             remoteArticleSyncRepo?.markProcessing(articleId)
             articleRepo.update(

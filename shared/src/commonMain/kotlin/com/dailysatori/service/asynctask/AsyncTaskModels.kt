@@ -146,6 +146,10 @@ fun asyncTaskNextRetryDelayMs(attemptCount: Long): Long = when (attemptCount) {
     else -> 2 * 60 * 60_000L
 }
 
+internal fun asyncTaskMaxAttempts(type: String, configured: Long): Long =
+    if (type in setOf("remote_article_reprocess", "save_article", "external_favorite_organize", "assistant_turn"))
+        minOf(configured, 3L) else configured
+
 sealed interface AsyncTaskExecutionResult {
     /** Productive bounded work continues without consuming the failure/retry budget. */
     data class Yield(val delayMs: Long = 0) : AsyncTaskExecutionResult

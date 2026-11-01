@@ -1,6 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
 import co.touchlab.kermit.Logger
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.shared.db.External_favorite_source
 import com.dailysatori.shared.isDevelopmentBuild
 import com.dailysatori.service.mapConcurrently
@@ -37,9 +38,11 @@ class XBookmarksConnector(
     private val apiBaseUrl: String = "https://api.x.com",
     @Suppress("unused") private val developmentMode: Boolean = isDevelopmentBuild(),
     private val fxEmbedBaseUrl: String = "https://api.fxtwitter.com",
+    private val sourceRepository: ExternalFavoriteSourceRepository? = null,
     private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : FavoriteConnector {
     private val log = Logger.withTag("XBookmarksConnector")
+    private val authRefreshMutex = Mutex()
     private val fxBackoffMutex = Mutex()
     private var fxBackoffUntil = 0L
 
@@ -56,7 +59,15 @@ class XBookmarksConnector(
         supportsRefreshToken = true,
     )
 
-    override suspend fun refreshAuth(source: External_favorite_source): External_favorite_source {
+    override suspend fun refreshAuth(source: External_favorite_source): External_favorite_source = authRefreshMutex.withLock {
+        val current = if (sourceRepository == null) source
+            else sourceRepository.getById(source.id) ?: throw XFavoriteAuthException(401)
+        refreshAuthToken(current).also { refreshed ->
+            if (refreshed.auth_json != current.auth_json) sourceRepository?.updateAuthJson(current.id, refreshed.auth_json)
+        }
+    }
+
+    private suspend fun refreshAuthToken(source: External_favorite_source): External_favorite_source {
         val now = Clock.System.now().toEpochMilliseconds()
         if (!xAuthShouldRefresh(source.auth_json, now)) return source
         val auth = parseXAuth(source.auth_json) ?: return source

@@ -46,6 +46,12 @@ class AssistantTurnTaskHandler(
             else if (cancelled is AssistantContextChangedException || turns.privacyRevision() != privacyRevision)
                 AsyncTaskExecutionResult.RetryableFailure("assistant_context_changed", "资料已改变，正在基于当前原文重新生成")
             else throw cancelled
+        } catch (budget: AssistantRequestBudgetExceeded) {
+            AsyncTaskExecutionResult.PermanentFailure("assistant_budget_exhausted", budget.message.orEmpty())
+        } catch (http: com.dailysatori.service.ai.AiHttpFailure) {
+            if (http.status in setOf(400, 401, 403, 404))
+                AsyncTaskExecutionResult.PermanentFailure("assistant_configuration_failed", http.message.orEmpty())
+            else AsyncTaskExecutionResult.RetryableFailure("assistant_http_${http.status}", http.message.orEmpty(), http.retryAtMs)
         } catch (_: Exception) {
             // Provider errors may contain credentials or original content. Never persist the exception message.
             AsyncTaskExecutionResult.RetryableFailure("assistant_generation_failed", "助手处理失败，原始输入已保存")

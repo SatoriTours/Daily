@@ -59,6 +59,8 @@ private class ArticleAiSession(private val settings: SettingRepository, private 
 
 internal class ArticleAiProcessingException : IllegalStateException("原文已保存，部分 AI 处理失败，可稍后重试")
 
+class ArticleBodyMissingException : IllegalStateException("文章缺少原文，已停止自动重试；补齐正文后可重新整理")
+
 internal class ArticleAiProcessor(private val ai: AiService, private val settings: SettingRepository) {
     // One request budget across all articles handled by this processor.
     private val requests = Semaphore(2)
@@ -72,7 +74,7 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         ensureCurrent: () -> Unit = {},
         sourceUrl: String = "",
     ) = com.dailysatori.service.ai.withAiRequestSession {
-        require(original.isNotBlank()) { "文章没有可处理的正文" }
+        if (original.isBlank()) throw ArticleBodyMissingException()
         val fingerprint = sha256Hex("article-v4-brief\n$original\n$title\n$sourceUrl\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
         val session = ArticleAiSession(settings, "article.ai.v3:$articleId", fingerprint, ensureCurrent)
         val failures = supervisorScope {
@@ -180,6 +182,9 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
+        } catch (http: com.dailysatori.service.ai.AiHttpFailure) {
+            // Preserve typed status/cooldown so the durable owner, not each stage, decides retries.
+            throw http
         } catch (error: Exception) {
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.PARSER,
                 fields = mapOf("articleStage" to stage), error = error)

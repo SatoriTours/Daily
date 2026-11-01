@@ -10,6 +10,7 @@ import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.parser.WebpageParserService
+import com.dailysatori.service.parser.ArticleBodyMissingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -109,6 +110,16 @@ class RemoteArticleReprocessTaskHandler(
 }
 
 internal fun remoteArticleProcessingFailure(error: Exception): AsyncTaskExecutionResult {
+    if (error is com.dailysatori.service.ai.AiHttpFailure) {
+        return if (error.status in setOf(400, 401, 403, 404))
+            AsyncTaskExecutionResult.PermanentFailure("remote_article_config_error", error.message.orEmpty())
+        else AsyncTaskExecutionResult.RetryableFailure("rate_limited".takeIf { error.status == 429 }
+            ?: "remote_article_http_${error.status}", error.message.orEmpty(), error.retryAtMs)
+    }
+    if (error is ArticleBodyMissingException || error.message in setOf(
+            "文章没有可处理的正文", "Article has no reusable original content")) {
+        return AsyncTaskExecutionResult.PermanentFailure("article_body_missing", ArticleBodyMissingException().message.orEmpty())
+    }
     val message = error.message.orEmpty().ifBlank { "文章整理失败" }
     val normalized = message.lowercase()
     val permanent = normalized.contains("ai config not set") ||

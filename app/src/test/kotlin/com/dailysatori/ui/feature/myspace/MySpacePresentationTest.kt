@@ -5,6 +5,7 @@ import com.dailysatori.service.diary.DiaryThoughtEvidence
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.ReadNewsArticle
 import com.dailysatori.service.reminder.*
+import com.dailysatori.ui.feature.reminder.repeatLabel
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -24,6 +25,22 @@ class MySpacePresentationTest {
                 myUpcomingReminders(listOf(reminder("today", status = status)), today).map { it.id },
                 "status=$status")
         }
+    }
+
+    @Test fun reminderPreviewKeepsScheduledSmsDateTimeAndRecurrenceWithoutADeadline() {
+        val task = reminder("sms:membership", status = ReminderStatus.NOTIFIED).copy(
+            firstReminderTime = LocalTime.parse("22:15:19.905810"),
+            endDate = LocalDate(2026, 10, 31),
+        )
+        val item = myUpcomingReminders(listOf(task), today).single()
+
+        assertEquals(today, item.occurrenceDate)
+        assertEquals("22:15", item.displayTime)
+        assertEquals("22:15:19.905810", item.firstReminderTime)
+        assertNull(item.deadlineAt)
+        assertFalse(item.isSingleDate)
+        assertEquals(com.dailysatori.ui.feature.reminder.ReminderRepeatLabel.DAILY, item.repeatLabel())
+        assertTrue(item.isTodayPending)
     }
 
     @Test fun reminderPreviewKeepsExpiredUnfinishedTasksAheadOfFutureTasks() {

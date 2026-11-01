@@ -74,6 +74,7 @@ class RemoteArticleLocalPolicyTest {
                 url = "https://example.com/short",
                 title = "New model release",
                 summary = "Faster coding for teams",
+                content = "A small model update.",
             ).needsLocalAiReprocessingForChineseOutput(),
         )
     }

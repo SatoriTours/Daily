@@ -388,6 +388,24 @@ class AssistantConversationViewModelTest {
         assertEquals(TaskDisplayState.RequiresResume, messages[4].taskDisplayState)
     }
 
+    @Test fun waitingForRetryIsNotDisplayedAsAnExecutingModel() {
+        val fake = FakeAssistantConversation()
+        val vm = AiChatViewModel(fake)
+        fake.messagesFlow.value = listOf(AssistantMessage(1, "user", "继续", 1,
+            turnId = 10, taskId = 20, status = "retrying"))
+        assertEquals(TaskDisplayState.Waiting, vm.state.value.messages.single().taskDisplayState)
+    }
+
+    @Test fun waitingForCapacityIsExposedWithoutClaimingTheModelIsThinking() {
+        val fake = FakeAssistantConversation()
+        val vm = AiChatViewModel(fake)
+        fake.messagesFlow.value = listOf(AssistantMessage(1, "user", "继续", 1,
+            turnId = 10, taskId = 20, status = "running", requestStage = "queued"))
+        assertEquals(TaskDisplayState.Waiting, vm.state.value.messages.single().taskDisplayState)
+        assertEquals(com.dailysatori.R.string.assistant_request_queued,
+            assistantRequestStageResource(vm.state.value.messages.single().requestStage))
+    }
+
     @Test
     fun memoryOperationsDelegateDirectlyToConversation() {
         val fake = FakeAssistantConversation()

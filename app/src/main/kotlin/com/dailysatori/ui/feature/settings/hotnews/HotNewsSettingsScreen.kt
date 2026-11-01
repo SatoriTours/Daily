@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.hotnews
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,6 +13,7 @@ import com.dailysatori.service.hotnews.*
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.settings.SettingsScaffold
 import com.dailysatori.ui.component.settings.SettingsSectionCard
+import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -21,6 +23,12 @@ fun HotNewsSettingsScreen(onBack: () -> Unit, viewModel: HotNewsSettingsViewMode
     val state by viewModel.state.collectAsState()
     val i18n: I18nService = koinInject()
     val uriHandler = LocalUriHandler.current
+    var manageX by remember { mutableStateOf(false) }
+    if (manageX) {
+        BackHandler { manageX = false }
+        ExternalFavoritesSettingsScreen(onBack = { manageX = false })
+        return
+    }
     SettingsScaffold(title = i18n.t("news_sources.title"), onBack = onBack, useGroupNavigation = true) { modifier ->
         Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
@@ -30,7 +38,7 @@ fun HotNewsSettingsScreen(onBack: () -> Unit, viewModel: HotNewsSettingsViewMode
             listOf(true, false).forEach { core ->
                 SettingsSectionCard(title = i18n.t(if (core) "news_sources.core" else "news_sources.supplemental")) {
                     HotNewsPlatform.entries.filter { it.core == core }.forEach { platform ->
-                        SourceSettingRow(platform, state, viewModel, i18n)
+                        SourceSettingRow(platform, state, viewModel, i18n, onManageX = { manageX = true })
                     }
                 }
             }
@@ -44,7 +52,7 @@ fun HotNewsSettingsScreen(onBack: () -> Unit, viewModel: HotNewsSettingsViewMode
 
 @Composable
 private fun SourceSettingRow(platform: HotNewsPlatform, state: HotNewsSettingsState,
-    viewModel: HotNewsSettingsViewModel, i18n: I18nService) {
+    viewModel: HotNewsSettingsViewModel, i18n: I18nService, onManageX: () -> Unit) {
     val config = state.preferences.source(platform)
     Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -64,8 +72,13 @@ private fun SourceSettingRow(platform: HotNewsPlatform, state: HotNewsSettingsSt
         Text(i18n.t("news_sources.$hint"), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            TextButton(onClick = { viewModel.edit(platform) }, enabled = !state.saving && state.testing == null) {
-                Text(i18n.t(if (config.feedUrl.isBlank()) "news_sources.edit_feed" else "news_sources.configured"))
+            TextButton(onClick = { if (platform == HotNewsPlatform.X) onManageX() else viewModel.edit(platform) },
+                enabled = !state.saving && state.testing == null) {
+                Text(i18n.t(when {
+                    platform == HotNewsPlatform.X -> "news_sources.x_manage_auth"
+                    config.feedUrl.isBlank() -> "news_sources.edit_feed"
+                    else -> "news_sources.configured"
+                }))
             }
             TextButton(onClick = { viewModel.test(platform) }, enabled = !state.saving && state.testing == null) {
                 Text(i18n.t(if (state.testing == platform) "news_sources.testing" else "news_sources.test"))

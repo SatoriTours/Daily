@@ -87,6 +87,12 @@
     <string name="assistant_msg_excluded_badge">（不用于记忆）</string>
     <string name="assistant_msg_delete_notice">删除消息仅从会话记录中移除，不影响已生成的业务对象及长期记忆。</string>
     <string name="assistant_task_waiting">等待处理中…</string>
+    <string name="assistant_request_queued">等待 AI 请求配额</string>
+    <string name="assistant_request_waiting">等待 AI 返回</string>
+    <string name="assistant_request_receiving">正在接收回答</string>
+    <string name="assistant_request_processing">正在处理返回内容</string>
+    <string name="assistant_request_retrying">等待重试</string>
+    <string name="assistant_request_thinking">AI 正在思考</string>
     <string name="assistant_task_processing">正在执行…</string>
     <string name="assistant_task_failed">任务执行失败</string>
     <string name="assistant_task_cancelled">任务已取消</string>

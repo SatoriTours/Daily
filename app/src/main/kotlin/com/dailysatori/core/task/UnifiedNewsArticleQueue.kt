@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
+import com.dailysatori.data.repository.reusableOriginalBody
 import com.dailysatori.service.hotnews.HotNewsService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Unified_news_source
@@ -51,6 +52,7 @@ class UnifiedNewsArticleQueue(
     }
 
     private fun enqueueArticle(source: Unified_news_source, url: String?, existing: Article?, pending: MutableSet<Long>): Long? {
+        if (existing?.source_type == "remote_news" && existing.reusableOriginalBody().isNullOrBlank()) return existing.id
         if (!existing?.ai_content.isNullOrBlank() && !existing?.ai_markdown_content.isNullOrBlank() && existing?.status == "completed") {
             return existing.id
         }
@@ -65,7 +67,7 @@ class UnifiedNewsArticleQueue(
             ?.takeIf { it.url.substringBefore('#').trimEnd('/') == url }
             ?.originalContent?.takeIf { it.length >= 40 }
         val canReprocess = existing != null &&
-            (!existing.original_markdown_content.isNullOrBlank() || !existing.ai_markdown_content.isNullOrBlank() || cachedBody != null)
+            (!existing.reusableOriginalBody().isNullOrBlank() || cachedBody != null)
         if (!canReprocess && url == null) return existing?.id
         val type = if (canReprocess) "remote_article_reprocess" else "save_article"
         val taskId = tasks.enqueue(type = type,

@@ -76,7 +76,11 @@ class HotNewsService(
         if (!config.enabled) return
         val previous = board(platform)
         val ttl = if (platform == HotNewsPlatform.GITHUB) 60 * 60_000L else 15 * 60_000L
-        val fresh = previous.items.isNotEmpty() && now() - previous.fetchedAt in 0 until ttl
+        val hasCache = previous.items.isNotEmpty() || (platform == HotNewsPlatform.X && previous.fetchedAt > 0)
+        val fresh = hasCache && now() - previous.fetchedAt in 0 until ttl
+        val xFetchFailed = platform == HotNewsPlatform.X && previous.error in setOf(HotNewsError.FETCH_FAILED,
+            HotNewsError.X_AUTH_REQUIRED, HotNewsError.X_ACCESS_DENIED, HotNewsError.X_QUOTA_EXCEEDED, HotNewsError.X_RATE_LIMITED)
+        if (!translationsOnly && !force && fresh && xFetchFailed) return
         if (!translationsOnly && !force && fresh && previous.error == null && previous.items.none(::needsTranslation)) {
             logHotNewsProgress(platform, "cache", mapOf("cacheUsed" to "true", "count" to previous.items.size.toString(), "pendingCount" to "0"))
             return
@@ -99,7 +103,11 @@ class HotNewsService(
             commit(platform, config) { store.save(board(platform)) }
         } catch (e: CancellationException) { throw e }
         catch (error: Exception) {
-            val failure = if (error is NewsFeedNotConfigured) HotNewsError.FEED_NOT_CONFIGURED else HotNewsError.FETCH_FAILED
+            val failure = when (error) {
+                is XHotNewsException -> error.error
+                is NewsFeedNotConfigured -> HotNewsError.FEED_NOT_CONFIGURED
+                else -> HotNewsError.FETCH_FAILED
+            }
             commit(platform, config) { update(platform) { it.copy(error = failure) } }
         } finally { commit(platform, config) { update(platform) { it.copy(refreshing = false) } } }
     }

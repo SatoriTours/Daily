@@ -5,6 +5,8 @@
     <string name="news_hotnews_daily">Trending projects today</string>
     <string name="news_hotnews_top">Top stories</string>
     <string name="news_hotnews_topics">Popular topics</string>
+    <string name="news_hotnews_x_posts">Trend-related posts · Interactions</string>
+    <string name="news_hotnews_interactions">%1$s interactions</string>
     <string name="news_hotnews_updated">Updated %1$s</string>
     <string name="news_hotnews_loading">Loading rankings and Chinese translations…</string>
     <string name="news_hotnews_translation_pending">Translating into Chinese…</string>

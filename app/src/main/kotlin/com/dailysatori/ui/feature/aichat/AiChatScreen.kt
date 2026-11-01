@@ -177,7 +177,12 @@ fun AiChatScreen(
                 listState.scrollToItem(targetIndex)
             }
             val bottomScrollOffset = aiChatBottomScrollOffsetForTarget(listState.layoutInfo, targetIndex)
-            listState.animateScrollToItem(targetIndex, scrollOffset = bottomScrollOffset)
+            if (displayMessages.lastOrNull()?.isStreaming == true) {
+                // Streaming follows the newest text without restarting a scroll animation per update.
+                listState.scrollToItem(targetIndex, scrollOffset = bottomScrollOffset)
+            } else {
+                listState.animateScrollToItem(targetIndex, scrollOffset = bottomScrollOffset)
+            }
         }
     }
 
@@ -320,7 +325,9 @@ fun AiChatScreen(
                 }
                 if (showThinking) {
                     item(key = "thinking", contentType = "status") {
-                        ThinkingIndicator()
+                        ThinkingIndicator(displayMessages.lastOrNull {
+                            it.taskDisplayState == TaskDisplayState.Waiting || it.taskDisplayState == TaskDisplayState.Processing
+                        }?.requestStage.orEmpty())
                     }
                 }
                 if (showStoppedStatus) {
@@ -487,7 +494,7 @@ fun aiChatShouldLoadOlder(
     firstVisibleItemIndex <= 1 && firstVisibleItemKey == oldestMessageId
 
 @Composable
-private fun ThinkingIndicator() {
+private fun ThinkingIndicator(requestStage: String) {
     val transition = rememberInfiniteTransition(label = "ai-thinking")
     val iconScale by transition.animateFloat(
         initialValue = 0.9f,
@@ -521,7 +528,7 @@ private fun ThinkingIndicator() {
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "AI 正在思考",
+                    text = stringResource(assistantRequestStageResource(requestStage) ?: R.string.assistant_request_thinking),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

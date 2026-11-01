@@ -15,9 +15,13 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.*
 
-class HotNewsClient(private val client: HttpClient) {
+class HotNewsClient(
+    private val client: HttpClient,
+    private val fetchX: suspend () -> List<HotNewsItem> = { throw XHotNewsException(HotNewsError.X_AUTH_REQUIRED) },
+) {
     suspend fun fetch(platform: HotNewsPlatform, feedUrl: String = platform.defaultFeedUrl): List<HotNewsItem> {
-        if (platform in setOf(HotNewsPlatform.X, HotNewsPlatform.XIAOHONGSHU,
+        if (platform == HotNewsPlatform.X) return fetchX()
+        if (platform in setOf(HotNewsPlatform.XIAOHONGSHU,
                 HotNewsPlatform.CHINA_NEWS, HotNewsPlatform.IT_HOME)) return feed(platform, feedUrl)
         return try {
             validate(direct(platform, feedUrl))
@@ -37,7 +41,8 @@ class HotNewsClient(private val client: HttpClient) {
             HotNewsPlatform.V2EX -> v2ex(get("https://www.v2ex.com/api/topics/hot.json"))
             HotNewsPlatform.LINUX_DO -> feed(platform, "https://linux.do/top/daily.rss")
             HotNewsPlatform.CHINA_NEWS, HotNewsPlatform.IT_HOME -> feed(platform, feedUrl)
-            HotNewsPlatform.X, HotNewsPlatform.XIAOHONGSHU -> error("RSS source required")
+            HotNewsPlatform.X -> error("X uses the official API")
+            HotNewsPlatform.XIAOHONGSHU -> error("RSS source required")
     }
 
     private suspend fun feed(platform: HotNewsPlatform, url: String): List<HotNewsItem> {

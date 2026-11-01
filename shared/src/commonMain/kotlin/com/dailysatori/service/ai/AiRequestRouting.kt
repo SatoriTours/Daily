@@ -71,7 +71,7 @@ internal inline fun <T> withSafeGoResponse(headers: Map<String, String>, block: 
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (error: Exception) {
-    if (!headers.containsKey("x-opencode-session") || error is OpenCodeGoRequestException) throw error
+    if (!headers.containsKey("x-opencode-session") || error is OpenCodeGoRequestException || error is AiHttpFailure) throw error
     // Neither a successful-but-malformed response nor a transport error may expose content or credentials.
     throw openCodeGoUnknownError()
 }

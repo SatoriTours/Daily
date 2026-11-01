@@ -98,10 +98,11 @@ internal actual class LangChainAiClient actual constructor() {
             .apiKey(apiToken)
             .modelName(modelName)
             .temperature(temperature)
-            .apply { if (headers.containsKey("x-opencode-session")) maxRetries(0) }
+            .maxRetries(0)
             .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
             .build()
         AiRequestProtocol.Gemini -> GoogleAiGeminiChatModel.builder()
+            .maxRetries(0)
             .httpClientBuilder(langChainHttpClientBuilder())
             .baseUrl(route.clientBaseUrl)
             .apiKey(apiToken)
@@ -110,6 +111,7 @@ internal actual class LangChainAiClient actual constructor() {
             .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
             .build()
         AiRequestProtocol.OpenAiChatCompletions -> OpenAiChatModel.builder()
+            .maxRetries(0)
             .httpClientBuilder(langChainHttpClientBuilder(headers))
             .baseUrl(route.clientBaseUrl)
             .apiKey(apiToken)
@@ -217,11 +219,19 @@ internal actual class LangChainAiClient actual constructor() {
 // LangChain4j 1.14's public builder preserves timeout configuration on this client.
 internal fun langChainHttpClientBuilder(headers: Map<String, String> = emptyMap()): HttpClientBuilder = OkHttpClient.builder()
     .okHttpClientBuilder(okhttp3.OkHttpClient.Builder()
+        .retryOnConnectionFailure(false)
         .apply {
-            if (headers.isNotEmpty()) addInterceptor { chain ->
+            addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                 headers.forEach { (name, value) -> request.header(name, value) }
-                chain.proceed(request.build())
+                chain.proceed(request.build()).also { response ->
+                    if (!response.isSuccessful) {
+                        val failure = AiHttpFailure(response.code, if (response.code == 429)
+                            aiRetryAtMs(response.header("Retry-After"), response.header("Date")) else null)
+                        response.close()
+                        throw failure
+                    }
+                }
             }
         }
         .eventListenerFactory(diagnosticEventListenerFactory(DiagnosticSource.AI)))
@@ -231,8 +241,9 @@ private inline fun <T> withSafeGoErrors(headers: Map<String, String>, block: () 
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (error: Exception) {
-    if (!headers.containsKey("x-opencode-session")) throw error
+    generateSequence(error as Throwable) { it.cause }.take(8).filterIsInstance<AiHttpFailure>().firstOrNull()?.let { throw it }
     val httpError = generateSequence(error as Throwable) { it.cause }.take(8).filterIsInstance<HttpException>().firstOrNull()
-    throw httpError?.let { openCodeGoHttpError(it.statusCode()) }
-        ?: openCodeGoUnknownError()
+    if (httpError != null) throw AiHttpFailure(httpError.statusCode())
+    if (!headers.containsKey("x-opencode-session")) throw error
+    throw openCodeGoUnknownError()
 }

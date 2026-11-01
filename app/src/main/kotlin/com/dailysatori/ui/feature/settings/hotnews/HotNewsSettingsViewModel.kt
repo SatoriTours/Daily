@@ -38,6 +38,7 @@ class HotNewsSettingsViewModel(
     }
 
     fun edit(platform: HotNewsPlatform) {
+        if (platform == HotNewsPlatform.X) return
         mutableState.update { it.copy(editor = platform, feedUrlDraft = it.preferences.source(platform).feedUrl, editorError = null) }
     }
 
@@ -76,8 +77,19 @@ class HotNewsSettingsViewModel(
                 val count = client.fetch(platform, config.feedUrl).size
                 mutableState.update { it.copy(message = i18n.t("news_sources.test_success", platform.displayName, count)) }
             } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: XHotNewsException) {
+                val key = when (error.error) {
+                    HotNewsError.X_AUTH_REQUIRED -> "x_auth_required"
+                    HotNewsError.X_ACCESS_DENIED -> "x_access_denied"
+                    HotNewsError.X_QUOTA_EXCEEDED -> "x_quota_exceeded"
+                    HotNewsError.X_RATE_LIMITED -> "x_rate_limited"
+                    else -> "x_fetch_failed"
+                }
+                mutableState.update { it.copy(message = i18n.t("news_sources.$key")) }
+            }
             catch (_: Exception) {
-                mutableState.update { it.copy(message = i18n.t("news_sources.test_failed")) }
+                val key = if (platform == HotNewsPlatform.X) "x_fetch_failed" else "test_failed"
+                mutableState.update { it.copy(message = i18n.t("news_sources.$key")) }
             } finally { mutableState.update { it.copy(testing = null) } }
         }
     }

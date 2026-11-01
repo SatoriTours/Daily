@@ -15,6 +15,50 @@ import kotlinx.coroutines.CancellationException
 import kotlin.test.assertFailsWith
 
 class AsyncTaskRunnerTest {
+    @Test fun exhaustedLegacyAiTasksNeverInvokeTheirHandler() = runBlocking {
+        for (attempts in listOf(3L, 4L)) {
+            var calls = 0
+            var legacyId = 0L
+            val handler = object : AsyncTaskHandler {
+                override val type = "remote_article_reprocess"
+                override suspend fun execute(taskId: Long, payloadJson: String, checkpointJson: String,
+                    reporter: AsyncTaskProgressReporter): AsyncTaskExecutionResult {
+                    calls++
+                    return AsyncTaskExecutionResult.Success()
+                }
+            }
+            withRunner(listOf(handler), prepare = { repository, driver ->
+                legacyId = repository.enqueue(handler.type, "{}")
+                driver.execute(null, "UPDATE async_task SET max_attempts=5,attempt_count=$attempts,status='retrying',run_after_ms=0 WHERE id=$legacyId", 0)
+            }) { repository, runner, _ ->
+                assertEquals(5, repository.getById(legacyId)!!.max_attempts)
+                assertEquals(AsyncTaskRunOutcome.Failed, runner.run(legacyId))
+                assertEquals(0, calls)
+                assertEquals(attempts, repository.getById(legacyId)!!.attempt_count)
+                assertEquals("failed", repository.getById(legacyId)!!.status)
+            }
+        }
+    }
+
+    @Test fun legacyAiTasksStopAfterThreeAttemptsIncludingTheFirst() = runBlocking {
+        val handler = object : AsyncTaskHandler {
+            override val type = "remote_article_reprocess"
+            override suspend fun execute(taskId: Long, payloadJson: String, checkpointJson: String,
+                reporter: AsyncTaskProgressReporter) = AsyncTaskExecutionResult.RetryableFailure("network", "暂时失败")
+        }
+        withRunner(listOf(handler)) { repository, runner, _ ->
+            val id = repository.enqueue(handler.type, "{}", maxAttempts = 5)
+            assertTrue(repository.claimForRun(id, "first", Long.MAX_VALUE))
+            repository.markRetry(id, "network", "暂时失败", 0, consumeAttempt = true)
+            assertTrue(repository.claimForRun(id, "second", Long.MAX_VALUE))
+            repository.markRetry(id, "network", "暂时失败", 0, consumeAttempt = true)
+            assertEquals(2, repository.getById(id)!!.attempt_count)
+            assertEquals(3, asyncTaskMaxAttempts(handler.type, 5))
+            assertEquals(AsyncTaskRunOutcome.Failed, runner.run(id))
+            assertEquals("failed", repository.getById(id)!!.status)
+        }
+    }
+
     @Test
     fun timeoutHandlerWritesTheActualTerminalReason() = runBlocking {
         val handler = object : AsyncTaskHandler {
@@ -304,6 +348,7 @@ class AsyncTaskRunnerTest {
         handlers: List<AsyncTaskHandler>,
         nowMs: () -> Long = { 1_000 },
         executionTimeoutMs: (String) -> Long = { 60_000L },
+        prepare: (AsyncTaskRepository, JdbcSqliteDriver) -> Unit = { _, _ -> },
         block: suspend (AsyncTaskRepository, AsyncTaskRunner, RecordingTaskLogger) -> Unit,
     ) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
@@ -318,6 +363,7 @@ class AsyncTaskRunnerTest {
             nowMs = nowMs,
             executionTimeoutMs = executionTimeoutMs,
         )
+        prepare(repository, driver)
         block(repository, runner, logger)
         driver.close()
     }

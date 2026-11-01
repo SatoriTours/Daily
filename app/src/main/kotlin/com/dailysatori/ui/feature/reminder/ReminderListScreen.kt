@@ -581,7 +581,7 @@ private fun ReminderStoryMeta(item: ReminderListItemUi, today: LocalDate, isFini
     val timing = when {
         isUnscheduledSms -> i18n.t("sms.no_deadline")
         item.deadlineAt != null -> i18n.t("sms.deadline") + " " + com.dailysatori.ui.feature.settings.sms.formatSmsTime(item.deadlineAt)
-        else -> "$date ${item.firstReminderTime}"
+        else -> "$date ${item.displayTime}"
     }
     val repeat = if (!item.isSingleDate && !isUnscheduledSms && !isFinished) item.repeatLabel().label() else null
     val source = sourceKey?.let { i18n.t(it) }

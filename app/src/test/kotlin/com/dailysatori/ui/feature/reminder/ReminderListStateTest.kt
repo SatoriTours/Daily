@@ -16,6 +16,47 @@ import kotlin.test.assertTrue
 
 class ReminderListStateTest {
     @Test
+    fun displayTimesStayMinutePrecisionAcrossListModes() {
+        val today = LocalDate(2026, 9, 14)
+        val cases = listOf(
+            "22:15:19.905810" to "22:15",
+            "09:00" to "09:00",
+            "00:05:01" to "00:05",
+            "23:59:59.999999999" to "23:59",
+        )
+        for (mode in ReminderListMode.entries) {
+            for ((rawTime, expected) in cases) {
+                val task = reminder("time", ReminderRecurrence.Once).copy(
+                    startDate = today, endDate = today, firstReminderTime = LocalTime.parse(rawTime),
+                    status = if (mode == ReminderListMode.FINISHED) ReminderStatus.COMPLETED else ReminderStatus.ACTIVE,
+                )
+                val state = buildReminderListState(listOf(task), today, mode,
+                    ReminderListFilter(expandedMonth = today.monthNumber))
+
+                val item = state.sections.single().items.single()
+                assertEquals(expected, item.displayTime, "$mode: $rawTime")
+                assertEquals(rawTime, item.firstReminderTime, "original precision: $mode")
+            }
+        }
+    }
+
+    @Test
+    fun minutePrecisionDisplayDoesNotChangeOrderingWithinTheSameMinute() {
+        val today = LocalDate(2026, 9, 14)
+        val earlier = reminder("z-earlier", ReminderRecurrence.Once).copy(
+            startDate = today, endDate = today, firstReminderTime = LocalTime(9, 0, 1),
+        )
+        val later = earlier.copy(id = "a-later", firstReminderTime = LocalTime(9, 0, 59))
+        for (mode in listOf(ReminderListMode.RECENT, ReminderListMode.MONTHS)) {
+            val state = buildReminderListState(listOf(later, earlier), today, mode,
+                ReminderListFilter(expandedMonth = today.monthNumber))
+
+            assertEquals(listOf("z-earlier", "a-later"), state.sections.single().items.map { it.id }, mode.name)
+            assertEquals("z-earlier", state.summary.nextItem?.id)
+        }
+    }
+
+    @Test
     fun pausedRemindersAreSeparatedFromActionableTasksAndSummary() {
         val today = LocalDate(2026, 9, 14)
         val active = reminder("active", ReminderRecurrence.Monthly(14)).copy(startDate = today, endDate = today)

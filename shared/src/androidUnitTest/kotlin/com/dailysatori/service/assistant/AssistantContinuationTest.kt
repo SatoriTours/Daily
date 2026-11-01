@@ -125,6 +125,15 @@ class AssistantContinuationTest {
                 val checkpoint = tasks.getById(turn.taskId)!!.checkpoint_json
                 assertTrue(checkpoint.contains("messageHistory"), "completed Koog context must survive the failed request")
                 assertFalse(checkpoint.contains("configured-secret"))
+                // A long background pause is not a change to the input, permissions or read dependencies.
+                val state = Json.parseToJsonElement(checkpoint).jsonObject
+                val snapshot = state["snapshot"]!!.jsonObject
+                val old = JsonPrimitive((kotlinx.datetime.Clock.System.now() - kotlin.time.Duration.parse("23m")).toString())
+                val aged = JsonObject(state + ("snapshot" to JsonObject(snapshot + ("createdAt" to old))))
+                driver.execute(null, "UPDATE async_task SET checkpoint_json=? WHERE id=?", 2) {
+                    bindString(0, aged.toString()); bindLong(1, turn.taskId)
+                }
+                assertEquals(aged.toString(), tasks.getById(turn.taskId)!!.checkpoint_json)
                 // Simulate the retry delay having elapsed, without sleeping or changing the scheduler.
                 driver.execute(null, "UPDATE async_task SET run_after_ms=NULL WHERE id=?", 1) { bindLong(0, turn.taskId) }
                 assertEquals(AsyncTaskRunOutcome.Succeeded, runner.run(turn.taskId))

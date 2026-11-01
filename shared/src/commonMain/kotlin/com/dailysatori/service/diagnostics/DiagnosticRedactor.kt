@@ -30,6 +30,7 @@ object DiagnosticRedactor {
                     "database_open", "task_recovery", "translations", "first_draw") -> put(key, value)
                 key == "articleStage" && value in setOf("queued", "extraction", "overview", "translation", "cover") -> put(key, value)
                 key == "aiPurpose" && value in aiPurposes -> put(key, value)
+                key == "aiStage" && value in setOf("queued", "requesting", "receiving", "received") -> put(key, value)
                 key == "hotNewsPlatform" && value in hotNewsPlatforms -> put(key, value)
                 key == "hotNewsStage" && value in hotNewsStages -> put(key, value)
                 key == "operation" && value in setOf("hot_news_refresh", "hot_news_retry") -> put(key, value)

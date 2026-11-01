@@ -5,6 +5,8 @@
     <string name="news_hotnews_daily">今日热门项目</string>
     <string name="news_hotnews_top">热门文章</string>
     <string name="news_hotnews_topics">热门话题</string>
+    <string name="news_hotnews_x_posts">趋势相关帖子 · 互动排序</string>
+    <string name="news_hotnews_interactions">%1$s 次互动</string>
     <string name="news_hotnews_updated">更新于 %1$s</string>
     <string name="news_hotnews_loading">正在获取榜单和中文翻译…</string>
     <string name="news_hotnews_translation_pending">正在翻译为中文…</string>

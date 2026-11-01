@@ -9,6 +9,21 @@ import kotlin.test.assertIs
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 
 class RemoteArticleSyncTaskSourceTest {
+    @Test fun aiRateLimitKeepsTheServerDeadlineAndAuthenticationNeverRetries() {
+        val limited = remoteArticleProcessingFailure(com.dailysatori.service.ai.AiHttpFailure(429, 123_000))
+        assertIs<AsyncTaskExecutionResult.RetryableFailure>(limited)
+        assertEquals(123_000L, limited.retryAfterMs)
+        assertIs<AsyncTaskExecutionResult.PermanentFailure>(
+            remoteArticleProcessingFailure(com.dailysatori.service.ai.AiHttpFailure(401)))
+    }
+
+    @Test
+    fun missingBodyStopsInsteadOfRetryingTheSameInvalidInput() {
+        val result = remoteArticleProcessingFailure(IllegalArgumentException("文章没有可处理的正文"))
+        assertIs<AsyncTaskExecutionResult.PermanentFailure>(result)
+        assertEquals("article_body_missing", result.code)
+    }
+
     @Test
     fun allSourceFailuresRetryButPartialFailuresKeepUsableResults() {
         assertIs<AsyncTaskExecutionResult.RetryableFailure>(

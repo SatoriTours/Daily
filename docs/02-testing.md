@@ -6,7 +6,7 @@
 
 ### 日常开发验证
 
-日常仅执行代码级测试（如单元测试）及必要的编译检查，不启动模拟器、不安装或启动 App，也不执行 UI 测试。
+日常非 UI 改动执行代码级测试及必要的编译检查。UI 改动已获用户长期授权，可直接在现有默认设备 `192.168.2.138:5556` 安装、运行 App 并补做实际界面与交互测试，无需重复申请；不自行启动其他模拟器。
 按改动范围选择聚焦测试；代码改动完成后运行相关测试和必要的编译检查，纯文档修改无需构建。验证频率和完整构建的触发条件统一遵守 `AGENTS.md` 的“代码校验”；同一代码和环境已有有效结果时不重复运行。
 
 ```bash
@@ -125,9 +125,8 @@ DAILY_AI_LIVE_TEST=1 ./gradlew :shared:testDebugUnitTest --tests '*AiPurposeLive
 
 ### Android 模拟器
 
-仅发布代码前，或用户明确要求真机／UI 测试时，才启动模拟器进行 UI 验证。
-用户说“真机测试”时默认使用此模拟器；明确指定物理设备时使用指定设备。
-UI 测试完成、失败或中断后均须执行 `adb -e emu kill` 关闭模拟器，不留后台运行。
+实际测试默认使用已连接的 `192.168.2.138:5556`（现有远程模拟器），不另起本机模拟器；用户明确另指定设备时遵从当次要求。设备不可用则报告阻塞。
+保留该共享设备及其数据，覆盖安装，不卸载或清数据，也不执行 `emu kill`；仅恢复本任务修改的系统设置。下述创建/启动本机模拟器的步骤仅供用户另行明确授权时使用，只有本任务新建且无人使用的临时设备需要在结束/失败时关闭。
 
 安装并创建 API 36 设备（首次执行；创建时不要覆盖已有同名设备）：
 
@@ -176,14 +175,14 @@ adb -e logcat -d -b crash
 
 ## 测试设备
 
-通过 `adb` 管理连接设备：
+默认设备：`192.168.2.138:5556`。所有设备操作显式使用 `-s`，不因设备离线静默切换目标。
 
 ```bash
 # 查看已连接设备
-adb devices
+/home/jimxl/Android/Sdk/platform-tools/adb devices -l
 
-# 安装 APK
-./gradlew :app:installDebug
+# 覆盖安装 APK，保留数据
+/home/jimxl/Android/Sdk/platform-tools/adb -s 192.168.2.138:5556 install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## 推荐工作流程
@@ -193,24 +192,23 @@ adb devices
 ./gradlew :app:compileDebugKotlin
 ```
 
-同时按改动范围运行相关模块的单元测试，不启动模拟器；不重复执行上述已通过的编译检查。
+同时按改动范围运行相关模块的单元测试；UI 改动随后使用默认设备做实际测试，不重复执行已通过的代码级验证或另起模拟器。
 
-### 发布前或用户明确要求真机／UI 测试时
+### UI 改动、发布前或用户要求实际测试时
 
-启动模拟器，安装 App 并检查界面及交互；测试完成、失败或中断后都关闭模拟器。
+使用既有默认设备，安装 App 并检查实际入口、界面及交互，保留设备数据；结束后恢复本任务修改的系统设置，不关闭共享设备。
 
 ```bash
 # 完整构建
 ./gradlew :app:assembleDebug
 
 # 安装测试
-./gradlew :app:installDebug
+ADB=/home/jimxl/Android/Sdk/platform-tools/adb
+"$ADB" -s 192.168.2.138:5556 install -r app/build/outputs/apk/debug/app-debug.apk
+"$ADB" -s 192.168.2.138:5556 shell am start -n com.dailysatori/.MainActivity
 
 # 查看日志
-adb logcat -s "DBMigration:D" "MCPAgent:D" "MemoryExtract:D"
-
-# UI 测试结束后（先退出日志查看）
-adb -e emu kill
+"$ADB" -s 192.168.2.138:5556 logcat -d -s "DBMigration:D" "MCPAgent:D" "MemoryExtract:D"
 ```
 
 ## 本地诊断导出验证

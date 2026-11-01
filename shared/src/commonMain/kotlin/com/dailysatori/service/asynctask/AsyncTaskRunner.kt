@@ -62,6 +62,14 @@ class AsyncTaskRunner(
         }
         log(taskId, "TASK started type=${task.type}")
 
+        val exhausted = repository.withRunningLease(taskId, leaseOwner) {
+            val current = requireNotNull(repository.getById(taskId))
+            current.attempt_count >= asyncTaskMaxAttempts(current.type, current.max_attempts)
+        } ?: return AsyncTaskRunOutcome.Skipped
+        if (exhausted) return finishWithLease(task, leaseOwner, AsyncTaskExecutionResult.PermanentFailure(
+            "retry_budget_exhausted", "任务已达到尝试上限，已停止自动执行；已完成的结果和历史记录仍保留",
+        ))
+
         val handler = registry.get(task.type)
         if (handler == null) {
             return finishWithLease(task, leaseOwner, AsyncTaskExecutionResult.PermanentFailure(
@@ -171,7 +179,7 @@ class AsyncTaskRunner(
     ): AsyncTaskRunOutcome {
         val latest = repository.getById(taskId)
         val attempts = latest?.attempt_count ?: task.attempt_count
-        if (attempts + 1 >= task.max_attempts) {
+        if (attempts + 1 >= asyncTaskMaxAttempts(task.type, task.max_attempts)) {
             repository.finishFailure(taskId, code, message)
             log(taskId, "TASK failed code=$code message=$message")
             return AsyncTaskRunOutcome.Failed

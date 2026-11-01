@@ -186,6 +186,7 @@ fun MessageBubble(
                             onCancel = onCancelTurn,
                             onRetry = onRetryTurn,
                             onTaskCenterClick = onTaskCenterClick,
+                            requestStage = message.requestStage,
                         )
                     }
 
@@ -582,6 +583,7 @@ fun TaskStatusCard(
     onCancel: (Long) -> Unit,
     onRetry: (Long) -> Unit,
     onTaskCenterClick: () -> Unit,
+    requestStage: String = "",
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
 
@@ -631,11 +633,11 @@ fun TaskStatusCard(
                 when (taskState) {
                     TaskDisplayState.Waiting -> {
                         Icon(Icons.Filled.HourglassEmpty, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(IconSize.s))
-                        Text(stringResource(R.string.assistant_task_waiting), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(assistantRequestStageResource(requestStage) ?: R.string.assistant_task_waiting), style = MaterialTheme.typography.bodySmall)
                     }
                     TaskDisplayState.Processing -> {
                         CircularProgressIndicator(strokeWidth = BorderWidth.l, modifier = Modifier.size(IconSize.xs))
-                        Text(stringResource(R.string.assistant_task_processing), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(assistantRequestStageResource(requestStage) ?: R.string.assistant_task_processing), style = MaterialTheme.typography.bodySmall)
                     }
                     TaskDisplayState.Failed -> {
                         Icon(Icons.Filled.Error, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(IconSize.s))

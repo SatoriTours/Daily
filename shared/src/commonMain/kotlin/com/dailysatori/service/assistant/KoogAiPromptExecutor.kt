@@ -103,6 +103,10 @@ class KoogAiPromptExecutor(
         block()
     } catch (cancelled: CancellationException) {
         throw cancelled
+    } catch (safe: com.dailysatori.service.ai.AiHttpFailure) {
+        throw safe
+    } catch (budget: AssistantRequestBudgetExceeded) {
+        throw budget
     } catch (_: Exception) {
         // No provider body, endpoint, credentials, prompt text or exception cause escapes to Koog.
         throw IllegalStateException("助手 AI 请求失败，请检查配置或稍后重试")

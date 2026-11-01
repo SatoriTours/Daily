@@ -112,6 +112,8 @@ import com.dailysatori.service.hotnews.HotNewsClient
 import com.dailysatori.service.hotnews.HotNewsStore
 import com.dailysatori.service.hotnews.HotNewsTranslator
 import com.dailysatori.service.hotnews.HotNewsService
+import com.dailysatori.service.hotnews.XHotNewsClient
+import com.dailysatori.service.hotnews.xHotNewsAuthorization
 import com.dailysatori.service.weekly.WeeklySummaryService
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -215,7 +217,8 @@ val sharedModule: Module = module {
     single { SettingService(get()) }
     single { I18nService(get()) }
     single { AiConfigService(get()) }
-    single { AiService(get()) }
+    single { com.dailysatori.service.ai.AiRequestCoordinator(get()) }
+    single { AiService(get(), get()) }
     single { com.dailysatori.service.ai.AiConversationSessionStore(get()) }
     single<OpportunityAnalyzer> { AiNewsOpportunityAnalyzer(get(), get()) }
     single<NewsOpportunityContext> { DiaryThoughtOpportunityContext(get(), get()) }
@@ -232,7 +235,7 @@ val sharedModule: Module = module {
     single { PluginService(get(), get()) }
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }
-    single { XBookmarksConnector(get()) }
+    single { XBookmarksConnector(get(), sourceRepository = get()) }
     single { GitHubStarsConnector(get()) }
     single { FavoriteConnectorRegistry(listOf(get<XBookmarksConnector>(), get<GitHubStarsConnector>())) }
     single { ExternalFavoriteImporter(get(), get()) }
@@ -256,7 +259,12 @@ val sharedModule: Module = module {
     single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
     single { DiaryTitleGenerator(diaryTitleCompletion(get(), get())) }
     single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get(), get()) }
-    single { HotNewsClient(get()) }
+    single {
+        val sources: ExternalFavoriteSourceRepository = get()
+        val connector: XBookmarksConnector = get()
+        XHotNewsClient(get(), { xHotNewsAuthorization(sources, connector) })
+    }
+    single { HotNewsClient(get(), get<XHotNewsClient>()::fetch) }
     single { HotNewsStore(get()) }
     single { HotNewsTranslator(get(), get()) }
     single {

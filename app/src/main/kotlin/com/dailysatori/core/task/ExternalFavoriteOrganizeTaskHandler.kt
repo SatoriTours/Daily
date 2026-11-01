@@ -37,7 +37,7 @@ class ExternalFavoriteOrganizeTaskHandler(
         var failed = 0
         var deferred = 0
         reporter.report(0, 0, "收藏已保存，准备 AI 整理（每批最多 20 条，单条最多 90 秒）")
-        val processed = organizer.organizePendingForSource(
+        val processed = try { organizer.organizePendingForSource(
             payload.sourceId, limit = 20,
             httpLogger = httpLogger, taskId = taskId,
         ) { progress ->
@@ -47,6 +47,8 @@ class ExternalFavoriteOrganizeTaskHandler(
                 "已整理 ${progress.processed - failed - deferred} 条，失败 $failed 条，暂缓 $deferred 条 · 最近处理收藏 #${progress.itemId}",
                 checkpointJson = """{"processed":${progress.processed},"failed":$failed,"deferred":$deferred,"itemId":${progress.itemId}}""",
             )
+        } } catch (http: com.dailysatori.service.ai.AiHttpFailure) {
+            return remoteArticleProcessingFailure(http)
         }
         val hasMore = items.pendingAiBySource(payload.sourceId, 1).isNotEmpty()
         val paused = items.hasDeferredContentBySource(payload.sourceId)

@@ -14,7 +14,7 @@ import kotlinx.datetime.Clock
 import kotlin.test.*
 
 class HotNewsSubscriptionTest {
-    @Test fun unavailableFeedAndUnconfiguredFeedHaveDistinctErrors() = runBlocking {
+    @Test fun missingXAuthorizationAndUnconfiguredFeedHaveDistinctErrors() = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val store = HotNewsStore(SettingRepository(DailySatoriDatabase(driver)))
@@ -25,10 +25,10 @@ class HotNewsSubscriptionTest {
                 service.refresh(HotNewsPlatform.XIAOHONGSHU)
                 val x = service.boards.value.first { it.platform == HotNewsPlatform.X }
                 val xiaohongshu = service.boards.value.first { it.platform == HotNewsPlatform.XIAOHONGSHU }
-                assertEquals(HotNewsError.FETCH_FAILED, x.error)
+                assertEquals(HotNewsError.X_AUTH_REQUIRED, x.error)
                 assertEquals(HotNewsError.FEED_NOT_CONFIGURED, xiaohongshu.error)
                 assertTrue(x.items.isEmpty() && xiaohongshu.items.isEmpty())
-                assertEquals(1, requests)
+                assertEquals(0, requests)
             }
         }
     }
@@ -96,7 +96,7 @@ class HotNewsSubscriptionTest {
             val client = HotNewsClient(http)
             assertFailsWith<NewsFeedNotConfigured> { client.fetch(HotNewsPlatform.XIAOHONGSHU) }
             assertEquals(0, requests)
-            assertFailsWith<IllegalArgumentException> { client.fetch(HotNewsPlatform.X, "https://feed.example/x") }
+            assertFailsWith<IllegalArgumentException> { client.fetch(HotNewsPlatform.XIAOHONGSHU, "https://feed.example/x") }
             assertEquals(1, requests)
         }
         val defaults = HotNewsSourcePreferences()

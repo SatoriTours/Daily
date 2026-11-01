@@ -65,6 +65,12 @@
     <string name="assistant_msg_excluded_badge">(Excluded from memory)</string>
     <string name="assistant_msg_delete_notice">Deleting a message removes it from chat view only; existing objects and long-term memories are unaffected.</string>
     <string name="assistant_task_waiting">Waiting…</string>
+    <string name="assistant_request_queued">Waiting for AI capacity</string>
+    <string name="assistant_request_waiting">Waiting for AI response</string>
+    <string name="assistant_request_receiving">Receiving response</string>
+    <string name="assistant_request_processing">Processing response</string>
+    <string name="assistant_request_retrying">Waiting to retry</string>
+    <string name="assistant_request_thinking">AI is thinking</string>
     <string name="assistant_task_processing">Processing…</string>
     <string name="assistant_task_failed">Task failed</string>
     <string name="assistant_task_cancelled">Task cancelled</string>

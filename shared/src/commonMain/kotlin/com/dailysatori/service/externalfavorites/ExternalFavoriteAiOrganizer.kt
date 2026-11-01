@@ -192,6 +192,7 @@ class ExternalFavoriteAiOrganizer(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
+            if (error is com.dailysatori.service.ai.AiHttpFailure && error.status in setOf(400, 401, 403, 404, 429)) throw error
             logAiFailure(httpLogger, taskId, entry.item, error)
             ExternalFavoriteAiResult(entry.item, entry.article, null, null, error)
         }
@@ -541,6 +542,7 @@ internal fun githubAnalysisNeedsChineseRetry(
 }
 
 internal fun isRetryableExternalFavoriteAiFailure(error: Throwable): Boolean {
+    if (error is com.dailysatori.service.ai.AiHttpFailure) return error.status == 408 || error.status >= 500
     if (error is IllegalArgumentException) return false
     val message = error.message.orEmpty().lowercase()
     if ("config not set" in message || "api token" in message && "missing" in message) return false

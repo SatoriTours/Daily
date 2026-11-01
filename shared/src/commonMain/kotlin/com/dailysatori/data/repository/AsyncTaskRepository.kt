@@ -8,6 +8,7 @@ import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.AsyncTaskListItem
 import com.dailysatori.service.asynctask.AsyncTaskStatus
+import com.dailysatori.service.asynctask.asyncTaskMaxAttempts
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -160,7 +161,7 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
             progress_total = 0,
             progress_message = "",
             attempt_count = 0,
-            max_attempts = maxAttempts,
+            max_attempts = asyncTaskMaxAttempts(type, maxAttempts),
             priority = priority,
             unique_key = uniqueKey,
             batch_id = batchId,

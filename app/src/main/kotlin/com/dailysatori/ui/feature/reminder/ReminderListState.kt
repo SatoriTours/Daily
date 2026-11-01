@@ -49,7 +49,10 @@ data class ReminderListItemUi(
     val version: Long = 0,
     val canComplete: Boolean = true,
     val isSingleDate: Boolean = false,
-)
+) {
+    // Keep the original precision for ordering; only visible text is shortened.
+    val displayTime: String get() = firstReminderTime.take(5)
+}
 
 fun ReminderListItemUi.repeatLabel(): ReminderRepeatLabel = when {
     recurrence == ReminderRecurrenceKind.YEARLY -> ReminderRepeatLabel.YEARLY

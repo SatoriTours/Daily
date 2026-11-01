@@ -10,6 +10,17 @@ import kotlin.test.assertTrue
 
 class RemoteArticleFavoriteMapperTest {
     @Test
+    fun englishSummaryWithoutBodyDoesNotScheduleAiProcessing() {
+        val article = RemoteArticle(id = 91, url = "https://example.com/summary-only",
+            title = "New software release for developer teams",
+            summary = "A major new software release improves performance and reliability for enterprise teams.",
+            viewpoints = listOf("This update improves the daily workflow for software developers."))
+        assertFalse(article.needsLocalAiReprocessingForChineseOutput())
+        assertTrue(article.copy(content = "The complete original article describes the new software release in detail.")
+            .needsLocalAiReprocessingForChineseOutput())
+    }
+
+    @Test
     fun originalReaderExtractsBodyFromRemoteSnapshot() {
         val article = RemoteArticle(id = 1, summary = "Summary", viewpoints = listOf("Point"), content = "# Body\n\nFull text")
         assertEquals("# Body\n\nFull text", articleOriginalMarkdown(article.canonicalOriginalMarkdown(), "AI body", true))

@@ -63,7 +63,13 @@ class KoogAssistantRuntime(
             },
             onPartial = { checkpoints?.partial(it) },
             ensureAuthority = { checkpoints?.guard() })
-        val answer = assistant.generateAccepted(turn.sessionId, turn.id)
+        val budget = AssistantRequestBudget(driver, turn, owner)
+        val observer = com.dailysatori.service.ai.AiRequestObserver(
+            state = { checkpoints?.requestState(it) },
+            beforeSend = { checkpoints?.guard(); budget.beforeSend() },
+            progress = budget::checkDeadline,
+        )
+        val answer = kotlinx.coroutines.withContext(observer) { assistant.generateAccepted(turn.sessionId, turn.id) }
         store.changed()
         return answer
     }

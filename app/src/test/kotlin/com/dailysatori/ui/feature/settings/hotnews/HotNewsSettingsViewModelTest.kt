@@ -43,7 +43,18 @@ class HotNewsSettingsViewModelTest {
         assertTrue(service.boards.value.all { it.items.isEmpty() })
     }
 
-    private fun withModel(block: suspend (HotNewsSettingsViewModel, HotNewsService) -> Unit) = runBlocking {
+    @Test fun xHasNoRssEditorAndConnectionTestExplainsOfficialQuotaErrors() =
+        withModel(xFailure = HotNewsError.X_QUOTA_EXCEEDED) { model, _ ->
+            model.edit(HotNewsPlatform.X)
+            assertNull(model.state.value.editor)
+            model.test(HotNewsPlatform.X)
+            val result = withTimeout(5_000) { model.state.first { it.testing == null && it.message != null } }
+            assertTrue(result.message.orEmpty().contains("额度不足"))
+            assertFalse(result.message.orEmpty().contains("RSSHub"))
+        }
+
+    private fun withModel(xFailure: HotNewsError? = null,
+        block: suspend (HotNewsSettingsViewModel, HotNewsService) -> Unit) = runBlocking {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         try {
             JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
@@ -53,9 +64,16 @@ class HotNewsSettingsViewModelTest {
                     loadTranslation("zh", File("src/main/assets/i18n/zh.yaml").readText())
                     init("zh")
                 }
-                HttpClient(MockEngine { respond("""<rss><channel><item><title>测试新闻</title>
-                    <link>https://x.com/user/status/1</link></item></channel></rss>""") }).use { http ->
-                    val client = HotNewsClient(http)
+                HttpClient(MockEngine { request ->
+                    respond(if (request.url.encodedPath.endsWith("personalized_trends"))
+                        """{"data":[{"trend_name":"测试"}]}"""
+                    else """{"data":[{"id":"1","text":"测试新闻","public_metrics":{"like_count":3}}]}""")
+                }).use { http ->
+                    val x = XHotNewsClient(http, { XHotNewsAuthorization("test-token") })
+                    val client = HotNewsClient(http) {
+                        if (xFailure != null) throw XHotNewsException(xFailure)
+                        x.fetch()
+                    }
                     val service = HotNewsService(client, HotNewsStore(settings), { error("Must not call AI") })
                     val model = HotNewsSettingsViewModel(service, client, i18n)
                     try { block(model, service) }

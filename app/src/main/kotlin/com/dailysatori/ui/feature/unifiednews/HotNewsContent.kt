@@ -59,12 +59,11 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
     onOpen: (HotNewsItem) -> Unit, onExpand: () -> Unit, onRetry: () -> Unit, onConfigure: () -> Unit) {
     val i18n: I18nService = koinInject()
     val matching = board.items.filter { query.isBlank() || (it.displayTitle ?: it.originalTitle).contains(query, true) || it.displaySummary.contains(query, true) }
-    val feedOnly = board.platform in setOf(HotNewsPlatform.X, HotNewsPlatform.XIAOHONGSHU)
+    val feedOnly = board.platform == HotNewsPlatform.XIAOHONGSHU
     Card(shape = RoundedCornerShape(Radius.l), modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.m)) {
             HotNewsBoardHeader(board)
-            if (board.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
             val error = board.error
             if (error != null) Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(when (error) {
@@ -77,8 +76,13 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
                     HotNewsError.TRANSLATION_FAILED -> stringResource(R.string.news_hotnews_translation_failed)
                     HotNewsError.TRANSLATION_NETWORK_FAILED -> stringResource(R.string.news_hotnews_translation_network_failed)
                     HotNewsError.FEED_NOT_CONFIGURED -> i18n.t("news_sources.feed_required")
+                    HotNewsError.X_AUTH_REQUIRED -> i18n.t("news_sources.x_auth_required")
+                    HotNewsError.X_ACCESS_DENIED -> i18n.t("news_sources.x_access_denied")
+                    HotNewsError.X_QUOTA_EXCEEDED -> i18n.t("news_sources.x_quota_exceeded")
+                    HotNewsError.X_RATE_LIMITED -> i18n.t("news_sources.x_rate_limited")
                 }, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                val configure = error == HotNewsError.FEED_NOT_CONFIGURED || (error == HotNewsError.FETCH_FAILED && feedOnly)
+                val configure = error == HotNewsError.FEED_NOT_CONFIGURED || error == HotNewsError.X_AUTH_REQUIRED ||
+                    (error == HotNewsError.FETCH_FAILED && feedOnly)
                 TextButton(onClick = if (configure) onConfigure else onRetry, enabled = !board.refreshing) {
                     Text(stringResource(if (configure) R.string.news_hotnews_configure_source else R.string.news_hotnews_retry))
                 }
@@ -132,7 +136,7 @@ private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, isFavorite: B
 @Composable
 private fun HotNewsBoardHeader(board: HotNewsBoard) {
     val i18n: I18nService = koinInject()
-    val feed = board.platform in setOf(HotNewsPlatform.X, HotNewsPlatform.XIAOHONGSHU) || board.items.any { it.fromFeed }
+    val feed = board.platform == HotNewsPlatform.XIAOHONGSHU || board.items.any { it.fromFeed }
     Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
@@ -147,6 +151,7 @@ private fun HotNewsBoardHeader(board: HotNewsBoard) {
             Text(if (feed) i18n.t("news_sources.subscription") else stringResource(when (board.platform) {
                 HotNewsPlatform.GITHUB -> R.string.news_hotnews_daily
                 HotNewsPlatform.HACKER_NEWS -> R.string.news_hotnews_top
+                HotNewsPlatform.X -> R.string.news_hotnews_x_posts
                 else -> R.string.news_hotnews_topics
             }), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -162,6 +167,7 @@ internal fun hotNewsMetrics(item: HotNewsItem): String {
     val heat = item.heat?.let { when (item.platform) {
         HotNewsPlatform.GITHUB -> stringResource(R.string.news_hotnews_growth, it)
         HotNewsPlatform.HACKER_NEWS -> stringResource(R.string.news_hotnews_points, it)
+        HotNewsPlatform.X -> stringResource(R.string.news_hotnews_interactions, it)
         else -> it
     } }.orEmpty()
     val comments = item.comments?.let { stringResource(R.string.news_hotnews_comments, it) }.orEmpty()

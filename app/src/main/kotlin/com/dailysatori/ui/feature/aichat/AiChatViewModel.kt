@@ -46,6 +46,7 @@ data class ChatMessageUi(
     val isExcludedFromMemory: Boolean = false,
     val actions: List<AssistantActionView> = emptyList(),
     val references: List<AssistantReference> = emptyList(),
+    val requestStage: String = "",
 )
 
 data class AssistantDraft(val value: TextFieldValue = TextFieldValue(), val revision: Long = 0)
@@ -336,8 +337,8 @@ class AiChatViewModel(
 
     private fun toChatMessageUi(msg: AssistantMessage): ChatMessageUi {
         val taskState = when (msg.status) {
-            "queued", "pending" -> TaskDisplayState.Waiting
-            "running", "retrying" -> TaskDisplayState.Processing
+            "queued", "pending", "retrying" -> TaskDisplayState.Waiting
+            "running" -> if (msg.requestStage == "queued") TaskDisplayState.Waiting else TaskDisplayState.Processing
             "failed" -> TaskDisplayState.Failed
             "cancelled" -> TaskDisplayState.Cancelled
             "requires_resume" -> TaskDisplayState.RequiresResume
@@ -360,6 +361,7 @@ class AiChatViewModel(
             isError = isError,
             actions = msg.actions,
             references = msg.references,
+            requestStage = msg.requestStage,
         )
     }
 

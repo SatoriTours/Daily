@@ -84,7 +84,14 @@ class PersistentAssistantConversation(
             val saved = AssistantMessage(message.id, message.role, message.content, message.created_at, turnId, turn?.taskId,
                 status = if (turn?.requiresResume == true || pendingSchedule) "requires_resume" else if (turn?.responseMessageId != null) "complete" else task?.status ?: "complete",
                 error = task?.last_error_message.orEmpty(), excluded = privacy.isExcluded("chat", message.id.toString()),
-                references = turnId?.let(::references).orEmpty(), actions = actionViews)
+                references = turnId?.let(::references).orEmpty(), actions = actionViews,
+                requestStage = if (task?.status == "retrying") "retrying" else when (task?.progress_message) {
+                    "等待 AI 请求配额" -> "queued"
+                    "等待 AI 返回" -> "requesting"
+                    "正在接收回答" -> "receiving"
+                    "正在处理返回内容" -> "received"
+                    else -> ""
+                })
             val partial = if (message.role == "user" && turn != null && turn.responseMessageId == null &&
                 !turn.requiresResume && task?.status == "running" && !saved.excluded && cloudConsent()) {
                 AssistantAgentCheckpointStore.displayedPartial(task.checkpoint_json, privacy.revision(), message.content, inputContext.prompt(turn.id))

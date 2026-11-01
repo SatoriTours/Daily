@@ -12,6 +12,7 @@ import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import kotlin.time.TimeSource
 
 /** Koog state is an existing task checkpoint, never a second queue or a second lease owner. */
 internal class AssistantAgentCheckpointStore(
@@ -19,6 +20,7 @@ internal class AssistantAgentCheckpointStore(
     private val contextHash: String, private val revision: Long,
     private val selectedContextHash: String, private val contextStillValid: () -> Boolean,
     summarySources: String = "[]",
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : PersistencyStorageProvider {
     private val store = AssistantStore(driver)
     private val db = DailySatoriDatabase(driver)
@@ -30,9 +32,26 @@ internal class AssistantAgentCheckpointStore(
     private val inputVersion = turns.input(turn)?.let(::sha256Hex).orEmpty()
     private val reads = linkedMapOf<String, AssistantReadStamp>()
     private var latest: AgentCheckpointData? = null
-    private var lastPartialAt = 0L
-    private var lastPartial = ""
+    private var lastPartialAt = timeSource.markNow()
+    private var lastPartial: String? = null
     private var activeSummarySources = summarySources
+    private var requestState = ""
+
+    fun requestState(stage: String) {
+        if (stage == requestState) return
+        guard(validateDerived = false)
+        val message = when (stage) {
+            "queued" -> "等待 AI 请求配额"
+            "requesting" -> "等待 AI 返回"
+            "receiving" -> "正在接收回答"
+            else -> "正在处理返回内容"
+        }
+        tasks.withRunningLease(turn.taskId, owner) {
+            val task = requireNotNull(tasks.getById(turn.taskId))
+            tasks.updateProgress(turn.taskId, task.progress_current, task.progress_total, message, task.checkpoint_json)
+        } ?: throw CancellationException("助手任务已失权")
+        requestState = stage
+    }
 
     fun guard(validateDerived: Boolean = true) {
         if (!turns.canExecute(turns.get(turn.id) ?: throw CancellationException("输入不存在"), owner) ||
@@ -71,11 +90,13 @@ internal class AssistantAgentCheckpointStore(
     }
 
     fun partial(text: String) {
-        val now = Clock.System.now().toEpochMilliseconds()
-        if (text.isNotEmpty() && lastPartial.isNotEmpty() && now - lastPartialAt < 200) return
+        if (text == lastPartial) return
+        // Publish the latest prefix at most once per 50ms, without a typewriter queue.
+        // Empty prefixes clear a model round immediately; the first text is never throttled.
+        if (text.isNotEmpty() && !lastPartial.isNullOrEmpty() && lastPartialAt.elapsedNow().inWholeMilliseconds < 50) return
         guard(validateDerived = false)
         lastPartial = text
-        lastPartialAt = now
+        lastPartialAt = timeSource.markNow()
         val previous = decode(tasks.getById(turn.taskId)?.checkpoint_json.orEmpty())
         save(AssistantAgentState(inputVersion = inputVersion, privacyRevision = revision, contextHash = contextHash,
             selectedContextHash = selectedContextHash, summarySources = activeSummarySources, snapshot = latest ?: previous?.snapshot, reads = reads.values.toList(), actionsHash = actionHash(), partial = data.redact(text)), validateDerived = false)
@@ -106,7 +127,9 @@ internal class AssistantAgentCheckpointStore(
     private fun valid(state: AssistantAgentState): Boolean = state.version == 1 && state.format == FORMAT &&
         state.inputVersion == inputVersion && state.privacyRevision == revision && state.contextHash == contextHash && state.actionsHash == actionHash() &&
         state.snapshot?.nodeId in NODE_IDS &&
-        state.snapshot?.createdAt?.toEpochMilliseconds()?.let { Clock.System.now().toEpochMilliseconds() - it in 0..900_000 } == true
+        // Elapsed time is not evidence that the saved dependencies have changed. getLatestCheckpoint
+        // revalidates every source, privacy revision, input and committed action before resuming.
+        state.snapshot?.createdAt?.toEpochMilliseconds()?.let { it <= Clock.System.now().toEpochMilliseconds() + 60_000 } == true
 
     private fun actionHash(): String = sha256Hex(store.rows(
         "SELECT id,status,target_id,task_id FROM assistant_action WHERE turn_id=? ORDER BY id", turn.id,

@@ -12,7 +12,7 @@ enum class HotNewsPlatform(
 ) {
     GITHUB("github", "GitHub", "https://github.com/trending?since=daily"),
     HACKER_NEWS("hackernews", "Hacker News", "https://news.ycombinator.com/", "https://rsshub.app/hackernews/index"),
-    X("x", "X", "https://x.com/explore", "https://rsshub.app/twitter/trends/1"),
+    X("x", "X", "https://x.com/explore"),
     XIAOHONGSHU("xiaohongshu", "小红书", "https://www.xiaohongshu.com/explore"),
     TOUTIAO("toutiao", "今日头条", "https://www.toutiao.com/", "https://rsshub.app/toutiao/channel/news_hot"),
     ZHIHU("zhihu", "知乎", "https://www.zhihu.com/hot", "https://rsshub.app/zhihu/hot"),
@@ -46,7 +46,10 @@ data class HotNewsItem(
 }
 
 @Serializable
-enum class HotNewsError { FETCH_FAILED, FEED_NOT_CONFIGURED, AI_NOT_CONFIGURED, TRANSLATION_FAILED, TRANSLATION_NETWORK_FAILED }
+enum class HotNewsError {
+    FETCH_FAILED, FEED_NOT_CONFIGURED, AI_NOT_CONFIGURED, TRANSLATION_FAILED, TRANSLATION_NETWORK_FAILED,
+    X_AUTH_REQUIRED, X_ACCESS_DENIED, X_QUOTA_EXCEEDED, X_RATE_LIMITED,
+}
 
 @Serializable
 data class HotNewsBoard(

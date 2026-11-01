@@ -11,6 +11,13 @@ import kotlin.test.assertTrue
 
 class AiChatUiStateTest {
     @Test
+    fun streamingAutoScrollDoesNotQueueAnimations() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+        assertTrue(source.contains("if (displayMessages.lastOrNull()?.isStreaming == true)"))
+        assertTrue(source.contains("listState.scrollToItem(targetIndex, scrollOffset = bottomScrollOffset)"))
+    }
+
+    @Test
     fun chatInputUsesThinThemeSizingWithoutShrinkingTextOrHitTargets() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
         assertTrue(source.contains("heightIn(min = Height.input)"))
@@ -373,7 +380,8 @@ class AiChatUiStateTest {
         assertTrue(source.contains("Icons.Filled.AutoAwesome"))
         assertTrue(source.contains("MaterialTheme.colorScheme.primary"))
         assertTrue(source.contains("val showThinking = aiChatShowsThinkingBubble("))
-        assertTrue(source.contains("text = \"AI 正在思考\""))
+        assertTrue(source.contains("assistantRequestStageResource(requestStage) ?: R.string.assistant_request_thinking"))
+        assertFalse(source.contains("text = \"AI 正在思考\""))
         assertFalse(source.contains("text = \"思考中...\""))
     }
 

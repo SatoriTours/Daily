@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.needsLocalAiReprocessingForChineseOutput
 import com.dailysatori.data.repository.sourceContentHash
+import com.dailysatori.data.repository.reusableOriginalBody
 import com.dailysatori.shared.db.Article
 
 data class RemoteArticleFavoriteResult(
@@ -27,7 +28,7 @@ class RemoteArticleFavoriteService(
             if (isFavorite) {
                 syncRepo?.markFavorited(localId)
                 if (mapping != null && mapping.source_content_hash.isBlank()) {
-                    syncRepo?.recordSourceSnapshot(localId, sourceHash, requiresProcessing)
+                    syncRepo?.recordSourceSnapshot(localId, sourceHash, requiresProcessing, hasBody = !article.content.isNullOrBlank())
                     mapping = syncRepo?.findByArticleId(localId)
                 }
             }
@@ -35,7 +36,7 @@ class RemoteArticleFavoriteService(
             return RemoteArticleFavoriteResult(
                 localArticle = updated,
                 isFavorite = isFavorite,
-                needsReprocessing = isFavorite && (
+                needsReprocessing = isFavorite && requiresProcessing && updated?.reusableOriginalBody() != null && (
                     mapping?.let { it.processed_content_hash != targetSourceHash } ?: requiresProcessing
                 ),
             )

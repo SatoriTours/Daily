@@ -13,6 +13,8 @@ import kotlinx.datetime.Clock
 class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
+    internal fun <T> transaction(block: () -> T): T = q.transactionWithResult { block() }
+
     fun findByRemoteIdentity(remoteSourceId: Long, remoteArticleId: Long): Remote_article_sync_item? =
         q.selectRemoteArticleSyncItemByRemoteIdentity(remoteSourceId, remoteArticleId).executeAsOneOrNull()
 
@@ -65,15 +67,16 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
         )
     }
 
-    fun recordSourceSnapshot(articleId: Long, sourceHash: String, requiresProcessing: Boolean) {
+    fun recordSourceSnapshot(articleId: Long, sourceHash: String, requiresProcessing: Boolean, hasBody: Boolean = true) {
         val mapping = findByArticleId(articleId) ?: return
         val alreadyProcessed = mapping.processed_content_hash == sourceHash && sourceHash.isNotBlank()
         val processedHash = when {
             alreadyProcessed -> mapping.processed_content_hash
-            !requiresProcessing -> sourceHash
+            !requiresProcessing && hasBody -> sourceHash
             else -> mapping.processed_content_hash
         }
         val state = when {
+            !hasBody -> REMOTE_PROCESSING_MISSING_BODY
             alreadyProcessed || !requiresProcessing -> REMOTE_PROCESSING_READY
             mapping.processed_content_hash.isBlank() -> REMOTE_PROCESSING_PENDING
             else -> REMOTE_PROCESSING_STALE
@@ -82,7 +85,7 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
             source_content_hash = sourceHash,
             processed_content_hash = processedHash,
             processing_state = state,
-            processing_error = "",
+            processing_error = if (hasBody) "" else "缺少原文，未进行 AI 整理；补齐正文后可重新整理",
             processing_version = mapping.processing_version,
             id = mapping.id,
         )
@@ -139,3 +142,4 @@ const val REMOTE_PROCESSING_RUNNING = "processing"
 const val REMOTE_PROCESSING_READY = "ready"
 const val REMOTE_PROCESSING_STALE = "stale"
 const val REMOTE_PROCESSING_FAILED = "failed"
+const val REMOTE_PROCESSING_MISSING_BODY = "missing_body"

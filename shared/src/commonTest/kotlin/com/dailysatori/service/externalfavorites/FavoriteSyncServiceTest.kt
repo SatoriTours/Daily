@@ -2083,6 +2083,7 @@ class FavoriteSyncServiceTest {
         assertFalse(isRetryableExternalFavoriteAiFailure(IllegalStateException("AI config not set")))
         assertFalse(isRetryableExternalFavoriteAiFailure(IllegalStateException("HTTP 401 unauthorized")))
         assertTrue(isRetryableExternalFavoriteAiFailure(IllegalStateException("HTTP 429 rate limited")))
+        assertFalse(isRetryableExternalFavoriteAiFailure(com.dailysatori.service.ai.AiHttpFailure(429, 123_000)))
         assertTrue(isRetryableExternalFavoriteAiFailure(IllegalStateException("socket timeout")))
     }
 

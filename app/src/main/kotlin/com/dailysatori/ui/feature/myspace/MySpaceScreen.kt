@@ -34,6 +34,9 @@ import androidx.compose.ui.semantics.stateDescription
 import com.dailysatori.ui.feature.article.openArticleUrl
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.bookkeeping.*
@@ -51,7 +54,7 @@ import com.dailysatori.ui.feature.reminder.ReminderListItemUi
 import com.dailysatori.ui.feature.reminder.ReminderRepeatLabel
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.feature.reminder.repeatLabel
-import com.dailysatori.ui.feature.reminder.ReminderPendingDot
+import com.dailysatori.ui.feature.reminder.ReminderDueState
 import com.dailysatori.service.i18n.I18nService
 import org.koin.compose.koinInject
 import com.dailysatori.ui.theme.*
@@ -149,7 +152,7 @@ fun MySpaceScreen(
                 }
             }
             item(key = "reminders") {
-                MySectionCard {
+                MySectionCard(compact = true) {
                     MySectionHeading(stringResource(R.string.my_space_reminders), Icons.Outlined.NotificationsNone, onReminders,
                         pendingCount = todayPendingCount)
                     if (upcoming.isEmpty()) {
@@ -237,21 +240,31 @@ private fun MySectionCard(compact: Boolean = false, modifier: Modifier = Modifie
 
 @Composable
 private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit, titleClickable: Boolean = true, pendingCount: Int = 0) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.weight(1f).then(if (titleClickable) Modifier.clickable(onClick = onAll) else Modifier),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (pendingCount > 0) {
-                val description = stringResource(R.string.my_space_today_pending_count, pendingCount)
-                Badge(Modifier.semantics { contentDescription = description },
-                    containerColor = MaterialTheme.colorScheme.error) { Text(pendingCount.toString()) }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compactAction = maxWidth < Height.touchTarget * 6 * LocalDensity.current.fontScale
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.weight(1f).then(if (titleClickable) Modifier.clickable(onClick = onAll) else Modifier),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Text(title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (pendingCount > 0) {
+                    val description = stringResource(R.string.my_space_today_pending_count, pendingCount)
+                    Badge(Modifier.semantics { contentDescription = description },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer) { Text(pendingCount.toString()) }
+                }
             }
-        }
-        TextButton(onClick = onAll) {
-            Text(stringResource(R.string.my_space_view_all))
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
+            if (compactAction) {
+                IconButton(onClick = onAll) {
+                    Icon(Icons.Default.ChevronRight, stringResource(R.string.my_space_view_all), Modifier.size(IconSize.s))
+                }
+            } else {
+                TextButton(onClick = onAll) {
+                    Text(stringResource(R.string.my_space_view_all))
+                    Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s))
+                }
+            }
         }
     }
 }
@@ -284,41 +297,45 @@ internal fun MyEmptyBlock(title: String, hint: String, action: String, onClick: 
 
 @Composable
 private fun MyReminderRow(item: ReminderListItemUi, today: LocalDate, sourceKey: String?, onClick: () -> Unit) {
-    val day = when (item.daysUntil) {
-        0 -> stringResource(R.string.reminder_list_today)
-        1 -> stringResource(R.string.reminder_list_tomorrow)
-        else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
-    }
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.s),
+    Row(Modifier.fillMaxWidth().heightIn(min = Height.touchTarget)
+        .clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.s),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            if (item.occurrenceDate.year != today.year) {
-                Text(item.occurrenceDate.year.toString(), style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary)
-            }
-            Text(day, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Text(item.firstReminderTime, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        }
-        VerticalDivider(Modifier.height(Height.button), color = MaterialTheme.colorScheme.outlineVariant)
-        MyReminderBody(item, Modifier.weight(1f))
-        if (sourceKey != null) {
-            val i18n: I18nService = koinInject()
-            Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                Text(i18n.t(sourceKey), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        if (item.isTodayPending) ReminderPendingDot()
+        MyReminderBody(item, today, sourceKey, Modifier.weight(1f))
         Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun MyReminderBody(item: ReminderListItemUi, modifier: Modifier = Modifier) {
+private fun MyReminderBody(item: ReminderListItemUi, today: LocalDate, sourceKey: String?, modifier: Modifier = Modifier) {
+    val i18n: I18nService = koinInject()
+    val day = when (item.daysUntil) {
+        0 -> stringResource(R.string.reminder_list_today)
+        1 -> stringResource(R.string.reminder_list_tomorrow)
+        else -> stringResource(R.string.reminder_date_month_day, item.occurrenceDate.monthNumber, item.occurrenceDate.dayOfMonth)
+    }
+    val date = if (item.occurrenceDate.year == today.year) day else
+        "${stringResource(R.string.reminder_year_value, item.occurrenceDate.year)} $day"
+    val timing = when {
+        item.deadlineAt != null -> i18n.t("sms.deadline") + " " +
+            com.dailysatori.ui.feature.settings.sms.formatSmsTime(item.deadlineAt)
+        else -> "$date ${item.displayTime}"
+    }
+    val repeat = if (!item.isSingleDate) reminderRepeatText(item.repeatLabel()) else null
+    val source = sourceKey?.let { i18n.t(it) }
+    val pending = if (item.isTodayPending) stringResource(
+        if (item.dueState == ReminderDueState.OVERDUE) R.string.reminder_overdue else R.string.my_space_reminder_pending
+    ) else null
+    val pendingColor = MaterialTheme.colorScheme.error
+    val metadata = buildAnnotatedString {
+        append(timing)
+        repeat?.let { append(" · $it") }
+        source?.let { append(" · $it") }
+        pending?.let { withStyle(SpanStyle(color = pendingColor)) { append(" · $it") } }
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(item.content, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        Text(item.content, maxLines = 2, overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyLarge)
-        Text(reminderRepeatText(item.repeatLabel()),
+        Text(metadata,
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

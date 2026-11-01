@@ -14,8 +14,10 @@ data class HotNewsSourceConfig(val enabled: Boolean = true, val feedUrl: String 
 
 @Serializable
 data class HotNewsSourcePreferences(val sources: Map<String, HotNewsSourceConfig> = emptyMap()) {
-    fun source(platform: HotNewsPlatform): HotNewsSourceConfig = sources[platform.key]
-        ?: HotNewsSourceConfig(enabled = platform.core, feedUrl = platform.defaultFeedUrl)
+    fun source(platform: HotNewsPlatform): HotNewsSourceConfig {
+        val config = sources[platform.key] ?: HotNewsSourceConfig(enabled = platform.core, feedUrl = platform.defaultFeedUrl)
+        return if (platform == HotNewsPlatform.X) config.copy(feedUrl = "") else config
+    }
 }
 
 class HotNewsStore(private val settings: SettingRepository) {
@@ -27,7 +29,7 @@ class HotNewsStore(private val settings: SettingRepository) {
     val preferences = mutablePreferences.asStateFlow()
 
     suspend fun configure(platform: HotNewsPlatform, enabled: Boolean, feedUrl: String) = settingsMutex.withLock {
-        val url = normalizeNewsFeedUrl(feedUrl)
+        val url = if (platform == HotNewsPlatform.X) "" else normalizeNewsFeedUrl(feedUrl)
         val current = mutablePreferences.value
         val previous = current.source(platform)
         val next = current.copy(sources = current.sources + (platform.key to
@@ -37,7 +39,8 @@ class HotNewsStore(private val settings: SettingRepository) {
     }
     fun load(platform: HotNewsPlatform): HotNewsBoard? = settings.getLargeValue("hot_news.v1:${platform.key}")?.let {
         runCatching { json.decodeFromString<HotNewsBoard>(it) }.getOrNull()
-    }?.takeIf { it.platform == platform }?.copy(refreshing = false)
+    }?.takeIf { it.platform == platform && (platform != HotNewsPlatform.X || it.items.none { item -> item.fromFeed }) }
+        ?.copy(refreshing = false)
 
     fun save(board: HotNewsBoard) {
         settings.upsert("hot_news.v1:${board.platform.key}", json.encodeToString(board.copy(refreshing = false)))

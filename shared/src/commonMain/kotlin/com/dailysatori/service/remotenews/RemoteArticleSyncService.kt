@@ -45,7 +45,7 @@ class RemoteArticleSyncService(
         sourceDate: String,
         articles: List<RemoteArticle>,
         now: Long,
-    ): RemoteArticleSyncResult {
+    ): RemoteArticleSyncResult = syncRepo.transaction {
         var inserted = 0
         var updated = 0
         var skipped = 0
@@ -80,6 +80,7 @@ class RemoteArticleSyncService(
                     articleId = saved.article.id,
                     sourceHash = article.sourceContentHash(),
                     requiresProcessing = article.needsLocalAiReprocessingForChineseOutput(),
+                    hasBody = !article.content.isNullOrBlank(),
                 )
                 if (saved.inserted) inserted += 1 else if (saved.updated) updated += 1 else skipped += 1
             } catch (error: CancellationException) {
@@ -90,6 +91,6 @@ class RemoteArticleSyncService(
             }
         }
 
-        return RemoteArticleSyncResult(inserted = inserted, updated = updated, skipped = skipped, failures = failures)
+        RemoteArticleSyncResult(inserted = inserted, updated = updated, skipped = skipped, failures = failures)
     }
 }

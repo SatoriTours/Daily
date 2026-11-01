@@ -8,6 +8,25 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.*
 
 class RemoteArticleLocalReadTest {
+    @Test fun summaryOnlyRemoteArticleIsReadableButNotMarkedAiProcessed() = runBlocking<Unit> {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            val articles = ArticleRepository(db)
+            val mappings = RemoteArticleSyncRepository(db)
+            val service = RemoteArticleSyncService(articles, mappings)
+            db.dailySatoriQueries.insertRemoteNewsSource("Tech", "https://remote.example", "", 1, 1, 1)
+            val remote = RemoteArticle(id = 91, title = "New software release for developer teams",
+                url = "https://example.com/no-body", summary = "A major update improves performance and reliability for software developers.")
+            val saved = service.readLocalArticle(1, 91, "2026-11-02") { remote }
+            assertEquals("missing_body", mappings.findByArticleId(saved.id)?.processing_state)
+            assertTrue(mappings.findByArticleId(saved.id)?.processed_content_hash.isNullOrEmpty())
+            val favorite = RemoteArticleFavoriteService(articles, mappings).toggleFavorite(remote, saved.id)
+            assertFalse(favorite.needsReprocessing)
+            assertNotNull(favorite.localArticle?.ai_content)
+        }
+    }
+
     @Test fun uncachedArticleIsSavedBeforeReadingAndThenWorksOffline() = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)

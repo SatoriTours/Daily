@@ -22,7 +22,41 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
+import kotlin.time.TestTimeSource
+import kotlin.time.TimeSource
+import kotlin.time.Duration.Companion.milliseconds
 class AssistantDurableStreamingTest {
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    @Test fun partialUpdatesReachTheDisplayWithinOneHundredMilliseconds() = runBlocking<Unit> {
+        Fixture().use { f ->
+            val turn = f.conversation.send("s", "client", "继续回答")
+            assertTrue(f.tasks.claimForRun(turn.taskId, "owner", Long.MAX_VALUE))
+            val time = TestTimeSource()
+            val checkpoint = f.checkpoint(turn, "owner", "context", time)
+            checkpoint.partial("已收到的第一段")
+            time += 80.milliseconds
+            checkpoint.partial("已收到的第一段，和最新的一段")
+            val partial = f.conversation.messages("s").first().single { it.status == "streaming" }
+            assertEquals("已收到的第一段，和最新的一段", partial.content)
+        }
+    }
+
+    @Test fun duplicatePartialDoesNotReloadTheConversation() = runBlocking<Unit> {
+        Fixture().use { f ->
+            val turn = f.conversation.send("s", "client", "继续回答")
+            assertTrue(f.tasks.claimForRun(turn.taskId, "owner", Long.MAX_VALUE))
+            val checkpoint = f.checkpoint(turn, "owner", "context")
+            checkpoint.partial("")
+            var notifications = 0
+            val listener = object : app.cash.sqldelight.Query.Listener {
+                override fun queryResultsChanged() { notifications++ }
+            }
+            f.driver.addListener("async_task", listener = listener)
+            try { checkpoint.partial(""); assertEquals(0, notifications) }
+            finally { f.driver.removeListener("async_task", listener = listener) }
+        }
+    }
+
     @Test fun livePartialIsNotHistoryAndCancellationPreventsLateFinalCommit() = runBlocking<Unit> {
         Fixture().use { f ->
             val turn = f.conversation.send("s", "client", "继续回答")
@@ -166,8 +200,9 @@ class AssistantDurableStreamingTest {
         val conversation = PersistentAssistantConversation(driver, actions, memory) {}
         val configs = AiConfigService(AIConfigRepository(db).also { it.insert("openai", "https://example.test/v1", "configured-secret", "model", 1) })
         init { conversation.setCloudConsent(true) }
-        fun checkpoint(turn: AssistantTurn, owner: String, hash: String) = AssistantAgentCheckpointStore(
+        fun checkpoint(turn: AssistantTurn, owner: String, hash: String, timeSource: TimeSource = TimeSource.Monotonic) = AssistantAgentCheckpointStore(
             driver, turn, owner, hash, AssistantPrivacyRepository(driver).revision(), sha256Hex(AssistantInputContext(driver).prompt(turn.id)), { true },
+            timeSource = timeSource,
         )
         override fun close() = driver.close()
     }

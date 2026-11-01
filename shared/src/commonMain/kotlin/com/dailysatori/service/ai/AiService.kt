@@ -17,6 +17,7 @@ import io.ktor.http.contentType
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.CancellationException
+import kotlin.coroutines.coroutineContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -27,7 +28,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-class AiService(private val client: HttpClient) {
+class AiService(private val client: HttpClient, private val requests: AiRequestCoordinator = AiRequestCoordinator()) {
     private val log = Logger.withTag("AI")
     private val langChainClient = LangChainAiClient()
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -39,8 +40,8 @@ class AiService(private val client: HttpClient) {
         DiagnosticLog.registerCoverage(DiagnosticSource.AI, DiagnosticCoverage.LIFECYCLE_ONLY)
         DiagnosticLog.diagnostics.operation(
             DiagnosticSource.AI, fields = mapOf("provider" to provider.trim(), "model" to model.trim(),
-                "url" to apiAddress, "aiPurpose" to purpose?.id.orEmpty()), isFailure = isFailure, block = block,
-        )
+                "url" to apiAddress, "aiPurpose" to purpose?.id.orEmpty()), isFailure = isFailure,
+        ) { requests.withRequest(apiAddress, purpose) { withTimeout(aiChatRequestTimeoutMillis()) { block() } } }
     }
 
     /** Private archives must not expose provider error bodies through logging or exception causes. */
@@ -49,6 +50,7 @@ class AiService(private val client: HttpClient) {
         provider: String, systemPrompt: String, purpose: AiPurpose? = null,
     ): String = try {
         withAiRequestSession {
+            requests.withRequest(apiAddress, purpose) { withTimeout(aiChatRequestTimeoutMillis()) {
             val route = resolveAiRequestRoute(provider, modelName, apiAddress)
             val headers = aiRequestHeaders(provider)
             val response = if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
@@ -61,6 +63,7 @@ class AiService(private val client: HttpClient) {
             }
             require(response.isNotBlank() && response.length <= 100_000)
             response
+            } }
         }
     } catch (cancelled: CancellationException) {
         throw cancelled
@@ -202,7 +205,7 @@ class AiService(private val client: HttpClient) {
                 rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk, headers,
                     aiPurposeThinkingMode(provider, modelName, purpose))
             } else {
-                chatCompletion(messages, apiAddress, apiToken, modelName, provider, tools, temperature, purpose)
+                langChainClient.chatCompletion(messages, route, apiToken.trim(), modelName.trim(), headers, tools, temperature)
             }
         } catch (e: Exception) {
             log.e(e) { "AI streaming chat completion failed" }
@@ -233,11 +236,11 @@ class AiService(private val client: HttpClient) {
                 modelName.trim(), messages, tools, temperature, thinkingMode = thinkingMode,
             ).toString())
         }
-        val body = response.bodyAsText()
         if (response.status.value !in 200..299) {
-            if (headers.containsKey("x-opencode-session")) throw openCodeGoHttpError(response.status.value)
-            throw IllegalStateException(body.ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
+            throw AiHttpFailure(response.status.value, if (response.status.value == 429)
+                aiRetryAtMs(response.headers["Retry-After"], response.headers["Date"]) else null)
         }
+        val body = response.bodyAsText()
         val parsed = json.parseToJsonElement(body) as JsonObject
         val usage = parsed["usage"] as? JsonObject
         if (usage != null && recordUsage) {
@@ -275,8 +278,8 @@ class AiService(private val client: HttpClient) {
                 stream = true, thinkingMode = thinkingMode).toString())
         }.execute { response ->
             if (response.status.value !in 200..299) {
-                if (headers.containsKey("x-opencode-session")) throw openCodeGoHttpError(response.status.value)
-                throw IllegalStateException(response.bodyAsText().ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
+                throw AiHttpFailure(response.status.value, if (response.status.value == 429)
+                    aiRetryAtMs(response.headers["Retry-After"], response.headers["Date"]) else null)
             }
             // Some configured providers ignore stream=true; consume that same response, never request again.
             if (response.contentType()?.match(ContentType.Application.Json) == true) {
@@ -287,11 +290,14 @@ class AiService(private val client: HttpClient) {
             }
             val channel = response.bodyAsChannel()
             while (!channel.isClosedForRead) {
+                coroutineContext[AiRequestObserver]?.progress?.invoke()
                 val chunk = accumulator.accept(channel.readUTF8Line() ?: break)
+                coroutineContext[AiRequestObserver]?.progress?.invoke()
                 if (accumulator.done) break
                 if (chunk == null) continue
                 if (firstChunk) {
                     firstChunk = false
+                    coroutineContext[AiRequestObserver]?.state?.invoke("receiving")
                     DiagnosticLog.diagnostics.emit(DiagnosticCode.AI_FIRST_CHUNK, DiagnosticSource.AI,
                         fields = mapOf("firstChunkMs" to (DiagnosticLog.elapsed() - started).toString()))
                 }

@@ -20,6 +20,15 @@ import kotlinx.coroutines.flow.first
 import kotlin.test.*
 
 class UnifiedNewsArticleQueueTest {
+    @Test fun remoteSummarySnapshotIsReadableWithoutStartingAnotherFetchOrAiTask() = withQueue { queue, articles, _, scheduled, _ ->
+        val id = articles.saveRemoteArticleAsFavorite(com.dailysatori.service.remotenews.RemoteArticle(
+            id = 42, title = "Remote summary", url = "https://example.com/summary",
+            summary = "Only a summary, not the original document."))!!.id
+        val remote = source.copy(source_type = "remote_article", source_id = 42, source_url = "https://example.com/summary")
+        assertEquals(mapOf(1L to id), queue.enqueue(listOf(remote)))
+        assertTrue(scheduled.isEmpty(), "摘要快照不得启动正文整理或自动补抓")
+    }
+
     private val source = Unified_news_source(1, 1, "H1", "hot_news", null, "v2ex:8",
         "https://v2ex.com/t/8#comments", "阅读工具", "这是平台简介，不能当成原文", null)
 

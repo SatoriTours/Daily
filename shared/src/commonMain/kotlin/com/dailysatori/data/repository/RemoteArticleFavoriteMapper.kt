@@ -62,10 +62,17 @@ internal fun RemoteArticle.sourceContentHash(): String = sha256Hex(
 )
 
 fun RemoteArticle.needsLocalAiReprocessingForChineseOutput(): Boolean {
+    if (cleanRemoteArticleText(content) == null) return false
     if (url.isNullOrBlank()) return false
     if (hasEnoughChineseForLocalArticle(this)) return false
     return hasEnoughEnglishForLocalArticle(this)
 }
+
+/** Generated summaries are not a substitute for the source document. */
+fun com.dailysatori.shared.db.Article.reusableOriginalBody(): String? = articleOriginalMarkdown(
+    original_markdown_content, ai_markdown_content.takeUnless { source_type == "remote_news" },
+    isRemoteSnapshot = source_type == "remote_news",
+)
 
 internal fun remoteArticleSummaryForLocalFavorite(summary: String?, viewpoints: List<String>): String? = listOfNotNull(
     cleanRemoteArticleText(summary),
