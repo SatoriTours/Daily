@@ -37,7 +37,7 @@ fun ArticleReaderHeader(
     val i18n = koinInject<I18nService>()
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         Text(
             text = title.ifBlank { i18n.t("article.detail_title") },

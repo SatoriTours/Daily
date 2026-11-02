@@ -55,17 +55,17 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
 }
 
 @Composable
-private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: String, favoriteUrls: Set<String>,
+internal fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: String, favoriteUrls: Set<String>,
     onOpen: (HotNewsItem) -> Unit, onExpand: () -> Unit, onRetry: () -> Unit, onConfigure: () -> Unit) {
     val i18n: I18nService = koinInject()
     val matching = board.items.filter { query.isBlank() || (it.displayTitle ?: it.originalTitle).contains(query, true) || it.displaySummary.contains(query, true) }
     val feedOnly = board.platform == HotNewsPlatform.XIAOHONGSHU
     Card(shape = RoundedCornerShape(Radius.l), modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.m)) {
+        Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             HotNewsBoardHeader(board)
             val error = board.error
-            if (error != null) Row(verticalAlignment = Alignment.CenterVertically) {
+            if (error != null) Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(when (error) {
                     HotNewsError.FETCH_FAILED -> stringResource(when {
                         feedOnly -> R.string.news_hotnews_feed_failed
@@ -80,29 +80,36 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
                     HotNewsError.X_ACCESS_DENIED -> i18n.t("news_sources.x_access_denied")
                     HotNewsError.X_QUOTA_EXCEEDED -> i18n.t("news_sources.x_quota_exceeded")
                     HotNewsError.X_RATE_LIMITED -> i18n.t("news_sources.x_rate_limited")
-                }, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val configure = error == HotNewsError.FEED_NOT_CONFIGURED || error == HotNewsError.X_AUTH_REQUIRED ||
                     (error == HotNewsError.FETCH_FAILED && feedOnly)
-                TextButton(onClick = if (configure) onConfigure else onRetry, enabled = !board.refreshing) {
+                TextButton(onClick = if (configure) onConfigure else onRetry, enabled = !board.refreshing,
+                    modifier = Modifier.heightIn(min = Height.touchTarget), contentPadding = PaddingValues(horizontal = Spacing.xs)) {
                     Text(stringResource(if (configure) R.string.news_hotnews_configure_source else R.string.news_hotnews_retry))
                 }
             }
             if (board.items.isEmpty() && error == null) Text(stringResource(if (board.refreshing) R.string.news_hotnews_loading else R.string.news_hotnews_empty),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            (if (expanded || query.isNotBlank()) matching else matching.take(3)).forEach { item ->
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                HotNewsRankRow(item, board.refreshing, item.url in favoriteUrls, onOpen)
+            if (query.isNotBlank() && matching.isEmpty() && board.items.isNotEmpty()) {
+                Text(stringResource(R.string.news_hotnews_no_matches), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (matching.size > 3 && query.isBlank()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                TextButton(onClick = onExpand, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = Spacing.s)) {
-                    Text(stringResource(when {
-                        expanded -> R.string.news_hotnews_less
-                        feedOnly || board.items.any { it.fromFeed } -> R.string.news_hotnews_feed_more
-                        else -> R.string.news_hotnews_more
-                    }, matching.size), modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (matching.isNotEmpty()) Column {
+                (if (expanded || query.isNotBlank()) matching else matching.take(3)).forEach { item ->
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.12f))
+                    HotNewsRankRow(item, board.refreshing, item.url in favoriteUrls, onOpen)
+                }
+                if (matching.size > 3 && query.isBlank()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.12f))
+                    TextButton(onClick = onExpand, modifier = Modifier.fillMaxWidth().heightIn(min = Height.touchTarget), contentPadding = PaddingValues(vertical = Spacing.s)) {
+                        Text(stringResource(when {
+                            expanded -> R.string.news_hotnews_less
+                            feedOnly || board.items.any { it.fromFeed } -> R.string.news_hotnews_feed_more
+                            else -> R.string.news_hotnews_more
+                        }, matching.size), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.ChevronRight, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -113,7 +120,7 @@ private fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Stri
 private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, isFavorite: Boolean, onOpen: (HotNewsItem) -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { onOpen(item) }.padding(vertical = Spacing.m),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(item.rank.toString(), Modifier.width(IconSize.m), style = MaterialTheme.typography.labelLarge,
+        Text(item.rank.toString(), Modifier.widthIn(min = IconSize.m), style = MaterialTheme.typography.labelLarge,
             color = if (item.rank <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -137,7 +144,7 @@ private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, isFavorite: B
 private fun HotNewsBoardHeader(board: HotNewsBoard) {
     val i18n: I18nService = koinInject()
     val feed = board.platform == HotNewsPlatform.XIAOHONGSHU || board.items.any { it.fromFeed }
-    Row(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalAlignment = Alignment.CenterVertically,
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
             Icon(when (board.platform) {
@@ -148,16 +155,19 @@ private fun HotNewsBoardHeader(board: HotNewsBoard) {
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(board.platform.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(if (feed) i18n.t("news_sources.subscription") else stringResource(when (board.platform) {
-                HotNewsPlatform.GITHUB -> R.string.news_hotnews_daily
-                HotNewsPlatform.HACKER_NEWS -> R.string.news_hotnews_top
-                HotNewsPlatform.X -> R.string.news_hotnews_x_posts
-                else -> R.string.news_hotnews_topics
-            }), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (board.fetchedAt > 0) {
-            Text(stringResource(R.string.news_hotnews_updated, TimeUtils.formatDateTime(board.fetchedAt).substringAfter(' ')),
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(if (feed) i18n.t("news_sources.subscription") else stringResource(when (board.platform) {
+                    HotNewsPlatform.GITHUB -> R.string.news_hotnews_daily
+                    HotNewsPlatform.HACKER_NEWS -> R.string.news_hotnews_top
+                    HotNewsPlatform.X -> R.string.news_hotnews_x_posts
+                    else -> R.string.news_hotnews_topics
+                }), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (board.fetchedAt > 0 && board.items.isNotEmpty()) {
+                    Text(stringResource(R.string.news_hotnews_updated, TimeUtils.formatDateTime(board.fetchedAt).substringAfter(' ')),
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }

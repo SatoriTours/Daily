@@ -168,18 +168,26 @@ internal fun HotNewsDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = Spacing.m, vertical = Spacing.s),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        .padding(start = Spacing.l, end = Spacing.l, top = Spacing.m),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
                 ) {
                     Text(
                         text = titleText,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
+                    val metrics = hotNewsMetrics(primaryAppearance)
+                    if (metrics.isNotBlank()) {
+                        Text(
+                            text = metrics,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
-                // v4 双段切换与状态行：同一行
+                // 内容模式与状态在窄屏、大字体下自然换行。
                 HotNewsDetailModeRow(
                     isBodySelected = bodySelected,
                     onSelectSummary = { bodySelected = false },
@@ -196,7 +204,7 @@ internal fun HotNewsDetailScreen(
                         text = stringResource(R.string.news_hotnews_original_fallback),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                        modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.xs),
                     )
                 }
 
@@ -210,7 +218,7 @@ internal fun HotNewsDetailScreen(
                 if (contentToDisplay.isNotBlank()) {
                     ArticleReaderBody(
                         content = contentToDisplay,
-                        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                        modifier = Modifier.padding(horizontal = Spacing.l),
                         typography = if (bodySelected) MarkdownStyles.readingTypography() else MarkdownStyles.cardTypography(),
                         padding = if (bodySelected) MarkdownStyles.readingPadding() else MarkdownStyles.cardPadding(),
                     )
@@ -220,7 +228,7 @@ internal fun HotNewsDetailScreen(
                             text = stringResource(R.string.news_hotnews_ai_disclaimer),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m),
+                            modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.m),
                         )
                     }
                 } else {
@@ -230,7 +238,7 @@ internal fun HotNewsDetailScreen(
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(Spacing.m),
+                        modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.m),
                     )
                 }
             }
@@ -246,7 +254,7 @@ internal fun HotNewsDetailScreen(
 }
 
 @Composable
-private fun HotNewsDetailTopBar(
+internal fun HotNewsDetailTopBar(
     platformName: String,
     rank: Int,
     hasMultipleAppearances: Boolean,
@@ -260,9 +268,10 @@ private fun HotNewsDetailTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(Height.appBarCompact)
-            .padding(horizontal = Spacing.xs),
+            .heightIn(min = Height.appBar)
+            .padding(horizontal = Spacing.s),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         IconButton(
             onClick = onBack,
@@ -278,12 +287,12 @@ private fun HotNewsDetailTopBar(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxHeight()
+                .heightIn(min = Height.touchTarget)
                 .clip(RoundedCornerShape(Radius.s))
                 .clickable(enabled = hasMultipleAppearances, onClick = onToggleExpand)
                 .padding(horizontal = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s, Alignment.CenterHorizontally),
         ) {
             Text(
                 text = platformName,
@@ -296,7 +305,8 @@ private fun HotNewsDetailTopBar(
             )
             if (rank > 0) {
                 Text(
-                    text = " · ${stringResource(R.string.news_hotnews_rank_number, rank)}",
+                    text = stringResource(R.string.news_hotnews_rank_number, rank),
+                    maxLines = 1,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -305,7 +315,7 @@ private fun HotNewsDetailTopBar(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    modifier = Modifier.size(IconSize.xs).padding(start = Spacing.xxs),
+                    modifier = Modifier.size(IconSize.xs),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -327,7 +337,7 @@ private fun HotNewsDetailTopBar(
 }
 
 @Composable
-private fun HotNewsDetailModeRow(
+internal fun HotNewsDetailModeRow(
     isBodySelected: Boolean,
     onSelectSummary: () -> Unit,
     onSelectBody: () -> Unit,
@@ -336,42 +346,30 @@ private fun HotNewsDetailModeRow(
     readingMinutes: Int?,
     onRetry: () -> Unit,
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
-            .defaultMinSize(minHeight = Height.appBarCompact)
-            .padding(horizontal = Spacing.m, vertical = Spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = Spacing.l, vertical = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        // 左侧双段胶囊切换器：通过 selectableGroup() 提供无障碍分组
-        Row(
-            modifier = Modifier
-                .selectableGroup()
-                .defaultMinSize(minHeight = Height.appBarCompact),
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            modifier = Modifier.padding(end = Spacing.m),
+            shape = RoundedCornerShape(Radius.m),
+            color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
-            SegmentTabButton(
-                text = stringResource(R.string.news_hotnews_summary),
-                isSelected = !isBodySelected,
-                onClick = onSelectSummary,
-                isFirst = true,
-            )
-            SegmentTabButton(
-                text = stringResource(R.string.news_hotnews_body),
-                isSelected = isBodySelected,
-                onClick = onSelectBody,
-                isFirst = false,
-            )
+            Row(Modifier.selectableGroup().padding(horizontal = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically) {
+                SegmentTabButton(stringResource(R.string.news_hotnews_summary), !isBodySelected, onSelectSummary)
+                SegmentTabButton(stringResource(R.string.news_hotnews_body), isBodySelected, onSelectBody)
+            }
         }
 
-        // 右侧状态与元信息：带自适应宽度和回流换行支持
-        Row(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .padding(start = Spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End,
+        FlowRow(
+            modifier = Modifier.heightIn(min = Height.touchTarget),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs, Alignment.CenterVertically),
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             when (metaStatus) {
                 HotNewsMetaStatus.PROCESSING -> {
@@ -380,7 +378,6 @@ private fun HotNewsDetailModeRow(
                         strokeWidth = BorderWidth.m,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                    Spacer(Modifier.width(Spacing.xs))
                     Text(
                         text = stringResource(R.string.news_hotnews_status_processing),
                         style = MaterialTheme.typography.labelSmall,
@@ -393,11 +390,10 @@ private fun HotNewsDetailModeRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    Spacer(Modifier.width(Spacing.xs))
                     TextButton(
                         onClick = onRetry,
                         contentPadding = PaddingValues(horizontal = Spacing.xs, vertical = 0.dp),
-                        modifier = Modifier.defaultMinSize(minHeight = Height.chip, minWidth = Spacing.xxl),
+                        modifier = Modifier.defaultMinSize(minHeight = Height.touchTarget, minWidth = Height.touchTarget),
                     ) {
                         Text(
                             text = stringResource(R.string.news_hotnews_retry),
@@ -430,52 +426,30 @@ private fun HotNewsDetailModeRow(
 }
 
 @Composable
-private fun SegmentTabButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    isFirst: Boolean,
-) {
+private fun SegmentTabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .defaultMinSize(minHeight = Height.appBarCompact)
-            .selectable(
-                selected = isSelected,
-                role = Role.Tab,
-                onClick = onClick,
-            ),
+            .defaultMinSize(minWidth = Height.touchTarget, minHeight = Height.touchTarget)
+            .selectable(selected = isSelected, role = Role.Tab, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            shape = RoundedCornerShape(
-                topStart = if (isFirst) Radius.m else Radius.none,
-                bottomStart = if (isFirst) Radius.m else Radius.none,
-                topEnd = if (!isFirst) Radius.m else Radius.none,
-                bottomEnd = if (!isFirst) Radius.m else Radius.none,
-            ),
-            color = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainer,
-            shadowElevation = if (isSelected) BorderWidth.s else 0.dp,
-            modifier = Modifier.defaultMinSize(minHeight = Height.chip),
+            shape = RoundedCornerShape(Radius.s),
+            color = if (isSelected) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer,
         ) {
-            Box(
-                modifier = Modifier
-                    .defaultMinSize(minHeight = Height.chip)
-                    .padding(horizontal = Spacing.m, vertical = Spacing.xs),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = text,
+                modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-private fun HotNewsDetailBottomBar(
+internal fun HotNewsDetailBottomBar(
     itemUrl: String,
     discussionUrl: String?,
     onOpenUrl: (String) -> Unit,
@@ -487,17 +461,18 @@ private fun HotNewsDetailBottomBar(
         color = MaterialTheme.colorScheme.background,
         tonalElevation = BorderWidth.s,
     ) {
-        Row(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = Spacing.m, vertical = Spacing.s),
             horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             Button(
                 onClick = { onOpenUrl(itemUrl) },
-                modifier = Modifier.weight(1f).height(Height.button),
+                modifier = Modifier.weight(1f).widthIn(min = Height.touchTarget * 3).heightIn(min = Height.touchTarget),
                 shape = RoundedCornerShape(Radius.m),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -519,7 +494,7 @@ private fun HotNewsDetailBottomBar(
             if (showDiscussion && discussionUrl != null) {
                 OutlinedButton(
                     onClick = { onOpenUrl(discussionUrl) },
-                    modifier = Modifier.weight(1f).height(Height.button),
+                    modifier = Modifier.weight(1f).widthIn(min = Height.touchTarget * 3).heightIn(min = Height.touchTarget),
                     shape = RoundedCornerShape(Radius.m),
                 ) {
                     Icon(
