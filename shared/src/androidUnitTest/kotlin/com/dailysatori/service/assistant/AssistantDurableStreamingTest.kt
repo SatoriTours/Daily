@@ -2,7 +2,9 @@ package com.dailysatori.service.assistant
 
 import ai.koog.agents.core.tools.*
 import ai.koog.agents.snapshot.feature.AgentCheckpointData
-import ai.koog.agents.snapshot.providers.PersistencyStorageProvider
+import ai.koog.agents.snapshot.providers.PersistenceStorageProvider
+import ai.koog.serialization.typeToken
+import ai.koog.serialization.kotlinx.toKotlinxJsonElement
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.ai.*
@@ -123,11 +125,11 @@ class AssistantDurableStreamingTest {
                     AssistantPrivacyRepository(f.driver), ChatConversationRepository(f.db), tools,
                     checkpointFactory = { hash ->
                         val storage = f.checkpoint(turn, "first-owner", hash)
-                        object : PersistencyStorageProvider by storage {
-                            override suspend fun saveCheckpoint(agentCheckpointData: AgentCheckpointData) {
-                                storage.saveCheckpoint(agentCheckpointData)
-                                if (agentCheckpointData.nodeId == "execute_one_tool" &&
-                                    agentCheckpointData.lastInput.jsonObject["remaining"]?.jsonArray?.singleOrNull()
+                        object : PersistenceStorageProvider<Unit> by storage {
+                            override suspend fun saveCheckpoint(sessionId: String, agentCheckpointData: AgentCheckpointData) {
+                                storage.saveCheckpoint(sessionId, agentCheckpointData)
+                                if (agentCheckpointData.graphProperties?.nodePath?.substringAfterLast("/") == "execute_one_tool" &&
+                                    agentCheckpointData.graphProperties!!.lastOutput.toKotlinxJsonElement().jsonObject["remaining"]?.jsonArray?.singleOrNull()
                                         ?.jsonObject?.get("tool")?.jsonPrimitive?.content == "second_effect")
                                     throw CancellationException("simulated process interruption after first committed step")
                             }
@@ -184,10 +186,8 @@ class AssistantDurableStreamingTest {
         }
     }
 
-    private class EffectTool(name: String, private val effect: () -> Unit) : SimpleTool<ToolArgs.Empty>() {
-        override val argsSerializer = ToolArgs.Empty.serializer()
-        override val descriptor = ToolDescriptor(name, name)
-        override suspend fun doExecute(args: ToolArgs.Empty): String { effect(); return "done" }
+    private class EffectTool(name: String, private val effect: () -> Unit) : SimpleTool<Unit>(typeToken<Unit>(), name, name) {
+        override suspend fun execute(args: Unit): String { effect(); return "done" }
     }
 
     private class Fixture : AutoCloseable {

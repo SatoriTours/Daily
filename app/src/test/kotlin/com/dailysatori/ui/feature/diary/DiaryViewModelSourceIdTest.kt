@@ -126,7 +126,8 @@ class DiaryViewModelSourceIdTest {
         try {
             val existingId = fixture.diaryRepository.create(content = "existing diary")
 
-            assertEquals(existingId, fixture.viewModel.saveDiaryAndGetId(content = "updated diary", existingId = existingId))
+            val savedId = fixture.viewModel.saveDiaryAndGetId(content = "updated diary", existingId = existingId)
+            assertEquals(existingId, savedId, fixture.viewModel.state.value.error)
 
             assertEquals(listOf(RecordedExtraction("diary", existingId)), fixture.extractor.extractions)
         } finally {

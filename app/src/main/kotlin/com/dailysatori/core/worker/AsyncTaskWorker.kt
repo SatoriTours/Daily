@@ -215,6 +215,7 @@ private fun createAsyncTaskForegroundInfo(context: Context, taskId: Long, taskTy
 }
 
 private fun asyncTaskNotificationText(taskType: String): String = when (taskType) {
+    "assistant_turn" -> "个人助手正在处理，可切换到其他应用…"
     ReminderAiParseTaskHandler.TYPE -> "正在解析提醒…"
     "external_favorite_sync" -> "正在同步外部收藏…"
     "save_article" -> "正在保存并整理文章…"
@@ -224,6 +225,7 @@ private fun asyncTaskNotificationText(taskType: String): String = when (taskType
 }
 
 private val NETWORK_TASK_TYPES = setOf(
+    "assistant_turn",
     "article_cover_download",
     "sms_reminder_parse",
     "external_favorite_organize",
@@ -241,6 +243,7 @@ private val NETWORK_TASK_TYPES = setOf(
 )
 
 private val LONG_RUNNING_TASK_TYPES = setOf(
+    "assistant_turn",
     "sms_reminder_parse",
     "external_favorite_organize",
     "save_article",

@@ -1,7 +1,7 @@
 package com.dailysatori.service.assistant
 
 import ai.koog.agents.snapshot.feature.AgentCheckpointData
-import ai.koog.agents.snapshot.providers.PersistencyStorageProvider
+import ai.koog.agents.snapshot.providers.PersistenceStorageProvider
 import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.assistant.data.*
@@ -21,7 +21,7 @@ internal class AssistantAgentCheckpointStore(
     private val selectedContextHash: String, private val contextStillValid: () -> Boolean,
     summarySources: String = "[]",
     private val timeSource: TimeSource = TimeSource.Monotonic,
-) : PersistencyStorageProvider {
+) : PersistenceStorageProvider<Unit> {
     private val store = AssistantStore(driver)
     private val db = DailySatoriDatabase(driver)
     private val tasks = AsyncTaskRepository(db)
@@ -69,9 +69,10 @@ internal class AssistantAgentCheckpointStore(
         reads["$name:$args"] = AssistantReadStamp(name, args, sha256Hex(result))
     }
 
-    override suspend fun getCheckpoints(): List<AgentCheckpointData> = listOfNotNull(getLatestCheckpoint())
+    override suspend fun getCheckpoints(sessionId: String, filter: Unit?): List<AgentCheckpointData> =
+        listOfNotNull(getLatestCheckpoint(sessionId, filter))
 
-    override suspend fun getLatestCheckpoint(): AgentCheckpointData? {
+    override suspend fun getLatestCheckpoint(sessionId: String, filter: Unit?): AgentCheckpointData? {
         guard()
         val saved = decode(tasks.getById(turn.taskId)?.checkpoint_json.orEmpty()) ?: return null
         if (!valid(saved) || !validAssistantSummarySources(store.connection, turn.sessionId, saved.summarySources, turn.id) ||
@@ -82,7 +83,7 @@ internal class AssistantAgentCheckpointStore(
         return latest
     }
 
-    override suspend fun saveCheckpoint(agentCheckpointData: AgentCheckpointData) {
+    override suspend fun saveCheckpoint(sessionId: String, agentCheckpointData: AgentCheckpointData) {
         guard()
         latest = agentCheckpointData
         save(AssistantAgentState(inputVersion = inputVersion, privacyRevision = revision, contextHash = contextHash,
@@ -126,7 +127,7 @@ internal class AssistantAgentCheckpointStore(
 
     private fun valid(state: AssistantAgentState): Boolean = state.version == 1 && state.format == FORMAT &&
         state.inputVersion == inputVersion && state.privacyRevision == revision && state.contextHash == contextHash && state.actionsHash == actionHash() &&
-        state.snapshot?.nodeId in NODE_IDS &&
+        state.snapshot?.graphProperties?.nodePath?.substringAfterLast("/") in NODE_IDS &&
         // Elapsed time is not evidence that the saved dependencies have changed. getLatestCheckpoint
         // revalidates every source, privacy revision, input and committed action before resuming.
         state.snapshot?.createdAt?.toEpochMilliseconds()?.let { it <= Clock.System.now().toEpochMilliseconds() + 60_000 } == true
@@ -158,7 +159,7 @@ internal class AssistantAgentCheckpointStore(
     }
 
     companion object {
-        private const val FORMAT = "koog-0.3.0/daily-steps-v1"
+        internal const val FORMAT = "koog-1.3.0/daily-steps-v2"
         private val codec = Json { encodeDefaults = true }
         val NODE_IDS = setOf("ask_model", "prepare_tools", "execute_one_tool", "send_results", "deliver_answer", "budget_exhausted")
         private fun decode(value: String): AssistantAgentState? = runCatching { codec.decodeFromString<AssistantAgentState>(value) }.getOrNull()
@@ -172,7 +173,7 @@ internal class AssistantAgentCheckpointStore(
 
 @Serializable
 private data class AssistantAgentState(
-    val version: Int = 1, val format: String = "koog-0.3.0/daily-steps-v1",
+    val version: Int = 1, val format: String = AssistantAgentCheckpointStore.FORMAT,
     val inputVersion: String, val privacyRevision: Long, val contextHash: String, val selectedContextHash: String,
     val snapshot: AgentCheckpointData? = null, val reads: List<AssistantReadStamp> = emptyList(),
     val partial: String = "", val actionsHash: String = "", val summarySources: String = "[]",

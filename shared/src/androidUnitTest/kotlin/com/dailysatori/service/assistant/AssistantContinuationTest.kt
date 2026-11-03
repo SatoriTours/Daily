@@ -37,8 +37,10 @@ class AssistantContinuationTest {
                 val executor = KoogAiPromptExecutor(AiService(client), config, data::redact, streamFilter = data::streamRedactor)
                 val job = async {
                     executor.executeStreaming(prompt("stream") { user("继续") }, LLModel(LLMProvider.OpenAI, "model", emptyList())).collect {
-                        emitted += it
-                        first.complete(it)
+                        if (it is ai.koog.prompt.streaming.StreamFrame.TextDelta) {
+                            emitted += it.text
+                            first.complete(it.text)
+                        }
                     }
                 }
                 try {

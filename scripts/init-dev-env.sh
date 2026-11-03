@@ -14,8 +14,8 @@ JAVA_HOME_DEFAULT="/usr/lib/jvm/java-21-openjdk"
 CMDLINE_TOOLS_VERSION="14742923"
 CMDLINE_TOOLS_ZIP="commandlinetools-linux-${CMDLINE_TOOLS_VERSION}_latest.zip"
 CMDLINE_TOOLS_URL="${ANDROID_CMDLINE_TOOLS_URL:-https://dl.google.com/android/repository/${CMDLINE_TOOLS_ZIP}}"
-BUILD_TOOLS_VERSION="${ANDROID_BUILD_TOOLS_VERSION:-36.0.0}"
-PLATFORM_VERSION="${ANDROID_PLATFORM_VERSION:-android-36}"
+BUILD_TOOLS_VERSION="${ANDROID_BUILD_TOOLS_VERSION:-37.0.0}"
+PLATFORM_VERSION="${ANDROID_PLATFORM_VERSION:-android-37.0}"
 case "$(basename "${SHELL:-zsh}")" in
   bash) DEFAULT_SHELL_PROFILE="$HOME/.bashrc" ;;
   zsh) DEFAULT_SHELL_PROFILE="$HOME/.zshrc" ;;
@@ -41,8 +41,8 @@ Environment overrides:
   ANDROID_SDK_ROOT              Default: $HOME/Android/Sdk
   ANDROID_HOME                  Used if ANDROID_SDK_ROOT is not set
   ANDROID_CMDLINE_TOOLS_URL     Default: official Linux command-line tools URL
-  ANDROID_BUILD_TOOLS_VERSION   Default: 36.0.0
-  ANDROID_PLATFORM_VERSION      Default: android-36
+  ANDROID_BUILD_TOOLS_VERSION   Default: 37.0.0
+  ANDROID_PLATFORM_VERSION      Default: android-37.0
   SHELL_PROFILE                 Default: $DEFAULT_SHELL_PROFILE
 EOF
 }

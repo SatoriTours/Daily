@@ -2,10 +2,11 @@ package com.dailysatori.service.assistant
 
 import ai.koog.agents.core.tools.*
 import ai.koog.prompt.dsl.ModerationResult
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.*
+import ai.koog.prompt.streaming.StreamFrame
 import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.assistant.data.AssistantStreamRedactor
@@ -22,8 +23,10 @@ class KoogAiPromptExecutor(
     private val sanitize: (String) -> String = { it },
     private val onPartial: (suspend (String) -> Unit)? = null,
     private val streamFilter: (() -> AssistantStreamRedactor)? = null,
-) : PromptExecutor {
-    override suspend fun execute(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): List<Message.Response> =
+) : PromptExecutor() {
+    override fun close() = Unit // AiService and its transport are owned by the application.
+
+    override suspend fun execute(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Message.Assistant =
         sanitizedFailure {
             require(model.id == config.model_name)
             if (onPartial != null) return@sanitizedFailure decodeResponse(streamResponse(prompt, tools, onPartial))
@@ -38,17 +41,22 @@ class KoogAiPromptExecutor(
             decodeResponse(response)
         }
 
-    override suspend fun executeStreaming(prompt: Prompt, model: LLModel): Flow<String> = channelFlow {
+    override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> = channelFlow {
         sanitizedFailure {
             require(model.id == config.model_name)
             var previous = ""
-            streamResponse(prompt, emptyList()) { prefix ->
+            val response = streamResponse(prompt, tools) { prefix ->
                 if (prefix.length > previous.length) {
                     require(prefix.startsWith(previous)) { "Unsafe streaming prefix changed" }
-                    send(prefix.removePrefix(previous))
+                    send(StreamFrame.TextDelta(prefix.removePrefix(previous)))
                     previous = prefix
                 }
             }
+            val decoded = decodeResponse(response)
+            decoded.parts.filterIsInstance<MessagePart.Tool.Call>().forEach {
+                send(StreamFrame.ToolCallComplete(it.id, it.tool, it.args))
+            }
+            send(StreamFrame.End(metaInfo = decoded.metaInfo))
         }
     }
 
@@ -114,76 +122,63 @@ class KoogAiPromptExecutor(
 
     private fun transportMessages(messages: List<Message>): List<JsonObject> {
         val result = mutableListOf<JsonObject>()
-        var index = 0
-        while (index < messages.size) {
-            val message = messages[index]
-            when (message) {
-                is Message.Tool.Call -> {
-                    val roundId = message.metaInfo.additionalInfo["daily_response_id"]
-                    val round = messages.drop(index).takeWhile {
-                        it is Message.Tool && (it !is Message.Tool.Call ||
-                            it.metaInfo.additionalInfo["daily_response_id"] == roundId)
-                    }
-                    result += toolCallsMessage(round.filterIsInstance<Message.Tool.Call>())
-                    round.filterIsInstance<Message.Tool.Result>().forEach { result += toolResultMessage(it) }
-                    index += round.size
-                }
-                is Message.Tool.Result -> {
-                    result += toolResultMessage(message)
-                    index++
-                }
-                else -> {
-                    result += buildJsonObject {
-                        put("role", message.role.name.lowercase()); put("content", sanitize(message.content))
-                    }
-                    index++
+        messages.forEach { message ->
+            val calls = message.parts.filterIsInstance<MessagePart.Tool.Call>()
+            val results = message.parts.filterIsInstance<MessagePart.Tool.Result>()
+            if (calls.isNotEmpty()) {
+                result += toolCallsMessage(message, calls)
+            } else if (results.isEmpty() || message.textContent().isNotEmpty()) {
+                result += buildJsonObject {
+                    put("role", message.role.name.lowercase()); put("content", sanitize(message.textContent()))
                 }
             }
+            results.forEach { result += toolResultMessage(it) }
         }
         return result
     }
 
-    private fun toolResultMessage(message: Message.Tool.Result): JsonObject = buildJsonObject {
+    private fun toolResultMessage(message: MessagePart.Tool.Result): JsonObject = buildJsonObject {
         put("role", "tool"); put("tool_call_id", requireNotNull(message.id))
-        put("content", sanitize(message.content))
+        put("content", sanitize(message.output))
     }
 
-    private fun toolCallsMessage(calls: List<Message.Tool.Call>): JsonObject = buildJsonObject {
+    private fun toolCallsMessage(message: Message, calls: List<MessagePart.Tool.Call>): JsonObject = buildJsonObject {
         put("role", "assistant")
-        put("content", "")
-        calls.first().metaInfo.additionalInfo["reasoning_content"]?.let { put("reasoning_content", it) }
+        put("content", sanitize(message.textContent()))
+        message.metaInfo.metadata?.get("reasoning_content")?.jsonPrimitive?.contentOrNull?.let {
+            put("reasoning_content", sanitize(it))
+        }
         put("tool_calls", buildJsonArray {
             calls.forEach { call -> add(buildJsonObject {
                 put("id", requireNotNull(call.id)); put("type", "function")
-                put("function", buildJsonObject { put("name", call.tool); put("arguments", sanitize(call.content)) })
+                put("function", buildJsonObject { put("name", call.tool); put("arguments", sanitize(call.args)) })
             }) }
         })
     }
 
-    private fun decodeResponse(response: JsonObject): List<Message.Response> {
+    private fun decodeResponse(response: JsonObject): Message.Assistant {
         val message = response["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject
             ?: error("Missing assistant message")
         val reasoning = message["reasoning_content"]?.jsonPrimitive?.contentOrNull
-        val meta = ResponseMetaInfo.create(kotlinx.datetime.Clock.System,
-            additionalInfo = buildMap {
-                // Koog inserts each result directly after its call; retain model-round boundaries when regrouping.
-                put("daily_response_id", kotlin.random.Random.nextLong().toString())
-                reasoning?.let { put("reasoning_content", sanitize(it)) }
-            })
+        val meta = ResponseMetaInfo(kotlin.time.Clock.System.now(), metadata = buildJsonObject {
+            reasoning?.let { put("reasoning_content", sanitize(it)) }
+        })
         val calls = message["tool_calls"]?.jsonArray.orEmpty()
-        if (calls.isNotEmpty()) return calls.map { element ->
+        val parts = calls.map { element ->
             val call = element.jsonObject
             val function = requireNotNull(call["function"]).jsonObject
-            Message.Tool.Call(
+            MessagePart.Tool.Call(
                 id = requireNotNull(call["id"]).jsonPrimitive.content,
                 tool = requireNotNull(function["name"]).jsonPrimitive.content,
-                content = sanitize(requireNotNull(function["arguments"]).jsonPrimitive.content),
-                metaInfo = meta
+                args = sanitize(requireNotNull(function["arguments"]).jsonPrimitive.content),
             )
         }
         val content = message["content"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank)
-            ?: error("Empty assistant response")
-        return listOf(Message.Assistant(sanitize(content), meta))
+        require(parts.isNotEmpty() || content != null) { "Empty assistant response" }
+        return Message.Assistant(buildList {
+            content?.let { add(MessagePart.Text(sanitize(it))) }
+            addAll(parts)
+        }, meta)
     }
 
     private fun transportTool(tool: ToolDescriptor): JsonObject = buildJsonObject {
@@ -212,6 +207,8 @@ class KoogAiPromptExecutor(
             ToolParameterType.Integer -> put("type", "integer")
             ToolParameterType.Float -> put("type", "number")
             ToolParameterType.Boolean -> put("type", "boolean")
+            ToolParameterType.Null -> put("type", "null")
+            is ToolParameterType.AnyOf -> put("anyOf", JsonArray(type.types.map(::parameterSchema)))
             is ToolParameterType.Enum -> {
                 put("type", "string"); put("enum", JsonArray(type.entries.map(::JsonPrimitive)))
             }

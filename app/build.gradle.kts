@@ -14,7 +14,7 @@ kotlin {
 
 android {
     namespace = "com.dailysatori"
-    compileSdk = 36
+    compileSdk = 37
     val xOAuthClientId = System.getenv("X_OAUTH_CLIENT_ID")
         .orEmpty()
         .replace("\\", "\\\\")

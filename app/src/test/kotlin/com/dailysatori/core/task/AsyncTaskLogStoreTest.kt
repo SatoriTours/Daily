@@ -14,7 +14,7 @@ import kotlinx.coroutines.withTimeout
 class AsyncTaskLogStoreTest {
     @Test
     fun appendsTaskLogsToFilesOutsideDatabaseSchema() {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root, maxBytesPerTask = 160)
 
         store.append(taskId = 42, message = "GET /2/users/account/bookmarks")
@@ -46,7 +46,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun capsIndividualTaskLogSize() {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root, maxBytesPerTask = 64)
 
         store.append(taskId = 7, message = "a".repeat(80))
@@ -56,7 +56,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun httpLoggerOmitsPrivateResponseBodyBeforeTaskLogCap() {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root, maxBytesPerTask = 120_000)
         val logger = AsyncTaskHttpLogWriter(store)
         val body = """{"data":"${"x".repeat(40_000)}"}"""
@@ -77,7 +77,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun taskLoggerNeverWritesLargeHttpBodies() {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root)
         val logger = AsyncTaskHttpLogWriter(store)
         val body = """{"data":"${"x".repeat(3 * 1024 * 1024)}","tail":"complete"}"""
@@ -99,7 +99,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun httpLoggerOmitsCredentialsInHeadersUrlsAndLabels() {
-        val root = createTempDir(prefix = "daily-safe-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-safe-task-logs").toFile()
         val store = AsyncTaskLogStore(root)
         val logger = AsyncTaskHttpLogWriter(store)
         logger.logRequest(9, "private-label", "GET", "https://user:password-canary@example.com/private-path?key=canary",
@@ -114,7 +114,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun concurrentAppendsDoNotCorruptTaskLog() = runBlocking {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root, maxBytesPerTask = 120_000)
 
         (0 until 20).map { index ->
@@ -132,7 +132,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun deleteRemovesTaskLogFilesById() {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root)
         store.append(1, "keep")
         store.append(2, "delete")
@@ -145,7 +145,7 @@ class AsyncTaskLogStoreTest {
 
     @Test
     fun observeEmitsWhenTaskLogFileChanges() = runBlocking {
-        val root = createTempDir(prefix = "daily-task-logs")
+        val root = kotlin.io.path.createTempDirectory("daily-task-logs").toFile()
         val store = AsyncTaskLogStore(root)
 
         val observed = async {

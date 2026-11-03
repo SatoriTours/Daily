@@ -1,12 +1,11 @@
 package com.dailysatori.service.assistant
 
 import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.ToolCalls
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.singleRunStrategy
-import ai.koog.agents.snapshot.feature.Persistency
-import ai.koog.agents.snapshot.feature.persistency
-import ai.koog.agents.snapshot.providers.PersistencyStorageProvider
+import ai.koog.agents.snapshot.feature.Persistence
+import ai.koog.agents.snapshot.feature.persistence
+import ai.koog.agents.snapshot.providers.PersistenceStorageProvider
 import ai.koog.agents.features.eventHandler.feature.EventHandler
 import com.dailysatori.service.externalfavorites.sha256Hex
 import ai.koog.prompt.dsl.prompt
@@ -32,7 +31,7 @@ class KoogReadOnlyAssistant(
     private val modePrompt: String = SYSTEM_PROMPT,
     private val additionalContext: String = "",
     private val transformInput: (String) -> String = { it },
-    private val checkpointFactory: ((String) -> PersistencyStorageProvider)? = null,
+    private val checkpointFactory: ((String) -> PersistenceStorageProvider<Unit>)? = null,
     private val onPartial: (suspend (String) -> Unit)? = null,
     private val ensureAuthority: () -> Unit = {},
 ) {
@@ -64,7 +63,7 @@ class KoogReadOnlyAssistant(
         val checkpoints = checkpointFactory?.invoke(contextHash)
         val agent = AIAgent<String, String>(
             promptExecutor = KoogAiPromptExecutor(ai, config, data::redact, onPartial, data::streamRedactor),
-            strategy = if (checkpoints != null) assistantKoogStrategy() else singleRunStrategy(ToolCalls.SEQUENTIAL),
+            strategy = if (checkpoints != null) assistantKoogStrategy() else singleRunStrategy(parallelTools = false),
             agentConfig = AIAgentConfig(
                 prompt = prompt("daily-assistant") {
                     system(modePrompt + "\n" + additionalContext)
@@ -78,12 +77,20 @@ class KoogReadOnlyAssistant(
             toolRegistry = tools ?: koogDataTools(data),
             installFeatures = {
                 if (checkpoints != null) {
-                    install(Persistency) { storage = checkpoints }
+                    install(Persistence) {
+                        storage = checkpoints
+                        enableAutomaticPersistence = false
+                    }
                     install(EventHandler) {
-                        onBeforeNode { event ->
+                        onNodeExecutionStarting { ensureAuthority() }
+                        onNodeExecutionCompleted { event ->
                             ensureAuthority()
                             if (event.node.id in AssistantAgentCheckpointStore.NODE_IDS) {
-                                event.context.persistency().createCheckpoint(event.context, event.node.id, event.input, event.inputType)
+                                // Koog 1.x resumes AFTER the saved node, using its output.
+                                event.context.persistence().createCheckpointAfterNode(
+                                    event.context, event.context.executionInfo.path(), event.output, event.outputType,
+                                    version = 0L,
+                                )
                             }
                         }
                     }

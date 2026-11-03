@@ -81,7 +81,7 @@ GitHub Actions 的 PR、主分支构建及版本发布共用 `code-test-gate.yml
 
 Arch Linux 可运行 `bash scripts/init-dev-env.sh --skip-gradle-check` 安装基础环境，
 然后重新打开 Bash 终端。脚本默认安装 SDK 到 `~/Android/Sdk`，并配置 `~/.bashrc`。
-脚本安装的 Build Tools 36.0.0 可与 Gradle 自动安装的 35.0.0 共存。
+脚本安装 Android SDK 37.0 和 Build Tools 37.0.0；可与 Gradle 使用的其他 Build Tools 版本共存。构建使用 JDK 21。
 
 需要完整构建且改动涉及两个模块时，可一次执行编译、APK 构建和两个模块的单元测试：
 

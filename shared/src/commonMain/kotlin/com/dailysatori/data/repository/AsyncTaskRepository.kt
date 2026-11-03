@@ -195,7 +195,9 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     }
 
     fun observeTaskOverview(failedSince: Long): Flow<AsyncTaskOverview> =
-        q.selectAsyncTaskOverview(failedSince, mapper = ::AsyncTaskOverview)
+        q.selectAsyncTaskOverview(failedSince) { active, failed, current, total ->
+            AsyncTaskOverview(active, failed, current ?: 0L, total ?: 0L)
+        }
             .asFlow().mapToOne(Dispatchers.IO)
 
     fun observeTasksNeedingAttention(failedSince: Long): Flow<List<AsyncTaskListItem>> =

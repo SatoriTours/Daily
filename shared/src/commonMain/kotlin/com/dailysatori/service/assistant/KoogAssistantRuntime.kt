@@ -1,6 +1,9 @@
 package com.dailysatori.service.assistant
 
 import ai.koog.agents.core.tools.*
+import ai.koog.serialization.TypeToken
+import ai.koog.serialization.typeToken
+import ai.koog.serialization.JSONSerializer
 import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.ai.*
@@ -132,11 +135,16 @@ class KoogAssistantRuntime(
 
 private data class AssistantRuntimeContext(val revision: Long, val selected: String, val summary: String, val summarySources: String)
 
-private class OperationTool<A : ToolArgs>(
-    override val argsSerializer: KSerializer<A>, override val descriptor: ToolDescriptor,
+private inline fun <reified A> OperationTool(@Suppress("UNUSED_PARAMETER") serializer: KSerializer<A>,
+    descriptor: ToolDescriptor, noinline execute: suspend (A) -> String) =
+    TypedOperationTool(typeToken<A>(), descriptor, execute)
+
+private class TypedOperationTool<A>(
+    argsType: TypeToken, descriptor: ToolDescriptor,
     val executeOperation: suspend (A) -> String,
-) : SimpleTool<A>() {
-    override suspend fun doExecute(args: A): String = try { executeOperation(args) }
+) : Tool<A, String>(argsType, typeToken<String>(), descriptor) {
+    override fun encodeResultToString(result: String, serializer: JSONSerializer): String = result
+    override suspend fun execute(args: A): String = try { executeOperation(args) }
     catch (e: CancellationException) { throw e }
     catch (e: Exception) {
         val codes = setOf("source_quote_must_match_current_input","quoted_content_is_not_instruction","negated_instruction",
@@ -147,9 +155,9 @@ private class OperationTool<A : ToolArgs>(
 }
 private fun descriptor(name: String, description: String, vararg fields: String) = ToolDescriptor(name, description,
     requiredParameters = fields.map { ToolParameterDescriptor(it, it, ToolParameterType.String) })
-@Serializable private data class PlanArgs(val plan: String) : ToolArgs
-@Serializable private data class ClarifyArgs(val actionId: String, val request: String) : ToolArgs
-@Serializable private data class MemoryArgs(val kind: String, val content: String, val quote: String) : ToolArgs
-@Serializable private data class ForgetArgs(val id: String, val quote: String) : ToolArgs
-@Serializable private data class CorrectArgs(val id: String, val content: String, val quote: String) : ToolArgs
-@Serializable private data class WebArgs(val query: String) : ToolArgs
+@Serializable private data class PlanArgs(val plan: String)
+@Serializable private data class ClarifyArgs(val actionId: String, val request: String)
+@Serializable private data class MemoryArgs(val kind: String, val content: String, val quote: String)
+@Serializable private data class ForgetArgs(val id: String, val quote: String)
+@Serializable private data class CorrectArgs(val id: String, val content: String, val quote: String)
+@Serializable private data class WebArgs(val query: String)

@@ -30,12 +30,12 @@ class KoogAiPromptExecutorTest {
         }).use { client ->
             val executor = KoogAiPromptExecutor(AiService(client), config)
             val first = executor.execute(prompt("first") { user("查询") }, model, listOf(ToolDescriptor("lookup", "lookup")))
-            assertEquals(listOf("a", "b"), first.filterIsInstance<Message.Tool.Call>().map { it.id })
+            assertEquals(listOf("a", "b"), first.parts.filterIsInstance<MessagePart.Tool.Call>().map { it.id })
             val round = prompt("round") {
                 user("查询")
-                messages(first)
-                tool { result(Message.Tool.Result("a", "lookup", "甲", RequestMetaInfo.Empty)) }
-                tool { result(Message.Tool.Result("b", "lookup", "乙", RequestMetaInfo.Empty)) }
+                messages(listOf(first))
+                user { toolResult(MessagePart.Tool.Result("a", "lookup", "甲")) }
+                user { toolResult(MessagePart.Tool.Result("b", "lookup", "乙")) }
             }
             executor.execute(round, model, emptyList())
             val sent = request!!["messages"]!!.jsonArray.map { it.jsonObject }
@@ -74,7 +74,7 @@ class KoogAiPromptExecutorTest {
         }).use { client ->
             val chunks = KoogAiPromptExecutor(AiService(client), config)
                 .executeStreaming(prompt("stream") { user("hi") }, model).toList()
-            assertEquals("你好", chunks.joinToString(""))
+            assertEquals("你好", chunks.filterIsInstance<ai.koog.prompt.streaming.StreamFrame.TextDelta>().joinToString("") { it.text })
         }
     }
 
