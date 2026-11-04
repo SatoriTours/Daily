@@ -51,6 +51,25 @@ def make_manifest(info, apk, repository):
                 apkUrl=f"https://github.com/{repository}/releases/download/{info['tag']}/{info['apkName']}")
 
 
+def verify_release_startup(apk):
+    """Inspect the actual DEX, not R8 seeds: Room creates this class reflectively."""
+    sdk = os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
+    if not sdk:
+        raise RuntimeError("ANDROID_SDK_ROOT or ANDROID_HOME is required for APK startup verification")
+    analyzer = Path(sdk) / "cmdline-tools/latest/bin/apkanalyzer"
+    if not analyzer.is_file() or apk is None or not apk.is_file():
+        raise RuntimeError("APK startup verification requires apkanalyzer and an existing APK")
+    result = subprocess.run([
+        str(analyzer), "dex", "code", "--class", "androidx.work.impl.WorkDatabase_Impl",
+        "--method", "<init>()V", str(apk),
+    ], capture_output=True, text=True, timeout=60)
+    if result.returncode != 0 or not re.search(
+        r"^\.method public constructor <init>\(\)V\s*$", result.stdout, re.M
+    ):
+        raise RuntimeError("Release startup check failed: WorkDatabase_Impl public no-arg constructor missing\n"
+                           + result.stderr.strip())
+
+
 def run(*args):
     return subprocess.check_output(args, text=True).strip()
 
@@ -154,17 +173,21 @@ def should_update_pointer(previous, candidate):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["prepare", "package", "publish"])
+    parser.add_argument("command", choices=["prepare", "verify-startup", "package", "publish"])
     parser.add_argument("--channel", choices=["stable", "commit"])
     parser.add_argument("--folder", type=Path, default=Path("dist"))
     parser.add_argument("--apk", type=Path)
     args = parser.parse_args()
+    if args.command == "verify-startup":
+        verify_release_startup(args.apk)
+        return
     info_path = args.folder / "build-info.json"
     if args.command == "prepare":
         prepare(args.channel, info_path)
         return
     repository = os.environ.get("GITHUB_REPOSITORY", "SatoriTours/Daily")
     if args.command == "package":
+        verify_release_startup(args.apk)
         info = json.loads(info_path.read_text())
         manifest = make_manifest(info, args.apk, repository)
         (args.folder / info["apkName"]).write_bytes(args.apk.read_bytes())

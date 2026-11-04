@@ -5,6 +5,13 @@
 # SQLDelight
 -keep class com.dailysatori.shared.db.** { *; }
 
+# Room 2.6.1 keeps database classes but not their reflection-only constructors.
+# WorkManager needs WorkDatabase_Impl() before Application.onCreate; keep the
+# no-arg constructor explicitly rather than relying on older R8 implicit rules.
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    public <init>();
+}
+
 # kotlinx.serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt

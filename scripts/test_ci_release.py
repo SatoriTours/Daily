@@ -1,5 +1,8 @@
 import tempfile
 import unittest
+import json
+import subprocess
+import ci_release
 from unittest.mock import patch
 from pathlib import Path
 
@@ -99,6 +102,46 @@ class ReleaseMetadataTest(unittest.TestCase):
             self.assertEqual(3, manifest["size"])
             self.assertIn("/releases/download/commit-", manifest["apkUrl"])
             self.assertEqual(27, manifest["schemaVersion"])
+
+
+class ReleaseStartupTest(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.root = Path(self.folder.name)
+        self.apk = self.root / "app.apk"
+        self.apk.write_bytes(b"apk fixture")
+        analyzer = self.root / "cmdline-tools/latest/bin/apkanalyzer"
+        analyzer.parent.mkdir(parents=True)
+        analyzer.touch()
+        self.env = patch.dict("os.environ", {"ANDROID_SDK_ROOT": str(self.root)})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
+    def test_public_no_argument_constructor_passes(self):
+        result = subprocess.CompletedProcess([], 0, ".method public constructor <init>()V\n.end method", "")
+        with patch("ci_release.subprocess.run", return_value=result):
+            ci_release.verify_release_startup(self.apk)
+
+    def test_missing_private_and_argument_only_constructors_fail_closed(self):
+        for code, text in [(1, ""), (0, ""), (0, ".method private constructor <init>()V"),
+                           (0, ".method public constructor <init>(I)V")]:
+            with self.subTest(code=code, text=text), patch("ci_release.subprocess.run",
+                    return_value=subprocess.CompletedProcess([], code, text, "method not found")):
+                with self.assertRaisesRegex(RuntimeError, "WorkDatabase_Impl"):
+                    ci_release.verify_release_startup(self.apk)
+
+    def test_invalid_release_is_not_packaged_for_either_channel(self):
+        for channel in ("stable", "commit"):
+            with self.subTest(channel=channel):
+                (self.root / "build-info.json").write_text(json.dumps(
+                    build_info("5.1.66", 301, channel, "a" * 40, 50)))
+                with patch("sys.argv", ["ci_release.py", "package", "--folder", str(self.root), "--apk", str(self.apk)]), \
+                     patch("ci_release.verify_release_startup", side_effect=RuntimeError("WorkDatabase_Impl missing")):
+                    with self.assertRaisesRegex(RuntimeError, "WorkDatabase_Impl"):
+                        ci_release.main()
+                self.assertFalse((self.root / "update.json").exists())
+                self.assertEqual([self.apk], list(self.root.glob("*.apk")))
 
 
 if __name__ == "__main__":
