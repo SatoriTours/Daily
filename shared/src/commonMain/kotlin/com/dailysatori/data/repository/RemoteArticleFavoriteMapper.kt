@@ -64,8 +64,8 @@ internal fun RemoteArticle.sourceContentHash(): String = sha256Hex(
 fun RemoteArticle.needsLocalAiReprocessingForChineseOutput(): Boolean {
     if (cleanRemoteArticleText(content) == null) return false
     if (url.isNullOrBlank()) return false
-    if (hasEnoughChineseForLocalArticle(this)) return false
-    return hasEnoughEnglishForLocalArticle(this)
+    // Metadata in Chinese does not prove that the body (or summary) was translated.
+    return listOfNotNull(title, summary, content).plus(viewpoints).any(::needsChineseReprocessing)
 }
 
 /** Generated summaries are not a substitute for the source document. */

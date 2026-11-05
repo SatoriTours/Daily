@@ -8,6 +8,26 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RemoteArticleLocalPolicyTest {
+    @Test fun chineseMetadataMustNotHideUntranslatedBody() {
+        assertTrue(RemoteArticle(id = 10, url = "https://example.com/mixed",
+            title = "公司开始生产无稀土白色微型芯片",
+            summary = "这是已经翻译好的中文摘要。".repeat(30),
+            content = "The company has started mass production of new chips."
+        ).needsLocalAiReprocessingForChineseOutput())
+    }
+
+    @Test fun chineseBodyMustNotHideEnglishSummary() {
+        assertTrue(RemoteArticle(id = 11, url = "https://example.com/mixed",
+            title = "芯片正式开始量产",
+            summary = "The company has started mass production of new chips.",
+            content = "这是完整的中文正文，介绍芯片生产技术。".repeat(30)
+        ).needsLocalAiReprocessingForChineseOutput())
+    }
+
+    @Test fun codeAndLinksAreNotMistakenForUntranslatedProse() {
+        assertFalse(needsChineseReprocessing("中文说明。\n\n```kotlin\nval title = \"This is English source code\"\n```\n\nhttps://example.com/english/documentation"))
+    }
+
     @Test
     fun cleanRemoteArticleTextTrimsBlankStringsToNull() {
         assertEquals("标题", cleanRemoteArticleText(" 标题 "))

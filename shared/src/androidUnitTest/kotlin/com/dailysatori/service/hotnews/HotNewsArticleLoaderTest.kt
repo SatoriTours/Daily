@@ -70,6 +70,15 @@ class HotNewsArticleLoaderTest {
         assertEquals(original, articles.getById(id)!!.original_markdown_content)
     }
 
+    @Test fun cachedEnglishSummaryIsReprocessedEvenWhenTitleAndBodyAreChinese() = withArticles { articles, hotNews, _ ->
+        val id = articles.insert(title = item.originalTitle, aiTitle = "Android 开发工具说明",
+            aiContent = "The company has started mass production of new chips.",
+            aiMarkdownContent = "已经保存的中文正文。", url = item.url, status = "completed")
+        articles.updateOriginalMarkdownContent(id, original)
+        val loaded = HotNewsArticleLoader(articles, hotNews) { complete(articles, it) }.load(item)
+        assertEquals("已完成的中文摘要。", loaded.ai_content)
+    }
+
     @Test fun completeCachedArticleRemainsAvailableWithoutNetworkOrAi() = withArticles { articles, hotNews, fetches ->
         val id = articles.insert(title = item.originalTitle, aiTitle = "Android 开发工具说明", aiContent = "已经保存的摘要。",
             aiMarkdownContent = "已经保存的中文正文。", url = item.url, status = "completed")

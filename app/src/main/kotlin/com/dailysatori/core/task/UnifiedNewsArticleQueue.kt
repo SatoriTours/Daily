@@ -6,6 +6,7 @@ import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.data.repository.reusableOriginalBody
 import com.dailysatori.service.hotnews.HotNewsService
+import com.dailysatori.service.parser.articleNeedsTranslation
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Unified_news_source
 
@@ -53,12 +54,15 @@ class UnifiedNewsArticleQueue(
 
     private fun enqueueArticle(source: Unified_news_source, url: String?, existing: Article?, pending: MutableSet<Long>): Long? {
         if (existing?.source_type == "remote_news" && existing.reusableOriginalBody().isNullOrBlank()) return existing.id
-        if (!existing?.ai_content.isNullOrBlank() && !existing?.ai_markdown_content.isNullOrBlank() && existing?.status == "completed") {
+        val untranslated = existing?.let {
+            articleNeedsTranslation(it.ai_content.orEmpty()) || articleNeedsTranslation(it.ai_markdown_content.orEmpty())
+        } == true
+        if (!untranslated && !existing?.ai_content.isNullOrBlank() && !existing?.ai_markdown_content.isNullOrBlank() && existing?.status == "completed") {
             return existing.id
         }
         val keys = listOfNotNull(url?.let { "save_article:$it" }, existing?.let { "remote_article_reprocess:${it.id}" })
         val previous = keys.mapNotNull(tasks::getLatestByUniqueKey)
-        if (previous.isNotEmpty()) {
+        if (previous.isNotEmpty() && (!untranslated || previous.any { it.status != "succeeded" })) {
             val active = previous.filter { it.status in setOf("queued", "running", "retrying") }
             active.forEach { pending.add(it.id) }
             return existing?.id ?: if (active.isNotEmpty() && url != null) articles.createPendingFromUrl(url) else null

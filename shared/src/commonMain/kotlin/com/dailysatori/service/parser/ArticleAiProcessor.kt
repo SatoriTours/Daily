@@ -81,7 +81,7 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
             val overview = async {
                 articleStage("overview") {
                     onProgress("Generating summary")
-                    val result = session.overview() ?: generateOverview(original, title, sourceUrl, config,
+                    val result = session.overview()?.takeIf(::isUsableChineseOverview) ?: generateOverview(original, title, sourceUrl, config,
                         cached = session::summary, save = session::saveSummary).also { session.saveOverview(it) }
                     onOverview(result)
                 }
@@ -106,7 +106,7 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
     ): ArticleAiOverview {
         suspend fun extractFacts(input: String): ArticleAiOverview {
             val key = sha256Hex(input)
-            return cached(key) ?: parseOverview(request(input, articleFactsPrompt(), config))
+            return cached(key)?.takeIf(::isUsableChineseOverview) ?: parseOverview(request(input, articleFactsPrompt(), config))
                 .also { save(key, it) }
         }
         val chunks = splitArticleText(original, ARTICLE_AI_CHUNK_LENGTH)
@@ -129,7 +129,8 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         original: String, config: NormalizedAiConfigValues,
         cached: suspend (String) -> String?, save: suspend (String, String) -> Unit,
     ): String = splitArticleTranslationChunks(original).mapConcurrently(2) { chunk ->
-            cached(chunk) ?: (if (articleNeedsTranslation(chunk)) translateChunk(chunk, config) else chunk)
+            cached(chunk)?.takeIf { it.isNotBlank() && !articleNeedsTranslation(it) }
+                ?: (if (articleNeedsTranslation(chunk)) translateChunk(chunk, config) else chunk)
                 .also { save(chunk, it) }
         }.joinToString("\n\n")
 
@@ -153,14 +154,19 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         val title = sanitizeArticleAiTitle(overview.title)
         val summary = sanitizeArticleSummaryMarkdown(overview.summary)
         require(!title.isNullOrBlank() && summary.isNotBlank() && summary.length <= 1_200) { "标题或摘要格式异常" }
+        require(!articleNeedsTranslation(summary)) { "摘要仍包含未翻译内容" }
         return ArticleAiOverview(title, summary)
     }
+
+    private fun isUsableChineseOverview(overview: ArticleAiOverview): Boolean =
+        overview.title.isNotBlank() && overview.summary.isNotBlank() && !articleNeedsTranslation(overview.summary)
 
     private fun parseBrief(response: String, sourceUrl: String): ArticleAiOverview {
         val brief = json.decodeFromString<ArticleBriefResponse>(articleJsonBody(response))
         val title = sanitizeArticleAiTitle(brief.title)
         val fields = listOf(brief.facts, brief.importance, brief.decision).map { it.trim() }
         require(!title.isNullOrBlank() && fields.all { it.isNotBlank() }) { "文章解读不完整" }
+        require(fields.none(::articleNeedsTranslation)) { "文章解读仍包含未翻译内容" }
         require(fields.none { Regex("https?://|\\[[^]]*]\\(", RegexOption.IGNORE_CASE).containsMatchIn(it) }) { "解读来源须来自已保存的文章" }
         val time = brief.eventTime?.trim()?.takeIf { it.isNotBlank() }
         require(time == null || (time.length <= 80 && !time.contains('\n'))) { "文章时间格式异常" }
@@ -204,12 +210,22 @@ internal suspend fun <T> measureArticleProcessingStage(stage: String, block: sus
 private const val ARTICLE_AI_CHUNK_LENGTH = 6_000
 private val protectedArticleSyntax = Regex("""(?ms)^(`{3,}|~{3,})[^\n]*\n.*?^\1[ \t]*$|`[^`\n]+`|(?<=\]\()[^\n)]+(?=\))|^[ \t]{0,3}\[[^\]\n]+]:[ \t]*\S+[^\n]*$|<https?://[^\s<>]+>|https?://[^\s<>]+""")
 
-internal fun articleNeedsTranslation(markdown: String): Boolean {
+fun articleNeedsTranslation(markdown: String): Boolean {
     val prose = protectedArticleSyntax.replace(markdown, "")
-    val chinese = prose.count { it in '\u4e00'..'\u9fff' }
-    val english = prose.count { it in 'a'..'z' || it in 'A'..'Z' }
-    return english >= 4 && Regex("\\b[A-Za-z]{2,}\\b").containsMatchIn(prose) && chinese * 2 < english
+    fun predominantlyEnglish(text: String): Boolean {
+        val chinese = text.count { it in '\u4e00'..'\u9fff' }
+        val english = text.count { it in 'a'..'z' || it in 'A'..'Z' }
+        return english >= 4 && EnglishProseWord.containsMatchIn(text) && chinese * 2 < english
+    }
+    if (predominantlyEnglish(prose)) return true
+    // Check prose paragraphs too: a long translated introduction must not hide an English tail.
+    // Require several words here so standalone product names and abbreviations remain valid.
+    return prose.split(Regex("\\n\\s*\\n")).any {
+        EnglishProseWord.findAll(it).take(4).count() >= 4 && predominantlyEnglish(it)
+    }
 }
+
+private val EnglishProseWord = Regex("\\b[A-Za-z]{2,}\\b")
 
 fun articleTranslationMarkdown(original: String?, translated: String?): String? =
     translated?.trim()?.takeIf { it.isNotBlank() && !original.isNullOrBlank() &&

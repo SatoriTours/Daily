@@ -21,9 +21,8 @@ internal fun isChineseOriginalContent(body: String?): Boolean {
     if (body.isNullOrBlank()) return false
     val prose = protectedArticleSyntax.replace(body, "")
     val chinese = prose.count { it in '\u4e00'..'\u9fff' }
-    val english = prose.count { it in 'a'..'z' || it in 'A'..'Z' }
-    // A genuine Chinese article must have substantial Chinese and not require translation
-    return chinese >= 2 && !(english >= 4 && Regex("\\b[A-Za-z]{2,}\\b").containsMatchIn(prose) && chinese * 2 < english)
+    // Share the processing policy, including untranslated paragraphs in otherwise Chinese text.
+    return chinese >= 2 && !com.dailysatori.service.parser.articleNeedsTranslation(body)
 }
 
 internal fun calculateHotNewsReadingTimeMinutes(rawMarkdown: String?): Int? {

@@ -266,6 +266,20 @@ class UnifiedNewsViewModel(
         openHotNews(item)
     }
 
+    suspend fun prepareBriefingArticles(sources: List<Unified_news_source>) {
+        if (sources.isEmpty()) return
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            try {
+                val ids = newsArticleQueue.enqueue(sources)
+                _state.update { it.copy(articleIdsByNewsSource = it.articleIdsByNewsSource + ids) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "新闻中文摘要加载失败，请点击阅读新闻重试") }
+            }
+        }
+    }
+
     fun loadInitial() {
         if (loadJob != null) return
         loadJob = viewModelScope.launch(Dispatchers.IO) {
@@ -304,7 +318,7 @@ class UnifiedNewsViewModel(
                             lastSuccessfulSources = lastSources,
                             sources = displaySummaries.firstOrNull()?.let { summary -> sourcesBySummaryId[summary.id] }.orEmpty(),
                             sourcesBySummaryId = sourcesBySummaryId,
-                            articleIdsByNewsSource = articleIds,
+                            articleIdsByNewsSource = it.articleIdsByNewsSource + articleIds,
                             isLoading = it.navigationTarget != null && it.isLoading,
                         )
                     }

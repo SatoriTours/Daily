@@ -32,9 +32,5 @@ internal fun hasEnoughChineseForLocalArticle(article: RemoteArticle): Boolean =
 internal fun hasEnoughEnglishForLocalArticle(article: RemoteArticle): Boolean =
     EnglishWordRegex.findAll(remoteArticleLanguageSample(article)).count() >= LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD
 
-internal fun needsChineseReprocessing(sample: String): Boolean {
-    val limited = sample.take(LOCAL_REPROCESS_LANGUAGE_SAMPLE_LIMIT)
-    val chineseCount = ChineseCharacterRegex.findAll(limited).count()
-    val englishCount = EnglishWordRegex.findAll(limited).count()
-    return chineseCount < LOCAL_REPROCESS_CHINESE_THRESHOLD && englishCount >= LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD
-}
+internal fun needsChineseReprocessing(sample: String): Boolean =
+    com.dailysatori.service.parser.articleNeedsTranslation(sample)

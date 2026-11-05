@@ -63,7 +63,8 @@ class HotNewsArticleLoader(
 
     private fun isReady(article: Article): Boolean {
         if (article.status != "completed" || !isChineseHotNewsText(article.ai_title.orEmpty()) ||
-            article.ai_content.isNullOrBlank() || article.ai_markdown_content.isNullOrBlank()) return false
+            article.ai_content.isNullOrBlank() || article.ai_markdown_content.isNullOrBlank() ||
+            articleNeedsTranslation(article.ai_content)) return false
         val original = articleOriginalMarkdown(article.original_markdown_content, article.ai_markdown_content,
             article.source_type == "remote_news").orEmpty()
         return !articleNeedsTranslation(original) || articleTranslationMarkdown(original, article.ai_markdown_content) != null

@@ -69,7 +69,8 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
 
     fun recordSourceSnapshot(articleId: Long, sourceHash: String, requiresProcessing: Boolean, hasBody: Boolean = true) {
         val mapping = findByArticleId(articleId) ?: return
-        val alreadyProcessed = mapping.processed_content_hash == sourceHash && sourceHash.isNotBlank()
+        val alreadyProcessed = mapping.processed_content_hash == sourceHash && sourceHash.isNotBlank() &&
+            (!requiresProcessing || mapping.processing_version.isNotBlank())
         val processedHash = when {
             alreadyProcessed -> mapping.processed_content_hash
             !requiresProcessing && hasBody -> sourceHash

@@ -44,6 +44,7 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
     if (UnifiedNewsDetailRoute(state, viewModel)) return
     val summary = state.summaries.firstOrNull { it.id == selectedId }
     val sources = state.sourcesBySummaryId[selectedId].orEmpty()
+    LaunchedEffect(sources) { viewModel.prepareBriefingArticles(sources) }
     val listState = rememberLazyListState()
     LaunchedEffect(selectedId) { listState.scrollToItem(0) }
     AppScaffold(title = stringResource(headlinesTitleResource(summary?.summary_date.orEmpty())), onBack = onBack, pageActions = listOf(PageAction(stringResource(R.string.news_focus_history), Icons.Outlined.CalendarMonth,
@@ -74,6 +75,8 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
             itemsIndexed(sources, key = { _, source -> source.id }) { index, source ->
                 val related = relatedNewsOpportunities(source, opportunityState.items)
                 NewsBriefingStory(source, index + 1, briefingSourceName(source, state), related,
+                    description = unifiedNewsArticlePreview(source, summary?.content.orEmpty(), emptyList(),
+                        state.articleIdsByNewsSource[source.id]?.let { state.articleSummariesById[it] }),
                     onRead = { viewModel.openCitation(source) }, onOpportunity = onOpportunity)
             }
             if (summary != null && sources.isEmpty()) item {
@@ -89,6 +92,7 @@ private fun NewsBriefingStory(
     rank: Int,
     sourceName: String,
     related: List<NewsOpportunity>,
+    description: String,
     onRead: () -> Unit,
     onOpportunity: (String) -> Unit,
 ) {
@@ -99,7 +103,7 @@ private fun NewsBriefingStory(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(source.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-        ArticleReaderBody(source.summary.ifBlank { stringResource(R.string.news_focus_no_summary) },
+        ArticleReaderBody(description.ifBlank { stringResource(R.string.news_focus_no_summary) },
             typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
         Text(stringResource(R.string.news_focus_source, sourceName), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

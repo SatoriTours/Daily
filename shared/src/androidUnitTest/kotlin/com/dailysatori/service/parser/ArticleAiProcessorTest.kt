@@ -19,6 +19,52 @@ import kotlin.test.*
 class ArticleAiProcessorTest {
     private val config = NormalizedAiConfigValues("https://example.com/v1", "test-key", "deepseek-flash", "deepseek")
 
+    @Test fun aLongChineseIntroductionMustNotHideAnEnglishParagraph() {
+        val mixed = "这是已经翻译完成的中文内容。".repeat(100) +
+            "\n\nThe company has started mass production of new chips."
+        assertTrue(articleNeedsTranslation(mixed))
+        assertNull(articleTranslationMarkdown("The original article describes a new chip.", mixed))
+    }
+
+    @Test fun englishBriefFieldsAreRejectedEvenWithChineseLabelsAndTitle() = runBlocking {
+        val english = "The company has started mass production of new chips."
+        for (field in listOf("根因报告尚未发布", "建议检查失败任务。")) {
+            withProcessor({ briefResponse().replace(field, english) }) { processor, _, _ ->
+                var published = false
+                assertFailsWith<ArticleAiProcessingException> {
+                    processor.process(40, "中文原文介绍芯片量产。", "芯片量产", config,
+                        onOverview = { published = true })
+                }
+                assertFalse(published)
+            }
+        }
+    }
+
+    @Test fun untranslatedCheckpointIsRegeneratedRatherThanPublished() = runBlocking {
+        val source = "The company has started mass production of new chips."
+        val fingerprint = com.dailysatori.service.externalfavorites.sha256Hex(
+            "article-v4-brief\n$source\n标题\n\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
+        withProcessor({ request ->
+            if (system(request).contains("忠实翻译")) translationResponse("公司已经开始批量生产新芯片。")
+            else overviewResponse()
+        }, prepare = { settings ->
+            settings.upsert("article.ai.v3:41", buildJsonObject {
+                put("fingerprint", fingerprint)
+                put("overview", buildJsonObject { put("title", "芯片量产"); put("summary", source) })
+                put("translations", buildJsonObject {
+                    put(com.dailysatori.service.externalfavorites.sha256Hex(source), source)
+                })
+            }.toString())
+        }) { processor, _, _ ->
+            var summary = ""
+            var markdown = ""
+            processor.process(41, source, "标题", config,
+                onOverview = { summary = it.summary }, onMarkdown = { markdown = it })
+            assertFalse(articleNeedsTranslation(summary))
+            assertEquals("公司已经开始批量生产新芯片。", markdown)
+        }
+    }
+
     @Test fun newsBriefSeparatesFactsAnalysisAndVerifiedSourceInOneRequest() = runBlocking {
         withProcessor({ briefResponse() }) { processor, requests, _ ->
             var summary = ""

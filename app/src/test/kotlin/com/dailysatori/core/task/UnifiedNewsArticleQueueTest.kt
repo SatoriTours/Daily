@@ -64,6 +64,24 @@ class UnifiedNewsArticleQueueTest {
         assertEquals(setOf("hot_news", "remote_news"), articles.getAllSync().map { it.source_type }.toSet())
     }
 
+    @Test fun completedButEnglishArticleIsReprocessedOnceWithoutRepeatingFailedAttempts() = withQueue { queue, articles, tasks, scheduled, _ ->
+        val english = "The company has started mass production of new chips."
+        val id = articles.insert(title = source.title, url = "https://v2ex.com/t/8",
+            aiContent = english, aiMarkdownContent = english, status = "completed")
+        articles.updateOriginalMarkdownContent(id, english)
+        val previous = tasks.enqueue("save_article", "{}", "save_article:https://v2ex.com/t/8")
+        assertTrue(tasks.claimForRun(previous, "test", Long.MAX_VALUE))
+        tasks.finishSuccess(previous, "{}")
+        assertEquals(mapOf(1L to id), queue.enqueue(listOf(source)))
+        assertEquals(1, scheduled.size)
+        val task = tasks.getById(scheduled.single())!!
+        assertEquals("remote_article_reprocess", task.type)
+        assertTrue(tasks.claimForRun(task.id, "test", Long.MAX_VALUE))
+        tasks.finishFailure(task.id, "translation_failed", "翻译暂不可用")
+        queue.enqueue(listOf(source))
+        assertEquals(1, scheduled.size)
+    }
+
     @Test fun completedArticleIsReusedWithoutNewAiWork() = withQueue { queue, articles, _, scheduled, _ ->
         val id = articles.insert(title = source.title, url = "https://v2ex.com/t/8",
             aiContent = "已有完整总结", aiMarkdownContent = "已有正文", status = "completed")

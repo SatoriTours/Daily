@@ -67,7 +67,8 @@ internal fun unifiedNewsArticlePreview(
         .firstOrNull { it.isNotBlank() }.orEmpty().take(600)
 }
 
-private fun String.toNewsPreview(title: String, isRepository: Boolean): String = take(4_000)
+private fun String.toNewsPreview(title: String, isRepository: Boolean): String =
+    takeIf(::isChineseOriginalContent).orEmpty().take(4_000)
     .replace(PreviewImageRegex, "")
     .replace(PreviewLinkRegex, "$1")
     .replace(PreviewCitationRegex, "")
@@ -82,6 +83,8 @@ private fun String.toNewsPreview(title: String, isRepository: Boolean): String =
     .replace(PreviewWhitespaceRegex, " ")
     .normalizeUnifiedNewsPunctuationSpacing()
     .trim()
+    .takeIf(::isChineseOriginalContent)
+    .orEmpty()
     .takeUnless { preview ->
         isRepository && RepositoryNavigationMarkers.count { preview.contains(it, ignoreCase = true) } >= 2
     }.orEmpty()

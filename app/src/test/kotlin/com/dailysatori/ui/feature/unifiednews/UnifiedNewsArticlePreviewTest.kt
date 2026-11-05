@@ -11,6 +11,32 @@ class UnifiedNewsArticlePreviewTest {
     private val source = Unified_news_source(1, 1, "H1", "hot_news", null, "v2ex:8",
         "https://v2ex.com/t/8", "工具更新", "", null)
 
+    @Test fun mixedLanguageSnapshotDoesNotHideEnglishBeyondThePreviewLimit() {
+        val mixed = "这是已经翻译完成的中文内容。".repeat(400) +
+            "\n\nThe company has started mass production of new chips."
+        assertEquals("公司开始量产新型芯片。", unifiedNewsArticlePreview(
+            source.copy(summary = mixed), "- 公司开始量产新型芯片。 [H1]", emptyList(), mixed))
+    }
+
+    @Test fun englishSnapshotYieldsToChineseCitation() {
+        val english = "Seoul Biosys has commenced the production of micro LEDs without rare earth elements."
+        assertEquals("公司开始生产不使用稀土的白色微型 LED。", unifiedNewsArticlePreview(
+            source.copy(summary = english), "- 公司开始生产不使用稀土的白色微型 LED。 [H1]", emptyList(), english))
+    }
+
+    @Test fun untranslatedBodyIsNotPresentedAsChineseSummary() {
+        val english = "Seoul Biosys has commenced the production of micro LEDs without rare earth elements."
+        val item = HotNewsItem("8", HotNewsPlatform.V2EX, 2, source.title, source.source_url!!,
+            originalContent = english)
+        assertEquals("", unifiedNewsArticlePreview(source.copy(summary = english), "", listOf(item), english))
+    }
+
+    @Test fun translatedSummaryReplacesOldEnglishSnapshot() {
+        assertEquals("公司开始生产无需稀土材料的白色微型 LED。", unifiedNewsArticlePreview(
+            source.copy(summary = "The company has started mass production of new chips."), "", emptyList(),
+            "公司开始生产无需稀土材料的白色微型 LED。"))
+    }
+
     @Test fun processedArticleFactsTakePriorityOverLongPlatformDescriptions() {
         val summary = "**核心内容：** 工具新增本地保存和导出。\n\n**为什么重要（分析）：** 便于资料整理。\n\n来源：[原文](<https://v2ex.com/t/8>)"
         assertEquals("工具新增本地保存和导出。", unifiedNewsArticlePreview(

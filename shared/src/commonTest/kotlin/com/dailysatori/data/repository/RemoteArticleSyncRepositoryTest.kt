@@ -10,6 +10,20 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class RemoteArticleSyncRepositoryTest {
+    @Test fun previouslyMisclassifiedSnapshotIsQueuedWhenEnglishBodyIsDetected() = withSyncRepositories { db, articles, sync ->
+        db.dailySatoriQueries.insertRemoteNewsSource("Tech", "https://remote.example", "", 1, 1, 1)
+        val sourceId = db.dailySatoriQueries.selectRemoteNewsSources().executeAsList().single().id
+        val id = articles.insert(title = "中文标题", url = "https://example.com/mixed")
+        sync.upsertMapping(sourceId, 1, id, "https://example.com/mixed", "2026-06-22", 1)
+        sync.recordSourceSnapshot(id, "same-body", requiresProcessing = false)
+        assertEquals(REMOTE_PROCESSING_READY, sync.findByArticleId(id)!!.processing_state)
+        sync.recordSourceSnapshot(id, "same-body", requiresProcessing = true)
+        assertEquals(REMOTE_PROCESSING_STALE, sync.findByArticleId(id)!!.processing_state)
+        sync.markProcessingSuccess(id, "same-body", "article-general-v4")
+        sync.recordSourceSnapshot(id, "same-body", requiresProcessing = true)
+        assertEquals(REMOTE_PROCESSING_READY, sync.findByArticleId(id)!!.processing_state)
+    }
+
     @Test
     fun upsertsSourceScopedMappingAndReadsArticlesForSourceDate() = withSyncRepositories { db, articleRepo, syncRepo ->
         val now = 1_800_000_000_000
