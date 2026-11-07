@@ -36,7 +36,7 @@ data class ReminderNotificationPolicy(
             val local = at.toLocalDateTime(reminder.timeZone)
             val workHours = local.date.dayOfWeek in reminder.profile.workDays &&
                 local.time >= reminder.profile.workStart && local.time < reminder.profile.workEnd
-            val quietHours = reminder.deadlineAt != null && with(reminder.profile) {
+            val quietHours = with(reminder.profile) {
                 if (sleepStart <= sleepEnd) local.time >= sleepStart && local.time < sleepEnd
                 else local.time >= sleepStart || local.time < sleepEnd
             }
@@ -58,7 +58,9 @@ data class ReminderNotificationPost(
 )
 
 interface ReminderNotifier {
-    fun post(post: ReminderNotificationPost)
+    fun canPost(post: ReminderNotificationPost): Boolean = true
+    /** True means accepted by Android, not that the user has seen it. */
+    fun post(post: ReminderNotificationPost): Boolean
     fun cancel(id: String)
 }
 
@@ -67,10 +69,23 @@ internal fun reminderNotificationTag(id: String) = "reminder:$id"
 class AndroidReminderNotification(
     private val context: Context,
 ) : ReminderNotifier {
-    override fun post(post: ReminderNotificationPost) {
+    override fun canPost(post: ReminderNotificationPost): Boolean {
         ensureChannels()
-        if (!canPostNotifications()) return
-        NotificationManagerCompat.from(context).notify(reminderNotificationTag(post.reminder.id), NOTIFICATION_ID, build(post))
+        val manager = context.getSystemService(NotificationManager::class.java)
+        return canPostNotifications() &&
+            NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+            manager.getNotificationChannel(channelId(post.policy))?.importance != NotificationManager.IMPORTANCE_NONE
+    }
+
+    override fun post(post: ReminderNotificationPost): Boolean {
+        if (!canPost(post)) return false
+        return try {
+            NotificationManagerCompat.from(context).notify(reminderNotificationTag(post.reminder.id), NOTIFICATION_ID, build(post))
+            // A revoke racing notify must not be recorded as a successful delivery.
+            canPost(post)
+        } catch (_: SecurityException) {
+            false
+        }
     }
 
     override fun cancel(id: String) {

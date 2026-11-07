@@ -16,6 +16,34 @@ class ReminderScheduleEngineTest {
     private val engine = ReminderScheduleEngine()
     private val zone = TimeZone.UTC
 
+    @Test fun oneTimeSleepReminderKeepsExplicitTimeAndIsSilent() {
+        val decision = engine.next(input(now = local("2026-09-02T01:00"),
+            firstTime = LocalTime(8, 0), status = ReminderStatus.ACTIVE))
+        assertSchedule("2026-09-02T08:00", decision)
+        assertEquals(true, assertIs<ReminderScheduleDecision.Schedule>(decision).silent)
+    }
+
+    @Test fun lateFirstReminderIsNotReplacedByDailyCutoff() {
+        assertSchedule("2026-09-02T23:15", engine.next(input(
+            now = local("2026-09-02T23:10"), firstTime = LocalTime(23, 15),
+            status = ReminderStatus.ACTIVE,
+        )))
+    }
+
+    @Test fun firstReminderWinsOverEarlierEveningReinforcement() {
+        assertSchedule("2026-09-02T22:30", engine.next(input(
+            now = local("2026-09-02T21:30"), firstTime = LocalTime(22, 30),
+            status = ReminderStatus.ACTIVE,
+        )))
+    }
+
+    @Test fun missedLateFirstReminderRecoversImmediately() {
+        assertSchedule("2026-09-02T23:20", engine.next(input(
+            now = local("2026-09-02T23:20"), firstTime = LocalTime(23, 15),
+            status = ReminderStatus.ACTIVE,
+        )))
+    }
+
     @Test fun untouchedNotificationRepeatsHourly() {
         assertSchedule("2026-09-02T13:00", engine.next(input(now = local("2026-09-02T12:00"), status = ReminderStatus.NOTIFIED)))
     }
@@ -49,15 +77,15 @@ class ReminderScheduleEngineTest {
         assertSchedule("2026-09-03T10:00", decision)
     }
 
-    @Test fun futureActiveDateInitialTimeInsideSleepHoursMovesToNine() {
+    @Test fun futureOneTimeInitialReminderKeepsExplicitSleepTime() {
         val decision = engine.next(input(
             now = local("2026-09-02T23:00"),
             startDate = LocalDate.parse("2026-09-03"),
             firstTime = LocalTime.parse("08:00"),
             status = ReminderStatus.ACTIVE,
         ))
-        assertSchedule("2026-09-03T09:00", decision)
-        assertEquals(ReminderDeliveryReason.WAKE_RECOVERY, assertIs<ReminderScheduleDecision.Schedule>(decision).reason)
+        assertSchedule("2026-09-03T08:00", decision)
+        assertEquals(ReminderDeliveryReason.INITIAL, assertIs<ReminderScheduleDecision.Schedule>(decision).reason)
     }
 
     @Test fun sleepHoursSuppressRepeatsAndRecoverOnceAtNine() {
@@ -66,9 +94,10 @@ class ReminderScheduleEngineTest {
         assertEquals(ReminderDeliveryReason.WAKE_RECOVERY, assertIs<ReminderScheduleDecision.Schedule>(decision).reason)
     }
 
-    @Test fun initialReminderInsideSleepHoursMovesToNine() {
+    @Test fun multiDayInitialReminderInsideSleepHoursMovesToNine() {
         val decision = engine.next(input(
             now = local("2026-09-02T01:00"),
+            endDate = LocalDate.parse("2026-09-03"),
             firstTime = LocalTime.parse("08:00"),
             status = ReminderStatus.ACTIVE,
         ))

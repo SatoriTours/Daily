@@ -149,6 +149,10 @@ class IdeaTopicDetailViewModel(
                     .catch { failure -> _state.update { it.copy(error = failure.toIdeaTopicError()) } }
                     .collect { detail ->
                         _state.update {
+                            // A snapshot queued before a merge must not move the page back
+                            // to its former topic. Recheck inside the CAS retry as merges
+                            // and database observations can update state concurrently.
+                            if (detail?.topic?.id != service.resolveTopicId(requestedTopicId)) return@update it
                             it.copy(
                                 detail = detail,
                                 topicId = detail?.topic?.id ?: it.topicId,

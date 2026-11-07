@@ -70,7 +70,7 @@ class ReminderCompletionTest {
             override fun cancel(id: String) { scheduled.remove(id) }
         }
         val notifier = object : ReminderNotifier {
-            override fun post(post: ReminderNotificationPost) { posted += post }
+            override fun post(post: ReminderNotificationPost): Boolean { posted += post; return true }
             override fun cancel(id: String) { cancelled += id }
         }
         coordinator = ReminderCoordinator(
@@ -89,6 +89,20 @@ class ReminderCompletionTest {
         if (::viewModel.isInitialized) viewModel.viewModelScope.cancel()
         if (::driver.isInitialized) driver.close()
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun retainedNotificationCanCompleteExpiredOnceReminder() {
+        val reminder = create(ReminderRecurrence.Once)
+        now = Instant.parse("2026-09-02T10:00:00Z")
+        coordinator.deliver(reminder.id, reminder.version)
+        val notificationVersion = posted.single().reminder.version
+        now = Instant.parse("2026-09-03T00:00:00Z")
+        coordinator.cutoff(reminder.id, notificationVersion)
+        assertEquals(ReminderStatus.EXPIRED, repository.get(reminder.id)!!.status)
+        assertTrue(cancelled.isEmpty())
+        assertTrue(coordinator.complete(reminder.id, notificationVersion))
+        assertEquals(ReminderStatus.COMPLETED, repository.get(reminder.id)!!.status)
     }
 
     @Test

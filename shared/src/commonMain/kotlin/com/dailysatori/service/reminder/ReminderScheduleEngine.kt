@@ -27,6 +27,9 @@ class ReminderScheduleEngine {
             return scheduleNextActiveDate(input, localNow.date, inclusive = false)
         }
         val firstAt = at(input, localNow.date, input.firstReminderTime)
+        if (input.isExplicitOneTimeFirst()) {
+            return schedule(input, maxOf(input.now, firstAt), ReminderDeliveryReason.INITIAL)
+        }
         if (isSleepTime(localNow.time, input.profile) && (isDueBeforeWake(cycleInput, firstAt) || isSleepTime(input.firstReminderTime, input.profile))) {
             if (input.profile.sleepStart > input.profile.sleepEnd && localNow.time >= input.profile.sleepStart) {
                 return scheduleCutoff(input, localNow.date)
@@ -34,6 +37,10 @@ class ReminderScheduleEngine {
             return scheduleAt(input, localNow.date, input.profile.sleepEnd, ReminderDeliveryReason.WAKE_RECOVERY)
         }
 
+        // A first delivery must not be replaced by the repeat/escalation schedule.
+        if (cycleInput.status == ReminderStatus.ACTIVE) {
+            return schedule(input, maxOf(input.now, firstAt), ReminderDeliveryReason.INITIAL)
+        }
         if (localNow.time >= input.profile.eveningStart) {
             return nextEveningTime(localNow.time, input.profile)?.let {
                 scheduleAt(input, localNow.date, it, ReminderDeliveryReason.EVENING_REINFORCEMENT)
@@ -81,6 +88,9 @@ class ReminderScheduleEngine {
         var date = if (inclusive) from else from.plus(1, DateTimeUnit.DAY)
         while (date <= input.endDate) {
             if (isActiveDate(date, input)) {
+                if (input.isExplicitOneTimeFirst()) {
+                    return schedule(input, at(input, date, input.firstReminderTime), ReminderDeliveryReason.INITIAL)
+                }
                 val wakeAfterWrappingQuietHours = input.status == ReminderStatus.NOTIFIED && input.profile.sleepStart > input.profile.sleepEnd
                 return scheduleAt(
                     input,
@@ -132,10 +142,14 @@ class ReminderScheduleEngine {
     private fun schedule(input: ReminderScheduleInput, at: Instant, reason: ReminderDeliveryReason): ReminderScheduleDecision {
         val local = at.toLocalDateTime(input.timeZone)
         val workHours = local.date.dayOfWeek in input.profile.workDays && local.time >= input.profile.workStart && local.time < input.profile.workEnd
-        val soundEnabled = input.profile.soundEnabled && !workHours
-        val vibrationEnabled = input.profile.vibrationEnabled && !workHours
+        val quiet = isSleepTime(local.time, input.profile)
+        val soundEnabled = input.profile.soundEnabled && !workHours && !quiet
+        val vibrationEnabled = input.profile.vibrationEnabled && !workHours && !quiet
         return ReminderScheduleDecision.Schedule(at, !soundEnabled && !vibrationEnabled, reason, input.expectedVersion, soundEnabled, vibrationEnabled)
     }
+
+    private fun ReminderScheduleInput.isExplicitOneTimeFirst(): Boolean =
+        !recurring && startDate == endDate && status == ReminderStatus.ACTIVE && lastNotifiedAt == null
 
     private fun at(input: ReminderScheduleInput, date: LocalDate, time: LocalTime): Instant = LocalDateTime(date, time).toInstant(input.timeZone)
 

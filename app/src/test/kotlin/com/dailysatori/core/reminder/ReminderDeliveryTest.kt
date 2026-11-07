@@ -25,6 +25,62 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReminderCoordinatorTest {
+    @Test fun rejectedPostDoesNotRecordDelivery() {
+        val fixture = fixture(now = "2026-09-02T10:00:00Z")
+        fixture.notifier.accepted = false
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(ReminderStatus.ACTIVE, fixture.store.get("bill")!!.status)
+        assertNull(fixture.store.state("bill")!!.lastNotifiedAt)
+        assertTrue(fixture.notifier.posts.isEmpty())
+    }
+
+    @Test fun overdueDeadlineRecoveryDoesNotPostStaleNotification() {
+        val fixture = fixture(now = "2026-09-02T12:00:00Z",
+            reminder = reminder().copy(deadlineAt = instant("2026-09-02T10:00:00Z")))
+        fixture.coordinator.cutoff("bill", 0)
+        assertEquals(ReminderStatus.EXPIRED, fixture.store.get("bill")!!.status)
+        assertTrue(fixture.notifier.posts.isEmpty())
+    }
+
+    @Test fun failedPostDoesNotRecordDelivery() {
+        val fixture = fixture(now = "2026-09-02T10:00:00Z")
+        fixture.notifier.failure = SecurityException("permission changed")
+        runCatching { fixture.coordinator.deliver("bill", 0) }
+        assertEquals(ReminderStatus.ACTIVE, fixture.store.get("bill")!!.status)
+        assertNull(fixture.store.state("bill")!!.lastNotifiedAt)
+    }
+
+    @Test fun oneTimeFirstDeliveryDuringSleepIsSilent() {
+        val fixture = fixture(now = "2026-09-02T08:00:00Z",
+            reminder = reminder().copy(firstReminderTime = LocalTime(8, 0)))
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(1, fixture.notifier.posts.size)
+        assertFalse(fixture.notifier.posts.single().policy.soundEnabled)
+        assertFalse(fixture.notifier.posts.single().policy.vibrationEnabled)
+    }
+
+    @Test fun dailyCutoffKeepsVisibleUnfinishedNotification() {
+        val fixture = fixture(now = "2026-09-03T00:00:00Z",
+            reminder = reminder(status = ReminderStatus.NOTIFIED, version = 1))
+        fixture.coordinator.cutoff("bill", 1)
+        assertEquals(ReminderStatus.EXPIRED, fixture.store.get("bill")!!.status)
+        assertTrue(fixture.notifier.cancelled.isEmpty())
+    }
+
+    @Test fun deniedNotificationDoesNotConsumeDeliveryAndRecoversOnce() {
+        val fixture = fixture(now = "2026-09-02T10:00:00Z")
+        fixture.notifier.allowed = false
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(ReminderStatus.ACTIVE, fixture.store.get("bill")!!.status)
+        assertNull(fixture.store.state("bill")!!.lastNotifiedAt)
+        assertTrue(fixture.notifier.posts.isEmpty())
+        fixture.notifier.allowed = true
+        fixture.coordinator.recompute("bill")
+        fixture.coordinator.deliver("bill", 0)
+        fixture.coordinator.deliver("bill", 0)
+        assertEquals(1, fixture.notifier.posts.size)
+    }
+
     @Test fun smsCreationDoesNotNotifyAndDeliveryOccursAtLeadOnly() {
         val sms = reminder().copy(deadlineAt = instant("2026-09-03T10:00:00Z"), endDate = LocalDate(2026, 9, 3))
         val fixture = fixture(now = "2026-09-02T10:00:00Z", reminder = sms)
@@ -42,6 +98,8 @@ class ReminderCoordinatorTest {
         fixture.coordinator.cutoff("bill", 1)
         assertEquals(ReminderStatus.EXPIRED, fixture.store.get("bill")!!.status)
         assertFalse("bill" in fixture.scheduler.pending)
+        assertEquals(2, fixture.notifier.posts.size)
+        assertTrue(fixture.notifier.cancelled.isEmpty())
     }
 
     @Test fun smsQuietHoursDeliverSilentRatherThanDeferringPastDeadline() {
@@ -207,13 +265,14 @@ class ReminderCoordinatorTest {
     }
 
     @Test
-    fun generationChangeAfterDeliveryCasSuppressesPost() {
+    fun generationChangeAfterDeliveryCasWithdrawsPostedNotification() {
         val fixture = fixture(now = "2026-09-02T10:00:00Z")
         fixture.store.afterDelivered = { fixture.store.force(ReminderStatus.PAUSED) }
 
         fixture.coordinator.deliver("bill", 0)
 
-        assertTrue(fixture.notifier.posts.isEmpty())
+        assertEquals(1, fixture.notifier.posts.size)
+        assertEquals(listOf("bill"), fixture.notifier.cancelled)
         assertEquals(ReminderStatus.PAUSED, fixture.store.get("bill")?.status)
     }
 
@@ -402,9 +461,13 @@ class ReminderCoordinatorTest {
     }
 
     private class FakeNotifier : ReminderNotifier {
+        var allowed = true
+        var accepted = true
+        var failure: RuntimeException? = null
+        override fun canPost(post: ReminderNotificationPost): Boolean = allowed
         val posts = mutableListOf<ReminderNotificationPost>()
         val cancelled = mutableListOf<String>()
-        override fun post(post: ReminderNotificationPost) { posts += post }
+        override fun post(post: ReminderNotificationPost): Boolean { failure?.let { throw it }; if (!accepted) return false; posts += post; return true }
         override fun cancel(id: String) { cancelled += id }
     }
 

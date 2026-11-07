@@ -127,17 +127,29 @@ class ReminderCoordinator(
             if (store.get(id)?.status !in terminalStatuses) recomputeSchedule(id)
             return
         }
-        val deliveredVersion = store.markDelivered(id, expectedVersion, now, reminder.timeZone) ?: return
-        try {
-            val current = store.get(id)?.inCurrentTimeZone()
-            if (current?.version != deliveredVersion || current.status != ReminderStatus.NOTIFIED) {
-                notifier.cancel(id)
-                return
-            }
-            notifier.post(ReminderNotificationPost(current, ReminderNotificationPolicy.forDelivery(current, now)))
-        } finally {
-            recomputeSchedule(id)
+        val post = ReminderNotificationPost(reminder, ReminderNotificationPolicy.forDelivery(reminder, now))
+        if (!notifier.canPost(post)) {
+            // Keep the occurrence pending. Capability recovery will schedule it again;
+            // immediately rescheduling an overdue occurrence would create a busy loop.
+            scheduler.cancel(id)
+            return
         }
+        // Notification actions carry the generation that will be committed on success.
+        val posted = try {
+            notifier.post(post.copy(reminder = reminder.copy(version = expectedVersion + 1)))
+        } catch (_: SecurityException) {
+            false
+        }
+        if (!posted) {
+            scheduler.cancel(id)
+            return
+        }
+        val deliveredVersion = store.markDelivered(id, expectedVersion, now, reminder.timeZone)
+        val current = store.get(id)
+        if (deliveredVersion == null || current?.version != deliveredVersion || current.status != ReminderStatus.NOTIFIED) {
+            notifier.cancel(id)
+        }
+        recomputeSchedule(id)
     }
 
     @Synchronized
@@ -149,7 +161,11 @@ class ReminderCoordinator(
         if (deadline != null) {
             if (now >= deadline && store.expire(id, expectedVersion, now)) {
                 scheduler.cancel(id)
-                notifier.cancel(id)
+                // Do not resurrect stale deadline notifications during recovery.
+                if (now.toEpochMilliseconds() - deadline.toEpochMilliseconds() < 60_000) {
+                    val expired = store.get(id) ?: return
+                    notifier.post(ReminderNotificationPost(expired, ReminderNotificationPolicy.forDelivery(expired, now)))
+                }
             } else recomputeSchedule(id)
             return
         }
@@ -166,13 +182,17 @@ class ReminderCoordinator(
         }
         if (changed) {
             scheduler.cancel(id)
-            if (nextCycleDate == null) notifier.cancel(id) else recomputeSchedule(id)
+            if (nextCycleDate != null) recomputeSchedule(id)
         }
     }
 
     @Synchronized
     fun dismiss(id: String, version: Long): Boolean {
         val reminder = store.get(id) ?: return false
+        if (reminder.status == ReminderStatus.EXPIRED && version in (reminder.version - 1)..reminder.version) {
+            notifier.cancel(id)
+            return true
+        }
         val changed = store.markDismissed(id, version, clock.now(), reminder.currentTimeZone())
         if (changed) {
             notifier.cancel(id)
@@ -205,8 +225,9 @@ class ReminderCoordinator(
     @Synchronized
     fun complete(id: String, version: Long): Boolean {
         val reminder = store.get(id)?.inCurrentTimeZone() ?: return false
-        if (reminder.version != version) return false
-        return finishCompletion(id, reminder, completeOccurrence(reminder, version))
+        val retainedVersion = if (reminder.status == ReminderStatus.EXPIRED && reminder.version == version + 1) reminder.version else version
+        if (reminder.version != retainedVersion) return false
+        return finishCompletion(id, reminder, completeOccurrence(reminder, retainedVersion))
     }
 
     private fun completeOccurrence(reminder: Reminder, expectedVersion: Long?): Boolean {
@@ -305,7 +326,9 @@ class ReminderCoordinator(
         if (local.date !in startDate..endDate || !activeDayRule.includes(local.date.dayOfWeek)) return false
         if (local.date == startDate && local.time < firstReminderTime) return false
         if (profile.dailyCutoff != LocalTime(0, 0) && local.time >= profile.dailyCutoff) return false
-        return !profile.isSleepTime(local.time)
+        val firstOnce = recurrence == ReminderRecurrence.Once && startDate == endDate &&
+            status == ReminderStatus.ACTIVE && store.state(id)?.lastNotifiedAt == null
+        return firstOnce || !profile.isSleepTime(local.time)
     }
 
     private fun ReminderActiveDayRule.includes(day: kotlinx.datetime.DayOfWeek): Boolean = when (this) {

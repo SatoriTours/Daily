@@ -101,6 +101,17 @@ fun ReminderListScreen(
     showSettings: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
+    val accessViewModel: com.dailysatori.ui.feature.settings.reminder.ReminderSettingsViewModel = koinViewModel()
+    val accessState by accessViewModel.state.collectAsState()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, accessViewModel) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) accessViewModel.refreshDeliveryAccess()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        accessViewModel.refreshDeliveryAccess()
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val ui by viewModel.state.collectAsState()
     androidx.activity.compose.BackHandler(enabled = ui.isListSearchVisible) { viewModel.toggleListSearch() }
     val all by viewModel.reminders.collectAsState()
@@ -134,6 +145,21 @@ fun ReminderListScreen(
                     { query -> viewModel.updateListFilter { it.copy(query = query) } }, viewModel::toggleListSearch,
                 ) else null,
             )
+            val access = accessState.deliveryAccess
+            if (!access.notificationsAllowed || access.disabledChannelIds.isNotEmpty()) {
+                TextButton(onClick = accessViewModel::openNotificationSettings,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m)) {
+                    Text(stringResource(if (!access.notificationsAllowed)
+                        R.string.reminder_notifications_settings_action else R.string.reminder_channels_blocked_action),
+                        color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                }
+            } else if (access.usesFallbackTiming) {
+                TextButton(onClick = accessViewModel::openExactAlarmSettings,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m)) {
+                    Text(stringResource(R.string.reminder_fallback_warning),
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             if (ui.listFilter.todayOnly) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.management_today_reminders, listState.sections.sumOf { it.items.size }), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)

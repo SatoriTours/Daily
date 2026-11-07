@@ -543,4 +543,5 @@
     <string name="diary_action_filter">标签筛选</string>
     <string name="diary_action_tags">标签管理</string>
     <string name="diary_recording_action_finish">完成</string>
+    <string name="reminder_channels_blocked_action">部分提醒渠道已关闭 · 前往系统设置</string>
 </resources>

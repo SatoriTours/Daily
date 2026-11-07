@@ -297,8 +297,9 @@ class ReminderRecoveryTest {
 
     private class FakeNotifier : ReminderNotifier {
         val posts = mutableListOf<ReminderNotificationPost>()
-        override fun post(post: ReminderNotificationPost) {
+        override fun post(post: ReminderNotificationPost): Boolean {
             posts += post
+            return true
         }
         override fun cancel(id: String) = Unit
     }
