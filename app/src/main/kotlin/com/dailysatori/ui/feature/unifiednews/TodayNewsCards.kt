@@ -16,6 +16,7 @@ import com.dailysatori.R
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.opportunity.NewsOpportunity
+import com.dailysatori.service.opportunity.OpportunityPreview
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import com.dailysatori.ui.feature.myspace.opportunityActionLabelKey
@@ -107,6 +108,26 @@ private fun DailyHeadlineStoryRow(index: Int, story: DailyHeadlineStory, onOpen:
     }
 }
 
+internal fun todayNewsOpportunityPreview(item: NewsOpportunity): OpportunityPreview = OpportunityPreview(
+    title = item.preview?.title?.takeIf { it.isNotBlank() }
+        ?: item.article.title.trim().ifBlank { item.title.trim() },
+    reason = opportunitySentences(item.fact.ifBlank {
+        item.preview?.reason?.takeIf { it.isNotBlank() } ?: item.relevance
+    }, count = 2),
+    opportunity = opportunitySentences(item.preview?.opportunity?.takeIf { it.isNotBlank() } ?: item.action, count = 1),
+)
+
+private val OpportunitySentenceEnd = Regex("""[。！？!?][”’"']?|\.(?=\s|$)""")
+
+private fun opportunitySentences(text: String, count: Int): String {
+    val plain = text.withoutUnifiedNewsBasicMarkdown()
+        .replace(Regex("""(?m)^\s*(?:[-*+]|\d+[.)、])\s+"""), "")
+        .replace(Regex("\\s+"), " ").trim()
+    // Extract whole sentences from existing analysis; never cut a word or append an ellipsis.
+    val end = OpportunitySentenceEnd.findAll(plain).drop(count - 1).firstOrNull()?.range?.last
+    return if (end == null) plain else plain.substring(0, end + 1)
+}
+
 @Composable
 internal fun TodayNewsOpportunityCard(
     item: NewsOpportunity,
@@ -119,20 +140,18 @@ internal fun TodayNewsOpportunityCard(
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()
             .clickable(onClickLabel = stringResource(R.string.news_focus_view_opportunity), onClick = onOpen)
-            .padding(top = Spacing.s, bottom = Spacing.s)) {
-            val preview = item.preview
-            if (preview != null) {
-                Text(preview.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                OpportunityPreviewLine(stringResource(R.string.news_focus_reason), preview.reason,
-                    Modifier.padding(top = Spacing.s), emphasized = false)
-                OpportunityPreviewLine(stringResource(R.string.news_focus_opportunity), preview.opportunity,
-                    Modifier.padding(top = Spacing.xs), emphasized = true)
-            } else {
-                Text(stringResource(R.string.news_focus_preview_pending), style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.news_focus_preview_pending_hint), Modifier.padding(top = Spacing.s),
+            .padding(vertical = Spacing.m)) {
+            val preview = remember(item) { todayNewsOpportunityPreview(item) }
+            Text(preview.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (preview.reason.isNotBlank()) {
+                Text(preview.reason, Modifier.fillMaxWidth().padding(top = Spacing.s),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Row(Modifier.fillMaxWidth().padding(top = Spacing.xs), verticalAlignment = Alignment.CenterVertically,
+            if (preview.opportunity.isNotBlank()) {
+                OpportunityPreviewLine(stringResource(R.string.news_focus_opportunity), preview.opportunity,
+                    Modifier.padding(top = Spacing.s))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = Spacing.s), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(listOf(item.category, item.article.source).filter { it.isNotBlank() }.joinToString(" · "),
                     Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
@@ -149,12 +168,12 @@ internal fun TodayNewsOpportunityCard(
 }
 
 @Composable
-private fun OpportunityPreviewLine(label: String, text: String, modifier: Modifier, emphasized: Boolean) {
+private fun OpportunityPreviewLine(label: String, text: String, modifier: Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
         verticalAlignment = Alignment.Top) {
         Text(label, Modifier.padding(top = Spacing.xxs), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+            color = MaterialTheme.colorScheme.primary)
         Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-            color = if (emphasized) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+            color = MaterialTheme.colorScheme.onSurface)
     }
 }
