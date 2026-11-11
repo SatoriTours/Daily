@@ -23,10 +23,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Install host SQLCipher build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libssl-dev tcl-dev pkg-config
+      - name: Ensure host SQLCipher build dependencies
+        # Probes the real toolchain first and only calls apt for what is missing, so a runner
+        # image that already ships the tools never depends on reachable apt sources.
+        timeout-minutes: 10
+        run: bash scripts/ensure-sqlcipher-build-deps.sh
 
       - name: Build pinned host SQLCipher
         timeout-minutes: 10
@@ -110,8 +111,8 @@ jobs:
           print("PASS: Android application/worker startup regressions executed without skips")
           PY
 
-      - name: Test release metadata
-        run: python3 -m unittest discover -s scripts -p 'test_ci_release.py'
+      - name: Test CI scripts
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
       - name: Upload test results
         if: always()
