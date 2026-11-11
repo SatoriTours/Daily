@@ -50,4 +50,6 @@ data class UnifiedNewsGenerationResult(
     val success: Boolean,
     val status: UnifiedNewsSummaryStatus,
     val message: String? = null,
+    /** Explicit retry authority from the failure source; null keeps the message-based rule. */
+    val retryable: Boolean? = null,
 )

@@ -128,4 +128,5 @@ dependencies {
     testImplementation(libs.sqldelight.android.driver)
     testImplementation(libs.ktor.client.mock)
     testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation(libs.androidx.work.testing)
 }

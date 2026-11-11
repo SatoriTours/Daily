@@ -60,15 +60,17 @@ class UnifiedNewsManualRefreshPolicyTest {
     }
 
     @Test
-    fun automaticSummaryTaskPreventsAnExtraManualGeneration() = withTasks { tasks ->
-        for (key in listOf("remote_news_fetch:due", "remote_news_fetch:backfill")) {
+    fun activeAutomaticTaskDoesNotBlockManualRefresh() = withTasks { tasks ->
+        for (key in listOf("remote_news_fetch:due", "remote_news_fetch:backfill:news")) {
             val existing = tasks.enqueue("remote_news_fetch", "{}", uniqueKey = key)
             val submission = enqueueManualNewsRefresh(tasks, false) { }
 
-            assertEquals(existing, submission.taskId)
-            assertEquals(NewsManualRefreshNotice.ALREADY_RUNNING, submission.notice)
-            assertEquals(1, tasks.runnableTasks(Long.MAX_VALUE).size)
+            // Manual owns a separate identity and keeps its force semantics.
+            assertEquals(NewsManualRefreshNotice.STARTED, submission.notice)
+            assertNotEquals(existing, submission.taskId)
+            assertEquals(2, tasks.runnableTasks(Long.MAX_VALUE).size)
             completeTask(tasks, existing)
+            completeTask(tasks, submission.taskId!!)
         }
     }
 
@@ -114,7 +116,7 @@ class UnifiedNewsManualRefreshPolicyTest {
             yield()
             caller.cancelAndJoin()
 
-            val task = tasks.getLatestByUniqueKey("remote_news_fetch:manual")!!
+            val task = tasks.getLatestByUniqueKey("remote_news_fetch:manual:news")!!
             assertEquals("queued", task.status)
             completeTask(tasks, task.id)
             assertEquals("succeeded", tasks.getById(task.id)!!.status)

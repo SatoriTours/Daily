@@ -54,7 +54,9 @@ class UnifiedNewsSummaryService(
         if (preparedSources.isEmpty()) return persistEmpty(window, warnings)
 
         val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
-        if (config == null) return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务")
+        if (config == null) {
+            return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务", retryable = false)
+        }
 
         val content = try {
             aiService.summarize(
@@ -69,16 +71,23 @@ class UnifiedNewsSummaryService(
         } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
             log.w(e) { "Unified news AI generation failed" }
-            return saveFailure(window, preparedSources, warnings, aiGenerationFailureMessage(e))
+            return saveFailure(
+                window, preparedSources, warnings, aiGenerationFailureMessage(e),
+                retryable = unifiedNewsAiFailureIsRetryable(e),
+            )
         }
 
         val sanitizedContent = sanitizeGeneratedUnifiedNewsContent(content, preparedSources)
         if (!hasValidCitationTokens(sanitizedContent, preparedSources)) {
-            return saveFailure(window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试")
+            return saveFailure(
+                window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试", retryable = false,
+            )
         }
         val hotRefs = preparedSources.filter { it.sourceType == UnifiedNewsSourceType.HOT_NEWS }.map { it.refKey }.toSet()
         if (hotRefs.isNotEmpty() && citationTokens(sanitizedContent).none { it in hotRefs }) {
-            return saveFailure(window, preparedSources, warnings, "AI 返回内容缺少有效热点引用，请稍后重试")
+            return saveFailure(
+                window, preparedSources, warnings, "AI 返回内容缺少有效热点引用，请稍后重试", retryable = false,
+            )
         }
         return persistSuccess(window, preparedSources, warnings, sanitizedContent)
     }
@@ -97,6 +106,10 @@ class UnifiedNewsSummaryService(
             ignoreSourceTimeFilter = ignoreSourceTimeFilter,
         )
     }
+
+    /** Execution-time idempotency input: when the newest successful summary was produced. */
+    fun latestSuccessfulGeneratedAt(): Long? =
+        summaryRepo.getLatestSuccessful()?.let { it.generated_at ?: it.updated_at }
 
     private fun hasSuccessfulSummary(window: UnifiedNewsWindow): Boolean =
         summaryRepo.getByWindow(window.summaryDate, window.key.value)?.status == UnifiedNewsSummaryStatus.SUCCESS.value
@@ -193,9 +206,10 @@ class UnifiedNewsSummaryService(
         sources: List<UnifiedNewsSourceItem>,
         warnings: List<String>,
         message: String,
+        retryable: Boolean? = null,
     ): UnifiedNewsGenerationResult {
         if (preserveExistingContent(window, "统一新闻总结生成失败", UnifiedNewsSummaryStatus.FAILED.value, message, warnings)) {
-            return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message)
+            return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message, retryable)
         }
         summaryRepo.saveSummaryWithSources(
             window = window,
@@ -207,7 +221,7 @@ class UnifiedNewsSummaryService(
             generatedAt = Clock.System.now().toEpochMilliseconds(),
             sources = sources,
         )
-        return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message)
+        return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message, retryable)
     }
 
     private fun preserveExistingContent(

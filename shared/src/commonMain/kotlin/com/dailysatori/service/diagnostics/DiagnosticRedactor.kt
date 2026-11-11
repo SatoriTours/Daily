@@ -35,6 +35,10 @@ object DiagnosticRedactor {
                 key == "hotNewsStage" && value in hotNewsStages -> put(key, value)
                 key == "operation" && value in setOf("hot_news_refresh", "hot_news_retry") -> put(key, value)
                 key == "retryState" && value in setOf("accepted", "ignored_running") -> put(key, value)
+                key == "unifiedNewsStage" && value in setOf("enqueue", "run", "tick") -> put(key, value)
+                key == "unifiedNewsTarget" && value in setOf("window", "due") -> put(key, value)
+                key == "unifiedNewsFailure" && value in setOf("timeout", "error", "budget_exhausted") -> put(key, value)
+                key == "unifiedNewsDecision" && value in setOf("generate", "skip_stale", "skip_generated") -> put(key, value)
                 key == "hotNewsFailure" && value in setOf("network", "timeout", "format", "configuration", "other") -> put(key, value)
                 key == "hotNewsValidation" && value in setOf("json", "identity", "title", "summary", "missing_summary") -> put(key, value)
                 key == "hotNewsValidationDetail" && value in setOf("json", "identity", "title_length", "title_chinese_count",

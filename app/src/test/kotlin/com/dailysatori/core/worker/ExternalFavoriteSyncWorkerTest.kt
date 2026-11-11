@@ -145,6 +145,20 @@ class ExternalFavoriteSyncWorkerTest {
     }
 
     @Test
+    fun enqueueOnlySyncWorkerDoesNotPromoteForeground() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
+        val syncWorker = source.substringAfter("class ExternalFavoriteSyncWorker(")
+            .substringBefore("class ExternalFavoriteQueueWorker(")
+        val queueWorker = source.substringAfter("class ExternalFavoriteQueueWorker(")
+            .substringBefore("class ExternalFavoriteQueueDelayWorker(")
+
+        // This worker only hands the work to the queue task and returns; a dataSync foreground
+        // promotion here consumes the OS foreground budget without any long-running work.
+        assertEquals(false, syncWorker.contains("setForeground("))
+        assertTrue(queueWorker.contains("setForeground(getForegroundInfo())"))
+    }
+
+    @Test
     fun schedulerCancelsEveryModeAndReschedulesDelayedPeriodicWork() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
 

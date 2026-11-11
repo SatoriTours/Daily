@@ -18,6 +18,7 @@ import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
 import com.dailysatori.core.worker.WeeklySummaryScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.diagnostics.DiagnosticLog
@@ -135,7 +136,15 @@ open class DailySatoriApplication : Application() {
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).recover()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
         BackupScheduler(this).ensureScheduled()
-        UnifiedNewsScheduler(this).ensureScheduled()
+        // Suspends on the WorkManager enqueue result; a failed arming is recorded and repaired on
+        // the next process start instead of being treated as scheduled.
+        applicationScope.launch {
+            UnifiedNewsScheduler(this@DailySatoriApplication).ensureScheduled(
+                latestSuccessful = {
+                    get<UnifiedNewsSummaryRepository>(UnifiedNewsSummaryRepository::class.java).getLatestSuccessful()
+                },
+            )
+        }
         get<ExternalFavoriteSyncScheduler>(ExternalFavoriteSyncScheduler::class.java).enqueuePeriodic(
             get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).getEnabled(),
         )

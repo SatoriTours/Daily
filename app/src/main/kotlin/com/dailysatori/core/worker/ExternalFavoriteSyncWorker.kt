@@ -226,7 +226,6 @@ class ExternalFavoriteSyncWorker(
         val mode = externalFavoriteSyncMode(inputData.getString(KEY_MODE)) ?: return Result.failure()
         if (sourceId <= 0L) return Result.failure()
 
-        setForeground(getForegroundInfo())
         setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
         val automatic = inputData.getBoolean(KEY_AUTOMATIC, false)
         GlobalContext.get().get<ExternalFavoriteSyncScheduler>().enqueue(sourceId, mode.name, automatic)

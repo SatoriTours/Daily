@@ -10,7 +10,11 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.*
 import kotlin.test.*
@@ -51,10 +55,65 @@ class HotNewsDailyGenerationTest {
                 .all { it.source_type == "local_favorite" })
         }
 
+    @Test fun dailyGenerationMarksRateLimitRetryable() =
+        withGenerator("", HttpStatusCode.TooManyRequests) { fixture ->
+            val result = fixture.service.generateDaily()
+            assertFalse(result.success)
+            assertEquals(true, result.retryable)
+        }
+
+    @Test fun dailyGenerationKeepsAuthenticationFailurePermanent() =
+        withGenerator("", HttpStatusCode.Unauthorized) { fixture ->
+            val result = fixture.service.generateDaily()
+            assertFalse(result.success)
+            assertEquals(false, result.retryable)
+        }
+
+    @Test fun preservedContentStillReportsRateLimitAsRetryable() =
+        withGenerator("", HttpStatusCode.TooManyRequests) { fixture ->
+            seedExistingContent(fixture)
+            val result = fixture.service.generateDaily(force = true)
+            assertFalse(result.success)
+            assertEquals(true, result.retryable)
+            val preserved = fixture.summaries.getByWindow(
+                dailyUnifiedNewsWindowFor().summaryDate, UnifiedNewsWindowKey.DAILY.value)
+            assertEquals("# 旧的中文汇总内容", preserved?.content)
+        }
+
+    @Test fun preservedContentStillReportsAuthenticationFailureAsPermanent() =
+        withGenerator("", HttpStatusCode.Unauthorized) { fixture ->
+            seedExistingContent(fixture)
+            val result = fixture.service.generateDaily(force = true)
+            assertFalse(result.success)
+            assertEquals(false, result.retryable)
+        }
+
+    @Test fun aiCancellationIsNotConvertedIntoRetryableFailure() =
+        withGenerator("", cancelWithTimeout = true) { fixture ->
+            assertFailsWith<CancellationException> { fixture.service.generateDaily() }
+        }
+
+    private fun seedExistingContent(fixture: Fixture) {
+        fixture.summaries.upsertSummary(
+            window = dailyUnifiedNewsWindowFor(),
+            title = "旧中文汇总",
+            content = "# 旧的中文汇总内容",
+            status = UnifiedNewsSummaryStatus.SUCCESS.value,
+            errorMessage = null,
+            sourceWarnings = null,
+            generatedAt = 1L,
+        )
+    }
+
     private data class Fixture(val service: UnifiedNewsSummaryService, val hotNews: HotNewsService,
         val summaries: UnifiedNewsSummaryRepository, val prompts: List<String>)
 
-    private fun withGenerator(response: String, block: suspend (Fixture) -> Unit) = runBlocking {
+    private fun withGenerator(
+        response: String,
+        status: HttpStatusCode = HttpStatusCode.OK,
+        cancelWithTimeout: Boolean = false,
+        block: suspend (Fixture) -> Unit,
+    ) = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
@@ -72,12 +131,13 @@ class HotNewsDailyGenerationTest {
             configs.insert("openai", "https://ai.example/v1", "test-token", "test-model", isDefault = 1)
             val prompts = mutableListOf<String>()
             HttpClient(MockEngine { request ->
+                if (cancelWithTimeout) withTimeout(1) { delay(1_000) }
                 assertEquals("ai.example", request.url.host, "Fresh cached or disabled sources must not fetch")
                 val body = Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
                 prompts += body["messages"]!!.jsonArray.last().jsonObject["content"]!!.jsonPrimitive.content
                 respond(buildJsonObject { putJsonArray("choices") { addJsonObject {
                     putJsonObject("message") { put("content", response) }; put("finish_reason", "stop")
-                } } }.toString())
+                } } }.toString(), status)
             }).use { http ->
                 val hotNews = HotNewsService(HotNewsClient(http), store, { error("Cached Chinese text must not translate") })
                 val summaries = UnifiedNewsSummaryRepository(db)

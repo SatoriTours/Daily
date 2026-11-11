@@ -3,6 +3,7 @@ package com.dailysatori.core.task
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class UnifiedNewsGenerateTaskSourceTest {
@@ -28,7 +29,10 @@ class UnifiedNewsGenerateTaskSourceTest {
         assertTrue(source.contains("enqueueUnifiedNewsRefresh("))
         assertTrue(queue.contains("AsyncTaskType.remote_news_fetch.name"))
         assertTrue(queue.contains("unifiedNewsGenerateTaskPayloadJson("))
-        assertTrue(queue.contains("uniqueKeyPrefix = \"remote_news_fetch:\""))
+        // Identity is one tick of one mode; the prefix is derived, never a global family.
+        assertTrue(queue.contains("uniqueKeyPrefix = unifiedNewsRefreshFamilyPrefix(mode, tickDueAtMs)"))
+        assertTrue(queue.contains("unifiedNewsRefreshUniqueKey(mode, tickDueAtMs)"))
+        assertFalse(queue.contains("uniqueKeyPrefix = \"remote_news_fetch:\""))
         assertTrue(queue.contains("tasks.enqueueUniqueFamilyChain("))
         assertTrue(source.contains("schedule = asyncTaskScheduler::enqueue"))
     }

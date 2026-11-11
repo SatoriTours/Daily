@@ -641,8 +641,8 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsWorkerWritesDailySummaryRows() {
         val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
 
-        assertTrue(handler.contains("summaryService.generateDaily("))
-        assertFalse(handler.contains("summaryService.generate(window"))
+        assertTrue(handler.contains(".generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter)"))
+        assertFalse(handler.contains("generate(window"))
     }
 
     @Test
@@ -650,19 +650,28 @@ class UnifiedNewsBehaviorTest {
         val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
         val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
 
-        assertTrue(worker.contains("UnifiedNewsWorkerMode.DUE -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.DUE, force = true)"))
-        assertTrue(worker.contains("UnifiedNewsWorkerMode.BACKFILL -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.BACKFILL, force = false)"))
-        assertTrue(handler.contains("force = payload.force"))
+        assertTrue(worker.contains("UnifiedNewsWorkerMode.DUE -> runDueTick(tick)"))
+        assertTrue(worker.contains("mode = UnifiedNewsWorkerMode.BACKFILL, force = false, tickDueAtMs = null"))
+        assertTrue(handler.contains("generateDaily(payload.force, payload.ignoreSourceTimeFilter)"))
+        // Due generation is forced only after the execution-time tick guard allows it.
+        assertTrue(worker.contains("mode = UnifiedNewsWorkerMode.DUE, force = true, tickDueAtMs = tick ?: latestDue"))
     }
 
     @Test
     fun unifiedNewsWorkerSchedulesNextBeforeRunningDueChain() {
         val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
-        val scheduleNext = worker.indexOf("UnifiedNewsScheduler(applicationContext).scheduleNext(Clock.System.now())")
-        val enqueueChain = worker.indexOf("enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.DUE")
+        val scheduleNext = worker.indexOf("scheduler.scheduleNext(Clock.System.now())")
+        val cancellation = worker.indexOf("catch (cancelled: CancellationException)")
 
         assertTrue(scheduleNext >= 0)
-        assertTrue(enqueueChain > scheduleNext)
+        // Arming happens for both the normal and the retry path, never from a cancelled run, and the
+        // per-window name keeps the currently running work untouched (no REPLACE of its own name).
+        assertTrue(cancellation > 0)
+        assertTrue(worker.substring(cancellation).contains("throw cancelled"))
+        assertFalse(worker.contains("runCatching { UnifiedNewsScheduler"))
+        assertEquals(1, Regex("scheduler\\.scheduleNext\\(Clock\\.System\\.now\\(\\)\\)").findAll(worker).count())
+        // Both the arming failure and an exception go through the finite-budget exit.
+        assertEquals(2, Regex("unifiedNewsFailureResult\\(runAttemptCount").findAll(worker).count())
         assertTrue(worker.contains("enqueueUnifiedNewsRefresh("))
     }
 
@@ -670,10 +679,10 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsStartupEnsureKeepsRunningDueWork() {
         val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
 
-        assertTrue(worker.contains("ensureNextScheduled()"))
         assertTrue(worker.contains("ExistingWorkPolicy.KEEP"))
-        assertTrue(worker.contains("ExistingWorkPolicy.REPLACE"))
+        assertFalse(worker.contains("ExistingWorkPolicy.REPLACE"))
         assertTrue(worker.contains("fun scheduleNext(now: Instant = Clock.System.now())"))
+        assertTrue(worker.contains("fun unifiedNewsWindowWorkName("))
     }
 
     @Test
@@ -1485,20 +1494,22 @@ class UnifiedNewsBehaviorTest {
         assertTrue(worker.contains("OneTimeWorkRequestBuilder<UnifiedNewsWorker>"))
         assertTrue(worker.contains("setInitialDelay"))
         assertTrue(worker.contains("enqueueDailySummaryTask"))
-        assertTrue(worker.contains("inputData.getString(KEY_MODE)"))
+        assertTrue(worker.contains("unifiedNewsWorkerMode(inputData.getString(KEY_MODE))"))
         assertTrue(queue.contains("AsyncTaskType.remote_news_fetch.name"))
         assertTrue(queue.contains("unifiedNewsGenerateTaskPayloadJson"))
         assertTrue(worker.contains("else -> Result.failure()"))
-        assertTrue(app.contains("UnifiedNewsScheduler(this).ensureScheduled()"))
+        assertTrue(app.contains("UnifiedNewsScheduler(this@DailySatoriApplication).ensureScheduled("))
     }
 
     @Test
     fun unifiedNewsStartupDoesNotEnqueueSeparateImmediateBackfillWork() {
         val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
 
-        assertTrue(worker.contains("fun ensureScheduled() {\n        ensureNextScheduled()\n    }"))
+        assertTrue(worker.contains("fun ensureScheduled("))
         assertFalse(worker.contains("WorkNameBackfill"))
         assertFalse(worker.contains("unified-news-backfill"))
+        // Startup may catch up the current due window, but must not replay historical ones.
+        assertTrue(worker.contains("unifiedNewsCatchUpWorkName(latestDueUnifiedNewsWindow(now))"))
     }
 
     @Test
@@ -1544,6 +1555,21 @@ class UnifiedNewsBehaviorTest {
         assertFalse(shouldRetryUnifiedNews(missingConfig))
         assertFalse(shouldRetryUnifiedNews(invalidCitation))
         assertTrue(worker.contains("message.startsWith(\"AI \")"))
+    }
+
+    @Test
+    fun unifiedNewsWorkerRetryPolicyHonorsStructuredAiFailureKind() {
+        val rateLimited = UnifiedNewsGenerationResult(
+            false, UnifiedNewsSummaryStatus.FAILED,
+            "AI 总结生成失败：AI HTTP 429：服务限流，已暂停请求并等待冷却", retryable = true,
+        )
+        val authFailed = UnifiedNewsGenerationResult(
+            false, UnifiedNewsSummaryStatus.FAILED,
+            "AI 总结生成失败：AI HTTP 401：认证或权限失败，请检查 AI 配置", retryable = false,
+        )
+
+        assertTrue(shouldRetryUnifiedNews(rateLimited))
+        assertFalse(shouldRetryUnifiedNews(authFailed))
     }
 
     @Test
@@ -2245,7 +2271,7 @@ class UnifiedNewsBehaviorTest {
         val service = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertFalse(viewModel.contains("summaryService.generateDaily"))
-        assertTrue(handler.contains("summaryService.generateDaily"))
+        assertTrue(handler.contains("generateDaily"))
         assertFalse(viewModel.contains("manualRefreshWindowForEnvironment(currentWindow"))
         assertTrue(service.contains("suspend fun generateDaily"))
         assertTrue(service.contains("dailyUnifiedNewsWindowFor"))
