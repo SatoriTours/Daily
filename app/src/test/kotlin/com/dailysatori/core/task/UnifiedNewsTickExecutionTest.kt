@@ -10,6 +10,11 @@ import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -20,8 +25,15 @@ import kotlin.test.assertTrue
  * task, and the handler guard decides whether an AI call may happen.
  */
 class UnifiedNewsTickExecutionTest {
-    private val at0830 = Instant.parse("2026-11-10T00:30:00Z").toEpochMilliseconds()
-    private val at1335 = Instant.parse("2026-11-10T05:35:00Z").toEpochMilliseconds()
+    // Fixed wall-clock moments in the process time zone: the handler derives its latest due tick
+    // from dueUnifiedNewsWindows() with TimeZone.currentSystemDefault(), so the fixture must use
+    // the same zone or two windows can collapse into one (e.g. both into FINAL under UTC).
+    private val zone = TimeZone.currentSystemDefault()
+    private val at0830 = localEpochMillis(hour = 8, minute = 30)
+    private val at1335 = localEpochMillis(hour = 13, minute = 35)
+
+    private fun localEpochMillis(hour: Int, minute: Int): Long =
+        LocalDateTime(LocalDate(2026, 11, 10), LocalTime(hour, minute)).toInstant(zone).toEpochMilliseconds()
     private val reporter = object : AsyncTaskProgressReporter {
         override suspend fun report(current: Long, total: Long, message: String, checkpointJson: String) = Unit
     }
