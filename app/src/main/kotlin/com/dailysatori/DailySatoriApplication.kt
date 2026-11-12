@@ -124,6 +124,14 @@ open class DailySatoriApplication : Application() {
         runCatching { com.dailysatori.core.sms.recoverPendingSms(this) }.onFailure {
             com.dailysatori.core.diagnostics.SafeAndroidLog.w("DailySatoriStartup", "Pending SMS recovery deferred", it)
         }
+        // Capture stays off until the user arms it; binding only makes armed sessions writable.
+        runCatching {
+            com.dailysatori.service.diagnostics.TaskHttpCapture.session.bind(
+                com.dailysatori.core.task.TaskHttpRecordSink(
+                    get<com.dailysatori.core.task.AsyncTaskLogStore>(com.dailysatori.core.task.AsyncTaskLogStore::class.java),
+                ),
+            )
+        }
         get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAndEnqueueRunnable()
         get<DiaryThoughtService>(DiaryThoughtService::class.java).start(applicationScope) {
             DiaryThoughtScheduler(this).enqueue()

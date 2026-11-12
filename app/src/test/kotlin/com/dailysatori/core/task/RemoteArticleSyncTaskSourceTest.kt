@@ -40,7 +40,8 @@ class RemoteArticleSyncTaskSourceTest {
         assertEquals("remote_article_sync", RemoteArticleSyncTaskHandler.TYPE)
 
         val appModule = File("src/main/kotlin/com/dailysatori/core/di/AppModule.kt").readText()
-        assertTrue(appModule.contains("single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }"))
+        assertTrue(appModule.contains("single { com.dailysatori.core.task.RemoteArticleSyncCoordinator() }"))
+        assertTrue(appModule.contains("single { RemoteArticleSyncTaskHandler(get(), get(), get(), get(), get()) }"))
         assertTrue(appModule.contains("get<RemoteArticleSyncTaskHandler>()"))
     }
 

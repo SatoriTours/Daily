@@ -6,7 +6,10 @@ import com.dailysatori.service.hotnews.*
 import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
+import com.dailysatori.core.task.NewsSourceFetchShare
+import com.dailysatori.core.task.RemoteArticleSyncCoordinator
 import com.dailysatori.core.task.UnifiedNewsArticleQueue
+import com.dailysatori.core.task.resolveSharedSourceArticles
 import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.config.SettingKeys
@@ -28,6 +31,7 @@ import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.service.unifiednews.remoteNewsSourceRouteKey
 import com.dailysatori.shared.db.Article
+import com.dailysatori.shared.db.Remote_news_source
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import kotlinx.coroutines.CancellationException
@@ -138,6 +142,7 @@ class UnifiedNewsViewModel(
     private val webpageParser: WebpageParserService,
     private val newsArticleQueue: UnifiedNewsArticleQueue,
     private val isDebugBuild: Boolean = false,
+    private val newsSourceCoordinator: RemoteArticleSyncCoordinator = RemoteArticleSyncCoordinator(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(UnifiedNewsState())
     val state: StateFlow<UnifiedNewsState> = _state.asStateFlow()
@@ -670,43 +675,83 @@ class UnifiedNewsViewModel(
                     }
                 }
                 val sourceDate = dailyUnifiedNewsWindowFor().summaryDate
-                when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-                    is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
-                        is RemoteNewsResult.Success -> {
-                            remoteArticleSyncService.syncSourceArticles(
-                                remoteSourceId = sourceId,
-                                sourceDate = sourceDate,
-                                articles = result.value.articles,
-                                now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-                            )
-                            val localArticles = remoteArticleSyncRepo.getArticlesBySource(
-                                remoteSourceId = sourceId,
-                                limit = SOURCE_ARTICLE_PAGE_SIZE,
-                                offset = 0,
-                            )
-                            ifLatestSourceArticleRequest(token) { state ->
-                                state.withUnifiedNewsSourceArticlesLoaded(
-                                    sourceId = sourceId,
-                                    articles = localArticles.map { it.toRemoteArticleForDisplay() },
-                                    append = false,
-                                    hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
-                                )
-                            }
-                        }
-                        is RemoteNewsResult.Failure -> ifLatestSourceArticleRequest(token) { state ->
-                            state.withUnifiedNewsSourceArticlesFailure(result.message)
-                        }
-                    }
-                    is RemoteNewsResult.Failure -> ifLatestSourceArticleRequest(token) { state ->
-                        state.withUnifiedNewsSourceArticlesFailure(config.message)
-                    }
-                }
+                // One owner per source, shared with the background sync task: a merged call reloads
+                // the owner's result instead of leaving the list stale or the spinner running.
+                val share = newsSourceCoordinator.share(
+                    sourceId = sourceId,
+                    isSuccess = { synced -> synced },
+                ) { syncSourceArticles(sourceId, sourceDate, source, token) }
+                resolveSharedSourceArticles(
+                    share = share,
+                    reload = { loadLocalSourceArticles(sourceId, offset = 0) },
+                    onLoaded = { articles -> ifLatestSourceArticleRequest(token) { state ->
+                        state.withUnifiedNewsSourceArticlesLoaded(
+                            sourceId = sourceId,
+                            articles = articles,
+                            append = false,
+                            hasMore = articles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
+                        )
+                    } },
+                    onFailure = { message -> ifLatestSourceArticleRequest(token) { state ->
+                        state.withUnifiedNewsSourceArticlesFailure(message)
+                    } },
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 ifLatestSourceArticleRequest(token) { state ->
                     state.withUnifiedNewsSourceArticlesFailure("来源文章加载失败，请稍后重试")
                 }
+            }
+        }
+    }
+
+    private suspend fun loadLocalSourceArticles(sourceId: Long, offset: Long): List<RemoteArticle> =
+        remoteArticleSyncRepo.getArticlesBySource(
+            remoteSourceId = sourceId,
+            limit = SOURCE_ARTICLE_PAGE_SIZE,
+            offset = offset,
+        ).map { it.toRemoteArticleForDisplay() }
+
+    /** Returns true only when the source was fetched and synced; a RemoteNewsResult.Failure is false. */
+    private suspend fun syncSourceArticles(
+        sourceId: Long,
+        sourceDate: String,
+        source: Remote_news_source,
+        token: Long,
+    ): Boolean {
+        return when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
+            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
+                is RemoteNewsResult.Success -> {
+                    remoteArticleSyncService.syncSourceArticles(
+                        remoteSourceId = sourceId,
+                        sourceDate = sourceDate,
+                        articles = result.value.articles,
+                        now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+                    )
+                    val articles = loadLocalSourceArticles(sourceId, offset = 0)
+                    ifLatestSourceArticleRequest(token) { state ->
+                        state.withUnifiedNewsSourceArticlesLoaded(
+                            sourceId = sourceId,
+                            articles = articles,
+                            append = false,
+                            hasMore = articles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
+                        )
+                    }
+                    true
+                }
+                is RemoteNewsResult.Failure -> {
+                    ifLatestSourceArticleRequest(token) { state ->
+                        state.withUnifiedNewsSourceArticlesFailure(result.message)
+                    }
+                    false
+                }
+            }
+            is RemoteNewsResult.Failure -> {
+                ifLatestSourceArticleRequest(token) { state ->
+                    state.withUnifiedNewsSourceArticlesFailure(config.message)
+                }
+                false
             }
         }
     }

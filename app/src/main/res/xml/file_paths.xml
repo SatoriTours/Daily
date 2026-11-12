@@ -2,4 +2,5 @@
 <paths>
     <files-path name="diary_images" path="DailySatori/diary_images/" />
     <external-files-path name="downloads" path="Download/" />
+    <files-path name="task_diagnostics" path="DailySatori/task_diagnostics/" />
 </paths>

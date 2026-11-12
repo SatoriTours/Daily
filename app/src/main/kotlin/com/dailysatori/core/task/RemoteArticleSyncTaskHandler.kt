@@ -24,6 +24,7 @@ class RemoteArticleSyncTaskHandler(
     private val remoteNewsService: RemoteNewsService,
     private val remoteArticleSyncService: RemoteArticleSyncService,
     private val clock: Clock = Clock.System,
+    private val coordinator: RemoteArticleSyncCoordinator = RemoteArticleSyncCoordinator(),
 ) : AsyncTaskHandler {
     override val type: String = TYPE
 
@@ -52,19 +53,23 @@ class RemoteArticleSyncTaskHandler(
 
         reporter.report(0, sources.size.toLong(), "准备同步远程文章", checkpointJson = """{"mode":"${payload.mode}"}""")
         sources.forEachIndexed { index, source ->
-            when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-                is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
-                    is RemoteNewsResult.Success -> {
-                        successfulSources += 1
-                        val sync = remoteArticleSyncService.syncSourceArticles(source.id, sourceDate, result.value.articles, now)
-                        inserted += sync.inserted
-                        updated += sync.updated
-                        skipped += sync.skipped
-                        failures += sync.failures.map { "${source.name}: $it" }
-                    }
-                    is RemoteNewsResult.Failure -> failures += "${source.name}: ${result.message}"
+            // One owner per source: a concurrent task for the same source is merged into this run, not
+            // fetched twice, while other sources keep running in parallel.
+            when (val shared = coordinator.share(
+                sourceId = source.id,
+                // Only a source that was fetched and synced without failures may be reused or counted.
+                isSuccess = { fetched -> fetched.successful > 0 && fetched.failures.isEmpty() },
+            ) { fetchSource(source, sourceDate, now) }) {
+                is NewsSourceFetchShare.Owned -> {
+                    successfulSources += shared.value.successful
+                    inserted += shared.value.inserted
+                    updated += shared.value.updated
+                    skipped += shared.value.skipped
+                    failures += shared.value.failures
                 }
-                is RemoteNewsResult.Failure -> failures += "${source.name}: ${config.message}"
+                // Another task already synced this source: the source is in the repository, not refetched.
+                NewsSourceFetchShare.Merged -> successfulSources += 1
+                is NewsSourceFetchShare.Failed -> failures += source.name + ": 同步失败，稍后重试"
             }
             reporter.report(
                 current = (index + 1).toLong(),
@@ -76,6 +81,30 @@ class RemoteArticleSyncTaskHandler(
 
         val resultJson = """{"inserted":$inserted,"updated":$updated,"skipped":$skipped,"failureCount":${failures.size}}"""
         return remoteArticleSyncOutcome(successfulSources, failures, resultJson)
+    }
+
+    private class SourceFetch(
+        val successful: Int,
+        val inserted: Int,
+        val updated: Int,
+        val skipped: Int,
+        val failures: List<String>,
+    )
+
+    private suspend fun fetchSource(
+        source: com.dailysatori.shared.db.Remote_news_source,
+        sourceDate: String,
+        now: Long,
+    ): SourceFetch = when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
+        is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
+            is RemoteNewsResult.Success -> {
+                val sync = remoteArticleSyncService.syncSourceArticles(source.id, sourceDate, result.value.articles, now)
+                SourceFetch(1, sync.inserted, sync.updated, sync.skipped,
+                    sync.failures.map { source.name + ": " + it })
+            }
+            is RemoteNewsResult.Failure -> SourceFetch(0, 0, 0, 0, listOf(source.name + ": " + result.message))
+        }
+        is RemoteNewsResult.Failure -> SourceFetch(0, 0, 0, 0, listOf(source.name + ": " + config.message))
     }
 
     companion object {

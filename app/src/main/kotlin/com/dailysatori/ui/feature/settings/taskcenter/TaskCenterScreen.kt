@@ -1,38 +1,31 @@
 package com.dailysatori.ui.feature.settings.taskcenter
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Card
-import androidx.compose.material3.Badge
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,124 +34,167 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.R
 import com.dailysatori.service.asynctask.AsyncTaskListItem
 import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.asynctask.asyncTaskStatusDisplayName
 import com.dailysatori.service.asynctask.asyncTaskTypeDisplayName
 import com.dailysatori.ui.component.indicator.EmptyState
-import com.dailysatori.ui.component.indicator.AttentionReason
-import com.dailysatori.service.i18n.I18nService
-import org.koin.compose.koinInject
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
-import com.dailysatori.ui.theme.*
-import com.dailysatori.shared.db.Async_task
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.Spacing
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.koin.androidx.compose.koinViewModel
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-
-@OptIn(ExperimentalSerializationApi::class)
-private val taskCenterPrettyJson = Json {
-    prettyPrint = true
-    prettyPrintIndent = "  "
-}
 
 @Composable
 fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
     val viewModel: TaskCenterViewModel = koinViewModel()
     LaunchedEffect(viewModel, recentFailures) { viewModel.applyEntryFilter(recentFailures) }
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val copy = taskCenterCopy()
     BackHandler(enabled = state.selectedTask != null) {
         viewModel.closeTask()
     }
 
-    AppScaffold(title = "任务", onBack = if (state.selectedTask == null) onBack else viewModel::closeTask) { modifier ->
-        state.selectedTask?.let { task ->
+    AppScaffold(
+        title = stringResource(R.string.task_center_title),
+        onBack = if (state.selectedTask == null) onBack else viewModel::closeTask,
+    ) { modifier ->
+        val selected = state.selectedTask
+        if (selected != null) {
             TaskCenterTaskDetail(
-                task = task,
-                title = taskCenterTaskTitle(task.type, task.payload_json, state.sourceNames),
+                task = selected,
+                title = taskCenterTaskTitle(selected.type, selected.payload_json, state.sourceNames),
                 taskLog = state.taskLog,
                 failureSuperseded = state.selectedFailureSuperseded,
-                needsAttention = state.attentionTasks.any { it.id == task.id },
-                onAcknowledge = { viewModel.acknowledgeFailure(task.id, task.updated_at) },
-                onResumeAssistant = { viewModel.resumeAssistantBackground(task.id) },
+                needsAttention = state.attentionTasks.any { it.id == selected.id },
+                onAcknowledge = { viewModel.acknowledgeFailure(selected.id, selected.updated_at) },
+                onResumeAssistant = { viewModel.resumeAssistantBackground(selected.id) },
+                onCancel = { viewModel.cancel(selected.id) },
                 assistantResumeBlocked = state.assistantResumeBlocked,
+                httpLog = state.httpLog,
+                captureState = state.captureState,
+                onArmCapture = { viewModel.armCapture(selected.id, selected.type) },
+                onDisarmCapture = { viewModel.disarmCapture(selected.id) },
                 modifier = modifier,
             )
-            return@AppScaffold
+        } else {
+            TaskCenterTaskList(state = state, viewModel = viewModel, modifier = modifier)
         }
-        Column(
-            modifier = modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+    }
+}
+
+@Composable
+private fun TaskCenterTaskList(
+    state: TaskCenterState,
+    viewModel: TaskCenterViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val copy = taskCenterCopy()
+    Column(modifier = modifier.fillMaxSize()) {
+        TaskCenterTabRow(
+            tab = state.tab,
+            activeTotal = state.activeTotal,
+            pendingTotal = state.pendingTotal,
+            onSelect = viewModel::selectTab,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            val i18n: I18nService = koinInject()
-            if (state.attentionTasks.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-                    Badge(containerColor = MaterialTheme.colorScheme.error) { Text(state.attentionTasks.size.toString()) }
-                    Text(i18n.t("attention.task_pending"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                    TextButton(onClick = viewModel::showAttentionTasks) { Text(i18n.t("attention.view_reasons")) }
-                }
+            Text(
+                when (state.tab) {
+                    TaskCenterTab.Current -> copy.sectionCurrent
+                    TaskCenterTab.Pending -> copy.sectionPending
+                    TaskCenterTab.History -> copy.sectionHistory
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = viewModel::toggleFilters) {
+                Text(if (state.filtersExpanded) copy.filterCollapse else copy.filter)
             }
-            if (state.attentionOnly) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
-                    Text(i18n.t("attention.task_pending"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                    TextButton(onClick = viewModel::showAllTasks) { Text(i18n.t("attention.all_tasks")) }
-                }
-            }
-            if (state.updatedSince != null) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
-                    Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.management_recent_tasks), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                    TextButton(onClick = viewModel::showAllTasks) { Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.management_all_tasks)) }
-                }
-            }
-            TaskCenterFilters(state = state, viewModel = viewModel)
-            if (state.tasks.isNotEmpty()) {
-                TaskCenterSummaryBand(tasks = state.tasks)
-            }
-            if (state.tasks.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Default.Refresh,
-                    title = "暂无任务",
-                    subtitle = "没有匹配结果",
-                    modifier = Modifier.fillMaxSize(),
+        }
+        if (state.filtersExpanded) {
+            TaskCenterFilterBar(state = state, viewModel = viewModel)
+        }
+        if (state.updatedSince != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.management_recent_tasks),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
                 )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(Spacing.m),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
-                ) {
-                    items(state.tasks, key = { it.id }) { task ->
-                        TaskCenterTaskCard(
-                            task = task,
-                            title = taskCenterTaskTitle(task.type, task.payloadJson, state.sourceNames),
-                            onOpen = { viewModel.openTask(task.id) },
-                            onCancel = { viewModel.cancel(task.id) },
-                            needsAttention = state.attentionTasks.any { it.id == task.id },
-                        )
-                    }
-                    if (state.hasMore) {
-                        item(key = "task-center-load-more") {
-                            TaskCenterLoadMoreRow(
-                                loadedCount = state.loadedCount,
-                                requestedLimit = state.requestedLimit,
-                                loadMore = { viewModel.loadMore() },
+                TextButton(onClick = viewModel::showAllTasks) {
+                    Text(stringResource(R.string.management_all_tasks))
+                }
+            }
+        }
+        if (state.tasks.isEmpty()) {
+            EmptyState(
+                icon = Icons.Default.Refresh,
+                title = copy.emptyTitle,
+                subtitle = when (state.tab) {
+                    TaskCenterTab.Current -> copy.emptyCurrent
+                    TaskCenterTab.Pending -> copy.emptyPending
+                    TaskCenterTab.History -> copy.emptyHistory
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = Spacing.l),
+            ) {
+                items(state.tasks, key = { it.id }) { task ->
+                    TaskCenterTaskRow(
+                        task = task,
+                        title = taskCenterTaskTitle(task.type, task.payloadJson, state.sourceNames),
+                        onOpen = { viewModel.openTask(task.id) },
+                    )
+                    TaskCenterRowDivider()
+                }
+                if (state.tab == TaskCenterTab.Current) {
+                    item(key = "task-center-merge-hint") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.m),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                        ) {
+                            Text(
+                                copy.mergeHint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                copy.supersededHint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                    }
+                }
+                if (state.hasMore) {
+                    item(key = "task-center-load-more") {
+                        TaskCenterLoadMoreRow(
+                            loadedCount = state.loadedCount,
+                            requestedLimit = state.requestedLimit,
+                            loadMore = { viewModel.loadMore() },
+                        )
                     }
                 }
             }
@@ -167,14 +203,172 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
 }
 
 @Composable
+private fun TaskCenterTabRow(
+    tab: TaskCenterTab,
+    activeTotal: Long?,
+    pendingTotal: Long?,
+    onSelect: (TaskCenterTab) -> Unit,
+) {
+    val copy = taskCenterCopy()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.m, vertical = Spacing.s)
+            .clip(RoundedCornerShape(Radius.m))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(Spacing.xxs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
+    ) {
+        TaskCenterTab.entries.forEach { value ->
+            val total = when (value) {
+                TaskCenterTab.Current -> activeTotal
+                TaskCenterTab.Pending -> pendingTotal
+                TaskCenterTab.History -> null
+            }
+            val count = taskCenterTabCountText(loaded = 0, total = total)
+            val label = when (value) {
+                TaskCenterTab.Current -> copy.tabCurrent
+                TaskCenterTab.Pending -> copy.tabPending
+                TaskCenterTab.History -> copy.tabHistory
+            }
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .selectable(selected = value == tab, role = Role.Tab) { onSelect(value) },
+                shape = RoundedCornerShape(Radius.s),
+                color = if (value == tab) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
+            ) {
+                Text(
+                    if (count.isBlank()) label else "${label} ${count}",
+                    modifier = Modifier.padding(vertical = Spacing.s),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (value == tab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskCenterRowDivider() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.m)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+    )
+}
+
+@Composable
+private fun TaskCenterTaskRow(task: AsyncTaskListItem, title: String, onOpen: () -> Unit) {
+    val copy = taskCenterCopy()
+    val row = taskCenterRowText(task, copy.strings)
+    val progress = taskCenterProgress(task)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .padding(horizontal = Spacing.m, vertical = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TaskCenterStatusPill(task.status)
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (row.headline.isNotBlank()) {
+            Text(row.headline, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (row.detail.isNotBlank()) {
+            Text(
+                row.detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            taskCenterRowMetaText(task, row.retryAtMs, copy),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (progress != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(Radius.xxs))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(progress.fraction)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(Radius.xxs))
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                }
+                Text(
+                    progress.text,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+internal fun taskCenterRowMetaText(task: AsyncTaskListItem, retryAtMs: Long?, copy: TaskCenterCopy): String = buildList {
+    add("#${task.id}")
+    val created = taskCenterWhenText(task.createdAt, copy)
+    val startedAt = task.startedAt
+    if (startedAt == null) {
+        add(String.format(copy.metaCreated, created))
+        val waited = Clock.System.now().toEpochMilliseconds() - task.createdAt
+        if (taskCenterIsActive(task.status) && waited > 0) {
+            add(String.format(copy.metaWaited, taskCenterDurationText(waited, copy.strings)))
+        }
+    } else {
+        add(String.format(copy.metaStarted, created))
+        val elapsedEnd = task.finishedAt ?: task.updatedAt
+        add(String.format(copy.metaElapsed, taskCenterDurationText((elapsedEnd - startedAt).coerceAtLeast(0L), copy.strings)))
+    }
+    retryAtMs?.let { add(String.format(copy.metaRetryAt, taskCenterTimestampText(it, copy.strings))) }
+}.joinToString(" · ")
+
+internal fun taskCenterWhenText(value: Long?, copy: TaskCenterCopy): String {
+    if (value == null || value <= 0L) return copy.notStarted
+    val zone = TimeZone.currentSystemDefault()
+    val time = Instant.fromEpochMilliseconds(value).toLocalDateTime(zone)
+    val now = Clock.System.now().toLocalDateTime(zone)
+    val clock = "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
+    return if (time.date == now.date) {
+        String.format(copy.today, clock)
+    } else {
+        "${time.monthNumber.toString().padStart(2, '0')}-${time.dayOfMonth.toString().padStart(2, '0')} $clock"
+    }
+}
+
+@Composable
 private fun TaskCenterLoadMoreRow(loadedCount: Int, requestedLimit: Int, loadMore: () -> Unit) {
+    val copy = taskCenterCopy()
     LaunchedEffect(loadedCount, requestedLimit) {
         loadMore()
     }
     Surface(
         shape = RoundedCornerShape(Radius.m),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
@@ -182,53 +376,13 @@ private fun TaskCenterLoadMoreRow(loadedCount: Int, requestedLimit: Int, loadMor
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "已加载 $loadedCount / $requestedLimit 条",
+                String.format(copy.loadedOf, loadedCount, requestedLimit),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text("正在加载更多", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            Text(copy.loadingMore, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
-}
-
-@Composable
-private fun TaskCenterSummaryBand(tasks: List<AsyncTaskListItem>) {
-    val active = tasks.count { it.status == AsyncTaskStatus.queued.name || it.status == AsyncTaskStatus.running.name || it.status == AsyncTaskStatus.retrying.name }
-    val failed = tasks.count { it.status == AsyncTaskStatus.failed.name }
-    val succeeded = tasks.count { it.status == AsyncTaskStatus.succeeded.name }
-    Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TaskCenterTaskMetric("当前", active.toString(), MaterialTheme.colorScheme.tertiary)
-            TaskCenterTaskMetric("失败", failed.toString(), MaterialTheme.colorScheme.error)
-            TaskCenterTaskMetric("完成", succeeded.toString(), MaterialTheme.colorScheme.primary)
-            TaskCenterTaskMetric("总数", tasks.size.toString(), MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterTaskMetric(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(value, style = MaterialTheme.typography.titleMedium, color = color)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun TaskCenterFilters(state: TaskCenterState, viewModel: TaskCenterViewModel) {
-    TaskCenterFilterBar(
-        state = state,
-        viewModel = viewModel,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-    )
 }
 
 @Composable
@@ -237,15 +391,15 @@ private fun TaskCenterFilterBar(
     viewModel: TaskCenterViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val copy = taskCenterCopy()
     Row(
-        modifier = modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xs),
+        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.m),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Text("筛选", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         TaskCenterMultiSelectDropdown(
-            label = "任务类型",
-            summary = taskCenterTypeFilterSummary(state.types),
+            label = copy.filterType,
+            summary = taskCenterTypeFilterSummary(state.types, copy),
             options = AsyncTaskType.entries.map { it.name to it.displayName },
             selected = state.types,
             onToggle = viewModel::toggleType,
@@ -253,8 +407,8 @@ private fun TaskCenterFilterBar(
             modifier = Modifier.weight(1f).widthIn(min = 0.dp),
         )
         TaskCenterMultiSelectDropdown(
-            label = "任务状态",
-            summary = taskCenterStatusFilterSummary(state.statuses),
+            label = copy.filterStatus,
+            summary = taskCenterStatusFilterSummary(state.statuses, copy),
             options = AsyncTaskStatus.entries.map { it.name to asyncTaskStatusDisplayName(it.name) },
             selected = state.statuses,
             onToggle = viewModel::toggleStatus,
@@ -274,14 +428,15 @@ private fun TaskCenterMultiSelectDropdown(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val copy = taskCenterCopy()
     var expanded by remember { mutableStateOf(false) }
     Column(modifier = modifier) {
         TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("$label：$summary", maxLines = 1)
+            Text("$label：$summary", maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
-                text = { Text("全部") },
+                text = { Text(copy.filterAll) },
                 leadingIcon = { Checkbox(checked = selected.isEmpty(), onCheckedChange = null) },
                 onClick = onClear,
             )
@@ -297,66 +452,7 @@ private fun TaskCenterMultiSelectDropdown(
 }
 
 @Composable
-private fun TaskCenterTaskCard(task: AsyncTaskListItem, title: String, onOpen: () -> Unit, onCancel: () -> Unit, needsAttention: Boolean) {
-    Surface(
-        onClick = onOpen,
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    if (needsAttention) Badge(containerColor = MaterialTheme.colorScheme.error)
-                    Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TaskCenterStatusPill(task.status)
-                    if (task.status == AsyncTaskStatus.queued.name || task.status == AsyncTaskStatus.running.name || task.status == AsyncTaskStatus.retrying.name) {
-                        OutlinedButton(onClick = onCancel) {
-                            Text("取消")
-                        }
-                    }
-                }
-                val message = taskCenterListSummary(task)
-                taskCenterSubject(task.payloadJson).takeIf { it.isNotBlank() }?.let { subject ->
-                    Text(subject, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (message.isNotBlank()) {
-                    Text(
-                        message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text("#${task.id}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.size(Spacing.xs))
-                    Text(
-                        "${if (task.startedAt == null) "创建时间" else "执行时间"} ${taskCenterTimestampText(task.startedAt ?: task.createdAt)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        if (task.startedAt == null) "尚未开始" else "历时（截至更新） ${taskCenterDurationText(task.startedAt, task.finishedAt ?: task.updatedAt)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterStatusPill(status: String) {
+internal fun TaskCenterStatusPill(status: String) {
     val color = taskCenterStatusColor(status)
     Text(
         asyncTaskStatusDisplayName(status),
@@ -364,780 +460,20 @@ private fun TaskCenterStatusPill(status: String) {
         color = color,
         modifier = Modifier
             .background(color.copy(alpha = 0.12f), RoundedCornerShape(Radius.s))
-            .padding(horizontal = Spacing.s, vertical = Spacing.xs),
+            .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
     )
 }
 
 @Composable
-private fun taskCenterStatusColor(status: String): androidx.compose.ui.graphics.Color = when (status) {
+internal fun taskCenterStatusColor(status: String): androidx.compose.ui.graphics.Color = when (status) {
     AsyncTaskStatus.succeeded.name -> MaterialTheme.colorScheme.primary
     AsyncTaskStatus.failed.name -> MaterialTheme.colorScheme.error
     AsyncTaskStatus.cancelled.name -> MaterialTheme.colorScheme.onSurfaceVariant
     else -> MaterialTheme.colorScheme.tertiary
 }
 
-@Composable
-private fun TaskCenterTaskDetail(
-    task: Async_task,
-    title: String,
-    taskLog: String,
-    failureSuperseded: Boolean,
-    needsAttention: Boolean,
-    onAcknowledge: () -> Unit,
-    onResumeAssistant: () -> Unit,
-    assistantResumeBlocked: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    var pageIndex by remember(taskLog) { mutableStateOf(0) }
-    var showDiagnostics by remember(task.id) { mutableStateOf(false) }
-    var logEntries by remember(taskLog) { mutableStateOf(emptyList<TaskCenterHttpLogEntry>()) }
-    var logHasNext by remember(taskLog) { mutableStateOf(false) }
-    var logLoading by remember(taskLog) { mutableStateOf(false) }
-    var logLoadedOnce by remember(taskLog) { mutableStateOf(false) }
-    val i18n: I18nService = koinInject()
+private fun taskCenterTypeFilterSummary(selected: Set<String>, copy: TaskCenterCopy): String =
+    if (selected.isEmpty()) copy.filterAll else selected.joinToString("、") { asyncTaskTypeDisplayName(it) }
 
-    LaunchedEffect(taskLog, pageIndex) {
-        logLoading = true
-        val nextPage = withContext(Dispatchers.Default) {
-            taskCenterHttpLogPage(taskLog, pageIndex)
-        }
-        logEntries = if (pageIndex == 0) nextPage.entries else logEntries + nextPage.entries
-        logHasNext = nextPage.hasNext
-        logLoadedOnce = true
-        logLoading = false
-    }
-
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
-    ) {
-        item(key = "task-header") {
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text("#${task.id} · ${asyncTaskStatusDisplayName(task.status)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        if (!failureSuperseded && task.type in setOf("assistant_index", "assistant_summary", "assistant_history_backfill") &&
-            task.status in setOf("failed", "cancelled")) {
-            item(key = "assistant-background-continue") {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_background_scope),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (assistantResumeBlocked) Text(
-                        androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_background_blocked),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = onResumeAssistant) {
-                        Text(androidx.compose.ui.res.stringResource(com.dailysatori.R.string.assistant_background_continue))
-                    }
-                }
-            }
-        }
-        if (failureSuperseded) {
-            item(key = "task-superseded") {
-                TaskCenterDetailSection("状态说明", "这是历史失败记录，后续同类任务已经成功完成。")
-            }
-        }
-        if (task.status == AsyncTaskStatus.failed.name) {
-            item(key = "task-failure-reason") {
-                val reason = taskCenterFailureText(task.last_error_code, task.last_error_message) { i18n.t(it) }
-                if (needsAttention) {
-                    AttentionReason(reason, i18n.t("attention.acknowledge"), onAcknowledge)
-                } else {
-                    TaskCenterDetailSection(i18n.t("attention.failure_reason"), reason)
-                }
-            }
-        }
-        item(key = "task-time") {
-            TaskCenterDetailSection(
-                "时间",
-                listOf(
-                    "创建：${taskCenterTimestampText(task.created_at)}",
-                    "开始：${taskCenterTimestampText(task.started_at)}",
-                    "完成：${taskCenterTimestampText(task.finished_at)}",
-                    "更新：${taskCenterTimestampText(task.updated_at)}",
-                    "历时（含等待，截至最近更新）：${taskCenterDurationText(task.started_at, task.finished_at ?: task.updated_at)}",
-                ).joinToString("\n"),
-            )
-        }
-        item(key = "task-progress") {
-            TaskCenterDetailSection("执行概览", taskCenterExecutionSummary(task))
-        }
-        item(key = "task-events") {
-            TaskCenterDetailSection("最近执行记录", taskCenterLifecycleText(taskLog))
-        }
-        item(key = "diagnostics-toggle") {
-            TextButton(onClick = { showDiagnostics = !showDiagnostics }) {
-                Text(if (showDiagnostics) "收起诊断信息" else "展开诊断信息")
-            }
-        }
-        if (showDiagnostics) {
-        item(key = "task-payload") { TaskCenterJsonSection("Payload", task.payload_json) }
-        item(key = "task-checkpoint") { TaskCenterJsonSection("Checkpoint", task.checkpoint_json) }
-        item(key = "task-result") { TaskCenterJsonSection("Result", task.result_json) }
-        item(key = "task-error") {
-            TaskCenterDetailSection("错误", listOf(task.last_error_code, task.last_error_message).filter { it.isNotBlank() }.joinToString("\n"))
-        }
-        item(key = "task-http-log-title") {
-            Text("诊断日志", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (logEntries.isEmpty() && logLoading && taskLog.isNotBlank()) {
-            item(key = "task-http-log-loading") {
-                TaskCenterDetailSection("诊断日志", "日志加载中")
-            }
-        } else if (logEntries.isEmpty() && logLoadedOnce) {
-            item(key = "task-http-log-empty") {
-                TaskCenterDetailSection("诊断日志", taskLog.filterNot { it == '\u0000' }.ifBlank { "暂无日志" })
-            }
-        }
-        itemsIndexed(logEntries, key = { index, _ -> "task-http-log-entry-$index" }) { index, entry ->
-            TaskCenterHttpLogCard(index = index, entry = entry)
-        }
-        if (logHasNext || logLoading) {
-            item(key = "task-http-log-load-more") {
-                TaskCenterHttpLogLoadMoreRow(
-                    loading = logLoading,
-                    onLoadMore = {
-                        if (!logLoading && logHasNext) pageIndex += 1
-                    },
-                )
-            }
-        }
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterJsonSection(title: String, body: String) {
-    if (body.isBlank()) return
-    var formatted by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf(false) }
-    val displayBody = if (formatted) taskCenterFormatJson(body) else body
-    Card(
-        shape = RoundedCornerShape(Radius.m),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                TextButton(onClick = { formatted = !formatted }) {
-                    Text(if (formatted) "原文" else "格式化")
-                }
-                if (displayBody.length > 1_200) {
-                    TextButton(onClick = { expanded = !expanded }) {
-                        Text(if (expanded) "收起" else "展开")
-                    }
-                }
-            }
-            SelectionContainer {
-                Text(
-                    displayBody,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = if (expanded) Int.MAX_VALUE else 16,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterHttpLogLoadMoreRow(
-    loading: Boolean,
-    onLoadMore: () -> Unit,
-) {
-    LaunchedEffect("task-center-http-log-load-more", loading) {
-        if (!loading) onLoadMore()
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.s),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            if (loading) "日志加载中" else "加载更多日志",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun TaskCenterHttpLogCard(index: Int, entry: TaskCenterHttpLogEntry) {
-    var bodyViewerOpen by remember { mutableStateOf(false) }
-    if (bodyViewerOpen) {
-        TaskCenterHttpBodyViewer(
-            title = "HTTP #${index + 1} · ${entry.label} Body",
-            body = entry.responseBody,
-            onClose = { bodyViewerOpen = false },
-        )
-    }
-    Card(
-        shape = RoundedCornerShape(Radius.m),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text("HTTP #${index + 1} · ${entry.label}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                if (entry.responseBody.isNotBlank()) {
-                    TextButton(onClick = { bodyViewerOpen = true }) {
-                        Text("查看 Body")
-                    }
-                }
-            }
-            if (entry.request.isNotBlank()) {
-                TaskCenterHttpMetaGrid(
-                    title = "HTTP 请求",
-                    rows = listOf(
-                        "Method" to entry.requestMethod,
-                        "URL" to entry.requestUrl,
-                    ).filter { it.second.isNotBlank() },
-                )
-                TaskCenterHttpParamsGrid(params = entry.requestParamRows)
-            }
-            if (entry.response.isNotBlank()) {
-                TaskCenterHttpMetaGrid(
-                    title = "HTTP 响应",
-                    rows = listOf(
-                        "Status" to entry.responseStatus,
-                        "耗时" to entry.durationText,
-                        "Headers" to entry.responseHeaders,
-                    ).filter { it.second.isNotBlank() },
-                )
-                TaskCenterHttpBodySummary(body = entry.responseBody, onOpen = { bodyViewerOpen = true })
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterHttpMetaGrid(title: String, rows: List<Pair<String, String>>) {
-    if (rows.isEmpty()) return
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        rows.forEach { (label, value) ->
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.widthIn(min = 56.dp))
-                SelectionContainer {
-                    Text(
-                        value,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = if (label == "URL" || label == "Params") FontFamily.Monospace else null,
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterHttpParamsGrid(params: List<Pair<String, String>>) {
-    if (params.isEmpty()) return
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text("Params", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        params.forEach { (key, value) ->
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
-                SelectionContainer {
-                    Text(
-                        key,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.widthIn(min = 96.dp, max = 132.dp),
-                    )
-                }
-                SelectionContainer {
-                    Text(
-                        value,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterHttpBodySummary(body: String, onOpen: () -> Unit) {
-    if (body.isBlank()) return
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "Body · ${body.length} 字符",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-        TextButton(onClick = onOpen) {
-            Text("查看 Body")
-        }
-    }
-}
-
-@Composable
-private fun TaskCenterHttpBodyViewer(title: String, body: String, onClose: () -> Unit) {
-    val displayBody = remember(body) { taskCenterFormatJson(body) }
-    val lines = remember(displayBody) { bodyDisplayLines(displayBody) }
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text(title, style = MaterialTheme.typography.titleMedium)
-                        Text("${body.length} 字符 · 默认格式化显示", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    TextButton(onClick = onClose) {
-                        Text("关闭")
-                    }
-                }
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                ) {
-                    items(lines) { line ->
-                        SelectionContainer {
-                            Text(
-                                line,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace,
-                                softWrap = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun bodyDisplayLines(body: String): List<String> {
-    val rawLines = body.lineSequence().toList().ifEmpty { listOf("") }
-    return rawLines.flatMap { line ->
-        if (line.length <= BODY_VIEWER_LINE_CHARS) {
-            listOf(line)
-        } else {
-            line.chunked(BODY_VIEWER_LINE_CHARS)
-        }
-    }
-}
-
-private const val BODY_VIEWER_LINE_CHARS = 4_000
-private const val HTTP_LOG_PAGE_SIZE = 50
-
-@Composable
-private fun TaskCenterDetailSection(title: String, body: String) {
-    if (body.isBlank()) return
-    Card(
-        shape = RoundedCornerShape(Radius.m),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(body, style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-internal data class TaskCenterHttpLogEntry(
-    val label: String,
-    val request: String,
-    val response: String,
-) {
-    private val requestDetail: String
-        get() = request.substringAfter("] ", missingDelimiterValue = "")
-
-    private val responseMeta: String
-        get() = response.substringBefore(" body=", missingDelimiterValue = response)
-
-    val requestMethod: String
-        get() = requestDetail.substringBefore(" ", missingDelimiterValue = "").trim()
-
-    val requestUrl: String
-        get() = requestDetail
-            .substringAfter(" ", missingDelimiterValue = "")
-            .substringBefore(" params=", missingDelimiterValue = requestDetail.substringAfter(" ", missingDelimiterValue = ""))
-            .trim()
-
-    val requestParams: String
-        get() = request.substringAfter(" params=", missingDelimiterValue = "").trim()
-
-    val requestParamRows: List<Pair<String, String>>
-        get() = requestParams
-            .split('&')
-            .mapNotNull { param ->
-                val text = param.trim()
-                if (text.isBlank()) return@mapNotNull null
-                val key = text.substringBefore("=", missingDelimiterValue = text).trim()
-                val value = text.substringAfter("=", missingDelimiterValue = "").trim()
-                key to value
-            }
-
-    val responseStatus: String
-        get() = responseMeta.substringAfter("status=", missingDelimiterValue = "").substringBefore(" headers=").trim()
-
-    val responseHeaders: String
-        get() = responseMeta.substringAfter(" headers=", missingDelimiterValue = "").trim()
-
-    val responseBody: String
-        get() = response.substringAfter(" body=", missingDelimiterValue = "").trim()
-
-    val durationText: String
-        get() = taskCenterStepDurationText(request, response)
-
-    fun formattedResponse(): String {
-        val body = responseBody
-        if (body.isBlank()) return response
-        val formatted = taskCenterFormatJson(body)
-        return if (formatted == body) response else response.substringBefore(" body=") + " body=\n" + formatted
-    }
-
-    fun formattedResponseBody(): String = taskCenterFormatJson(responseBody)
-}
-
-internal data class TaskCenterHttpLogPage(
-    val entries: List<TaskCenterHttpLogEntry>,
-    val pageIndex: Int,
-    val pageSize: Int,
-    val totalEntries: Int?,
-    val hasNextPage: Boolean,
-) {
-    val startIndex: Int
-        get() = if (entries.isEmpty()) 0 else pageIndex * pageSize
-
-    val endIndex: Int
-        get() = startIndex + entries.size
-
-    val displayRangeText: String
-        get() = if (totalEntries != null) {
-            "第 ${startIndex + 1}-${endIndex} / 共 $totalEntries 条"
-        } else if (hasNext) {
-            "第 ${startIndex + 1}-${endIndex} 条，后面还有"
-        } else {
-            "第 ${startIndex + 1}-${endIndex} 条"
-        }
-
-    val hasPrevious: Boolean
-        get() = pageIndex > 0
-
-    val hasNext: Boolean
-        get() = hasNextPage
-}
-
-internal fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> {
-    val pending = mutableListOf<MutableTaskCenterHttpLogEntry>()
-    val completed = mutableListOf<MutableTaskCenterHttpLogEntry>()
-    var activeResponse: MutableTaskCenterHttpLogEntry? = null
-
-    taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { line ->
-        when {
-            line.contains("HTTP request [") -> {
-                activeResponse = null
-                pending += MutableTaskCenterHttpLogEntry(
-                    label = line.substringAfter("HTTP request [").substringBefore("]"),
-                    request = line,
-                    response = "",
-                )
-            }
-            line.contains("HTTP response [") -> {
-                val responseLabel = line.substringAfter("HTTP response [").substringBefore("]")
-                val responseExternalId = taskCenterHttpExternalId(line)
-                val matchIndex = pending.indexOfFirst { entry ->
-                    entry.label == responseLabel &&
-                        responseExternalId.isNotBlank() &&
-                        taskCenterHttpExternalId(entry.request) == responseExternalId
-                }.takeIf { it >= 0 } ?: pending.indexOfFirst { it.label == responseLabel }
-                val entry = if (matchIndex >= 0) {
-                    pending.removeAt(matchIndex)
-                } else {
-                    MutableTaskCenterHttpLogEntry(responseLabel, "", "")
-                }
-                entry.response = line
-                completed += entry
-                activeResponse = entry
-            }
-            activeResponse != null && !taskCenterIsLifecycleLogLine(line) -> {
-                activeResponse?.response += "\n$line"
-            }
-            pending.isNotEmpty() -> {
-                pending.last().request += "\n$line"
-            }
-        }
-    }
-    return (completed + pending)
-        .map { TaskCenterHttpLogEntry(it.label.ifBlank { "request" }, it.request, it.response) }
-        .sortedBy { entry ->
-            taskCenterLogLineInstant(entry.request)
-                ?: taskCenterLogLineInstant(entry.response)
-                ?: Instant.DISTANT_FUTURE
-        }
-}
-
-private data class MutableTaskCenterHttpLogEntry(
-    val label: String,
-    var request: String,
-    var response: String,
-)
-
-private data class PendingTaskCenterHttpLogEntry(
-    val label: String,
-    val externalId: String,
-    val pageEntry: MutableTaskCenterHttpLogEntry?,
-)
-
-private fun taskCenterHttpExternalId(line: String): String =
-    line.substringAfter("externalId=", missingDelimiterValue = "")
-        .substringBefore("&")
-        .substringBefore(",")
-        .substringBefore(" ")
-        .substringBefore("\n")
-        .trim()
-
-internal fun taskCenterHttpLogPage(
-    taskLog: String,
-    pageIndex: Int,
-    pageSize: Int = HTTP_LOG_PAGE_SIZE,
-): TaskCenterHttpLogPage {
-    val safePageSize = pageSize.coerceAtLeast(1)
-    val requestedPageIndex = pageIndex.coerceAtLeast(0)
-    return taskCenterHttpLogPageUnchecked(taskLog, requestedPageIndex, safePageSize)
-}
-
-private fun taskCenterHttpLogPageUnchecked(
-    taskLog: String,
-    pageIndex: Int,
-    pageSize: Int,
-): TaskCenterHttpLogPage {
-    val startIndex = pageIndex * pageSize
-    val endExclusive = startIndex + pageSize
-    val pending = mutableListOf<PendingTaskCenterHttpLogEntry>()
-    val pageEntries = mutableListOf<MutableTaskCenterHttpLogEntry>()
-    var activeResponse: MutableTaskCenterHttpLogEntry? = null
-    var activeRequest: MutableTaskCenterHttpLogEntry? = null
-    var totalEntries = 0
-    var hasNextPage = false
-
-    run loop@{
-        taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { line ->
-        when {
-            line.contains("HTTP request [") -> {
-                if (totalEntries >= endExclusive) {
-                    hasNextPage = true
-                    return@loop
-                }
-                activeResponse = null
-                val selected = totalEntries in startIndex until endExclusive
-                val pageEntry = if (selected) {
-                    MutableTaskCenterHttpLogEntry(
-                        label = line.substringAfter("HTTP request [").substringBefore("]"),
-                        request = line,
-                        response = "",
-                    ).also { pageEntries += it }
-                } else {
-                    null
-                }
-                pending += PendingTaskCenterHttpLogEntry(
-                    label = line.substringAfter("HTTP request [").substringBefore("]"),
-                    externalId = taskCenterHttpExternalId(line),
-                    pageEntry = pageEntry,
-                )
-                activeRequest = pageEntry
-                totalEntries += 1
-            }
-            line.contains("HTTP response [") -> {
-                activeRequest = null
-                val responseLabel = line.substringAfter("HTTP response [").substringBefore("]")
-                val responseExternalId = taskCenterHttpExternalId(line)
-                val matchIndex = pending.indexOfFirst { entry ->
-                    entry.label == responseLabel &&
-                        responseExternalId.isNotBlank() &&
-                        entry.externalId == responseExternalId
-                }.takeIf { it >= 0 } ?: pending.indexOfFirst { it.label == responseLabel }
-                val entry = if (matchIndex >= 0) pending.removeAt(matchIndex).pageEntry else null
-                entry?.response = line
-                activeResponse = entry
-            }
-            activeResponse != null && !taskCenterIsLifecycleLogLine(line) -> {
-                activeResponse?.response += "\n$line"
-            }
-            activeRequest != null -> {
-                activeRequest?.request += "\n$line"
-            }
-        }
-        }
-    }
-
-    return TaskCenterHttpLogPage(
-        entries = pageEntries.map { TaskCenterHttpLogEntry(it.label.ifBlank { "request" }, it.request, it.response) },
-        pageIndex = pageIndex,
-        pageSize = pageSize,
-        totalEntries = null,
-        hasNextPage = hasNextPage,
-    )
-}
-
-private fun taskCenterIsLifecycleLogLine(line: String): Boolean =
-    Regex("""^\S+(?:\s+\S+)?\s+TASK\s+""").containsMatchIn(line)
-
-internal fun taskCenterStepDurationText(startLine: String, endLine: String): String {
-    val startedAt = taskCenterLogLineInstant(startLine) ?: return "未完成"
-    val endedAt = taskCenterLogLineInstant(endLine) ?: return "未完成"
-    val millis = endedAt.toEpochMilliseconds() - startedAt.toEpochMilliseconds()
-    if (millis < 0L) return "未完成"
-    return taskCenterDurationTextFromMillis(millis)
-}
-
-private fun taskCenterLogLineInstant(line: String): Instant? =
-    line.substringBefore(" ", missingDelimiterValue = "").trim().takeIf { it.isNotBlank() }?.let { token ->
-        runCatching { Instant.parse(token) }.getOrNull()
-    }
-
-private fun taskCenterDurationTextFromMillis(millis: Long): String {
-    if (millis < 1_000L) return "${millis}ms"
-    if (millis < 60_000L) return "${(millis / 100L) / 10.0}s"
-    val seconds = millis / 1_000L
-    val minutes = seconds / 60L
-    val remainingSeconds = seconds % 60L
-    if (minutes < 60L) return "${minutes}m ${remainingSeconds}s"
-    val hours = minutes / 60L
-    val remainingMinutes = minutes % 60L
-    return "${hours}h ${remainingMinutes}m"
-}
-
-private fun taskCenterFormatJson(body: String): String =
-    runCatching {
-        taskCenterPrettyJson.encodeToString(Json.parseToJsonElement(body))
-    }.getOrDefault(body)
-
-private fun taskCenterListSummary(task: AsyncTaskListItem): String {
-    if (task.status == AsyncTaskStatus.queued.name) return "等待系统调度 · 尚未开始"
-    if (task.status == AsyncTaskStatus.retrying.name) return listOfNotNull(
-        task.lastErrorMessage.takeIf { it.isNotBlank() } ?: "上次执行中断，等待恢复",
-        task.runAfterMs?.let { "预计最早重试 ${taskCenterTimestampText(it)}" },
-    ).joinToString(" · ")
-    task.lastErrorMessage.takeIf { task.status == AsyncTaskStatus.failed.name && it.isNotBlank() }?.let { return it }
-    val base = task.progressMessage.ifBlank { asyncTaskStatusDisplayName(task.status) }
-    val itemsSeen = taskCenterCheckpointLong(task.checkpointJson, "itemsSeen")
-    if (task.type == AsyncTaskType.external_favorite_sync.name && itemsSeen != null && base.contains("完成")) {
-        return "$base，读取到 ${itemsSeen} 条"
-    }
-    if (task.type == AsyncTaskType.external_favorite_sync.name) {
-        return "$base · 已读取 ${task.progressCurrent} 页（本批上限 ${task.progressTotal} 页）"
-    }
-    return if (task.progressTotal > 0) "$base · ${task.progressCurrent}/${task.progressTotal}" else base
-}
-
-internal fun taskCenterExecutionSummary(task: Async_task): String = buildList {
-    taskCenterSubject(task.payload_json).takeIf { it.isNotBlank() }?.let { add(it) }
-    add(when (task.status) {
-        "queued" -> "任务尚未开始，等待系统调度或前置任务完成"
-        "retrying" -> "等待重试；已安排重试 ${task.attempt_count} 次"
-        "running" -> task.progress_message.ifBlank { "正在执行" }
-        else -> asyncTaskStatusDisplayName(task.status)
-    })
-    if (task.type == AsyncTaskType.external_favorite_sync.name) {
-        add("已读取 ${task.progress_current} 页 · 本批上限 ${task.progress_total} 页（不是总页数）")
-        taskCenterCheckpointLong(task.checkpoint_json, "itemsSeen")?.let { add("已读取收藏 $it 条；AI 整理单独执行") }
-    } else if (task.progress_total > 0) add("已处理 ${task.progress_current} / ${task.progress_total}")
-    if (task.type == AsyncTaskType.external_favorite_organize.name && task.status != "running" && task.progress_message.isNotBlank()) {
-        add(task.progress_message)
-    }
-    if (task.status == "retrying") task.run_after_ms?.let {
-        add("预计最早重试：${taskCenterTimestampText(it)}，实际开始受系统调度影响")
-    }
-    if (task.last_error_message.isNotBlank()) add("最近原因：${task.last_error_message}")
-}.joinToString("\n")
-
-internal fun taskCenterSubject(payload: String): String = runCatching {
-    val values = Json.parseToJsonElement(payload).jsonObject
-    val labels = listOf("articleId" to "文章", "sourceId" to "收藏来源", "diaryId" to "日记", "attachmentId" to "附件", "batchId" to "提醒批次")
-    labels.firstNotNullOfOrNull { (key, label) ->
-        values[key]?.jsonPrimitive?.content?.let { "$label #$it" }
-    } ?: values["url"]?.jsonPrimitive?.content?.substringBefore('?')?.substringBefore('#').orEmpty()
-}.getOrDefault("")
-
-internal fun taskCenterLifecycleText(log: String): String = log.lineSequence()
-    .filter { it.substringAfter(' ').startsWith("TASK ") }
-    .map { line ->
-        val event = line.substringAfter("TASK ")
-        val summary = when {
-            event.startsWith("started") -> "开始执行"
-            event.startsWith("progress") -> event.substringAfter("message=", "进度更新").substringBefore(" checkpoint=")
-            event.startsWith("succeeded") -> "执行完成"
-            event.startsWith("failed") -> "执行失败：${taskCenterEventReason(event)}"
-            event.startsWith("retry") -> buildString {
-                append("安排重试：${taskCenterEventReason(event)}")
-                event.substringAfter("runAfterMs=", "").toLongOrNull()?.let {
-                    append("；预计最早重试：${taskCenterTimestampText(it)}")
-                }
-            }
-            event.startsWith("cancelled") -> "执行取消"
-            event.startsWith("interrupted") -> "被系统中断，已安排自动重试"
-            else -> "状态更新"
-        }
-        val time = runCatching { Instant.parse(line.substringBefore(' ')).toEpochMilliseconds() }.getOrNull()
-        "${time?.let { taskCenterTimestampText(it, includeSeconds = true) } ?: line.substringBefore(' ')} · $summary"
-    }.toList().fold(mutableListOf<String>()) { entries, entry ->
-        if (entries.lastOrNull()?.substringAfter(" · ") != entry.substringAfter(" · ")) entries.add(entry)
-        entries
-    }.takeLast(40).joinToString("\n").ifBlank { "暂无执行记录；旧日志可能已清理" }
-
-private fun taskCenterEventReason(event: String): String = event.substringAfter("message=", "")
-    .substringBefore(" runAfterMs=").ifBlank {
-        event.substringAfter("code=", "").substringBefore(' ').ifBlank { "未记录具体原因，请查看失败原因" }
-    }
-
-private fun taskCenterCheckpointLong(json: String, key: String): Long? =
-    Regex(""""${Regex.escape(key)}"\s*:\s*(\d+)""")
-        .find(json)
-        ?.groupValues
-        ?.getOrNull(1)
-        ?.toLongOrNull()
-
-private fun taskCenterTypeFilterSummary(selected: Set<String>): String =
-    if (selected.isEmpty()) {
-        "全部"
-    } else {
-        selected.joinToString("、") { asyncTaskTypeDisplayName(it) }
-    }
-
-private fun taskCenterStatusFilterSummary(selected: Set<String>): String =
-    if (selected.isEmpty()) {
-        "全部"
-    } else {
-        selected.joinToString("、") { asyncTaskStatusDisplayName(it) }
-    }
-
-private fun taskCenterTimestampText(value: Long?, includeSeconds: Boolean = false): String {
-    if (value == null || value <= 0L) return "未开始"
-    val time = Instant.fromEpochMilliseconds(value).toLocalDateTime(TimeZone.currentSystemDefault())
-    return "${time.monthNumber.toString().padStart(2, '0')}-${time.dayOfMonth.toString().padStart(2, '0')} " +
-        "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}" +
-        if (includeSeconds) ":${time.second.toString().padStart(2, '0')}" else ""
-}
-
-private fun taskCenterDurationText(startedAt: Long?, endedAt: Long?): String {
-    if (startedAt == null || startedAt <= 0L || endedAt == null || endedAt < startedAt) return "未开始"
-    val seconds = ((endedAt - startedAt) / 1000L).coerceAtLeast(0L)
-    if (seconds < 60L) return "${seconds}s"
-    val minutes = seconds / 60L
-    val remainingSeconds = seconds % 60L
-    if (minutes < 60L) return "${minutes}m ${remainingSeconds}s"
-    val hours = minutes / 60L
-    val remainingMinutes = minutes % 60L
-    return "${hours}h ${remainingMinutes}m"
-}
+private fun taskCenterStatusFilterSummary(selected: Set<String>, copy: TaskCenterCopy): String =
+    if (selected.isEmpty()) copy.filterAll else selected.joinToString("、") { asyncTaskStatusDisplayName(it) }

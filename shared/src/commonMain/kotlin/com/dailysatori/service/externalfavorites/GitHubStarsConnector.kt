@@ -20,6 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import com.dailysatori.service.diagnostics.DiagnosticLog
 
 data class GitHubAccount(val id: String, val login: String, val name: String)
 data class GitHubReplacementAuth(val authJson: String, val accountName: String)
@@ -79,7 +80,9 @@ class GitHubStarsConnector(
         val page = cursor?.toIntOrNull()?.coerceAtLeast(1) ?: 1
         val size = pageSize.coerceIn(1, capabilities.maxPageSize)
         val url = "$apiBaseUrl/user/starred"
-        httpLogger.logRequest(taskId, "github_stars", "GET", url, mapOf("page" to page.toString(), "per_page" to size.toString()))
+        val requestId = DiagnosticLog.newId()
+        httpLogger.logRequest(taskId, "github_stars", "GET", url, mapOf("page" to page.toString(), "per_page" to size.toString()),
+            requestId = requestId, attempt = 1)
         val response = httpClient().get(url) {
             githubHeaders(token, GITHUB_STAR_ACCEPT)
             parameter("page", page)
@@ -88,7 +91,8 @@ class GitHubStarsConnector(
             parameter("direction", "desc")
         }
         val body = response.bodyAsText()
-        httpLogger.logResponse(taskId, "github_stars", response.status.value, emptyMap(), body)
+        httpLogger.logResponse(taskId, "github_stars", response.status.value, emptyMap(), body,
+            requestId = requestId, attempt = 1)
         validateResponse(response.status.value, body, response.headers[GITHUB_RATE_LIMIT_RESET])
         val items = json.parseToJsonElement(body).jsonArray
             .map { it.jsonObject }

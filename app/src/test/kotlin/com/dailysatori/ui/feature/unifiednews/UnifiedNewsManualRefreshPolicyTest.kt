@@ -75,13 +75,34 @@ class UnifiedNewsManualRefreshPolicyTest {
     }
 
     @Test
-    fun activeRecommendationsKeepManualSummaryRefreshWaiting() = withTasks { tasks ->
+    fun anActiveOpportunityAnalysisDoesNotBlockTheNewsRefresh() = withTasks { tasks ->
         tasks.enqueue("news_opportunity_analysis", "{}", uniqueKey = "news_opportunity_analysis")
         val submission = enqueueManualNewsRefresh(tasks, false) { }
 
-        assertNull(submission.taskId)
-        assertEquals(NewsManualRefreshNotice.ALREADY_RUNNING, submission.notice)
-        assertEquals(1, tasks.runnableTasks(Long.MAX_VALUE).size)
+        assertEquals(NewsManualRefreshNotice.STARTED, submission.notice)
+        assertNotEquals(null, submission.taskId)
+    }
+
+    @Test
+    fun anActiveManualRefreshIsReusedWithItsRealTaskId() = withTasks { tasks ->
+        val scheduled = mutableListOf<Long>()
+        val first = enqueueManualNewsRefresh(tasks, false, scheduled::add)
+        val second = enqueueManualNewsRefresh(tasks, false, scheduled::add)
+
+        assertEquals(NewsManualRefreshNotice.ALREADY_RUNNING, second.notice)
+        assertEquals(first.taskId, second.taskId, "the active manual task answers this request")
+        assertEquals(listOf(first.taskId), scheduled, "a reused refresh is not scheduled twice")
+    }
+
+    @Test
+    fun aFinishedManualRefreshIsNotReusedAsThisRequest() = withTasks { tasks ->
+        val previous = enqueueManualNewsRefresh(tasks, false) { }
+        completeTask(tasks, requireNotNull(previous.taskId))
+
+        val submission = enqueueManualNewsRefresh(tasks, false) { }
+
+        assertEquals(NewsManualRefreshNotice.STARTED, submission.notice)
+        assertNotEquals(previous.taskId, submission.taskId, "a terminal task must not answer a new request")
     }
 
     @Test

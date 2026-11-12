@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.dailysatori.service.diagnostics.DiagnosticLog
 
 data class ExternalFavoriteSupplement(
     val url: String,
@@ -37,12 +38,15 @@ class DefaultExternalFavoriteSupplementResolver(
         webpageParserService: WebpageParserService,
     ) : this(
         fetchWebSupplement = { url, httpLogger, taskId ->
+            val requestId = DiagnosticLog.newId()
             httpLogger.logRequest(
                 taskId = taskId,
                 label = "external_favorite_supplement",
                 method = "GET",
                 url = url,
                 parameters = mapOf("source" to "web"),
+                requestId = requestId,
+                attempt = 1,
             )
             webpageParserService.extractContent(url).let { extracted ->
                 val supplement = ExternalFavoriteSupplement(
@@ -57,6 +61,8 @@ class DefaultExternalFavoriteSupplementResolver(
                     statusCode = 200,
                     headers = mapOf("source" to "web", "title" to supplement.title.orEmpty()),
                     body = supplement.text,
+                    requestId = requestId,
+                    attempt = 1,
                 )
                 supplement
             }

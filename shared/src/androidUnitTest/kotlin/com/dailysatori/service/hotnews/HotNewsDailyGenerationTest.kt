@@ -93,6 +93,19 @@ class HotNewsDailyGenerationTest {
             assertFailsWith<CancellationException> { fixture.service.generateDaily() }
         }
 
+    @Test fun aSupersededRunCannotWriteItsLateResult() =
+        withGenerator("## 今日要点\n- 多个平台讨论资料导出工具。[H1][F1]") { fixture ->
+            // The old execution lost its lease after a newer window superseded it: the AI call may
+            // finish, but the result must never be persisted over the newer window's summary.
+            val result = fixture.service.generateDaily(force = true, persistGuard = { false })
+
+            assertFalse(result.success)
+            assertTrue(result.message!!.contains("已被更新的新闻窗口取代"))
+            assertNull(fixture.summaries.getByWindow(dailyUnifiedNewsWindowFor().summaryDate,
+                UnifiedNewsWindowKey.DAILY.value))
+            assertEquals(1, fixture.prompts.size)
+        }
+
     private fun seedExistingContent(fixture: Fixture) {
         fixture.summaries.upsertSummary(
             window = dailyUnifiedNewsWindowFor(),

@@ -69,6 +69,79 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         return getById(predecessor)?.status in activeStatuses
     }
 
+    /** Running tasks of one type; read-only inspection for diagnostics and lifecycle checks. */
+    fun runningTasksOfType(type: String, limit: Long): List<Async_task> =
+        q.selectRunningAsyncTasksByType(type).executeAsList().take(limit.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+
+    /** Durable predecessor identity recorded in the payload; null when the task has none. */
+    fun predecessorIdOf(taskId: Long): Long? = runCatching {
+        Json.parseToJsonElement(getById(taskId)?.payload_json ?: return null)
+            .jsonObject["_afterTaskId"]?.jsonPrimitive?.longOrNull
+    }.getOrNull()
+
+    /** The task currently preventing a serial claim, for diagnostics only. */
+    fun serialClaimBlocker(taskId: Long): Long? {
+        val task = getById(taskId) ?: return null
+        return q.selectSerialClaimBlocker(
+            task_type = task.type,
+            candidate_id = taskId,
+            runnable_at = Clock.System.now().toEpochMilliseconds(),
+            candidate_priority = task.priority,
+            candidate_created_at = task.created_at,
+        ).executeAsOneOrNull()
+    }
+
+    /**
+     * Retires pending tasks the caller has explicitly identified as superseded. Callers must judge
+     * "older" from a durable request identity, never from execution time, so a re-entrant request
+     * cannot retire newer work. Query and writes share one transaction.
+     */
+    fun failSupersededPendingTasks(
+        type: String,
+        code: String,
+        message: String,
+        isSuperseded: (Async_task) -> Boolean,
+    ): Int = q.transactionWithResult {
+        val now = Clock.System.now().toEpochMilliseconds()
+        val superseded = q.selectPendingAsyncTasksByType(type, now).executeAsList().filter(isSuperseded)
+        superseded.forEach { task ->
+            q.failPendingAsyncTask(
+                status = AsyncTaskStatus.failed.name,
+                finished_at = now,
+                last_error_code = code,
+                last_error_message = message,
+                updated_at = now,
+                id = task.id,
+            )
+        }
+        superseded.size
+    }
+
+    /**
+     * Cancels running tasks the caller identified as superseded and clears their lease, which is the
+     * ownership signal the runner checks: the old execution stops reporting and cannot persist.
+     */
+    fun cancelSupersededRunningTasks(
+        type: String,
+        code: String,
+        message: String,
+        isSuperseded: (Async_task) -> Boolean,
+    ): List<Long> = q.transactionWithResult {
+        val now = Clock.System.now().toEpochMilliseconds()
+        val superseded = q.selectRunningAsyncTasksByType(type).executeAsList().filter(isSuperseded)
+        superseded.forEach { task ->
+            q.cancelSupersededRunningTask(
+                status = AsyncTaskStatus.cancelled.name,
+                finished_at = now,
+                last_error_code = code,
+                last_error_message = message,
+                updated_at = now,
+                id = task.id,
+            )
+        }
+        superseded.map { it.id }
+    }
+
     fun enqueue(
         type: String,
         payloadJson: String,

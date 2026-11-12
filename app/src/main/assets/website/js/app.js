@@ -211,9 +211,10 @@ createApp({
             if (summaryRefreshing.value) return;
             summaryRefreshing.value = true;
             try {
-                await apiReq('/news/summary/refresh', { method: 'POST' });
+                const refreshResult = await apiReq('/news/summary/refresh', { method: 'POST' });
                 newsSummary.value = await apiReq('/news/summary') || {};
-                showToast('今日汇总已更新');
+                const refreshPending = refreshResult && (refreshResult.status === 'queued' || refreshResult.status === 'running');
+                showToast(refreshPending ? '已受理，正在生成' : '今日汇总已更新');
             } catch (e) { showToast(e.message, 'error'); }
             summaryRefreshing.value = false;
         }

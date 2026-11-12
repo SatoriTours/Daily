@@ -43,6 +43,18 @@ private class DiagnosticNetworkListener(
 
     private fun start(request: Request) {
         started = DiagnosticLog.elapsed()
+        if (TaskHttpCapture.isArmed(trace?.taskId)) {
+            val endpoint = DiagnosticRedactor.endpoint(request.url.toString())
+            val handle = currentCaptureHandleForTransport()
+            TaskHttpCapture.record(trace?.taskId, TaskHttpRecord(
+                requestId = handle?.requestId ?: requestId,
+                attempt = handle?.attempt ?: maxOf(1, attempt),
+                direction = TaskHttpDirection.REQUEST,
+                method = request.method,
+                service = endpoint["service"],
+                route = endpoint["route"],
+            ))
+        }
         diagnostics.emit(DiagnosticCode.HTTP_START, source,
             fields = mapOf("method" to request.method, "url" to request.url.toString(), "attempt" to maxOf(1, attempt).toString()),
             trace = trace, requestId = requestId)
@@ -72,6 +84,18 @@ private class DiagnosticNetworkListener(
             put("durationMs", (DiagnosticLog.elapsed() - started).toString())
             status?.let { put("status", it.toString()) }
             bytes?.let { put("bytes", it.toString()) }
+        }
+        if (TaskHttpCapture.isArmed(trace?.taskId)) {
+            val handle = currentCaptureHandleForTransport()
+            TaskHttpCapture.record(trace?.taskId, TaskHttpRecord(
+                requestId = handle?.requestId ?: requestId,
+                attempt = handle?.attempt ?: maxOf(1, attempt),
+                direction = TaskHttpDirection.RESPONSE,
+                status = status,
+                durationMs = DiagnosticLog.elapsed() - started,
+                bytes = bytes,
+                bodyState = TASK_HTTP_NOT_CAPTURED,
+            ))
         }
         val level = when {
             code == DiagnosticCode.HTTP_FAILED -> DiagnosticLevel.ERROR

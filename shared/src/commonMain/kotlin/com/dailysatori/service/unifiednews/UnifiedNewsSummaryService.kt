@@ -32,10 +32,15 @@ class UnifiedNewsSummaryService(
 ) {
     private val log = Logger.withTag("UnifiedNewsSummary")
 
+    /**
+     * [persistGuard] is the execution-identity check: a superseded or cancelled run may finish its AI
+     * call, but its result must never be written over a newer window's summary.
+     */
     suspend fun generate(
         window: UnifiedNewsWindow,
         force: Boolean = false,
         ignoreSourceTimeFilter: Boolean = false,
+        persistGuard: (() -> Boolean)? = null,
     ): UnifiedNewsGenerationResult {
         if (!force && hasSuccessfulSummary(window)) {
             return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.SUCCESS)
@@ -47,15 +52,15 @@ class UnifiedNewsSummaryService(
         } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
             log.w(e) { "Unified news source collection failed" }
-            return saveFailure(window, emptyList(), warnings, "新闻来源收集失败，请稍后重试")
+            return saveFailure(window, emptyList(), warnings, "新闻来源收集失败，请稍后重试", persistGuard = persistGuard)
         }
-        if (sources.isEmpty()) return persistEmpty(window, warnings)
+        if (sources.isEmpty()) return persistEmpty(window, warnings, persistGuard)
         val preparedSources = prepareUnifiedNewsSources(sources)
-        if (preparedSources.isEmpty()) return persistEmpty(window, warnings)
+        if (preparedSources.isEmpty()) return persistEmpty(window, warnings, persistGuard)
 
         val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
         if (config == null) {
-            return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务", retryable = false)
+            return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务", retryable = false, persistGuard = persistGuard)
         }
 
         val content = try {
@@ -73,23 +78,25 @@ class UnifiedNewsSummaryService(
             log.w(e) { "Unified news AI generation failed" }
             return saveFailure(
                 window, preparedSources, warnings, aiGenerationFailureMessage(e),
-                retryable = unifiedNewsAiFailureIsRetryable(e),
+                retryable = unifiedNewsAiFailureIsRetryable(e), persistGuard = persistGuard,
             )
         }
 
         val sanitizedContent = sanitizeGeneratedUnifiedNewsContent(content, preparedSources)
         if (!hasValidCitationTokens(sanitizedContent, preparedSources)) {
             return saveFailure(
-                window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试", retryable = false,
+                window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试",
+                retryable = false, persistGuard = persistGuard,
             )
         }
         val hotRefs = preparedSources.filter { it.sourceType == UnifiedNewsSourceType.HOT_NEWS }.map { it.refKey }.toSet()
         if (hotRefs.isNotEmpty() && citationTokens(sanitizedContent).none { it in hotRefs }) {
             return saveFailure(
-                window, preparedSources, warnings, "AI 返回内容缺少有效热点引用，请稍后重试", retryable = false,
+                window, preparedSources, warnings, "AI 返回内容缺少有效热点引用，请稍后重试",
+                retryable = false, persistGuard = persistGuard,
             )
         }
-        return persistSuccess(window, preparedSources, warnings, sanitizedContent)
+        return persistSuccess(window, preparedSources, warnings, sanitizedContent, persistGuard)
     }
 
     suspend fun generateDaily(
@@ -97,6 +104,7 @@ class UnifiedNewsSummaryService(
         ignoreSourceTimeFilter: Boolean = false,
         now: Instant = Clock.System.now(),
         timeZone: TimeZone = TimeZone.currentSystemDefault(),
+        persistGuard: (() -> Boolean)? = null,
     ): UnifiedNewsGenerationResult {
         val window = dailyUnifiedNewsWindowFor(now, timeZone)
         require(window.key == UnifiedNewsWindowKey.DAILY)
@@ -104,6 +112,7 @@ class UnifiedNewsSummaryService(
             window = window,
             force = force,
             ignoreSourceTimeFilter = ignoreSourceTimeFilter,
+            persistGuard = persistGuard,
         )
     }
 
@@ -183,11 +192,21 @@ class UnifiedNewsSummaryService(
         }
     }
 
-    private fun persistEmpty(window: UnifiedNewsWindow, warnings: List<String>): UnifiedNewsGenerationResult {
+    private fun persistEmpty(
+        window: UnifiedNewsWindow,
+        warnings: List<String>,
+        persistGuard: (() -> Boolean)? = null,
+    ): UnifiedNewsGenerationResult {
         val message = "当前时间窗口暂无足够可靠的新闻内容可总结"
-        if (preserveExistingContent(window, "暂无可总结新闻", UnifiedNewsSummaryStatus.EMPTY.value, message, warnings)) {
-            return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.EMPTY, message)
-        }
+        val preserved = summaryRepo.preserveExistingContent(
+            window = window,
+            title = "暂无可总结新闻",
+            status = UnifiedNewsSummaryStatus.EMPTY.value,
+            message = message,
+            sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
+            leaseGuard = persistGuard,
+        ) ?: return supersededResult()
+        if (preserved) return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.EMPTY, message)
         summaryRepo.saveSummaryWithSources(
             window = window,
             title = "暂无可总结新闻",
@@ -197,7 +216,8 @@ class UnifiedNewsSummaryService(
             sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
             generatedAt = Clock.System.now().toEpochMilliseconds(),
             sources = emptyList(),
-        )
+            leaseGuard = persistGuard,
+        ) ?: return supersededResult()
         return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.EMPTY, message)
     }
 
@@ -207,10 +227,17 @@ class UnifiedNewsSummaryService(
         warnings: List<String>,
         message: String,
         retryable: Boolean? = null,
+        persistGuard: (() -> Boolean)? = null,
     ): UnifiedNewsGenerationResult {
-        if (preserveExistingContent(window, "统一新闻总结生成失败", UnifiedNewsSummaryStatus.FAILED.value, message, warnings)) {
-            return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message, retryable)
-        }
+        val preserved = summaryRepo.preserveExistingContent(
+            window = window,
+            title = "统一新闻总结生成失败",
+            status = UnifiedNewsSummaryStatus.FAILED.value,
+            message = message,
+            sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
+            leaseGuard = persistGuard,
+        ) ?: return supersededResult()
+        if (preserved) return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message, retryable)
         summaryRepo.saveSummaryWithSources(
             window = window,
             title = "统一新闻总结生成失败",
@@ -220,30 +247,17 @@ class UnifiedNewsSummaryService(
             sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
             generatedAt = Clock.System.now().toEpochMilliseconds(),
             sources = sources,
-        )
+            leaseGuard = persistGuard,
+        ) ?: return supersededResult()
         return UnifiedNewsGenerationResult(false, UnifiedNewsSummaryStatus.FAILED, message, retryable)
     }
-
-    private fun preserveExistingContent(
-        window: UnifiedNewsWindow,
-        title: String,
-        status: String,
-        message: String,
-        warnings: List<String>,
-    ): Boolean =
-        summaryRepo.preserveExistingContent(
-            window = window,
-            title = title,
-            status = status,
-            message = message,
-            sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
-        )
 
     private fun persistSuccess(
         window: UnifiedNewsWindow,
         sources: List<UnifiedNewsSourceItem>,
         warnings: List<String>,
         content: String,
+        persistGuard: (() -> Boolean)? = null,
     ): UnifiedNewsGenerationResult {
         summaryRepo.saveSummaryWithSources(
             window = window,
@@ -254,8 +268,19 @@ class UnifiedNewsSummaryService(
             sourceWarnings = warnings.distinct().joinToString("\n").ifBlank { null },
             generatedAt = Clock.System.now().toEpochMilliseconds(),
             sources = sources,
-        )
+            leaseGuard = persistGuard,
+        ) ?: return supersededResult()
         return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.SUCCESS)
+    }
+
+    private fun supersededResult(): UnifiedNewsGenerationResult {
+        log.w { "Unified news result discarded: window superseded" }
+        return UnifiedNewsGenerationResult(
+            success = false,
+            status = UnifiedNewsSummaryStatus.FAILED,
+            message = "本次结果已被更新的新闻窗口取代，未写入",
+            retryable = false,
+        )
     }
 
     private fun warnRemoteSourceFailure(warnings: MutableList<String>, sourceName: String, message: String) {

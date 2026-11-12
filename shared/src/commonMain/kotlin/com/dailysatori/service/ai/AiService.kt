@@ -15,6 +15,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.coroutineContext
@@ -41,7 +42,12 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
         DiagnosticLog.diagnostics.operation(
             DiagnosticSource.AI, fields = mapOf("provider" to provider.trim(), "model" to model.trim(),
                 "url" to apiAddress, "aiPurpose" to purpose?.id.orEmpty()), isFailure = isFailure,
-        ) { requests.withRequest(apiAddress, purpose) { withTimeout(aiChatRequestTimeoutMillis()) { block() } } }
+        ) {
+            val handle = TaskHttpCapture.session.openRequest(currentCaptureTaskId())
+            withContext(handle ?: kotlin.coroutines.EmptyCoroutineContext) {
+                requests.withRequest(apiAddress, purpose) { withTimeout(aiChatRequestTimeoutMillis()) { block() } }
+            }
+        }
     }
 
     /** Private archives must not expose provider error bodies through logging or exception causes. */
@@ -232,15 +238,19 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
             contentType(ContentType.Application.Json)
             bearerAuth(apiToken.trim())
             headers.forEach { (name, value) -> header(name, value) }
-            setBody(buildOpenAiChatCompletionRequest(
+            val requestJson = buildOpenAiChatCompletionRequest(
                 modelName.trim(), messages, tools, temperature, thinkingMode = thinkingMode,
-            ).toString())
+            ).toString()
+            TaskHttpCapture.request(currentCaptureTaskId(), currentCaptureHandle(), "POST", apiAddress, headers, requestJson)
+            setBody(requestJson)
         }
         if (response.status.value !in 200..299) {
             throw AiHttpFailure(response.status.value, if (response.status.value == 429)
                 aiRetryAtMs(response.headers["Retry-After"], response.headers["Date"]) else null)
         }
         val body = response.bodyAsText()
+        // Capture only the text the business already decoded; the stream is never wrapped or re-read.
+        TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
         val parsed = json.parseToJsonElement(body) as JsonObject
         val usage = parsed["usage"] as? JsonObject
         if (usage != null && recordUsage) {
@@ -274,8 +284,10 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
             contentType(ContentType.Application.Json)
             bearerAuth(apiToken.trim())
             headers.forEach { (name, value) -> header(name, value) }
-            setBody(buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature,
-                stream = true, thinkingMode = thinkingMode).toString())
+            val requestJson = buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature,
+                stream = true, thinkingMode = thinkingMode).toString()
+            TaskHttpCapture.request(currentCaptureTaskId(), currentCaptureHandle(), "POST", apiAddress, headers, requestJson)
+            setBody(requestJson)
         }.execute { response ->
             if (response.status.value !in 200..299) {
                 throw AiHttpFailure(response.status.value, if (response.status.value == 429)
@@ -289,9 +301,13 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
                 return@execute parsed
             }
             val channel = response.bodyAsChannel()
+            val sseCapture = TaskHttpSseCapture(currentCaptureTaskId(), currentCaptureHandle())
+            try {
             while (!channel.isClosedForRead) {
                 coroutineContext[AiRequestObserver]?.progress?.invoke()
-                val chunk = accumulator.accept(channel.readUTF8Line() ?: break)
+                val line = channel.readUTF8Line()
+                if (line != null) sseCapture.accept(line)
+                val chunk = accumulator.accept(line ?: break)
                 coroutineContext[AiRequestObserver]?.progress?.invoke()
                 if (accumulator.done) break
                 if (chunk == null) continue
@@ -302,6 +318,9 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
                         fields = mapOf("firstChunkMs" to (DiagnosticLog.elapsed() - started).toString()))
                 }
                 onChunk(chunk)
+            }
+            } finally {
+                sseCapture.finish()
             }
             accumulator.usage?.let { usage ->
                 DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.AI, fields = mapOf(

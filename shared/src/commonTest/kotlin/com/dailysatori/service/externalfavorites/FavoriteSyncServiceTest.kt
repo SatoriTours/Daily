@@ -2373,6 +2373,8 @@ class FavoriteSyncServiceTest {
             method: String,
             url: String,
             parameters: Map<String, String>,
+            requestId: String?,
+            attempt: Int?,
         ) {
             entries += "request:$taskId:$label:$method:$url:${parameters.entries.joinToString("&") { "${it.key}=${it.value}" }}"
         }
@@ -2383,6 +2385,8 @@ class FavoriteSyncServiceTest {
             statusCode: Int,
             headers: Map<String, String>,
             body: String,
+            requestId: String?,
+            attempt: Int?,
         ) {
             entries += "response:$taskId:$label:$statusCode:${headers.entries.joinToString(",") { "${it.key}=${it.value}" }}:$body"
         }

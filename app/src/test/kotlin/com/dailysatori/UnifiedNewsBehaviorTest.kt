@@ -641,7 +641,7 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsWorkerWritesDailySummaryRows() {
         val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
 
-        assertTrue(handler.contains(".generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter)"))
+        assertTrue(handler.contains(".generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter, persistGuard = persistGuard)"))
         assertFalse(handler.contains("generate(window"))
     }
 
@@ -652,7 +652,7 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(worker.contains("UnifiedNewsWorkerMode.DUE -> runDueTick(tick)"))
         assertTrue(worker.contains("mode = UnifiedNewsWorkerMode.BACKFILL, force = false, tickDueAtMs = null"))
-        assertTrue(handler.contains("generateDaily(payload.force, payload.ignoreSourceTimeFilter)"))
+        assertTrue(handler.contains("generateDaily(payload.force, payload.ignoreSourceTimeFilter, persistGuard)"))
         // Due generation is forced only after the execution-time tick guard allows it.
         assertTrue(worker.contains("mode = UnifiedNewsWorkerMode.DUE, force = true, tickDueAtMs = tick ?: latestDue"))
     }
@@ -1022,7 +1022,7 @@ class UnifiedNewsBehaviorTest {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("val preparedSources = prepareUnifiedNewsSources("))
-        assertTrue(source.contains("if (preparedSources.isEmpty()) return persistEmpty(window, warnings)"))
+        assertTrue(source.contains("if (preparedSources.isEmpty()) return persistEmpty(window, warnings, persistGuard)"))
         assertTrue(source.contains("buildUnifiedNewsPrompt(window, preparedSources)"))
         assertTrue(source.contains("sanitizeGeneratedUnifiedNewsContent(content, preparedSources)"))
         assertTrue(source.contains("hasValidCitationTokens(sanitizedContent, preparedSources)"))
@@ -1044,9 +1044,9 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(source.contains("catch (e: Exception)"))
         assertTrue(source.contains("Unified news source collection failed"))
-        assertTrue(source.contains("return saveFailure(window, emptyList(), warnings, \"新闻来源收集失败，请稍后重试\")"))
+        assertTrue(source.contains("return saveFailure(window, emptyList(), warnings, \"新闻来源收集失败，请稍后重试\", persistGuard = persistGuard)"))
         assertFalse(source.contains("if (sources.isEmpty() && warnings.isNotEmpty())"))
-        assertTrue(source.contains("if (sources.isEmpty()) return persistEmpty(window, warnings)"))
+        assertTrue(source.contains("if (sources.isEmpty()) return persistEmpty(window, warnings, persistGuard)"))
         assertTrue(source.contains("getLatestMappingsBySource"))
     }
 

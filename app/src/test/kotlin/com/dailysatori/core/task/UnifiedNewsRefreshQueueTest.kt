@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class UnifiedNewsRefreshQueueTest {
@@ -116,6 +117,92 @@ class UnifiedNewsRefreshQueueTest {
         val payload = Json.decodeFromString<UnifiedNewsGenerateTaskPayload>(task.payload_json)
         assertEquals(true, payload.force)
         assertEquals(true, payload.ignoreSourceTimeFilter)
+    }
+
+    @Test
+    fun aStalledOlderWindowCannotBlockTheNextWindowGeneration() = withTasks { tasks ->
+        // Reported stall: a generation whose sync predecessor never reaches a terminal state stays
+        // queued forever; remote_news_fetch is serial, so that zombie would block every later window.
+        val stalled = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_000_000_000L, schedule = {},
+        )
+        val stalledPayload = Json.parseToJsonElement(tasks.getById(stalled.taskId)!!.payload_json).jsonObject
+        assertTrue("_afterTaskId" in stalledPayload)
+
+        val next = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_086_400_000L, schedule = {},
+        )
+        assertEquals("failed", tasks.getById(stalled.taskId)!!.status)
+
+        val nextPayload = Json.parseToJsonElement(tasks.getById(next.taskId)!!.payload_json).jsonObject
+        val nextPredecessor = nextPayload.getValue("_afterTaskId").jsonPrimitive.long
+        assertTrue(tasks.claimForRun(nextPredecessor, "test", Long.MAX_VALUE))
+        tasks.finishSuccess(nextPredecessor, "")
+        assertTrue(
+            tasks.claimForSerialRun(next.taskId, "remote_news_fetch", "test", Long.MAX_VALUE),
+            "the newest window must still reach generation",
+        )
+    }
+
+    @Test
+    fun reenteringAnOlderWindowDoesNotRetireTheNewerPendingWindow() = withTasks { tasks ->
+        val newer = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_086_400_000L, schedule = {},
+        )
+        val older = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_000_000_000L, schedule = {},
+        )
+
+        assertNotEquals(newer.taskId, older.taskId)
+        assertEquals("queued", tasks.getById(newer.taskId)!!.status)
+        assertEquals("queued", tasks.getById(older.taskId)!!.status)
+    }
+
+    @Test
+    fun scheduledWindowKeepsThePendingManualRefresh() = withTasks { tasks ->
+        val manual = enqueueUnifiedNewsRefresh(tasks, true, false, "manual", schedule = {})
+        enqueueUnifiedNewsRefresh(tasks, true, false, "due", tickDueAtMs = 1_700_000_000_000L, schedule = {})
+
+        assertEquals("queued", tasks.getById(manual.taskId)!!.status)
+    }
+
+    @Test
+    fun supersededRunningWindowIsCancelledThroughItsOwnLease() = withTasks { tasks ->
+        val cancelledWork = mutableListOf<Long>()
+        val older = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_000_000_000L,
+            schedule = {}, cancelWork = { cancelledWork.add(it) },
+        )
+        assertTrue(tasks.claimForRun(older.taskId, "old-run", Long.MAX_VALUE))
+        assertEquals("running", tasks.getById(older.taskId)!!.status)
+
+        val newer = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_086_400_000L,
+            schedule = {}, cancelWork = { cancelledWork.add(it) },
+        )
+
+        val superseded = tasks.getById(older.taskId)!!
+        assertEquals("cancelled", superseded.status)
+        assertNull(superseded.lease_owner, "the old execution must lose its lease")
+        assertFalse(tasks.hasRunningLease(older.taskId, "old-run"), "a late write from the old run is rejected")
+        assertEquals(listOf(older.taskId), cancelledWork)
+        assertEquals("queued", tasks.getById(newer.taskId)!!.status)
+    }
+
+    @Test
+    fun aRunningWindowIsReusedInsteadOfRestarted() = withTasks { tasks ->
+        val first = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_000_000_000L, schedule = {},
+        )
+        assertTrue(tasks.claimForRun(first.taskId, "live-run", Long.MAX_VALUE))
+        val again = enqueueUnifiedNewsRefresh(
+            tasks, true, false, "due", tickDueAtMs = 1_700_000_000_000L,
+            schedule = {}, cancelWork = { error("a healthy run must not be cancelled") },
+        )
+
+        assertEquals(first.taskId, again.taskId)
+        assertFalse(again.created)
+        assertEquals("running", tasks.getById(first.taskId)!!.status)
     }
 
     private fun withTasks(block: (AsyncTaskRepository) -> Unit) {

@@ -11,6 +11,7 @@ import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -986,6 +987,39 @@ class XBookmarksConnectorTest {
             headers = headersOf(HttpHeaders.ContentType, "application/json"),
         )
 
+    @Test
+    fun productionFetchPairsItsRequestAndResponseWithOneExplicitIdentity() = runBlocking {
+        val client = HttpClient(MockEngine {
+            respondJson("""{"data":[{"id":"123","text":"Saved"}],"meta":{"result_count":1}}""")
+        })
+        val calls = mutableListOf<Pair<String, String?>>()
+        val logger = object : FavoriteSyncHttpLogger {
+            override fun logRequest(taskId: Long?, label: String, method: String, url: String,
+                parameters: Map<String, String>, requestId: String?, attempt: Int?) {
+                calls += "request:$label" to requestId
+            }
+            override fun logResponse(taskId: Long?, label: String, statusCode: Int,
+                headers: Map<String, String>, body: String, requestId: String?, attempt: Int?) {
+                calls += "response:$label" to requestId
+            }
+        }
+        val connector = XBookmarksConnector(client = client)
+
+        connector.fetchPage(xTestSource(), cursor = null, pageSize = 5, httpLogger = logger, taskId = 42L,
+            shouldFetchDetail = { false }, sinceExternalId = null)
+        connector.fetchPage(xTestSource(), cursor = null, pageSize = 5, httpLogger = logger, taskId = 42L,
+            shouldFetchDetail = { false }, sinceExternalId = null)
+
+        val bookmarks = calls.filter { it.first.endsWith(":bookmarks") }
+        assertEquals(4, bookmarks.size, "two calls record one request and one response each")
+        val ids = bookmarks.map { it.second }
+        assertTrue(ids.all { it != null && it.isNotBlank() }, "production must pass a real identity")
+        assertTrue(ids.none { it == "unpaired" }, "the fallback identity is not used in production")
+        assertEquals(ids[0], ids[1], "a request and its response share one identity")
+        assertEquals(ids[2], ids[3], "the second call shares its own identity")
+        assertNotEquals(ids[0], ids[2], "a new call is a new request, not a retry of the previous one")
+    }
+
     private fun xTestSource(): External_favorite_source =
         External_favorite_source(
             id = 1,
@@ -1023,6 +1057,8 @@ class XBookmarksConnectorTest {
             method: String,
             url: String,
             parameters: Map<String, String>,
+            requestId: String?,
+            attempt: Int?,
         ) {
             entries += "request:$taskId:$label:$method:$url:${parameters.entries.joinToString("&") { "${it.key}=${it.value}" }}"
         }
@@ -1033,6 +1069,8 @@ class XBookmarksConnectorTest {
             statusCode: Int,
             headers: Map<String, String>,
             body: String,
+            requestId: String?,
+            attempt: Int?,
         ) {
             entries += "response:$taskId:$label:$statusCode:$body"
         }

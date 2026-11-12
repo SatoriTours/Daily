@@ -4,7 +4,11 @@ import io.ktor.http.Url
 
 /** Allow-list projection, not a best-effort replacement of secrets in arbitrary text. */
 object DiagnosticRedactor {
-    private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens", "translatedCount", "pendingCount")
+    private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens", "translatedCount", "pendingCount", "taskId", "predecessorTaskId", "blockingTaskId")
+    private val taskTypes = setOf("remote_news_fetch", "remote_article_sync", "hot_news_refresh")
+    private val taskStages = setOf("started", "waiting_predecessor", "claim_rejected", "not_runnable",
+        "succeeded", "failed", "retry_scheduled", "skipped", "cancelled")
+    private val newsSummaryStages = setOf("persisted", "skipped_superseded", "empty", "failed", "already_present")
     private val methods = setOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS")
     private val reminderFields = setOf("content", "start_date", "end_date", "first_reminder_time",
         "active_day_rule", "recurrence_rule", "selected_weekdays", "profile", "timezone", "other")
@@ -39,6 +43,9 @@ object DiagnosticRedactor {
                 key == "unifiedNewsTarget" && value in setOf("window", "due") -> put(key, value)
                 key == "unifiedNewsFailure" && value in setOf("timeout", "error", "budget_exhausted") -> put(key, value)
                 key == "unifiedNewsDecision" && value in setOf("generate", "skip_stale", "skip_generated") -> put(key, value)
+                key == "taskType" && value in taskTypes -> put(key, value)
+                key == "taskStage" && value in taskStages -> put(key, value)
+                key == "newsSummaryStage" && value in newsSummaryStages -> put(key, value)
                 key == "hotNewsFailure" && value in setOf("network", "timeout", "format", "configuration", "other") -> put(key, value)
                 key == "hotNewsValidation" && value in setOf("json", "identity", "title", "summary", "missing_summary") -> put(key, value)
                 key == "hotNewsValidationDetail" && value in setOf("json", "identity", "title_length", "title_chinese_count",

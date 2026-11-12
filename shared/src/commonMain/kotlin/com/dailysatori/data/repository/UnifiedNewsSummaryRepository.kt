@@ -36,13 +36,19 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
     fun getSourcesBySummary(): Map<Long, List<Unified_news_source>> =
         q.selectAllUnifiedNewsSources().executeAsList().groupBy { it.summary_id }
 
+    /**
+     * [leaseGuard] runs inside the write transaction, so a run that lost its lease cannot interleave
+     * between the check and the write. Returns null when the write was refused.
+     */
     fun preserveExistingContent(
         window: UnifiedNewsWindow,
         title: String,
         status: String,
         message: String,
         sourceWarnings: String?,
-    ): Boolean = q.transactionWithResult {
+        leaseGuard: (() -> Boolean)? = null,
+    ): Boolean? = q.transactionWithResult {
+        if (leaseGuard?.invoke() == false) return@transactionWithResult null
         val existing = getByWindow(window.summaryDate, window.key.value)
         if (existing == null || existing.content.isBlank()) return@transactionWithResult false
         upsertSummary(
@@ -65,10 +71,12 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
         errorMessage: String?,
         sourceWarnings: String?,
         generatedAt: Long?,
-    ): Unified_news_summary {
+        leaseGuard: (() -> Boolean)? = null,
+    ): Unified_news_summary? = q.transactionWithResult {
+        if (leaseGuard?.invoke() == false) return@transactionWithResult null
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         insertOrUpdateSummary(window, title, content, status, errorMessage, sourceWarnings, generatedAt, now)
-        return requireNotNull(getByWindow(window.summaryDate, window.key.value))
+        getByWindow(window.summaryDate, window.key.value)
     }
 
     fun saveSummaryWithSources(
@@ -80,9 +88,15 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
         sourceWarnings: String?,
         generatedAt: Long?,
         sources: List<UnifiedNewsSourceItem>,
-    ): Unified_news_summary {
+        leaseGuard: (() -> Boolean)? = null,
+    ): Unified_news_summary? {
         var saved: Unified_news_summary? = null
+        var refused = false
         q.transaction {
+            if (leaseGuard?.invoke() == false) {
+                refused = true
+                return@transaction
+            }
             val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             insertOrUpdateSummary(window, title, content, status, errorMessage, sourceWarnings, generatedAt, now)
             val summary = requireNotNull(q.selectUnifiedNewsSummaryByWindow(window.summaryDate, window.key.value).executeAsOneOrNull())
@@ -90,7 +104,7 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
             insertSources(summary.id, sources)
             saved = summary
         }
-        return requireNotNull(saved)
+        return if (refused) null else requireNotNull(saved)
     }
 
     private fun insertOrUpdateSummary(

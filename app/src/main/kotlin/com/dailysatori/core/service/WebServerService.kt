@@ -22,7 +22,13 @@ import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.decodeMcpSearchResults
 import com.dailysatori.service.mcp.encodeMcpSearchResults
 import com.dailysatori.service.asynctask.AsyncTaskFilter
+import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
+import com.dailysatori.ui.feature.unifiednews.enqueueManualNewsRefresh
+import com.dailysatori.ui.feature.unifiednews.hasActiveNewsRefreshTask
+import com.dailysatori.core.task.unifiedNewsRefreshUniqueKey
+import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
+import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json as registerJson
@@ -46,7 +52,9 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -186,6 +194,16 @@ class WebServerService(private val ctx: Context) {
 
     private fun respondOk(data: JsonObject? = null): String =
         """{"code":0,"msg":"success","data":${data?.toString() ?: "null"}}"""
+
+    /** Accepted response: the refresh runs on as a durable task; the client does not need to poll. */
+    private fun respondAccepted(status: String, taskId: Long): String = respondOk(buildJsonObject {
+        put("status", JsonPrimitive(status))
+        put("taskId", JsonPrimitive(taskId))
+    })
+
+    /** Bounded wait so the LAN client keeps its bounded request and never sees a false success. */
+    private val NEWS_REFRESH_WAIT_MS = 15_000L
+
 
     private fun respondFail(msg: String): String =
         """{"code":-1,"msg":"$msg"}"""
@@ -878,11 +896,43 @@ class WebServerService(private val ctx: Context) {
             }
 
             post("/summary/refresh") {
-                val result = get<UnifiedNewsSummaryService>(UnifiedNewsSummaryService::class.java).generateDaily(force = true)
-                if (result.success) {
-                    call.respondText(respondOk(buildJsonObject { put("status", JsonPrimitive(result.status.value)) }), ContentType.Application.Json)
-                } else {
-                    call.respondText(respondFail(result.message ?: "Summary generation failed"), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                // Same manual-refresh identity, dedupe and task lease as the app: no side-channel
+                // generation that could overwrite a newer window's summary.
+                val tasks = get<AsyncTaskRepository>(AsyncTaskRepository::class.java)
+                val submission = enqueueManualNewsRefresh(tasks, isDebugBuild = false) { taskId ->
+                    AsyncTaskScheduler(ctx).enqueue(taskId)
+                }
+                // Only this request's real task may answer; a historical terminal task is never reused.
+                val taskId = submission.taskId
+                if (taskId == null) {
+                    call.respondText(respondFail("新闻汇总刷新任务创建失败"), ContentType.Application.Json, HttpStatusCode.BadRequest)
+                    return@post
+                }
+                val completed = withTimeoutOrNull(NEWS_REFRESH_WAIT_MS) {
+                    tasks.observeTaskById(taskId).filterNotNull()
+                        .first { !hasActiveNewsRefreshTask(listOf(it.status)) }
+                }
+                // One mapping for both paths: a task that turned terminal while the wait expired is
+                // reported by its real result, never as accepted.
+                val task = completed ?: tasks.getById(taskId)
+                val window = dailyUnifiedNewsWindowFor()
+                val summary = if (completed == null) null else
+                    get<UnifiedNewsSummaryRepository>(UnifiedNewsSummaryRepository::class.java)
+                        .getByWindow(window.summaryDate, window.key.value)
+                when (val outcome = newsRefreshOutcome(
+                    taskId = taskId,
+                    taskStatus = task?.status.orEmpty(),
+                    taskError = task?.last_error_message.orEmpty(),
+                    summaryStatus = summary?.status,
+                    summaryError = summary?.error_message,
+                )) {
+                    is NewsRefreshOutcome.Completed -> call.respondText(respondOk(buildJsonObject {
+                        put("status", JsonPrimitive(outcome.status))
+                    }), ContentType.Application.Json)
+                    is NewsRefreshOutcome.Accepted -> call.respondText(respondAccepted(outcome.status, taskId),
+                        ContentType.Application.Json, HttpStatusCode.Accepted)
+                    is NewsRefreshOutcome.Failed -> call.respondText(respondFail(outcome.message),
+                        ContentType.Application.Json, HttpStatusCode.BadRequest)
                 }
             }
         }

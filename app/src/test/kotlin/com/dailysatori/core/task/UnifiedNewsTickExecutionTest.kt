@@ -119,7 +119,7 @@ class UnifiedNewsTickExecutionTest {
     ) = UnifiedNewsGenerateTaskHandler(
         nowMs = { nowMs },
         latestSuccessfulAt = latestSuccessfulAt,
-        generateDaily = { force, ignore -> generation.generate(force, ignore) },
+        generateDaily = { force, ignore, _ -> generation.generate(force, ignore) },
     )
 
     private fun withTasks(block: (AsyncTaskRepository) -> Unit) {

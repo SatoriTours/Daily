@@ -41,7 +41,8 @@ class UnifiedNewsGenerateTaskSourceTest {
     fun appModuleRegistersUnifiedNewsGenerateHandler() {
         val source = File("src/main/kotlin/com/dailysatori/core/di/AppModule.kt").readText()
 
-        assertTrue(source.contains("single { UnifiedNewsGenerateTaskHandler(get(), get()) }"))
+        assertTrue(source.contains("UnifiedNewsGenerateTaskHandler("))
+        assertTrue(source.contains("leaseIsHeld = { id, owner ->"))
         assertTrue(source.contains("get<UnifiedNewsGenerateTaskHandler>()"))
     }
 }

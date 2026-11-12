@@ -8,7 +8,12 @@ import java.time.format.DateTimeFormatter
 import kotlinx.serialization.json.*
 
 class DiagnosticExporter(private val versionName: String, private val versionCode: Int, private val sdk: Int) {
-    fun write(snapshot: DiagnosticSnapshot, output: OutputStream) {
+    /**
+     * [httpLog] is the already-sanitized per-task capture, and is only passed by an explicit
+     * "export this task's diagnostics" action. The global export never supplies it, so bodies never ride
+     * along with an ordinary diagnostics export.
+     */
+    fun write(snapshot: DiagnosticSnapshot, output: OutputStream, httpLog: String? = null) {
         val summary = summarize(snapshot)
         val zone = ZoneId.systemDefault()
         val timeFormat = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSS XXX", java.util.Locale.ROOT).withZone(zone)
@@ -37,6 +42,12 @@ class DiagnosticExporter(private val versionName: String, private val versionCod
             val timestampMs = event.getValue("timestampMs").jsonPrimitive.long
             writer.appendLine(JsonObject(event + ("localTime" to JsonPrimitive(localTime(timestampMs)))).toString())
         } }
+        if (httpLog != null && httpLog.isNotBlank()) {
+            writer.appendLine("\nTask HTTP capture (sanitized, explicitly exported by the user; may contain private content):")
+            writer.appendLine("http.schema=1")
+            writer.append(httpLog)
+            if (!httpLog.endsWith("\n")) writer.appendLine()
+        }
         writer.flush() // The destination owner closes the stream and only then reports success.
     }
 

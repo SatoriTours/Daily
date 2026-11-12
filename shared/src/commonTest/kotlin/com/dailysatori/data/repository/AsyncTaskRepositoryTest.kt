@@ -536,6 +536,19 @@ class AsyncTaskRepositoryTest {
     }
 
     @Test
+    fun differentBusinessSourcesAreNotSerializedAgainstEachOther() = withRepository { repository ->
+        val first = repository.enqueue("remote_article_sync", """{"sourceId":1}""", uniqueKey = "ln:source:1")
+        val second = repository.enqueue("remote_article_sync", """{"sourceId":2}""", uniqueKey = "ln:source:2")
+
+        assertTrue(repository.claimForRun(first, "run-1", Long.MAX_VALUE))
+        assertTrue(
+            repository.claimForRun(second, "run-2", Long.MAX_VALUE),
+            "a different news source must not wait for another source",
+        )
+        assertEquals(listOf(first, second), repository.runningTasksOfType("remote_article_sync", 10).map { it.id }.sorted())
+    }
+
+    @Test
     fun retentionOnlyCountsTerminalHistory() = withRepository { repository ->
         val active = repository.enqueue("save_article", "{}")
         val terminal = (1..25).map {

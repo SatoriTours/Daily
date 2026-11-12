@@ -76,6 +76,7 @@ val appModule: Module = module {
     single { com.dailysatori.core.diagnostics.DiagnosticRuntime.store }
     single<Clock> { Clock.System }
     single { AsyncTaskLogStore(File(androidContext().cacheDir, "async-task-logs")) }
+    single { com.dailysatori.core.diagnostics.TaskDiagnosticsExportService(get(), get()) }
     single<FavoriteSyncHttpLogger> { AsyncTaskHttpLogWriter(get()) }
     single { ClipboardMonitorService(androidContext()) }
     single { AsyncTaskScheduler(androidContext()) }
@@ -111,9 +112,15 @@ val appModule: Module = module {
     single { ExternalFavoriteSyncTaskHandler(get(), get(), get()) }
     single { ExternalFavoriteOrganizeTaskHandler(get(), get(), get(), get(), get()) }
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
-    single { RemoteArticleSyncTaskHandler(get(), get(), get(), get()) }
+    single { com.dailysatori.core.task.RemoteArticleSyncCoordinator() }
+    single { RemoteArticleSyncTaskHandler(get(), get(), get(), get(), get()) }
     single { UnifiedNewsArticleQueue(get(), get(), get(), get(), get(), get<AsyncTaskScheduler>()::enqueue) }
-    single { UnifiedNewsGenerateTaskHandler(get(), get()) }
+    single {
+        UnifiedNewsGenerateTaskHandler(
+            get(), get(),
+            leaseIsHeld = { id, owner -> get<com.dailysatori.data.repository.AsyncTaskRepository>().hasRunningLease(id, owner) },
+        )
+    }
     single { com.dailysatori.core.task.NewsOpportunityTaskHandler(get()) }
     single {
         val reminders=get<com.dailysatori.data.repository.ReminderRepository>()

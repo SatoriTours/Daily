@@ -20,6 +20,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.coroutines.CancellationException
+import com.dailysatori.service.diagnostics.*
 
 class RemoteNewsService(private val client: HttpClient) {
     suspend fun fetchDigests(config: RemoteNewsConfigValues, page: Int, perPage: Int): RemoteNewsResult<RemoteDigestsResponse> =
@@ -40,7 +41,10 @@ class RemoteNewsService(private val client: HttpClient) {
             expectSuccess = true
             bearerAuth(config.token)
             header("X-Api-Token", config.token)
-        }.bodyAsText().let(::parseTopArticlesTodayResponse)
+        }.bodyAsText().also { body ->
+            // The business already decodes this exact text; capture is a pure side observation.
+            TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
+        }.let(::parseTopArticlesTodayResponse)
     }
 
     suspend fun fetchArticle(config: RemoteNewsConfigValues, id: Long): RemoteNewsResult<RemoteArticleResponse> =
@@ -75,11 +79,19 @@ class RemoteNewsService(private val client: HttpClient) {
     }
 
     private suspend fun <T> request(block: suspend () -> T): RemoteNewsResult<T> = try {
-        RemoteNewsResult.Success(block())
+        val handle = com.dailysatori.service.diagnostics.TaskHttpCapture.session.openRequest(
+            com.dailysatori.service.diagnostics.currentCaptureTaskId(),
+        )
+        val value = kotlinx.coroutines.withContext(handle ?: kotlin.coroutines.EmptyCoroutineContext) { block() }
+        RemoteNewsResult.Success(value)
     } catch (e: ClientRequestException) {
-        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(e.response.bodyAsText()) ?: "Token 无效，请检查远程新闻设置")
+        val body = e.response.bodyAsText()
+        TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "Token 无效，请检查远程新闻设置")
     } catch (e: ServerResponseException) {
-        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(e.response.bodyAsText()) ?: "远程新闻服务暂时不可用")
+        val body = e.response.bodyAsText()
+        TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "远程新闻服务暂时不可用")
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {

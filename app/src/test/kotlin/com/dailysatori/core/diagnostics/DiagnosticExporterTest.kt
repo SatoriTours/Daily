@@ -13,6 +13,34 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 
 class DiagnosticExporterTest {
     @Test
+    fun capturedHttpBodiesOnlyRideAlongWithAnExplicitTaskExport() = runBlocking<Unit> {
+        val root = Files.createTempDirectory("diagnostic-export-http").toFile()
+        val time = java.time.Instant.parse("2026-11-12T10:00:00.000Z").toEpochMilli()
+        val capture = "# http schema=1 task=42 label=news request=r1 attempt=1 dir=RESPONSE state=CAPTURED\n  | {example}"
+        try {
+            val exporter = DiagnosticExporter("test", 1, 26)
+            DiagnosticStore(root, clock = { time }).use { store ->
+                Diagnostics(store, now = { time }).emit(DiagnosticCode.APP_START, DiagnosticSource.APP)
+                store.snapshot(time).use { snapshot ->
+                    val global = ByteArrayOutputStream()
+                    exporter.write(snapshot, global)
+                    assertFalse(global.toString("UTF-8").contains("# http schema=1"),
+                        "the global export never carries captured bodies")
+
+                    val taskExport = ByteArrayOutputStream()
+                    exporter.write(snapshot, taskExport, httpLog = capture)
+                    val text = taskExport.toString("UTF-8")
+                    assertTrue(text.contains("Task HTTP capture"))
+                    assertTrue(text.contains("# http schema=1 task=42"))
+                    assertTrue(text.contains("explicitly exported by the user"))
+                }
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun reportUsesPhoneTimeZoneAtExportForWindowAndEveryEvent() = runBlocking<Unit> {
         val previous = java.util.TimeZone.getDefault()
         val root = Files.createTempDirectory("diagnostic-local-time").toFile()

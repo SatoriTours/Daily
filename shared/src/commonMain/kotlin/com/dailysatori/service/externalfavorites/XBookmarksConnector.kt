@@ -32,6 +32,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import com.dailysatori.service.diagnostics.DiagnosticLog
 
 class XBookmarksConnector(
     private val client: HttpClient? = null,
@@ -122,12 +123,15 @@ class XBookmarksConnector(
             pageSize = pageSize.coerceIn(1, capabilities.maxPageSize),
             cursor = cursor,
         )
+        val requestId = DiagnosticLog.newId()
         httpLogger.logRequest(
             taskId = taskId,
             label = "bookmarks",
             method = "GET",
             url = "$apiBaseUrl$requestPath",
             parameters = requestParameters,
+            requestId = requestId,
+            attempt = 1,
         )
         val response = httpClient.get("$apiBaseUrl$requestPath") {
             bearerAuth(token)
@@ -140,6 +144,8 @@ class XBookmarksConnector(
             statusCode = response.status.value,
             headers = xDiagnosticHeaders(response.headers[X_RATE_LIMIT_RESET_HEADER]),
             body = body,
+            requestId = requestId,
+            attempt = 1,
         )
         logXApiResponseBody(
             label = "bookmarks",
@@ -168,13 +174,16 @@ class XBookmarksConnector(
             ?: error("X bookmarks auth_json must contain access_token, bearer_token, or token")
         val url = "$apiBaseUrl${xBookmarksEndpointPath(source.account_id)}"
         val size = pageSize.coerceIn(1, X_AUTOMATIC_PROBE_SIZE)
-        httpLogger.logRequest(taskId, "bookmarks_probe", "GET", url, mapOf("max_results" to size.toString()))
+        val probeRequestId = DiagnosticLog.newId()
+        httpLogger.logRequest(taskId, "bookmarks_probe", "GET", url, mapOf("max_results" to size.toString()),
+            requestId = probeRequestId, attempt = 1)
         val response = httpClient.get(url) {
             bearerAuth(token)
             parameter("max_results", size)
         }
         val body = response.bodyAsText()
-        httpLogger.logResponse(taskId, "bookmarks_probe", response.status.value, emptyMap(), body)
+        httpLogger.logResponse(taskId, "bookmarks_probe", response.status.value, emptyMap(), body,
+            requestId = probeRequestId, attempt = 1)
         return parseXBookmarksHttpResponse(
             response.status.value,
             body,
@@ -225,13 +234,16 @@ class XBookmarksConnector(
         return try {
             var receivedResponse = false
             val result = withTimeoutOrNull(X_FXEMBED_TIMEOUT_MS) {
-                httpLogger.logRequest(taskId, "fxembed_lookup", "GET", url, emptyMap())
+                val fxRequestId = DiagnosticLog.newId()
+                httpLogger.logRequest(taskId, "fxembed_lookup", "GET", url, emptyMap(),
+                    requestId = fxRequestId, attempt = 1)
                 val response = httpClient.get(url) {
                     headers.remove(HttpHeaders.Authorization)
                     headers.remove(HttpHeaders.Cookie)
                 }
                 val body = response.bodyAsText()
-                httpLogger.logResponse(taskId, "fxembed_lookup", response.status.value, emptyMap(), body)
+                httpLogger.logResponse(taskId, "fxembed_lookup", response.status.value, emptyMap(), body,
+                    requestId = fxRequestId, attempt = 1)
                 receivedResponse = true
                 if (response.status.value !in 200..299) {
                     session?.record("fx_errors")
@@ -277,12 +289,15 @@ class XBookmarksConnector(
             ?: error("X auth_json must contain access_token, bearer_token, or token")
         val requestUrl = "$apiBaseUrl/2/tweets/${postId.trim()}"
         val requestParameters = xPostLookupRequestParameters(articleOnly)
+        val requestId = DiagnosticLog.newId()
         httpLogger.logRequest(
             taskId = taskId,
             label = "post_lookup",
             method = "GET",
             url = requestUrl,
             parameters = requestParameters,
+            requestId = requestId,
+            attempt = 1,
         )
         currentXContentFetchSession()?.requireCapacity(claim = true)
         val response = httpClient.get(requestUrl) {
@@ -296,6 +311,8 @@ class XBookmarksConnector(
             statusCode = response.status.value,
             headers = xDiagnosticHeaders(response.headers[X_RATE_LIMIT_RESET_HEADER]),
             body = body,
+            requestId = requestId,
+            attempt = 1,
         )
         logXApiResponseBody(
             label = "post_lookup",

@@ -14,9 +14,12 @@ import kotlinx.coroutines.withContext
 
 private val requestTrace = AttributeKey<DiagnosticTrace>("DiagnosticTrace")
 
+private val requestHandle = AttributeKey<TaskHttpRequestHandle>("TaskHttpRequestHandle")
+
 val DiagnosticTracePlugin = createClientPlugin("DiagnosticTrace") {
     onRequest { request, _ ->
         DiagnosticLog.currentTrace()?.let { request.attributes.put(requestTrace, it) }
+        currentCaptureHandle()?.let { request.attributes.put(requestHandle, it) }
     }
 }
 
@@ -32,6 +35,9 @@ class DiagnosticKtorEngine(private val delegate: HttpClientEngine) : HttpClientE
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val trace = data.attributes.getOrNull(requestTrace) ?: return delegate.execute(data)
-        return withContext(DiagnosticLog.traceContext(trace)) { delegate.execute(data) }
+        val handle = data.attributes.getOrNull(requestHandle)
+        val context = if (handle == null) DiagnosticLog.traceContext(trace)
+        else DiagnosticLog.traceContext(trace) + captureHandleContext(handle)
+        return withContext(context) { delegate.execute(data) }
     }
 }

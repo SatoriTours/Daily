@@ -248,6 +248,7 @@ class UnifiedNewsWorker(
             mode = modeValue,
             schedule = asyncTaskScheduler::enqueue,
             tickDueAtMs = tickDueAtMs,
+            cancelWork = asyncTaskScheduler::cancel,
         )
         return Result.success()
     }

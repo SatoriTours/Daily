@@ -4,6 +4,10 @@ import com.dailysatori.core.worker.shouldRetryUnifiedNews
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
+import com.dailysatori.service.diagnostics.DiagnosticCode
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSource
+import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsTickDecision
@@ -29,11 +33,16 @@ class UnifiedNewsGenerateTaskHandler(
     articleQueue: UnifiedNewsArticleQueue? = null,
     private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val latestSuccessfulAt: () -> Long? = { summaryService?.latestSuccessfulGeneratedAt() },
-    private val generateDaily: suspend (force: Boolean, ignoreSourceTimeFilter: Boolean) -> UnifiedNewsGenerationResult =
-        { force, ignoreSourceTimeFilter ->
-            requireNotNull(summaryService) { "summary service is required for generation" }
-                .generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter)
-        },
+    /** Execution-identity check: only the run that still owns the task lease may write its result. */
+    private val leaseIsHeld: (Long, String) -> Boolean = { _, _ -> true },
+    private val generateDaily: suspend (
+        force: Boolean,
+        ignoreSourceTimeFilter: Boolean,
+        persistGuard: (() -> Boolean)?,
+    ) -> UnifiedNewsGenerationResult = { force, ignoreSourceTimeFilter, persistGuard ->
+        requireNotNull(summaryService) { "summary service is required for generation" }
+            .generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter, persistGuard = persistGuard)
+    },
 ) : AsyncTaskHandler {
     private val articleQueue = articleQueue
     override val type: String = TYPE
@@ -59,7 +68,10 @@ class UnifiedNewsGenerateTaskHandler(
             return AsyncTaskExecutionResult.Success()
         }
         reporter.report(0, 2, "正在收集远程新闻", checkpointJson = """{"stage":"collecting"}""")
-        val result = generateDaily(payload.force, payload.ignoreSourceTimeFilter)
+        val lease = reporter.executionLease
+        val persistGuard: () -> Boolean = { lease == null || leaseIsHeld(lease.taskId, lease.owner) }
+        val result = generateDaily(payload.force, payload.ignoreSourceTimeFilter, persistGuard)
+        summaryStage(result, forced = payload.force)
         reporter.report(1, 2, result.message ?: "正在生成新闻汇总", checkpointJson = """{"stage":"generated"}""")
 
         if (result.success) {
@@ -74,6 +86,21 @@ class UnifiedNewsGenerateTaskHandler(
         } else {
             AsyncTaskExecutionResult.PermanentFailure("remote_news_fetch_failed", message)
         }
+    }
+
+    /** Distinguishes a written summary, an empty window, a failure and a superseded discard. */
+    private fun summaryStage(result: UnifiedNewsGenerationResult, forced: Boolean) {
+        val stage = when {
+            result.success && result.status == UnifiedNewsSummaryStatus.SUCCESS && !forced -> "already_present"
+            result.success && result.status == UnifiedNewsSummaryStatus.SUCCESS -> "persisted"
+            result.success && result.status == UnifiedNewsSummaryStatus.EMPTY -> "empty"
+            result.message?.contains("已被更新的新闻窗口取代") == true -> "skipped_superseded"
+            else -> "failed"
+        }
+        DiagnosticLog.diagnostics.emit(
+            DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.APP,
+            fields = mapOf("newsSummaryStage" to stage),
+        )
     }
 
     private fun duplicateTickDecision(payload: UnifiedNewsGenerateTaskPayload): UnifiedNewsTickDecision? {

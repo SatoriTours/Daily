@@ -1277,6 +1277,36 @@ WHERE id = ? AND terminal_notification_at IS NULL AND status IN ('READY_FOR_CONF
 selectAsyncTaskByUniqueKey:
 SELECT * FROM async_task WHERE unique_key = ? ORDER BY created_at DESC, id DESC LIMIT 1;
 
+selectRunningAsyncTasksByType:
+SELECT * FROM async_task
+WHERE type = ? AND status = 'running'
+ORDER BY created_at ASC, id ASC;
+
+selectSerialClaimBlocker:
+SELECT id FROM async_task
+WHERE type = :task_type
+  AND id != :candidate_id
+  AND (
+      status = 'running'
+      OR (
+          status IN ('queued', 'retrying')
+          AND (run_after_ms IS NULL OR run_after_ms <= :runnable_at)
+          AND (
+              priority > :candidate_priority
+              OR (priority = :candidate_priority AND created_at < :candidate_created_at)
+          )
+      )
+  )
+ORDER BY CASE status WHEN 'running' THEN 0 ELSE 1 END, created_at ASC, id ASC
+LIMIT 1;
+
+selectPendingAsyncTasksByType:
+SELECT * FROM async_task
+WHERE type = ?
+  AND status IN ('queued', 'retrying')
+  AND (run_after_ms IS NULL OR run_after_ms <= ?)
+ORDER BY created_at ASC, id ASC;
+
 selectActiveAsyncTaskByUniqueKeyPrefix:
 SELECT * FROM async_task
 WHERE type = :task_type
@@ -1482,6 +1512,18 @@ SET status='queued',attempt_count=0,run_after_ms=NULL,lease_owner=NULL,lease_unt
     last_error_code='',last_error_message='',finished_at=NULL,updated_at=?
 WHERE id=? AND type IN ('assistant_index','assistant_summary','assistant_history_backfill')
     AND status IN ('failed','cancelled');
+
+failPendingAsyncTask:
+UPDATE async_task
+SET status = ?, result_json = '', finished_at = ?, lease_owner = NULL, lease_until_ms = NULL,
+    last_error_code = ?, last_error_message = ?, updated_at = ?
+WHERE id = ? AND status IN ('queued', 'retrying');
+
+cancelSupersededRunningTask:
+UPDATE async_task
+SET status = ?, finished_at = ?, lease_owner = NULL, lease_until_ms = NULL,
+    last_error_code = ?, last_error_message = ?, updated_at = ?
+WHERE id = ? AND status = 'running';
 
 cancelAsyncTask:
 UPDATE async_task

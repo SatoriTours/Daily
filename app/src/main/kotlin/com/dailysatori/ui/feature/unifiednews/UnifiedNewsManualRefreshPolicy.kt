@@ -1,8 +1,8 @@
 package com.dailysatori.ui.feature.unifiednews
 
-import com.dailysatori.core.task.NewsOpportunityTaskHandler
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
 import com.dailysatori.core.task.enqueueUnifiedNewsRefresh
+import com.dailysatori.core.task.unifiedNewsRefreshUniqueKey
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.service.unifiednews.UnifiedNewsWindow
@@ -27,8 +27,13 @@ internal fun enqueueManualNewsRefresh(
     isDebugBuild: Boolean,
     schedule: (Long) -> Unit,
 ): NewsManualRefreshSubmission {
-    if (hasActiveNewsRefreshTask(listOf(tasks.getLatestByUniqueKey(NewsOpportunityTaskHandler.TYPE)?.status))) {
-        return NewsManualRefreshSubmission(null, NewsManualRefreshNotice.ALREADY_RUNNING)
+    // Only a live manual news refresh of this identity may block or be reused; an active opportunity
+    // analysis or a finished manual task must not stand in for this request.
+    val activeManual = tasks.getLatestByUniqueKey(
+        unifiedNewsRefreshUniqueKey(UnifiedNewsGenerateTaskHandler.MODE_MANUAL, null),
+    )?.takeIf { hasActiveNewsRefreshTask(listOf(it.status)) }
+    if (activeManual != null) {
+        return NewsManualRefreshSubmission(activeManual.id, NewsManualRefreshNotice.ALREADY_RUNNING)
     }
     val result = enqueueUnifiedNewsRefresh(
         tasks = tasks,
