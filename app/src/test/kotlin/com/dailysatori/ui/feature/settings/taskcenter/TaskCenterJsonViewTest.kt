@@ -140,16 +140,16 @@ class TaskCenterJsonViewTest {
 
     @Test
     fun requestDetailsExposeMethodQueryHeadersBodyAndTiming() {
-        val details = taskCenterRequestDetails(
+        val run = taskCenterRequestDetails(
             """
-            2026-06-28T10:00:00.000Z HTTP request [chat] POST https://api.deepseek.com/chat/completions params=stream=true
+            2026-06-28T10:00:00.000Z HTTP request [chat] POST https://api.deepseek.com/chat/completions params=stream=true label=chat requestId=11111111-1111-1111-1111-111111111111 attempt=1
             2026-06-28T10:00:00.010Z Content-Type: application/json
             2026-06-28T10:00:00.020Z Authorization: Bearer sk-secret1234567890
             2026-06-28T10:00:00.030Z {"model":"deepseek-chat","stream":true}
-            2026-06-28T10:00:00.250Z HTTP response [chat] status=200 headers=content-type=text/event-stream body=data: {"choices":[]}
+            2026-06-28T10:00:00.250Z HTTP response [chat] status=200 headers=content-type=text/event-stream body=data: {"choices":[]} requestId=11111111-1111-1111-1111-111111111111 attempt=1
             """.trimIndent(),
         )
-        val detail = details.single()
+        val detail = run.single()
         assertEquals("POST", detail.method)
         assertEquals("https://api.deepseek.com/chat/completions", detail.url)
         assertEquals(listOf("stream" to "true"), detail.queryRows)
@@ -161,6 +161,8 @@ class TaskCenterJsonViewTest {
         assertTrue(detail.responseBody.collected)
         assertEquals("250ms", detail.durationLabel(testStrings()))
         assertEquals(true, detail.httpOk)
+        assertEquals(true, detail.attemptKnown)
+        assertFalse(detail.associationUnknown)
         assertFalse(detail.collectsSensitivePlaintext)
     }
 
@@ -168,8 +170,8 @@ class TaskCenterJsonViewTest {
     fun omittedBodiesAreReportedAsNotCollectedInsteadOfFakeContent() {
         val detail = taskCenterRequestDetails(
             """
-            2026-06-28T10:00:00.000Z HTTP request {method=GET, url=https://api.x.com/2/users/me/bookmarks} params=[omitted]
-            2026-06-28T10:00:01.000Z HTTP response status=200 headers=[omitted] body=[omitted]
+            2026-06-28T10:00:00.000Z HTTP request {method=GET, url=https://api.x.com/2/users/me/bookmarks} params=[omitted] label=bookmarks requestId=22222222-2222-2222-2222-222222222222 attempt=1
+            2026-06-28T10:00:01.000Z HTTP response status=200 headers=[omitted] body=[omitted] requestId=22222222-2222-2222-2222-222222222222 attempt=1
             """.trimIndent(),
         ).single()
         assertEquals("GET", detail.method)
@@ -180,40 +182,40 @@ class TaskCenterJsonViewTest {
         assertTrue(detail.responseHeaders.isEmpty())
         assertNull(detail.stream)
         assertEquals("1.0s", detail.durationLabel(testStrings()))
+        assertEquals("bookmarks", detail.label)
     }
 
     @Test
-    fun repeatedRequestsOfTheSameTargetAreNumberedAsAttempts() {
-        val details = taskCenterRequestDetails(
+    fun repeatedRequestsOfTheSameTargetKeepExplicitAttemptsWithoutGuessing() {
+        val run = taskCenterRequestDetails(
             """
-            2026-06-28T10:00:00.000Z HTTP request [external_favorite_ai] POST https://api.openai.com/v1/chat/completions params=externalId=1
-            2026-06-28T10:00:01.000Z HTTP response [external_favorite_ai] status=500 body={"error":"boom"}
-            2026-06-28T10:00:05.000Z HTTP request [external_favorite_ai] POST https://api.openai.com/v1/chat/completions params=externalId=1
-            2026-06-28T10:00:06.000Z HTTP response [external_favorite_ai] status=200 body={"ok":true}
+            2026-06-28T10:00:00.000Z HTTP request [external_favorite_ai] POST https://api.openai.com/v1/chat/completions params=[omitted] requestId=33333333-3333-3333-3333-333333333333 attempt=1
+            2026-06-28T10:00:01.000Z HTTP response [external_favorite_ai] status=500 body={"error":"boom"} requestId=33333333-3333-3333-3333-333333333333 attempt=1
+            2026-06-28T10:00:05.000Z HTTP request [external_favorite_ai] POST https://api.openai.com/v1/chat/completions params=[omitted] requestId=33333333-3333-3333-3333-333333333333 attempt=2
+            2026-06-28T10:00:06.000Z HTTP response [external_favorite_ai] status=200 body={"ok":true} requestId=33333333-3333-3333-3333-333333333333 attempt=2
             """.trimIndent(),
         )
-        assertEquals(2, details.size)
-        assertEquals(listOf(1, 2), details.map { it.attemptNumber })
-        assertEquals(false, details.first().httpOk)
-        assertEquals(true, details.last().httpOk)
+        assertEquals(2, run.size)
+        assertEquals(listOf(1, 2), run.map { it.attemptNumber })
+        assertTrue(run.all { it.attemptKnown })
+        assertEquals(false, run.first().httpOk)
+        assertEquals(true, run.last().httpOk)
     }
 
     @Test
-    fun curlCopyUsesRedactedCredentialsAndRealBody() {
-        val detail = taskCenterRequestDetails(
+    fun legacyLinesWithoutIdentityStayIndependentWithUnknownAssociation() {
+        val run = taskCenterRequestDetails(
             """
             2026-06-28T10:00:00.000Z HTTP request [chat] POST https://api.deepseek.com/chat/completions params=stream=true
-            2026-06-28T10:00:00.020Z Authorization: Bearer sk-secret1234567890
-            2026-06-28T10:00:00.030Z {"model":"deepseek-chat"}
             2026-06-28T10:00:00.250Z HTTP response [chat] status=200 body={"ok":true}
             """.trimIndent(),
-        ).single()
-        val curl = taskCenterCurlCommand(detail)
-        assertTrue(curl.startsWith("curl -X POST"))
-        assertTrue(curl.contains("https://api.deepseek.com/chat/completions?stream=true"))
-        assertTrue(curl.contains("Authorization: [已隐藏]"))
-        assertTrue(curl.contains("""--data-raw '{"model":"deepseek-chat"}'"""))
-        assertFalse(curl.contains("sk-secret1234567890"))
+        )
+        val detail = run.single()
+        assertEquals("", detail.responseStatus)
+        assertTrue(detail.associationUnknown)
+        assertFalse(detail.attemptKnown)
+        assertNull(detail.respondedAtMs)
+        assertEquals("unknown", detail.durationLabel(testStrings()))
     }
 
     @Test

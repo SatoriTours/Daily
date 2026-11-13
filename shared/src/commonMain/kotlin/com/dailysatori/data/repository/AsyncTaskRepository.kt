@@ -73,6 +73,22 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     fun runningTasksOfType(type: String, limit: Long): List<Async_task> =
         q.selectRunningAsyncTasksByType(type).executeAsList().take(limit.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
 
+    /** Statuses in which a task may still be claimed or woken. */
+    fun activeStatusNames(): Set<String> = activeStatuses
+
+    /** Tasks still waiting on [taskId] as their predecessor; the wake-up target of a terminal transition. */
+    fun successorIdsOf(taskId: Long): List<Long> {
+        // Strict token boundary: predecessor 14 must never match a task waiting on 149.
+        val prefix = "\"_afterTaskId\":" + taskId
+        val separated = q.selectWaitingAsyncTasksByPredecessor(prefix + ",").executeAsList() +
+            q.selectWaitingAsyncTasksByPredecessor(prefix + "}").executeAsList()
+        return separated.map { it.id }.distinct()
+    }
+
+    /** Pending tasks of one serial type, used to wake the same-type waiters of a terminal owner. */
+    fun pendingTaskIdsOfType(type: String): List<Long> =
+        q.selectPendingAsyncTasksByType(type, Long.MAX_VALUE).executeAsList().map { it.id }
+
     /** Durable predecessor identity recorded in the payload; null when the task has none. */
     fun predecessorIdOf(taskId: Long): Long? = runCatching {
         Json.parseToJsonElement(getById(taskId)?.payload_json ?: return null)

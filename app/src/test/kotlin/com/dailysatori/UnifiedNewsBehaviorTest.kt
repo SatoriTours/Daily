@@ -299,7 +299,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(refreshBody.contains("is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()"))
         assertTrue(refreshBody.contains("UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()"))
         assertFalse(refreshBody.contains("generateDaily"))
-        assertFalse(refreshBody.contains("fetchTopArticlesToday"))
+        assertFalse(refreshBody.contains("fetchSourceArticles"))
     }
 
     @Test
@@ -309,7 +309,7 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(fetchBody.contains("sourceArticlesLoadingSourceId == sourceId"))
         assertTrue(fetchBody.contains("return"))
-        assertTrue(fetchBody.contains("fetchTopArticlesToday"))
+        assertTrue(fetchBody.contains("fetchSourceArticles"))
     }
 
     @Test
@@ -383,7 +383,10 @@ class UnifiedNewsBehaviorTest {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
 
-        assertTrue(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
+        // RSS sources have no JSON detail endpoint: a missing local copy is recovered from the feed.
+        assertFalse(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
+        assertTrue(openRemoteArticleBody.contains("remoteNewsService.fetchSourceArticles"))
+        assertTrue(openRemoteArticleBody.contains("recoverRemoteArticleFromFeed"))
         assertTrue(openRemoteArticleBody.contains("remoteArticleSyncService.readLocalArticle"))
         assertFalse(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
         assertTrue(openRemoteArticleBody.contains("文章内容不可用"))
@@ -791,9 +794,9 @@ class UnifiedNewsBehaviorTest {
         assertTrue(viewModel.contains("fun testConnection()"))
         assertTrue(viewModel.contains("sourceRepo.save"))
         assertTrue(viewModel.contains("sourceRepo.delete"))
-        assertTrue(viewModel.contains("fetchTopArticlesToday(config.value, page = 1, limit = 1)"))
+        assertTrue(viewModel.contains("fetchSourceArticles(config.value, limit = 1)"))
         assertTrue(viewModel.contains("连接成功，获取到"))
-        assertTrue(viewModel.contains("if (state.value.baseUrl.isBlank() || token.isBlank())"))
+        assertTrue(viewModel.contains("if (baseUrl.isBlank())"))
         assertTrue(viewModel.contains("try"))
         assertTrue(viewModel.contains("catch"))
         assertTrue(viewModel.contains("startsWith(\"http://\")"))
@@ -818,7 +821,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(screen.contains("SettingsEditorMessage(message, state.isError)"))
         assertTrue(screen.contains("PasswordVisualTransformation"))
         assertTrue(screen.contains("VisualTransformation.None"))
-        assertTrue(screen.contains("完整接口"))
+        assertTrue(screen.contains("填写 RSS 订阅地址"))
         assertTrue(screen.contains("state.isEditing"))
         assertTrue(screen.contains("state.sources"))
         assertTrue(screen.contains("viewModel.openEdit(source)"))
@@ -1361,18 +1364,16 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun remoteNewsServiceSupportsTopArticlesTodayEndpointAndDualAuth() {
+    fun remoteNewsServiceFetchesTheConfiguredFeedUrlAsRss() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/remotenews/RemoteNewsService.kt").readText()
 
-        assertTrue(source.contains("fun fetchTopArticlesToday"))
-        assertTrue(source.contains("top_articles_today"))
-        assertTrue(source.contains("normalizeTopArticlesTodayUrl"))
-        assertTrue(source.contains("URLBuilder(normalizeTopArticlesTodayUrl(baseUrl))"))
+        assertTrue(source.contains("fun fetchSourceArticles"))
+        assertTrue(source.contains("client.get(feedUrl)"))
+        assertTrue(source.contains("parseRemoteFeedArticles"))
+        assertTrue(source.contains("if (config.token.isNotBlank()) bearerAuth(config.token)"))
+        assertFalse(source.contains("fun fetchTopArticlesToday"))
+        assertFalse(source.contains("buildTopArticlesTodayUrl"))
         assertTrue(source.contains("externalApiRootFromRemoteNewsUrl"))
-        assertTrue(source.contains("substringBefore(\"/api/v1/external/top_articles_today\")"))
-        assertFalse(source.contains("${'$'}normalizedBase/api/v1/external/top_articles_today"))
-        assertTrue(source.contains("bearerAuth(config.token)"))
-        assertTrue(source.contains("header(\"X-Api-Token\", config.token)"))
         assertTrue(source.contains("limit"))
     }
 

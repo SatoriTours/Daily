@@ -969,6 +969,7 @@ class WebServerService(private val ctx: Context) {
                     return@post
                 }
                 repo.cancel(id)
+                AsyncTaskScheduler(ctx).notifyTerminal(id)
                 call.respondText(respondOk(), ContentType.Application.Json)
             }
         }

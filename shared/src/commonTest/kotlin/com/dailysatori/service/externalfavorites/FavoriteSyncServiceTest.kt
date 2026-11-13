@@ -53,6 +53,153 @@ class FavoriteSyncServiceTest {
         }
     }
 
+    private class IdentityRecordingHttpLogger : FavoriteSyncHttpLogger {
+        data class Request(val label: String, val requestId: String?, val attempt: Int?, val kind: String?)
+        data class Response(val label: String, val status: Int, val requestId: String?, val attempt: Int?, val kind: String?)
+
+        val requests = mutableListOf<Request>()
+        val responses = mutableListOf<Response>()
+
+        override fun logRequest(
+            taskId: Long?,
+            label: String,
+            method: String,
+            url: String,
+            parameters: Map<String, String>,
+            requestId: String?,
+            attempt: Int?,
+            kind: String?,
+        ) {
+            requests += Request(label, requestId, attempt, kind)
+        }
+
+        override fun logResponse(
+            taskId: Long?,
+            label: String,
+            statusCode: Int,
+            headers: Map<String, String>,
+            body: String,
+            requestId: String?,
+            attempt: Int?,
+            kind: String?,
+        ) {
+            responses += Response(label, statusCode, requestId, attempt, kind)
+        }
+    }
+
+    private suspend fun organizeWithRecordingLogger(
+        items: ExternalFavoriteItemRepository,
+        articles: ArticleRepository,
+        sourceId: Long,
+        logger: IdentityRecordingHttpLogger,
+        organizer: ExternalFavoriteAiOrganizer,
+    ): Int = organizer.organizePendingForSource(sourceId, httpLogger = logger, taskId = 1)
+
+    @Test
+    fun aiOrganizationSharesOneIdentityAcrossEachItemsRequestAndSuccess() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            repeat(2) { items.upsertDraft(sourceId, xDraft("ai-" + it)) }
+            ExternalFavoriteImporter(items, articles).importPendingForSource(sourceId, 10)
+            val logger = IdentityRecordingHttpLogger()
+            val organizer = ExternalFavoriteAiOrganizer(items, articles, generateAnalysis = {
+                ExternalFavoriteAiAnalysis("标题", "摘要", "正文")
+            })
+
+            organizeWithRecordingLogger(items, articles, sourceId, logger, organizer)
+
+            val requests = logger.requests.filter { it.label == "external_favorite_ai" }
+            val responses = logger.responses.filter { it.label == "external_favorite_ai" }
+            assertEquals(2, requests.size)
+            assertEquals(2, responses.size)
+            assertTrue(requests.all { !it.requestId.isNullOrBlank() })
+            assertTrue(requests.all { it.attempt == 1 })
+            assertTrue(responses.all { it.status == 200 && it.attempt == 1 })
+            assertEquals(
+                requests.map { it.requestId }.toSet(),
+                responses.map { it.requestId }.toSet(),
+                "each item's request and success share one identity",
+            )
+            assertEquals(2, requests.map { it.requestId }.distinct().size, "concurrent items never share an id")
+            assertTrue(requests.all { it.kind == com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT })
+            assertTrue(responses.all { it.kind == com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT })
+        }
+    }
+
+    @Test
+    fun aiOrganizationFailureSharesTheRequestIdentity() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("ai-failure"))
+            ExternalFavoriteImporter(items, articles).importPendingForSource(sourceId, 10)
+            val logger = IdentityRecordingHttpLogger()
+            val organizer = ExternalFavoriteAiOrganizer(items, articles, generateAnalysis = {
+                throw IllegalArgumentException("boom")
+            })
+
+            organizeWithRecordingLogger(items, articles, sourceId, logger, organizer)
+
+            val requests = logger.requests.filter { it.label == "external_favorite_ai" }
+            val responses = logger.responses.filter { it.label == "external_favorite_ai" }
+            assertEquals(1, requests.size)
+            assertEquals(1, responses.size)
+            assertEquals(requests.single().requestId, responses.single().requestId)
+            assertEquals(599, responses.single().status)
+            assertEquals(1, requests.single().attempt)
+            assertEquals(
+                com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT,
+                requests.single().kind,
+            )
+        }
+    }
+
+    @Test
+    fun aiOrganizationTimeoutWritesOnePairedOutcomeInsteadOfAnOrphanRequest() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("ai-timeout"))
+            ExternalFavoriteImporter(items, articles).importPendingForSource(sourceId, 10)
+            val logger = IdentityRecordingHttpLogger()
+            val organizer = ExternalFavoriteAiOrganizer(items, articles, itemTimeoutMs = 50, generateAnalysis = {
+                delay(1_000)
+                ExternalFavoriteAiAnalysis("标题", "摘要", "正文")
+            })
+
+            organizeWithRecordingLogger(items, articles, sourceId, logger, organizer)
+
+            val requests = logger.requests.filter { it.label == "external_favorite_ai" }
+            val responses = logger.responses.filter { it.label == "external_favorite_ai" }
+            assertEquals(1, requests.size)
+            assertEquals(1, responses.size)
+            assertEquals(requests.single().requestId, responses.single().requestId)
+            assertEquals(599, responses.single().status)
+        }
+    }
+
+    @Test
+    fun aiOrganizationProviderRejectionKeepsTheRealStatusWithTheSameIdentity() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("ai-429"))
+            ExternalFavoriteImporter(items, articles).importPendingForSource(sourceId, 10)
+            val logger = IdentityRecordingHttpLogger()
+            val organizer = ExternalFavoriteAiOrganizer(items, articles, generateAnalysis = {
+                throw com.dailysatori.service.ai.AiHttpFailure(429, null)
+            })
+
+            assertFailsWith<com.dailysatori.service.ai.AiHttpFailure> {
+                organizeWithRecordingLogger(items, articles, sourceId, logger, organizer)
+            }
+
+            val requests = logger.requests.filter { it.label == "external_favorite_ai" }
+            val responses = logger.responses.filter { it.label == "external_favorite_ai" }
+            assertEquals(1, requests.size)
+            assertEquals(1, responses.size)
+            assertEquals(requests.single().requestId, responses.single().requestId)
+            assertEquals(429, responses.single().status, "a real provider status is never replaced by 200/599")
+        }
+    }
+
     @Test
     fun deferredSyncImportsWithoutRunningAiOrGlobalRepairs() = runBlocking {
         withRepositories { _, sources, items, articles ->
@@ -2375,6 +2522,7 @@ class FavoriteSyncServiceTest {
             parameters: Map<String, String>,
             requestId: String?,
             attempt: Int?,
+            kind: String?,
         ) {
             entries += "request:$taskId:$label:$method:$url:${parameters.entries.joinToString("&") { "${it.key}=${it.value}" }}"
         }
@@ -2387,6 +2535,7 @@ class FavoriteSyncServiceTest {
             body: String,
             requestId: String?,
             attempt: Int?,
+            kind: String?,
         ) {
             entries += "response:$taskId:$label:$statusCode:${headers.entries.joinToString(",") { "${it.key}=${it.value}" }}:$body"
         }

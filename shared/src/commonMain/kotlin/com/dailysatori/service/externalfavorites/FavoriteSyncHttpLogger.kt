@@ -11,6 +11,8 @@ interface FavoriteSyncHttpLogger {
         requestId: String? = null,
         /** 1 for the first send of this identity; a retried send is a new identity. */
         attempt: Int? = null,
+        /** Explicit source contract: raw HTTP (default) or a business result. */
+        kind: String? = null,
     )
 
     fun logResponse(
@@ -22,6 +24,8 @@ interface FavoriteSyncHttpLogger {
         /** Must be the same value passed to logRequest; null means the pairing is unknown. */
         requestId: String? = null,
         attempt: Int? = null,
+        /** Explicit source contract: raw HTTP (default) or a business result. */
+        kind: String? = null,
     )
 }
 
@@ -34,6 +38,7 @@ object NoopFavoriteSyncHttpLogger : FavoriteSyncHttpLogger {
         parameters: Map<String, String>,
         requestId: String?,
         attempt: Int?,
+        kind: String?,
     ) = Unit
 
     override fun logResponse(
@@ -44,5 +49,6 @@ object NoopFavoriteSyncHttpLogger : FavoriteSyncHttpLogger {
         body: String,
         requestId: String?,
         attempt: Int?,
+        kind: String?,
     ) = Unit
 }

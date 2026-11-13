@@ -9,17 +9,13 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.longOrNull
-import kotlinx.coroutines.CancellationException
 import com.dailysatori.service.diagnostics.*
 
 class RemoteNewsService(private val client: HttpClient) {
@@ -32,19 +28,37 @@ class RemoteNewsService(private val client: HttpClient) {
     suspend fun fetchArticles(config: RemoteNewsConfigValues, page: Int, perPage: Int): RemoteNewsResult<RemoteArticlesResponse> =
         request { client.get(buildUrl(config.baseUrl, "articles", page, perPage)) { bearerAuth(config.token) }.body() }
 
-    suspend fun fetchTopArticlesToday(
+    /**
+     * Reads the subscription the user configured as an RSS/Atom feed. The saved URL is requested
+     * exactly as written (query and path preserved); no JSON endpoint and no page parameters are
+     * invented. A token is optional and only sent when one is configured.
+     */
+    suspend fun fetchSourceArticles(
         config: RemoteNewsConfigValues,
-        page: Int = 1,
-        limit: Int = 50,
+        limit: Int = DEFAULT_ARTICLE_LIMIT,
     ): RemoteNewsResult<RemoteArticlesResponse> = request {
-        client.get(buildTopArticlesTodayUrl(config.baseUrl, page, limit)) {
+        val feedUrl = config.baseUrl.trim()
+        if (!feedUrl.startsWith("http://") && !feedUrl.startsWith("https://")) {
+            throw RemoteFeedFormatException("RSS 地址必须以 http:// 或 https:// 开头")
+        }
+        val body = client.get(feedUrl) {
             expectSuccess = true
-            bearerAuth(config.token)
-            header("X-Api-Token", config.token)
-        }.bodyAsText().also { body ->
-            // The business already decodes this exact text; capture is a pure side observation.
-            TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
-        }.let(::parseTopArticlesTodayResponse)
+            if (config.token.isNotBlank()) bearerAuth(config.token)
+            header(HttpHeaders.Accept, FEED_ACCEPT)
+        }.bodyAsText()
+        // The business already decodes this exact text; capture is a pure side observation.
+        TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
+        val articles = parseRemoteFeedArticles(body, feedUrl, limit)
+        RemoteArticlesResponse(
+            articles = articles,
+            pagination = RemoteNewsPagination(
+                page = 1,
+                perPage = limit,
+                total = articles.size,
+                totalPages = 1,
+                next = null,
+            ),
+        )
     }
 
     suspend fun fetchArticle(config: RemoteNewsConfigValues, id: Long): RemoteNewsResult<RemoteArticleResponse> =
@@ -61,21 +75,12 @@ class RemoteNewsService(private val client: HttpClient) {
         return builder.buildString()
     }
 
-    fun buildTopArticlesTodayUrl(baseUrl: String, page: Int = 1, limit: Int = 50): String {
-        val builder = URLBuilder(normalizeTopArticlesTodayUrl(baseUrl))
-        builder.parameters.append("page", page.toString())
-        builder.parameters.append("per_page", limit.toString())
-        builder.parameters.append("limit", limit.toString())
-        return builder.buildString()
-    }
-
     fun configOrFailure(baseUrl: String?, token: String?): RemoteNewsResult<RemoteNewsConfigValues> {
         val normalizedBaseUrl = baseUrl.orEmpty().trim()
-        val normalizedToken = token.orEmpty().trim()
-        if (normalizedBaseUrl.isBlank() || normalizedToken.isBlank()) {
-            return RemoteNewsResult.Failure("请先配置远程新闻服务")
+        if (normalizedBaseUrl.isBlank()) {
+            return RemoteNewsResult.Failure("请先配置远程新闻 RSS 地址")
         }
-        return RemoteNewsResult.Success(RemoteNewsConfigValues(normalizedBaseUrl, normalizedToken))
+        return RemoteNewsResult.Success(RemoteNewsConfigValues(normalizedBaseUrl, token.orEmpty().trim()))
     }
 
     private suspend fun <T> request(block: suspend () -> T): RemoteNewsResult<T> = try {
@@ -84,34 +89,36 @@ class RemoteNewsService(private val client: HttpClient) {
         )
         val value = kotlinx.coroutines.withContext(handle ?: kotlin.coroutines.EmptyCoroutineContext) { block() }
         RemoteNewsResult.Success(value)
+    } catch (e: RemoteFeedFormatException) {
+        RemoteNewsResult.Failure(e.message ?: "返回内容不是有效的 RSS/Atom 订阅")
     } catch (e: ClientRequestException) {
         val body = e.response.bodyAsText()
         TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
-        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "Token 无效，请检查远程新闻设置")
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: clientFailureMessage(e))
     } catch (e: ServerResponseException) {
         val body = e.response.bodyAsText()
         TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
-        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "远程新闻服务暂时不可用")
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "RSS 服务暂时不可用")
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {
-        RemoteNewsResult.Failure("无法连接远程新闻服务")
+        RemoteNewsResult.Failure("无法连接 RSS 订阅地址")
+    }
+
+    private fun clientFailureMessage(error: ClientRequestException): String = when (error.response.status.value) {
+        401, 403 -> "认证失败，请检查 RSS 地址或 Token"
+        404 -> "RSS 地址不存在，请检查远程新闻设置"
+        429 -> "请求过于频繁，请稍后重试"
+        else -> "无法获取 RSS 订阅（HTTP ${error.response.status.value}）"
+    }
+
+    private companion object {
+        const val DEFAULT_ARTICLE_LIMIT = 50
+        const val FEED_ACCEPT = "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8"
     }
 }
 
 private val remoteNewsJson = Json { ignoreUnknownKeys = true; isLenient = true }
-
-internal fun parseTopArticlesTodayResponse(body: String): RemoteArticlesResponse {
-    val root = remoteNewsJson.parseToJsonElement(body)
-    val articlesElement = topArticlesElement(root)
-    val articles = articlesElement?.asArticleArray()?.mapNotNull(::decodeTopArticle).orEmpty()
-    val pagination = (root as? JsonObject)
-        ?.get("pagination")
-        ?.let { runCatching { remoteNewsJson.decodeFromJsonElement<RemoteNewsPagination>(it) }.getOrNull() }
-        ?: RemoteNewsPagination()
-    if (articlesElement != null) return RemoteArticlesResponse(articles = articles, pagination = pagination)
-    throw IllegalArgumentException("Remote news response does not contain an articles collection")
-}
 
 internal fun parseRemoteNewsErrorMessage(body: String): String? {
     val root = runCatching { remoteNewsJson.parseToJsonElement(body) }.getOrNull() as? JsonObject ?: return null
@@ -122,68 +129,8 @@ internal fun parseRemoteNewsErrorMessage(body: String): String? {
     return nestedMessage ?: topMessage ?: directError
 }
 
-private fun topArticlesElement(root: JsonElement): JsonElement? {
-    if (root is JsonArray) return root
-    val obj = root as? JsonObject ?: return null
-    return obj["articles"]
-        ?: obj["data"]?.let { data -> if (data is JsonObject) data["articles"] else data }
-        ?: obj["top_articles"]
-        ?: obj["items"]
-        ?: obj["results"]
-}
-
-private fun JsonElement.asArticleArray(): JsonArray? = this as? JsonArray
-
-private fun decodeTopArticle(element: JsonElement): RemoteArticle? {
-    val articleElement = (element as? JsonObject)?.get("article") ?: element
-    return decodeTopArticleObject(articleElement as? JsonObject)
-        ?: runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticle>(articleElement) }.getOrNull()
-}
-
-private fun decodeTopArticleObject(obj: JsonObject?): RemoteArticle? {
-    obj ?: return null
-    val id = obj.longValue("id") ?: obj.longValue("article_id") ?: return null
-    return RemoteArticle(
-        id = id,
-        title = obj.stringValue("title") ?: obj.stringValue("headline"),
-        url = obj.stringValue("url") ?: obj.stringValue("link"),
-        summary = obj.stringValue("summary") ?: obj.stringValue("description"),
-        viewpoints = obj.stringListValue("viewpoints"),
-        status = obj.stringValue("status"),
-        sourceType = obj.stringValue("source_type") ?: obj.stringValue("sourceType"),
-        feedId = obj.longValue("feed_id") ?: obj.longValue("feedId"),
-        feedName = obj.stringValue("feed_name") ?: obj.stringValue("feedName"),
-        domain = obj.stringValue("domain"),
-        importanceScore = obj.doubleValue("importance_score") ?: obj.doubleValue("importanceScore"),
-        coverUrl = obj.stringValue("cover_url") ?: obj.stringValue("coverUrl"),
-        publishedAt = obj.stringValue("published_at") ?: obj.stringValue("publishedAt"),
-        createdAt = obj.stringValue("created_at") ?: obj.stringValue("createdAt"),
-        processedAt = obj.stringValue("processed_at") ?: obj.stringValue("processedAt"),
-        content = obj.stringValue("content"),
-    )
-}
-
 private fun JsonObject.stringValue(key: String): String? =
     (this[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
-
-private fun JsonObject.longValue(key: String): Long? {
-    val value = this[key] as? JsonPrimitive ?: return null
-    return value.longOrNull ?: value.contentOrNull?.toLongOrNull()
-}
-
-private fun JsonObject.doubleValue(key: String): Double? {
-    val value = this[key] as? JsonPrimitive ?: return null
-    return value.doubleOrNull ?: value.contentOrNull?.toDoubleOrNull()
-}
-
-private fun JsonObject.stringListValue(key: String): List<String> = when (val value = this[key]) {
-    is JsonArray -> value.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.takeIf(String::isNotBlank) }
-    is JsonPrimitive -> value.contentOrNull?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
-    else -> emptyList()
-}
-
-private fun JsonElement.hasObjectKey(key: String): Boolean =
-    (this as? JsonObject)?.containsKey(key) == true
 
 fun normalizeTopArticlesTodayUrl(value: String): String {
     val trimmed = value.trim().substringBefore('?').substringBefore('#').trimEnd('/')

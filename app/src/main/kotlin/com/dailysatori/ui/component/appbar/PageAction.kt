@@ -28,6 +28,11 @@ data class PageAction(
     val enabled: Boolean = true,
     val destructive: Boolean = false,
     val priority: PageActionPriority = PageActionPriority.Secondary,
+    /**
+     * Explicit opt-in: keep this secondary action visible in the top bar even when the page has several
+     * actions. Default false keeps the existing "share one overflow" rule for every other page.
+     */
+    val alwaysVisible: Boolean = false,
     val menuContent: (@Composable (dismiss: () -> Unit) -> Unit)? = null,
     val onClick: () -> Unit,
 ) {
@@ -43,14 +48,18 @@ fun arrangePageActions(actions: List<PageAction>): PageActionLayout {
     require(actions.none { it.priority == PageActionPriority.Primary && it.menuContent != null }) {
         "A primary action must execute directly, never open an overflow menu"
     }
-    return if (actions.size <= 1) PageActionLayout(actions, emptyList())
-    else PageActionLayout(emptyList(), actions)
+    return if (actions.size <= 1) {
+        PageActionLayout(actions, emptyList())
+    } else {
+        val direct = actions.filter { it.alwaysVisible }
+        PageActionLayout(direct, actions.filterNot { it.alwaysVisible })
+    }
 }
 
 @Composable
 fun PageActions(actions: List<PageAction>) {
     val layout = arrangePageActions(actions)
-    layout.direct.singleOrNull()?.let { action ->
+    layout.direct.forEach { action ->
         if (action.priority == PageActionPriority.Primary) {
             TextButton(onClick = action::perform, enabled = action.enabled,
                 modifier = Modifier.heightIn(min = Height.touchTarget)) { Text(action.label) }

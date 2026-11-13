@@ -6,6 +6,7 @@ import com.dailysatori.service.asynctask.*
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.*
 import kotlin.test.*
+import kotlin.test.assertIs
 
 class AssistantTurnRepositoryTest {
     private fun fixture(block: (JdbcSqliteDriver, DailySatoriDatabase, AssistantTurnRepository, AsyncTaskRepository) -> Unit) {
@@ -120,7 +121,10 @@ class AssistantTurnRepositoryTest {
             entered.await()
             val second = turns.accept("s", "b", "第二个问题", 2L, "UTC")
             turns.accept("s", "c", "未来的问题", 3L, "UTC")
-            assertEquals(AsyncTaskRunOutcome.RetryScheduled, runner.run(second.taskId))
+            // A serial owner is busy: this is a blocked dependency, not a business failure. The queued
+            // turn must still see the prior reply (asserted above) and must run after the owner ends.
+            val blocked = assertIs<AsyncTaskRunOutcome.Blocked>(runner.run(second.taskId))
+            assertEquals("serial_owner", blocked.reason)
             release.complete(Unit)
             assertEquals(AsyncTaskRunOutcome.Succeeded, running.await())
             assertEquals(AsyncTaskRunOutcome.Succeeded, runner.run(second.taskId))

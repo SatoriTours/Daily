@@ -25,6 +25,8 @@ import com.dailysatori.core.task.reminderAiParseTaskPayloadJson
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
 import com.dailysatori.service.asynctask.AsyncTaskRunner
+import com.dailysatori.service.asynctask.AsyncTaskWakeUp
+import com.dailysatori.service.asynctask.isSerialAsyncTaskType
 import com.dailysatori.service.asynctask.NoopAsyncTaskLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
@@ -39,6 +41,30 @@ class AsyncTaskScheduler(private val context: Context) {
             ExistingWorkPolicy.KEEP,
             buildAsyncTaskWorkRequest(taskId, taskType),
         )
+    }
+
+    /**
+     * One terminal notification for a finished owner. Every target gets an independent wake-up name so it
+     * can never be swallowed by a delayed or still running work of the same task; repeated notifications
+     * collapse by name and the DB lease still allows only one handler.
+     */
+    fun notifyTerminal(ownerTaskId: Long) {
+        val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val owner = repo.getById(ownerTaskId) ?: return
+        val ownerIdentity = ownerTaskId.toString() + "-" + (owner.finished_at ?: 0L)
+        val targets = LinkedHashSet<Long>()
+        targets += repo.successorIdsOf(ownerTaskId)
+        if (isSerialAsyncTaskType(owner.type)) targets += repo.pendingTaskIdsOfType(owner.type)
+        targets.remove(ownerTaskId)
+        targets.forEach { successorId ->
+            val task = repo.getById(successorId) ?: return@forEach
+            if (task.status !in repo.activeStatusNames()) return@forEach
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                asyncTaskWakeUpWorkName(successorId, ownerIdentity),
+                ExistingWorkPolicy.KEEP,
+                buildAsyncTaskWorkRequest(successorId, task.type),
+            )
+        }
     }
 
     fun enqueueRetry(taskId: Long, runAfterMs: Long) {
@@ -124,6 +150,11 @@ class GenericAsyncTaskWorker(
             repository = repo,
             registry = registry,
             logger = logStore ?: NoopAsyncTaskLogger,
+            wakeUp = object : AsyncTaskWakeUp {
+                override fun onTaskTerminal(taskId: Long) {
+                    AsyncTaskScheduler(applicationContext).notifyTerminal(taskId)
+                }
+            },
         )
         val outcome = try {
             runner.run(taskId)
@@ -139,6 +170,7 @@ class GenericAsyncTaskWorker(
                 Result.success()
             }
             AsyncTaskRunOutcome.Skipped -> Result.success()
+            is AsyncTaskRunOutcome.Blocked -> Result.retry()
             AsyncTaskRunOutcome.Failed -> {
                 if (inputData.getBoolean(KEY_CONTINUE_CHAIN_ON_FAILURE, false)) Result.success() else Result.failure()
             }
@@ -160,6 +192,9 @@ class GenericAsyncTaskWorker(
 internal fun asyncTaskWorkName(taskId: Long): String = "async-task-$taskId"
 internal fun asyncTaskWorkTag(taskId: Long): String = "async-task-id-$taskId"
 internal fun asyncTaskRetryWorkName(taskId: Long, runAfterMs: Long): String = "async-task-retry-$taskId-$runAfterMs"
+/** Independent of [asyncTaskWorkName]: a delayed or running attempt of the same task cannot swallow it. */
+internal fun asyncTaskWakeUpWorkName(successorTaskId: Long, ownerIdentity: String): String =
+    "async-task-wake-" + ownerIdentity + "-" + successorTaskId
 internal fun asyncTaskRetryDelayMs(runAfterMs: Long, nowMs: Long): Long = (runAfterMs - nowMs).coerceAtLeast(0L)
 
 internal fun buildAsyncTaskWorkRequest(

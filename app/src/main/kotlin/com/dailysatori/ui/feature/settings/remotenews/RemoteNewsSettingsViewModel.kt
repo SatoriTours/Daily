@@ -13,7 +13,6 @@ import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
-import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.Remote_news_source
 import kotlinx.coroutines.Dispatchers
@@ -123,12 +122,12 @@ class RemoteNewsSettingsViewModel(
         val form = state.value
         val editingId = form.editingId
         val name = form.name.trim()
-        val rawBaseUrl = form.baseUrl.trim()
-        val baseUrl = normalizeTopArticlesTodayUrl(rawBaseUrl)
+        // The RSS address is stored exactly as typed: a feed URL may carry its own query.
+        val baseUrl = form.baseUrl.trim()
         val token = form.token.trim()
         val enabled = form.enabled
-        if (name.isBlank() || rawBaseUrl.isBlank() || token.isBlank()) {
-            _state.update { it.copy(message = "请填写名称、URL 和 Token", isError = true) }
+        if (name.isBlank() || baseUrl.isBlank()) {
+            _state.update { it.copy(message = "请填写名称和 RSS 地址", isError = true) }
             return
         }
         if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
@@ -248,10 +247,10 @@ class RemoteNewsSettingsViewModel(
 
     fun testConnection() {
         if (state.value.busy) return
-        val baseUrl = normalizeTopArticlesTodayUrl(state.value.baseUrl.trim())
+        val baseUrl = state.value.baseUrl.trim()
         val token = state.value.token.trim()
-        if (state.value.baseUrl.isBlank() || token.isBlank()) {
-            _state.update { it.copy(message = "请先配置远程新闻服务", isError = true) }
+        if (baseUrl.isBlank()) {
+            _state.update { it.copy(message = "请先配置远程新闻 RSS 地址", isError = true) }
             return
         }
         _state.update { it.copy(isTesting = true, message = null, isError = false) }
@@ -261,7 +260,7 @@ class RemoteNewsSettingsViewModel(
                 val message = when (config) {
                     is RemoteNewsResult.Failure -> config.message to true
                     is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (
-                        val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 1)
+                        val result = remoteNewsService.fetchSourceArticles(config.value, limit = 1)
                     ) {
                         is RemoteNewsResult.Success -> "连接成功，获取到 ${result.value.articles.size} 篇文章" to false
                         is RemoteNewsResult.Failure -> result.message to true

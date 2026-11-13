@@ -1300,6 +1300,12 @@ WHERE type = :task_type
 ORDER BY CASE status WHEN 'running' THEN 0 ELSE 1 END, created_at ASC, id ASC
 LIMIT 1;
 
+selectWaitingAsyncTasksByPredecessor:
+SELECT * FROM async_task
+WHERE instr(payload_json, ?) > 0
+  AND status IN ('queued', 'retrying')
+ORDER BY created_at ASC, id ASC;
+
 selectPendingAsyncTasksByType:
 SELECT * FROM async_task
 WHERE type = ?

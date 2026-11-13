@@ -464,9 +464,8 @@ private fun RemoteNewsSourceEditorPage(
         onBack = requestBack,
         bottomBar = {
             SettingsEditorBottomBar(
-                canTest = !state.busy && state.baseUrl.isNotBlank() && state.token.isNotBlank(),
-                canSave = !state.busy && state.hasChanges && state.name.isNotBlank() &&
-                    state.baseUrl.isNotBlank() && state.token.isNotBlank(),
+                canTest = !state.busy && state.baseUrl.isNotBlank(),
+                canSave = !state.busy && state.hasChanges && state.name.isNotBlank() && state.baseUrl.isNotBlank(),
                 isTesting = state.isTesting,
                 isSaving = state.isSaving,
                 onTest = viewModel::testConnection,
@@ -495,7 +494,7 @@ private fun RemoteNewsSourceEditorPage(
                 onValueChange = viewModel::updateBaseUrl,
                 label = { Text("完整 URL") },
                 enabled = !state.busy,
-                placeholder = { Text("http://host:3000/api/v1/external/top_articles_today") },
+                placeholder = { Text("https://example.com/feed.xml") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -503,7 +502,7 @@ private fun RemoteNewsSourceEditorPage(
             OutlinedTextField(
                 value = state.token,
                 onValueChange = viewModel::updateToken,
-                label = { Text("Token") },
+                label = { Text("Token（可选）") },
                 enabled = !state.busy,
                 singleLine = true,
                 visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -550,9 +549,9 @@ private fun RemoteNewsSourceHelperCard() {
         ) {
             Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text("填写完整接口", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text("填写 RSS 订阅地址", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
-                    "URL 应指向 top_articles_today 接口，测试连接会验证 Token 并读取文章列表。",
+                    "URL 就是订阅源的完整地址（可带参数）。测试连接会读取最新文章；公开订阅无需 Token，需要鉴权时再填写。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )

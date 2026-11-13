@@ -143,6 +143,7 @@ class AsyncTaskHttpLogWriter(
         parameters: Map<String, String>,
         requestId: String?,
         attempt: Int?,
+        kind: String?,
     ) {
         val id = taskId ?: return
         if (label == "x_content_fetch_summary" && method == "SUMMARY" && url == "local://x-content-fetch") {
@@ -154,11 +155,13 @@ class AsyncTaskHttpLogWriter(
             store.append(id, "X content fetch summary " + counts.toString())
             return
         }
+        val recordKind = taskHttpRecordKind(kind)
         val safe = DiagnosticRedactor.fields(mapOf("method" to method, "url" to url))
-        store.append(id, "HTTP request " + safe.toString() + " params=[omitted]")
+        store.append(id, "HTTP request " + safe.toString() + " params=[omitted]" +
+            taskHttpLogMeta(label, requestId, attempt, recordKind))
         val handle = captureHandle(id, requestId, attempt) ?: return
         TaskHttpCapture.request(taskId = id, handle = handle, method = method, url = url,
-            headers = parameters, body = null)
+            headers = parameters, body = null, kind = recordKind)
     }
 
     override fun logResponse(
@@ -169,11 +172,14 @@ class AsyncTaskHttpLogWriter(
         body: String,
         requestId: String?,
         attempt: Int?,
+        kind: String?,
     ) {
         val id = taskId ?: return
-        store.append(id, "HTTP response status=" + statusCode + " headers=[omitted] body=[omitted]")
+        val recordKind = taskHttpRecordKind(kind)
+        store.append(id, "HTTP response status=" + statusCode + " headers=[omitted] body=[omitted]" +
+            taskHttpLogMeta(label, requestId, attempt, recordKind))
         val handle = captureHandle(id, requestId, attempt) ?: return
-        TaskHttpCapture.body(id, handle, TaskHttpDirection.RESPONSE, body, status = statusCode)
+        TaskHttpCapture.body(id, handle, TaskHttpDirection.RESPONSE, body, status = statusCode, kind = recordKind)
     }
 
     /**
@@ -187,7 +193,30 @@ class AsyncTaskHttpLogWriter(
         return TaskHttpRequestHandle(id, attempt ?: 1)
     }
 
+    /**
+     * Correlation metadata for the text log. Only well-formed opaque identifiers are written; anything
+     * else is dropped so a free-form label or id can never leak user content into the task log.
+     */
+    private fun taskHttpRecordKind(kind: String?): String =
+        if (kind == com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT) {
+            com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT
+        } else {
+            com.dailysatori.service.diagnostics.TASK_HTTP_KIND_HTTP
+        }
+
+    /** Explicit source marker; old lines have none, so consumers must not assume raw HTTP. */
+    private fun taskHttpLogMeta(label: String, requestId: String?, attempt: Int?, kind: String): String = buildString {
+        append(" kind=").append(kind)
+        if (TASK_HTTP_SAFE_LABEL.matches(label)) append(" label=").append(label)
+        if (requestId != null && TASK_HTTP_SAFE_REQUEST_ID.matches(requestId)) {
+            append(" requestId=").append(requestId)
+        }
+        if (attempt != null && attempt in 1..99) append(" attempt=").append(attempt)
+    }
+
     private companion object {
         val unpaired = java.util.concurrent.atomic.AtomicLong()
+        val TASK_HTTP_SAFE_LABEL = Regex("[a-z][a-z0-9_]{0,31}")
+        val TASK_HTTP_SAFE_REQUEST_ID = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
     }
 }

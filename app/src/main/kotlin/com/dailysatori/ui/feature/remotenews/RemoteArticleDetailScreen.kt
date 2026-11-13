@@ -284,20 +284,34 @@ internal fun remoteArticleDetailPageContent(
     original: String?,
     originalImageUrls: List<String> = emptyList(),
 ): String = when (page) {
-    0 -> remoteArticleSummaryPageContent(summary, viewpoints)
+    0 -> remoteArticleSummaryPageContent(summary, viewpoints, original, originalImageUrls)
     else -> remoteArticleOriginalPageContent(original, originalImageUrls)
 }
 
-private fun remoteArticleSummaryPageContent(summary: String?, viewpoints: List<String>): String {
+/**
+ * RSS/Atom entries usually carry only a description, which is stored as the article body. When no AI
+ * summary exists the reading area shows that local body instead of an empty state; a real summary and
+ * its viewpoints always win.
+ */
+private fun remoteArticleSummaryPageContent(
+    summary: String?,
+    viewpoints: List<String>,
+    original: String?,
+    originalImageUrls: List<String>,
+): String {
     val summaryContent = summary?.trim()?.takeIf { it.isNotBlank() }
     val viewpointContent = viewpoints
         .map { it.trim() }
         .filter { it.isNotBlank() }
         .joinToString(separator = "\n") { "- $it" }
+    val hasAiSummary = summaryContent != null || viewpointContent.isNotBlank()
+    val bodyContent = original?.trim()?.takeIf { it.isNotBlank() }
+        ?.let { remoteArticleOriginalPageContent(it, originalImageUrls) }
 
     return listOfNotNull(
         summaryContent,
         viewpointContent.takeIf { it.isNotBlank() },
+        bodyContent.takeIf { !hasAiSummary },
     ).joinToString(separator = "\n\n").ifBlank { "暂无摘要内容，请刷新当前来源后重试。" }
 }
 

@@ -244,6 +244,22 @@ class ExternalFavoriteSyncWorker(
     }
 }
 
+/**
+ * Delayed re-wake decision for a favourite sync task. Contention (blocked serial owner or a busy lease)
+ * backs off by [SERIAL_CLAIM_RETRY_DELAY_MS]; anything else falls through to the immediate wake.
+ */
+internal fun favoriteClaimWasBusy(
+    outcome: AsyncTaskRunOutcome,
+    status: String?,
+    runAfterMs: Long?,
+    nowMs: Long,
+): Boolean = when (outcome) {
+    is AsyncTaskRunOutcome.Blocked -> true
+    AsyncTaskRunOutcome.RetryScheduled ->
+        status in setOf("queued", "retrying") && (runAfterMs == null || runAfterMs <= nowMs)
+    else -> false
+}
+
 class ExternalFavoriteQueueWorker(
     appContext: Context,
     params: WorkerParameters,
@@ -268,6 +284,12 @@ class ExternalFavoriteQueueWorker(
             registry = koin.get<AsyncTaskHandlerRegistry>(),
             logger = runCatching { koin.get<AsyncTaskLogStore>() }.getOrNull()
                 ?: com.dailysatori.service.asynctask.NoopAsyncTaskLogger,
+            // Same terminal release as every other task type: favourite tasks can have successors too.
+            wakeUp = object : com.dailysatori.service.asynctask.AsyncTaskWakeUp {
+                override fun onTaskTerminal(taskId: Long) {
+                    AsyncTaskScheduler(applicationContext).notifyTerminal(taskId)
+                }
+            },
         )
         val outcome = try {
             coroutineScope {
@@ -293,13 +315,17 @@ class ExternalFavoriteQueueWorker(
         val scheduler = koin.get<ExternalFavoriteSyncScheduler>()
         val current = repository.getById(task.id)
         val currentRunAfter = current?.run_after_ms
-        val claimWasBusy = outcome == AsyncTaskRunOutcome.RetryScheduled &&
-            current?.status in setOf("queued", "retrying") &&
-            (currentRunAfter == null || currentRunAfter <= afterRun)
+        // A blocked serial claim is busy contention, not a failure: keep the original delayed re-wake so
+        // the worker cannot spin, and never re-run the owner that is still holding the serial slot.
+        val claimWasBusy = favoriteClaimWasBusy(outcome, current?.status, currentRunAfter, afterRun)
         if (claimWasBusy) {
             scheduler.wakeAfter(SERIAL_CLAIM_RETRY_DELAY_MS)
         } else if (repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, afterRun, 1).isNotEmpty()) {
             scheduler.wake()
+        }
+        if (current?.status == AsyncTaskStatus.cancelled.name) {
+            // A cancelled run is a terminal transition; its successors must not wait for a retry.
+            AsyncTaskScheduler(applicationContext).notifyTerminal(task.id)
         }
         scheduleNextRetry(repository, afterRun)
         return Result.success()

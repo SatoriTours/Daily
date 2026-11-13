@@ -25,6 +25,9 @@ internal data class TaskCenterCapturedRequest(
     val durationMs: Long?,
     val droppedBytes: Long?,
     val sseEvents: List<String>,
+    val requestedAtMs: Long? = null,
+    val respondedAtMs: Long? = null,
+    val kind: String? = null,
 )
 
 /** Decoded capture plus the number of lines the codec refused to read as records. */
@@ -75,6 +78,9 @@ private fun taskCenterProject(records: List<TaskHttpRecord>): List<TaskCenterCap
             durationMs = response?.durationMs,
             droppedBytes = request?.droppedBytes ?: response?.droppedBytes,
             sseEvents = sse,
+            requestedAtMs = request?.requestAtMs,
+            respondedAtMs = response?.responseAtMs,
+            kind = request?.kind ?: response?.kind,
         )
     }
 }
@@ -87,9 +93,17 @@ private fun taskCenterCaptureField(state: String?, body: String?): TaskCenterLog
     else -> TaskCenterLogField("", collected = false, state = state)
 }
 
-/** Request identity for display: the captured request id when known, never a guessed retry number. */
-internal fun taskCenterRequestTitle(detail: TaskCenterRequestDetail): String =
-    if (detail.requestId.isNotBlank()) "${detail.label} · ${detail.requestId}" else detail.label
+/**
+ * Honest display title: the real label, otherwise method + recorded endpoint, otherwise the caller's
+ * fallback. Opaque request ids are correlation handles and are not shown as user-facing titles.
+ */
+internal fun taskCenterRequestTitle(detail: TaskCenterRequestDetail, fallback: String): String = when {
+    detail.label.isNotBlank() -> detail.label
+    detail.method.isNotBlank() && detail.endpointLabel.isNotBlank() -> detail.method + " " + detail.endpointLabel
+    detail.endpointLabel.isNotBlank() -> detail.endpointLabel
+    detail.method.isNotBlank() -> detail.method
+    else -> fallback
+}
 
 /** Maps captured calls onto the request detail model used by the debug screens. */
 internal fun taskCenterCapturedRequestDetails(httpLog: String): List<TaskCenterRequestDetail> =
@@ -107,7 +121,7 @@ internal fun taskCenterCapturedRequestDetails(
             }
             .orEmpty()
         TaskCenterRequestDetail(
-            label = capturedRequest.label.ifBlank { capturedRequest.requestId },
+            label = capturedRequest.label,
             attemptNumber = capturedRequest.attempt,
             requestId = capturedRequest.requestId.takeIf { it != "unpaired" }.orEmpty(),
             method = capturedRequest.method,
@@ -127,8 +141,12 @@ internal fun taskCenterCapturedRequestDetails(
                 capturedRequest.responseBody
             },
             errorLines = emptyList(),
-            requestedAtMs = null,
-            respondedAtMs = null,
+            requestedAtMs = capturedRequest.requestedAtMs,
+            respondedAtMs = capturedRequest.respondedAtMs,
             durationMsOverride = capturedRequest.durationMs,
+            attemptKnown = true,
+            associationUnknown = capturedRequest.status.isBlank(),
+            source = taskCenterRecordSource(capturedRequest.kind),
+            fromCapture = true,
         )
     }

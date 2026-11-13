@@ -13,12 +13,19 @@ data class TaskCenterSourceNames(
     val favorites: Map<Long, String> = emptyMap(),
 )
 
+internal fun taskCenterTaskName(type: String): String = asyncTaskTypeDisplayName(type)
+
 internal fun taskCenterTaskTitle(type: String, payload: String, sources: TaskCenterSourceNames): String {
-    val title = asyncTaskTypeDisplayName(type)
+    val title = taskCenterTaskName(type)
+    return taskCenterTaskSource(type, payload, sources)?.let { "$title · $it" } ?: title
+}
+
+/** The compact source line a task detail shows under its name; null when the task has no source. */
+internal fun taskCenterTaskSource(type: String, payload: String, sources: TaskCenterSourceNames): String? {
     val sourceId = runCatching {
         Json.parseToJsonElement(payload).jsonObject["sourceId"]?.jsonPrimitive?.longOrNull
     }.getOrNull()
-    val sourceName = when (type) {
+    return when (type) {
         AsyncTaskType.remote_article_sync.name -> sourceId?.let {
             sources.remote[it]?.takeIf(String::isNotBlank) ?: "新闻源 #$it"
         } ?: sources.enabledRemote.values.joinToString("、").ifBlank { "全部已启用新闻源" }
@@ -29,7 +36,6 @@ internal fun taskCenterTaskTitle(type: String, payload: String, sources: TaskCen
         }
         else -> null
     }
-    return sourceName?.let { "$title · $it" } ?: title
 }
 
 internal fun taskCenterFavoriteSourceName(provider: String, displayName: String, accountName: String): String {

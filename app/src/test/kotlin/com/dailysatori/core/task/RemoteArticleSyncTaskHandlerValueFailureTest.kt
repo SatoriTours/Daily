@@ -72,7 +72,7 @@ class RemoteArticleSyncTaskHandlerValueFailureTest {
             var requests = 0
             HttpClient(MockEngine {
                 requests++
-                respond("""{"articles":[]}""", HttpStatusCode.OK)
+                respond("""<rss version="2.0"><channel><title>来源一</title></channel></rss>""", HttpStatusCode.OK)
             }).use { http ->
                 val handler = RemoteArticleSyncTaskHandler(
                     sourceRepo = sources,

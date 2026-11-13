@@ -120,6 +120,51 @@ class TaskHttpCaptureTest {
     }
 
     @Test
+    fun captureRecordsCarryRealEventTimesAndOldRecordsDecodeAsNull() {
+        var now = 1_000L
+        val sink = RecordingSink()
+        val capture = session(sink) { now }
+        capture.arm(30L, "news")
+        val handle = assertNotNull(capture.openRequest(30L))
+        capture.request(30L, handle, "GET", "https://api.example.com/v1/items")
+        now = 2_500L
+        capture.bodyRecord(30L, handle, TaskHttpDirection.RESPONSE, "body")
+
+        val requestRecord = sink.records.first().third
+        val responseRecord = sink.records.last().third
+        assertEquals(1_000L, requestRecord.requestAtMs)
+        assertNull(requestRecord.responseAtMs)
+        assertEquals(2_500L, responseRecord.responseAtMs)
+
+        val encoded = TaskHttpRecordCodec.encode(responseRecord, taskId = 30L, label = "news")
+        val decoded = assertNotNull(TaskHttpRecordCodec.decode(encoded))
+        assertEquals(2_500L, decoded.responseAtMs)
+        assertNull(decoded.requestAtMs)
+
+        val oldLine = """{"schema":2,"taskId":30,"requestId":"r","attempt":1,"direction":"RESPONSE","bodyState":"CAPTURED","headers":{}}"""
+        val old = assertNotNull(TaskHttpRecordCodec.decode(oldLine))
+        assertNull(old.requestAtMs, "records written before the time fields stay honestly unknown")
+        assertNull(old.responseAtMs)
+    }
+
+    @Test
+    fun recordSourceKindRoundTripsAndOldRecordsDecodeAsUnknown() {
+        val business = TaskHttpRecord(
+            requestId = "req-biz",
+            attempt = 1,
+            direction = TaskHttpDirection.REQUEST,
+            method = "POST",
+            url = "https://api.example.com/v1/chat/completions",
+            bodyState = TASK_HTTP_NOT_CAPTURED,
+            kind = TASK_HTTP_KIND_BUSINESS_RESULT,
+        )
+        val decoded = assertNotNull(TaskHttpRecordCodec.decode(TaskHttpRecordCodec.encode(business)))
+        assertEquals(TASK_HTTP_KIND_BUSINESS_RESULT, decoded.kind)
+        val oldLine = """{"schema":2,"taskId":1,"requestId":"r","attempt":1,"direction":"REQUEST","bodyState":"NOT_CAPTURED","headers":{}}"""
+        assertNull(assertNotNull(TaskHttpRecordCodec.decode(oldLine)).kind, "old records carry no source")
+    }
+
+    @Test
     fun aFollowUpExecutionInheritsTheArmOnlyFromAnArmedSession() {
         val sink = RecordingSink()
         val capture = session(sink)

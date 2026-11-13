@@ -1,6 +1,5 @@
 package com.dailysatori.service.remotenews
 
-import kotlinx.serialization.json.Json
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -16,253 +15,100 @@ import kotlin.test.assertFailsWith
 
 class RemoteNewsServiceTest {
     @Test
-    fun topArticlesRequestMatchesDocumentedContract(): Unit = runBlocking {
+    fun requestsTheExactConfiguredFeedUrlIncludingQuery(): Unit = runBlocking {
         val service = RemoteNewsService(HttpClient(MockEngine { request ->
-            assertEquals("/api/v1/external/top_articles_today", request.url.encodedPath)
-            assertEquals("2", request.url.parameters["page"])
-            assertEquals("25", request.url.parameters["per_page"])
-            assertEquals("25", request.url.parameters["limit"])
-            assertEquals("Bearer contract-token", request.headers[HttpHeaders.Authorization])
-            assertEquals("contract-token", request.headers["X-Api-Token"])
-            respond(
-                content = """{"articles":[{"id":123,"title":"Contract article","url":"https://example.com/a","summary":"摘要","content":"# 正文"}],"pagination":{"page":2,"per_page":25,"next":3}}""",
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, "application/json"),
-            )
+            assertEquals(FEED_URL, request.url.toString())
+            assertEquals("category=tech&limit=30", request.url.encodedQuery)
+            assertEquals(null, request.url.parameters["page"])
+            assertEquals(null, request.url.parameters["per_page"])
+            respond(feed(), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/rss+xml"))
         }))
 
-        val result = service.fetchTopArticlesToday(
-            RemoteNewsConfigValues("https://news.example.com", "contract-token"),
-            page = 2,
-            limit = 25,
-        )
+        val result = service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, ""))
 
         assertTrue(result is RemoteNewsResult.Success)
-        assertEquals(123, result.value.articles.single().id)
-        assertEquals(3, result.value.pagination.next)
+        assertEquals(listOf("第一篇", "第二篇"), result.value.articles.map { it.title })
     }
 
     @Test
-    fun documentedHttpErrorsPreserveServerMessage(): Unit = runBlocking {
-        val cases = listOf(
-            HttpStatusCode.Unauthorized to "Invalid token",
-            HttpStatusCode.TooManyRequests to "Rate limit reached",
-            HttpStatusCode.ServiceUnavailable to "Service temporarily unavailable",
-        )
-        cases.forEach { (status, message) ->
-            val service = RemoteNewsService(HttpClient(MockEngine {
-                respond(
-                    content = """{"error":{"code":"failed","message":"$message"}}""",
-                    status = status,
-                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                )
-            }))
+    fun plainFeedWithoutTokenSendsNoAuthorizationHeader(): Unit = runBlocking {
+        val service = RemoteNewsService(HttpClient(MockEngine { request ->
+            assertEquals(null, request.headers[HttpHeaders.Authorization])
+            respond(feed(), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/rss+xml"))
+        }))
 
-            assertEquals(
-                RemoteNewsResult.Failure(message),
-                service.fetchTopArticlesToday(RemoteNewsConfigValues("https://news.example.com", "token")),
-            )
+        val result = service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, ""))
+        assertTrue(result is RemoteNewsResult.Success)
+    }
+
+    @Test
+    fun optionalTokenIsStillSentAsBearerForPrivateFeeds(): Unit = runBlocking {
+        val service = RemoteNewsService(HttpClient(MockEngine { request ->
+            assertEquals("Bearer private-token", request.headers[HttpHeaders.Authorization])
+            respond(feed(), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/rss+xml"))
+        }))
+
+        val result = service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, "private-token"))
+        assertTrue(result is RemoteNewsResult.Success)
+    }
+
+    @Test
+    fun emptyFeedIsSuccessfulButUnusableBodyIsAFailure(): Unit = runBlocking {
+        val service = RemoteNewsService(HttpClient(MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/empty" -> respond(
+                    """<rss version="2.0"><channel><title>空</title></channel></rss>""",
+                    HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "application/rss+xml"),
+                )
+                else -> respond("<html><body>登录页面</body></html>", HttpStatusCode.OK,
+                    headersOf(HttpHeaders.ContentType, "text/html"))
+            }
+        }))
+
+        val empty = service.fetchSourceArticles(RemoteNewsConfigValues("https://feed.example/empty", ""))
+        assertTrue(empty is RemoteNewsResult.Success)
+        assertEquals(emptyList(), empty.value.articles)
+
+        val invalid = service.fetchSourceArticles(RemoteNewsConfigValues("https://feed.example/html", ""))
+        assertTrue(invalid is RemoteNewsResult.Failure)
+        assertTrue(invalid.message.isNotBlank())
+    }
+
+    @Test
+    fun httpErrorsExplainTheFeedProblem(): Unit = runBlocking {
+        val cases = mapOf(
+            HttpStatusCode.NotFound to "地址不存在",
+            HttpStatusCode.Unauthorized to "认证失败",
+            HttpStatusCode.TooManyRequests to "过于频繁",
+        )
+        cases.forEach { (status, expected) ->
+            val service = RemoteNewsService(HttpClient(MockEngine { respond("", status) }))
+            val result = service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, ""))
+            assertTrue(result is RemoteNewsResult.Failure)
+            assertTrue(result.message.contains(expected), "HTTP " + status.value + " message was " + result.message)
         }
     }
 
     @Test
-    fun emptySuccessfulResponseDoesNotPoisonTheNextRefresh(): Unit = runBlocking {
-        var requestCount = 0
-        val service = RemoteNewsService(HttpClient(MockEngine {
-            requestCount += 1
-            val body = if (requestCount == 1) {
-                """{"articles":[],"pagination":{"page":1,"per_page":50,"total":0,"total_pages":0,"next":null}}"""
-            } else {
-                """{"articles":[{"id":321,"title":"Recovered","url":"https://example.com/recovered","summary":"摘要","content":"正文"}]}"""
-            }
-            respond(
-                content = body,
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, "application/json"),
-            )
-        }))
-        val config = RemoteNewsConfigValues("https://news.example.com", "token")
+    fun configurationOnlyRequiresAFeedUrl(): Unit {
+        val service = RemoteNewsService(HttpClient(MockEngine { error("no request expected") }))
 
-        val empty = service.fetchTopArticlesToday(config)
-        val recovered = service.fetchTopArticlesToday(config)
-
-        assertTrue(empty is RemoteNewsResult.Success)
-        assertEquals(emptyList(), empty.value.articles)
-        assertTrue(recovered is RemoteNewsResult.Success)
-        assertEquals(321, recovered.value.articles.single().id)
+        val withoutToken = service.configOrFailure("https://feed.example/rss", "")
+        assertTrue(withoutToken is RemoteNewsResult.Success)
+        val nullToken = service.configOrFailure("https://feed.example/rss", null)
+        assertTrue(nullToken is RemoteNewsResult.Success)
+        val blankUrl = service.configOrFailure(" ", "token")
+        assertTrue(blankUrl is RemoteNewsResult.Failure)
     }
 
     @Test
     fun requestDoesNotSwallowCoroutineCancellation(): Unit = runBlocking {
         val service = RemoteNewsService(HttpClient(MockEngine { throw CancellationException("cancelled") }))
         assertFailsWith<CancellationException> {
-            service.fetchTopArticlesToday(RemoteNewsConfigValues("https://example.com", "token"))
+            service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, "token"))
         }
         Unit
-    }
-
-    @Test
-    fun rejectsUnrecognizedSuccessfulEnvelopeInsteadOfTreatingItAsEmpty() {
-        assertFailsWith<IllegalArgumentException> {
-            parseTopArticlesTodayResponse("""{"ok":true,"message":"ready"}""")
-        }
-        assertFailsWith<IllegalArgumentException> {
-            parseTopArticlesTodayResponse("""{"data":{"ok":true}}""")
-        }
-    }
-
-    @Test
-    fun acceptsRecognizedEmptyArticlesEnvelope() {
-        assertEquals(emptyList(), parseTopArticlesTodayResponse("""{"articles":[]}""").articles)
-    }
-
-    @Test
-    fun parsesTopArticlesTodayWhenApiReturnsDataArray() {
-        val response = parseTopArticlesTodayResponse(
-            """
-            {
-              "data": [
-                {"id": 1, "title": "First", "url": "https://example.com/first"}
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(1, response.articles.size)
-        assertEquals("First", response.articles.first().title)
-    }
-
-    @Test
-    fun parsesTopArticlesTodayWhenApiWrapsArticleItems() {
-        val response = parseTopArticlesTodayResponse(
-            """
-            {
-              "top_articles": [
-                {"score": 99, "article": {"id": 2, "title": "Wrapped", "url": "https://example.com/wrapped"}}
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(1, response.articles.size)
-        assertEquals("Wrapped", response.articles.first().title)
-    }
-
-    @Test
-    fun parsesTopArticlesTodayWhenArticleIdIsNumericString() {
-        val response = parseTopArticlesTodayResponse(
-            """
-            {
-              "data": {
-                "articles": [
-                  {"article_id": "46", "title": "String id", "url": "https://example.com/string-id"}
-                ]
-              }
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(1, response.articles.size)
-        assertEquals(46, response.articles.first().id)
-        assertEquals("String id", response.articles.first().title)
-    }
-
-    @Test
-    fun parsesTopArticlesTodayWhenViewpointsIsNull() {
-        val response = parseTopArticlesTodayResponse(
-            """
-            {
-              "articles": [
-                {
-                  "id": 9935,
-                  "title": "claude-code",
-                  "url": "https://github.com/anthropics/claude-code",
-                  "summary": "Claude Code is an agentic coding tool.",
-                  "viewpoints": null,
-                  "content": "",
-                  "domain": "github.com",
-                  "importance_score": 9.88026,
-                  "cover_url": null,
-                  "created_at": "2026-05-29T11:04:12Z",
-                  "processed_at": "2026-05-29T11:04:12.317756353Z",
-                  "SourceName": ""
-                }
-              ],
-              "pagination": {"next": 2, "page": 1, "per_page": 50, "total": 1043, "total_pages": 21}
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(1, response.articles.size)
-        assertEquals(9935, response.articles.first().id)
-        assertEquals(emptyList(), response.articles.first().viewpoints)
-        assertEquals(2, response.pagination.next)
-    }
-
-    @Test
-    fun parsesPublishedAtFromTopArticlesToday() {
-        val response = parseTopArticlesTodayResponse(
-            """
-            {
-              "articles": [
-                {
-                  "id": 100,
-                  "title": "Published article",
-                  "url": "https://example.com/published",
-                  "published_at": "2026-05-28T06:30:00Z",
-                  "created_at": "2026-05-29T11:04:12Z",
-                  "processed_at": "2026-05-29T12:04:12Z"
-                }
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals("2026-05-28T06:30:00Z", response.articles.first().publishedAt)
-    }
-
-    @Test
-    fun parsesAliasFieldsWhenStandardArticlesContainerDecodesSuccessfully() {
-        val response = parseTopArticlesTodayResponse(
-            """
-            {
-              "articles": [
-                {
-                  "id": 101,
-                  "title": "Alias article",
-                  "url": "https://example.com/alias",
-                  "feedName": "Alias Feed",
-                  "importanceScore": 8.5,
-                  "coverUrl": "https://example.com/cover.jpg",
-                  "publishedAt": "2026-05-28T06:30:00Z"
-                }
-              ]
-            }
-            """.trimIndent(),
-        )
-
-        val article = response.articles.first()
-        assertEquals("Alias Feed", article.feedName)
-        assertEquals(8.5, article.importanceScore)
-        assertEquals("https://example.com/cover.jpg", article.coverUrl)
-        assertEquals("2026-05-28T06:30:00Z", article.publishedAt)
-    }
-
-    @Test
-    fun decodesRemoteArticlesResponseWhenViewpointsIsNull() {
-        val response = Json { ignoreUnknownKeys = true; isLenient = true }.decodeFromString<RemoteArticlesResponse>(
-            """
-            {
-              "articles": [
-                {"id": 9935, "title": "claude-code", "viewpoints": null}
-              ],
-              "pagination": {"page": 1}
-            }
-            """.trimIndent(),
-        )
-
-        assertEquals(1, response.articles.size)
-        assertEquals(emptyList(), response.articles.first().viewpoints)
     }
 
     @Test
@@ -306,5 +152,19 @@ class RemoteNewsServiceTest {
         assertTrue(doc.contains("## 内容、时间与图片规范"))
         assertTrue(doc.contains("`published_at` 表示原文实际发表时间"))
         assertTrue(doc.contains("不要用 `404` 表示今天没有新闻"))
+        assertTrue(doc.contains("## RSS / Atom 订阅"))
+    }
+
+    private companion object {
+        const val FEED_URL = "https://news.example.com/feed/rss?category=tech&limit=30"
+
+        fun feed() = """
+            <rss version="2.0"><channel><title>远程新闻</title>
+              <item><title>第一篇</title><link>https://news.example.com/1</link>
+                <description>摘要一</description><pubDate>Tue, 12 Nov 2026 08:00:00 GMT</pubDate></item>
+              <item><title>第二篇</title><link>https://news.example.com/2</link>
+                <description>摘要二</description><pubDate>Tue, 12 Nov 2026 07:00:00 GMT</pubDate></item>
+            </channel></rss>
+        """.trimIndent()
     }
 }

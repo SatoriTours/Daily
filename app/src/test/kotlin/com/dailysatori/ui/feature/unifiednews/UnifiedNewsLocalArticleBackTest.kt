@@ -56,7 +56,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("fun openSourceArticle(article: RemoteArticle)"))
         assertTrue(source.contains("remoteArticleSyncRepo.observeArticlesBySource(id, limit + 1)"))
         assertTrue(source.contains("remoteArticleSyncRepo.getArticlesBySource("))
-        assertTrue(source.contains("remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)"))
+        assertTrue(source.contains("remoteNewsService.fetchSourceArticles(config.value, limit = 50)"))
         assertTrue(source.contains("remoteArticleSyncService.readLocalArticle"))
         assertTrue(source.contains("UnifiedNewsNavigationTarget.LocalArticle(local.id)"))
         assertTrue(source.contains("import java.util.concurrent.atomic.AtomicLong"))

@@ -44,10 +44,10 @@ class XContentFetchBudgetTest {
         var paid = 0
         val summaries = mutableListOf<Map<String, String>>()
         val logger = object : FavoriteSyncHttpLogger {
-            override fun logRequest(taskId: Long?, label: String, method: String, url: String, parameters: Map<String, String>, requestId: String?, attempt: Int?) {
+            override fun logRequest(taskId: Long?, label: String, method: String, url: String, parameters: Map<String, String>, requestId: String?, attempt: Int?, kind: String?) {
                 if (label == "x_content_fetch_summary") summaries += parameters
             }
-            override fun logResponse(taskId: Long?, label: String, statusCode: Int, headers: Map<String, String>, body: String, requestId: String?, attempt: Int?) {}
+            override fun logResponse(taskId: Long?, label: String, statusCode: Int, headers: Map<String, String>, body: String, requestId: String?, attempt: Int?, kind: String?) {}
         }
         HttpClient(MockEngine { request ->
             if (request.url.host == "api.fxtwitter.com") {

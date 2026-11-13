@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -61,12 +62,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
-private const val REQUEST_PAGE_SIZE = 20
+private const val ROUND_EVENT_LIMIT = 8
 
 @Composable
 internal fun TaskCenterTaskDetail(
     task: Async_task,
     title: String,
+    source: String?,
     taskLog: String,
     failureSuperseded: Boolean,
     needsAttention: Boolean,
@@ -78,72 +80,40 @@ internal fun TaskCenterTaskDetail(
     captureState: TaskHttpCaptureState,
     onArmCapture: () -> Unit,
     onDisarmCapture: () -> Unit,
+    onOpenLog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val i18n: I18nService = koinInject()
     val copy = taskCenterCopy()
-    val strings = copy.strings
+    var showHistory by remember(task.id) { mutableStateOf(false) }
     var showDiagnostics by remember(task.id) { mutableStateOf(false) }
-    var requestLimit by remember(task.id) { mutableStateOf(REQUEST_PAGE_SIZE) }
-    var details by remember(task.id) { mutableStateOf(emptyList<TaskCenterRequestDetail>()) }
-    var detailsLoading by remember(task.id) { mutableStateOf(true) }
-    var unreadableLines by remember(task.id) { mutableStateOf(0) }
-    var openRequest by remember(task.id) { mutableStateOf<TaskCenterRequestDetail?>(null) }
-    val events = remember(taskLog) { taskCenterLifecycleEvents(taskLog, strings) }
-    LaunchedEffect(taskLog, httpLog, task.id) {
-        detailsLoading = true
-        val loaded = withContext(Dispatchers.Default) {
-            val capture = taskCenterCaptureRead(httpLog)
-            val projected = if (capture.requests.isNotEmpty()) {
-                taskCenterCapturedRequestDetails(capture.requests)
-            } else {
-                taskCenterRequestDetails(taskLog)
-            }
-            projected to capture.unreadableLines
-        }
-        details = loaded.first
-        unreadableLines = loaded.second
-        detailsLoading = false
+    val events = remember(taskLog, copy) { taskCenterLifecycleEvents(taskLog, copy.strings) }
+    val rounds = remember(events) { taskCenterLifecycleRounds(events) }
+    val earlierRounds = rounds.dropLast(1)
+    val currentEvents = rounds.lastOrNull()?.events.orEmpty().asReversed().take(ROUND_EVENT_LIMIT)
+    val counts = remember(task.type, task.checkpoint_json) {
+        taskCenterOutcomeCounts(task.type, task.checkpoint_json)
     }
-
-    openRequest?.let { detail ->
-        TaskCenterRequestScreen(
-            task = task,
-            detail = detail,
-            attempts = details,
-            onOpenAttempt = { openRequest = it },
-            onClose = { openRequest = null },
-        )
-    }
+    val recordCount = remember(httpLog) { taskCenterCaptureRead(httpLog).requests.size }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = Spacing.xl),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
-        item(key = "task-header") {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.xs),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    TaskCenterStatusPill(task.status)
-                    Text(
-                        "#${task.id} · ${asyncTaskStatusDisplayName(task.status)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(title, style = MaterialTheme.typography.titleLarge)
-                Text(
-                    "#${task.id} · ${taskCenterWhenText(task.created_at, copy)} · " +
-                        copy.detailLastUpdate + " " + taskCenterWhenText(task.updated_at, copy),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        item(key = "task-header") { TaskCenterDetailHeader(task, title, source, counts) }
+        item(key = "task-round-title") { TaskCenterSectionHeader(copy.detailRoundTitle, copy.detailRoundNewest) }
+        if (currentEvents.isEmpty()) {
+            item(key = "task-round-empty") { TaskCenterNote(copy.detailRoundEmpty) }
+        } else {
+            itemsIndexed(currentEvents, key = { index, _ -> "task-round-event-$index" }) { index, event ->
+                TaskCenterRoundEventRow(event, newest = index == 0)
             }
         }
-        item(key = "task-status-card") { TaskCenterStatusCard(task) }
+        item(key = "task-history") {
+            TaskCenterHistoryCard(earlierRounds, expanded = showHistory) { showHistory = !showHistory }
+        }
+        item(key = "task-open-log") { TaskCenterNavRow(copy.detailOpenLog, copy.detailOpenLogHint, onOpenLog) }
         if (needsAttention && task.status == AsyncTaskStatus.failed.name) {
             item(key = "task-attention") {
                 Column(Modifier.padding(horizontal = Spacing.m)) {
@@ -181,72 +151,14 @@ internal fun TaskCenterTaskDetail(
                 }
             }
         }
-        item(key = "task-timeline-title") { TaskCenterSectionTitle(copy.detailTimeline) }
-        if (events.isEmpty()) {
-            item(key = "task-timeline-empty") { TaskCenterNote(copy.detailTimelineEmpty) }
-        } else {
-            itemsIndexed(events, key = { index, _ -> "task-event-${index}" }) { index, event ->
-                TaskCenterTimelineRow(event = event, last = index == events.lastIndex)
-            }
-        }
-        item(key = "task-timing") { TaskCenterTimingRows(task) }
         item(key = "task-capture") {
             TaskCenterCaptureCard(
                 task = task,
                 captureState = captureState,
-                recordCount = taskCenterCaptureRead(httpLog).requests.size,
+                recordCount = recordCount,
                 onArm = onArmCapture,
                 onDisarm = onDisarmCapture,
             )
-        }
-        item(key = "task-requests-title") {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TaskCenterSectionTitle(copy.detailRequests, modifier = Modifier.weight(1f))
-                if (unreadableLines > 0) {
-                    Text(
-                        String.format(copy.unreadableLines, unreadableLines),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (details.isNotEmpty()) {
-                    Text(
-                        String.format(copy.detailRequestsCount, details.size),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-        if (detailsLoading) {
-            item(key = "task-requests-loading") { TaskCenterNote(copy.detailRequestsLoading) }
-        } else if (details.isEmpty()) {
-            item(key = "task-requests-empty") {
-                TaskCenterNote(
-                    when (taskCenterRequestEmptyKind(taskLog)) {
-                        TaskCenterRequestEmptyKind.NoLog -> copy.requestsEmptyLog
-                        TaskCenterRequestEmptyKind.NoHttpLines -> copy.requestsEmptyNoCapture
-                    },
-                )
-            }
-        } else {
-            val visible = details.take(requestLimit)
-            itemsIndexed(visible, key = { index, _ -> "task-request-${index}" }) { _, detail ->
-                TaskCenterRequestRow(detail) { openRequest = detail }
-            }
-            if (details.size > visible.size) {
-                item(key = "task-requests-more") {
-                    TextButton(
-                        onClick = { requestLimit += REQUEST_PAGE_SIZE },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
-                    ) {
-                        Text(String.format(copy.detailRequestsMore, visible.size, details.size))
-                    }
-                }
-            }
         }
         item(key = "task-export") { TaskCenterExportAction(task) }
         item(key = "task-diagnostics-toggle") {
@@ -261,6 +173,9 @@ internal fun TaskCenterTaskDetail(
             }
         }
         if (showDiagnostics) {
+            item(key = "task-timing") {
+                Column(Modifier.padding(horizontal = Spacing.m)) { TaskCenterTimingRows(task) }
+            }
             item(key = "task-payload") {
                 Column(Modifier.padding(horizontal = Spacing.m)) {
                     TaskCenterPayloadViewer(
@@ -325,79 +240,112 @@ internal fun TaskCenterTaskDetail(
 }
 
 @Composable
-private fun TaskCenterStatusCard(task: Async_task) {
+private fun TaskCenterDetailHeader(
+    task: Async_task,
+    title: String,
+    source: String?,
+    counts: TaskCenterOutcomeCounts?,
+) {
     val copy = taskCenterCopy()
-    val text = taskCenterRowText(
-        AsyncTaskListItem(
-            id = task.id,
-            type = task.type,
-            status = task.status,
-            progressCurrent = task.progress_current,
-            progressTotal = task.progress_total,
-            progressMessage = task.progress_message,
-            checkpointJson = task.checkpoint_json,
-            createdAt = task.created_at,
-            startedAt = task.started_at,
-            finishedAt = task.finished_at,
-            updatedAt = task.updated_at,
-            lastErrorMessage = task.last_error_message,
-            runAfterMs = task.run_after_ms,
-            attemptCount = task.attempt_count,
-            payloadJson = task.payload_json,
-        ),
-        copy.strings,
-    )
-    Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+    val meta = listOfNotNull(source?.takeIf { it.isNotBlank() }, "#${task.id}").joinToString(" · ")
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-        ) {
-            // Header carries the task name; the status card leads with the state so the current
-            // stage is not printed twice (headline + summary both showing the progress message).
+        Text(title, style = MaterialTheme.typography.headlineSmall, softWrap = true)
+        Text(meta, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            TaskCenterStatusPill(task.status)
             Text(
-                when (task.status) {
-                    AsyncTaskStatus.failed.name, AsyncTaskStatus.retrying.name ->
-                        text.headline.ifBlank { asyncTaskStatusDisplayName(task.status) }
-                    else -> asyncTaskStatusDisplayName(task.status)
-                },
-                style = MaterialTheme.typography.titleMedium,
+                String.format(copy.detailUpdated, taskCenterWhenText(task.updated_at, copy)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            val detail = taskCenterExecutionSummary(task, copy.strings)
-            if (detail.isNotBlank()) {
-                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        val total = task.progress_total
+        if (total > 0L) {
+            val current = task.progress_current.coerceIn(0L, total)
+            val percent = (current * 100L / total).toInt()
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text("$current", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    String.format(copy.detailProgressProcessed, total),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = Spacing.xxs),
+                )
+                Text(
+                    "$percent%",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f),
+                )
             }
-            val extra = text.detail.takeIf { it.isNotBlank() && it != detail }
-            if (extra != null) {
-                Text(extra, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TaskCenterProgressBar(fraction = current.toFloat() / total.toFloat())
+        }
+        if (counts != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                Text(
+                    String.format(copy.detailStatsSucceeded, counts.succeeded),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    String.format(copy.detailStatsFailed, counts.failed),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (counts.failed > 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    String.format(copy.detailStatsDeferred, counts.deferred),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TaskCenterTimelineRow(event: TaskCenterLifecycleEvent, last: Boolean) {
+private fun TaskCenterProgressBar(fraction: Float) {
+    Box(
+        Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(Radius.xxs))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Box(
+            Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(6.dp)
+                .clip(RoundedCornerShape(Radius.xxs)).background(MaterialTheme.colorScheme.primary),
+        )
+    }
+}
+
+@Composable
+private fun TaskCenterSectionHeader(title: String, trailing: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        Text(trailing, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun TaskCenterRoundEventRow(event: TaskCenterLifecycleEvent, newest: Boolean) {
     val copy = taskCenterCopy()
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.xxs),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         Box(
-            Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(
-                    if (last) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                ),
+            Modifier.padding(top = 6.dp).size(8.dp).clip(CircleShape)
+                .background(if (newest) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
         )
         Text(
             event.summary,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (last) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (newest) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Text(
@@ -405,6 +353,87 @@ private fun TaskCenterTimelineRow(event: TaskCenterLifecycleEvent, last: Boolean
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun TaskCenterHistoryCard(
+    rounds: List<TaskCenterLifecycleRound>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val copy = taskCenterCopy()
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m).clickable(onClick = onToggle),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Text(copy.detailHistoryTitle, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (rounds.isEmpty()) copy.detailHistoryNone else String.format(copy.detailHistoryCount, rounds.size),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (rounds.isNotEmpty()) {
+                    Text(
+                        if (expanded) "⌃" else "›",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (expanded && rounds.isNotEmpty()) {
+                rounds.asReversed().forEach { round -> TaskCenterHistoryRoundRow(round) }
+                Text(
+                    copy.detailHistoryNote,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskCenterHistoryRoundRow(round: TaskCenterLifecycleRound) {
+    val copy = taskCenterCopy()
+    val start = taskCenterTimestampText(round.startMs, copy.strings, includeSeconds = false)
+    val end = taskCenterTimestampText(round.endMs, copy.strings, includeSeconds = false)
+    val range = if (round.endMs != null && round.endMs != round.startMs) {
+        String.format(copy.detailRoundRange, start, end)
+    } else {
+        start
+    }
+    val outcome = round.events.lastOrNull()
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+        Text(range, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            outcome?.summary ?: copy.unknown,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (outcome?.abnormal == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun TaskCenterNavRow(title: String, hint: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = Spacing.m, vertical = Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -462,7 +491,7 @@ private fun TaskCenterSectionTitle(title: String, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun TaskCenterNote(text: String) {
+internal fun TaskCenterNote(text: String) {
     Surface(
         shape = RoundedCornerShape(Radius.s),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -505,55 +534,20 @@ private fun TaskCenterCodeBlock(text: String) {
 }
 
 @Composable
-private fun TaskCenterRequestRow(detail: TaskCenterRequestDetail, onOpen: () -> Unit) {
+internal fun TaskCenterRequestOutcomePill(detail: TaskCenterRequestDetail) {
     val copy = taskCenterCopy()
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(horizontal = Spacing.m, vertical = Spacing.s),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xxs),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(
-                taskCenterRequestTitle(detail),
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TaskCenterResponseBadge(detail)
+    val sourceCopy = taskCenterSourceCopy()
+    val view = taskCenterSourceView(detail, sourceCopy)
+    val (label, color) = when (detail.source) {
+        TaskCenterRecordSource.BusinessResult ->
+            if (detail.httpOk == true) sourceCopy.businessSucceeded to MaterialTheme.colorScheme.primary
+            else sourceCopy.businessFailed to MaterialTheme.colorScheme.error
+        TaskCenterRecordSource.Unknown -> sourceCopy.unknownBadge to MaterialTheme.colorScheme.onSurfaceVariant
+        TaskCenterRecordSource.Http -> when {
+            view.statusIsError -> view.status to MaterialTheme.colorScheme.error
+            detail.httpOk == true -> view.status to MaterialTheme.colorScheme.primary
+            else -> view.status to MaterialTheme.colorScheme.onSurfaceVariant
         }
-        Text(
-            listOfNotNull(
-                detail.method.takeIf { it.isNotBlank() },
-                detail.baseUrl.takeIf { it.isNotBlank() },
-            ).joinToString(" "),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            buildString {
-                append(detail.durationLabel(copy.strings))
-                detail.requestedAtMs?.let { append(" · " + taskCenterTimestampText(it, copy.strings, includeSeconds = true)) }
-                if (detail.responseIncomplete) append(" · " + copy.badgeInterrupted)
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = if (detail.responseIncomplete) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun TaskCenterResponseBadge(detail: TaskCenterRequestDetail) {
-    val copy = taskCenterCopy()
-    val (label, color) = when {
-        detail.httpOk == false -> String.format(copy.responseFailed, detail.responseStatus) to MaterialTheme.colorScheme.error
-        detail.responseIncomplete -> copy.badgeInterrupted to MaterialTheme.colorScheme.error
-        detail.httpOk == true -> String.format(copy.responseOk, detail.responseStatus) to MaterialTheme.colorScheme.primary
-        else -> copy.badgeNoResponse to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(
         label,
@@ -568,7 +562,7 @@ private fun TaskCenterResponseBadge(detail: TaskCenterRequestDetail) {
 private enum class RequestTab { Request, Response, ErrorTiming }
 
 @Composable
-private fun TaskCenterRequestScreen(
+internal fun TaskCenterRequestScreen(
     task: Async_task,
     detail: TaskCenterRequestDetail,
     attempts: List<TaskCenterRequestDetail>,
@@ -577,6 +571,8 @@ private fun TaskCenterRequestScreen(
 ) {
     val copy = taskCenterCopy()
     val strings = copy.strings
+    val sourceCopy = taskCenterSourceCopy()
+    val sourceView = remember(detail, sourceCopy) { taskCenterSourceView(detail, sourceCopy) }
     var tab by remember(detail) { mutableStateOf(RequestTab.Request) }
     val clipboard = LocalClipboardManager.current
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -588,36 +584,37 @@ private fun TaskCenterRequestScreen(
                 ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
                         Text(
-                            taskCenterRequestTitle(detail),
+                            taskCenterRequestTitle(detail, copy.requestFallbackTitle),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            "#${task.id} · ${detail.method} ${detail.baseUrl}",
+                            "#" + task.id + " · " + listOf(detail.method, detail.endpointLabel)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" "),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            buildString {
-                                append(
-                                    if (detail.responseIncomplete) {
-                                        String.format(copy.responseIncomplete, detail.responseStatus.ifBlank { copy.responseMissing })
-                                    } else if (detail.httpOk == false) {
-                                        String.format(copy.responseFailed, detail.responseStatus)
-                                    } else {
-                                        String.format(copy.responseOk, detail.responseStatus.ifBlank { copy.responseMissing })
-                                    },
-                                )
-                                append(" · " + detail.durationLabel(strings))
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (detail.httpOk == false || detail.responseIncomplete) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Text(
+                                sourceView.badge,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(Radius.s))
+                                    .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                            )
+                            Text(
+                                buildString {
+                                    append(sourceView.status)
+                                    sourceView.attempt?.let { append(" · " + it) }
+                                    detail.durationMs?.let { append(" · " + taskCenterDurationText(it, strings)) }
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (sourceView.statusIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     TextButton(onClick = onClose) { Text(copy.close) }
                 }
@@ -628,8 +625,8 @@ private fun TaskCenterRequestScreen(
                     RequestTab.entries.forEach { value ->
                         val label = when (value) {
                             RequestTab.Request -> copy.requestTabRequest
-                            RequestTab.Response -> copy.requestTabResponse
-                            RequestTab.ErrorTiming -> copy.requestTabError
+                            RequestTab.Response -> sourceView.responseTab
+                            RequestTab.ErrorTiming -> sourceView.errorTab
                         }
                         Column(
                             modifier = Modifier
@@ -663,19 +660,26 @@ private fun TaskCenterRequestScreen(
                 ) {
                     when (tab) {
                         RequestTab.Request -> {
+                            item { TaskCenterRequestInfoCard(task, detail, sourceCopy, sourceView) }
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(copy.requestAddress, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                                        TextButton(onClick = { clipboard.setText(AnnotatedString(detail.fullUrl)) }) {
+                                        TextButton(
+                                            enabled = detail.fullUrl.isNotBlank(),
+                                            onClick = { clipboard.setText(AnnotatedString(taskCenterRedactSensitive(detail.fullUrl))) },
+                                        ) {
                                             Text(copy.requestCopyUrl)
                                         }
                                     }
                                     TaskCenterCodeBlock(
-                                        if (detail.fullUrl.isBlank()) {
-                                            detail.method.ifBlank { "GET" } + " · " + copy.missingUrl
-                                        } else {
-                                            "${detail.method.ifBlank { "GET" }} ${detail.fullUrl}"
+                                        when {
+                                            detail.fullUrl.isNotBlank() ->
+                                                listOf(detail.method, detail.fullUrl).filter { it.isNotBlank() }.joinToString(" ")
+                                            detail.endpointLabel.isNotBlank() ->
+                                                listOf(detail.method, detail.endpointLabel).filter { it.isNotBlank() }.joinToString(" ") +
+                                                    " · " + copy.requestUrlUnrecorded
+                                            else -> listOf(detail.method, copy.missingUrl).filter { it.isNotBlank() }.joinToString(" · ")
                                         },
                                     )
                                 }
@@ -690,7 +694,7 @@ private fun TaskCenterRequestScreen(
                             }
                             item {
                                 TaskCenterPayloadViewer(
-                                    title = copy.requestBody,
+                                    title = sourceView.requestBodyTitle,
                                     body = detail.requestBody.text,
                                     emptyText = copy.requestHeadersAbsent,
                                     uncollectedText = copy.viewerNotCollectedNote,
@@ -707,19 +711,15 @@ private fun TaskCenterRequestScreen(
                                     }
                                 }
                             }
+                            item { TaskCenterFullJsonSection(detail) }
                         }
                         RequestTab.Response -> {
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                     Text(
-                                        when {
-                                            detail.responseIncomplete -> copy.responseIncompleteTitle
-                                            detail.httpOk == false -> String.format(copy.responseFailed, detail.responseStatus)
-                                            detail.httpOk == true -> String.format(copy.responseOk, detail.responseStatus)
-                                            else -> copy.responseMissing
-                                        },
+                                        sourceView.status,
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = if (detail.httpOk == false || detail.responseIncomplete) {
+                                        color = if (sourceView.statusIsError) {
                                             MaterialTheme.colorScheme.error
                                         } else {
                                             MaterialTheme.colorScheme.onSurface
@@ -773,7 +773,7 @@ private fun TaskCenterRequestScreen(
                             } else {
                                 item {
                                     TaskCenterPayloadViewer(
-                                        title = copy.responseBody,
+                                        title = sourceView.responseBodyTitle,
                                         body = detail.responseBody.text,
                                         emptyText = copy.responseHeadersAbsent,
                                         uncollectedText = copy.viewerNotCollectedNote,
@@ -785,7 +785,12 @@ private fun TaskCenterRequestScreen(
                                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                                     OutlinedButton(
                                         onClick = {
-                                            clipboard.setText(AnnotatedString(taskCenterRedactSensitive(detail.responseBody.text)))
+                                            clipboard.setText(
+                                                AnnotatedString(
+                                                    "# source=" + taskCenterSourceKey(detail.source) + "\n" +
+                                                        taskCenterRedactSensitive(detail.responseBody.text),
+                                                ),
+                                            )
                                         },
                                     ) {
                                         Text(copy.responseCopy)
@@ -803,7 +808,7 @@ private fun TaskCenterRequestScreen(
                         RequestTab.ErrorTiming -> {
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                                    Text(copy.detailError, style = MaterialTheme.typography.titleSmall)
+                                    Text(sourceView.errorTitle, style = MaterialTheme.typography.titleSmall)
                                     val error = listOf(task.last_error_code, task.last_error_message)
                                         .filter { it.isNotBlank() }
                                         .joinToString("\n")
@@ -822,23 +827,26 @@ private fun TaskCenterRequestScreen(
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                     Text(copy.errorTiming, style = MaterialTheme.typography.titleSmall)
                                     TaskCenterKeyValueRow(copy.detailQueuedAt, taskCenterTimestampText(task.created_at, strings, includeSeconds = true))
-                                    TaskCenterKeyValueRow(copy.errorRequestedAt, taskCenterTimestampText(detail.requestedAtMs, strings, includeSeconds = true))
-                                    TaskCenterKeyValueRow(copy.errorRespondedAt, taskCenterTimestampText(detail.respondedAtMs, strings, includeSeconds = true))
-                                    TaskCenterKeyValueRow(copy.errorNetworkTime, detail.durationLabel(strings))
-                                    val queued = detail.requestedAtMs?.let { it - task.created_at }
-                                    TaskCenterKeyValueRow(
-                                        copy.errorQueueTime,
-                                        if (queued != null && queued >= 0) taskCenterDurationText(queued, strings) else strings.unknown,
-                                    )
+                                    TaskCenterKeyValueRow(sourceView.startedLabel, taskCenterTimestampText(detail.requestedAtMs, strings, includeSeconds = true))
+                                    TaskCenterKeyValueRow(sourceView.finishedLabel, taskCenterTimestampText(detail.respondedAtMs, strings, includeSeconds = true))
+                                    TaskCenterKeyValueRow(sourceView.durationLabel, detail.durationLabel(strings))
+                                    if (detail.source == TaskCenterRecordSource.Http) {
+                                        val queued = detail.requestedAtMs?.let { it - task.created_at }
+                                        TaskCenterKeyValueRow(
+                                            copy.errorQueueTime,
+                                            if (queued != null && queued >= 0) taskCenterDurationText(queued, strings) else strings.unknown,
+                                        )
+                                    }
                                 }
                             }
-                            val others = attempts.filter { it !== detail && it.label == detail.label }
+                            // Retry links require the same explicit request id; a blank label/id is never a link.
+                            val others = taskCenterRelatedAttempts(detail, attempts)
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                     Text(copy.errorOtherAttempts, style = MaterialTheme.typography.titleSmall)
                                     if (others.isEmpty()) {
                                         Text(
-                                            copy.errorOtherAttemptsEmpty,
+                                            if (detail.requestId.isBlank()) copy.errorOtherAttemptsNoId else copy.errorOtherAttemptsEmpty,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -852,7 +860,7 @@ private fun TaskCenterRequestScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
                                                 Text(
-                                                    taskCenterRequestTitle(other) + " · " +
+                                                    taskCenterRequestTitle(other, copy.requestFallbackTitle) + " · " +
                                                         taskCenterTimestampText(other.requestedAtMs, strings, includeSeconds = true) +
                                                         " · " + other.responseStatus.ifBlank { copy.responseMissing } +
                                                         " · " + other.durationLabel(strings),
@@ -878,6 +886,78 @@ private fun TaskCenterRequestScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TaskCenterRequestInfoCard(
+    task: Async_task,
+    detail: TaskCenterRequestDetail,
+    sourceCopy: TaskCenterSourceCopy,
+    view: TaskCenterSourceView,
+) {
+    val copy = taskCenterCopy()
+    val strings = copy.strings
+    val started = detail.requestedAtMs?.let { taskCenterTimestampText(it, strings, includeSeconds = true) }
+        ?: copy.requestNotRecorded
+    val finished = detail.respondedAtMs?.let { taskCenterTimestampText(it, strings, includeSeconds = true) }
+        ?: copy.requestNotRecorded
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(copy.requestCallInfo, style = MaterialTheme.typography.titleSmall)
+            TaskCenterKeyValueRow(sourceCopy.sourceLabel, view.badge)
+            TaskCenterKeyValueRow(copy.requestStatus, view.status)
+            TaskCenterKeyValueRow(
+                view.durationLabel,
+                detail.durationMs?.let { taskCenterDurationText(it, strings) } ?: copy.requestNotRecorded,
+            )
+            TaskCenterKeyValueRow(view.startedLabel, started)
+            TaskCenterKeyValueRow(view.finishedLabel, finished)
+            TaskCenterKeyValueRow(
+                copy.requestEndpoint,
+                listOf(detail.method, detail.endpointLabel.ifBlank { copy.missingUrl })
+                    .filter { it.isNotBlank() }
+                    .joinToString(" "),
+            )
+            TaskCenterKeyValueRow(copy.requestModel, taskCenterRequestModel(detail) ?: copy.requestNotRecorded)
+            TaskCenterKeyValueRow(copy.requestTask, "#${task.id} · ${taskCenterTaskName(task.type)}")
+            Text(
+                view.hint,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TaskCenterFullJsonSection(detail: TaskCenterRequestDetail) {
+    val copy = taskCenterCopy()
+    var expanded by remember(detail) { mutableStateOf(false) }
+    val body = remember(detail) { taskCenterRequestFullJson(detail) }
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(copy.requestFullJson, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(if (expanded) copy.detailCollapse else copy.detailExpand)
+            }
+        }
+        if (expanded) {
+            TaskCenterPayloadViewer(
+                title = taskCenterRequestTitle(detail, copy.requestFallbackTitle),
+                body = body,
+                emptyText = copy.requestHeadersAbsent,
+                uncollectedText = copy.viewerNotCollectedNote,
+                maxHeight = 360.dp,
+            )
         }
     }
 }
@@ -924,7 +1004,8 @@ private fun TaskCenterPairSection(title: String, rows: List<Pair<String, String>
 }
 
 internal fun taskCenterRequestCopyText(detail: TaskCenterRequestDetail): String = buildString {
-    append("${detail.method.ifBlank { "GET" }} ${taskCenterRedactSensitive(detail.fullUrl)}\n")
+    append("# source=" + taskCenterSourceKey(detail.source) + "\n")
+    append(listOf(detail.method, taskCenterRedactSensitive(detail.fullUrl)).filter { it.isNotBlank() }.joinToString(" ") + "\n")
     detail.requestHeaders.forEach { (key, value) ->
         append("${taskCenterRedactSensitive(key)}: ${taskCenterRedactSensitive(value)}\n")
     }
@@ -936,7 +1017,8 @@ internal fun taskCenterRequestCopyText(detail: TaskCenterRequestDetail): String 
 
 internal fun taskCenterDiagnosticText(task: Async_task, detail: TaskCenterRequestDetail, copy: TaskCenterCopy): String = buildString {
     appendLine("#${task.id} ${task.type} ${task.status}")
-    appendLine("${detail.method} ${taskCenterRedactSensitive(detail.fullUrl)}")
+    appendLine("source=" + taskCenterSourceKey(detail.source) + " fromCapture=" + detail.fromCapture)
+    appendLine(listOf(detail.method, taskCenterRedactSensitive(detail.fullUrl)).filter { it.isNotBlank() }.joinToString(" "))
     appendLine("${detail.responseStatus.ifBlank { copy.responseMissing }} · ${detail.durationLabel(copy.strings)}")
     if (task.last_error_code.isNotBlank() || task.last_error_message.isNotBlank()) {
         appendLine("${task.last_error_code} ${task.last_error_message}")

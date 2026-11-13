@@ -96,7 +96,7 @@ class RemoteArticleSyncTaskHandler(
         sourceDate: String,
         now: Long,
     ): SourceFetch = when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-        is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
+        is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchSourceArticles(config.value, limit = 50)) {
             is RemoteNewsResult.Success -> {
                 val sync = remoteArticleSyncService.syncSourceArticles(source.id, sourceDate, result.value.articles, now)
                 SourceFetch(1, sync.inserted, sync.updated, sync.skipped,

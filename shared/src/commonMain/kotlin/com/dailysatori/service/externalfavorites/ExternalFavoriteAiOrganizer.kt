@@ -180,21 +180,41 @@ class ExternalFavoriteAiOrganizer(
         Unit
     }
 
+    /**
+     * Identity of one logical AI organization call. Its request log line and its single outcome line
+     * share id + attempt; internal transport retries are separate HTTP sends and are never renumbered
+     * here, and a cancelled call writes no outcome so its request stays honestly unlinked.
+     */
+    private class ExternalFavoriteAiCall(val requestId: String, val attempt: Int = 1) {
+        var requestLogged = false
+    }
+
     private suspend fun analyzeItemWithTimeout(
         entry: ExternalFavoriteAiWork,
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
-    ): ExternalFavoriteAiResult = com.dailysatori.service.ai.withAiRequestSession {
-        try {
-            withTimeoutOrNull(itemTimeoutMs.coerceAtLeast(1)) {
-                analyzeItem(entry, httpLogger, taskId)
-            } ?: ExternalFavoriteAiResult(entry.item, entry.article, null, null, IllegalStateException("单条收藏整理超时，已跳过，可稍后重试"))
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            if (error is com.dailysatori.service.ai.AiHttpFailure && error.status in setOf(400, 401, 403, 404, 429)) throw error
-            logAiFailure(httpLogger, taskId, entry.item, error)
-            ExternalFavoriteAiResult(entry.item, entry.article, null, null, error)
+    ): ExternalFavoriteAiResult {
+        // One logical AI call per favorite: the request and its single outcome line share this id.
+        val call = ExternalFavoriteAiCall(requestId = com.dailysatori.service.diagnostics.DiagnosticLog.newId())
+        return com.dailysatori.service.ai.withAiRequestSession {
+            try {
+                withTimeoutOrNull(itemTimeoutMs.coerceAtLeast(1)) {
+                    analyzeItem(entry, httpLogger, taskId, call)
+                } ?: run {
+                    val timeout = IllegalStateException("单条收藏整理超时，已跳过，可稍后重试")
+                    logAiFailure(httpLogger, taskId, entry.item, timeout, call)
+                    ExternalFavoriteAiResult(entry.item, entry.article, null, null, timeout)
+                }
+            } catch (error: CancellationException) {
+                // A cancelled call writes no outcome: the request line stays honestly unlinked.
+                throw error
+            } catch (error: Exception) {
+                // Real provider status when known; 599 only for failures that have no HTTP status at all.
+                val realStatus = (error as? com.dailysatori.service.ai.AiHttpFailure)?.status
+                logAiFailure(httpLogger, taskId, entry.item, error, call, statusCode = realStatus ?: 599)
+                if (realStatus in setOf(400, 401, 403, 404, 429)) throw error
+                ExternalFavoriteAiResult(entry.item, entry.article, null, null, error)
+            }
         }
     }
 
@@ -202,13 +222,14 @@ class ExternalFavoriteAiOrganizer(
         entry: ExternalFavoriteAiWork,
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
+        call: ExternalFavoriteAiCall,
     ): ExternalFavoriteAiResult {
         val item = entry.item
         val input = item.toAiInput().withSupplementIfNeeded(item, httpLogger, taskId)
         if (favoriteRefreshIsUnchanged(item, input.supplementTitle ?: input.title, input.supplementText ?: input.text)) {
             return ExternalFavoriteAiResult(item, entry.article, input, null, null, unchangedRefresh = true)
         }
-        logAiRequest(httpLogger, taskId, item, input, aiRequestLogConfig())
+        logAiRequest(httpLogger, taskId, item, input, aiRequestLogConfig(), call)
         val analysis = retryTransientFailure(
             maxAttempts = AI_MAX_ATTEMPTS,
             initialDelayMs = retryDelayMs,
@@ -220,7 +241,7 @@ class ExternalFavoriteAiOrganizer(
             }
             generated
         }
-        logAiResponse(httpLogger, taskId, item, analysis)
+        logAiResponse(httpLogger, taskId, item, analysis, call)
         return ExternalFavoriteAiResult(item, entry.article, input, analysis, null)
     }
 
@@ -264,6 +285,7 @@ class ExternalFavoriteAiOrganizer(
         item: External_favorite_item,
         input: ExternalFavoriteAiInput,
         logConfig: ExternalFavoriteAiLogConfig,
+        call: ExternalFavoriteAiCall,
     ) {
         httpLogger.logRequest(
             taskId = taskId,
@@ -278,7 +300,11 @@ class ExternalFavoriteAiOrganizer(
                 put("title", input.title)
                 put("body", input.toPromptContent())
             },
+            requestId = call.requestId,
+            attempt = call.attempt,
+            kind = com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT,
         )
+        call.requestLogged = true
     }
 
     private fun aiRequestLogConfig(): ExternalFavoriteAiLogConfig {
@@ -296,6 +322,7 @@ class ExternalFavoriteAiOrganizer(
         taskId: Long?,
         item: External_favorite_item,
         analysis: ExternalFavoriteAiAnalysis,
+        call: ExternalFavoriteAiCall,
     ) {
         httpLogger.logResponse(
             taskId = taskId,
@@ -303,21 +330,31 @@ class ExternalFavoriteAiOrganizer(
             statusCode = 200,
             headers = mapOf("externalId" to item.external_id),
             body = """{"title":${jsonString(analysis.title)},"summary":${jsonString(analysis.summary)},"markdown":${jsonString(analysis.markdown)}}""",
+            requestId = call.requestId,
+            attempt = call.attempt,
+            kind = com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT,
         )
     }
 
+    /** Writes the outcome only when this call really logged a request, so no orphan response appears. */
     private fun logAiFailure(
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
         item: External_favorite_item,
         error: Throwable,
+        call: ExternalFavoriteAiCall,
+        statusCode: Int = 599,
     ) {
+        if (!call.requestLogged) return
         httpLogger.logResponse(
             taskId = taskId,
             label = "external_favorite_ai",
-            statusCode = 599,
+            statusCode = statusCode,
             headers = mapOf("externalId" to item.external_id),
             body = error.message.orEmpty().ifBlank { "External favorite AI organization failed." },
+            requestId = call.requestId,
+            attempt = call.attempt,
+            kind = com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT,
         )
     }
 

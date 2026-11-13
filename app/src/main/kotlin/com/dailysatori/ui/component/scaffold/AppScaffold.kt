@@ -33,6 +33,8 @@ fun AppScaffold(
     floatingActionButtonPosition: FabPosition = FabPosition.End,
     isMainPage: Boolean = false,
     subtitle: String? = null,
+    /** Explicit opt-in for pages that need the action space; default keeps the assistant entry. */
+    showAssistant: Boolean = true,
     showHeaderDivider: Boolean = true,
     content: @Composable (Modifier) -> Unit,
 ) {
@@ -62,6 +64,7 @@ fun AppScaffold(
                     onMyNavigationClick = onMyNavigationClick,
                     pageActions = pageActions,
                     search = search,
+                    showAssistant = showAssistant,
                 )
             }
         },

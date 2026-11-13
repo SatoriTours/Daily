@@ -995,11 +995,11 @@ class XBookmarksConnectorTest {
         val calls = mutableListOf<Pair<String, String?>>()
         val logger = object : FavoriteSyncHttpLogger {
             override fun logRequest(taskId: Long?, label: String, method: String, url: String,
-                parameters: Map<String, String>, requestId: String?, attempt: Int?) {
+                parameters: Map<String, String>, requestId: String?, attempt: Int?, kind: String?) {
                 calls += "request:$label" to requestId
             }
             override fun logResponse(taskId: Long?, label: String, statusCode: Int,
-                headers: Map<String, String>, body: String, requestId: String?, attempt: Int?) {
+                headers: Map<String, String>, body: String, requestId: String?, attempt: Int?, kind: String?) {
                 calls += "response:$label" to requestId
             }
         }
@@ -1059,6 +1059,7 @@ class XBookmarksConnectorTest {
             parameters: Map<String, String>,
             requestId: String?,
             attempt: Int?,
+            kind: String?,
         ) {
             entries += "request:$taskId:$label:$method:$url:${parameters.entries.joinToString("&") { "${it.key}=${it.value}" }}"
         }
@@ -1071,6 +1072,7 @@ class XBookmarksConnectorTest {
             body: String,
             requestId: String?,
             attempt: Int?,
+            kind: String?,
         ) {
             entries += "response:$taskId:$label:$statusCode:$body"
         }

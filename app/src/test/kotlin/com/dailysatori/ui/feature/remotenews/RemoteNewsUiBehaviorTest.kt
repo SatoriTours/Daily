@@ -110,6 +110,24 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
+    fun remoteArticleDetailFallsBackToFeedBodyWhenNoAiSummaryExists() {
+        // RSS entries have no AI summary: the reading area shows the stored feed body instead of an empty state.
+        assertEquals(
+            "RSS 正文",
+            remoteArticleDetailPageContent(page = 0, summary = null, viewpoints = emptyList(), original = "RSS 正文"),
+        )
+
+        val withSummary = remoteArticleDetailPageContent(
+            page = 0,
+            summary = "AI 摘要",
+            viewpoints = listOf("观点"),
+            original = "RSS 正文",
+        )
+        assertTrue(withSummary.contains("AI 摘要"))
+        assertFalse(withSummary.contains("RSS 正文"))
+    }
+
+    @Test
     fun remoteArticleFavoriteLookupIncludesUrlLessFallback() {
         val repository = File(
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
@@ -140,7 +158,7 @@ class RemoteNewsUiBehaviorTest {
 
         assertTrue(repository.contains("fun saveRemoteArticleForSync("))
         assertTrue(loadBody.contains("remoteNewsSourceRepo.getEnabled().firstOrNull()"))
-        assertTrue(loadBody.contains("remoteNewsService.fetchTopArticlesToday(sourceConfig.value, page = 1, limit = 50)"))
+        assertTrue(loadBody.contains("remoteNewsService.fetchSourceArticles(sourceConfig.value, limit = 50)"))
         assertTrue(loadBody.contains("remoteArticleSyncService.syncSourceArticles("))
         assertTrue(loadBody.contains("remoteArticleSyncRepo.getArticlesBySourceDate(source.id, remoteNewsArticleSourceDate())"))
         assertTrue(repository.contains("fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article?"))

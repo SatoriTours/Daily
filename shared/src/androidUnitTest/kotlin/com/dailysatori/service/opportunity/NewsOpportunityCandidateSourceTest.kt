@@ -53,15 +53,21 @@ class NewsOpportunityCandidateSourceTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
         val database = DailySatoriDatabase(driver)
-        database.dailySatoriQueries.insertRemoteNewsSource("测试源", "https://news.test", "test-token", 1, 1, 1)
-        database.dailySatoriQueries.insertRemoteNewsSource("禁用源", "https://disabled.test", "test-token", 0, 1, 1)
+        database.dailySatoriQueries.insertRemoteNewsSource("测试源", "https://news.test/feed.xml", "test-token", 1, 1, 1)
+        database.dailySatoriQueries.insertRemoteNewsSource("禁用源", "https://disabled.test/feed.xml", "test-token", 0, 1, 1)
         val fixture = Fixture(database)
         val client = HttpClient(MockEngine { request ->
             fixture.requests++
             assertEquals("news.test", request.url.host)
-            assertEquals("/api/v1/external/top_articles_today", request.url.encodedPath)
-            if (fixture.fail) respond("{}", HttpStatusCode.ServiceUnavailable) else respond(
-                """{"articles":[{"id":1,"title":"远程文章","url":"https://article.test/a#part","content":"原文正文","summary":"摘要"}]}""",
+            assertEquals("/feed.xml", request.url.encodedPath)
+            if (fixture.fail) respond("", HttpStatusCode.ServiceUnavailable) else respond(
+                """
+                <rss version="2.0"><channel><title>测试源</title>
+                  <item><title>远程文章</title><link>https://article.test/a#part</link>
+                    <guid>tag:article.test,2026:a</guid>
+                    <description><![CDATA[<p>原文正文</p>]]></description></item>
+                </channel></rss>
+                """.trimIndent(),
                 HttpStatusCode.OK,
             )
         })

@@ -2,6 +2,8 @@ package com.dailysatori.ui.feature.settings.taskcenter
 
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.asynctask.asyncTaskStatusDisplayName
+import com.dailysatori.service.diagnostics.TASK_HTTP_KIND_BUSINESS_RESULT
+import com.dailysatori.service.diagnostics.TASK_HTTP_KIND_HTTP
 import com.dailysatori.shared.db.Async_task
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -74,58 +76,108 @@ internal data class TaskCenterLogField(
     }
 }
 
+internal const val TASK_HTTP_ROUTE_OMITTED = "[dynamic-path-omitted]"
+
+/**
+ * One text-log HTTP record. The real writer stores `HTTP request {method=…, service=…, route=…}`;
+ * older logs used `[label] METHOD url`. A response is paired only by an explicit requestId + attempt,
+ * never by label or by list order.
+ */
 internal data class TaskCenterHttpLogEntry(
     val label: String,
     val request: String,
     val response: String,
+    val paired: Boolean = false,
 ) {
-    private val requestDetail: String
+    private val requestHead: String
         get() = taskCenterLogLineBody(request.lines().firstOrNull().orEmpty())
-            .substringAfter("] ", missingDelimiterValue = "")
+
+    private val responseHead: String
+        get() = taskCenterLogLineBody(response.lines().firstOrNull().orEmpty())
 
     private val requestMap: Map<String, String>
-        get() {
-            val head = taskCenterLogLineBody(request.lines().firstOrNull().orEmpty())
-            if (!head.contains("HTTP request {")) return emptyMap()
-            return head.substringAfter("HTTP request {").substringBefore("}", "")
-                .split(',')
-                .mapNotNull { part ->
-                    val key = part.substringBefore('=', "").trim()
-                    if (key.isBlank()) null else key to part.substringAfter('=', "").trim()
-                }
-                .toMap()
-        }
+        get() = taskCenterHttpRequestMap(requestHead)
 
-    private val responseMeta: String
-        get() = response.substringBefore(" body=", missingDelimiterValue = response)
+    private val requestLegacy: String
+        get() = if (requestHead.startsWith("HTTP request [")) requestHead.substringAfter("] ", "") else ""
 
-    val requestMethod: String
-        get() = requestMap["method"] ?: requestDetail.substringBefore(" ", missingDelimiterValue = "").trim()
-
-    val requestUrl: String
-        get() = requestMap["url"] ?: requestDetail
-            .substringAfter(" ", missingDelimiterValue = "")
-            .substringBefore(" params=", missingDelimiterValue = requestDetail.substringAfter(" ", missingDelimiterValue = ""))
-            .trim()
-
-    val requestParams: String
+    private val requestParamsText: String
         get() = request.substringAfter(" params=", missingDelimiterValue = "")
             .substringBefore('\n')
+            .substringBefore(" label=")
+            .substringBefore(" requestId=")
+            .substringBefore(" attempt=")
             .trim()
 
+    val requestMethod: String
+        get() = requestMap["method"] ?: requestLegacy.substringBefore(" ", missingDelimiterValue = "").trim()
+
+    val requestUrl: String
+        get() = requestMap["url"] ?: requestLegacy
+            .substringAfter(" ", missingDelimiterValue = "")
+            .substringBefore(" params=", missingDelimiterValue = requestLegacy.substringAfter(" ", missingDelimiterValue = ""))
+            .trim()
+
+    val service: String
+        get() = requestMap["service"] ?: ""
+
+    val route: String
+        get() = requestMap["route"] ?: ""
+
+    val requestParams: String
+        get() = requestParamsText
+
     val requestParamRows: List<Pair<String, String>>
-        get() = taskCenterKeyValueRows(requestParams)
+        get() = taskCenterKeyValueRows(requestParamsText)
+
+    /** Explicit identity written next to the line; empty for older logs, which are never guessed. */
+    val requestId: String
+        get() = taskCenterHttpMetaValue(requestHead, "requestId")
+            .ifBlank { taskCenterHttpMetaValue(responseHead, "requestId") }
+
+    val attempt: Int?
+        get() = taskCenterHttpMetaValue(requestHead, "attempt").toIntOrNull()
+            ?: taskCenterHttpMetaValue(responseHead, "attempt").toIntOrNull()
+
+    /** Explicit source marker; old lines have none and stay unknown. */
+    val kind: String?
+        get() = taskCenterHttpMetaValue(requestHead, "kind").ifBlank {
+            taskCenterHttpMetaValue(responseHead, "kind")
+        }.ifBlank { null }
+
+    val source: TaskCenterRecordSource
+        get() = taskCenterRecordSource(kind)
+
+    val identity: String
+        get() = if (requestId.isNotBlank() && attempt != null) requestId + "#" + attempt else ""
+
+    val requestAtMs: Long?
+        get() = taskCenterLogLineInstant(request)?.toEpochMilliseconds()
+
+    val responseAtMs: Long?
+        get() = taskCenterLogLineInstant(response)?.toEpochMilliseconds()
 
     val responseStatus: String
-        get() = responseMeta.substringAfter("status=", missingDelimiterValue = "").substringBefore(" headers=").trim()
+        get() = responseHead.substringAfter("status=", missingDelimiterValue = "")
+            .substringBefore(" headers=")
+            .substringBefore(" body=")
+            .trim()
 
     val responseHeaders: String
-        get() = responseMeta.substringAfter(" headers=", missingDelimiterValue = "").trim()
+        get() = responseHead.substringAfter(" headers=", missingDelimiterValue = "")
+            .substringBefore(" body=")
+            .trim()
 
     val responseBody: String
-        get() = response.substringAfter(" body=", missingDelimiterValue = "").trim()
+        get() = response.substringAfter(" body=", missingDelimiterValue = "")
+            .substringBefore('\n')
+            .substringBefore(" label=")
+            .substringBefore(" requestId=")
+            .substringBefore(" attempt=")
+            .trim()
 
-    fun durationLabel(strings: TaskCenterStrings): String = taskCenterStepDurationText(request, response, strings)
+    fun durationLabel(strings: TaskCenterStrings): String =
+        if (paired) taskCenterStepDurationText(request, response, strings) else strings.unknown
 
     fun formattedResponse(): String {
         val body = responseBody
@@ -135,6 +187,63 @@ internal data class TaskCenterHttpLogEntry(
     }
 
     fun formattedResponseBody(): String = taskCenterFormatJson(responseBody)
+}
+
+private val TASK_HTTP_META_REQUEST_ID =
+    Regex("""^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}""")
+private val TASK_HTTP_META_LABEL = Regex("""^[a-z][a-z0-9_]{0,31}""")
+private val TASK_HTTP_META_PATTERNS = mapOf(
+    "requestId" to Regex("""(?:^|\s)requestId=([^\s]+)"""),
+    "label" to Regex("""(?:^|\s)label=([^\s]+)"""),
+    "attempt" to Regex("""(?:^|\s)attempt=([^\s]+)"""),
+    "kind" to Regex("""(?:^|\s)kind=([^\s]+)"""),
+)
+
+private fun taskCenterHttpMetaValue(line: String, key: String): String {
+    val value = TASK_HTTP_META_PATTERNS[key]?.find(line)?.groupValues?.getOrNull(1) ?: return ""
+    return when (key) {
+        "requestId" -> value.takeIf { TASK_HTTP_META_REQUEST_ID.matches(it) } ?: ""
+        "label" -> value.takeIf { TASK_HTTP_META_LABEL.matches(it) } ?: ""
+        "attempt" -> value.takeIf { it.toIntOrNull() != null } ?: ""
+        "kind" -> value.takeIf { it == TASK_HTTP_KIND_HTTP || it == TASK_HTTP_KIND_BUSINESS_RESULT } ?: ""
+        else -> value
+    }
+}
+
+private fun taskCenterHttpRequestMap(head: String): Map<String, String> {
+    if (!head.contains("HTTP request {")) return emptyMap()
+    val body = head.substringAfter("HTTP request {").substringBefore("}", "")
+    return buildMap {
+        Regex("""method=([A-Z]+)""").find(body)?.groupValues?.getOrNull(1)?.let { put("method", it) }
+        Regex("""url=([^,}]+)""").find(body)?.groupValues?.getOrNull(1)?.trim()?.let { put("url", it) }
+        Regex("""service=([^,}\s]+)""").find(body)?.groupValues?.getOrNull(1)?.trim()?.let { put("service", it) }
+        Regex("""route=([^,}]+)""").find(body)?.groupValues?.getOrNull(1)?.trim()?.let { put("route", it) }
+    }
+}
+
+private fun taskCenterHttpEntryLabel(request: String, response: String): String {
+    val requestHead = taskCenterLogLineBody(request.lines().firstOrNull().orEmpty())
+    val bracket = requestHead.substringAfter("HTTP request [", "").substringBefore("]")
+    if (bracket.isNotBlank()) return bracket
+    return taskCenterHttpMetaValue(requestHead, "label").ifBlank {
+        taskCenterHttpMetaValue(taskCenterLogLineBody(response.lines().firstOrNull().orEmpty()), "label")
+    }
+}
+
+private fun taskCenterHttpIdentity(line: String): String {
+    val id = taskCenterHttpMetaValue(line, "requestId")
+    val attempt = taskCenterHttpMetaValue(line, "attempt").toIntOrNull()
+    return if (id.isNotBlank() && attempt != null) id + "#" + attempt else ""
+}
+
+/** Header, JSON or stack lines continue the active HTTP block; a new timed line is its own record. */
+private val TASK_HTTP_HEADER_LINE = Regex("""^[A-Za-z0-9_.-]{1,64}\s*:\s*.*""")
+
+private fun taskCenterIsHttpContinuation(body: String): Boolean {
+    val trimmed = body.trimStart()
+    return TASK_HTTP_HEADER_LINE.matches(body) ||
+        trimmed.startsWith("{") || trimmed.startsWith("[") ||
+        trimmed.startsWith("\tat ") || trimmed.startsWith("Caused by:") || trimmed.contains("Exception")
 }
 
 private fun taskCenterKeyValueRows(text: String): List<Pair<String, String>> {
@@ -163,15 +272,35 @@ internal data class TaskCenterRequestDetail(
     val requestedAtMs: Long?,
     val respondedAtMs: Long?,
     val durationMsOverride: Long? = null,
+    /** Sanitized service/route written by the real text logger; the full url may be unknown. */
+    val service: String = "",
+    val route: String = "",
+    /** True only when the attempt number was explicitly recorded, never derived from ordering. */
+    val attemptKnown: Boolean = false,
+    /** A request whose response could not be matched by an explicit id + attempt. */
+    val associationUnknown: Boolean = false,
+    /** Explicit record source; unknown for old files without a marker. */
+    val source: TaskCenterRecordSource = TaskCenterRecordSource.Unknown,
+    /** True when this detail was projected from the capture records rather than the task log text. */
+    val fromCapture: Boolean = false,
 ) {
     val baseUrl: String
         get() = url.substringBefore('?')
+
+    val endpointLabel: String
+        get() = when {
+            url.isNotBlank() -> baseUrl
+            route.isNotBlank() && route != TASK_HTTP_ROUTE_OMITTED ->
+                listOf(service, route).filter { it.isNotBlank() }.joinToString(" ")
+            service.isNotBlank() -> service
+            else -> ""
+        }
 
     val fullUrl: String
         get() = if (queryRows.isEmpty()) {
             url
         } else {
-            baseUrl + "?" + queryRows.joinToString("&") { "${it.first}=${it.second}" }
+            baseUrl + "?" + queryRows.joinToString("&") { it.first + "=" + it.second }
         }
 
     val durationMs: Long?
@@ -195,22 +324,22 @@ internal data class TaskCenterRequestDetail(
 
     val collectsSensitivePlaintext: Boolean
         get() = taskCenterContainsCredential(
-            (requestHeaders + responseHeaders).joinToString("\n") { "${it.first}: ${it.second}" } +
+            (requestHeaders + responseHeaders).joinToString("\n") { it.first + ": " + it.second } +
                 "\n" + requestBody.text + "\n" + responseBody.text + "\n" + fullUrl,
         )
 }
 
-internal fun taskCenterRequestDetails(taskLog: String): List<TaskCenterRequestDetail> {
-    val attempts = mutableMapOf<String, Int>()
-    return taskCenterHttpLogEntries(taskLog).map { entry ->
-        val key = entry.label + "|" + entry.requestParams + "|" + entry.requestUrl.substringBefore('?')
-        val attempt = (attempts[key] ?: 0) + 1
-        attempts[key] = attempt
-        entry.toRequestDetail(attempt)
-    }
-}
+/**
+ * Request rows come only from real request lines. A response joins its request only when both carry
+ * the same explicit requestId + attempt; everything else stays a standalone record with unknown
+ * association, and no time or status is inferred from ordering.
+ */
+internal fun taskCenterRequestDetails(taskLog: String): List<TaskCenterRequestDetail> =
+    taskCenterHttpLogEntries(taskLog)
+        .filter { it.request.isNotBlank() }
+        .map { it.toRequestDetail() }
 
-private fun TaskCenterHttpLogEntry.toRequestDetail(attemptNumber: Int): TaskCenterRequestDetail {
+internal fun TaskCenterHttpLogEntry.toRequestDetail(): TaskCenterRequestDetail {
     val requestLines = request.lines()
     val requestHeaderRows = ArrayList<Pair<String, String>>()
     val requestBodyLines = ArrayList<String>()
@@ -240,19 +369,26 @@ private fun TaskCenterHttpLogEntry.toRequestDetail(attemptNumber: Int): TaskCent
     }
     val urlQueryRows = taskCenterUrlQueryRows(requestUrl)
     val queryRows = if (urlQueryRows.isNotEmpty()) urlQueryRows else requestParamRows
-    val headersText = responseHeaders
+    val responseText = if (paired) response else ""
+    val headersText = if (paired) responseHeaders else ""
     val headersCollected = headersText.isNotBlank() && headersText != "[omitted]"
-    val bodyText = responseBody
+    val bodyText = if (paired) responseBody else ""
     val bodyCollected = bodyText.isNotBlank() && bodyText != "[omitted]"
+    // The elapsed value is the span between the two real log writes of a reliably paired record;
+    // it is never derived for unpaired/unknown records.
+    val startedAt = if (paired) requestAtMs else null
+    val finishedAt = if (paired) responseAtMs else null
+    val elapsed = if (startedAt != null && finishedAt != null) (finishedAt - startedAt).takeIf { it >= 0L } else null
     return TaskCenterRequestDetail(
-        label = label.ifBlank { "request" },
-        attemptNumber = attemptNumber,
+        label = label.ifBlank { taskCenterHttpEntryLabel(request, response) },
+        attemptNumber = attempt ?: 1,
+        requestId = requestId,
         method = requestMethod.uppercase(),
         url = requestUrl,
         queryRows = queryRows,
         requestHeaders = requestHeaderRows,
         requestBody = requestBody,
-        responseStatus = responseStatus,
+        responseStatus = if (paired) responseStatus else "",
         responseHeaders = if (headersCollected) {
             taskCenterKeyValueRows(headersText).map { (key, value) -> key to taskCenterRedactSensitive(value) }
         } else {
@@ -268,11 +404,17 @@ private fun TaskCenterHttpLogEntry.toRequestDetail(attemptNumber: Int): TaskCent
         } else {
             emptyList()
         },
-        requestedAtMs = taskCenterLogLineInstant(request)?.toEpochMilliseconds(),
-        respondedAtMs = taskCenterLogLineInstant(response)?.toEpochMilliseconds(),
+        requestedAtMs = requestAtMs,
+        respondedAtMs = finishedAt,
+        durationMsOverride = elapsed,
+        service = service,
+        route = route,
+        attemptKnown = attempt != null,
+        associationUnknown = !paired,
+        source = source,
+        fromCapture = false,
     )
 }
-
 private fun taskCenterUrlQueryRows(url: String): List<Pair<String, String>> {
     val query = url.substringAfter('?', "").substringBefore('#')
     if (query.isBlank()) return emptyList()
@@ -356,7 +498,14 @@ private fun taskCenterSplitSseBlocks(text: String): List<String> {
 }
 
 internal fun taskCenterCurlCommand(detail: TaskCenterRequestDetail): String {
-    val lines = mutableListOf("curl -X ${detail.method.ifBlank { "GET" }} '${taskCenterRedactSensitive(detail.fullUrl)}'")
+    val lines = mutableListOf(
+        "# source=" + taskCenterSourceKey(detail.source),
+        if (detail.method.isBlank()) {
+            "curl '" + taskCenterRedactSensitive(detail.fullUrl) + "'"
+        } else {
+            "curl -X " + detail.method + " '" + taskCenterRedactSensitive(detail.fullUrl) + "'"
+        },
+    )
     detail.requestHeaders.forEach { (key, value) ->
         lines += "  -H '${taskCenterRedactSensitive(key)}: ${taskCenterRedactSensitive(value)}'"
     }
@@ -387,75 +536,99 @@ internal data class TaskCenterHttpLogPage(
         get() = hasNextPage
 }
 
-internal fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> {
-    val pending = mutableListOf<MutableTaskCenterHttpLogEntry>()
-    val completed = mutableListOf<MutableTaskCenterHttpLogEntry>()
-    var activeResponse: MutableTaskCenterHttpLogEntry? = null
+/**
+ * Other attempts of the same logical call. Only an explicit request id links records; an empty id
+ * (old logs, unpaired business events) never links by label or ordering.
+ */
+internal fun taskCenterRelatedAttempts(
+    selected: TaskCenterRequestDetail,
+    attempts: List<TaskCenterRequestDetail>,
+): List<TaskCenterRequestDetail> = if (selected.requestId.isBlank()) {
+    emptyList()
+} else {
+    attempts.filter { it !== selected && it.requestId == selected.requestId }
+}
 
-    taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { line ->
+/** A timed log line that is neither a TASK event nor an HTTP record (for example a fetch summary). */
+internal data class TaskCenterLogInfoLine(val atMs: Long?, val text: String)
+
+internal data class TaskCenterHttpLogParse(
+    val entries: List<TaskCenterHttpLogEntry>,
+    val infoLines: List<TaskCenterLogInfoLine>,
+)
+
+private class MutableTaskCenterHttpEntry(var request: String) {
+    var response: String = ""
+    var paired: Boolean = false
+}
+
+internal fun taskCenterHttpLogParse(taskLog: String): TaskCenterHttpLogParse {
+    val entries = mutableListOf<MutableTaskCenterHttpEntry>()
+    val pending = mutableMapOf<String, MutableTaskCenterHttpEntry>()
+    val infoLines = mutableListOf<TaskCenterLogInfoLine>()
+    var active: MutableTaskCenterHttpEntry? = null
+    var activeIsResponse = false
+
+    taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { raw ->
+        val line = raw.trimEnd()
+        if (line.isBlank()) return@forEach
+        val body = taskCenterLogLineBody(line)
         when {
-            line.contains("HTTP request [") || line.contains("HTTP request {") -> {
-                activeResponse = null
-                pending += MutableTaskCenterHttpLogEntry(
-                    label = line.substringAfter("HTTP request [", "").substringBefore("]"),
-                    request = line,
-                    response = "",
-                )
+            taskCenterIsLifecycleLogLine(line) -> {
+                active = null
+                activeIsResponse = false
             }
-            line.contains("HTTP response") -> {
-                val responseLabel = line.substringAfter("HTTP response [", "").substringBefore("]")
-                val responseExternalId = taskCenterHttpExternalId(line)
-                val matchIndex = pending.indexOfFirst { entry ->
-                    entry.label == responseLabel &&
-                        responseExternalId.isNotBlank() &&
-                        taskCenterHttpExternalId(entry.request) == responseExternalId
-                }.takeIf { it >= 0 } ?: pending.indexOfFirst { it.label == responseLabel }
-                val entry = if (matchIndex >= 0) {
-                    pending.removeAt(matchIndex)
+            body.contains("HTTP request [") || body.contains("HTTP request {") -> {
+                val entry = MutableTaskCenterHttpEntry(line)
+                entries += entry
+                val identity = taskCenterHttpIdentity(line)
+                if (identity.isNotBlank()) pending[identity] = entry
+                active = entry
+                activeIsResponse = false
+            }
+            body.contains("HTTP response") -> {
+                val identity = taskCenterHttpIdentity(line)
+                val match = identity.takeIf { it.isNotBlank() }?.let { pending.remove(it) }
+                if (match != null) {
+                    match.response = if (match.response.isBlank()) line else match.response + "\n" + line
+                    match.paired = true
+                    active = match
                 } else {
-                    MutableTaskCenterHttpLogEntry(responseLabel, "", "")
+                    val standalone = MutableTaskCenterHttpEntry("")
+                    standalone.response = line
+                    entries += standalone
+                    active = standalone
                 }
-                entry.response = line
-                completed += entry
-                activeResponse = entry
+                activeIsResponse = true
             }
-            activeResponse != null && !taskCenterIsLifecycleLogLine(line) -> {
-                activeResponse?.response += "\n$line"
+            active != null && taskCenterIsHttpContinuation(body) -> {
+                val entry = active
+                if (activeIsResponse) entry.response += "\n" + line else entry.request += "\n" + line
             }
-            pending.isNotEmpty() -> {
-                pending.last().request += "\n$line"
+            else -> {
+                active = null
+                activeIsResponse = false
+                // Only timed lines are standalone records; an untimed orphan belongs to a body.
+                if (taskCenterLogLineInstant(line) != null) {
+                    infoLines += TaskCenterLogInfoLine(taskCenterLogLineInstant(line)?.toEpochMilliseconds(), body)
+                }
             }
         }
     }
-    return (completed + pending)
-        .map { TaskCenterHttpLogEntry(it.label.ifBlank { "request" }, it.request, it.response) }
-        .sortedBy { entry ->
-            taskCenterLogLineInstant(entry.request)
-                ?: taskCenterLogLineInstant(entry.response)
-                ?: Instant.DISTANT_FUTURE
-        }
+
+    val projected = entries.map { entry ->
+        TaskCenterHttpLogEntry(
+            label = taskCenterHttpEntryLabel(entry.request, entry.response),
+            request = entry.request,
+            response = entry.response,
+            paired = entry.paired,
+        )
+    }.sortedBy { it.requestAtMs ?: it.responseAtMs ?: Long.MAX_VALUE }
+    return TaskCenterHttpLogParse(projected, infoLines)
 }
 
-private data class MutableTaskCenterHttpLogEntry(
-    val label: String,
-    var request: String,
-    var response: String,
-)
-
-private data class PendingTaskCenterHttpLogEntry(
-    val label: String,
-    val externalId: String,
-    val pageEntry: MutableTaskCenterHttpLogEntry?,
-)
-
-private fun taskCenterHttpExternalId(line: String): String =
-    line.substringAfter("externalId=", missingDelimiterValue = "")
-        .substringBefore("&")
-        .substringBefore(",")
-        .substringBefore(" ")
-        .substringBefore("\n")
-        .trim()
-
+internal fun taskCenterHttpLogEntries(taskLog: String): List<TaskCenterHttpLogEntry> =
+    taskCenterHttpLogParse(taskLog).entries
 internal fun taskCenterHttpLogPage(
     taskLog: String,
     pageIndex: Int,
@@ -471,85 +644,37 @@ private fun taskCenterHttpLogPageUnchecked(
     pageIndex: Int,
     pageSize: Int,
 ): TaskCenterHttpLogPage {
+    val all = taskCenterHttpLogEntries(taskLog)
     val startIndex = pageIndex * pageSize
-    val endExclusive = startIndex + pageSize
-    val pending = mutableListOf<PendingTaskCenterHttpLogEntry>()
-    val pageEntries = mutableListOf<MutableTaskCenterHttpLogEntry>()
-    var activeResponse: MutableTaskCenterHttpLogEntry? = null
-    var activeRequest: MutableTaskCenterHttpLogEntry? = null
-    var totalEntries = 0
-    var hasNextPage = false
-
-    run loop@{
-        taskLog.filterNot { it == '\u0000' }.lineSequence().forEach { line ->
-            when {
-                line.contains("HTTP request [") || line.contains("HTTP request {") -> {
-                    if (totalEntries >= endExclusive) {
-                        hasNextPage = true
-                        return@loop
-                    }
-                    activeResponse = null
-                    val selected = totalEntries in startIndex until endExclusive
-                    val pageEntry = if (selected) {
-                        MutableTaskCenterHttpLogEntry(
-                            label = line.substringAfter("HTTP request [", "").substringBefore("]"),
-                            request = line,
-                            response = "",
-                        ).also { pageEntries += it }
-                    } else {
-                        null
-                    }
-                    pending += PendingTaskCenterHttpLogEntry(
-                        label = line.substringAfter("HTTP request [", "").substringBefore("]"),
-                        externalId = taskCenterHttpExternalId(line),
-                        pageEntry = pageEntry,
-                    )
-                    activeRequest = pageEntry
-                    totalEntries += 1
-                }
-                line.contains("HTTP response") -> {
-                    activeRequest = null
-                    val responseLabel = line.substringAfter("HTTP response [", "").substringBefore("]")
-                    val responseExternalId = taskCenterHttpExternalId(line)
-                    val matchIndex = pending.indexOfFirst { entry ->
-                        entry.label == responseLabel &&
-                            responseExternalId.isNotBlank() &&
-                            entry.externalId == responseExternalId
-                    }.takeIf { it >= 0 } ?: pending.indexOfFirst { it.label == responseLabel }
-                    val entry = if (matchIndex >= 0) pending.removeAt(matchIndex).pageEntry else null
-                    entry?.response = line
-                    activeResponse = entry
-                }
-                activeResponse != null && !taskCenterIsLifecycleLogLine(line) -> {
-                    activeResponse?.response += "\n$line"
-                }
-                activeRequest != null -> {
-                    activeRequest?.request += "\n$line"
-                }
-            }
-        }
-    }
-
+    val endExclusive = (startIndex + pageSize).coerceAtMost(all.size)
+    val entries = if (startIndex >= all.size) emptyList() else all.subList(startIndex, endExclusive)
     return TaskCenterHttpLogPage(
-        entries = pageEntries.map { TaskCenterHttpLogEntry(it.label.ifBlank { "request" }, it.request, it.response) },
+        entries = entries,
         pageIndex = pageIndex,
         pageSize = pageSize,
         totalEntries = null,
-        hasNextPage = hasNextPage,
+        hasNextPage = endExclusive < all.size,
     )
 }
-
 private fun taskCenterIsLifecycleLogLine(line: String): Boolean =
     Regex("""^\S+(?:\s+\S+)?\s+TASK\s+""").containsMatchIn(line)
 
 internal fun taskCenterLogLineBody(line: String): String {
     val first = line.substringBefore(' ', missingDelimiterValue = line)
-    return if (runCatching { Instant.parse(first) }.isSuccess) {
-        line.substringAfter(' ', missingDelimiterValue = "")
+    if (runCatching { Instant.parse(first) }.isSuccess) {
+        return line.substringAfter(' ', missingDelimiterValue = "")
+    }
+    // Older writers produced "yyyy-MM-dd HH:mm:ss"; strip both tokens instead of keeping them in the body.
+    val parts = line.split(' ', limit = 3)
+    return if (parts.size == 3 && TASK_LOG_LEGACY_DATE.matches(parts[0]) && TASK_LOG_LEGACY_TIME.matches(parts[1])) {
+        parts[2]
     } else {
         line
     }
 }
+
+private val TASK_LOG_LEGACY_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
+private val TASK_LOG_LEGACY_TIME = Regex("""\d{2}:\d{2}:\d{2}(?:\.\d+)?""")
 
 internal fun taskCenterStepDurationText(startLine: String, endLine: String, strings: TaskCenterStrings): String {
     val startedAt = taskCenterLogLineInstant(startLine) ?: return strings.notStarted
@@ -559,10 +684,18 @@ internal fun taskCenterStepDurationText(startLine: String, endLine: String, stri
     return taskCenterDurationText(millis, strings)
 }
 
-internal fun taskCenterLogLineInstant(line: String): Instant? =
-    line.substringBefore(" ", missingDelimiterValue = "").trim().takeIf { it.isNotBlank() }?.let { token ->
-        runCatching { Instant.parse(token) }.getOrNull()
+internal fun taskCenterLogLineInstant(line: String): Instant? {
+    val token = line.substringBefore(" ", missingDelimiterValue = "").trim()
+    if (token.isNotBlank()) {
+        runCatching { Instant.parse(token) }.getOrNull()?.let { return it }
     }
+    // Legacy "yyyy-MM-dd HH:mm:ss" lines keep their real time instead of becoming unknown.
+    val parts = line.trimStart().split(' ', limit = 3)
+    if (parts.size == 3 && TASK_LOG_LEGACY_DATE.matches(parts[0]) && TASK_LOG_LEGACY_TIME.matches(parts[1])) {
+        return runCatching { Instant.parse(parts[0] + "T" + parts[1] + "Z") }.getOrNull()
+    }
+    return null
+}
 
 internal fun taskCenterDurationText(millis: Long?, strings: TaskCenterStrings): String {
     if (millis == null || millis < 0L) return strings.unknown
@@ -577,39 +710,61 @@ internal fun taskCenterDurationText(millis: Long?, strings: TaskCenterStrings): 
     return "${hours}h ${remainingMinutes}m"
 }
 
-internal data class TaskCenterLifecycleEvent(val atMs: Long?, val summary: String)
+internal enum class TaskCenterLifecycleEventKind { Started, Progress, Succeeded, Failed, Retry, Cancelled, Interrupted, Unknown }
+
+internal data class TaskCenterLifecycleEvent(
+    val atMs: Long?,
+    val summary: String,
+    val kind: TaskCenterLifecycleEventKind = TaskCenterLifecycleEventKind.Unknown,
+) {
+    /** Rows the log page treats as abnormal when the user picks "只看异常". */
+    val abnormal: Boolean
+        get() = kind == TaskCenterLifecycleEventKind.Failed ||
+            kind == TaskCenterLifecycleEventKind.Retry ||
+            kind == TaskCenterLifecycleEventKind.Cancelled ||
+            kind == TaskCenterLifecycleEventKind.Interrupted
+}
 
 internal fun taskCenterLifecycleEvents(log: String, strings: TaskCenterStrings): List<TaskCenterLifecycleEvent> {
     val events = log.lineSequence()
         .filter { it.substringAfter(' ').startsWith("TASK ") }
         .map { line ->
             val event = line.substringAfter("TASK ")
-            val summary = when {
-                event.startsWith("started") -> strings.evStarted
-                event.startsWith("progress") -> event.substringAfter("message=", strings.evProgress).substringBefore(" checkpoint=")
-                event.startsWith("succeeded") -> strings.evSucceeded
-                event.startsWith("failed") -> String.format(strings.evFailed, taskCenterEventReason(event, strings))
-                event.startsWith("retry") -> buildString {
+            val kind = when {
+                event.startsWith("started") -> TaskCenterLifecycleEventKind.Started
+                event.startsWith("progress") -> TaskCenterLifecycleEventKind.Progress
+                event.startsWith("succeeded") -> TaskCenterLifecycleEventKind.Succeeded
+                event.startsWith("failed") -> TaskCenterLifecycleEventKind.Failed
+                event.startsWith("retry") -> TaskCenterLifecycleEventKind.Retry
+                event.startsWith("cancelled") -> TaskCenterLifecycleEventKind.Cancelled
+                event.startsWith("interrupted") -> TaskCenterLifecycleEventKind.Interrupted
+                else -> TaskCenterLifecycleEventKind.Unknown
+            }
+            val summary = when (kind) {
+                TaskCenterLifecycleEventKind.Started -> strings.evStarted
+                TaskCenterLifecycleEventKind.Progress ->
+                    event.substringAfter("message=", strings.evProgress).substringBefore(" checkpoint=")
+                TaskCenterLifecycleEventKind.Succeeded -> strings.evSucceeded
+                TaskCenterLifecycleEventKind.Failed -> String.format(strings.evFailed, taskCenterEventReason(event, strings))
+                TaskCenterLifecycleEventKind.Retry -> buildString {
                     append(String.format(strings.evRetry, taskCenterEventReason(event, strings)))
                     event.substringAfter("runAfterMs=", "").toLongOrNull()?.let {
                         append(String.format(strings.evRetryAt, taskCenterTimestampText(it, strings)))
                     }
                 }
-                event.startsWith("cancelled") -> strings.evCancelled
-                event.startsWith("interrupted") -> strings.evInterrupted
-                else -> strings.evUnknown
+                TaskCenterLifecycleEventKind.Cancelled -> strings.evCancelled
+                TaskCenterLifecycleEventKind.Interrupted -> strings.evInterrupted
+                TaskCenterLifecycleEventKind.Unknown -> strings.evUnknown
             }
             TaskCenterLifecycleEvent(
                 atMs = runCatching { Instant.parse(line.substringBefore(' ')).toEpochMilliseconds() }.getOrNull(),
                 summary = summary,
+                kind = kind,
             )
         }
         .toList()
-        .fold(mutableListOf<TaskCenterLifecycleEvent>()) { entries, event ->
-            if (entries.lastOrNull()?.summary != event.summary) entries.add(event)
-            entries
-        }
-    return events.takeLast(40)
+    // Consecutive identical events are real log lines; they are kept, never silently folded away.
+    return events.takeLast(60)
 }
 
 internal fun taskCenterLifecycleText(log: String, strings: TaskCenterStrings): String = taskCenterLifecycleEvents(log, strings)

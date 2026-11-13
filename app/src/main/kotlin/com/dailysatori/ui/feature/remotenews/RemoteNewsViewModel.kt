@@ -250,7 +250,7 @@ class RemoteNewsViewModel(
         }
 
         when (val sourceConfig = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(sourceConfig.value, page = 1, limit = 50)) {
+            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchSourceArticles(sourceConfig.value, limit = 50)) {
                 is RemoteNewsResult.Success -> {
                     remoteArticleSyncService.syncSourceArticles(
                         remoteSourceId = source.id,

@@ -26,6 +26,22 @@ sealed interface AsyncTaskRunOutcome {
     data object Failed : AsyncTaskRunOutcome
     data object RetryScheduled : AsyncTaskRunOutcome
     data object Skipped : AsyncTaskRunOutcome
+
+    /**
+     * Waiting on another owned task (dependency or serial owner) is not a failure: the worker may end
+     * normally and a separate bounded wake-up carries the work forward once that owner is terminal.
+     * The business retry budget is not consumed.
+     */
+    data class Blocked(val reason: String, val dependencyTaskId: Long?) : AsyncTaskRunOutcome
+}
+
+/** Single terminal notification point: successors and serial waiters are discovered by the owner. */
+interface AsyncTaskWakeUp {
+    fun onTaskTerminal(taskId: Long)
+}
+
+object NoopAsyncTaskWakeUp : AsyncTaskWakeUp {
+    override fun onTaskTerminal(taskId: Long) = Unit
 }
 
 class AsyncTaskRunner(
@@ -38,6 +54,7 @@ class AsyncTaskRunner(
     private val nowMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
     private val leaseMs: Long = DEFAULT_LEASE_MS,
     private val executionTimeoutMs: (String) -> Long = ::asyncTaskExecutionTimeoutMs,
+    private val wakeUp: AsyncTaskWakeUp = NoopAsyncTaskWakeUp,
 ) {
     suspend fun run(taskId: Long): AsyncTaskRunOutcome = DiagnosticLog.diagnostics.operation(
         DiagnosticSource.TASK, taskId = taskId, isFailure = { it == AsyncTaskRunOutcome.Failed },
@@ -66,9 +83,11 @@ class AsyncTaskRunner(
         if (taskId <= 0L) return AsyncTaskRunOutcome.Failed
         repository.markExpiredRunningForRetry(nowMs())
         val task = repository.getById(taskId) ?: return AsyncTaskRunOutcome.Skipped
+        if (task.status !in repository.activeStatusNames()) return AsyncTaskRunOutcome.Skipped
         if (repository.waitingForPredecessor(taskId)) {
-            taskStage(task.type, "waiting_predecessor", predecessorTaskId = repository.predecessorIdOf(taskId))
-            return AsyncTaskRunOutcome.RetryScheduled
+            val dependency = repository.predecessorIdOf(taskId)
+            taskStage(task.type, "blocked_predecessor", predecessorTaskId = dependency)
+            return AsyncTaskRunOutcome.Blocked("predecessor", dependency)
         }
         val executionPayload = runCatching {
             JsonObject(Json.parseToJsonElement(task.payload_json).jsonObject - "_afterTaskId").toString()
@@ -80,14 +99,14 @@ class AsyncTaskRunner(
             repository.claimForRun(taskId, leaseOwner, nowMs() + leaseMs)
         }
         if (!claimed) {
-            // Only a serial type has a same-type task that can block the claim; naming a blocker for
-            // any other type would report a task that has nothing to do with this rejection.
-            val serial = task.type in SERIAL_TASK_TYPES
-            taskStage(
-                task.type,
-                if (serial) "claim_rejected" else "not_runnable",
-                blockingTaskId = if (serial) repository.serialClaimBlocker(taskId) else null,
-            )
+            // Only a serial type has a same-type owner that can block the claim; every other rejection
+            // stays a real retry (future run_after or another attempt holding the lease).
+            val blocker = if (task.type in SERIAL_TASK_TYPES) repository.serialClaimBlocker(taskId) else null
+            if (blocker != null) {
+                taskStage(task.type, "blocked_serial_owner", blockingTaskId = blocker)
+                return AsyncTaskRunOutcome.Blocked("serial_owner", blocker)
+            }
+            taskStage(task.type, "claim_rejected")
             return AsyncTaskRunOutcome.RetryScheduled
         }
         log(taskId, "TASK started type=${task.type}")
@@ -186,10 +205,12 @@ class AsyncTaskRunner(
             is AsyncTaskExecutionResult.Success -> {
                 repository.finishSuccess(task.id, result.resultJson)
                 log(task.id, "TASK succeeded")
+                releaseSuccessors(task.id)
                 AsyncTaskRunOutcome.Succeeded
             }
             is AsyncTaskExecutionResult.PermanentFailure -> {
                 repository.finishFailure(task.id, result.code, result.message)
+                releaseSuccessors(task.id)
                 log(task.id, "TASK failed code=${result.code} message=${result.message}")
                 AsyncTaskRunOutcome.Failed
             }
@@ -221,6 +242,11 @@ class AsyncTaskRunner(
         return AsyncTaskRunOutcome.RetryScheduled
     }
 
+    /** One deduped notification per terminal transition; repeated notifications collapse by work name. */
+    private fun releaseSuccessors(predecessorTaskId: Long) {
+        wakeUp.onTaskTerminal(predecessorTaskId)
+    }
+
     private fun log(taskId: Long, message: String) {
         runCatching { logger.append(taskId, message) }
     }
@@ -228,7 +254,7 @@ class AsyncTaskRunner(
     private companion object {
         const val DEFAULT_LEASE_MS = 30 * 60 * 1000L
         const val MIN_HEARTBEAT_MS = 30_000L
-        val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name, AsyncTaskType.assistant_turn.name, "assistant_history_backfill", "assistant_summary")
+
     }
 }
 
@@ -237,7 +263,13 @@ private fun AsyncTaskRunOutcome.diagnosticStage(): String = when (this) {
     AsyncTaskRunOutcome.Failed -> "failed"
     AsyncTaskRunOutcome.RetryScheduled -> "retry_scheduled"
     AsyncTaskRunOutcome.Skipped -> "skipped"
+    is AsyncTaskRunOutcome.Blocked -> "blocked_" + this.reason
 }
+
+/** Serial task types own one execution at a time; their waiters are woken by the owner's terminal state. */
+internal val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name, AsyncTaskType.assistant_turn.name, "assistant_history_backfill", "assistant_summary")
+
+fun isSerialAsyncTaskType(type: String): Boolean = type in SERIAL_TASK_TYPES
 
 fun asyncTaskExecutionTimeoutMs(type: String): Long = when (type) {
     "remote_article_sync" -> 5 * 60_000L

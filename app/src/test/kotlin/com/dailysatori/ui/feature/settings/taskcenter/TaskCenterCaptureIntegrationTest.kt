@@ -12,6 +12,7 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Real sink -> store.readHttp -> shared codec -> UI projection; no handcrafted log syntax. */
@@ -109,6 +110,68 @@ class TaskCenterCaptureIntegrationTest {
         assertEquals("42ms", details[0].durationLabel(testStrings()))
         assertTrue(details[1].responseIncomplete)
         assertTrue(details[0].responseBody.emptyByDesign)
+    }
+
+    @Test
+    fun codecToProjectionKeepsLabelsHonestAndTitlesOffOpaqueIds() {
+        val store = tempStore()
+        val sink = TaskHttpRecordSink(store)
+        sink.write(
+            990003L,
+            "",
+            TaskHttpRecord(
+                requestId = "req-real-1",
+                attempt = 2,
+                direction = TaskHttpDirection.REQUEST,
+                method = "POST",
+                url = "https://api.example.com/v1/chat/completions?token=secret",
+                headers = mapOf("Authorization" to "Bearer secret"),
+                body = """{"model":"m"}""",
+                bodyState = TASK_HTTP_CAPTURED,
+                requestAtMs = 1_000L,
+            ),
+        )
+        sink.write(
+            990003L,
+            "",
+            TaskHttpRecord(
+                requestId = "req-real-1",
+                attempt = 2,
+                direction = TaskHttpDirection.RESPONSE,
+                status = 200,
+                body = """{"ok":true}""",
+                bodyState = TASK_HTTP_CAPTURED,
+                responseAtMs = 1_500L,
+            ),
+        )
+
+        val details = taskCenterCapturedRequestDetails(store.readHttp(990003L))
+        val detail = details.single()
+        assertEquals("", detail.label, "the capture layer has no business label; projection never fakes one")
+        assertEquals("req-real-1", detail.requestId)
+        assertTrue(detail.attemptKnown)
+        assertEquals(2, detail.attemptNumber)
+        assertEquals("POST https://api.example.com/v1/chat/completions", taskCenterRequestTitle(detail, "request"))
+        assertFalse(taskCenterRequestTitle(detail, "request").contains("req-real-1"))
+        assertEquals(1_000L, detail.requestedAtMs)
+        assertEquals(1_500L, detail.respondedAtMs)
+        assertEquals("500ms", detail.durationLabel(testStrings()))
+        assertEquals("200", detail.responseStatus)
+        assertFalse(detail.associationUnknown)
+    }
+
+    @Test
+    fun legacyCaptureWithoutMethodFallsBackWithoutInventingGet() {
+        val legacy = "# http schema=1 task=1 label=ai request=r1 attempt=1 dir=REQUEST state=CAPTURED method=- status=- durationMs=- bytes=1 droppedBytes=unknown"
+        val details = taskCenterCapturedRequestDetails(legacy)
+        val detail = details.single()
+        assertEquals("", detail.method)
+        assertEquals("request", taskCenterRequestTitle(detail, "request"))
+        assertFalse(taskCenterRequestTitle(detail, "request").contains("GET"))
+        assertFalse(taskCenterRequestTitle(detail, "request").contains("r1"))
+        assertTrue(detail.associationUnknown)
+        assertNull(detail.respondedAtMs)
+        assertNull(detail.durationMs)
     }
 
     @Test

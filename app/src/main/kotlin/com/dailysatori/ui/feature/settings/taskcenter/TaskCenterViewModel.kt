@@ -287,6 +287,8 @@ class TaskCenterViewModel(
             ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
             scheduler.cancel(taskId)
             scheduler.recoverAndEnqueueRunnable()
+            // Cancelling here is a terminal transition like success/failure: release successors.
+            scheduler.notifyTerminal(taskId)
         }
     }
 

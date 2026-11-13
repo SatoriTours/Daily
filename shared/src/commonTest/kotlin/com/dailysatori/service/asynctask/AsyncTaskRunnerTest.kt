@@ -126,7 +126,9 @@ class AsyncTaskRunnerTest {
             val firstRun = async { runner.run(first) }
             started.await()
             try {
-                assertIs<AsyncTaskRunOutcome.RetryScheduled>(runner.run(second))
+                val blocked = assertIs<AsyncTaskRunOutcome.Blocked>(runner.run(second))
+                assertEquals("serial_owner", blocked.reason)
+                assertEquals(first, blocked.dependencyTaskId)
                 assertEquals(1, calls)
             } finally {
                 release.complete(Unit)
@@ -148,7 +150,9 @@ class AsyncTaskRunnerTest {
             val first = repository.enqueue(FakeHandler.TYPE, "{}")
             val second = repository.enqueue(FakeHandler.TYPE, "{}")
             repository.linkSequentialTasks(listOf(first, second))
-            assertIs<AsyncTaskRunOutcome.RetryScheduled>(runner.run(second))
+            val blocked = assertIs<AsyncTaskRunOutcome.Blocked>(runner.run(second))
+            assertEquals("predecessor", blocked.reason)
+            assertEquals(first, blocked.dependencyTaskId)
             assertEquals(0, calls)
             assertEquals(0L, repository.getById(second)!!.attempt_count)
             assertIs<AsyncTaskRunOutcome.Succeeded>(runner.run(first))

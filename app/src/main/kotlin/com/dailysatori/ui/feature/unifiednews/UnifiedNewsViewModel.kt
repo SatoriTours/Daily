@@ -612,22 +612,40 @@ class UnifiedNewsViewModel(
         detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 ifLatestDetailRequest(token) { it.copy(isLoading = true) }
+                // Local first: a synced article never needs the network to be read.
                 val local = remoteArticleSyncService.readLocalArticle(remoteSourceId, id,
                     dailyUnifiedNewsWindowFor().summaryDate, url) {
-                    val config = remoteConfigOrSetError(token, remoteSourceId) ?: error("远程新闻源不可用")
-                    when (val result = remoteNewsService.fetchArticle(config, id)) {
-                        is RemoteNewsResult.Success -> result.value.article
-                        is RemoteNewsResult.Failure -> error(result.message)
-                    }
+                    recoverRemoteArticleFromFeed(id, remoteSourceId, url)
                 }
                 ifLatestDetailRequest(token) {
                     it.copy(navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id), isLoading = false)
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: RemoteArticleContentUnavailable) {
+                ifLatestDetailRequest(token) { it.copy(error = e.message ?: "文章内容不可用", isLoading = false) }
             } catch (_: Exception) {
                 ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
             }
+        }
+    }
+
+    /**
+     * RSS sources have no JSON article endpoint, so a citation that was never stored locally is looked up
+     * in the configured feed (stable id first, then link) and persisted through the existing sync chain.
+     * When the entry is gone or the source is missing, the reader says so instead of inventing content.
+     */
+    private suspend fun recoverRemoteArticleFromFeed(id: Long, remoteSourceId: Long?, url: String?): RemoteArticle {
+        val sourceId = remoteSourceId ?: throw RemoteArticleContentUnavailable(REMOTE_ARTICLE_LOCAL_MISSING)
+        val source = remoteNewsSourceRepo.getById(sourceId)
+            ?: throw RemoteArticleContentUnavailable(REMOTE_ARTICLE_SOURCE_UNAVAILABLE)
+        val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)
+            as? RemoteNewsResult.Success<com.dailysatori.service.remotenews.RemoteNewsConfigValues>
+            ?: throw RemoteArticleContentUnavailable(REMOTE_ARTICLE_SOURCE_UNAVAILABLE)
+        return when (val result = remoteNewsService.fetchSourceArticles(config.value, limit = REMOTE_ARTICLE_RECOVERY_LIMIT)) {
+            is RemoteNewsResult.Success -> remoteArticleFromFeed(result.value.articles, id, url)
+                ?: throw RemoteArticleContentUnavailable(REMOTE_ARTICLE_NOT_FOUND)
+            is RemoteNewsResult.Failure -> throw RemoteArticleContentUnavailable(result.message)
         }
     }
 
@@ -721,7 +739,7 @@ class UnifiedNewsViewModel(
         token: Long,
     ): Boolean {
         return when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
+            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchSourceArticles(config.value, limit = 50)) {
                 is RemoteNewsResult.Success -> {
                     remoteArticleSyncService.syncSourceArticles(
                         remoteSourceId = sourceId,
@@ -824,6 +842,19 @@ class UnifiedNewsViewModel(
 
     private companion object {
         const val SOURCE_ARTICLE_PAGE_SIZE = 30L
+        const val REMOTE_ARTICLE_RECOVERY_LIMIT = 50
     }
 
 }
+
+/** The cited article cannot be read: no local copy, gone from the feed, or its source is unusable. */
+internal class RemoteArticleContentUnavailable(message: String) : Exception(message)
+
+internal const val REMOTE_ARTICLE_LOCAL_MISSING = "本地未保存该文章，且已无法确定它的订阅来源，暂不能打开。"
+internal const val REMOTE_ARTICLE_NOT_FOUND = "本地未保存该文章，当前订阅中也没有找到，请刷新远程来源后重试。"
+internal const val REMOTE_ARTICLE_SOURCE_UNAVAILABLE = "远程新闻源不可用，请检查远程新闻设置。"
+
+/** RSS ids are hashed and change across protocols, so the article link is the fallback identity. */
+internal fun remoteArticleFromFeed(articles: List<RemoteArticle>, id: Long, url: String?): RemoteArticle? =
+    articles.firstOrNull { it.id == id }
+        ?: url?.trim()?.takeIf { it.isNotBlank() }?.let { link -> articles.firstOrNull { it.url == link } }

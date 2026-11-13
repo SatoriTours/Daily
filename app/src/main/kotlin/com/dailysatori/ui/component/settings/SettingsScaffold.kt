@@ -75,6 +75,12 @@ fun SettingsScaffold(
     onDiscardChanges: () -> Unit = {},
     searchQuery: String = "",
     onSearchQueryChange: ((String) -> Unit)? = null,
+    /** Explicit opt-in: show the search and page actions directly instead of one overflow menu. */
+    inlinePageActions: Boolean = false,
+    /** Page-specific label for the search action; null keeps the shared settings wording. */
+    searchActionLabel: String? = null,
+    /** Explicit opt-in for pages that need the action space. */
+    showAssistant: Boolean = true,
     content: @Composable (Modifier) -> Unit,
 ) {
     val navigation = LocalSettingsGroupNavigation.current.takeIf { useGroupNavigation }
@@ -119,10 +125,12 @@ fun SettingsScaffold(
             ) else null,
             pageActions = buildList {
                 if (onSearchQueryChange != null) add(PageAction(
-                    i18n.t("settings_design.search"), Icons.Default.Search,
+                    searchActionLabel ?: i18n.t("settings_design.search"), Icons.Default.Search,
+                    alwaysVisible = inlinePageActions,
                 ) { searching = true })
                 addAll(pageActions)
             },
+            showAssistant = showAssistant,
             snackbarHost = snackbarHost,
             floatingActionButton = floatingActionButton,
             bottomBar = {

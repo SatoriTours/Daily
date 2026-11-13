@@ -26,6 +26,11 @@ data class TaskHttpRecordDto(
     val body: String? = null,
     val bodyState: String,
     val droppedBytes: Long? = null,
+    /** Capture event time; null for records written before these fields existed. */
+    val requestAtMs: Long? = null,
+    val responseAtMs: Long? = null,
+    /** Optional record source; null in files written before the field existed. */
+    val kind: String? = null,
 )
 
 /**
@@ -58,6 +63,9 @@ object TaskHttpRecordCodec {
                 body = record.body,
                 bodyState = record.bodyState,
                 droppedBytes = record.droppedBytes,
+                requestAtMs = record.requestAtMs,
+                responseAtMs = record.responseAtMs,
+                kind = record.kind,
             ),
         )
 
@@ -85,6 +93,9 @@ object TaskHttpRecordCodec {
             body = dto.body,
             bodyState = dto.bodyState,
             droppedBytes = dto.droppedBytes,
+            requestAtMs = dto.requestAtMs,
+            responseAtMs = dto.responseAtMs,
+            kind = dto.kind,
         )
     }
 

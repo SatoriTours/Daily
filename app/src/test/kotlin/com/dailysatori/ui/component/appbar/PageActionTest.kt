@@ -28,6 +28,22 @@ class PageActionTest {
         assertEquals(actions, arrangePageActions(actions).overflow)
     }
 
+    @Test fun explicitOptInShowsTwoDirectActionsWhileDefaultPagesKeepOneOverflow() {
+        val search = PageAction("搜索日志", Icons.Default.Add, alwaysVisible = true) {}
+        val filter = PageAction("筛选", Icons.Default.Add, alwaysVisible = true) {}
+        val layout = arrangePageActions(listOf(search, filter))
+        assertEquals(listOf(search, filter), layout.direct)
+        assertEquals(emptyList(), layout.overflow)
+        // The same two actions without the opt-in keep the old single overflow behaviour.
+        val legacy = arrangePageActions(listOf(action("搜索"), action("筛选")))
+        assertEquals(emptyList(), legacy.direct)
+        assertEquals(2, legacy.overflow.size)
+        // One visible action plus one overflow action stays explicit.
+        val mixed = arrangePageActions(listOf(search, action("其它")))
+        assertEquals(listOf(search), mixed.direct)
+        assertEquals(listOf(action("其它")), mixed.overflow)
+    }
+
     @Test fun saveRemainsDirectAndEditorToolsCannotCompeteWithIt() {
         val save = action("保存", PageActionPriority.Primary)
         val layout = arrangePageActions(listOf(save))

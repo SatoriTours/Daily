@@ -12,6 +12,10 @@ const val TASK_HTTP_TRUNCATED = "TRUNCATED"
 const val TASK_HTTP_INCOMPLETE = "INCOMPLETE"
 const val TASK_HTTP_CAPTURED = "CAPTURED"
 
+/** Explicit record source. Old files have neither value, so consumers must not assume raw HTTP. */
+const val TASK_HTTP_KIND_HTTP = "http"
+const val TASK_HTTP_KIND_BUSINESS_RESULT = "business_result"
+
 /** Where the capture text came from; decoded text is not the raw wire bytes. */
 enum class TaskHttpDirection { REQUEST, RESPONSE, SSE_EVENT }
 
@@ -35,6 +39,14 @@ data class TaskHttpRecord(
     val body: String? = null,
     val bodyState: String = TASK_HTTP_NOT_CAPTURED,
     val droppedBytes: Long? = null,
+    /**
+     * Real wall-clock time of the capture event, not a derived network timing: the request time is when
+     * the request was written, the response time when the response arrived. Older records have null.
+     */
+    val requestAtMs: Long? = null,
+    val responseAtMs: Long? = null,
+    /** Optional source contract: raw HTTP transport vs a business-result record. */
+    val kind: String? = null,
 )
 
 /**
@@ -131,6 +143,7 @@ class TaskHttpCaptureSession(
         url: String,
         headers: Map<String, String> = emptyMap(),
         body: String? = null,
+        kind: String = TASK_HTTP_KIND_HTTP,
     ): Boolean {
         val session = session(taskId) ?: return false
         val owner = handle ?: return false
@@ -150,6 +163,8 @@ class TaskHttpCaptureSession(
             body = redactedBody,
             bodyState = bodyState,
             droppedBytes = dropped,
+            requestAtMs = nowMs(),
+            kind = kind,
         ))
         return true
     }
@@ -162,6 +177,7 @@ class TaskHttpCaptureSession(
         text: String,
         maxBodyBytes: Int = DEFAULT_MAX_BODY_BYTES,
         status: Int? = null,
+        kind: String = TASK_HTTP_KIND_HTTP,
     ): Boolean {
         val session = session(taskId) ?: return false
         val owner = handle ?: return false
@@ -175,6 +191,8 @@ class TaskHttpCaptureSession(
             body = if (state == TASK_HTTP_OMITTED) null else body,
             bodyState = state,
             droppedBytes = dropped,
+            responseAtMs = if (direction == TaskHttpDirection.RESPONSE) nowMs() else null,
+            kind = kind,
         ))
     }
 
@@ -184,6 +202,7 @@ class TaskHttpCaptureSession(
         direction: TaskHttpDirection,
         text: String,
         state: String,
+        kind: String = TASK_HTTP_KIND_HTTP,
     ): Boolean {
         val session = session(taskId) ?: return false
         val currentSink = sink ?: return false
@@ -194,6 +213,8 @@ class TaskHttpCaptureSession(
             direction = direction,
             body = text.ifBlank { null },
             bodyState = state,
+            responseAtMs = if (direction == TaskHttpDirection.RESPONSE) nowMs() else null,
+            kind = kind,
         ))
         return true
     }
@@ -241,7 +262,8 @@ object TaskHttpCapture {
         direction: TaskHttpDirection,
         text: String,
         status: Int? = null,
-    ) = session.bodyRecord(taskId, handle, direction, text, status = status)
+        kind: String = TASK_HTTP_KIND_HTTP,
+    ) = session.bodyRecord(taskId, handle, direction, text, status = status, kind = kind)
     fun request(
         taskId: Long?,
         handle: TaskHttpRequestHandle?,
@@ -249,7 +271,8 @@ object TaskHttpCapture {
         url: String,
         headers: Map<String, String> = emptyMap(),
         body: String? = null,
-    ) = session.request(taskId, handle, method, url, headers, body)
+        kind: String = TASK_HTTP_KIND_HTTP,
+    ) = session.request(taskId, handle, method, url, headers, body, kind = kind)
     fun record(taskId: Long?, record: TaskHttpRecord) = session.record(taskId, record)
 }
 

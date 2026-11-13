@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,35 +63,75 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
     val viewModel: TaskCenterViewModel = koinViewModel()
     LaunchedEffect(viewModel, recentFailures) { viewModel.applyEntryFilter(recentFailures) }
     val state = viewModel.state.collectAsStateWithLifecycle().value
-    val copy = taskCenterCopy()
-    BackHandler(enabled = state.selectedTask != null) {
-        viewModel.closeTask()
+    val selected = state.selectedTask
+    var logOpen by rememberSaveable(selected?.id) { mutableStateOf(false) }
+    var logQuery by rememberSaveable(selected?.id) { mutableStateOf("") }
+    var logFilter by rememberSaveable(selected?.id) { mutableStateOf(TaskCenterLogFilter.All) }
+    val logCopy = taskCenterCopy()
+    BackHandler(enabled = selected != null) {
+        if (logOpen) logOpen = false else viewModel.closeTask()
     }
 
     AppScaffold(
-        title = stringResource(R.string.task_center_title),
-        onBack = if (state.selectedTask == null) onBack else viewModel::closeTask,
+        title = if (logOpen) {
+            stringResource(R.string.task_center_log_title)
+        } else {
+            stringResource(R.string.task_center_title)
+        },
+        onBack = when {
+            logOpen -> ({ logOpen = false })
+            selected == null -> onBack
+            else -> viewModel::closeTask
+        },
+        searchQuery = logQuery,
+        onSearchQueryChange = if (logOpen) ({ logQuery = it }) else null,
+        inlinePageActions = logOpen,
+        searchActionLabel = if (logOpen) logCopy.logSearchAction else null,
+        showAssistant = !logOpen,
+        pageActions = if (logOpen) {
+            listOf(
+                taskCenterLogFilterAction(
+                    filter = logFilter,
+                    allLabel = logCopy.logFilterAll,
+                    abnormalLabel = logCopy.logFilterAbnormal,
+                    filterLabelFormat = logCopy.logFilter,
+                ) { logFilter = it },
+            )
+        } else {
+            emptyList()
+        },
     ) { modifier ->
-        val selected = state.selectedTask
-        if (selected != null) {
-            TaskCenterTaskDetail(
-                task = selected,
-                title = taskCenterTaskTitle(selected.type, selected.payload_json, state.sourceNames),
+        val task = state.selectedTask
+        when {
+            task != null && logOpen -> TaskCenterTaskLogScreen(
+                task = task,
+                title = taskCenterTaskName(task.type),
+                source = taskCenterTaskSource(task.type, task.payload_json, state.sourceNames),
+                taskLog = state.taskLog,
+                httpLog = state.httpLog,
+                query = logQuery,
+                filter = logFilter,
+                modifier = modifier,
+            )
+            task != null -> TaskCenterTaskDetail(
+                task = task,
+                title = taskCenterTaskName(task.type),
+                source = taskCenterTaskSource(task.type, task.payload_json, state.sourceNames),
                 taskLog = state.taskLog,
                 failureSuperseded = state.selectedFailureSuperseded,
-                needsAttention = state.attentionTasks.any { it.id == selected.id },
-                onAcknowledge = { viewModel.acknowledgeFailure(selected.id, selected.updated_at) },
-                onResumeAssistant = { viewModel.resumeAssistantBackground(selected.id) },
-                onCancel = { viewModel.cancel(selected.id) },
+                needsAttention = state.attentionTasks.any { it.id == task.id },
+                onAcknowledge = { viewModel.acknowledgeFailure(task.id, task.updated_at) },
+                onResumeAssistant = { viewModel.resumeAssistantBackground(task.id) },
+                onCancel = { viewModel.cancel(task.id) },
                 assistantResumeBlocked = state.assistantResumeBlocked,
                 httpLog = state.httpLog,
                 captureState = state.captureState,
-                onArmCapture = { viewModel.armCapture(selected.id, selected.type) },
-                onDisarmCapture = { viewModel.disarmCapture(selected.id) },
+                onArmCapture = { viewModel.armCapture(task.id, task.type) },
+                onDisarmCapture = { viewModel.disarmCapture(task.id) },
+                onOpenLog = { logOpen = true },
                 modifier = modifier,
             )
-        } else {
-            TaskCenterTaskList(state = state, viewModel = viewModel, modifier = modifier)
+            else -> TaskCenterTaskList(state = state, viewModel = viewModel, modifier = modifier)
         }
     }
 }
@@ -251,7 +292,7 @@ private fun TaskCenterTabRow(
 }
 
 @Composable
-private fun TaskCenterRowDivider() {
+internal fun TaskCenterRowDivider() {
     Box(
         Modifier
             .fillMaxWidth()

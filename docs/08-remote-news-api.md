@@ -459,3 +459,13 @@ GET /api/v1/external/articles/{id}
 ```
 
 新的 APP 逻辑应以 `top_articles_today` 返回的每篇文章完整内容为准。
+
+## RSS / Atom 订阅
+
+远程新闻订阅现在直接按 RSS / Atom 拉取，JSON `top_articles_today` 接口不再作为默认协议：
+
+- 设置中的「完整 URL」必须填写订阅源地址本身，APP 原样请求（保留路径与查询参数，不追加 `/api/v1/external/...`，也不追加分页参数）。
+- 支持 RSS 2.0、Atom 与 RSS 1.0（RDF）。标题取 `title`，链接取 `link`（Atom 取 `rel="alternate"` 的 `href`，相对链接按订阅地址解析），摘要/正文取 `description`、`summary`、`content`、`content:encoded`，时间取 `pubDate`、`published`、`updated`、`dc:date`。
+- 普通公开订阅无需 Token；需要鉴权的私有订阅可在设置中填写 Token，APP 仅在该值非空时发送 `Authorization: Bearer <TOKEN>`。
+- 文章身份优先使用 `guid`/`id`，缺失时使用文章链接；同一个 guid 在多次同步中映射到同一篇本地文章，旧协议已同步的文章不会因换源、同步失败或新 feed 缺少旧条目而删除。
+- 返回内容不是有效 RSS/Atom（例如登录页 HTML）会按失败处理并给出提示，不会清空本地已同步内容。
