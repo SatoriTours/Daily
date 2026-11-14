@@ -43,6 +43,11 @@ class UnifiedNewsSummaryService(
     private val remoteArticleSyncRepo: RemoteArticleSyncRepository,
     private val summaryRepo: UnifiedNewsSummaryRepository,
     private val hotNews: HotNewsService? = null,
+    /**
+     * Factory for the monotonic elapsed clock; a fresh mark per [generate] call keeps production semantics
+     * while letting tests advance the spent budget deterministically.
+     */
+    private val elapsedFactory: () -> () -> Long = ::monotonicElapsed,
 ) {
     private val log = Logger.withTag("UnifiedNewsSummary")
 
@@ -59,7 +64,7 @@ class UnifiedNewsSummaryService(
         onStage: (suspend (String) -> Unit)? = null,
     ): UnifiedNewsGenerationResult {
         // One monotonic budget for the whole call, started here so collection time is charged to it too.
-        val elapsed = monotonicElapsed()
+        val elapsed = elapsedFactory()
         if (!force && hasSuccessfulSummary(window)) {
             return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.SUCCESS)
         }

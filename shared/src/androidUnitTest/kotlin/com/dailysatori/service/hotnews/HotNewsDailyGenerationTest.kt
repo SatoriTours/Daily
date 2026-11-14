@@ -151,15 +151,41 @@ class HotNewsDailyGenerationTest {
         }
     }
 
-    @Test fun aBudgetSmallerThanTheSpentCollectionTimeDefersInsteadOfFailing() =
-        withGenerator("## 今日要点\n- 多个平台讨论资料导出工具。[H1][F1]") { fixture ->
-            // The budget is already consumed before the AI stage: nothing is sent, nothing fails.
-            val result = fixture.service.generateDaily(force = true, aiSummaryBudgetMs = 1L)
+    @Test fun aBudgetSmallerThanTheSpentCollectionTimeDefersInsteadOfFailing() {
+        // Deterministic clock: collection alone drives the spent budget past the limit, no wall-clock race.
+        var elapsedMs = 0L
+        withGenerator(
+            "## 今日要点\n- 多个平台讨论资料导出工具。[H1][F1]",
+            elapsedFactory = { { elapsedMs } },
+        ) { fixture ->
+            val result = fixture.service.generateDaily(force = true, aiSummaryBudgetMs = 1_000L) { stage ->
+                if (stage == "collected") elapsedMs = 1_200L
+            }
 
             assertTrue(result.deferred, "an unsent generation never fails: " + result.message)
             assertTrue(result.message!!.contains("预算"), "the reason names the budget: " + result.message)
+            assertEquals(0, fixture.prompts.size, "no AI request is sent when the budget is already spent")
             assertNull(fixture.summaries.getLatestSuccessful(), "nothing is written for a deferral")
         }
+    }
+
+    @Test fun anInjectedClockDoesNotShareSpentTimeAcrossCalls() {
+        // Same factory, fresh mark per call: a spent budget in one call must not leak into the next. Each mark
+        // starts at the same offset and still advances monotonically, so the gate's own budget keeps moving.
+        withGenerator(
+            "## 今日要点\n- 多个平台讨论资料导出工具。[H1][F1]",
+            gate = com.dailysatori.service.ai.AiRequestCoordinator(backgroundIntervalMs = 0),
+            elapsedFactory = offsetClockFactory(),
+        ) { fixture ->
+            val first = fixture.service.generateDaily(force = true, aiSummaryBudgetMs = 1_000L)
+            assertTrue(first.success, "plenty of budget left, so the AI request is sent: " + first.message)
+            val second = fixture.service.generateDaily(force = true, aiSummaryBudgetMs = 1_000L)
+
+            assertTrue(second.success, "a fresh mark keeps the second call healthy: " + second.message)
+            assertEquals(2, fixture.prompts.size, "both calls really reached the AI service")
+            assertNotNull(fixture.summaries.getLatestSuccessful())
+        }
+    }
 
     @Test fun aFailingStageSinkNeverChangesTheBusinessResult() =
         withGenerator("## 今日要点\n- 多个平台讨论资料导出工具。[H1][F1]") { fixture ->
@@ -186,6 +212,13 @@ class HotNewsDailyGenerationTest {
         }
 
     private class LeaseLost : CancellationException("lease lost at permit")
+
+    /** Each call gets a fresh mark starting at 100ms that still advances monotonically. */
+    private fun offsetClockFactory(): () -> () -> Long = {
+        val markStart = System.currentTimeMillis()
+        val inner: () -> Long = { 100L + (System.currentTimeMillis() - markStart) }
+        inner
+    }
 
     @Test fun aCancellingSinkAtPermitCancelsTheRunningAiRequest() {
         val gate = com.dailysatori.service.ai.AiRequestCoordinator(backgroundIntervalMs = 0)
@@ -316,6 +349,7 @@ class HotNewsDailyGenerationTest {
         engineThrowsDetail: Boolean = false,
         gate: com.dailysatori.service.ai.AiRequestCoordinator = com.dailysatori.service.ai.AiRequestCoordinator(),
         withAiConfig: Boolean = true,
+        elapsedFactory: (() -> () -> Long)? = null,
         block: suspend (Fixture) -> Unit,
     ) = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
@@ -352,7 +386,8 @@ class HotNewsDailyGenerationTest {
                 val hotNews = HotNewsService(HotNewsClient(http), store, { error("Cached Chinese text must not translate") })
                 val summaries = UnifiedNewsSummaryRepository(db)
                 val service = UnifiedNewsSummaryService(AiService(http, gate), AiConfigService(configs), articles,
-                    RemoteNewsSourceRepository(db), RemoteArticleSyncRepository(db), summaries, hotNews)
+                    RemoteNewsSourceRepository(db), RemoteArticleSyncRepository(db), summaries, hotNews,
+                    elapsedFactory = elapsedFactory ?: { com.dailysatori.service.ai.monotonicElapsed() })
                 block(Fixture(service, hotNews, summaries, prompts))
             }
         }
