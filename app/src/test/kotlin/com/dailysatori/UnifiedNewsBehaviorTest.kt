@@ -643,9 +643,20 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsWorkerWritesDailySummaryRows() {
         val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
+        // Whitespace-normalised so wrapping the forwarding call across lines cannot break the contract check.
+        val normalized = handler.replace(Regex("\\s+"), " ")
+        val forwardedCall = normalized.substringAfter(".generateDaily(").substringBefore(")")
 
-        assertTrue(handler.contains(".generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter, persistGuard = persistGuard)"))
-        assertFalse(handler.contains("generate(window"))
+        assertTrue(forwardedCall.isNotBlank(), "the daily entry point is still called: " + forwardedCall)
+        listOf(
+            "force = force",
+            "ignoreSourceTimeFilter = ignoreSourceTimeFilter",
+            "persistGuard = persistGuard",
+            "onStage = onStage",
+        ).forEach { argument ->
+            assertTrue(forwardedCall.contains(argument), "generateDaily must forward " + argument + " in: " + forwardedCall)
+        }
+        assertFalse(handler.contains("generate(window"), "the window entry point is not what the task calls")
     }
 
     @Test
