@@ -155,7 +155,7 @@ class ExternalFavoriteSyncWorkerTest {
         // This worker only hands the work to the queue task and returns; a dataSync foreground
         // promotion here consumes the OS foreground budget without any long-running work.
         assertEquals(false, syncWorker.contains("setForeground("))
-        assertTrue(queueWorker.contains("setForeground(getForegroundInfo())"))
+        assertTrue(queueWorker.contains("setForeground(foreground)"))
     }
 
     @Test

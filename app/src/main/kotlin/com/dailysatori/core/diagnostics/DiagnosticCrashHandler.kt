@@ -25,7 +25,12 @@ class DiagnosticCrashHandler(
     override fun uncaughtException(thread: Thread, error: Throwable) {
         try {
             if (writing.compareAndSet(false, true)) {
-                emergency.emit(DiagnosticCode.CRASH, DiagnosticSource.APP, DiagnosticLevel.ERROR, error = error)
+                // 仅对已知的前台服务停止超时异常附加静态白名单属性；原始消息仍然只用于匹配、不入库。
+                emergency.emit(
+                    DiagnosticCode.CRASH, DiagnosticSource.APP, DiagnosticLevel.ERROR,
+                    fields = ForegroundStopDiagnostic.attributes(error.javaClass.name, error.message),
+                    error = error,
+                )
             }
         } finally { previous.uncaughtException(thread, error) }
     }

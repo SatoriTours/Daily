@@ -7,6 +7,31 @@ import kotlin.test.*
 import kotlinx.coroutines.runBlocking
 
 class DiagnosticCrashHandlerTest {
+    /** 仅同名已知异常：消息里的组件/类型映射为固定值，消息与未知组件一律不落盘。 */
+    private class ForegroundServiceDidNotStopInTimeException(message: String) : RuntimeException(message)
+
+    @Test
+    fun knownForegroundStopCrashKeepsOnlyWhitelistedAttributes() {
+        val root = Files.createTempDirectory("diagnostic-fgs").toFile()
+        var calls = 0
+        val handler = DiagnosticCrashHandler(root, Thread.UncaughtExceptionHandler { _, _ -> calls++ })
+        handler.uncaughtException(
+            Thread.currentThread(),
+            ForegroundServiceDidNotStopInTimeException(
+                "u0 com.evil.OtherService androidx.work.impl.foreground.SystemForegroundService " +
+                    "type=dataSync token=secret-canary",
+            ),
+        )
+        assertEquals(1, calls)
+        val text = File(root, "crash-pending.json").readText()
+        assertTrue(text.contains("\"crashKind\":\"fgs_stop_timeout\""))
+        assertTrue(text.contains("\"fgsComponent\":\"workmanager_system_foreground\""))
+        assertTrue(text.contains("\"fgsTypeName\":\"data_sync\""))
+        assertFalse(text.contains("secret-canary"))
+        assertFalse(text.contains("evil"))
+        root.deleteRecursively()
+    }
+
     @Test
     fun crashWriterAlwaysDelegatesAndOmitsExceptionMessage() {
         val root = Files.createTempDirectory("diagnostic-crash").toFile()

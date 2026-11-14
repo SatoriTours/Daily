@@ -141,8 +141,28 @@ class GenericAsyncTaskWorker(
             GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
             return Result.success()
         }
+        ForegroundDiagnostics.workerStarted(
+            ForegroundDiagnostics.ASYNC_TASK, taskId, taskType, runAttemptCount,
+        )
         if (isLongRunningAsyncTask(taskType)) {
-            setForeground(createAsyncTaskForegroundInfo(applicationContext, taskId, taskType.orEmpty()))
+            val foreground = createAsyncTaskForegroundInfo(applicationContext, taskId, taskType.orEmpty())
+            ForegroundDiagnostics.requestStarted(
+                ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, foreground.foregroundServiceType,
+                taskId, taskType, runAttemptCount,
+            )
+            try {
+                setForeground(foreground)
+                ForegroundDiagnostics.requestSucceeded(
+                    ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, taskId, taskType,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                ForegroundDiagnostics.requestFailed(
+                    ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, taskId, taskType, error,
+                )
+                throw error
+            }
         }
         val registry = GlobalContext.get().get<AsyncTaskHandlerRegistry>()
         val logStore = runCatching { GlobalContext.get().get<AsyncTaskLogStore>() }.getOrNull()
@@ -159,12 +179,13 @@ class GenericAsyncTaskWorker(
         val outcome = try {
             runner.run(taskId)
         } catch (error: CancellationException) {
+            ForegroundDiagnostics.workerCancelled(ForegroundDiagnostics.ASYNC_TASK, taskId)
             repo.getById(taskId)?.run_after_ms?.let {
                 AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it)
             }
             throw error
         }
-        return when (outcome) {
+        val result = when (outcome) {
             AsyncTaskRunOutcome.Succeeded -> {
                 AsyncTaskScheduler(applicationContext).recoverAndEnqueueRunnable()
                 Result.success()
@@ -175,11 +196,20 @@ class GenericAsyncTaskWorker(
                 if (inputData.getBoolean(KEY_CONTINUE_CHAIN_ON_FAILURE, false)) Result.success() else Result.failure()
             }
             AsyncTaskRunOutcome.RetryScheduled -> {
-                if (repo.getById(taskId)?.status == "queued" || repo.waitingForPredecessor(taskId)) return Result.retry()
+                if (repo.getById(taskId)?.status == "queued" || repo.waitingForPredecessor(taskId)) {
+                    ForegroundDiagnostics.workerFinished(
+                        ForegroundDiagnostics.ASYNC_TASK, outcome.foregroundOutcomeName(), taskId, taskType,
+                    )
+                    return Result.retry()
+                }
                 repo.getById(taskId)?.run_after_ms?.let { AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it) }
                 Result.success()
             }
         }
+        ForegroundDiagnostics.workerFinished(
+            ForegroundDiagnostics.ASYNC_TASK, outcome.foregroundOutcomeName(), taskId, taskType,
+        )
+        return result
     }
 
     companion object {

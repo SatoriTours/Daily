@@ -9,6 +9,46 @@ import kotlin.test.*
 import kotlinx.coroutines.runBlocking
 
 class DiagnosticStoreTest {
+    /** 前台生命周期事件必须真的进入存储与导出，且只保留白名单字段值。 */
+    @Test
+    fun foregroundLifecycleEventSurvivesStorageAndExport() = runBlocking<Unit> {
+        val root = Files.createTempDirectory("diagnostics-foreground").toFile()
+        var time = 2_000_000L
+        DiagnosticStore(root, clock = { time }).use { store ->
+            val log = Diagnostics(store, now = { time })
+            log.emit(
+                DiagnosticCode.OPERATION_START, DiagnosticSource.TASK,
+                fields = mapOf(
+                    "foregroundWorker" to "async_task",
+                    "foregroundStage" to "request",
+                    "notificationId" to "2007",
+                    "foregroundServiceType" to "2",
+                    "taskId" to "42",
+                ),
+            )
+            log.emit(
+                DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.TASK,
+                fields = mapOf(
+                    "foregroundWorker" to "evil-worker",
+                    "foregroundStage" to "request_ok",
+                    "notificationId" to "secret-canary",
+                ),
+            )
+            store.snapshot(time).use { snapshot ->
+                val output = java.io.ByteArrayOutputStream()
+                DiagnosticExporter("5.1.66", 175117, 37).write(snapshot, output)
+                val text = output.toString("UTF-8")
+                assertTrue(text.contains("\"foregroundWorker\":\"async_task\""))
+                assertTrue(text.contains("\"foregroundStage\":\"request\""))
+                assertTrue(text.contains("\"foregroundServiceType\":\"2\""))
+                assertTrue(text.contains("\"notificationId\":\"2007\""))
+                assertFalse(text.contains("evil-worker"))
+                assertFalse(text.contains("secret-canary"))
+            }
+        }
+        root.deleteRecursively()
+    }
+
     @Test
     fun snapshotUsesFixedInclusiveWindowAndSurvivesLaterWritesAndClear() = runBlocking<Unit> {
         val root = Files.createTempDirectory("diagnostics").toFile()

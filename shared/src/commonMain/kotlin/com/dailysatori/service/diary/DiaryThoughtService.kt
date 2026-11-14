@@ -26,12 +26,24 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.coroutineContext
+
+/** 后台整理的有界结果：区分“已处理”、“确实没有待处理工作”和“来源尚未就绪”。 */
+sealed interface DiaryRefreshOutcome {
+    data object Completed : DiaryRefreshOutcome
+    data object NothingPending : DiaryRefreshOutcome
+    data object NotReady : DiaryRefreshOutcome
+}
+
+internal const val DIARY_REQUEST_WAIT_MS = 30_000L
 
 class DiaryThoughtService(
     private val threads: DiaryThreadRepository,
     private val repository: DiaryThoughtRepository,
     private val generator: DiaryThoughtGenerator,
+    /** 等待来源快照就绪的上限。就绪后由 [pending] 决定是否真有工作；未就绪必须有界返回。 */
+    private val requestWaitMs: Long = DIARY_REQUEST_WAIT_MS,
 ) {
     private val _state = MutableStateFlow(DiaryThoughtState())
     val state = _state.asStateFlow()
@@ -85,24 +97,41 @@ class DiaryThoughtService(
     private fun observationFailed(error: Exception) {
         log.w { "Diary thought startup observation failed (${error::class.simpleName})" }
         _state.update { it.copy(isUpdating = false, progress = "", error = "思想整理暂时不可用，请稍后重试") }
+        // 只记固定阶段值（白名单键 diaryStage），不记录异常类型/消息/日记正文。
+        DiagnosticLog.diagnostics.emit(
+            DiagnosticCode.OPERATION_FAILED, DiagnosticSource.DIARY,
+            fields = mapOf("diaryStage" to "sources_observation_failed"),
+        )
     }
+
+    /**
+     * 来源快照是否已就绪：只有观察者填入请求后才知道有没有工作。
+     * 尚未加载时最多等待 [requestWaitMs]，绝不无限等待。
+     */
+    suspend fun awaitPendingRequest(): Boolean =
+        withTimeoutOrNull(requestWaitMs) { pending.filterNotNull().first() } != null
 
     /** Worker 生命周期拥有执行权；日记变更取消旧快照，系统中断后从持久断点续作。 */
-    suspend fun runPendingRefresh() = DiagnosticLog.diagnostics.operation(DiagnosticSource.DIARY) {
-        runPendingRefreshRecorded()
-    }
+    suspend fun runPendingRefresh(): DiaryRefreshOutcome =
+        DiagnosticLog.diagnostics.operation(DiagnosticSource.DIARY) {
+            runPendingRefreshRecorded()
+        }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun runPendingRefreshRecorded() = execution.withLock {
+    private suspend fun runPendingRefreshRecorded(): DiaryRefreshOutcome = execution.withLock {
+        // 暂未加载（或观察失败）时就绪信号不会出现：有界返回，把前台让给真正的调度者。
+        if (!awaitPendingRequest()) return@withLock DiaryRefreshOutcome.NotReady
+        var generated = false
         pending.filterNotNull().transformLatest { request ->
             if (request != completedRequest) {
                 val force = request.revision > handledRevision
                 handledRevision = request.revision
-                refresh(request.sources, request.corrections, force)
+                generated = refresh(request.sources, request.corrections, force) || generated
                 completedRequest = request
             }
             emit(Unit)
         }.first()
+        if (generated) DiaryRefreshOutcome.Completed else DiaryRefreshOutcome.NothingPending
     }
 
     fun requestRefresh() = requests.update { it + 1 }
@@ -118,7 +147,8 @@ class DiaryThoughtService(
         requestRefresh()
     }
 
-    private suspend fun refresh(sources: List<DiaryThoughtSource>, corrections: String, force: Boolean) {
+    /** @return 是否真的执行了生成（快照未变化时为 false，代表确实没有待处理工作）。 */
+    private suspend fun refresh(sources: List<DiaryThoughtSource>, corrections: String, force: Boolean): Boolean {
         val stored = repository.load().supportedBy(sources)
         val fingerprint = diaryThoughtFingerprint(sources, corrections)
         val rebuild = force && stored.fingerprint == fingerprint
@@ -130,16 +160,17 @@ class DiaryThoughtService(
             progress = if (stale) "准备更新…" else "",
         ) }
         if (stale) repository.save(previous)
-        if (!stale) return
+        if (!stale) return false
         try {
             delay(2_000)
             for (attempt in 0..2) {
-                if (generateArchive(sources, corrections, attempt)) return
+                if (generateArchive(sources, corrections, attempt)) return true
                 delay(if (attempt == 0) 5_000 else 15_000)
             }
         } finally {
             _state.update { it.copy(isUpdating = false) }
         }
+        return true
     }
 
     /** 每次重试重新读取已持久化的读取和合并断点。 */

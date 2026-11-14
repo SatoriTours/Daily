@@ -4,7 +4,23 @@ import io.ktor.http.Url
 
 /** Allow-list projection, not a best-effort replacement of secrets in arbitrary text. */
 object DiagnosticRedactor {
-    private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens", "translatedCount", "pendingCount", "taskId", "predecessorTaskId", "blockingTaskId")
+    private val numeric = setOf("status", "durationMs", "bytes", "count", "attempt", "reason", "exitTimestampMs", "sdk", "versionCode", "firstChunkMs", "inputTokens", "outputTokens", "translatedCount", "pendingCount", "taskId", "predecessorTaskId", "blockingTaskId",
+        "notificationId", "foregroundServiceType", "runAttemptCount")
+    private val foregroundStages = setOf("request", "request_ok", "request_failed", "worker_started", "worker_cancelled")
+    private val foregroundWorkers = setOf("async_task", "external_favorite_queue", "diary_thought")
+    private val foregroundStartFailures = setOf("start_not_allowed", "illegal_state", "other")
+    private val foregroundOutcomes = setOf("completed", "failed", "skipped", "retry_scheduled",
+        "nothing_pending", "sources_not_ready", "cancelled")
+    /** 思想整理自身阶段：只放行固定值，未知值一律丢弃（不放行任意 stage 文本）。 */
+    private val diaryStages = setOf("sources_observation_failed")
+    /** 前台任务类型：仅本 App 已知的异步任务类型白名单，其它记为 unknown。 */
+    private val foregroundTaskTypes = setOf("assistant_turn", "sms_reminder_parse", "external_favorite_organize",
+        "save_article", "external_favorite_sync", "remote_article_reprocess", "remote_article_sync",
+        "remote_news_fetch", "reminder_ai_parse", "diary_attachment_transcribe", "diary_thread_summarize",
+        "article_memory_extract", "book_viewpoint_generate", "diary_knowledge_extract", "unknown")
+    private val foregroundComponents = setOf("workmanager_system_foreground", "diary_recording", "unknown")
+    private val foregroundTypeNames = setOf("data_sync", "microphone", "camera", "location", "media_playback",
+        "connectivity", "short_service", "special_use", "unknown")
     private val taskTypes = setOf("remote_news_fetch", "remote_article_sync", "hot_news_refresh")
     private val taskStages = setOf("started", "waiting_predecessor", "claim_rejected", "not_runnable",
         "succeeded", "failed", "retry_scheduled", "skipped", "cancelled")
@@ -45,6 +61,15 @@ object DiagnosticRedactor {
                 key == "unifiedNewsDecision" && value in setOf("generate", "skip_stale", "skip_generated") -> put(key, value)
                 key == "taskType" && value in taskTypes -> put(key, value)
                 key == "taskStage" && value in taskStages -> put(key, value)
+                key == "foregroundStage" && value in foregroundStages -> put(key, value)
+                key == "diaryStage" && value in diaryStages -> put(key, value)
+                key == "foregroundTaskType" && value in foregroundTaskTypes -> put(key, value)
+                key == "foregroundWorker" && value in foregroundWorkers -> put(key, value)
+                key == "foregroundStartFailure" && value in foregroundStartFailures -> put(key, value)
+                key == "workerOutcome" && value in foregroundOutcomes -> put(key, value)
+                key == "crashKind" && value in setOf("fgs_stop_timeout") -> put(key, value)
+                key == "fgsComponent" && value in foregroundComponents -> put(key, value)
+                key == "fgsTypeName" && value in foregroundTypeNames -> put(key, value)
                 key == "newsSummaryStage" && value in newsSummaryStages -> put(key, value)
                 key == "hotNewsFailure" && value in setOf("network", "timeout", "format", "configuration", "other") -> put(key, value)
                 key == "hotNewsValidation" && value in setOf("json", "identity", "title", "summary", "missing_summary") -> put(key, value)

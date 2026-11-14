@@ -50,7 +50,8 @@ class AsyncTaskWorkerSourceTest {
         val source = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
 
         assertTrue(source.contains("NetworkType.CONNECTED"))
-        assertTrue(source.contains("setForeground(createAsyncTaskForegroundInfo"))
+        assertTrue(source.contains("ForegroundDiagnostics.requestStarted("))
+        assertTrue(source.contains("setForeground(foreground)"))
         assertTrue(source.contains("enqueueSequential("))
         assertTrue(source.contains("KEY_CONTINUE_CHAIN_ON_FAILURE"))
         assertTrue(isLongRunningAsyncTask("remote_article_sync"))
@@ -96,7 +97,7 @@ class AsyncTaskWorkerSourceTest {
         val worker = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
 
         val cancellationBranch = worker
-            .substringAfter("catch (error: CancellationException)")
+            .substringAfter("ForegroundDiagnostics.workerCancelled(ForegroundDiagnostics.ASYNC_TASK, taskId)")
             .substringBefore("throw error")
         assertTrue(cancellationBranch.contains("enqueueRetry(taskId"))
     }

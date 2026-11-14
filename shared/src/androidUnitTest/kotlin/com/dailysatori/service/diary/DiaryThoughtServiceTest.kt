@@ -195,6 +195,102 @@ class DiaryThoughtServiceTest {
         assertEquals(1, loaded.archive.diaryCount)
     }
 
+    @Test
+    fun workerWithoutLoadedSourcesReturnsInsteadOfHangingForever() = withFixture { _, threads, repository, _ ->
+        // 进程刚启动、Application 观察者尚未填入来源快照时，后台执行者必须有界返回，
+        // 否则会一直持有 dataSync 前台等待一个可能永远不来的请求。
+        val service = DiaryThoughtService(
+            threads, repository,
+            DiaryThoughtGenerator { _, _ -> error("无请求不应调用 AI") },
+            requestWaitMs = 200,
+        )
+
+        val outcome = withTimeout(2_000) { service.runPendingRefresh() }
+
+        assertEquals(DiaryRefreshOutcome.NotReady, outcome, "来源未加载时必须有界返回，不能无限挂起")
+        assertFalse(service.awaitPendingRequest())
+    }
+
+    @Test
+    fun loadedSnapshotWithoutStaleSourcesReportsNothingPending() = withFixture { diaries, threads, repository, scope ->
+        val id = diaries.create("先做重要的事情")
+        val source = diaries.getById(id)!!
+        val fingerprint = diaryThoughtFingerprint(listOf(DiaryThoughtSource(id, source.content, source.created_at)), "")
+        repository.save(DiaryThoughtArchive(fingerprint = fingerprint, diaryCount = 1, generatedAt = 123))
+        val service = DiaryThoughtService(
+            threads, repository,
+            DiaryThoughtGenerator { _, _ -> error("未变化不应调用 AI") },
+            requestWaitMs = 5_000,
+        )
+        service.start(scope) {}
+
+        val outcome = withTimeout(8_000) { service.runPendingRefresh() }
+
+        assertEquals(DiaryRefreshOutcome.NothingPending, outcome, "已加载且没有变化时必须与未加载区分")
+        assertEquals(123L, repository.load().generatedAt)
+    }
+
+    @Test
+    fun notReadyAttemptDoesNotDropTheLaterRequest() = withFixture { diaries, threads, repository, scope ->
+        diaries.create("先做重要的事情")
+        var calls = 0
+        val service = DiaryThoughtService(
+            threads, repository,
+            DiaryThoughtGenerator { _, _ -> calls++; "{\"thoughts\":[]}" },
+            requestWaitMs = 200,
+        )
+
+        assertEquals(DiaryRefreshOutcome.NotReady, withTimeout(2_000) { service.runPendingRefresh() })
+        assertEquals(0, calls, "未就绪时不能提前生成")
+
+        service.start(scope) {}
+        assertEquals(DiaryRefreshOutcome.Completed, withTimeout(10_000) { service.runPendingRefresh() })
+        assertEquals(1, calls, "未就绪那一次不能吞掉随后到达的请求")
+    }
+
+    @Test
+    fun pendingWorkReportsCompleted() = withFixture { diaries, threads, repository, scope ->
+        diaries.create("先做重要的事情")
+        val service = DiaryThoughtService(
+            threads, repository,
+            DiaryThoughtGenerator { _, _ -> "{\"thoughts\":[]}" },
+            requestWaitMs = 5_000,
+        )
+        service.start(scope) {}
+
+        val outcome = withTimeout(10_000) { service.runPendingRefresh() }
+
+        assertEquals(DiaryRefreshOutcome.Completed, outcome)
+    }
+
+    @Test
+    fun sourceObservationFailureEndsTheWorkerInsteadOfHanging() = runBlocking {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        val job = SupervisorJob()
+        try {
+            DailySatoriDatabase.Schema.create(driver)
+            val database = DailySatoriDatabase(driver)
+            val threads = DiaryThreadRepository(database, driver)
+            val repository = DiaryThoughtRepository(SettingRepository(database))
+            // 数据源不可用：观察必然失败，后台执行者不能因此永久等待。
+            driver.close()
+            val service = DiaryThoughtService(
+                threads, repository,
+                DiaryThoughtGenerator { _, _ -> error("无请求不应调用 AI") },
+                requestWaitMs = 200,
+            )
+            service.start(CoroutineScope(job + Dispatchers.IO)) {}
+
+            val outcome = withTimeout(2_000) { service.runPendingRefresh() }
+
+            assertEquals(DiaryRefreshOutcome.NotReady, outcome, "来源观察失败时必须有界返回")
+            assertTrue(withTimeout(2_000) { service.state.first { it.error != null } }.error != null)
+        } finally {
+            job.cancelAndJoin()
+            runCatching { driver.close() }
+        }
+    }
+
     private fun DiaryThoughtService.startWithWorker(scope: CoroutineScope) {
         start(scope) { scope.launch { runPendingRefresh() } }
     }

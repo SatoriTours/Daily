@@ -14,7 +14,9 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.dailysatori.service.diary.DiaryRefreshOutcome
 import com.dailysatori.service.diary.DiaryThoughtService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -37,15 +39,50 @@ class DiaryThoughtScheduler(private val context: Context) {
 class DiaryThoughtWorker(context: Context, params: WorkerParameters) : StartupWorker(context, params) {
     override suspend fun doReadyWork(): Result = coroutineScope {
         val service = GlobalContext.get().get<DiaryThoughtService>()
-        setForeground(thoughtForegroundInfo(applicationContext, "准备整理我的思想…"))
+        ForegroundDiagnostics.workerStarted(ForegroundDiagnostics.DIARY_THOUGHT, null, null, runAttemptCount)
+        // 先确认来源快照已就绪：没有可判定的请求就不申请 dataSync 前台，
+        // 避免无工作时空占前台直到系统回收。
+        if (!service.awaitPendingRequest()) {
+            ForegroundDiagnostics.workerFinished(
+                ForegroundDiagnostics.DIARY_THOUGHT, "sources_not_ready", null, null,
+            )
+            return@coroutineScope Result.success()
+        }
+        val foreground = thoughtForegroundInfo(applicationContext, "准备整理我的思想…")
+        ForegroundDiagnostics.requestStarted(
+            ForegroundDiagnostics.DIARY_THOUGHT, foreground.notificationId, foreground.foregroundServiceType,
+            null, null, runAttemptCount,
+        )
+        try {
+            setForeground(foreground)
+            ForegroundDiagnostics.requestSucceeded(
+                ForegroundDiagnostics.DIARY_THOUGHT, foreground.notificationId, null, null,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            ForegroundDiagnostics.requestFailed(
+                ForegroundDiagnostics.DIARY_THOUGHT, foreground.notificationId, null, null, error,
+            )
+            throw error
+        }
         val progress = launch {
             service.state.map { it.progress }.distinctUntilChanged().collect {
                 if (it.isNotBlank()) setForeground(thoughtForegroundInfo(applicationContext, it))
             }
         }
         try {
-            service.runPendingRefresh()
+            val outcome = when (service.runPendingRefresh()) {
+                DiaryRefreshOutcome.Completed -> "completed"
+                DiaryRefreshOutcome.NothingPending -> "nothing_pending"
+                DiaryRefreshOutcome.NotReady -> "sources_not_ready"
+            }
+            ForegroundDiagnostics.workerFinished(ForegroundDiagnostics.DIARY_THOUGHT, outcome, null, null)
+            // 本轮没有可执行的工作时立即结束，不重试：来源就绪后观察者会重新调度。
             Result.success()
+        } catch (error: CancellationException) {
+            ForegroundDiagnostics.workerCancelled(ForegroundDiagnostics.DIARY_THOUGHT, null)
+            throw error
         } finally {
             progress.cancel()
         }

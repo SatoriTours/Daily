@@ -275,10 +275,35 @@ class ExternalFavoriteQueueWorker(
         val task = repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, now, 1).firstOrNull()
         if (task == null) {
             scheduleNextRetry(repository, now)
+            ForegroundDiagnostics.workerFinished(
+                ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, "skipped", null, null,
+            )
             return Result.success()
         }
 
-        setForeground(getForegroundInfo())
+        ForegroundDiagnostics.workerStarted(
+            ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, task.id, task.type, runAttemptCount,
+        )
+        run {
+            val foreground = getForegroundInfo()
+            ForegroundDiagnostics.requestStarted(
+                ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, foreground.notificationId,
+                foreground.foregroundServiceType, task.id, task.type, runAttemptCount,
+            )
+            try {
+                setForeground(foreground)
+                ForegroundDiagnostics.requestSucceeded(
+                    ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, foreground.notificationId, task.id, task.type,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                ForegroundDiagnostics.requestFailed(
+                    ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, foreground.notificationId, task.id, task.type, error,
+                )
+                throw error
+            }
+        }
         val runner = AsyncTaskRunner(
             repository = repository,
             registry = koin.get<AsyncTaskHandlerRegistry>(),
@@ -308,6 +333,7 @@ class ExternalFavoriteQueueWorker(
                 }
             }
         } catch (error: CancellationException) {
+            ForegroundDiagnostics.workerCancelled(ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, task.id)
             scheduleNextRetry(repository, kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
             throw error
         }
@@ -328,6 +354,15 @@ class ExternalFavoriteQueueWorker(
             AsyncTaskScheduler(applicationContext).notifyTerminal(task.id)
         }
         scheduleNextRetry(repository, afterRun)
+        // 真实终态：Blocked/RetryScheduled/Skipped/用户取消都不得冒充 completed。
+        val outcomeName = if (current?.status == AsyncTaskStatus.cancelled.name) {
+            "cancelled"
+        } else {
+            outcome.foregroundOutcomeName()
+        }
+        ForegroundDiagnostics.workerFinished(
+            ForegroundDiagnostics.EXTERNAL_FAVORITE_QUEUE, outcomeName, task.id, task.type,
+        )
         return Result.success()
     }
 
