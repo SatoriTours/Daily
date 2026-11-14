@@ -18,7 +18,21 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import com.dailysatori.service.ai.AiQueueWaitTimeout
+import com.dailysatori.service.ai.AiHttpFailure
+import com.dailysatori.service.ai.AiRequestObserver
+import com.dailysatori.service.ai.monotonicElapsed
+import com.dailysatori.service.ai.withAiCallDeadline
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeoutOrNull
 import com.dailysatori.service.hotnews.HotNewsService
 
 class UnifiedNewsSummaryService(
@@ -41,7 +55,11 @@ class UnifiedNewsSummaryService(
         force: Boolean = false,
         ignoreSourceTimeFilter: Boolean = false,
         persistGuard: (() -> Boolean)? = null,
+        aiSummaryBudgetMs: Long = DEFAULT_AI_SUMMARY_BUDGET_MS,
+        onStage: (suspend (String) -> Unit)? = null,
     ): UnifiedNewsGenerationResult {
+        // One monotonic budget for the whole call, started here so collection time is charged to it too.
+        val elapsed = monotonicElapsed()
         if (!force && hasSuccessfulSummary(window)) {
             return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.SUCCESS)
         }
@@ -57,21 +75,94 @@ class UnifiedNewsSummaryService(
         if (sources.isEmpty()) return persistEmpty(window, warnings, persistGuard)
         val preparedSources = prepareUnifiedNewsSources(sources)
         if (preparedSources.isEmpty()) return persistEmpty(window, warnings, persistGuard)
+        // Collection is done: the task can report its first stage before any AI wait begins.
+        notifyStage(onStage, UNIFIED_NEWS_STAGE_COLLECTED)
 
         val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
         if (config == null) {
             return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务", retryable = false, persistGuard = persistGuard)
         }
 
+        notifyStage(onStage, UNIFIED_NEWS_STAGE_AI_WAITING)
+        // What is left after collection, minus the margin kept for validation and persisting. This is a
+        // budget for admission+request only: with the default 150s a queued request may get less than the
+        // inner 120s request timeout, and that is an accepted, explainable outcome rather than silent truncation.
+        // Scaled so a short injectable budget keeps the same shape: 150s keeps 15s back, 900ms keeps 90ms.
+        val persistMarginMs = minOf(PERSIST_MARGIN_MS, aiSummaryBudgetMs / 10)
+        val minSendMs = minOf(MIN_SEND_BUDGET_MS, aiSummaryBudgetMs / 20)
+        val aiBudgetMs = aiSummaryBudgetMs - elapsed() - persistMarginMs
+        if (aiBudgetMs < minSendMs) {
+            // Nothing was sent and nothing failed: the next run continues with a fresh budget.
+            return UnifiedNewsGenerationResult(
+                success = false,
+                status = UnifiedNewsSummaryStatus.FAILED,
+                message = "本次收集耗时较长，AI 生成预算不足，稍后自动继续",
+                retryable = true,
+                deferred = true,
+            )
+        }
         val content = try {
-            aiService.summarize(
-                content = buildUnifiedNewsPrompt(window, preparedSources),
-                systemPrompt = "你是 Daily Satori 的新闻编辑，请输出可靠、克制且带引用的中文 Markdown 汇总。",
-                apiAddress = config.api_address,
-                apiToken = config.api_token,
-                modelName = config.model_name,
-                provider = config.provider,
-                purpose = AiPurpose.EXTERNAL_CONTENT,
+            // One execution budget for the whole AI call: [withAiCallDeadline] only carries the admission
+            // deadline, so this single timeout is what actually bounds collection-to-generated work.
+            // withTimeoutOrNull marks *our* budget explicitly, so an inner timeout/cancellation keeps its
+            // existing meaning (an external cancellation is never converted into a retryable failure).
+            coroutineScope {
+                // Real AI lifecycle stages come from the existing observer; the collector keeps stage order and
+                // reports each one as it happens, without polling or a second tracking system.
+                val stages = Channel<String>(Channel.UNLIMITED)
+                // This scope owns the real AI call: a stage sink that reports cancellation (a lost lease) must
+                // stop that call, not merely stop reporting. Ordinary sink errors stay advisory.
+                val aiScope = this
+                val collector = launch {
+                    for (stage in stages) {
+                        try {
+                            onStage?.invoke(stage)
+                        } catch (cancelled: CancellationException) {
+                            aiScope.cancel(cancelled)
+                            throw cancelled
+                        } catch (_: Exception) {
+                            // Observability only; the business result and its persist/lease guard are unaffected.
+                        }
+                    }
+                }
+                try {
+                    withTimeoutOrNull(aiBudgetMs.coerceAtLeast(1L)) {
+                        withAiCallDeadline(aiBudgetMs, admissionCapMs = AI_SUMMARY_ADMISSION_CAP_MS) {
+                            withContext(AiRequestObserver(
+                                state = { state -> stages.trySend("ai_" + state) },
+                                beforeSend = { stages.trySend("ai_permit") },
+                            )) {
+                                aiService.summarize(
+                        content = buildUnifiedNewsPrompt(window, preparedSources),
+                        systemPrompt = "你是 Daily Satori 的新闻编辑，请输出可靠、克制且带引用的中文 Markdown 汇总。",
+                        apiAddress = config.api_address,
+                        apiToken = config.api_token,
+                        modelName = config.model_name,
+                        provider = config.provider,
+                                    purpose = AiPurpose.EXTERNAL_CONTENT,
+                                )
+                            }
+                        }
+                    }
+                } finally {
+                    stages.close()
+                    collector.join()
+                }
+            }
+        } catch (timeout: TimeoutCancellationException) {
+            // A known inner AI request timeout, not a system cancellation: only explain it while this run is
+            // still active. A real parent/system cancellation rethrows from ensureActive().
+            currentCoroutineContext().ensureActive()
+            return saveFailure(window, preparedSources, warnings, "AI 生成超时，请稍后重试",
+                retryable = true, persistGuard = persistGuard)
+        } catch (deferred: AiQueueWaitTimeout) {
+            // Congestion sent nothing: report a deferral, never a failure, and keep any saved content.
+            return UnifiedNewsGenerationResult(
+                success = false,
+                status = UnifiedNewsSummaryStatus.FAILED,
+                message = deferred.message,
+                retryable = true,
+                deferred = true,
             )
         } catch (e: CancellationException) { throw e
         } catch (e: Exception) {
@@ -82,6 +173,10 @@ class UnifiedNewsSummaryService(
             )
         }
 
+        if (content == null) {
+            return saveFailure(window, preparedSources, warnings, "AI 生成超时，请稍后重试",
+                retryable = true, persistGuard = persistGuard)
+        }
         val sanitizedContent = sanitizeGeneratedUnifiedNewsContent(content, preparedSources)
         if (!hasValidCitationTokens(sanitizedContent, preparedSources)) {
             return saveFailure(
@@ -96,7 +191,10 @@ class UnifiedNewsSummaryService(
                 retryable = false, persistGuard = persistGuard,
             )
         }
-        return persistSuccess(window, preparedSources, warnings, sanitizedContent, persistGuard)
+        notifyStage(onStage, UNIFIED_NEWS_STAGE_VALIDATED)
+        val persisted = persistSuccess(window, preparedSources, warnings, sanitizedContent, persistGuard)
+        if (persisted.success) notifyStage(onStage, UNIFIED_NEWS_STAGE_PERSISTED)
+        return persisted
     }
 
     suspend fun generateDaily(
@@ -105,6 +203,8 @@ class UnifiedNewsSummaryService(
         now: Instant = Clock.System.now(),
         timeZone: TimeZone = TimeZone.currentSystemDefault(),
         persistGuard: (() -> Boolean)? = null,
+        aiSummaryBudgetMs: Long = DEFAULT_AI_SUMMARY_BUDGET_MS,
+        onStage: (suspend (String) -> Unit)? = null,
     ): UnifiedNewsGenerationResult {
         val window = dailyUnifiedNewsWindowFor(now, timeZone)
         require(window.key == UnifiedNewsWindowKey.DAILY)
@@ -113,6 +213,8 @@ class UnifiedNewsSummaryService(
             force = force,
             ignoreSourceTimeFilter = ignoreSourceTimeFilter,
             persistGuard = persistGuard,
+            aiSummaryBudgetMs = aiSummaryBudgetMs,
+            onStage = onStage,
         )
     }
 
@@ -288,14 +390,30 @@ class UnifiedNewsSummaryService(
         warnings += "部分新闻来源暂时不可用，本次汇总基于已获取内容生成"
     }
 
-    private fun aiGenerationFailureMessage(error: Exception): String {
-        val detail = error.message.orEmpty()
-        return when {
-            detail.contains("Timed out", ignoreCase = true) -> "AI 总结生成超时，请稍后手动重试"
-            detail.contains("JsonParseException", ignoreCase = true) -> "AI 服务返回了非 JSON 响应，请检查 AI 地址或模型配置"
-            detail.isNotBlank() -> "AI 总结生成失败：${detail.take(120)}"
-            else -> "AI 总结生成失败，请稍后重试"
+    /**
+     * Stage visibility is advisory: a failing report must never abort generation or change its result, but a
+     * cancellation (a lost lease included) always propagates so an old owner can never keep writing.
+     */
+    private suspend fun notifyStage(onStage: (suspend (String) -> Unit)?, stage: String) {
+        try {
+            onStage?.invoke(stage)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Observability only; the business result and its persist/lease guard are unaffected.
         }
+    }
+
+    /** Fixed, classified texts only: provider bodies, URLs, queries and raw exception text never leak out. */
+    private fun aiGenerationFailureMessage(error: Exception): String = when (error) {
+        is AiHttpFailure -> when {
+            error.status == 401 || error.status == 403 -> "AI 认证或权限失败，请检查 AI 配置"
+            error.status == 429 -> "AI 服务限流，稍后自动重试"
+            error.status in 500..599 -> "AI 服务暂时不可用，请稍后重试"
+            else -> "AI 服务返回错误，请稍后重试"
+        }
+        is TimeoutCancellationException -> "AI 总结生成超时，请稍后重试"
+        else -> "AI 总结生成失败，请稍后重试"
     }
 }
 
@@ -320,6 +438,23 @@ fun budgetUnifiedNewsSources(
     maxSources = maxSources,
     maxContentChars = maxContentChars,
 )
+
+/** Single execution budget for the whole AI summary call; the admission reserve comes from the gate. */
+const val DEFAULT_AI_SUMMARY_BUDGET_MS = 150_000L
+
+/** This path waits at most this long for a send permit, independent of the gate's global capacity. */
+internal const val AI_SUMMARY_ADMISSION_CAP_MS = 15_000L
+
+/** Kept back for validation and persisting so the task returns an explainable result in time. */
+private const val PERSIST_MARGIN_MS = 15_000L
+
+/** Below this there is no point queueing: defer instead of failing an unsent generation. */
+private const val MIN_SEND_BUDGET_MS = 5_000L
+
+internal const val UNIFIED_NEWS_STAGE_COLLECTED = "collected"
+internal const val UNIFIED_NEWS_STAGE_AI_WAITING = "ai_waiting"
+internal const val UNIFIED_NEWS_STAGE_VALIDATED = "validated"
+internal const val UNIFIED_NEWS_STAGE_PERSISTED = "persisted"
 
 fun prepareUnifiedNewsSources(
     sources: List<UnifiedNewsSourceItem>,

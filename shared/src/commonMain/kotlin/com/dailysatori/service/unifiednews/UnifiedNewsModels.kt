@@ -52,4 +52,6 @@ data class UnifiedNewsGenerationResult(
     val message: String? = null,
     /** Explicit retry authority from the failure source; null keeps the message-based rule. */
     val retryable: Boolean? = null,
+    /** Congestion deferred the generation: nothing was sent, nothing failed, the retry budget is untouched. */
+    val deferred: Boolean = false,
 )

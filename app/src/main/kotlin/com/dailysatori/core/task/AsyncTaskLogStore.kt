@@ -39,8 +39,20 @@ class AsyncTaskLogStore(
                 append(message.trimEnd())
                 append('\n')
             }
-            val capped = (existing + line).takeLastBytes(maxBytesPerTask)
-            file.writeText(capped)
+            // Drop the marker before appending so it never accumulates, and tell the reader when older lines
+            // were cut instead of silently presenting a partial history.
+            val body = if (existing.startsWith(TRIM_MARKER)) existing.removePrefix(TRIM_MARKER) else existing
+            val combined = body + line
+            val capped = combined.takeLastUtf8Bytes(maxBytesPerTask)
+            // The marker is part of the cap so the file never exceeds its budget, and a cut can never leave a
+            // broken multi-byte character behind.
+            file.writeText(
+                if (capped.length < combined.length) {
+                    TRIM_MARKER + capped.takeLastUtf8Bytes(maxBytesPerTask - TRIM_MARKER.encodeToByteArray().size)
+                } else {
+                    capped
+                },
+            )
         }
     }
 
@@ -119,13 +131,18 @@ class AsyncTaskLogStore(
 
     private fun taskHttpFile(taskId: Long): File = File(root, "task-$taskId.http.log")
 
-    private fun String.takeLastBytes(maxBytes: Int): String {
+    /** Keeps whole UTF-8 characters: the cut starts at the first lead byte at or after the byte budget. */
+    private fun String.takeLastUtf8Bytes(maxBytes: Int): String {
+        if (maxBytes <= 0) return ""
         val bytes = encodeToByteArray()
         if (bytes.size <= maxBytes) return this
-        return bytes.takeLast(maxBytes).toByteArray().decodeToString()
+        var start = bytes.size - maxBytes
+        while (start < bytes.size && (bytes[start].toInt() and 0xC0) == 0x80) start++
+        return bytes.copyOfRange(start, bytes.size).decodeToString()
     }
 
     private companion object {
+        const val TRIM_MARKER = "[已裁剪较早日志]\n"
         const val DEFAULT_MAX_BYTES_PER_TASK = 64 * 1024 * 1024
         const val DEFAULT_MAX_HTTP_BYTES_PER_TASK = 2 * 1024 * 1024
         const val DEFAULT_POLL_INTERVAL_MS = 1_000L

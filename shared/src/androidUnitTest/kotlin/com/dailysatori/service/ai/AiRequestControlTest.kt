@@ -4,6 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlPreparedStatement
@@ -162,6 +164,60 @@ class AiRequestControlTest {
             withAiCallDeadline(20) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true } }
         }
         assertTrue(sent, "a tiny budget must not be swallowed by the send reserve")
+    }
+
+    @Test fun aPathAdmissionCapIsOneAbsoluteDeadlineCountedFromContextCreation() {
+        // 150s budget, 15s reserve, 15s cap: the cap wins while plenty of budget is left.
+        assertEquals(15_000L, AiCallDeadline({ 0 }, 150_000L, 15_000L).remainingForAdmissionMs())
+        // Cumulative from creation: 10s in, only 5s of cap is left (not another 15s).
+        assertEquals(5_000L, AiCallDeadline({ 10_000L }, 150_000L, 15_000L).remainingForAdmissionMs())
+        // Past the cap there is no admission waiting left, even though 115s of budget remains.
+        assertEquals(0L, AiCallDeadline({ 20_000L }, 150_000L, 15_000L).remainingForAdmissionMs())
+        // The tighter of the two still wins: without a cap the budget alone decides.
+        assertEquals(0L, AiCallDeadline({ 140_000L }, 150_000L, 15_000L).remainingForAdmissionMs())
+        assertEquals(5_000L, AiCallDeadline({ 130_000L }, 150_000L).remainingForAdmissionMs())
+        assertEquals(135_000L, AiCallDeadline({ 0 }, 150_000L).remainingForAdmissionMs())
+        assertEquals(15_000L, com.dailysatori.service.unifiednews.AI_SUMMARY_ADMISSION_CAP_MS)
+    }
+
+    @Test fun repeatedGateWakeUpsCannotRestartTheAdmissionCap() = runBlocking {
+        val gate = AiRequestCoordinator(backgroundIntervalMs = 0)
+        val release = CompletableDeferred<Unit>()
+        val held = CompletableDeferred<Unit>()
+        var holders = 0
+        val scope = CoroutineScope(currentCoroutineContext() + Job())
+        listOf(
+            scope.launch { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {
+                holders++; if (holders == 2) held.complete(Unit); release.await() } },
+            scope.launch { gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) {
+                holders++; if (holders == 2) held.complete(Unit); release.await() } },
+        )
+        held.await()
+        // Churn: every ticket add/remove signals group.changed, which must never reset the absolute cap.
+        val churn = scope.launch {
+            repeat(40) {
+                val waiter = launch { runCatching {
+                    gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) { }
+                } }
+                delay(25)
+                waiter.cancelAndJoin()
+            }
+        }
+        var sent = false
+        val began = System.currentTimeMillis()
+        val outcome = runCatching {
+            withAiCallDeadline(budgetMs = 30_000, admissionCapMs = 300) {
+                gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true }
+            }
+        }
+        val elapsed = System.currentTimeMillis() - began
+        release.complete(Unit)
+        churn.cancelAndJoin()
+        scope.cancel()
+
+        assertIs<AiQueueWaitTimeout>(outcome.exceptionOrNull(), "an unsent request defers, it never sends late")
+        assertFalse(sent)
+        assertTrue(elapsed < 800, "the cap is one absolute deadline across wake-ups: " + elapsed + "ms")
     }
 
     @Test fun advisoryToleranceNeverSwallowsCancellation() {

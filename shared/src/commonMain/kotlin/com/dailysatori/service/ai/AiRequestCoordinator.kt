@@ -42,11 +42,24 @@ class AiQueueWaitTimeout(val waitedMs: Long) : IllegalStateException(
  * One absolute budget owned by the caller's item: content work, prompt building and every nested AI request
  * are charged to the same deadline. Remaining time uses a monotonic clock so a wall-clock change cannot move it.
  */
-class AiCallDeadline(private val elapsedMs: () -> Long, val budgetMs: Long) {
+class AiCallDeadline(
+    private val elapsedMs: () -> Long,
+    val budgetMs: Long,
+    /** Optional per-path cap on admission waiting; the absolute budget still wins when it is tighter. */
+    val admissionCapMs: Long? = null,
+) {
     val reserveMs: Long = reserveForBudget(budgetMs)
 
-    /** How long the gate may still queue before the reserved send time would be eaten. */
-    fun remainingForAdmissionMs(): Long = (budgetMs - elapsedMs() - reserveMs).coerceAtLeast(0L)
+    /**
+     * How long the gate may still queue. Both terms are measured from this deadline's creation with one
+     * elapsed snapshot, so an admission cap is a single absolute instant: a gate wake-up can never restart it.
+     */
+    fun remainingForAdmissionMs(): Long {
+        val elapsed = elapsedMs()
+        val budgetRemaining = (budgetMs - elapsed - reserveMs).coerceAtLeast(0L)
+        val capRemaining = admissionCapMs?.let { (it - elapsed).coerceAtLeast(0L) } ?: budgetRemaining
+        return minOf(budgetRemaining, capRemaining)
+    }
 }
 
 /** Reserve the send a slice of the budget (a third, capped); never the whole budget, even when it is tiny. */
@@ -70,15 +83,16 @@ private class AiCallDeadlineElement(val deadline: AiCallDeadline) : AbstractCoro
 suspend fun <T> withAiCallDeadline(
     budgetMs: Long,
     elapsedMs: (() -> Long)? = null,
+    admissionCapMs: Long? = null,
     block: suspend () -> T,
 ): T {
     val budget = budgetMs.coerceAtLeast(1L)
     val clock: () -> Long = elapsedMs ?: monotonicElapsed()
-    return withContext(AiCallDeadlineElement(AiCallDeadline(clock, budget))) { block() }
+    return withContext(AiCallDeadlineElement(AiCallDeadline(clock, budget, admissionCapMs))) { block() }
 }
 
 /** Elapsed time from a monotonic mark: wall-clock corrections cannot move the remaining budget. */
-private fun monotonicElapsed(): () -> Long {
+internal fun monotonicElapsed(): () -> Long {
     val mark = TimeSource.Monotonic.markNow()
     return { mark.elapsedNow().inWholeMilliseconds }
 }

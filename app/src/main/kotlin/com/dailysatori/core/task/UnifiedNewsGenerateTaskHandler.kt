@@ -13,6 +13,7 @@ import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsTickDecision
 import com.dailysatori.service.unifiednews.dueUnifiedNewsWindows
 import com.dailysatori.service.unifiednews.unifiedNewsTickDecision
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -39,9 +40,13 @@ class UnifiedNewsGenerateTaskHandler(
         force: Boolean,
         ignoreSourceTimeFilter: Boolean,
         persistGuard: (() -> Boolean)?,
-    ) -> UnifiedNewsGenerationResult = { force, ignoreSourceTimeFilter, persistGuard ->
+        onStage: (suspend (String) -> Unit)?,
+    ) -> UnifiedNewsGenerationResult = { force, ignoreSourceTimeFilter, persistGuard, onStage ->
         requireNotNull(summaryService) { "summary service is required for generation" }
-            .generateDaily(force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter, persistGuard = persistGuard)
+            .generateDaily(
+                force = force, ignoreSourceTimeFilter = ignoreSourceTimeFilter,
+                persistGuard = persistGuard, onStage = onStage,
+            )
     },
 ) : AsyncTaskHandler {
     private val articleQueue = articleQueue
@@ -70,7 +75,28 @@ class UnifiedNewsGenerateTaskHandler(
         reporter.report(0, 2, "正在收集远程新闻", checkpointJson = """{"stage":"collecting"}""")
         val lease = reporter.executionLease
         val persistGuard: () -> Boolean = { lease == null || leaseIsHeld(lease.taskId, lease.owner) }
-        val result = generateDaily(payload.force, payload.ignoreSourceTimeFilter, persistGuard)
+        // Every stage below is a real boundary the service reports; collection completing is the first one,
+        // and the AI stages are only claimed once the service actually reached them.
+        val beganNanos = System.nanoTime()
+        val result = try {
+            generateDaily(payload.force, payload.ignoreSourceTimeFilter, persistGuard) { stage ->
+                // Reported as it happens, with a monotonic elapsed so the export shows start/end and duration.
+                val elapsedMs = (System.nanoTime() - beganNanos) / 1_000_000
+                reporter.report(1, 2, unifiedNewsStageMessage(stage),
+                    checkpointJson = "{\"stage\":\"" + stage + "\",\"runElapsedMs\":" + elapsedMs + "}")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // A raw exception message must never reach the task log/export: classify it into safe constants.
+            return safeGenerationFailure(error)
+        }
+        if (result.deferred) {
+            // Congestion deferred the whole generation: keep the message visible, retry soon, spend no attempt.
+            reporter.report(1, 2, result.message ?: "AI 服务繁忙，稍后自动继续",
+                checkpointJson = """{"stage":"deferred"}""")
+            return AsyncTaskExecutionResult.Yield(delayMs = QUEUE_DEFERRED_RESUME_MS)
+        }
         summaryStage(result, forced = payload.force)
         reporter.report(1, 2, result.message ?: "正在生成新闻汇总", checkpointJson = """{"stage":"generated"}""")
 
@@ -116,12 +142,39 @@ class UnifiedNewsGenerateTaskHandler(
         return decision.takeIf { it != UnifiedNewsTickDecision.GENERATE }
     }
 
+    /** Safe classification: stable code plus a fixed message, never the raw exception text. */
+    private fun safeGenerationFailure(error: Throwable): AsyncTaskExecutionResult = when (error) {
+        is com.dailysatori.service.ai.AiQueueWaitTimeout ->
+            AsyncTaskExecutionResult.RetryableFailure("ai_queue_timeout", "AI 服务繁忙，未发送，稍后自动继续")
+        is kotlinx.coroutines.TimeoutCancellationException ->
+            AsyncTaskExecutionResult.RetryableFailure("ai_timeout", "AI 生成超时，请稍后重试")
+        is com.dailysatori.service.ai.AiHttpFailure ->
+            AsyncTaskExecutionResult.RetryableFailure("ai_http_" + error.status, "AI 服务返回错误，请稍后重试")
+        is android.database.SQLException ->
+            AsyncTaskExecutionResult.RetryableFailure("db_error", "本地数据库繁忙，稍后自动继续")
+        else -> AsyncTaskExecutionResult.RetryableFailure("generation_error", "新闻汇总生成失败，请稍后重试")
+    }
+
     companion object {
         const val TYPE = "remote_news_fetch"
+        /** A deferred generation resumes on a slow cadence: no fast loop and no attempt budget spent. */
+        private const val QUEUE_DEFERRED_RESUME_MS = 5 * 60_000L
         const val MODE_DUE = "due"
         const val MODE_BACKFILL = "backfill"
         const val MODE_MANUAL = "manual"
     }
+}
+
+private fun unifiedNewsStageMessage(stage: String): String = when (stage) {
+    "collected" -> "已收集来源"
+    "ai_waiting" -> "准备调用 AI 生成新闻汇总"
+    "ai_queued" -> "等待 AI 发送许可（排队中）"
+    "ai_permit" -> "已获得 AI 发送许可"
+    "ai_requesting" -> "AI 请求进行中"
+    "ai_received" -> "AI 已返回，正在校验"
+    "validated" -> "校验通过，正在保存"
+    "persisted" -> "新闻汇总已保存"
+    else -> "正在生成新闻汇总"
 }
 
 fun unifiedNewsGenerateTaskPayloadJson(

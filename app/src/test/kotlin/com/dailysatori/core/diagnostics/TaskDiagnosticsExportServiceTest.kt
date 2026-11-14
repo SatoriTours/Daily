@@ -25,7 +25,7 @@ class TaskDiagnosticsExportServiceTest {
             store.appendHttp(other, "# http schema=1 task=" + other + " secret-other-task")
 
             val output = ByteArrayOutputStream()
-            assertTrue(TaskDiagnosticsExportService(tasks, store) { 0L }.write(taskId, output))
+            assertTrue(TaskDiagnosticsExportService(tasks, store, clock = { 0L }).write(taskId, output))
             val text = output.toString("UTF-8")
 
             assertTrue(text.contains("task=" + taskId + " type=remote_news_fetch"))
@@ -36,8 +36,8 @@ class TaskDiagnosticsExportServiceTest {
             assertTrue(!text.contains("payload_json"), "raw task payload is not part of the export")
 
             val noCapture = ByteArrayOutputStream()
-            assertTrue(TaskDiagnosticsExportService(tasks, store) { 0L }.write(other, noCapture) == true)
-            assertTrue(TaskDiagnosticsExportService(tasks, store) { 0L }.write(999_999L, ByteArrayOutputStream()) == false,
+            assertTrue(TaskDiagnosticsExportService(tasks, store, clock = { 0L }).write(other, noCapture) == true)
+            assertTrue(TaskDiagnosticsExportService(tasks, store, clock = { 0L }).write(999_999L, ByteArrayOutputStream()) == false,
                 "an unknown task is reported instead of producing an empty file")
         }
         root.deleteRecursively()

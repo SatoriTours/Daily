@@ -18,6 +18,9 @@ class TaskDiagnosticsExportService(
     private val tasks: AsyncTaskRepository,
     private val store: AsyncTaskLogStore,
     private val clock: () -> Long = { Clock.System.now().toEpochMilliseconds() },
+    /** Exporting build, never mixed with the build that produced individual events. */
+    private val appVersionName: String = com.dailysatori.BuildConfig.VERSION_NAME,
+    private val appVersionCode: Int = com.dailysatori.BuildConfig.VERSION_CODE,
 ) {
     fun write(taskId: Long, output: OutputStream): Boolean {
         val task = tasks.getById(taskId) ?: return false
@@ -28,8 +31,13 @@ class TaskDiagnosticsExportService(
         val writer = output.bufferedWriter(Charsets.UTF_8)
         writer.appendLine("Daily Satori task diagnostics / schema=1")
         writer.appendLine("task=" + task.id + " type=" + task.type + " status=" + task.status)
-        writer.appendLine("exportedAt=" + local(clock()) + " timeZone=" + ZoneId.systemDefault().id)
+        val exportedAtMs = clock()
+        writer.appendLine("version=" + appVersionName + " versionCode=" + appVersionCode)
+        writer.appendLine("exportedAt=" + local(exportedAtMs) + " exportedAtMs=" + exportedAtMs
+            + " timeZone=" + ZoneId.systemDefault().id)
         writer.appendLine("progress=" + task.progress_current + "/" + task.progress_total + " attempt=" + task.attempt_count)
+        if (task.progress_message.isNotBlank()) writer.appendLine("progressMessage=" + task.progress_message)
+        task.run_after_ms?.let { writer.appendLine("runAfter=" + local(it)) }
         writer.appendLine("createdAt=" + local(task.created_at) + " updatedAt=" + local(task.updated_at))
         task.started_at?.let { writer.appendLine("startedAt=" + local(it)) }
         task.finished_at?.let { writer.appendLine("finishedAt=" + local(it)) }
