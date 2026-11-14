@@ -10,7 +10,10 @@ import kotlinx.coroutines.sync.withLock
 
 internal const val DEFAULT_X_OFFICIAL_CONTENT_LIMIT = 10
 
-internal class XContentDeferredException(val reason: String) : RuntimeException("X 正文官方兜底额度已用完或接口限流，将稍后重试")
+internal class XContentDeferredException(
+    val reason: String,
+    message: String = "X 正文官方兜底额度已用完或接口限流，将稍后重试",
+) : RuntimeException(message)
 
 /** One owner per sync/organization run; child coroutines share its atomic HTTP-request budget. */
 internal class XContentFetchSession(private val limit: Int) : AbstractCoroutineContextElement(Key) {

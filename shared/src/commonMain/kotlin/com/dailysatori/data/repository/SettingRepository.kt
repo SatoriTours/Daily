@@ -44,5 +44,18 @@ class SettingRepository(private val db: DailySatoriDatabase) {
 
     fun delete(key: String) = q.deleteSetting(key)
 
+    /**
+     * Raises a numeric setting to [value] and never lowers it. The conditional update plus insert-if-absent
+     * keep a high-water value (a rate-limit cooldown or a spacing deadline) safe from reordered writes.
+     */
+    fun upsertNumericFloor(key: String, value: Long) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        val stored = value.toString()
+        q.transaction {
+            q.raiseSettingNumericFloor(stored, now, key)
+            q.insertSettingIfAbsent(key, stored, now, now)
+        }
+    }
+
     private companion object { const val VALUE_PART_SIZE = 32_768L }
 }

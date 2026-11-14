@@ -85,6 +85,12 @@ data class OpportunityAnalysisInput(
     val thoughtContext: String?,
 )
 
+/**
+ * Result of one analysis batch. [deferred] counts articles congestion kept from being sent at all: nothing
+ * was attempted for them, so they neither count as failures nor consume the task's retry budget.
+ */
+data class OpportunityAnalysisOutcome(val completed: Int = 0, val deferred: Int = 0)
+
 fun interface OpportunityCandidateSource {
     suspend fun load(): List<ReadNewsArticle>
 }

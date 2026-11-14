@@ -4,6 +4,9 @@ import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
+import com.dailysatori.service.diagnostics.DiagnosticCode
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticSource
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
@@ -59,7 +62,7 @@ class RemoteArticleSyncTaskHandler(
                 sourceId = source.id,
                 // Only a source that was fetched and synced without failures may be reused or counted.
                 isSuccess = { fetched -> fetched.successful > 0 && fetched.failures.isEmpty() },
-            ) { fetchSource(source, sourceDate, now) }) {
+            ) { fetchSource(source, sourceDate, now, reporter, index, sources.size) }) {
                 is NewsSourceFetchShare.Owned -> {
                     successfulSources += shared.value.successful
                     inserted += shared.value.inserted
@@ -91,14 +94,47 @@ class RemoteArticleSyncTaskHandler(
         val failures: List<String>,
     )
 
+    /**
+     * Stage evidence for one source. The export redactor keeps only allow-listed stage values, and these carry
+     * no URL, token or content.
+     */
+    private fun syncStage(stage: String) {
+        DiagnosticLog.diagnostics.emit(
+            DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.TASK,
+            fields = mapOf("syncStage" to stage),
+        )
+    }
+
     private suspend fun fetchSource(
         source: com.dailysatori.shared.db.Remote_news_source,
         sourceDate: String,
         now: Long,
+        reporter: AsyncTaskProgressReporter,
+        sourceIndex: Int,
+        sourceCount: Int,
     ): SourceFetch = when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-        is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchSourceArticles(config.value, limit = 50)) {
+        is RemoteNewsResult.Success -> when (val result = run {
+            syncStage("fetch_start")
+            remoteNewsService.fetchSourceArticles(config.value, limit = 50)
+        }) {
             is RemoteNewsResult.Success -> {
-                val sync = remoteArticleSyncService.syncSourceArticles(source.id, sourceDate, result.value.articles, now)
+                syncStage("sync_start")
+                val sync = remoteArticleSyncService.syncSourceArticles(
+                    remoteSourceId = source.id,
+                    sourceDate = sourceDate,
+                    articles = result.value.articles,
+                    now = now,
+                ) { progress ->
+                    // The source is still incomplete, so current/total stay source-level; the message shows the
+                    // real article stage and a failed article is never counted as a processed success.
+                    reporter.report(
+                        current = sourceIndex.toLong(),
+                        total = sourceCount.toLong(),
+                        message = "已处理 ${progress.processed}/${progress.total} 篇，新增 ${progress.inserted} 篇，跳过 ${progress.skipped} 篇",
+                        checkpointJson = """{"inserted":${progress.inserted},"updated":${progress.updated},"skipped":${progress.skipped}}""",
+                    )
+                }
+                syncStage("sync_done")
                 SourceFetch(1, sync.inserted, sync.updated, sync.skipped,
                     sync.failures.map { source.name + ": " + it })
             }

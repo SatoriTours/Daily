@@ -4,6 +4,8 @@ import com.dailysatori.service.diagnostics.DiagnosticCode
 import com.dailysatori.service.diagnostics.DiagnosticLevel
 import com.dailysatori.service.diagnostics.DiagnosticLog
 import com.dailysatori.service.diagnostics.DiagnosticSource
+import com.dailysatori.service.ai.AiQueueWaitTimeout
+import com.dailysatori.service.ai.withAiCallDeadline
 import com.dailysatori.service.externalfavorites.sha256Hex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -65,13 +67,22 @@ class NewsOpportunityService(
         it.copy(reminderId = reminderId?.takeIf(String::isNotBlank))
     }
 
-    suspend fun analyze(automatic: Boolean = false, onProgress: suspend (Int, Int, String) -> Unit = { _, _, _ -> }) = execution.withLock {
+    suspend fun analyze(
+        automatic: Boolean = false,
+        onProgress: suspend (Int, Int, String) -> Unit = { _, _, _ -> },
+    ): OpportunityAnalysisOutcome = execution.withLock {
         ensureLoaded()
         val analysisContext = currentContext()
-        if (automatic && shouldDeferAutomaticAnalysis(analysisContext)) { publish(analysisContext); return@withLock }
+        if (automatic && shouldDeferAutomaticAnalysis(analysisContext)) {
+            publish(analysisContext)
+            return@withLock OpportunityAnalysisOutcome()
+        }
         var pending = pendingArticles(analysisContext)
         var completed = 0
         var quoteFailure: NewsOpportunityAnalysisException? = null
+        var networkFailure: NewsOpportunityAnalysisException? = null
+        var consecutiveNetworkFailures = 0
+        var deferred = 0
         _state.value = buildState(analysisContext).copy(isUpdating = true, progress = "正在查找适合你的文章", error = null)
         try {
             check((candidateSource == null && pending.isEmpty()) || archive.focus.isNotBlank() || !analysisContext.thoughts.isNullOrBlank())
@@ -83,20 +94,41 @@ class NewsOpportunityService(
                 onProgress(completed, pending.size, "正在分析第 ${completed + 1}/${pending.size} 篇新闻")
                 try {
                     analyzeArticle(article, analysisContext)
+                } catch (deferredByQueue: AiQueueWaitTimeout) {
+                    // Congestion, not a bad article: nothing was sent, so it stays pending for the next pass.
+                    deferred += 1
+                    return@forEach
                 } catch (failure: NewsOpportunityAnalysisException) {
-                    if (failure.reason != OpportunityFailureReason.INVALID_QUOTE) throw failure
-                    quoteFailure = quoteFailure ?: failure
+                    when (failure.reason) {
+                        // A quote mismatch stays pending for a later attempt without blocking the batch.
+                        OpportunityFailureReason.INVALID_QUOTE -> quoteFailure = quoteFailure ?: failure
+                        // One unreachable article must never park every other article behind it forever.
+                        OpportunityFailureReason.NETWORK_ERROR -> {
+                            networkFailure = networkFailure ?: failure
+                            consecutiveNetworkFailures++
+                            if (consecutiveNetworkFailures >= MAX_CONSECUTIVE_NETWORK_FAILURES) throw failure
+                        }
+                        else -> throw failure
+                    }
                     return@forEach
                 }
                 completed++
+                consecutiveNetworkFailures = 0
                 _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size), isUpdating = true)
                 onProgress(completed, pending.size, progress(completed, pending.size))
             }
             quoteFailure?.let { throw it }
+            // Completed articles are already persisted; the failure is reported so the task retries the rest.
+            networkFailure?.let { throw it }
             publish(analysisContext)
+            OpportunityAnalysisOutcome(completed, deferred)
         } catch (error: CancellationException) {
             _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size))
             throw error
+        } catch (deferredByQueue: AiQueueWaitTimeout) {
+            // Every remaining article was deferred by congestion: report it without failing the batch.
+            _state.value = buildState(analysisContext).copy(progress = progress(completed, pending.size))
+            OpportunityAnalysisOutcome(completed, pending.size - completed)
         } catch (error: Exception) {
             val failure = error as? NewsOpportunityAnalysisException ?: NewsOpportunityAnalysisException(cause = error)
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.TASK,
@@ -112,8 +144,13 @@ class NewsOpportunityService(
     private suspend fun analyzeArticle(article: ReadNewsArticle, context: AnalysisContext) {
         val draft = try {
             withTimeout(analysisTimeoutMs) {
-                analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, context.thoughts))
+                // One absolute budget per article (prework included): congestion defers before this expires.
+                withAiCallDeadline(analysisTimeoutMs) {
+                    analyzer.analyze(OpportunityAnalysisInput(article, archive.focus, context.thoughts))
+                }
             }
+        } catch (deferredByQueue: AiQueueWaitTimeout) {
+            throw deferredByQueue
         } catch (timeout: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
             throw NewsOpportunityAnalysisException(OpportunityFailureReason.NETWORK_ERROR, timeout)
@@ -261,6 +298,8 @@ class NewsOpportunityService(
         const val ANALYSIS_VERSION = "v5"
         const val AUTO_REFRESH_INTERVAL = 30 * 60 * 1_000L
         const val MAX_CANDIDATES = 20
+        /** A batch stops early only when the service looks unreachable, not on a single bad article. */
+        const val MAX_CONSECUTIVE_NETWORK_FAILURES = 3
         const val MAX_FOCUS_LENGTH = 2_000
         const val MAX_CONTEXT_LENGTH = 4_000
     }

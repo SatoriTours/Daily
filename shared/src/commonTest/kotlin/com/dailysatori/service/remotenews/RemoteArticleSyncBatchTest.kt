@@ -9,15 +9,17 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RemoteArticleSyncBatchTest {
     @Test
-    fun cancellationRollsBackThePageWithoutPublishingPartialArticles() {
+    fun cancellingBetweenArticlesKeepsCommittedArticlesAndPublishesNoHalfWrittenOne() = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             var inserts = 0
@@ -43,14 +45,17 @@ class RemoteArticleSyncBatchTest {
             }
             query.addListener(listener)
             try {
+                // Cancellation now lands at the second article's own transaction: the first article keeps its
+                // committed article+mapping+snapshot, the interrupted one is rolled back whole.
                 assertFailsWith<CancellationException> {
                     RemoteArticleSyncService(articleRepo, syncRepo)
                         .syncSourceArticles(sourceId, "2026-06-22", articles, 1)
                 }
                 assertEquals(2, inserts)
-                assertEquals(0L, syncRepo.countBySource(sourceId))
-                assertNull(articleRepo.getByUrl("https://example.com/1"))
-                assertEquals(0, notifications)
+                assertEquals(1L, syncRepo.countBySource(sourceId))
+                assertNotNull(articleRepo.getByUrl("https://example.com/1"))
+                assertNull(articleRepo.getByUrl("https://example.com/2"))
+                assertEquals(1, notifications)
             } finally {
                 query.removeListener(listener)
             }
@@ -58,7 +63,7 @@ class RemoteArticleSyncBatchTest {
     }
 
     @Test
-    fun oneRejectedMappingDoesNotDiscardOtherArticlesInThePage() {
+    fun oneRejectedMappingDoesNotDiscardOtherArticlesInThePage() = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
@@ -83,7 +88,7 @@ class RemoteArticleSyncBatchTest {
     }
 
     @Test
-    fun syncingOnePagePublishesOnlyTheCompletedPageToReaders() {
+    fun syncingOnePagePublishesEveryCommittedArticleAndEndsWithTheFullPage() = runBlocking {
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             DailySatoriDatabase.Schema.create(driver)
             val db = DailySatoriDatabase(driver)
@@ -108,8 +113,10 @@ class RemoteArticleSyncBatchTest {
 
                 assertEquals(50, inserted.inserted)
                 assertTrue(inserted.failures.isEmpty())
-                assertEquals(listOf(50), observedPageSizes,
-                    "One page must not trigger hundreds of full-body list reloads")
+                // Per-article commits publish each committed article; durability wins over a single page-wide
+                // notification, and the final notification always carries the full page.
+                assertTrue(observedPageSizes.isNotEmpty(), "each committed article is published")
+                assertEquals(50, observedPageSizes.last(), "the full page is visible once the source completes")
                 assertEquals(50, syncRepo.getArticlesBySource(sourceId, 50, 0).size)
 
                 observedPageSizes.clear()
@@ -118,7 +125,7 @@ class RemoteArticleSyncBatchTest {
 
                 assertEquals(50, updated.updated)
                 assertTrue(updated.failures.isEmpty())
-                assertEquals(listOf(50), observedPageSizes)
+                assertEquals(50, observedPageSizes.last())
                 assertTrue(syncRepo.getArticlesBySource(sourceId, 50, 0)
                     .all { it.original_markdown_content.orEmpty().contains("更新正文") })
             } finally {

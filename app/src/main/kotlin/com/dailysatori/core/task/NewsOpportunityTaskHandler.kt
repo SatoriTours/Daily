@@ -20,10 +20,16 @@ class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : 
             val automatic = Json.parseToJsonElement(payloadJson).jsonObject["automatic"]?.jsonPrimitive?.booleanOrNull == true && checkpointJson.isBlank()
             // A system retry must resume pending articles instead of being skipped by the automatic refresh interval.
             reporter.report(0, 0, "正在查找适合你的文章", RESUME_CHECKPOINT)
-            service.analyze(automatic = automatic) { current, total, message ->
+            val outcome = service.analyze(automatic = automatic) { current, total, message ->
                 reporter.report(current.toLong(), total.toLong(), message, RESUME_CHECKPOINT)
             }
-            AsyncTaskExecutionResult.Success()
+            if (outcome.deferred > 0) {
+                // Congestion kept articles from being sent: continue shortly instead of charging the
+                // task's retry budget for work that never reached the AI service.
+                AsyncTaskExecutionResult.Yield(delayMs = QUEUE_DEFERRED_RESUME_MS)
+            } else {
+                AsyncTaskExecutionResult.Success()
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -42,5 +48,7 @@ class NewsOpportunityTaskHandler(private val service: NewsOpportunityService) : 
         const val TYPE = "news_opportunity_analysis"
         const val MAX_ATTEMPTS = 3L
         private const val RESUME_CHECKPOINT = "{\"started\":true}"
+        /** Deferred articles resume on a slow, bounded cadence: no fast loop, and no attempt is consumed. */
+        private const val QUEUE_DEFERRED_RESUME_MS = 5 * 60_000L
     }
 }

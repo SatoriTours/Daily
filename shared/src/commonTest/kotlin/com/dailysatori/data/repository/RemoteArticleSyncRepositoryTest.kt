@@ -104,7 +104,7 @@ class RemoteArticleSyncRepositoryTest {
         db.dailySatoriQueries.insertRemoteNewsSource("Tech", "https://remote.example", "token", 1, now, now)
         val sourceId = db.dailySatoriQueries.selectRemoteNewsSources().executeAsList().single().id
 
-        RemoteArticleSyncService(articleRepo, syncRepo).syncSourceArticles(
+        kotlinx.coroutines.runBlocking { RemoteArticleSyncService(articleRepo, syncRepo).syncSourceArticles(
             remoteSourceId = sourceId,
             sourceDate = "2026-06-22",
             articles = listOf(
@@ -117,7 +117,7 @@ class RemoteArticleSyncRepositoryTest {
                 ),
             ),
             now = now,
-        )
+        ) }
 
         val synced = syncRepo.getArticlesBySourceDate(sourceId, "2026-06-22").single()
         assertEquals("remote_news", synced.source_type)
@@ -140,7 +140,7 @@ class RemoteArticleSyncRepositoryTest {
             status = "completed",
         )
 
-        RemoteArticleSyncService(articleRepo, syncRepo).syncSourceArticles(
+        kotlinx.coroutines.runBlocking { RemoteArticleSyncService(articleRepo, syncRepo).syncSourceArticles(
             remoteSourceId = sourceId,
             sourceDate = "2026-06-22",
             articles = listOf(
@@ -153,7 +153,7 @@ class RemoteArticleSyncRepositoryTest {
                 ),
             ),
             now = now,
-        )
+        ) }
 
         val article = articleRepo.getById(localArticleId)!!
         assertEquals("local", article.source_type)

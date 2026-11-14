@@ -191,6 +191,9 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         } catch (http: com.dailysatori.service.ai.AiHttpFailure) {
             // Preserve typed status/cooldown so the durable owner, not each stage, decides retries.
             throw http
+        } catch (deferred: com.dailysatori.service.ai.AiQueueWaitTimeout) {
+            // Congestion means nothing was sent: the owner defers the whole item, it is not a stage failure.
+            throw deferred
         } catch (error: Exception) {
             DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.PARSER,
                 fields = mapOf("articleStage" to stage), error = error)

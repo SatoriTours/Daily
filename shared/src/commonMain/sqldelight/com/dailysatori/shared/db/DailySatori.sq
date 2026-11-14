@@ -2533,6 +2533,16 @@ upsertSetting:
 INSERT OR REPLACE INTO setting (key, value, created_at, updated_at)
 VALUES (?, ?, ?, ?);
 
+-- Raises a numeric setting and never lowers it: an out-of-order write cannot rewind a high-water value.
+raiseSettingNumericFloor:
+UPDATE setting SET value = :value, updated_at = :updated_at
+WHERE key = :key AND value IS NOT NULL AND CAST(value AS INTEGER) < CAST(:value AS INTEGER);
+
+insertSettingIfAbsent:
+INSERT INTO setting (key, value, created_at, updated_at)
+SELECT :key, :value, :created_at, :updated_at
+WHERE NOT EXISTS (SELECT 1 FROM setting WHERE key = :key);
+
 deleteSetting:
 DELETE FROM setting WHERE key = ?;
 

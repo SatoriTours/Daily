@@ -32,6 +32,7 @@ object DiagnosticRedactor {
     private val aiPurposes = setOf("interactive", "external_content", "reflection")
     private val hotNewsPlatforms = setOf("github", "hackernews", "x", "xiaohongshu", "toutiao", "zhihu", "v2ex", "linuxdo", "chinanews", "ithome")
     private val hotNewsStages = setOf("retry_queued", "retry_running", "cache", "translation_batch", "translation_request", "translation_result", "translation_failure")
+    private val syncStages = setOf("fetch_start", "sync_start", "sync_done")
     private val publicModels = setOf("gpt-4o", "gpt-4o-mini", "gpt-5", "gpt-5-mini", "gpt-5.1", "gpt-5.2",
         "claude-sonnet-4-5", "claude-opus-4-5", "gemini-2.5-pro", "gemini-2.5-flash",
         "deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4.1-flash", "deepseek-v4-flash-vision-exp")
@@ -53,6 +54,7 @@ object DiagnosticRedactor {
                 key == "aiStage" && value in setOf("queued", "requesting", "receiving", "received") -> put(key, value)
                 key == "hotNewsPlatform" && value in hotNewsPlatforms -> put(key, value)
                 key == "hotNewsStage" && value in hotNewsStages -> put(key, value)
+                key == "syncStage" && value in syncStages -> put(key, value)
                 key == "operation" && value in setOf("hot_news_refresh", "hot_news_retry") -> put(key, value)
                 key == "retryState" && value in setOf("accepted", "ignored_running") -> put(key, value)
                 key == "unifiedNewsStage" && value in setOf("enqueue", "run", "tick") -> put(key, value)

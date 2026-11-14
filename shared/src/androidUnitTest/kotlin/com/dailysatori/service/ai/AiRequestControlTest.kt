@@ -4,6 +4,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlPreparedStatement
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -26,6 +29,196 @@ class AiRequestControlTest {
         release.complete(Unit); first.join()
         withTimeout(1_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {} }
         assertFalse(cancelledStarted)
+    }
+
+    @Test fun queuedRequestFailsVisiblyInsteadOfWaitingForMinutes() = runBlocking {
+        val gate = AiRequestCoordinator(backgroundIntervalMs = 0, maxQueueWaitMs = 150)
+        val release = CompletableDeferred<Unit>()
+        val firstStarted = CompletableDeferred<Unit>()
+        val secondStarted = CompletableDeferred<Unit>()
+        val first = launch { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {
+            firstStarted.complete(Unit); release.await()
+        } }
+        firstStarted.await()
+        val second = launch { gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) {
+            secondStarted.complete(Unit); release.await()
+        } }
+        secondStarted.await()
+        // Both permits are held by long requests: a third must fail instead of blocking its caller forever.
+        var sent = false
+        val failure = assertFailsWith<AiQueueWaitTimeout> {
+            gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true }
+        }
+        assertFalse(sent)
+        assertTrue(failure.waitedMs in 100..5_000, "waitedMs=" + failure.waitedMs)
+        release.complete(Unit)
+        first.join()
+        second.join()
+        withTimeout(1_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {} }
+    }
+
+    @Test fun congestionIsDeferredWithinTheCallersOwnAdmissionBudget() = runBlocking {
+        val gate = AiRequestCoordinator(backgroundIntervalMs = 0)
+        val release = CompletableDeferred<Unit>()
+        val firstStarted = CompletableDeferred<Unit>()
+        val secondStarted = CompletableDeferred<Unit>()
+        val first = launch { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {
+            firstStarted.complete(Unit); release.await()
+        } }
+        firstStarted.await()
+        val second = launch { gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) {
+            secondStarted.complete(Unit); release.await()
+        } }
+        secondStarted.await()
+        var sent = false
+        val startedAt = System.currentTimeMillis()
+        // A short guard keeps the RED run honest without waiting for the gate's five minute hard bound.
+        val outcome = runCatching {
+            withTimeout(5_000) {
+                withAiCallDeadline(200) {
+                    gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true }
+                }
+            }
+        }
+        val failure = outcome.exceptionOrNull()
+        assertIs<AiQueueWaitTimeout>(failure, "congestion must surface as a deferral, was " + failure)
+        assertFalse(sent)
+        assertTrue(System.currentTimeMillis() - startedAt < 4_000)
+        release.complete(Unit)
+        first.join()
+        second.join()
+    }
+
+    @Test fun aFailingSettingsWriteNeverLeaksAPermit() = runBlocking {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        DailySatoriDatabase.Schema.create(driver)
+        val settings = SettingRepository(DailySatoriDatabase(driver))
+        val gate = AiRequestCoordinator(settings, backgroundIntervalMs = 0)
+        withTimeout(2_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {} }
+        // Every later persistence write fails now. The bookkeeping write happens after the permit is granted,
+        // so a leaked permit would leave background == 1 and block this request until the hard bound.
+        driver.close()
+        withTimeout(2_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {} }
+        withTimeout(2_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {} }
+    }
+
+    @Test fun rateLimitCooldownSurvivesAFailingSettingsWrite() = runBlocking {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        DailySatoriDatabase.Schema.create(driver)
+        val gate = AiRequestCoordinator(SettingRepository(DailySatoriDatabase(driver)), backgroundIntervalMs = 0)
+        withTimeout(2_000) { gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) {} }
+        driver.close()
+        val limited = assertFailsWith<AiHttpFailure> {
+            gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) {
+                throw AiHttpFailure(429, System.currentTimeMillis() + 60_000)
+            }
+        }
+        assertEquals(429, limited.status)
+        var sent = false
+        val blocked = assertFailsWith<AiHttpFailure> {
+            gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) { sent = true }
+        }
+        assertEquals(429, blocked.status, "the in-memory cooldown must not depend on a successful write")
+        assertFalse(sent)
+    }
+
+    @Test fun congestionDefersAfterRealPreWorkInsteadOfRacingTheOuterTimeout() = runBlocking {
+        val gate = AiRequestCoordinator(backgroundIntervalMs = 0)
+        val release = CompletableDeferred<Unit>()
+        val started = CompletableDeferred<Unit>()
+        var holders = 0
+        val held = listOf(
+            launch { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) {
+                holders++; if (holders == 2) started.complete(Unit); release.await()
+            } },
+            launch { gate.withRequest("https://example.test/v1", AiPurpose.INTERACTIVE) {
+                holders++; if (holders == 2) started.complete(Unit); release.await()
+            } },
+        )
+        started.await()
+        val budget = 600L
+        var sent = false
+        val began = System.currentTimeMillis()
+        val outcome = runCatching {
+            withTimeout(budget) {
+                withAiCallDeadline(budget) {
+                    delay(100) // real pre-work before the request reaches the gate
+                    gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true }
+                }
+            }
+        }
+        val failure = outcome.exceptionOrNull()
+        assertIs<AiQueueWaitTimeout>(failure, "deferral must win even after pre-work, was " + failure)
+        assertFalse(sent)
+        assertTrue(System.currentTimeMillis() - began < budget, "the deferral must exit before the outer timeout")
+        release.complete(Unit)
+        held.forEach { it.cancel() }
+    }
+
+    @Test fun aShortBudgetStillSendsWhenAPermitIsFree() = runBlocking {
+        val gate = AiRequestCoordinator(backgroundIntervalMs = 0)
+        var sent = false
+        withTimeout(1_000) {
+            withAiCallDeadline(20) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true } }
+        }
+        assertTrue(sent, "a tiny budget must not be swallowed by the send reserve")
+    }
+
+    @Test fun advisoryToleranceNeverSwallowsCancellation() {
+        assertNull(tolerateAdvisory { throw IllegalStateException("database locked") })
+        assertEquals("ok", tolerateAdvisory { "ok" })
+        val cancelled = assertFailsWith<kotlinx.coroutines.CancellationException> {
+            tolerateAdvisory { throw kotlinx.coroutines.CancellationException("stop") }
+        }
+        assertEquals("stop", cancelled.message)
+    }
+
+    @Test fun numericSettingHighWaterNeverRegressesOnReorderedWrites() {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val settings = SettingRepository(DailySatoriDatabase(driver))
+            settings.upsertNumericFloor("ai.cooldown.k", 200)
+            settings.upsertNumericFloor("ai.cooldown.k", 100) // a delayed, older write
+            assertEquals("200", settings.get("ai.cooldown.k"))
+            settings.upsertNumericFloor("ai.cooldown.k", 300)
+            assertEquals("300", settings.get("ai.cooldown.k"))
+            settings.upsertNumericFloor("ai.next-background.k", 50)
+            assertEquals("50", settings.get("ai.next-background.k"), "a missing key is created once")
+            settings.upsertNumericFloor("ai.next-background.k", 40)
+            assertEquals("50", settings.get("ai.next-background.k"))
+        }
+    }
+
+    @Test fun cancellationWhilePersistingAnAdmissionNeverLeaksThePermit() = runBlocking {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        DailySatoriDatabase.Schema.create(driver)
+        var cancelPersistence = true
+        val cancellable = object : SqlDriver by driver {
+            override fun execute(
+                identifier: Int?,
+                sql: String,
+                parameters: Int,
+                binders: (SqlPreparedStatement.() -> Unit)?,
+            ): QueryResult<Long> {
+                if (cancelPersistence && sql.contains("UPDATE setting")) {
+                    throw kotlinx.coroutines.CancellationException("cancelled while persisting admission")
+                }
+                return driver.execute(identifier, sql, parameters, binders)
+            }
+        }
+        val gate = AiRequestCoordinator(SettingRepository(DailySatoriDatabase(cancellable)), backgroundIntervalMs = 0)
+
+        // The admission is granted, then the spacing write is cancelled: the permit must still be released.
+        val cancelled = runCatching {
+            withTimeout(2_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { fail("must not send") } }
+        }
+        assertIs<kotlinx.coroutines.CancellationException>(cancelled.exceptionOrNull(), "cancellation is never swallowed")
+
+        cancelPersistence = false
+        var sent = false
+        // A leaked permit would leave background == 1 and block this request until the hard bound.
+        withTimeout(2_000) { gate.withRequest("https://example.test/v1", AiPurpose.EXTERNAL_CONTENT) { sent = true } }
+        assertTrue(sent, "the permit taken before the cancelled write must be released")
     }
 
     @Test fun cooldownAndBackgroundStartSpacingSurviveReconstruction() = runBlocking {

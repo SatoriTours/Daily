@@ -199,7 +199,11 @@ class ExternalFavoriteAiOrganizer(
         return com.dailysatori.service.ai.withAiRequestSession {
             try {
                 withTimeoutOrNull(itemTimeoutMs.coerceAtLeast(1)) {
-                    analyzeItem(entry, httpLogger, taskId, call)
+                    // One absolute budget for the whole item (content work, prompt build, every AI call):
+                    // the gate defers deterministically before this timeout can expire.
+                    com.dailysatori.service.ai.withAiCallDeadline(itemTimeoutMs) {
+                        analyzeItem(entry, httpLogger, taskId, call)
+                    }
                 } ?: run {
                     val timeout = IllegalStateException("单条收藏整理超时，已跳过，可稍后重试")
                     logAiFailure(httpLogger, taskId, entry.item, timeout, call)
@@ -208,6 +212,12 @@ class ExternalFavoriteAiOrganizer(
             } catch (error: CancellationException) {
                 // A cancelled call writes no outcome: the request line stays honestly unlinked.
                 throw error
+            } catch (deferredByQueue: com.dailysatori.service.ai.AiQueueWaitTimeout) {
+                // Queue congestion is not a property of this item: keep it pending and send it again later
+                // instead of recording a failure the user would have to redo.
+                logAiFailure(httpLogger, taskId, entry.item, deferredByQueue, call, statusCode = 503)
+                ExternalFavoriteAiResult(entry.item, entry.article, null, null,
+                    XContentDeferredException("ai_queue_busy", "AI 服务繁忙，本条未发送，将稍后自动继续"))
             } catch (error: Exception) {
                 // Real provider status when known; 599 only for failures that have no HTTP status at all.
                 val realStatus = (error as? com.dailysatori.service.ai.AiHttpFailure)?.status
@@ -579,6 +589,8 @@ internal fun githubAnalysisNeedsChineseRetry(
 }
 
 internal fun isRetryableExternalFavoriteAiFailure(error: Throwable): Boolean {
+    // Congestion never sent anything: it is a deferral for the owner, not something to retry immediately.
+    if (error is com.dailysatori.service.ai.AiQueueWaitTimeout) return false
     if (error is com.dailysatori.service.ai.AiHttpFailure) return error.status == 408 || error.status >= 500
     if (error is IllegalArgumentException) return false
     val message = error.message.orEmpty().lowercase()
