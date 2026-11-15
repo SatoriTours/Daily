@@ -7,9 +7,7 @@ import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.core.task.NewsSourceFetchShare
-import com.dailysatori.core.task.RemoteArticleSyncCoordinator
 import com.dailysatori.core.task.UnifiedNewsArticleQueue
-import com.dailysatori.core.task.resolveSharedSourceArticles
 import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.config.SettingKeys
@@ -142,8 +140,8 @@ class UnifiedNewsViewModel(
     private val webpageParser: WebpageParserService,
     private val newsArticleQueue: UnifiedNewsArticleQueue,
     private val isDebugBuild: Boolean = false,
-    private val newsSourceCoordinator: RemoteArticleSyncCoordinator = RemoteArticleSyncCoordinator(),
 ) : ViewModel() {
+    private val sourceArticleLoader = UnifiedNewsSourceArticleLoader(remoteNewsSourceRepo, remoteArticleSyncRepo)
     private val _state = MutableStateFlow(UnifiedNewsState())
     val state: StateFlow<UnifiedNewsState> = _state.asStateFlow()
     private var loadJob: Job? = null
@@ -396,7 +394,7 @@ class UnifiedNewsViewModel(
                 searchQuery = "",
             )
         }
-        fetchSourceArticles(source.id, force = false)
+        loadSourceArticles(source.id)
     }
 
     fun selectExternalFavoriteSource(source: UnifiedNewsExternalFavoriteSourceOption) {
@@ -451,14 +449,22 @@ class UnifiedNewsViewModel(
         _state.update { it.copy(localArticleRefreshRequestKey = it.localArticleRefreshRequestKey + 1) }
     }
 
+    /**
+     * Pull-to-refresh only re-reads what the local database already has; new entries arrive through the
+     * background sync task, so a gesture never starts a remote download of its own.
+     */
+    /**
+     * Pull-to-refresh only re-reads what the local database already has; new entries arrive through the
+     * background sync task, so the gesture never starts a remote download.
+     */
     fun refreshSelectedRemoteSource() {
         val selection = _state.value.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource ?: return
-        fetchSourceArticles(selection.id, force = true)
+        loadSourceArticles(selection.id)
     }
 
     fun loadMoreSelectedRemoteSource() {
         val selection = _state.value.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource ?: return
-        fetchSourceArticles(selection.id, force = false, append = true)
+        loadSourceArticles(selection.id, append = true)
     }
 
     fun syncRemoteSource(sourceId: Long) {
@@ -658,65 +664,35 @@ class UnifiedNewsViewModel(
         openRemoteArticle(id, parseRemoteNewsSourceRouteKey(source.source_filename), token, source.source_url)
     }
 
-    private fun fetchSourceArticles(sourceId: Long, force: Boolean, append: Boolean = false) {
+    /**
+     * Loads one page of the selected subscription from the local database. Local storage is the only
+     * source of this list: an empty local page keeps the existing empty state and is filled by the
+     * background sync task, never by the gesture itself.
+     */
+    private fun loadSourceArticles(sourceId: Long, append: Boolean = false) {
         val current = _state.value
         if (current.sourceArticlesLoadingSourceId == sourceId || current.sourceArticlesLoadingMoreSourceId == sourceId) return
         if (append && sourceId !in current.sourceArticlesHasMoreSourceIds) return
         val token = beginSourceArticleRequest(sourceId, append)
+        val offset = if (append) current.sourceArticlesBySourceId[sourceId].orEmpty().size.toLong() else 0L
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val source = remoteNewsSourceRepo.getById(sourceId)
-                if (source == null) {
-                    ifLatestSourceArticleRequest(token) { state ->
+                val page = sourceArticleLoader.load(sourceId, offset = offset, pageSize = SOURCE_ARTICLE_PAGE_SIZE)
+                ifLatestSourceArticleRequest(token) { state ->
+                    if (page.missingSource) {
                         state.withUnifiedNewsSourceArticlesFailure("远程新闻源不存在或已删除")
-                    }
-                    return@launch
-                }
-                val pageOffset = if (append) current.sourceArticlesBySourceId[sourceId].orEmpty().size.toLong() else 0L
-                run {
-                    val localArticles = remoteArticleSyncRepo.getArticlesBySource(
-                        remoteSourceId = sourceId,
-                        limit = SOURCE_ARTICLE_PAGE_SIZE,
-                        offset = pageOffset,
-                    )
-                    if (localArticles.isNotEmpty() || append) {
-                        ifLatestSourceArticleRequest(token) { state ->
-                            state.withUnifiedNewsSourceArticlesLoaded(
-                                sourceId = sourceId,
-                                articles = localArticles.map { it.toRemoteArticleForDisplay() },
-                                append = append,
-                                hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
-                            )
-                        }
-                        if (!force || append) return@launch
-                        ifLatestSourceArticleRequest(token) { state -> state.withUnifiedNewsSourceArticlesLoading(sourceId) }
-                    }
-                }
-                val sourceDate = dailyUnifiedNewsWindowFor().summaryDate
-                // One owner per source, shared with the background sync task: a merged call reloads
-                // the owner's result instead of leaving the list stale or the spinner running.
-                val share = newsSourceCoordinator.share(
-                    sourceId = sourceId,
-                    isSuccess = { synced -> synced },
-                ) { syncSourceArticles(sourceId, sourceDate, source, token) }
-                resolveSharedSourceArticles(
-                    share = share,
-                    reload = { loadLocalSourceArticles(sourceId, offset = 0) },
-                    onLoaded = { articles -> ifLatestSourceArticleRequest(token) { state ->
+                    } else {
                         state.withUnifiedNewsSourceArticlesLoaded(
                             sourceId = sourceId,
-                            articles = articles,
-                            append = false,
-                            hasMore = articles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
+                            articles = page.articles,
+                            append = append,
+                            hasMore = page.hasMore,
                         )
-                    } },
-                    onFailure = { message -> ifLatestSourceArticleRequest(token) { state ->
-                        state.withUnifiedNewsSourceArticlesFailure(message)
-                    } },
-                )
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 ifLatestSourceArticleRequest(token) { state ->
                     state.withUnifiedNewsSourceArticlesFailure("来源文章加载失败，请稍后重试")
                 }
@@ -724,71 +700,8 @@ class UnifiedNewsViewModel(
         }
     }
 
-    private suspend fun loadLocalSourceArticles(sourceId: Long, offset: Long): List<RemoteArticle> =
-        remoteArticleSyncRepo.getArticlesBySource(
-            remoteSourceId = sourceId,
-            limit = SOURCE_ARTICLE_PAGE_SIZE,
-            offset = offset,
-        ).map { it.toRemoteArticleForDisplay() }
-
-    /** Returns true only when the source was fetched and synced; a RemoteNewsResult.Failure is false. */
-    private suspend fun syncSourceArticles(
-        sourceId: Long,
-        sourceDate: String,
-        source: Remote_news_source,
-        token: Long,
-    ): Boolean {
-        return when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchSourceArticles(config.value, limit = 50)) {
-                is RemoteNewsResult.Success -> {
-                    remoteArticleSyncService.syncSourceArticles(
-                        remoteSourceId = sourceId,
-                        sourceDate = sourceDate,
-                        articles = result.value.articles,
-                        now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-                    )
-                    val articles = loadLocalSourceArticles(sourceId, offset = 0)
-                    ifLatestSourceArticleRequest(token) { state ->
-                        state.withUnifiedNewsSourceArticlesLoaded(
-                            sourceId = sourceId,
-                            articles = articles,
-                            append = false,
-                            hasMore = articles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE,
-                        )
-                    }
-                    true
-                }
-                is RemoteNewsResult.Failure -> {
-                    ifLatestSourceArticleRequest(token) { state ->
-                        state.withUnifiedNewsSourceArticlesFailure(result.message)
-                    }
-                    false
-                }
-            }
-            is RemoteNewsResult.Failure -> {
-                ifLatestSourceArticleRequest(token) { state ->
-                    state.withUnifiedNewsSourceArticlesFailure(config.message)
-                }
-                false
-            }
-        }
-    }
-
     private fun parseRemoteNewsSourceRouteKey(value: String?): Long? =
         value?.removePrefix("remote_news_source:")?.takeIf { it != value }?.toLongOrNull()
-
-    private fun Article.toRemoteArticleForDisplay(): RemoteArticle = RemoteArticle(
-        id = id,
-        title = ai_title ?: title,
-        url = url,
-        summary = ai_content,
-        content = com.dailysatori.data.repository.articleOriginalMarkdown(
-            original_markdown_content, ai_markdown_content, source_type == "remote_news",
-        ),
-        coverUrl = cover_image_url,
-        publishedAt = pub_date?.let { kotlinx.datetime.Instant.fromEpochMilliseconds(it).toString() },
-        createdAt = kotlinx.datetime.Instant.fromEpochMilliseconds(created_at).toString(),
-    )
 
     private fun beginDetailRequest(target: UnifiedNewsNavigationTarget): Long {
         detailLoadJob?.cancel()

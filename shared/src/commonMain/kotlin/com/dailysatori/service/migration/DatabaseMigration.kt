@@ -174,6 +174,10 @@ class DatabaseMigration(
         if (currentVersion < 44) migrateV43ToV44()
         if (currentVersion < 45) migrateV44ToV45()
         if (currentVersion < 46) migrateV45ToV46()
+        if (currentVersion < 47) migrateV46ToV47()
+        if (currentVersion < 48) migrateV47ToV48()
+        if (currentVersion < 49) migrateV48ToV49()
+        if (currentVersion < 50) migrateV49ToV50()
         DatabaseSchemaInventory.validate(driver)
 
         // Metadata commits only after the complete target is verified.
@@ -1231,6 +1235,68 @@ class DatabaseMigration(
             } catch (e: Exception) {
                 log.w(e) { "Could not create news list index" }
             }
+        }
+    }
+
+    /**
+     * V47 -> V48: the RFC 5005 sync position gained the fields the corrected state machine needs.
+     * Schema 47 was never released, so the unreleased progress table is rebuilt instead of patched; the
+     * rebuild only discards catch-up progress and never touches articles, sources or AI state.
+     */
+    private fun migrateV47ToV48() {
+        log.i { "Migration V47 -> V48: rebuild remote feed sync state" }
+        try {
+            RemoteFeedStateMigration.drop(driver)
+            RemoteFeedStateMigration.createLegacyV48(driver)
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not rebuild the remote feed sync state table" }
+            throw failure // The outer transaction preserves the original database and version.
+        }
+    }
+
+    /**
+     * V46 -> V47: RFC 5005 catch-up position per subscription.
+     * Keeps the newest synced document address, the paging mode and the next unread older document so a
+     * bounded run can resume instead of restarting the history, without touching existing tables.
+     */
+    /**
+     * V48 -> V49: gap closure now separates confirmed checkpoint, active gap generation, scan progress
+     * and staged candidates. Only the never-released progress tables are rebuilt; articles, sources and
+     * AI state are untouched.
+     */
+    /**
+     * V49 -> V50: the gap generation gets its own fixed target, so a later entry document can never
+     * widen what a promotion is allowed to close. Only one progress column is added.
+     */
+    private fun migrateV49ToV50() {
+        log.i { "Migration V49 -> V50: fixed generation target" }
+        try {
+            RemoteFeedStateMigration.addGenerationTarget(driver)
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not add the remote feed generation target" }
+            throw failure // The outer transaction preserves the original database and version.
+        }
+    }
+
+    private fun migrateV48ToV49() {
+        log.i { "Migration V48 -> V49: rebuild RFC 5005 sync state with staging" }
+        try {
+            RemoteFeedStateMigration.drop(driver)
+            // V48 -> V49 creates the shape 49; V49 -> V50 adds the fixed generation target on top of it.
+            RemoteFeedStateMigration.createLegacyV49(driver)
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not rebuild the remote feed sync state tables" }
+            throw failure // The outer transaction preserves the original database and version.
+        }
+    }
+
+    private fun migrateV46ToV47() {
+        log.i { "Migration V46 -> V47: remote feed sync state" }
+        try {
+            RemoteFeedStateMigration.createLegacyV47(driver)
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not create remote feed sync state table" }
+            throw failure // The outer transaction preserves the original database and version.
         }
     }
 

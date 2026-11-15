@@ -4,10 +4,12 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.RemoteFeedSyncStateRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
+import com.dailysatori.service.remotenews.RemoteFeedSourceSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
@@ -44,7 +46,11 @@ class RemoteArticleSyncTaskHandlerValueFailureTest {
                 val handler = RemoteArticleSyncTaskHandler(
                     sourceRepo = sources,
                     remoteNewsService = RemoteNewsService(http),
-                    remoteArticleSyncService = RemoteArticleSyncService(ArticleRepository(db), RemoteArticleSyncRepository(db)),
+                    remoteFeedSyncService = RemoteFeedSourceSyncService(
+                        RemoteFeedSyncStateRepository(db),
+                        RemoteArticleSyncService(ArticleRepository(db), RemoteArticleSyncRepository(db)),
+                        RemoteNewsService(http),
+                    ),
                     coordinator = RemoteArticleSyncCoordinator(),
                 )
                 val tasks = AsyncTaskRepository(db)
@@ -77,14 +83,18 @@ class RemoteArticleSyncTaskHandlerValueFailureTest {
                 val handler = RemoteArticleSyncTaskHandler(
                     sourceRepo = sources,
                     remoteNewsService = RemoteNewsService(http),
-                    remoteArticleSyncService = RemoteArticleSyncService(ArticleRepository(db), RemoteArticleSyncRepository(db)),
+                    remoteFeedSyncService = RemoteFeedSourceSyncService(
+                        RemoteFeedSyncStateRepository(db),
+                        RemoteArticleSyncService(ArticleRepository(db), RemoteArticleSyncRepository(db)),
+                        RemoteNewsService(http),
+                    ),
                     coordinator = RemoteArticleSyncCoordinator(),
                 )
                 val tasks = AsyncTaskRepository(db)
                 val payload = """{"mode":"manual_source","sourceId":1}"""
                 val first = tasks.enqueue("remote_article_sync", payload, uniqueKey = "ln:source:1:a")
                 tasks.claimForRun(first, "owner-a", Long.MAX_VALUE)
-                assertEquals(AsyncTaskExecutionResult.Success("""{"inserted":0,"updated":0,"skipped":0,"failureCount":0}"""),
+                assertEquals(AsyncTaskExecutionResult.Success("""{"inserted":0,"updated":0,"skipped":0,"failureCount":0,"pendingCatchUp":false,"gap":false}"""),
                     handler.execute(first, payload, "", reporter))
 
                 val second = tasks.enqueue("remote_article_sync", payload, uniqueKey = "ln:source:1:b")

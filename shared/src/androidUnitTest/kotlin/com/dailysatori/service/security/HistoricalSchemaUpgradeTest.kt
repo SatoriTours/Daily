@@ -468,6 +468,12 @@ class HistoricalSchemaUpgradeTest {
         if (version >= 44) AssistantRelationsMigration.migrate(driver)
         if (version >= 45) SchemaRetirementMigration.migrate(driver)
         if (version >= 46) ReminderDraftLegacyArchive.create(driver)
+        when {
+            version == 47L -> RemoteFeedStateMigration.createLegacyV47(driver)
+            version == 48L -> RemoteFeedStateMigration.createLegacyV48(driver)
+            version == 49L -> RemoteFeedStateMigration.createLegacyV49(driver)
+            version >= 50 -> RemoteFeedStateMigration.migrate(driver)
+        }
         settings(driver).upsert(SettingKeys.schemaVersion, version.toString())
         DatabaseSchemaInventory.validate(driver, version)
     }

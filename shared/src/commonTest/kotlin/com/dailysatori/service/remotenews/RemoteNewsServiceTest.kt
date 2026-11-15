@@ -10,6 +10,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 
@@ -39,6 +41,24 @@ class RemoteNewsServiceTest {
 
         val result = service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, ""))
         assertTrue(result is RemoteNewsResult.Success)
+    }
+
+    @Test
+    fun followUpDocumentOnAnotherOriginIsReadWithoutTheCredential(): Unit = runBlocking {
+        val seen = mutableListOf<Pair<String, String?>>()
+        val service = RemoteNewsService(HttpClient(MockEngine { request ->
+            seen += request.url.toString() to request.headers[HttpHeaders.Authorization]
+            respond(feed(), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/rss+xml"))
+        }))
+
+        val result = service.fetchFeedPage(
+            RemoteNewsConfigValues(FEED_URL, "private-token"),
+            "https://other.example.com/page2",
+        )
+
+        assertTrue(result is RemoteNewsResult.Success)
+        assertEquals("https://other.example.com/page2", result.value.url)
+        assertNull(seen.single().second, "a credential is never carried to another origin")
     }
 
     @Test

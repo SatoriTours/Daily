@@ -86,6 +86,9 @@ reminder_event:id,reminder_id,event_type,scheduled_at,actual_at,metadata_json
 reminder_profile:id,name,kind,profile_json,created_at,updated_at
 reminder_policy_snapshot:id,format_version,payload_json,sha256,created_at
 remote_article_sync_item:id,remote_source_id,remote_article_id,article_id,url,source_date,source_content_hash,processed_content_hash,processing_state,processing_error,processing_version,favorited_at,first_seen_at,last_seen_at
+remote_feed_sync_state:remote_source_id,entry_url,paging_mode,baseline_ready,checkpoint_ids,target_entry_ids,confirmed_anchor_url,confirmed_at,generation,gap_open,scan_start_url,scan_start_fingerprint,cursor_url,last_page_url,last_page_fingerprint,scan_pages,staged_bytes,closure_reached,blocked,blocked_reason,updated_at
+remote_feed_staged_article:id,remote_source_id,generation,remote_article_id,page_url,sequence,stale,title,url,summary,content,published_at,bytes,created_at
+remote_feed_scan_node:remote_source_id,generation,document_url,fingerprint,created_at
 remote_news_source:id,name,base_url,api_token,enabled,created_at,updated_at
 session:id,session_id,is_authenticated,username,last_accessed_at,created_at,updated_at
 setting:id,key,value,created_at,updated_at
@@ -108,13 +111,31 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
     }
 
     internal fun validateColumns(driver: SqlDriver, version: Long, includeProjection: Boolean = true) {
-        columns.filterKeys { (version>=46 || it!="reminder_ai_draft_legacy") &&
+        columns.filterKeys { (version>=49 || it !in setOf("remote_feed_staged_article","remote_feed_scan_node")) &&
+            (version>=47 || it!="remote_feed_sync_state") &&
+            (version>=46 || it!="reminder_ai_draft_legacy") &&
             (version>=45 || it!="diary_record") && (version>=41 || !it.startsWith("diary_tag_")) &&
             (version>=42 || it!="reminder_policy_snapshot") &&
             (version>=43 || it !in setOf("idea_source_snapshot","idea_event_snapshot")) &&
             (includeProjection || it!="diary_record") }.forEach { (table, all) ->
             val found = strings(driver, "SELECT name FROM pragma_table_info('$table')").toSet()
             val expected=when {
+                // Schema 47 and 48 shipped earlier shapes of the sync position table; V49 rebuilds it.
+                version<48 && table=="remote_feed_sync_state" -> setOf(
+                    "remote_source_id", "entry_url", "paging_mode", "pending", "older_url",
+                    "frontier_article_id", "entry_older_url", "updated_at",
+                )
+                version<49 && table=="remote_feed_sync_state" -> setOf(
+                    "remote_source_id", "entry_url", "paging_mode", "baseline_ready", "baseline_anchor_url",
+                    "baseline_marker_ids", "entry_older_url", "scan_start_url", "cursor_url",
+                    "processed_older_url", "pending", "updated_at",
+                )
+                version<50 && table=="remote_feed_sync_state" -> setOf(
+                    "remote_source_id", "entry_url", "paging_mode", "baseline_ready", "checkpoint_ids",
+                    "confirmed_anchor_url", "confirmed_at", "generation", "gap_open", "scan_start_url",
+                    "scan_start_fingerprint", "cursor_url", "last_page_url", "last_page_fingerprint",
+                    "scan_pages", "staged_bytes", "closure_reached", "blocked", "blocked_reason", "updated_at",
+                )
                 version<45 && table=="diary" -> all+setOf("tags","images")
                 version<44 && table=="memory_entry" -> all-"content_origin"
                 version<43 && table=="idea_topic_source" && "snapshot_id" !in found -> all-"snapshot_id"+"snapshot_json"
@@ -132,6 +153,11 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
     fun missingObjects(driver: SqlDriver, version: Long = com.dailysatori.config.DatabaseConfig.currentSchemaVersion): Map<String, String> {
         val actual = strings(driver, "SELECT type || ':' || name FROM sqlite_master").toSet()
         return objectStatements(driver).filterKeys { name -> name !in actual && !(
+            (version<47 && name=="table:remote_feed_sync_state") ||
+            (version<49 && (name in setOf(
+                "table:remote_feed_staged_article", "table:remote_feed_scan_node",
+                "index:idx_remote_feed_staged_source",
+            ))) ||
             (version<46 && name=="table:reminder_ai_draft_legacy") ||
             (version<45 && name=="view:diary_record") ||
             (version<44 && name.substringAfter(':') in setOf("assistant_turn_links_insert","assistant_turn_links_update","assistant_message_links_insert","assistant_message_links_update","assistant_task_history_restrict")) ||

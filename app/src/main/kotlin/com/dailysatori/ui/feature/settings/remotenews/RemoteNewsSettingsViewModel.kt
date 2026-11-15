@@ -257,10 +257,12 @@ class RemoteNewsSettingsViewModel(
                 val config = remoteNewsService.configOrFailure(baseUrl, legacyApiToken)
                 val message = when (config) {
                     is RemoteNewsResult.Failure -> config.message to true
+                    // Read-only compatibility check: it detects RFC 5005 paging/archive support, verifies a
+                    // bounded number of declared follow-up documents and never stores, queues or syncs anything.
                     is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (
-                        val result = remoteNewsService.fetchSourceArticles(config.value, limit = 1)
+                        val result = remoteNewsService.probeSourceFeed(config.value)
                     ) {
-                        is RemoteNewsResult.Success -> "连接成功，获取到 ${result.value.articles.size} 篇文章" to false
+                        is RemoteNewsResult.Success -> result.value.message to false
                         is RemoteNewsResult.Failure -> result.message to true
                     }
                 }

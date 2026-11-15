@@ -324,16 +324,15 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedRemoteSourceRefreshFailureUsesScopedSourceError() {
+    fun unifiedRemoteSourceLoadFailureUsesScopedSourceError() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(sourceId: Long, force: Boolean, append: Boolean = false)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
+        val loadBody = viewModel.substringAfter("private fun loadSourceArticles(sourceId: Long, append: Boolean = false)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
 
-        assertTrue(fetchBody.contains("ifLatestSourceArticleRequest(token) { state ->"))
-        assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(result.message)"))
-        assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(config.message)"))
-        assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
-        assertFalse(fetchBody.contains("error = result.message"))
-        assertFalse(fetchBody.contains("error = config.message"))
+        assertTrue(loadBody.contains("ifLatestSourceArticleRequest(token) { state ->"))
+        assertTrue(loadBody.contains("state.withUnifiedNewsSourceArticlesFailure(\"远程新闻源不存在或已删除\")"))
+        assertTrue(loadBody.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
+        assertFalse(loadBody.contains("error = "))
+        assertFalse(loadBody.contains("remoteNewsService"))
     }
 
     @Test
@@ -381,7 +380,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedCitationRemoteArticleDownloadsOnlyThroughLocalReader() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
+        val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun loadSourceArticles")
 
         // RSS sources have no JSON detail endpoint: a missing local copy is recovered from the feed.
         assertFalse(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
@@ -418,7 +417,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedLegacyRemoteArticleCitationUsesLocalDetailAndKeepsSourceIdentity() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
+        val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun loadSourceArticles")
 
         assertTrue(viewModel.contains("fun openCitation(source: Unified_news_source)"))
         assertTrue(openRemoteArticleBody.contains("source.source_url"))
@@ -807,8 +806,9 @@ class UnifiedNewsBehaviorTest {
         assertTrue(viewModel.contains("sourceRepo.delete"))
         assertTrue(viewModel.contains("legacyApiToken = source.api_token"))
         assertTrue(viewModel.contains("sourceRepo.save(editingId, name, baseUrl, legacyApiToken, enabled)"))
-        assertTrue(viewModel.contains("fetchSourceArticles(config.value, limit = 1)"))
-        assertTrue(viewModel.contains("连接成功，获取到"))
+        assertTrue(viewModel.contains("remoteNewsService.probeSourceFeed(config.value)"))
+        assertTrue(viewModel.contains("result.value.message to false"))
+        assertFalse(viewModel.contains("syncSourceArticles("), "the test link never starts a sync")
         assertTrue(viewModel.contains("if (baseUrl.isBlank())"))
         assertTrue(viewModel.contains("try"))
         assertTrue(viewModel.contains("catch"))
@@ -1381,9 +1381,11 @@ class UnifiedNewsBehaviorTest {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/remotenews/RemoteNewsService.kt").readText()
 
         assertTrue(source.contains("fun fetchSourceArticles"))
-        assertTrue(source.contains("client.get(feedUrl)"))
+        assertTrue(source.contains("val feedUrl = entryUrl(config)"))
+        assertTrue(source.contains("fetchFeedDocument(config, feedUrl, feedUrl, timeoutMillis, maxBytes)"))
         assertTrue(source.contains("parseRemoteFeedArticles"))
-        assertTrue(source.contains("if (config.token.isNotBlank()) bearerAuth(config.token)"))
+        assertTrue(source.contains("if (config.token.isNotBlank() && remoteFeedSameOrigin(url, entryUrl)) bearerAuth(config.token)"))
+        assertTrue(source.contains("readBounded(response, maxBytes)"), "a feed document is streamed under the byte budget")
         assertFalse(source.contains("fun fetchTopArticlesToday"))
         assertFalse(source.contains("buildTopArticlesTodayUrl"))
         assertTrue(source.contains("externalApiRootFromRemoteNewsUrl"))
@@ -2453,20 +2455,23 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsRemoteSourceRefreshPersistsRemoteArticlesBeforeUpdatingState() {
+    fun unifiedNewsRemoteSourceListOnlyReadsStoredArticles() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(").substringBefore("private fun parseRemoteNewsSourceRouteKey")
-        val successBody = fetchBody.substringAfter("is RemoteNewsResult.Success -> {").substringBefore("is RemoteNewsResult.Failure")
+        val loadBody = viewModel.substringAfter("private fun loadSourceArticles(").substringBefore("private fun parseRemoteNewsSourceRouteKey")
 
-        assertTrue(fetchBody.contains("remoteArticleSyncService.syncSourceArticles("))
-        assertTrue(fetchBody.contains("remoteArticleSyncRepo.getArticlesBySource("))
-        assertTrue(successBody.indexOf("remoteArticleSyncService.syncSourceArticles(") < successBody.indexOf("state.withUnifiedNewsSourceArticlesLoaded"))
+        assertTrue(loadBody.contains("sourceArticleLoader.load(sourceId"))
+        assertTrue(loadBody.contains("state.withUnifiedNewsSourceArticlesLoaded("))
+        assertFalse(loadBody.contains("remoteNewsService"), "the list never reaches the network")
+        assertFalse(loadBody.contains("syncSourceArticles("), "the list never writes an article")
+        val loader = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSourceArticleLoader.kt").readText()
+        assertFalse(loader.contains("RemoteNewsService"))
+        assertFalse(loader.contains("HttpClient"))
     }
 
     @Test
     fun unifiedNewsRemoteArticleFallbackDoesNotUseSummaryAsOriginalContent() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val detailBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
+        val detailBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun loadSourceArticles")
 
         assertTrue(detailBody.contains("remoteArticleSyncService.readLocalArticle"))
         assertFalse(detailBody.contains("source.toRemoteArticleForDisplay()"))

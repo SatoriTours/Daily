@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.RemoteFeedSyncStateRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
@@ -13,6 +14,7 @@ import com.dailysatori.service.asynctask.NoopAsyncTaskLogger
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
+import com.dailysatori.service.remotenews.RemoteFeedSourceSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.shared.db.DailySatoriDatabase
 import io.ktor.client.HttpClient
@@ -98,7 +100,11 @@ class RemoteArticleSyncChainTest {
                 val handler = RemoteArticleSyncTaskHandler(
                     sourceRepo = sources,
                     remoteNewsService = RemoteNewsService(client),
-                    remoteArticleSyncService = RemoteArticleSyncService(articles, RemoteArticleSyncRepository(db)),
+                    remoteFeedSyncService = RemoteFeedSourceSyncService(
+                        RemoteFeedSyncStateRepository(db),
+                        RemoteArticleSyncService(articles, RemoteArticleSyncRepository(db)),
+                        RemoteNewsService(client),
+                    ),
                 )
                 this.block(handler, articles, ProgressLog(), driver)
             }
@@ -121,7 +127,11 @@ class RemoteArticleSyncChainTest {
                 val handler = RemoteArticleSyncTaskHandler(
                     sourceRepo = sources,
                     remoteNewsService = RemoteNewsService(client),
-                    remoteArticleSyncService = RemoteArticleSyncService(articles, RemoteArticleSyncRepository(db)),
+                    remoteFeedSyncService = RemoteFeedSourceSyncService(
+                        RemoteFeedSyncStateRepository(db),
+                        RemoteArticleSyncService(articles, RemoteArticleSyncRepository(db)),
+                        RemoteNewsService(client),
+                    ),
                 )
                 val runner = AsyncTaskRunner(
                     repository = tasks,

@@ -55,8 +55,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("fun loadMoreSelectedRemoteSource()"))
         assertTrue(source.contains("fun openSourceArticle(article: RemoteArticle)"))
         assertTrue(source.contains("remoteArticleSyncRepo.observeArticlesBySource(id, limit + 1)"))
-        assertTrue(source.contains("remoteArticleSyncRepo.getArticlesBySource("))
-        assertTrue(source.contains("remoteNewsService.fetchSourceArticles(config.value, limit = 50)"))
+        assertTrue(source.contains("sourceArticleLoader.load(sourceId"))
         assertTrue(source.contains("remoteArticleSyncService.readLocalArticle"))
         assertTrue(source.contains("UnifiedNewsNavigationTarget.LocalArticle(local.id)"))
         assertTrue(source.contains("import java.util.concurrent.atomic.AtomicLong"))
@@ -72,7 +71,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("catch (e: CancellationException)"))
         assertTrue(source.contains("state.withUnifiedNewsSourceArticlesLoaded("))
         assertTrue(source.contains("append = append"))
-        assertTrue(source.contains("hasMore = localArticles.size.toLong() == SOURCE_ARTICLE_PAGE_SIZE"))
+        assertTrue(source.contains("hasMore = page.hasMore"))
         assertTrue(source.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
         assertTrue(source.contains("invalidateSourceArticleRequest()"))
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticleRequestInvalidated() }"))
@@ -81,7 +80,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
         assertTrue(source.contains("resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
         assertTrue(selectRemoteSource.indexOf("invalidateSourceArticleRequest()") < selectRemoteSource.indexOf("_state.update"))
-        assertTrue(selectRemoteSource.indexOf("_state.update") < selectRemoteSource.indexOf("fetchSourceArticles(source.id, force = false)"))
+        assertTrue(selectRemoteSource.indexOf("_state.update") < selectRemoteSource.indexOf("loadSourceArticles(source.id)"))
     }
 
     @Test
@@ -97,6 +96,17 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("PullToRefreshBox("))
         assertTrue(source.contains("LoadMoreWhenAtEnd("))
         assertTrue(source.contains("viewModel.openLocalArticle(article.id)"))
+    }
+
+    @Test
+    fun pullingToRefreshOnlyReadsTheLocalDatabase() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val refreshBody = source.substringAfter("fun refreshSelectedRemoteSource()")
+            .substringBefore("fun loadMoreSelectedRemoteSource()")
+
+        assertTrue(refreshBody.contains("loadSourceArticles(selection.id)"), refreshBody)
+        assertFalse(refreshBody.contains("remoteNewsService"))
+        assertFalse(refreshBody.contains("force"))
     }
 
     @Test

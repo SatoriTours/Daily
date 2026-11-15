@@ -321,7 +321,6 @@ val viewModelModule: Module = module {
             hotNews = get(),
             webpageParser = get(),
             newsArticleQueue = get(),
-            newsSourceCoordinator = get(),
         )
     }
     viewModel {

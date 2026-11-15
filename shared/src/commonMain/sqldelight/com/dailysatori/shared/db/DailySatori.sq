@@ -507,6 +507,60 @@ ON remote_article_sync_item(remote_source_id, url);
 CREATE INDEX IF NOT EXISTS idx_remote_article_sync_article
 ON remote_article_sync_item(article_id);
 
+CREATE TABLE remote_feed_sync_state (
+    remote_source_id INTEGER PRIMARY KEY REFERENCES remote_news_source(id) ON DELETE CASCADE,
+    entry_url TEXT NOT NULL DEFAULT '',
+    paging_mode TEXT NOT NULL DEFAULT 'plain',
+    baseline_ready INTEGER NOT NULL DEFAULT 0,
+    checkpoint_ids TEXT NOT NULL DEFAULT '',
+    target_entry_ids TEXT NOT NULL DEFAULT '',
+    confirmed_anchor_url TEXT,
+    confirmed_at INTEGER,
+    generation INTEGER NOT NULL DEFAULT 0,
+    gap_open INTEGER NOT NULL DEFAULT 0,
+    scan_start_url TEXT,
+    scan_start_fingerprint TEXT,
+    cursor_url TEXT,
+    last_page_url TEXT,
+    last_page_fingerprint TEXT,
+    scan_pages INTEGER NOT NULL DEFAULT 0,
+    staged_bytes INTEGER NOT NULL DEFAULT 0,
+    closure_reached INTEGER NOT NULL DEFAULT 0,
+    blocked INTEGER NOT NULL DEFAULT 0,
+    blocked_reason TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE remote_feed_staged_article (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    remote_source_id INTEGER NOT NULL REFERENCES remote_news_source(id) ON DELETE CASCADE,
+    generation INTEGER NOT NULL,
+    remote_article_id INTEGER NOT NULL,
+    page_url TEXT NOT NULL DEFAULT '',
+    sequence INTEGER NOT NULL DEFAULT 0,
+    stale INTEGER NOT NULL DEFAULT 0,
+    title TEXT,
+    url TEXT,
+    summary TEXT,
+    content TEXT,
+    published_at TEXT,
+    bytes INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    UNIQUE(remote_source_id, generation, remote_article_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_remote_feed_staged_source
+ON remote_feed_staged_article(remote_source_id, generation, stale, sequence);
+
+CREATE TABLE remote_feed_scan_node (
+    remote_source_id INTEGER NOT NULL REFERENCES remote_news_source(id) ON DELETE CASCADE,
+    generation INTEGER NOT NULL,
+    document_url TEXT NOT NULL,
+    fingerprint TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(remote_source_id, generation, document_url)
+);
+
 CREATE TABLE external_favorite_source (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     provider TEXT NOT NULL,
@@ -2289,6 +2343,101 @@ WHERE id = ? AND status = 'running' AND lease_owner = ?;
 
 deleteRemoteArticleSyncItemsForSource:
 DELETE FROM remote_article_sync_item WHERE remote_source_id = ?;
+
+-- RFC 5005 catch-up position of one subscription (one row per source)
+selectRemoteFeedSyncState:
+SELECT * FROM remote_feed_sync_state WHERE remote_source_id = ?;
+
+upsertRemoteFeedSyncState:
+INSERT INTO remote_feed_sync_state (
+    remote_source_id, entry_url, paging_mode, baseline_ready, checkpoint_ids, target_entry_ids,
+    confirmed_anchor_url, confirmed_at, generation, gap_open, scan_start_url, scan_start_fingerprint,
+    cursor_url, last_page_url, last_page_fingerprint, scan_pages, staged_bytes, closure_reached, blocked,
+    blocked_reason, updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(remote_source_id) DO UPDATE SET
+    entry_url = excluded.entry_url,
+    paging_mode = excluded.paging_mode,
+    baseline_ready = excluded.baseline_ready,
+    checkpoint_ids = excluded.checkpoint_ids,
+    target_entry_ids = excluded.target_entry_ids,
+    confirmed_anchor_url = excluded.confirmed_anchor_url,
+    confirmed_at = excluded.confirmed_at,
+    generation = excluded.generation,
+    gap_open = excluded.gap_open,
+    scan_start_url = excluded.scan_start_url,
+    scan_start_fingerprint = excluded.scan_start_fingerprint,
+    cursor_url = excluded.cursor_url,
+    last_page_url = excluded.last_page_url,
+    last_page_fingerprint = excluded.last_page_fingerprint,
+    scan_pages = excluded.scan_pages,
+    staged_bytes = excluded.staged_bytes,
+    closure_reached = excluded.closure_reached,
+    blocked = excluded.blocked,
+    blocked_reason = excluded.blocked_reason,
+    updated_at = excluded.updated_at;
+
+selectKnownRemoteArticleIds:
+SELECT remote_article_id FROM remote_article_sync_item
+WHERE remote_source_id = ? AND remote_article_id IN ?;
+
+selectStagedRemoteArticles:
+SELECT * FROM remote_feed_staged_article
+WHERE remote_source_id = ? AND generation = ?
+ORDER BY sequence ASC, id ASC;
+
+selectActiveStagedRemoteArticles:
+SELECT * FROM remote_feed_staged_article
+WHERE remote_source_id = ? AND generation = ? AND stale = 0
+ORDER BY sequence ASC, id ASC;
+
+selectStagedRemoteArticle:
+SELECT * FROM remote_feed_staged_article
+WHERE remote_source_id = ? AND generation = ? AND remote_article_id = ?;
+
+upsertStagedRemoteArticle:
+INSERT INTO remote_feed_staged_article (
+    remote_source_id, generation, remote_article_id, page_url, sequence, stale,
+    title, url, summary, content, published_at, bytes, created_at
+)
+VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(remote_source_id, generation, remote_article_id) DO UPDATE SET
+    page_url = excluded.page_url,
+    sequence = excluded.sequence,
+    stale = 0,
+    title = COALESCE(excluded.title, remote_feed_staged_article.title),
+    url = COALESCE(excluded.url, remote_feed_staged_article.url),
+    summary = COALESCE(excluded.summary, remote_feed_staged_article.summary),
+    content = COALESCE(excluded.content, remote_feed_staged_article.content),
+    published_at = COALESCE(excluded.published_at, remote_feed_staged_article.published_at),
+    bytes = excluded.bytes;
+
+markStagedRemoteArticleStale:
+UPDATE remote_feed_staged_article SET stale = 1
+WHERE remote_source_id = ? AND generation = ?;
+
+deleteStagedRemoteArticle:
+DELETE FROM remote_feed_staged_article WHERE id = ?;
+
+deleteStagedGeneration:
+DELETE FROM remote_feed_staged_article WHERE remote_source_id = ? AND generation = ?;
+
+selectRemoteFeedScanNodes:
+SELECT document_url FROM remote_feed_scan_node WHERE remote_source_id = ? AND generation = ?;
+
+selectRemoteFeedScanNode:
+SELECT * FROM remote_feed_scan_node
+WHERE remote_source_id = ? AND generation = ? AND document_url = ?;
+
+upsertRemoteFeedScanNode:
+INSERT INTO remote_feed_scan_node (remote_source_id, generation, document_url, fingerprint, created_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(remote_source_id, generation, document_url) DO UPDATE SET
+    fingerprint = excluded.fingerprint;
+
+deleteRemoteFeedScanNodes:
+DELETE FROM remote_feed_scan_node WHERE remote_source_id = ? AND generation = ?;
 
 -- External Favorite Source queries
 selectExternalFavoriteSources:

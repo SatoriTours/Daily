@@ -16,17 +16,52 @@ internal data class RemoteFeedEntry(
 /** The configured address answered with something that is not a usable RSS/Atom document. */
 class RemoteFeedFormatException(message: String) : IllegalArgumentException(message)
 
-internal expect fun parseRemoteFeedEntries(body: String, feedUrl: String): List<RemoteFeedEntry>
+/**
+ * Entry bound for read-only display paths (article recovery, connection probe), never for a sync: a
+ * downloaded document is stored completely or the run fails, so a tail is never dropped silently.
+ */
+const val REMOTE_FEED_DISPLAY_LIMIT = 500
+
+/** Reads the entries and the RFC 5005 head relations of one feed document. */
+internal expect fun parseRemoteFeedDocument(body: String, feedUrl: String): RemoteFeedDocument
+
+internal fun parseRemoteFeedEntries(body: String, feedUrl: String): List<RemoteFeedEntry> =
+    parseRemoteFeedDocument(body, feedUrl).entries
 
 /**
  * Maps a feed document to articles. Entries keep the feed order (newest first for standard feeds),
  * duplicate identities are collapsed and only http(s) article links are kept.
  */
-internal fun parseRemoteFeedArticles(body: String, feedUrl: String, limit: Int): List<RemoteArticle> {
+internal fun parseRemoteFeedArticles(body: String, feedUrl: String, limit: Int): List<RemoteArticle> =
+    remoteFeedArticles(parseRemoteFeedEntries(body, feedUrl), limit)
+
+/**
+ * Maps one downloaded document. Sync passes no entry limit (a document is stored completely within the
+ * byte budget) and the real decoded size, so a document can never be silently truncated.
+ */
+internal fun parseRemoteFeedPage(
+    body: String,
+    feedUrl: String,
+    pageUrl: String,
+    bytes: Int = body.encodeToByteArray().size,
+    limit: Int = Int.MAX_VALUE,
+): RemoteFeedPage {
+    val document = parseRemoteFeedDocument(body, feedUrl)
+    return RemoteFeedPage(
+        url = pageUrl,
+        articles = remoteFeedArticles(document.entries, limit),
+        links = document.links,
+        isArchive = document.isArchive,
+        isComplete = document.isComplete,
+        bytes = bytes,
+    )
+}
+
+internal fun remoteFeedArticles(entries: List<RemoteFeedEntry>, limit: Int): List<RemoteArticle> {
     if (limit <= 0) return emptyList()
     val seen = HashSet<Long>()
     val articles = ArrayList<RemoteArticle>()
-    for (entry in parseRemoteFeedEntries(body, feedUrl)) {
+    for (entry in entries) {
         val article = entry.toRemoteArticle() ?: continue
         if (!seen.add(article.id)) continue
         articles += article

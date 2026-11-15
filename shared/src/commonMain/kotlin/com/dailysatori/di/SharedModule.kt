@@ -99,6 +99,7 @@ import com.dailysatori.service.reminder.ReminderAiInterpretationRemote
 import com.dailysatori.service.reminder.ReminderBatchCodec
 import com.dailysatori.service.reminder.ReminderTextInterpreter
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
+import com.dailysatori.service.remotenews.RemoteFeedSourceSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretValueCipher
@@ -250,6 +251,8 @@ val sharedModule: Module = module {
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }
+    single { com.dailysatori.data.repository.RemoteFeedSyncStateRepository(get()) }
+    single { RemoteFeedSourceSyncService(get(), get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }

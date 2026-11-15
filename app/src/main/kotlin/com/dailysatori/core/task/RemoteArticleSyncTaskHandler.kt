@@ -7,7 +7,7 @@ import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.diagnostics.DiagnosticCode
 import com.dailysatori.service.diagnostics.DiagnosticLog
 import com.dailysatori.service.diagnostics.DiagnosticSource
-import com.dailysatori.service.remotenews.RemoteArticleSyncService
+import com.dailysatori.service.remotenews.RemoteFeedSourceSyncService
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
@@ -25,7 +25,7 @@ data class RemoteArticleSyncTaskPayload(
 class RemoteArticleSyncTaskHandler(
     private val sourceRepo: RemoteNewsSourceRepository,
     private val remoteNewsService: RemoteNewsService,
-    private val remoteArticleSyncService: RemoteArticleSyncService,
+    private val remoteFeedSyncService: RemoteFeedSourceSyncService,
     private val clock: Clock = Clock.System,
     private val coordinator: RemoteArticleSyncCoordinator = RemoteArticleSyncCoordinator(),
 ) : AsyncTaskHandler {
@@ -53,6 +53,8 @@ class RemoteArticleSyncTaskHandler(
         var skipped = 0
         var successfulSources = 0
         var transientFailures = 0
+        var pendingCatchUpSources = 0
+        var gapSources = 0
         val failures = mutableListOf<String>()
 
         reporter.report(0, sources.size.toLong(), "准备同步远程文章", checkpointJson = """{"mode":"${payload.mode}"}""")
@@ -71,6 +73,8 @@ class RemoteArticleSyncTaskHandler(
                     skipped += shared.value.skipped
                     failures += shared.value.failures
                     if (shared.value.transient) transientFailures += 1
+                    if (shared.value.pendingCatchUp) pendingCatchUpSources += 1
+                    if (shared.value.gap) gapSources += 1
                 }
                 // Another task already synced this source: the source is in the repository, not refetched.
                 NewsSourceFetchShare.Merged -> successfulSources += 1
@@ -88,7 +92,7 @@ class RemoteArticleSyncTaskHandler(
             )
         }
 
-        val resultJson = """{"inserted":$inserted,"updated":$updated,"skipped":$skipped,"failureCount":${failures.size}}"""
+        val resultJson = """{"inserted":$inserted,"updated":$updated,"skipped":$skipped,"failureCount":${failures.size},"pendingCatchUp":${pendingCatchUpSources > 0},"gap":${gapSources > 0}}"""
         return remoteArticleSyncOutcome(
             successfulSources = successfulSources,
             failures = failures,
@@ -105,6 +109,10 @@ class RemoteArticleSyncTaskHandler(
         val failures: List<String>,
         /** True only for failures that can heal by waiting (5xx, timeout, rate limit). */
         val transient: Boolean = false,
+        /** Older documents are still unread; the next run continues the bounded catch-up. */
+        val pendingCatchUp: Boolean = false,
+        /** The paging/archive chain could not be verified, so the stored history has a known hole. */
+        val gap: Boolean = false,
     )
 
     /**
@@ -126,39 +134,48 @@ class RemoteArticleSyncTaskHandler(
         sourceIndex: Int,
         sourceCount: Int,
     ): SourceFetch = when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
-        is RemoteNewsResult.Success -> when (val result = run {
+        is RemoteNewsResult.Success -> {
             syncStage("fetch_start")
-            remoteNewsService.fetchSourceArticles(config.value, limit = 50)
-        }) {
-            is RemoteNewsResult.Success -> {
-                syncStage("sync_start")
-                val sync = remoteArticleSyncService.syncSourceArticles(
-                    remoteSourceId = source.id,
-                    sourceDate = sourceDate,
-                    articles = result.value.articles,
-                    now = now,
-                ) { progress ->
-                    // The source is still incomplete, so current/total stay source-level; the message shows the
-                    // real article stage and a failed article is never counted as a processed success.
-                    reporter.report(
-                        current = sourceIndex.toLong(),
-                        total = sourceCount.toLong(),
-                        message = "已处理 ${progress.processed}/${progress.total} 篇，新增 ${progress.inserted} 篇，跳过 ${progress.skipped} 篇",
-                        checkpointJson = """{"inserted":${progress.inserted},"updated":${progress.updated},"skipped":${progress.skipped}}""",
-                    )
-                }
-                syncStage("sync_done")
-                SourceFetch(1, sync.inserted, sync.updated, sync.skipped,
-                    sync.failures.map { source.name + ": " + it })
+            // The entry page is read first on every run; the bounded RFC 5005 catch-up follows afterwards,
+            // and it resumes from the stored position instead of restarting the subscription history.
+            val sync = remoteFeedSyncService.sync(
+                remoteSourceId = source.id,
+                entryUrl = source.base_url,
+                config = config.value,
+                sourceDate = sourceDate,
+                now = now,
+            ) { progress ->
+                // The source is still incomplete, so current/total stay source-level; the message shows the
+                // real article stage and a failed article is never counted as a processed success.
+                reporter.report(
+                    current = sourceIndex.toLong(),
+                    total = sourceCount.toLong(),
+                    message = "已处理 ${progress.processed}/${progress.total} 篇，新增 ${progress.inserted} 篇，跳过 ${progress.skipped} 篇",
+                    checkpointJson = """{"inserted":${progress.inserted},"updated":${progress.updated},"skipped":${progress.skipped}}""",
+                )
             }
-            is RemoteNewsResult.Failure -> SourceFetch(
-                0, 0, 0, 0, listOf(source.name + ": " + result.message), transient = result.transient,
+            syncStage("sync_done")
+            SourceFetch(
+                // Only a stored entry document proves the subscription is reachable; a chain failure
+                // alone never turns a reachable source into a failing one.
+                successful = if (sync.entryRead) 1 else 0,
+                inserted = sync.inserted,
+                updated = sync.updated,
+                skipped = sync.skipped,
+                // Article-level failures and a chain failure both keep the source out of the reuse window.
+                failures = sync.failures.map { source.name + ": " + it } +
+                    (sync.message?.let { listOf(source.name + ": " + it) }.orEmpty()),
+                // A failing document keeps its retry class even when this run stored no article at all.
+                transient = sync.transient,
+                pendingCatchUp = sync.pending,
+                gap = sync.gap,
             )
         }
         is RemoteNewsResult.Failure -> SourceFetch(
             0, 0, 0, 0, listOf(source.name + ": " + config.message), transient = config.transient,
         )
     }
+
 
     companion object {
         const val TYPE = "remote_article_sync"
