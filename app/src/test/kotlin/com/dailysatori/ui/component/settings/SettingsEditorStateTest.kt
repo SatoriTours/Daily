@@ -36,11 +36,12 @@ class SettingsEditorStateTest {
 
     @Test fun remoteNewsChecksAllEditableFieldsAndBlocksActionsDuringWork() {
         val saved = RemoteNewsSettingsState(isEditing = true, name = "Source", baseUrl = "https://example.com",
-            token = "saved-key", savedDraft = RemoteNewsDraft("Source", "https://example.com", "saved-key", true))
+            legacyApiToken = "saved-key", savedDraft = RemoteNewsDraft("Source", "https://example.com", true))
         assertFalse(saved.hasChanges)
         assertTrue(saved.copy(name = "New source").hasChanges)
         assertTrue(saved.copy(baseUrl = "https://other.example.com").hasChanges)
-        assertTrue(saved.copy(token = "new-key").hasChanges)
+        // The legacy token is kept for private feeds but is no longer an editable form field.
+        assertFalse(saved.copy(legacyApiToken = "new-key").hasChanges)
         assertTrue(saved.copy(enabled = false).hasChanges)
         assertFalse(saved.copy(isEditing = false, name = "New source").hasChanges)
         val scenarios = listOf(

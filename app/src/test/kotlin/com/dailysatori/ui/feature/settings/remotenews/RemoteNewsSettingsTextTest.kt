@@ -5,6 +5,7 @@ import com.dailysatori.shared.db.Remote_news_source
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class RemoteNewsSettingsTextTest {
@@ -138,6 +139,81 @@ class RemoteNewsSettingsTextTest {
 
         assertEquals(7, next.syncingSourceId)
         assertEquals(queuedPlaceholder, next.syncWorkBySourceId[7])
+    }
+
+    @Test
+    fun editorAsksOnlyForTheFeedUrlAndDropsTheTokenField() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/settings/remotenews/RemoteNewsSettingsScreen.kt").readText()
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/settings/remotenews/RemoteNewsSettingsViewModel.kt").readText()
+
+        assertTrue(screen.contains("label = { Text(\"完整 URL\") }"))
+        assertTrue(screen.contains("填写 RSS 订阅地址"))
+        assertFalse(screen.contains("Token（可选）"))
+        assertFalse(screen.contains("PasswordVisualTransformation"))
+        assertFalse(screen.contains("VisualTransformation"))
+        assertFalse(screen.contains("label = { Text(\"名称\") }"))
+        assertFalse(screen.contains("state.legacyApiToken"))
+        assertFalse(viewModel.contains("fun updateToken"))
+        assertFalse(viewModel.contains("fun updateName"))
+    }
+
+    @Test
+    fun editingKeepsTheLegacyTokenAndDerivesTheNameFromTheFeedUrl() {
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/settings/remotenews/RemoteNewsSettingsViewModel.kt").readText()
+
+        assertTrue(viewModel.contains("legacyApiToken = source.api_token"))
+        assertTrue(viewModel.contains("sourceRepo.save(editingId, name, baseUrl, legacyApiToken, enabled)"))
+        assertTrue(viewModel.contains("remoteNewsSourceName(form.name, baseUrl)"))
+        assertEquals("example.com", remoteNewsSourceName("", "https://example.com/feed?token=secret"))
+        assertEquals("示例来源", remoteNewsSourceName("示例来源", "https://example.com/feed"))
+        assertEquals("远程新闻", remoteNewsSourceName("", ""))
+    }
+
+    @Test
+    fun sourceRowsMaskTokenValuesInTheStoredUrl() {
+        assertEquals(
+            "https://example.com/feed?token=已脱敏&category=tech",
+            remoteNewsDisplayUrl("https://example.com/feed?token=secret&category=tech"),
+        )
+        assertEquals("https://example.com/feed", remoteNewsDisplayUrl("https://example.com/feed"))
+    }
+
+    @Test
+    fun legacyTokenStaysInsideTheSavedOrigin() {
+        val saved = "https://feeds.example.com/rss?category=tech"
+        val token = "saved-token"
+
+        // Same origin, different path/query: the legacy credential still belongs to this feed.
+        assertEquals(token, remoteNewsLegacyTokenFor("https://feeds.example.com/rss?category=ai", token, saved))
+        assertEquals(token, remoteNewsLegacyTokenFor("https://FEEDS.example.com:443/other", token, saved))
+        assertEquals(token, remoteNewsLegacyTokenFor("https://feeds.example.com:8443/rss", token, "https://feeds.example.com:8443/rss"))
+
+        // Different host, downgraded scheme or a different port is a different origin.
+        assertEquals("", remoteNewsLegacyTokenFor("https://evil.example.com/rss", token, saved))
+        assertEquals("", remoteNewsLegacyTokenFor("http://feeds.example.com/rss", token, saved))
+        assertEquals("", remoteNewsLegacyTokenFor("https://feeds.example.com:8443/rss", token, saved))
+
+        // Invalid addresses and brand-new sources never inherit a credential.
+        assertEquals("", remoteNewsLegacyTokenFor("not a url", token, saved))
+        assertEquals("", remoteNewsLegacyTokenFor("ftp://feeds.example.com/rss", token, saved))
+        assertEquals("", remoteNewsLegacyTokenFor("https://feeds.example.com/rss", token, ""))
+        assertEquals("", remoteNewsLegacyTokenFor("https://feeds.example.com/rss", "  ", saved))
+    }
+
+    @Test
+    fun saveAndTestBothScopeTheLegacyTokenToTheSavedUrl() {
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/settings/remotenews/RemoteNewsSettingsViewModel.kt").readText()
+
+        assertTrue(
+            viewModel.contains(
+                "val legacyApiToken = remoteNewsLegacyTokenFor(baseUrl, form.legacyApiToken, form.savedDraft.baseUrl)",
+            ),
+        )
+        assertTrue(
+            viewModel.contains(
+                "remoteNewsLegacyTokenFor(baseUrl, state.value.legacyApiToken, state.value.savedDraft.baseUrl)",
+            ),
+        )
     }
 
     private fun remoteNewsSource(id: Long): Remote_news_source =

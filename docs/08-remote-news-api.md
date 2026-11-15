@@ -2,6 +2,27 @@
 
 本文档定义 Daily Satori 远程新闻源需要支持的接口格式。新增远程新闻服务时，应优先兼容本文档中的 `top_articles_today` 列表接口。
 
+## RSS 订阅地址（App 当前使用方式）
+
+远程新闻设置只填写一个「完整 URL」，App 直接请求该地址并按 RSS/Atom 解析：
+
+- URL 原样保存与请求，路径和查询参数全部保留；Token 等鉴权参数直接写在 URL 里，例如
+  `https://feed.example.com/rss?token=<TOKEN>&category=tech`，不再单独填写 Token。
+- 旧版本保存过的独立 Token 仅作为内部兼容继续沿用，不再出现在设置表单中。
+- 设置列表展示地址时会隐藏 Token 类查询参数的值。
+
+当前解析器已支持且被测试覆盖的格式：
+
+| 格式 | 根元素/条目 | 主要字段 |
+|------|-------------|----------|
+| RSS 0.91 / 0.92 / 2.0 | `rss/channel/item` | title、link、guid、description、content:encoded、pubDate |
+| RSS 1.0 (RDF) | `rdf:RDF/item` | title、link、rdf:about、description、dc:date |
+| Atom 1.0 | `feed/entry` | title、link(rel=alternate/self)、id、summary、content、published/updated |
+
+JSON Feed 等 JSON 格式不是 XML 订阅，当前不支持。
+
+未验证：Atom 0.3（`modified`/`issued`/带 mode 的 `content`）、各类私有扩展命名空间字段。这些情况下条目可能能读出，但时间或正文可能缺失，不承诺完整支持。
+
 ## 核心约定
 
 远程新闻服务只需要提供一个列表接口：

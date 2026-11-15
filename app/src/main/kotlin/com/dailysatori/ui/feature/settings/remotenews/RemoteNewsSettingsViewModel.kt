@@ -10,6 +10,7 @@ import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.asynctask.AsyncTaskType
+import com.dailysatori.service.diagnostics.TaskHttpRedaction
 import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
@@ -25,7 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 
-data class RemoteNewsDraft(val name: String = "", val baseUrl: String = "", val token: String = "", val enabled: Boolean = true)
+data class RemoteNewsDraft(val name: String = "", val baseUrl: String = "", val enabled: Boolean = true)
 
 data class RemoteNewsSettingsState(
     val sources: List<Remote_news_source> = emptyList(),
@@ -37,7 +38,8 @@ data class RemoteNewsSettingsState(
     val editingId: Long? = null,
     val name: String = "",
     val baseUrl: String = "",
-    val token: String = "",
+    /** Saved with older versions for private feeds; never edited in the form and kept as-is on save. */
+    val legacyApiToken: String = "",
     val enabled: Boolean = true,
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,
@@ -47,7 +49,7 @@ data class RemoteNewsSettingsState(
     val savedDraft: RemoteNewsDraft = RemoteNewsDraft(),
 ) {
     val busy: Boolean get() = isSaving || isTesting || isDeleting
-    val draft: RemoteNewsDraft get() = RemoteNewsDraft(name, baseUrl, token, enabled)
+    val draft: RemoteNewsDraft get() = RemoteNewsDraft(name, baseUrl, enabled)
     val hasChanges: Boolean get() = isEditing && draft != savedDraft
 }
 
@@ -79,16 +81,12 @@ class RemoteNewsSettingsViewModel(
 
     init { load() }
 
-    fun updateName(value: String) = _state.update { if (it.busy) it else it.copy(name = value, message = null, isError = false) }
-
     fun updateBaseUrl(value: String) = _state.update { if (it.busy) it else it.copy(baseUrl = value, message = null, isError = false) }
-
-    fun updateToken(value: String) = _state.update { if (it.busy) it else it.copy(token = value, message = null, isError = false) }
 
     fun updateEnabled(value: Boolean) = _state.update { if (it.busy) it else it.copy(enabled = value, message = null, isError = false) }
 
     fun openAdd() = _state.update {
-        it.copy(isEditing = true, editingId = null, name = "", baseUrl = "", token = "", enabled = true,
+        it.copy(isEditing = true, editingId = null, name = "", baseUrl = "", legacyApiToken = "", enabled = true,
             message = null, isError = false, savedDraft = RemoteNewsDraft())
     }
 
@@ -98,16 +96,16 @@ class RemoteNewsSettingsViewModel(
             editingId = source.id,
             name = source.name,
             baseUrl = source.base_url,
-            token = source.api_token,
+            legacyApiToken = source.api_token,
             enabled = source.enabled == 1L,
             message = null,
             isError = false,
-            savedDraft = RemoteNewsDraft(source.name, source.base_url, source.api_token, source.enabled == 1L),
+            savedDraft = RemoteNewsDraft(source.name, source.base_url, source.enabled == 1L),
         )
     }
 
     fun closeEditor() = _state.update {
-        if (it.busy) it else it.copy(isEditing = false, editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
+        if (it.busy) it else it.copy(isEditing = false, editingId = null, name = "", baseUrl = "", legacyApiToken = "", enabled = true, message = null)
     }
 
     fun load() {
@@ -121,15 +119,15 @@ class RemoteNewsSettingsViewModel(
         if (state.value.busy || !state.value.hasChanges) return
         val form = state.value
         val editingId = form.editingId
-        val name = form.name.trim()
-        // The RSS address is stored exactly as typed: a feed URL may carry its own query.
+        // The RSS address is stored exactly as typed: a feed URL may carry its own query and token.
         val baseUrl = form.baseUrl.trim()
-        val token = form.token.trim()
-        val enabled = form.enabled
-        if (name.isBlank() || baseUrl.isBlank()) {
-            _state.update { it.copy(message = "请填写名称和 RSS 地址", isError = true) }
+        if (baseUrl.isBlank()) {
+            _state.update { it.copy(message = "请填写 RSS 地址", isError = true) }
             return
         }
+        val name = remoteNewsSourceName(form.name, baseUrl)
+        val legacyApiToken = remoteNewsLegacyTokenFor(baseUrl, form.legacyApiToken, form.savedDraft.baseUrl)
+        val enabled = form.enabled
         if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
             _state.update { it.copy(message = "URL 必须以 http:// 或 https:// 开头", isError = true) }
             return
@@ -137,14 +135,14 @@ class RemoteNewsSettingsViewModel(
         _state.update { it.copy(isSaving = true, message = null, isError = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                sourceRepo.save(editingId, name, baseUrl, token, enabled)
+                sourceRepo.save(editingId, name, baseUrl, legacyApiToken, enabled)
                 _state.update {
                     it.copyRemoteNewsSyncCounts().copy(
                         isEditing = false,
                         editingId = null,
                         name = "",
                         baseUrl = "",
-                        token = "",
+                        legacyApiToken = "",
                         enabled = true,
                         message = "远程新闻设置已保存",
                         isError = false,
@@ -173,7 +171,7 @@ class RemoteNewsSettingsViewModel(
                         editingId = if (editingDeleted) null else current.editingId,
                         name = if (editingDeleted) "" else current.name,
                         baseUrl = if (editingDeleted) "" else current.baseUrl,
-                        token = if (editingDeleted) "" else current.token,
+                        legacyApiToken = if (editingDeleted) "" else current.legacyApiToken,
                         enabled = if (editingDeleted) true else current.enabled,
                         message = "远程新闻已删除",
                     )
@@ -248,7 +246,7 @@ class RemoteNewsSettingsViewModel(
     fun testConnection() {
         if (state.value.busy) return
         val baseUrl = state.value.baseUrl.trim()
-        val token = state.value.token.trim()
+        val legacyApiToken = remoteNewsLegacyTokenFor(baseUrl, state.value.legacyApiToken, state.value.savedDraft.baseUrl)
         if (baseUrl.isBlank()) {
             _state.update { it.copy(message = "请先配置远程新闻 RSS 地址", isError = true) }
             return
@@ -256,7 +254,7 @@ class RemoteNewsSettingsViewModel(
         _state.update { it.copy(isTesting = true, message = null, isError = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val config = remoteNewsService.configOrFailure(baseUrl, token)
+                val config = remoteNewsService.configOrFailure(baseUrl, legacyApiToken)
                 val message = when (config) {
                     is RemoteNewsResult.Failure -> config.message to true
                     is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (
@@ -319,6 +317,72 @@ private val remoteNewsFinishedWorkStates = setOf(
     WorkInfo.State.FAILED,
     WorkInfo.State.CANCELLED,
 )
+
+/**
+ * A source name only has to be human readable: keep the saved name, otherwise label the source
+ * with the feed host so a single URL field is enough.
+ */
+internal fun remoteNewsSourceName(existingName: String, url: String): String =
+    existingName.trim().ifBlank { remoteNewsSourceNameFromUrl(url) }
+
+internal fun remoteNewsSourceNameFromUrl(url: String): String {
+    val trimmed = url.trim()
+    val authority = trimmed.substringAfter("://", trimmed)
+        .substringBefore('/')
+        .substringBefore('?')
+        .substringBefore('#')
+    val host = authority.substringAfter('@').substringBefore(':')
+    return host.ifBlank { DEFAULT_REMOTE_NEWS_SOURCE_NAME }
+}
+
+/**
+ * Old records may still carry a separately saved token. It is kept only for the exact origin the
+ * feed was saved with: switching host, scheme or port must never forward that credential to a new
+ * destination, so the token is dropped instead of being rebound.
+ */
+internal fun remoteNewsLegacyTokenFor(url: String, legacyToken: String, savedUrl: String): String {
+    val token = legacyToken.trim()
+    if (token.isEmpty()) return ""
+    val origin = remoteNewsUrlOrigin(url) ?: return ""
+    return token.takeIf { origin == remoteNewsUrlOrigin(savedUrl) }.orEmpty()
+}
+
+/** Canonical `scheme://host:port` origin, or null when the address is not a usable http(s) URL. */
+internal fun remoteNewsUrlOrigin(url: String): String? {
+    val trimmed = url.trim()
+    val scheme = trimmed.substringBefore("://", missingDelimiterValue = "").lowercase()
+    if (scheme != "http" && scheme != "https") return null
+    val authority = trimmed.substringAfter("://")
+        .substringBefore('/')
+        .substringBefore('?')
+        .substringBefore('#')
+    if (authority.isBlank()) return null
+    val hostPort = authority.substringAfterLast('@')
+    val host: String
+    val portText: String
+    if (hostPort.startsWith("[")) {
+        val end = hostPort.indexOf(']')
+        if (end <= 0) return null
+        host = hostPort.substring(0, end + 1).lowercase()
+        portText = hostPort.substring(end + 1).removePrefix(":")
+    } else {
+        host = hostPort.substringBefore(':').lowercase().trimEnd('.')
+        portText = hostPort.substringAfter(':', "")
+    }
+    if (host.isBlank() || host.any { it.isWhitespace() }) return null
+    val defaultPort = if (scheme == "https") "443" else "80"
+    val port = when {
+        portText.isEmpty() -> defaultPort
+        portText.length <= 5 && portText.all(Char::isDigit) && portText.toInt() in 1..65535 -> portText.toInt().toString()
+        else -> return null
+    }
+    return "$scheme://$host:$port"
+}
+
+/** The stored URL may carry credentials in its query; lists only ever show the masked form. */
+internal fun remoteNewsDisplayUrl(url: String): String = TaskHttpRedaction.url(url)
+
+private const val DEFAULT_REMOTE_NEWS_SOURCE_NAME = "远程新闻"
 
 internal fun remoteNewsSyncUniqueKey(sourceId: Long): String =
     "remote_article_sync:source:$sourceId"

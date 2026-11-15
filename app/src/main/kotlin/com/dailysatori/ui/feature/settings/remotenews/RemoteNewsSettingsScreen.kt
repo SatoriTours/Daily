@@ -22,14 +22,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -58,8 +55,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.shared.db.Remote_news_source
 import com.dailysatori.ui.component.indicator.EmptyState
@@ -270,7 +265,7 @@ private fun RemoteNewsSourceRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        source.base_url,
+                        remoteNewsDisplayUrl(source.base_url),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -465,7 +460,7 @@ private fun RemoteNewsSourceEditorPage(
         bottomBar = {
             SettingsEditorBottomBar(
                 canTest = !state.busy && state.baseUrl.isNotBlank(),
-                canSave = !state.busy && state.hasChanges && state.name.isNotBlank() && state.baseUrl.isNotBlank(),
+                canSave = !state.busy && state.hasChanges && state.baseUrl.isNotBlank(),
                 isTesting = state.isTesting,
                 isSaving = state.isSaving,
                 onTest = viewModel::testConnection,
@@ -482,38 +477,12 @@ private fun RemoteNewsSourceEditorPage(
         ) {
             RemoteNewsSourceHelperCard()
             OutlinedTextField(
-                value = state.name,
-                onValueChange = viewModel::updateName,
-                label = { Text("名称") },
-                enabled = !state.busy,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
                 value = state.baseUrl,
                 onValueChange = viewModel::updateBaseUrl,
                 label = { Text("完整 URL") },
                 enabled = !state.busy,
-                placeholder = { Text("https://example.com/feed.xml") },
+                placeholder = { Text("https://example.com/feed.xml?token=…") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            var tokenVisible by remember { mutableStateOf(false) }
-            OutlinedTextField(
-                value = state.token,
-                onValueChange = viewModel::updateToken,
-                label = { Text("Token（可选）") },
-                enabled = !state.busy,
-                singleLine = true,
-                visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { tokenVisible = !tokenVisible }) {
-                        Icon(
-                            if (tokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (tokenVisible) "隐藏 Token" else "显示 Token",
-                        )
-                    }
-                },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(
@@ -551,7 +520,7 @@ private fun RemoteNewsSourceHelperCard() {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text("填写 RSS 订阅地址", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(
-                    "URL 就是订阅源的完整地址（可带参数）。测试连接会读取最新文章；公开订阅无需 Token，需要鉴权时再填写。",
+                    "完整 URL 就是订阅地址，Token 等参数直接写在 URL 里即可。测试连接会读取最新文章。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
