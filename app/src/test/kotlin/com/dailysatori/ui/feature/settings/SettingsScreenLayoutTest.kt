@@ -58,6 +58,20 @@ class SettingsScreenLayoutTest {
     }
 
     @Test
+    fun homeApplicationRowsExecuteUpdateAndExportWithoutAnIntermediatePage() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
+        val main = source.substringAfter("private fun SettingsMainPage(").substringBefore("@Composable\nprivate fun AboutDialog")
+        assertTrue(main.contains("viewModel.checkUpdate()"))
+        assertTrue(main.contains("diagnostics.prepare(false)"))
+        assertTrue(main.contains("SettingsAction.CHECK_UPDATE"))
+        assertTrue(main.contains("SettingsAction.EXPORT_LOGS"))
+        assertTrue(source.contains("val diagnostics = rememberDiagnosticExportAccess()"))
+        val diagnosticsSource = File("src/main/kotlin/com/dailysatori/ui/feature/settings/diagnostics/DiagnosticSettingsScreen.kt").readText()
+        assertFalse(diagnosticsSource.contains("rememberLauncherForActivityResult"))
+        assertFalse(diagnosticsSource.contains("requests.collect"))
+    }
+
+    @Test
     fun settingsMainPageHandlesSystemBackWhenCallbackExists() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
         val settingsScreen = source.substringAfter("fun SettingsScreen(")

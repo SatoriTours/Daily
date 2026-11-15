@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +39,6 @@ internal fun UpdateSettingsSection(state: SettingsState, viewModel: SettingsView
         )
         SettingsRow(Icons.Default.Settings, "更新渠道", state.updateChannel.label,
             onClick = { if (!busy) choosing = true })
-        SettingsRow(Icons.Default.Refresh, "检查更新", if (state.isCheckingUpdate) "检查中…" else "启动时自动检查所选渠道",
-            onClick = { if (!busy) viewModel.checkUpdate() })
         state.updateStatus?.let {
             Text(
                 text = it,

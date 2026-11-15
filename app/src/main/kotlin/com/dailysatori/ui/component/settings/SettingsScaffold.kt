@@ -109,7 +109,7 @@ fun SettingsScaffold(
     )
     // Scope the grouped-page background to settings; reading pages keep their existing theme.
     MaterialTheme(
-        colorScheme = MaterialTheme.colorScheme.copy(background = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colorScheme = MaterialTheme.colorScheme.copy(background = MaterialTheme.colorScheme.background),
         shapes = MaterialTheme.shapes.copy(
             small = RoundedCornerShape(Radius.s),
             medium = RoundedCornerShape(Radius.l),

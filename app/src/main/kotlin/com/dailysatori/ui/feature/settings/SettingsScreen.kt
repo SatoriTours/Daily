@@ -36,6 +36,9 @@ import com.dailysatori.ui.feature.settings.hotnews.HotNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.speech.SpeechSettingsScreen
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
+import com.dailysatori.ui.feature.settings.diagnostics.DiagnosticExportAccess
+import com.dailysatori.ui.feature.settings.diagnostics.rememberDiagnosticExportAccess
+import com.dailysatori.core.diagnostics.DiagnosticExportPhase
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
 import com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen
@@ -64,6 +67,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
     BackHandler(enabled = currentPage != SettingsPage.MAIN, onBack = childBack)
     BackHandler(enabled = currentPage == SettingsPage.MAIN && rootBack != null) { rootBack?.invoke() }
 
+    val diagnostics = rememberDiagnosticExportAccess()
     val pages = currentPage.groupPages()
     val group = currentPage.groupTitleKey()?.let { title ->
         SettingsGroupNavigation(i18n.t(title), pages.map { i18n.t(it.tabKey()) }, pages.indexOf(currentPage)) {
@@ -72,7 +76,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
     }
     CompositionLocalProvider(LocalSettingsGroupNavigation provides group) {
         when (currentPage) {
-            SettingsPage.MAIN -> SettingsMainPage(state, scrollState, navigate, onBack)
+            SettingsPage.MAIN -> SettingsMainPage(state, scrollState, navigate, onBack, viewModel, diagnostics)
             SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = childBack)
             SettingsPage.AI_PURPOSE -> AiPurposeScreen(
                 onBack = childBack,
@@ -86,7 +90,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
                 onRestore = { navigate(SettingsDestination(SettingsPage.BACKUP_RESTORE)) })
             SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = childBack)
             SettingsPage.SKILLS -> SkillSettingsScreen(onBack = childBack)
-            SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(onBack = childBack)
+            SettingsPage.DIAGNOSTICS -> com.dailysatori.ui.feature.settings.diagnostics.DiagnosticSettingsScreen(
+                onBack = childBack, diagnostics = diagnostics,
+            )
             SettingsPage.REMINDERS -> ReminderSettingsScreen(onBack = childBack, initialSection = section)
             SettingsPage.SMS_REMINDERS, SettingsPage.BOOKKEEPING, SettingsPage.PHONE_ASSISTANT, SettingsPage.AUTHORIZATION ->
                 com.dailysatori.ui.feature.phone.AuthorizationScreen(onBack = childBack, initialSection = section)
@@ -106,6 +112,8 @@ private fun SettingsMainPage(
     scrollState: ScrollState,
     onNavigate: (SettingsDestination) -> Unit,
     onBack: (() -> Unit)?,
+    viewModel: SettingsViewModel,
+    diagnostics: DiagnosticExportAccess,
 ) {
     val i18n: I18nService = koinInject()
     var searching by rememberSaveable { mutableStateOf(false) }
@@ -134,24 +142,87 @@ private fun SettingsMainPage(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     else SettingsSectionCard(i18n.t("settings_design.results")) {
                         results.forEachIndexed { index, item ->
-                            SettingsRow(settingsEntryIcon(item.destination.page), i18n.t(item.title),
-                                i18n.t(item.group), onClick = { onNavigate(item.destination) },
-                                showDivider = index < results.lastIndex)
+                            SettingsHomeEntryRow(item, state, diagnostics, index < results.lastIndex,
+                                { onNavigate(item.destination) }, { viewModel.checkUpdate() }, i18n.t(item.group))
                         }
                     }
                 } else settingsHomeEntries.groupBy { it.group }.forEach { (group, entries) ->
                     SettingsSectionCard(i18n.t(group)) {
                         entries.forEachIndexed { index, item ->
-                            SettingsRow(settingsEntryIcon(item.destination.page), i18n.t(item.title), "",
-                                onClick = { onNavigate(item.destination) },
-                                value = if (item.destination.page == SettingsPage.UPDATES) state.currentVersion else i18n.t(item.description),
-                                showDivider = index < entries.lastIndex)
+                            SettingsHomeEntryRow(item, state, diagnostics, index < entries.lastIndex,
+                                { onNavigate(item.destination) }, { viewModel.checkUpdate() })
                         }
                     }
                 }
                 Spacer(Modifier.height(Spacing.l))
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsHomeEntryRow(
+    item: SettingsEntry,
+    state: SettingsState,
+    diagnostics: DiagnosticExportAccess,
+    showDivider: Boolean,
+    onNavigate: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    subtitleOverride: String? = null,
+) {
+    val i18n: I18nService = koinInject()
+    val checking = state.isCheckingUpdate
+    when (item.action) {
+        SettingsAction.CHECK_UPDATE -> SettingsRow(
+            icon = settingsEntryIcon(item.destination.page),
+            title = i18n.t(item.title),
+            subtitle = i18n.t("settings_design.current_version", state.currentVersion as Any),
+            value = if (checking) i18n.t("settings_design.checking_update") else null,
+            onClick = onCheckUpdate,
+            enabled = !checking && !state.isDownloadingUpdate,
+            trailing = if (checking) {
+                { CircularProgressIndicator(Modifier.size(IconSize.s), strokeWidth = BorderWidth.m) }
+            } else null,
+            showDivider = showDivider,
+        )
+        SettingsAction.EXPORT_LOGS -> SettingsRow(
+            icon = settingsEntryIcon(item.destination.page),
+            title = i18n.t(item.title),
+            subtitle = exportLogSubtitle(diagnostics, i18n),
+            value = if (diagnostics.export.phase == DiagnosticExportPhase.SAVED) diagnostics.info.savedName else null,
+            onClick = { diagnostics.prepare(false) },
+            enabled = !diagnostics.export.phase.isBusy(),
+            trailing = if (diagnostics.export.phase.isBusy()) {
+                { CircularProgressIndicator(Modifier.size(IconSize.s), strokeWidth = BorderWidth.m) }
+            } else null,
+            showDivider = showDivider,
+        )
+        null -> SettingsRow(
+            icon = settingsEntryIcon(item.destination.page),
+            title = i18n.t(item.title),
+            subtitle = subtitleOverride ?: "",
+            onClick = onNavigate,
+            value = if (item.destination.page == SettingsPage.UPDATES) state.currentVersion else i18n.t(item.description),
+            showDivider = showDivider,
+        )
+    }
+}
+
+private fun DiagnosticExportPhase.isBusy(): Boolean =
+    this == DiagnosticExportPhase.PREPARING ||
+        this == DiagnosticExportPhase.AWAITING_DESTINATION ||
+        this == DiagnosticExportPhase.SAVING
+
+private fun exportLogSubtitle(diagnostics: DiagnosticExportAccess, i18n: I18nService): String {
+    diagnostics.info.messageKey?.let { return i18n.t(it) }
+    return when (diagnostics.export.phase) {
+        DiagnosticExportPhase.PREPARING -> i18n.t("diagnostics.preparing")
+        DiagnosticExportPhase.AWAITING_DESTINATION -> i18n.t("diagnostics.chooseDestination")
+        DiagnosticExportPhase.SAVING -> i18n.t("diagnostics.saving")
+        DiagnosticExportPhase.SAVED -> i18n.t("diagnostics.saved")
+        DiagnosticExportPhase.FAILED ->
+            i18n.t(if (diagnostics.export.residualFile) "diagnostics.failedResidual" else "diagnostics.failed")
+        DiagnosticExportPhase.IDLE -> i18n.t("settings_design.export_logs_hint")
     }
 }
 
@@ -221,13 +292,27 @@ private fun AboutDialog(show: Boolean, currentVersion: String, onDismiss: () -> 
 
 @Composable
 internal fun UpdateDownloadProgress(state: SettingsState) {
+    val i18n: I18nService = koinInject()
+    val fraction = state.updateDownloadProgress
+    val total = state.updateTotalBytes
+    val text = when {
+        state.updateDownloadPhase == UpdateDownloadPhase.PREPARING -> i18n.t("settings_design.update_preparing")
+        state.updateDownloadPhase == UpdateDownloadPhase.VERIFYING -> i18n.t("settings_design.update_verifying")
+        fraction != null && total != null -> i18n.t(
+            "settings_design.update_downloading_known",
+            (fraction * 100).toInt(),
+            formatDownloadBytes(state.updateDownloadedBytes),
+            formatDownloadBytes(total),
+        )
+        else -> i18n.t("settings_design.update_downloading_unknown",
+            formatDownloadBytes(state.updateDownloadedBytes) as Any)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(state.updateDownloadProgressText)
-        val progress = state.updateDownloadProgress
-        if (progress == null) {
+        Text(text)
+        if (fraction == null || state.updateDownloadPhase == UpdateDownloadPhase.PREPARING) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         } else {
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+            LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
         }
     }
 }

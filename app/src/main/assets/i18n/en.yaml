@@ -342,6 +342,8 @@ diary_tags:
   generate_failed: "Generation failed; your tags are preserved. Check your default AI configuration and retry."
   automatic: "Automatically tag after saving"
   automatic_hint: "Processes new diaries and edited text in the background."
+  fill_missing_hint: "Only diaries without tags; existing tags stay unchanged"
+  fill_missing_count: "%1$d untagged diaries can be filled"
   fill_missing: "Tag untagged past diaries"
   fill_confirm: "Tag past diaries"
   fill_body: "The default AI will analyze %1$d untagged diary entries. Existing tags are preserved. Track progress in the task center."
@@ -462,7 +464,7 @@ diary_feed:
   month_title: "%1$s review"
   attachment_entry: "Entry with attachments"
 diagnostics:
-  title: Diagnostics and logs
+  title: Diagnostics
   subtitle: Export recent logs and the last crash
   description: Records safe request metadata, business operations and errors. Export one AI-readable text file for the 30 minutes before you tap export.
   privacy: Credentials, diary entries, conversations and full bodies are excluded. Unknown free text is omitted. Logs stay local and are never uploaded automatically.
@@ -480,6 +482,7 @@ diagnostics:
   saved: Saved to the selected location
   failed: Export failed. Check free space and directory permissions, then retry.
   failedResidual: Saving failed. An incomplete file may remain at the destination; check and remove it.
+  cleanup: Local data
   clear: Clear diagnostic logs
   clearConfirm: Clear local diagnostics, crash snapshots and temporary exports? Previously exported files and old task-center logs will not be deleted.
   confirm: Confirm clear
@@ -1387,10 +1390,23 @@ settings_design:
   storage_hint: "Backup · Restore"
   privacy: "Privacy"
   privacy_hint: "Data use"
-  updates: "Updates & about"
-  updates_hint: "Version · Channel"
-  diagnostics: "Diagnostics & logs"
-  diagnostics_hint: "Runtime status"
+  check_update: "Check for updates"
+  current_version: "Current version %1$s"
+  checking_update: "Checking…"
+  update_preparing: "Preparing download…"
+  update_downloading_known: "Downloading %1$d%% · %2$s / %3$s"
+  update_downloading_unknown: "Downloaded %1$s · Total size unknown"
+  update_verifying: "Download complete · Verifying package…"
+  update_dialog_downloading: "Downloading update"
+  update_dialog_verifying: "Verifying update"
+
+  check_update_hint: "Current version · Latest release"
+  export_logs: "Export logs"
+  export_logs_hint: "Last 30 minutes · Saved on device"
+  updates: "Channel & about"
+  updates_hint: "Channel · Version"
+  diagnostics: "Diagnostics"
+  diagnostics_hint: "Status & local logs"
   sms: "SMS permission"
   sms_hint: "Phone assistant · SMS"
   notification_access: "Notification sources & access"

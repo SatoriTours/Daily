@@ -11,10 +11,30 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 
 class SettingsCatalogTest {
-    @Test fun homeHasElevenEntriesInFourGroupsWithoutDuplicatePages() {
-        assertEquals(11, settingsHomeEntries.size)
+    @Test fun homeHasElevenNavigableEntriesAndTwoDirectActionsInFourGroups() {
+        assertEquals(13, settingsHomeEntries.size)
         assertEquals(4, settingsHomeEntries.map { it.group }.distinct().size)
-        assertEquals(11, settingsHomeEntries.map { it.destination.page }.distinct().size)
+        val navigable = settingsHomeEntries.filter { it.action == null }
+        assertEquals(11, navigable.size)
+        assertEquals(11, navigable.map { it.destination.page }.distinct().size)
+    }
+
+    @Test fun applicationGroupOffersDirectUpdateAndLogExportActions() {
+        val application = settingsHomeEntries.filter { it.group == "settings_design.application" }
+        assertEquals(
+            listOf("settings_design.check_update", "settings_design.export_logs",
+                "settings_design.updates", "settings_design.diagnostics"),
+            application.map { it.title },
+        )
+        assertEquals(listOf(SettingsAction.CHECK_UPDATE, SettingsAction.EXPORT_LOGS, null, null),
+            application.map { it.action })
+    }
+
+    @Test fun searchFindsDirectUpdateAndLogExportActions() {
+        assertEquals(SettingsAction.CHECK_UPDATE, searchSettings("检查更新") { it }.single().action)
+        val export = searchSettings("导出日志") { it }.single()
+        assertEquals(SettingsAction.EXPORT_LOGS, export.action)
+        assertEquals(SettingsPage.DIAGNOSTICS, export.destination.page)
     }
 
     @Test fun relatedPagesArePeersAndReturnDirectlyToSettings() {
@@ -40,6 +60,18 @@ class SettingsCatalogTest {
         }
         assertTrue(searchSettings("zz-not-a-setting") { it }.isEmpty())
         assertTrue(searchSettings("  ") { it }.isEmpty())
+    }
+
+    @Test fun updateProgressTranslationsFormatKnownAndUnknownBytes() {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            val service = I18nService(SettingRepository(DailySatoriDatabase(driver)))
+            service.loadTranslation("zh", File("src/main/assets/i18n/zh.yaml").readText())
+            service.init("zh")
+            assertEquals("正在下载 25% · 1.0 KB / 2.0 KB",
+                service.t("settings_design.update_downloading_known", 25, "1.0 KB", "2.0 KB"))
+            assertEquals("已下载 1.0 KB · 总大小未知",
+                service.t("settings_design.update_downloading_unknown", "1.0 KB" as Any))
+        }
     }
 
     @Test fun localizedTitlesAreSearchable() {

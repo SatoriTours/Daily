@@ -1,24 +1,52 @@
 package com.dailysatori.ui.feature.settings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class SettingsUpdateProgressTest {
     @Test
-    fun calculatesDownloadProgressWhenTotalSizeIsKnown() {
-        assertEquals(0.25f, updateDownloadProgress(downloadedBytes = 25, totalBytes = 100))
-        assertEquals(1f, updateDownloadProgress(downloadedBytes = 150, totalBytes = 100))
+    fun knownTotalProducesDeterminateFractionAndRealBytes() {
+        val snapshot = updateDownloadSnapshot(downloadedBytes = 25, totalBytes = 100)
+        assertEquals(25, snapshot.downloadedBytes)
+        assertEquals(100, snapshot.totalBytes)
+        assertEquals(0.25f, snapshot.fraction)
     }
 
     @Test
-    fun keepsProgressIndeterminateWhenTotalSizeIsUnknown() {
-        assertEquals(null, updateDownloadProgress(downloadedBytes = 25, totalBytes = -1))
-        assertEquals(null, updateDownloadProgress(downloadedBytes = 25, totalBytes = 0))
+    fun zeroDownloadedWithKnownTotalIsZeroPercentNotIndeterminate() {
+        val snapshot = updateDownloadSnapshot(downloadedBytes = 0, totalBytes = 100)
+        assertEquals(0f, snapshot.fraction)
+        assertEquals(0, snapshot.downloadedBytes)
     }
 
     @Test
-    fun formatsUpdateDownloadProgressText() {
-        assertEquals("下载中 25%", updateDownloadProgressText(0.25f))
-        assertEquals("正在准备下载...", updateDownloadProgressText(null))
+    fun unknownOrInvalidTotalKeepsBytesButNoFakeFraction() {
+        listOf(-1L, 0L).forEach { total ->
+            val snapshot = updateDownloadSnapshot(downloadedBytes = 25, totalBytes = total)
+            assertEquals(25, snapshot.downloadedBytes)
+            assertNull(snapshot.totalBytes)
+            assertNull(snapshot.fraction)
+        }
+    }
+
+    @Test
+    fun negativeBytesClampButOverrunBytesStayVisibleWithoutFakePercent() {
+        val negative = updateDownloadSnapshot(downloadedBytes = -5, totalBytes = 100)
+        assertEquals(0, negative.downloadedBytes)
+        assertEquals(0f, negative.fraction)
+        val over = updateDownloadSnapshot(downloadedBytes = 150, totalBytes = 100)
+        assertEquals(150, over.downloadedBytes)
+        assertNull(over.totalBytes)
+        assertNull(over.fraction)
+    }
+
+    @Test
+    fun formatsDownloadedAndTotalByteCounts() {
+        assertEquals("0 B", formatDownloadBytes(0))
+        assertEquals("1023 B", formatDownloadBytes(1023))
+        assertEquals("1.0 KB", formatDownloadBytes(1024))
+        assertEquals("1.0 MB", formatDownloadBytes(1024L * 1024))
+        assertEquals("20.1 MB", formatDownloadBytes(21_100_205))
     }
 
     @Test

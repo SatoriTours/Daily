@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily · 设置重构设计稿 V1（设计演示，非实际 App 验收）</title>
+<style>
+:root{color-scheme:light;--page:#ececf0;--bg:#f5f5f7;--surface:#fff;--field:#e9e9ee;--chip:#efeff4;--text:#1d1d1f;--muted:#6e6e73;--line:rgba(60,60,67,.12);--card-line:rgba(60,60,67,.10);--chev:#c2c2c8;--accent:#006edb;--accent-soft:#d8ecff;--accent-ink:#0059b2;--frame:rgba(60,60,67,.16);--shadow:0 18px 40px rgba(20,22,30,.10),0 2px 6px rgba(20,22,30,.05);--badge-bg:#d8ecff;--badge-ink:#00538f}
+body.dark{color-scheme:dark;--page:#0e0e10;--bg:#000;--surface:#1c1c1e;--field:#1c1c1e;--chip:#2c2c2e;--text:#f5f5f7;--muted:#a1a1a6;--line:rgba(255,255,255,.10);--card-line:rgba(255,255,255,.08);--chev:#66666d;--accent:#0a84ff;--accent-soft:#073a5c;--accent-ink:#d8ecff;--frame:rgba(255,255,255,.14);--shadow:0 18px 44px rgba(0,0,0,.55);--badge-bg:#073a5c;--badge-ink:#d8ecff}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--text);font-family:-apple-system,"SF Pro Text",system-ui,"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.doc{max-width:872px;margin:0 auto;padding:26px 28px 6px}
+.doc-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.doc h1{font-size:19px;line-height:1.4;font-weight:700;margin:0;letter-spacing:-.2px}
+.badge{font-size:11px;font-weight:650;line-height:1;padding:6px 9px;border-radius:100px;background:var(--badge-bg);color:var(--badge-ink)}
+.doc-sub{font-size:12px;line-height:1.7;color:var(--muted);margin:7px 0 0;max-width:660px}
+.toolbar{display:flex;gap:6px;margin-top:14px;padding:4px;border-radius:11px;background:var(--surface);box-shadow:0 0 0 .5px var(--card-line);width:fit-content}
+.toolbar button{height:32px;padding:0 15px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.toolbar button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent-ink)}
+.gallery{max-width:872px;margin:0 auto;padding:18px 28px 34px;display:grid;grid-template-columns:repeat(2,390px);justify-content:center;gap:24px;align-items:start}
+.pane{min-width:0}
+.pane-label{display:flex;align-items:baseline;gap:7px;font-size:13px;font-weight:650;margin:0 2px 9px}
+.pane-label small{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.4px}
+.caption{font-size:11.5px;line-height:1.7;color:var(--muted);margin:11px 2px 0;min-height:40px}
+.phone{width:390px;max-width:100%;height:844px;overflow:hidden;border-radius:30px;border:1px solid var(--frame);background:var(--bg);box-shadow:var(--shadow);display:flex;flex-direction:column}
+.status{height:30px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:8px 24px 0;font-size:11.5px;font-weight:650;letter-spacing:.1px}
+.status svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.status .right{display:flex;align-items:center;gap:5px;color:var(--text)}
+.nav{height:52px;flex:none;display:flex;align-items:center;padding:0 8px 0 6px}
+.back{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:12px;color:var(--accent)}
+.back:hover{background:var(--surface)}
+.back svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.nav h2{font-size:20px;line-height:1.2;font-weight:650;letter-spacing:-.2px;margin:0 0 0 2px}
+.body{flex:1;min-height:0;padding:2px 16px 20px;overflow:hidden}
+.search{height:40px;display:flex;align-items:center;gap:8px;padding:0 11px;border-radius:12px;background:var(--field);color:var(--muted)}
+.search svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.search input{flex:1;min-width:0;border:0;background:none;font-size:13.5px;color:var(--text);padding:0}
+.search input::placeholder{color:var(--muted);opacity:1}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.quick button{height:40px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:11px;font-size:13.5px;font-weight:650;letter-spacing:-.1px}
+.quick svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.quick .primary{background:var(--accent-soft);color:var(--accent-ink)}
+.quick .secondary{background:var(--surface);color:var(--text);box-shadow:0 0 0 .5px var(--card-line)}
+.group{margin-top:12px}
+.group-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 6px 5px;font-size:12px;font-weight:650;color:var(--muted);letter-spacing:.3px}
+.card{background:var(--surface);border-radius:15px;overflow:hidden;box-shadow:0 0 0 .5px var(--card-line)}
+.row{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 13px;border-top:.5px solid var(--line);text-align:left;width:100%}
+.row:first-child{border-top:0}
+button.row:hover{background:var(--field)}
+.row .label{font-size:15px;font-weight:500;letter-spacing:-.1px;white-space:nowrap}
+.row .value{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.chev{width:15px;height:15px;flex:none;color:var(--chev);stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;margin-right:-2px}
+.toggle-card{padding:13px 14px 12px;border-radius:15px;background:var(--surface);box-shadow:0 0 0 .5px var(--card-line)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toggle-row .label{font-size:15px;font-weight:600;letter-spacing:-.1px}
+.hint{font-size:12.5px;line-height:1.62;color:var(--muted);margin:7px 0 0;padding-right:4px}
+.switch{position:relative;width:48px;height:29px;flex:none;border-radius:100px;background:var(--chip);box-shadow:inset 0 0 0 .5px var(--line);transition:background .18s ease}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:25px;height:25px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.22);transition:transform .18s ease}
+.switch[aria-checked=true]{background:#34c759;box-shadow:none}
+.switch[aria-checked=true]::after{transform:translateX(19px)}
+.section{margin-top:22px}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 6px 8px;font-size:12px;font-weight:650;color:var(--muted);letter-spacing:.3px}
+.section-head .count{font-size:11.5px;font-weight:500;letter-spacing:0;font-variant-numeric:tabular-nums}
+.chips{padding:12px;display:flex;flex-wrap:wrap;gap:9px 8px;border-radius:15px;background:var(--surface);box-shadow:0 0 0 .5px var(--card-line)}
+.chip{position:relative;height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:100px;background:var(--chip);color:var(--text);font-size:13.5px;font-weight:500;letter-spacing:-.1px}
+.chip::after{content:"";position:absolute;inset:-5px;border-radius:100px}
+.chip .n{font-size:11px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip:hover{background:var(--field)}
+.chip[aria-pressed=true]{background:var(--accent-soft);color:var(--accent-ink)}
+.chip[aria-pressed=true] .n{color:var(--accent-ink);opacity:.75}
+.footnote{font-size:12px;line-height:1.65;color:var(--muted);margin:10px 6px 0}
+.stack-row{display:flex;align-items:center;gap:10px;min-height:62px;padding:11px 13px;border-top:.5px solid var(--line);text-align:left;width:100%}
+.stack-row:first-child{border-top:0}
+button.stack-row:hover{background:var(--field)}
+.stack-row .texts{min-width:0}
+.stack-row .label{display:block;font-size:15px;font-weight:500;letter-spacing:-.1px;line-height:1.35}
+.stack-row .sub{display:block;font-size:12px;line-height:1.55;color:var(--muted);margin-top:3px}
+.home-indicator{flex:none;height:22px;display:flex;align-items:center;justify-content:center}
+.home-indicator i{display:block;width:126px;height:5px;border-radius:100px;background:var(--text);opacity:.28}
+body.capture .doc{padding:20px 28px 0}
+body.capture .doc-sub,body.capture .toolbar{display:none}
+body.capture .gallery{padding-top:14px;padding-bottom:22px}
+@media (max-width:900px){.gallery,.doc{max-width:100%}.gallery{grid-template-columns:minmax(0,390px);justify-content:center}.pane{width:100%;max-width:390px}}
+</style>
+</head>
+<body class="light">
+<header class="doc">
+  <div class="doc-head">
+    <h1>Daily · 设置重构设计稿 V1</h1>
+    <span class="badge">设计稿 · 非实际 App 验收</span>
+    <span class="badge" id="themeTag" style="background:transparent;color:var(--muted);box-shadow:inset 0 0 0 .5px var(--line)">浅色主稿</span>
+  </div>
+  <p class="doc-sub">设置首页把「检查更新」「导出日志」提到首屏；日记标签页靠前展示标签目录，合并前确认。内容为设计演示，未改动 App 代码。</p>
+  <div class="toolbar" role="group" aria-label="配色预览">
+    <button type="button" data-theme="light" aria-pressed="true">浅色主稿</button>
+    <button type="button" data-theme="dark" aria-pressed="false">深色副稿</button>
+  </div>
+</header>
+
+<main class="gallery">
+  <section class="pane">
+    <p class="pane-label"><small>01</small>设置首页</p>
+    <div class="phone">
+      <div class="status">
+        <span>9:41</span>
+        <span class="right" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 17v2M9 14v5M14 10v9M19 5v14"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M3 9a13 13 0 0 1 18 0M6 12.5a9 9 0 0 1 12 0M9.5 16a4.5 4.5 0 0 1 5 0"/><circle cx="12" cy="19.4" r=".9" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="17" height="9" rx="2.4"/><rect x="4.3" y="9.4" width="12" height="5.2" rx="1.2" fill="currentColor" stroke="none"/><path d="M21.5 10.8v2.4"/></svg>
+        </span>
+      </div>
+      <div class="nav">
+        <button class="back" type="button" aria-label="返回">
+          <svg viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+        </button>
+        <h2>设置</h2>
+      </div>
+      <div class="body">
+        <div class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+          <input type="search" placeholder="搜索名称或关键词" aria-label="搜索设置项">
+        </div>
+        <div class="quick">
+          <button class="primary" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8"/><path d="M20 4.2v4.6h-4.6"/></svg>
+            检查更新
+          </button>
+          <button class="secondary" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.5 19.5h15"/></svg>
+            导出日志
+          </button>
+        </div>
+
+        <section class="group">
+          <div class="group-head">日常使用</div>
+          <div class="card">
+            <button class="row" type="button"><span class="label">提醒与通知</span><span class="value">声音 · 勿扰</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">授权管理</span><span class="value">短信 · 通知</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">日记标签</span><span class="value">自动整理</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          </div>
+        </section>
+
+        <section class="group">
+          <div class="group-head">模型与能力</div>
+          <div class="card">
+            <button class="row" type="button"><span class="label">模型与语音</span><span class="value">模型 · 转写</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">提示词与技能</span><span class="value">技能 · 插件</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">工具与连接</span><span class="value">外部工具 · Web</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          </div>
+        </section>
+
+        <section class="group">
+          <div class="group-head">内容与数据</div>
+          <div class="card">
+            <button class="row" type="button"><span class="label">内容来源</span><span class="value">新闻 · 收藏</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">数据管理</span><span class="value">备份 · 恢复</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">隐私说明</span><span class="value">数据使用</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          </div>
+        </section>
+
+        <section class="group">
+          <div class="group-head">应用</div>
+          <div class="card">
+            <button class="row" type="button"><span class="label">更新与关于</span><span class="value">5.1.66</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+            <button class="row" type="button"><span class="label">诊断与日志</span><span class="value">运行状态</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+          </div>
+        </section>
+      </div>
+      <div class="home-indicator" aria-hidden="true"><i></i></div>
+    </div>
+    <p class="caption">设置首页：搜索保留；检查更新与导出日志在首屏并排直达，不再是需要逐层进入的子页；四组日常功能保持单行紧凑列表。</p>
+  </section>
+
+  <section class="pane">
+    <p class="pane-label"><small>02</small>日记标签</p>
+    <div class="phone">
+      <div class="status">
+        <span>9:41</span>
+        <span class="right" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 17v2M9 14v5M14 10v9M19 5v14"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M3 9a13 13 0 0 1 18 0M6 12.5a9 9 0 0 1 12 0M9.5 16a4.5 4.5 0 0 1 5 0"/><circle cx="12" cy="19.4" r=".9" fill="currentColor" stroke="none"/></svg>
+          <svg viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="17" height="9" rx="2.4"/><rect x="4.3" y="9.4" width="12" height="5.2" rx="1.2" fill="currentColor" stroke="none"/><path d="M21.5 10.8v2.4"/></svg>
+        </span>
+      </div>
+      <div class="nav">
+        <button class="back" type="button" aria-label="返回">
+          <svg viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+        </button>
+        <h2>日记标签</h2>
+      </div>
+      <div class="body">
+        <div class="toggle-card">
+          <div class="toggle-row">
+            <span class="label">保存后自动打标签</span>
+            <button class="switch" type="button" role="switch" aria-checked="true" aria-label="保存后自动打标签"></button>
+          </div>
+          <p class="hint">新建或修改后由默认 AI 生成 1–2 个标签，最多 3 个，不影响保存速度。手动标签占满三个名额时不再补充。</p>
+        </div>
+
+        <section class="section">
+          <div class="section-head"><span>标签目录</span><span class="count">8 个标签</span></div>
+          <div class="chips" role="group" aria-label="标签目录，点选可查看可合并的标签">
+            <button class="chip" type="button" aria-pressed="false">产品<span class="n">8</span></button>
+            <button class="chip" type="button" aria-pressed="false">管理<span class="n">8</span></button>
+            <button class="chip" type="button" aria-pressed="false">机会点<span class="n">7</span></button>
+            <button class="chip" type="button" aria-pressed="false">App<span class="n">2</span></button>
+            <button class="chip" type="button" aria-pressed="false">satori<span class="n">2</span></button>
+            <button class="chip" type="button" aria-pressed="false">探索精神<span class="n">2</span></button>
+            <button class="chip" type="button" aria-pressed="false">数字化思维<span class="n">2</span></button>
+            <button class="chip" type="button" aria-pressed="false">点子<span class="n">2</span></button>
+          </div>
+          <p class="footnote">点标签可统一改名或合并；相关但不同的概念可以继续分开。</p>
+        </section>
+
+        <section class="section">
+          <div class="card">
+            <button class="stack-row" type="button">
+              <span class="texts">
+                <span class="label">为历史日记补充标签</span>
+                <span class="sub">只处理没有标签的日记，已有标签保持原样</span>
+              </span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+            </button>
+            <button class="stack-row" type="button">
+              <span class="texts">
+                <span class="label">AI 检查同义标签</span>
+                <span class="sub">只分析标签名称，合并前由你确认</span>
+              </span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+          <p class="footnote">合并时会显示影响的日记篇数，确认后才生效；合并后可撤销。</p>
+        </section>
+
+        <section class="section">
+          <div class="section-head"><span>待确认的合并建议</span></div>
+          <div class="card">
+            <div class="stack-row">
+              <span class="texts">
+                <span class="label">暂无合并建议</span>
+                <span class="sub">运行同义检查后，可在这里逐条查看影响并确认</span>
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="home-indicator" aria-hidden="true"><i></i></div>
+    </div>
+    <p class="caption">日记标签：自动打标签为单开关行并说明生成规则；标签目录靠前、轻量可点；历史补充与同义检查为紧凑操作行，明确合并前确认。</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+  var themeTag = document.getElementById('themeTag');
+  var buttons = document.querySelectorAll('[data-theme]');
+  function apply(name) {
+    document.body.classList.toggle('dark', name === 'dark');
+    document.body.classList.toggle('light', name !== 'dark');
+    themeTag.textContent = name === 'dark' ? '深色副稿' : '浅色主稿';
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.theme === name)); });
+  }
+  apply(theme);
+  buttons.forEach(function (b) { b.addEventListener('click', function () { apply(b.dataset.theme); }); });
+  if (params.get('shot') === '1') document.body.classList.add('capture');
+
+  document.querySelectorAll('.switch').forEach(function (sw) {
+    sw.addEventListener('click', function () {
+      sw.setAttribute('aria-checked', sw.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    });
+  });
+  document.querySelectorAll('.chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var on = chip.getAttribute('aria-pressed') === 'true';
+      document.querySelectorAll('.chip').forEach(function (c) { c.setAttribute('aria-pressed', 'false'); });
+      chip.setAttribute('aria-pressed', String(!on));
+    });
+  });
+})();
+</script>
+</body>
+</html>

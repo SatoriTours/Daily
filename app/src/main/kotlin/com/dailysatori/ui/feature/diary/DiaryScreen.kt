@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -62,7 +63,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.dailysatori.R
 import com.dailysatori.ui.feature.profile.localDayTicker
 import androidx.lifecycle.viewModelScope
@@ -467,12 +470,14 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
     }
 
     if (showTagSettings) {
+        // The sheet wraps to its content, with a bounded height so long tag content stays scrollable.
+        val tagSheetMaxHeight = (LocalConfiguration.current.screenHeightDp * 0.82f).dp
         ModalBottomSheet(onDismissRequest = { showTagSettings = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                 Text(i18n.t("diary_tags.title"), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                 TextButton(onClick = { showTagSettings = false }) { Text(i18n.t("diary_tags.done")) }
             }
-            DiaryTagSettingsContent(tagViewModel)
+            DiaryTagSettingsContent(tagViewModel, Modifier.fillMaxWidth().heightIn(max = tagSheetMaxHeight))
         }
     }
 

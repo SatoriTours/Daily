@@ -1,58 +1,51 @@
 package com.dailysatori.ui.feature.settings.diagnostics
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import com.dailysatori.core.storage.DiagnosticCreateDocument
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.core.diagnostics.DiagnosticExportPhase
 import com.dailysatori.service.i18n.I18nService
-import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.component.settings.SettingsFormSection
+import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.*
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
-import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
+/** Diagnostics management page. Export ownership stays with the settings-level access object. */
 @Composable
-fun DiagnosticSettingsScreen(onBack: () -> Unit, viewModel: DiagnosticSettingsViewModel = koinViewModel()) {
-    val info by viewModel.state.collectAsState()
-    val export by viewModel.exportState.collectAsState()
+fun DiagnosticSettingsScreen(onBack: () -> Unit, diagnostics: DiagnosticExportAccess) {
+    val info = diagnostics.info
+    val export = diagnostics.export
     val i18n = koinInject<I18nService>()
-    val context = LocalContext.current
-    var pendingToken by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
-    val busy = export.phase in setOf(DiagnosticExportPhase.PREPARING, DiagnosticExportPhase.AWAITING_DESTINATION, DiagnosticExportPhase.SAVING)
+    val busy = export.phase in setOf(DiagnosticExportPhase.PREPARING,
+        DiagnosticExportPhase.AWAITING_DESTINATION, DiagnosticExportPhase.SAVING)
     val back: () -> Unit = { if (export.phase != DiagnosticExportPhase.SAVING) onBack() }
-    val picker = rememberLauncherForActivityResult(remember(context) { DiagnosticCreateDocument(context) }) { uri ->
-        pendingToken?.let { viewModel.onDestinationChosen(it, uri) }
-        pendingToken = null
-    }
     BackHandler(onBack = back)
-    LaunchedEffect(viewModel) {
-        viewModel.refresh()
-        viewModel.requests.collect { request ->
-            pendingToken = request.token
-            try { picker.launch(request.fileName) }
-            catch (_: Exception) { pendingToken = null; viewModel.pickerFailed() }
-        }
-    }
-    DisposableEffect(viewModel, context) {
-        onDispose { if (context.activity()?.isChangingConfigurations != true) viewModel.releaseOnLeave() }
-    }
     AppScaffold(title = i18n.t("diagnostics.title"), onBack = back) { modifier ->
-        Column(modifier.verticalScroll(rememberScrollState()).padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+        Column(modifier.verticalScroll(rememberScrollState()).padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Text(i18n.t("diagnostics.description"), style = MaterialTheme.typography.bodyMedium)
             SettingsFormSection(i18n.t("settings_design.diagnostics_hint")) {
                 Text(i18n.t("diagnostics.privacy"), style = MaterialTheme.typography.bodySmall,
@@ -63,17 +56,20 @@ fun DiagnosticSettingsScreen(onBack: () -> Unit, viewModel: DiagnosticSettingsVi
                     Text(i18n.t("diagnostics.storage") + " " + String.format(Locale.ROOT, "%.2f MiB", it / (1024.0 * 1024)),
                         style = MaterialTheme.typography.bodySmall)
                 }
-                if (info.health.droppedEvents + info.health.ioFailures + info.health.prunedFiles + info.health.corruptLines + info.health.truncatedEvents > 0) {
-                    Text(i18n.t("diagnostics.gaps"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                if (info.health.droppedEvents + info.health.ioFailures + info.health.prunedFiles +
+                    info.health.corruptLines + info.health.truncatedEvents > 0) {
+                    Text(i18n.t("diagnostics.gaps"), color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall)
                 }
             }
-            SettingsFormSection(i18n.t("diagnostics.exportRecent")) {
-                Button(onClick = { viewModel.prepare(false) }, enabled = !busy,
+            SettingsFormSection(i18n.t("settings_design.export_logs")) {
+                Button(onClick = { diagnostics.prepare(false) }, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.exportRecent")) }
-                OutlinedButton(onClick = { viewModel.prepare(true) }, enabled = !busy && info.lastCrashMs != null,
+                OutlinedButton(onClick = { diagnostics.prepare(true) }, enabled = !busy && info.lastCrashMs != null,
                     modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.exportCrash")) }
-                Text(info.lastCrashMs?.let { i18n.t("diagnostics.lastCrash") + " " + DateFormat.getDateTimeInstance().format(Date(it)) }
-                    ?: i18n.t("diagnostics.noCrash"), style = MaterialTheme.typography.bodySmall)
+                Text(info.lastCrashMs?.let {
+                    i18n.t("diagnostics.lastCrash") + " " + DateFormat.getDateTimeInstance().format(Date(it))
+                } ?: i18n.t("diagnostics.noCrash"), style = MaterialTheme.typography.bodySmall)
                 Text(i18n.t("diagnostics.destination"), style = MaterialTheme.typography.bodySmall)
                 if (busy) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -93,7 +89,7 @@ fun DiagnosticSettingsScreen(onBack: () -> Unit, viewModel: DiagnosticSettingsVi
                 }
                 info.messageKey?.let { Text(i18n.t(it), color = MaterialTheme.colorScheme.error) }
             }
-            SettingsFormSection(i18n.t("diagnostics.clear")) {
+            SettingsFormSection(i18n.t("diagnostics.cleanup")) {
                 OutlinedButton(onClick = { confirmClear = true }, enabled = !busy,
                     modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(i18n.t("diagnostics.clear")) }
             }
@@ -104,13 +100,9 @@ fun DiagnosticSettingsScreen(onBack: () -> Unit, viewModel: DiagnosticSettingsVi
         onDismissRequest = { confirmClear = false },
         title = { Text(i18n.t("diagnostics.clear")) },
         text = { Text(i18n.t("diagnostics.clearConfirm")) },
-        confirmButton = { TextButton(onClick = { confirmClear = false; viewModel.clear() }) { Text(i18n.t("diagnostics.confirm")) } },
+        confirmButton = {
+            TextButton(onClick = { confirmClear = false; diagnostics.clear() }) { Text(i18n.t("diagnostics.confirm")) }
+        },
         dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(i18n.t("diagnostics.cancel")) } },
     )
-}
-
-private fun Context.activity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.takeUnless { it === this }?.activity()
-    else -> null
 }

@@ -343,6 +343,8 @@ diary_tags:
   automatic: "保存后自动打标签"
   automatic_hint: "只处理新建或正文有修改的日记，不影响保存速度。"
   fill_missing: "为历史日记补充标签"
+  fill_missing_hint: "只处理没有标签的日记，已有标签保持原样"
+  fill_missing_count: "%1$d 篇无标签日记可补充"
   fill_confirm: "补充历史标签"
   fill_body: "将使用默认 AI 分析 %1$d 篇无标签日记的正文。已有标签的日记保持原样，可在任务中心查看进度。"
   batch_queued: "已提交后台处理；未配置默认 AI 时不会生成。"
@@ -462,7 +464,7 @@ diary_feed:
   month_title: "%1$s回顾"
   attachment_entry: "附件记录"
 diagnostics:
-  title: 诊断与日志
+  title: 诊断管理
   subtitle: 导出最近半小时日志与崩溃现场
   description: 持续记录已脱敏的请求信息、业务操作和异常。导出点击时刻之前 30 分钟的日志，保存为一份便于人工智能分析的文本文件。
   privacy: 不记录凭据、日记、对话或完整正文；未知自由文本会省略。日志只保存在本机，不会自动上传。
@@ -480,6 +482,7 @@ diagnostics:
   saved: 已保存到所选位置
   failed: 导出失败，请检查可用空间和目录权限后重试。
   failedResidual: 保存失败，所选目录可能残留不完整文件，请检查并删除。
+  cleanup: 本地数据
   clear: 清理诊断日志
   clearConfirm: 清理本地诊断、崩溃现场和临时快照？不会删除已导出的文件或旧任务中心日志。
   confirm: 确认清理
@@ -1387,10 +1390,23 @@ settings_design:
   storage_hint: "备份 · 恢复"
   privacy: "隐私说明"
   privacy_hint: "数据使用"
-  updates: "更新与关于"
-  updates_hint: "版本 · 渠道"
-  diagnostics: "诊断与日志"
-  diagnostics_hint: "运行状态"
+  check_update: "检查更新"
+  current_version: "当前版本 %1$s"
+  checking_update: "检查中…"
+  update_preparing: "正在准备下载…"
+  update_downloading_known: "正在下载 %1$d%% · %2$s / %3$s"
+  update_downloading_unknown: "已下载 %1$s · 总大小未知"
+  update_verifying: "下载完成，正在校验安装包…"
+  update_dialog_downloading: "正在下载更新"
+  update_dialog_verifying: "正在校验更新"
+
+  check_update_hint: "当前版本 · 获取最新版本"
+  export_logs: "导出日志"
+  export_logs_hint: "最近 30 分钟 · 仅保存到本机"
+  updates: "更新渠道与关于"
+  updates_hint: "渠道 · 版本"
+  diagnostics: "诊断管理"
+  diagnostics_hint: "运行状态与本地日志"
   sms: "短信权限"
   sms_hint: "手机助手 · 短信"
   notification_access: "通知来源与权限"

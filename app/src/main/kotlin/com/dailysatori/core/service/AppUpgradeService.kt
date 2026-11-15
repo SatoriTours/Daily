@@ -12,8 +12,15 @@ import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.HttpHeaders
+import io.ktor.http.contentLength
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.readAvailable
 import kotlinx.serialization.json.*
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import java.net.URI
 import kotlinx.coroutines.CancellationException
 
@@ -112,18 +119,19 @@ class AppUpgradeService(private val client: HttpClient, private val fileProvider
         context: Context,
         release: AppRelease,
         onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
+        onVerifying: () -> Unit = {},
     ): ApkDownload {
         val asset = release.apkAsset ?: throw IllegalStateException("新版本没有可下载的 APK")
         val file = apkFile(context, release.version)
-        val bytes = client.get(asset.downloadUrl) {
-            onDownload { bytesSentTotal, contentLength ->
-                onProgress(bytesSentTotal, contentLength ?: -1L)
-            }
-        }.bodyAsBytes()
-        require(release.size == null || release.size == bytes.size.toLong()) { "安装包大小不匹配，请重新检查更新" }
-        verifyApkChecksum(bytes, release.sha256)
-        file.parentFile?.mkdirs()
-        file.writeBytes(bytes)
+        downloadApkToFile(
+            client = client,
+            url = asset.downloadUrl,
+            expectedSize = release.size,
+            expectedSha256 = release.sha256,
+            targetFile = file,
+            onProgress = onProgress,
+            onVerifying = onVerifying,
+        )
         return ApkDownload(id = 0L, filePath = file.absolutePath).also { pendingDownload = it }
     }
 
@@ -232,6 +240,73 @@ class AppUpgradeService(private val client: HttpClient, private val fileProvider
         val name = obj["name"]?.jsonPrimitive?.content ?: return null
         val downloadUrl = obj["browser_download_url"]?.jsonPrimitive?.content ?: return null
         return ReleaseAsset(name, downloadUrl)
+    }
+}
+
+/**
+ * Consumes the streaming response inside prepareGet.execute so network bytes reach disk and
+ * progress callbacks before the transfer ends. The manifest size is a trusted total fallback.
+ * Only a size- and SHA-256-verified file is renamed into place; failures keep the previous file.
+ */
+internal suspend fun downloadApkToFile(
+    client: HttpClient,
+    url: String,
+    expectedSize: Long?,
+    expectedSha256: String?,
+    targetFile: File,
+    onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
+    onVerifying: () -> Unit = {},
+) {
+    targetFile.parentFile?.mkdirs()
+    val temp = File.createTempFile("${targetFile.name}.", ".part", targetFile.parentFile)
+    var downloaded = 0L
+    var delivered = false
+    val digest = MessageDigest.getInstance("SHA-256")
+    try {
+        client.prepareGet(url).execute { response ->
+            check(response.status.isSuccess()) { "下载更新失败（HTTP ${response.status.value}）" }
+            val declared = response.contentLength()?.takeIf { it > 0 }
+            val encoded = response.headers[HttpHeaders.ContentEncoding]
+                ?.let { it.isNotBlank() && !it.equals("identity", ignoreCase = true) } == true
+            if (!encoded && declared != null && expectedSize != null && declared != expectedSize) {
+                throw IllegalArgumentException("安装包大小不匹配，请重新检查更新")
+            }
+            val total = if (encoded) {
+                expectedSize?.takeIf { it > 0 } ?: declared ?: -1L
+            } else {
+                declared ?: expectedSize?.takeIf { it > 0 } ?: -1L
+            }
+            onProgress(0, total)
+            val channel = response.bodyAsChannel()
+            val buffer = ByteArray(64 * 1024)
+            temp.outputStream().use { output ->
+                while (true) {
+                    val read = channel.readAvailable(buffer, 0, buffer.size)
+                    if (read <= 0) break
+                    output.write(buffer, 0, read)
+                    digest.update(buffer, 0, read)
+                    downloaded += read
+                    onProgress(downloaded, total)
+                    if (expectedSize != null && downloaded > expectedSize) {
+                        throw IllegalArgumentException("安装包大小不匹配，请重新检查更新")
+                    }
+                }
+            }
+        }
+        onVerifying()
+        require(expectedSize == null || downloaded == expectedSize) { "安装包大小不匹配，请重新检查更新" }
+        require(expectedSha256 != null) { "安装包缺少校验信息，请重新检查更新" }
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+        require(actual == expectedSha256) { "安装包校验失败，请重新检查更新" }
+        Files.move(
+            temp.toPath(),
+            targetFile.toPath(),
+            StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.ATOMIC_MOVE,
+        )
+        delivered = true
+    } finally {
+        if (!delivered) temp.delete()
     }
 }
 

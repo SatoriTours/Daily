@@ -9,17 +9,24 @@ internal enum class SettingsPage {
 
 internal data class SettingsDestination(val page: SettingsPage, val section: String? = null)
 
+internal enum class SettingsAction { CHECK_UPDATE, EXPORT_LOGS }
+
 internal data class SettingsEntry(
     val group: String,
     val title: String,
     val description: String,
     val destination: SettingsDestination,
     val keywords: String = "",
+    val action: SettingsAction? = null,
 )
 
 private fun entry(group: String, title: String, page: SettingsPage, keywords: String = "", section: String? = null) =
     SettingsEntry("settings_design.$group", "settings_design.$title", "settings_design.${title}_hint",
         SettingsDestination(page, section), keywords)
+
+private fun action(group: String, title: String, page: SettingsPage, action: SettingsAction, keywords: String = "") =
+    SettingsEntry("settings_design.$group", "settings_design.$title", "settings_design.${title}_hint",
+        SettingsDestination(page), keywords, action)
 
 internal val settingsHomeEntries = listOf(
     entry("daily", "reminders", SettingsPage.REMINDERS, "提醒 通知 声音 振动 勿扰 reminder notification sound vibration quiet"),
@@ -31,6 +38,10 @@ internal val settingsHomeEntries = listOf(
     entry("data", "sources", SettingsPage.HOT_NEWS, "内容 来源 新闻 收藏 GitHub Hacker News X 小红书 今日头条 知乎 V2EX Linux DO RSSHub news source favorites"),
     entry("data", "storage", SettingsPage.BACKUP_SETTINGS, "数据 管理 备份 backup data storage"),
     entry("data", "privacy", SettingsPage.PRIVACY, "隐私 privacy"),
+    action("application", "check_update", SettingsPage.UPDATES, SettingsAction.CHECK_UPDATE,
+        "检查更新 更新 检查 最新 版本 update check latest version"),
+    action("application", "export_logs", SettingsPage.DIAGNOSTICS, SettingsAction.EXPORT_LOGS,
+        "导出日志 日志 导出 诊断 log export diagnostics"),
     entry("application", "updates", SettingsPage.UPDATES, "更新 关于 版本 渠道 update about version channel"),
     entry("application", "diagnostics", SettingsPage.DIAGNOSTICS, "诊断 日志 错误 diagnostics logs errors"),
 )

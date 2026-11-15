@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.component.misc.FeatureIcon
@@ -39,7 +40,8 @@ fun SettingsRow(
     Surface(onClick = onClick, enabled = enabled, color = MaterialTheme.colorScheme.surface) {
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = Height.listItem + Spacing.m)
+                modifier = Modifier.fillMaxWidth().heightIn(min = Height.listItem)
+                    .alpha(if (enabled) 1f else 0.45f)
                     .padding(horizontal = Spacing.m, vertical = Spacing.s),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -72,6 +74,49 @@ fun SettingsRow(
             }
             if (showDivider) HorizontalDivider(
                 modifier = Modifier.padding(start = Spacing.m + IconSize.xl + Spacing.m, end = Spacing.m),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+        }
+    }
+}
+
+/** Compact grouped action row for pages that do not need a leading icon. */
+@Composable
+fun SettingsActionRow(
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    trailing: @Composable (() -> Unit)? = null,
+    showDivider: Boolean = true,
+) {
+    Surface(onClick = onClick, enabled = enabled, color = MaterialTheme.colorScheme.surface, modifier = modifier) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = Height.listItemSmall + Spacing.s)
+                    .alpha(if (enabled) 1f else 0.45f)
+                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    if (description.isNotBlank()) Text(
+                        description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(Modifier.width(Spacing.s))
+                if (trailing != null) trailing() else Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(IconSize.s),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (showDivider) HorizontalDivider(
+                modifier = Modifier.padding(horizontal = Spacing.m),
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
         }

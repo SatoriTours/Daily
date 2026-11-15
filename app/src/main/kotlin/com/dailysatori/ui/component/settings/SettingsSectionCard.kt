@@ -23,13 +23,19 @@ fun SettingsSectionCard(
         Text(
             text = title,
             modifier = Modifier.padding(horizontal = Spacing.xs),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(Radius.l),
-            color = MaterialTheme.colorScheme.surface,
-        ) { Column(content = content) }
+        SettingsCard(content = content)
     }
+}
+
+/** A grouped settings surface without a repeated section heading. */
+@Composable
+fun SettingsCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+    ) { Column(content = content) }
 }

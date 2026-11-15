@@ -28,6 +28,8 @@ import kotlinx.coroutines.sync.Mutex
 import java.net.NetworkInterface
 import java.security.SecureRandom
 
+enum class UpdateDownloadPhase { IDLE, PREPARING, DOWNLOADING, VERIFYING }
+
 data class SettingsState(
     val isPageLoading: Boolean = false,
     val webServerRunning: Boolean = false,
@@ -42,8 +44,10 @@ data class SettingsState(
     val showUpdateDialog: Boolean = false,
     val updateMessage: String? = null,
     val isDownloadingUpdate: Boolean = false,
+    val updateDownloadPhase: UpdateDownloadPhase = UpdateDownloadPhase.IDLE,
+    val updateDownloadedBytes: Long = 0,
+    val updateTotalBytes: Long? = null,
     val updateDownloadProgress: Float? = null,
-    val updateDownloadProgressText: String = "",
     val downloadId: Long? = null,
     val pendingInstallFilePath: String? = null,
     val installReadyFilePath: String? = null,
@@ -204,33 +208,53 @@ class SettingsViewModel(
     fun startUpdateDownload(context: Context) {
         if (_state.value.isCheckingUpdate || _state.value.isDownloadingUpdate) return
         val release = _state.value.availableRelease ?: return
-        _state.update { it.copy(isDownloadingUpdate = true) }
+        val trustedTotal = release.size?.takeIf { it > 0 }
+        _state.update {
+            it.copy(
+                showUpdateDialog = true,
+                updateMessage = null,
+                isDownloadingUpdate = true,
+                updateDownloadPhase = UpdateDownloadPhase.PREPARING,
+                updateDownloadedBytes = 0,
+                updateTotalBytes = trustedTotal,
+                updateDownloadProgress = null,
+            )
+        }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                _state.update {
-                    it.copy(
-                        showUpdateDialog = true,
-                        updateMessage = null,
-                        isDownloadingUpdate = true,
-                        updateDownloadProgress = null,
-                        updateDownloadProgressText = updateDownloadProgressText(null),
-                    )
-                }
-                val download = appUpgradeService.downloadApk(context.applicationContext, release) { downloaded, total ->
-                    val progress = updateDownloadProgress(downloaded, total)
-                    _state.update {
-                        it.copy(
-                            updateDownloadProgress = progress,
-                            updateDownloadProgressText = updateDownloadProgressText(progress),
-                        )
-                    }
-                }
+                val download = appUpgradeService.downloadApk(
+                    context = context.applicationContext,
+                    release = release,
+                    onProgress = { downloaded, total ->
+                        val snapshot = updateDownloadSnapshot(downloaded, total)
+                        _state.update {
+                            it.copy(
+                                isDownloadingUpdate = true,
+                                updateDownloadPhase = if (snapshot.downloadedBytes > 0) {
+                                    UpdateDownloadPhase.DOWNLOADING
+                                } else {
+                                    UpdateDownloadPhase.PREPARING
+                                },
+                                updateDownloadedBytes = snapshot.downloadedBytes,
+                                updateTotalBytes = snapshot.totalBytes,
+                                updateDownloadProgress = snapshot.fraction,
+                            )
+                        }
+                    },
+                    onVerifying = {
+                        _state.update {
+                            it.copy(
+                                updateDownloadPhase = UpdateDownloadPhase.VERIFYING,
+                                updateDownloadProgress = 1f,
+                            )
+                        }
+                    },
+                )
                 _state.update {
                     it.copy(
                         showUpdateDialog = false,
                         isDownloadingUpdate = false,
-                        updateDownloadProgress = 1f,
-                        updateDownloadProgressText = "下载完成，正在安装...",
+                        updateDownloadPhase = UpdateDownloadPhase.IDLE,
                         downloadId = download.id,
                         pendingInstallFilePath = download.filePath,
                         installReadyFilePath = installReadyFilePathAfterDownload(download.filePath),
@@ -243,6 +267,10 @@ class SettingsViewModel(
                     it.copy(
                         showUpdateDialog = false,
                         isDownloadingUpdate = false,
+                        updateDownloadPhase = UpdateDownloadPhase.IDLE,
+                        updateDownloadedBytes = 0,
+                        updateTotalBytes = trustedTotal,
+                        updateDownloadProgress = null,
                         updateMessage = e.message ?: "下载更新失败",
                     )
                 }
@@ -298,8 +326,10 @@ class SettingsViewModel(
             it.copy(
                 showUpdateDialog = false,
                 isDownloadingUpdate = false,
+                updateDownloadPhase = UpdateDownloadPhase.IDLE,
+                updateDownloadedBytes = 0,
+                updateTotalBytes = null,
                 updateDownloadProgress = null,
-                updateDownloadProgressText = "",
                 downloadId = null,
                 pendingInstallFilePath = null,
                 installReadyFilePath = null,
@@ -323,13 +353,28 @@ class SettingsViewModel(
     }
 }
 
-internal fun updateDownloadProgress(downloadedBytes: Long, totalBytes: Long): Float? {
-    if (totalBytes <= 0L) return null
-    return (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+internal data class UpdateDownloadSnapshot(
+    val downloadedBytes: Long,
+    val totalBytes: Long?,
+    val fraction: Float?,
+)
+
+internal fun updateDownloadSnapshot(downloadedBytes: Long, totalBytes: Long): UpdateDownloadSnapshot {
+    val declaredTotal = totalBytes.takeIf { it > 0 }
+    val downloaded = downloadedBytes.coerceAtLeast(0)
+    if (declaredTotal == null || downloaded > declaredTotal) {
+        return UpdateDownloadSnapshot(downloaded, null, null)
+    }
+    return UpdateDownloadSnapshot(downloaded, declaredTotal, (downloaded.toFloat() / declaredTotal).coerceIn(0f, 1f))
 }
 
-internal fun updateDownloadProgressText(progress: Float?): String {
-    return progress?.let { "下载中 ${(it * 100).toInt()}%" } ?: "正在准备下载..."
+internal fun formatDownloadBytes(bytes: Long): String {
+    val safe = bytes.coerceAtLeast(0)
+    return when {
+        safe < 1024 -> "$safe B"
+        safe < 1024L * 1024 -> String.format(java.util.Locale.ROOT, "%.1f KB", safe / 1024.0)
+        else -> String.format(java.util.Locale.ROOT, "%.1f MB", safe / (1024.0 * 1024.0))
+    }
 }
 
 internal fun installReadyFilePathAfterDownload(filePath: String): String? =

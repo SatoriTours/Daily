@@ -41,6 +41,7 @@ import com.dailysatori.core.reminder.ReminderAiBatchOpenRequest
 import com.dailysatori.core.reminder.consumeReminderAiBatchOpenRequest
 import com.dailysatori.ui.feature.settings.SettingsState
 import com.dailysatori.ui.feature.settings.SettingsViewModel
+import com.dailysatori.ui.feature.settings.UpdateDownloadPhase
 import com.dailysatori.ui.feature.settings.UpdateDownloadProgress
 import com.dailysatori.ui.theme.Radius
 import kotlinx.coroutines.flow.StateFlow
@@ -221,6 +222,7 @@ private fun UpgradeDialog(
 ) {
     val release = state.availableRelease ?: return
     if (!state.showUpdateDialog) return
+    val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
     AlertDialog(
         onDismissRequest = { viewModel.dismissUpdateDialog() },
         shape = RoundedCornerShape(Radius.xl),
@@ -229,7 +231,14 @@ private fun UpgradeDialog(
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text(if (state.isDownloadingUpdate) "正在下载更新" else "发现新版本") },
+        title = {
+            Text(when {
+                state.updateDownloadPhase == UpdateDownloadPhase.VERIFYING ->
+                    i18n.t("settings_design.update_dialog_verifying")
+                state.isDownloadingUpdate -> i18n.t("settings_design.update_dialog_downloading")
+                else -> "发现新版本"
+            })
+        },
         text = {
             if (state.isDownloadingUpdate) UpdateDownloadProgress(state)
             else Text("当前：${state.installedChannel.label} ${state.currentVersion}\n可安装：${release.channel.label} ${release.version}\n是否立即更新？")
