@@ -7,15 +7,16 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.ClosedWriteChannelException
 import io.ktor.utils.io.writeFully
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.Collections
-import kotlin.concurrent.thread
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -38,16 +39,6 @@ class AppUpgradeDownloadTest {
             val firstProgress = CompletableDeferred<Unit>()
             var producerSawProgress = false
             var producerFinished = false
-            val producer = CoroutineScope(Dispatchers.IO).launch {
-                channel.writeFully(chunks.first())
-                producerSawProgress = withTimeoutOrNull(2_000) { firstProgress.await() } != null
-                chunks.drop(1).forEach { chunk ->
-                    channel.writeFully(chunk)
-                    delay(20)
-                }
-                channel.close()
-                producerFinished = true
-            }
             val client = HttpClient(MockEngine {
                 respond(channel, HttpStatusCode.OK, headersOf(HttpHeaders.ContentLength, payload.size.toString()))
             })
@@ -55,18 +46,38 @@ class AppUpgradeDownloadTest {
             var progressAtFirstCallbackBeforeProducerFinished = false
             var verifiedAtBytes = -1L
             val target = File(dir, "DailySatori-9.9.9.apk")
-            client.use {
-                downloadApkToFile(it, url(), payload.size.toLong(), sha, target,
-                    onProgress = { done, total ->
-                        progress += done to total
-                        if (done > 0) {
-                            if (!producerFinished) progressAtFirstCallbackBeforeProducerFinished = true
-                            firstProgress.complete(Unit)
+            coroutineScope {
+                val producer = launch(Dispatchers.IO) {
+                    try {
+                        channel.writeFully(chunks.first())
+                        producerSawProgress = withTimeoutOrNull(2_000) { firstProgress.await() } != null
+                        chunks.drop(1).forEach { chunk ->
+                            channel.writeFully(chunk)
+                            delay(20)
                         }
-                    },
-                    onVerifying = { verifiedAtBytes = progress.last().first })
+                        channel.close()
+                        producerFinished = true
+                    } catch (_: ClosedWriteChannelException) {
+                        // Consumer stopped early; the test's scope owns this producer.
+                    }
+                }
+                try {
+                    client.use {
+                        downloadApkToFile(it, url(), payload.size.toLong(), sha, target,
+                            onProgress = { done, total ->
+                                progress += done to total
+                                if (done > 0) {
+                                    if (!producerFinished) progressAtFirstCallbackBeforeProducerFinished = true
+                                    firstProgress.complete(Unit)
+                                }
+                            },
+                            onVerifying = { verifiedAtBytes = progress.last().first })
+                    }
+                } finally {
+                    producer.cancelAndJoin()
+                    client.close()
+                }
             }
-            producer.join()
             assertTrue(producerSawProgress, "producer waited for client progress and timed out")
             assertTrue(progressAtFirstCallbackBeforeProducerFinished)
             assertTrue(progress.size >= 2, "expected incremental callbacks, got \${progress.size}")
@@ -226,22 +237,30 @@ class AppUpgradeDownloadTest {
             val client = HttpClient(MockEngine {
                 respond(channel, HttpStatusCode.OK, headersOf(HttpHeaders.ContentLength, "1000000"))
             })
-            val producer = CoroutineScope(Dispatchers.IO).launch {
-                repeat(100) {
-                    channel.writeFully(chunks.first())
-                    delay(20)
+            coroutineScope {
+                val producer = launch(Dispatchers.IO) {
+                    try {
+                        repeat(100) {
+                            channel.writeFully(chunks.first())
+                            delay(20)
+                        }
+                        channel.close()
+                    } catch (_: ClosedWriteChannelException) {
+                        // Cancelled consumer closes the channel; cleanup is owned by this scope.
+                    }
                 }
-                channel.close()
+                val job = launch {
+                    downloadApkToFile(client, url(), 1_000_000, sha, target,
+                        onProgress = { done, _ -> if (done > 0) started.complete(Unit) })
+                }
+                try {
+                    assertTrue(withTimeoutOrNull(4_000) { started.await() } != null, "download never started")
+                    job.cancelAndJoin()
+                } finally {
+                    producer.cancelAndJoin()
+                    client.close()
+                }
             }
-            val job = launch {
-                downloadApkToFile(client, url(), 1_000_000, sha, target,
-                    onProgress = { done, _ -> if (done > 0) started.complete(Unit) })
-            }
-            assertTrue(withTimeoutOrNull(4_000) { started.await() } != null, "download never started")
-            job.cancel()
-            job.join()
-            producer.cancel()
-            client.close()
             assertFalse(target.exists())
             assertTrue(dir.listFiles()!!.none { it.name.endsWith(".part") })
         }
@@ -253,22 +272,26 @@ class AppUpgradeDownloadTest {
         bodyChunks: List<ByteArray>,
         contentLength: Long?,
         block: suspend (HttpClient, String) -> Unit,
-    ) {
+    ) = coroutineScope {
         val channel = ByteChannel(autoFlush = true)
-        val producer = CoroutineScope(Dispatchers.IO).launch {
-            bodyChunks.forEach { chunk ->
-                channel.writeFully(chunk)
-                delay(10)
+        val producer = launch(Dispatchers.IO) {
+            try {
+                bodyChunks.forEach { chunk ->
+                    channel.writeFully(chunk)
+                    delay(10)
+                }
+                channel.close()
+            } catch (_: ClosedWriteChannelException) {
+                // The consumer intentionally stopped reading; this producer ends with its owner.
             }
-            channel.close()
         }
         val headers = if (contentLength != null) headersOf(HttpHeaders.ContentLength, contentLength.toString()) else headersOf()
-        HttpClient(MockEngine { respond(channel, HttpStatusCode.OK, headers) }).use { client ->
-            try {
-                block(client, url())
-            } finally {
-                producer.join()
-            }
+        val client = HttpClient(MockEngine { respond(channel, HttpStatusCode.OK, headers) })
+        try {
+            block(client, url())
+        } finally {
+            producer.cancelAndJoin()
+            client.close()
         }
     }
 
