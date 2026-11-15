@@ -78,7 +78,8 @@ class RemoteNewsService(private val client: HttpClient) {
     fun configOrFailure(baseUrl: String?, token: String?): RemoteNewsResult<RemoteNewsConfigValues> {
         val normalizedBaseUrl = baseUrl.orEmpty().trim()
         if (normalizedBaseUrl.isBlank()) {
-            return RemoteNewsResult.Failure("请先配置远程新闻 RSS 地址")
+            // A missing address never heals on its own.
+            return RemoteNewsResult.Failure("请先配置远程新闻 RSS 地址", transient = false)
         }
         return RemoteNewsResult.Success(RemoteNewsConfigValues(normalizedBaseUrl, token.orEmpty().trim()))
     }
@@ -90,19 +91,28 @@ class RemoteNewsService(private val client: HttpClient) {
         val value = kotlinx.coroutines.withContext(handle ?: kotlin.coroutines.EmptyCoroutineContext) { block() }
         RemoteNewsResult.Success(value)
     } catch (e: RemoteFeedFormatException) {
-        RemoteNewsResult.Failure(e.message ?: "返回内容不是有效的 RSS/Atom 订阅")
+        // The address answered, but not with a feed: waiting cannot fix that, so it is not retryable.
+        RemoteNewsResult.Failure(
+            e.message ?: "返回内容不是有效的 RSS/Atom 订阅，请检查远程新闻地址",
+            transient = false,
+        )
     } catch (e: ClientRequestException) {
         val body = e.response.bodyAsText()
         TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
-        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: clientFailureMessage(e))
+        val status = e.response.status.value
+        RemoteNewsResult.Failure(
+            parseRemoteNewsErrorMessage(body) ?: clientFailureMessage(e),
+            // 4xx answers are configuration/permission facts; only 408/429 are worth waiting for.
+            transient = status == 408 || status == 429,
+        )
     } catch (e: ServerResponseException) {
         val body = e.response.bodyAsText()
         TaskHttpCapture.body(currentCaptureTaskId(), currentCaptureHandle(), TaskHttpDirection.RESPONSE, body)
-        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "RSS 服务暂时不可用")
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(body) ?: "RSS 服务暂时不可用", transient = true)
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {
-        RemoteNewsResult.Failure("无法连接 RSS 订阅地址")
+        RemoteNewsResult.Failure("无法连接 RSS 订阅地址", transient = true)
     }
 
     private fun clientFailureMessage(error: ClientRequestException): String = when (error.response.status.value) {

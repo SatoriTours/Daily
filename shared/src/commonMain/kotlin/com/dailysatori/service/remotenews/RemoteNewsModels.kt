@@ -111,7 +111,12 @@ data class RemoteNewsConfigValues(
 
 sealed class RemoteNewsResult<out T> {
     data class Success<T>(val value: T) : RemoteNewsResult<T>()
-    data class Failure(val message: String) : RemoteNewsResult<Nothing>()
+
+    /**
+     * [transient] is the retry authority: an address that answers 404 or a body that is not an RSS/Atom
+     * document cannot heal by waiting, so the owning task ends instead of retrying in the background.
+     */
+    data class Failure(val message: String, val transient: Boolean = true) : RemoteNewsResult<Nothing>()
 }
 
 private object RemoteArticleViewpointsSerializer : KSerializer<List<String>> {

@@ -25,12 +25,19 @@ class RemoteArticleSyncTaskSourceTest {
     }
 
     @Test
-    fun allSourceFailuresRetryButPartialFailuresKeepUsableResults() {
+    fun transientSourceFailuresRetryWhileUnrecoverableOnesEndTheTask() {
+        // Approved behaviour: a failure that cannot heal by waiting ends the task instead of retrying it
+        // in the background; only transient failures keep the bounded retry.
         assertIs<AsyncTaskExecutionResult.RetryableFailure>(
-            remoteArticleSyncOutcome(successfulSources = 0, failures = listOf("source failed"), resultJson = "{}"),
+            remoteArticleSyncOutcome(successfulSources = 0, failures = listOf("timeout"), resultJson = "{}", retryable = true),
         )
+        val permanent = assertIs<AsyncTaskExecutionResult.PermanentFailure>(
+            remoteArticleSyncOutcome(successfulSources = 0, failures = listOf("RSS 地址不存在"), resultJson = "{}", retryable = false),
+        )
+        assertEquals("remote_article_sync_failed", permanent.code)
+        assertTrue(permanent.message.contains("停止重试"))
         assertIs<AsyncTaskExecutionResult.Success>(
-            remoteArticleSyncOutcome(successfulSources = 1, failures = listOf("other failed"), resultJson = "{}"),
+            remoteArticleSyncOutcome(successfulSources = 1, failures = listOf("other failed"), resultJson = "{}", retryable = false),
         )
     }
 

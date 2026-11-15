@@ -2,9 +2,14 @@ package com.dailysatori.core.task
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.ArticleRepository
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
+import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
+import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
+import com.dailysatori.service.asynctask.AsyncTaskRunner
+import com.dailysatori.service.asynctask.NoopAsyncTaskLogger
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteArticleSyncService
@@ -33,6 +38,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -99,6 +105,107 @@ class RemoteArticleSyncChainTest {
         }
     }
 
+    /** Same real chain, but driven through the real runner so task status/attempts are observed. */
+    private fun withRunnerChain(
+        respondWith: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
+        block: suspend kotlinx.coroutines.CoroutineScope.(AsyncTaskRepository, AsyncTaskRunner) -> Unit,
+    ) = runBlocking {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
+            DailySatoriDatabase.Schema.create(driver)
+            val db = DailySatoriDatabase(driver)
+            val sources = RemoteNewsSourceRepository(db)
+            sources.save(null, "远程源", "https://feed.test/rss", "", true)
+            val articles = ArticleRepository(db)
+            val tasks = AsyncTaskRepository(db)
+            HttpClient(MockEngine { request -> respondWith(request) }).use { client ->
+                val handler = RemoteArticleSyncTaskHandler(
+                    sourceRepo = sources,
+                    remoteNewsService = RemoteNewsService(client),
+                    remoteArticleSyncService = RemoteArticleSyncService(articles, RemoteArticleSyncRepository(db)),
+                )
+                val runner = AsyncTaskRunner(
+                    repository = tasks,
+                    registry = AsyncTaskHandlerRegistry(listOf(handler)),
+                    logger = NoopAsyncTaskLogger,
+                    leaseOwnerProvider = { "chain-test" },
+                    nowMs = { 1_000_000L },
+                    executionTimeoutMs = { 60_000L },
+                )
+                this.block(tasks, runner)
+            }
+        }
+    }
+
+    @Test
+    fun aNotFoundSourceEndsTheTaskInsteadOfRetryingInTheBackground() {
+        withChain({ respond("missing", HttpStatusCode.NotFound) }) { handler, _, log, _ ->
+            val result = handler.execute(1L, remoteArticleSyncTaskPayloadJson("manual"), "", log)
+
+            val failure = assertIs<AsyncTaskExecutionResult.PermanentFailure>(result,
+                "a 404 cannot heal by waiting: " + result)
+            assertEquals("remote_article_sync_failed", failure.code)
+            assertTrue(failure.message.contains("远程源"), "the source is named: " + failure.message)
+            assertTrue(failure.message.contains("停止重试"), "the terminal reason is explicit: " + failure.message)
+        }
+    }
+
+    @Test
+    fun aNonFeedBodyEndsTheTaskInsteadOfRetryingInTheBackground() {
+        // A 200 answer that is not a feed (an HTML page or a JSON API root) must not be retried forever.
+        withChain({ respond("<html><body>login</body></html>", HttpStatusCode.OK,
+            headersOf(HttpHeaders.ContentType, "text/html")) }) { handler, _, log, _ ->
+            val failure = assertIs<AsyncTaskExecutionResult.PermanentFailure>(
+                handler.execute(1L, remoteArticleSyncTaskPayloadJson("manual"), "", log),
+            )
+            assertTrue(failure.message.contains("RSS") || failure.message.contains("订阅"),
+                "the safe reason explains the body is not a feed: " + failure.message)
+            assertTrue(failure.message.contains("停止重试"))
+        }
+    }
+
+    @Test
+    fun aTransientServerErrorKeepsTheExistingBoundedRetry() {
+        withChain({ respond("boom", HttpStatusCode.InternalServerError) }) { handler, _, log, _ ->
+            val retry = assertIs<AsyncTaskExecutionResult.RetryableFailure>(
+                handler.execute(1L, remoteArticleSyncTaskPayloadJson("manual"), "", log),
+            )
+            assertEquals("remote_article_sync_failed", retry.code)
+        }
+    }
+
+    @Test
+    fun aTerminalParentFailureDoesNotLeaveItsSuccessorWaiting() = runBlocking {
+        withRunnerChain({ respond("missing", HttpStatusCode.NotFound) }) { repository, runner ->
+            val parent = repository.enqueue("remote_article_sync", remoteArticleSyncTaskPayloadJson("manual"))
+            val successor = repository.enqueue("remote_article_sync", remoteArticleSyncTaskPayloadJson("manual"))
+            repository.linkSequentialTasks(listOf(parent, successor))
+
+            assertIs<com.dailysatori.service.asynctask.AsyncTaskRunOutcome.Failed>(runner.run(parent))
+            assertEquals("failed", repository.getById(parent)!!.status, "the parent is terminal, not queued")
+
+            // The successor must run (and fail on its own source) instead of staying blocked forever.
+            assertIs<com.dailysatori.service.asynctask.AsyncTaskRunOutcome.Failed>(runner.run(successor))
+            assertNotEquals("retrying", repository.getById(successor)!!.status)
+        }
+    }
+
+    @Test
+    fun anAlreadyRetryingTaskIsReclassifiedOnItsNextAttempt() = runBlocking {
+        withRunnerChain({ respond("missing", HttpStatusCode.NotFound) }) { repository, runner ->
+            val taskId = repository.enqueue("remote_article_sync", remoteArticleSyncTaskPayloadJson("manual"), maxAttempts = 3)
+            // A legacy task left behind by the old always-retry behaviour (markRetry only applies to a
+            // claimed/running row, so claim it first like the old owner did).
+            repository.claimForRun(taskId, "legacy-owner", leaseUntilMs = 1L)
+            repository.markRetry(taskId, "remote_article_sync_failed", "旧的无限重试", 0L, consumeAttempt = false)
+            assertEquals("retrying", repository.getById(taskId)!!.status)
+
+            assertIs<com.dailysatori.service.asynctask.AsyncTaskRunOutcome.Failed>(runner.run(taskId))
+
+            assertEquals("failed", repository.getById(taskId)!!.status, "the next attempt reclassifies it as terminal")
+            assertTrue(repository.getById(taskId)!!.last_error_message.contains("停止重试"))
+        }
+    }
+
     @Test
     fun aHealthyFeedFillsProgressAndSavesEveryArticle() {
         withChain({ respond(feed(), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/rss+xml")) }) { handler, articles, log, _ ->
@@ -114,11 +221,12 @@ class RemoteArticleSyncChainTest {
     }
 
     @Test
-    fun aPermanentFeedFailureBecomesABoundedRetryableFailure() {
+    fun aPermanentFeedFailureEndsTheTaskWithAReason() {
         withChain({ respond("not found", HttpStatusCode.NotFound) }) { handler, _, log, _ ->
             val result = handler.execute(1L, remoteArticleSyncTaskPayloadJson("manual"), "", log)
 
-            val failure = assertIs<AsyncTaskExecutionResult.RetryableFailure>(result, "404 must not hang: " + result)
+            // Approved behaviour: a 404 is not retried in the background; it ends with a safe reason.
+            val failure = assertIs<AsyncTaskExecutionResult.PermanentFailure>(result, "404 must not hang: " + result)
             assertEquals("remote_article_sync_failed", failure.code)
             assertTrue(failure.message.isNotBlank(), "the user gets a reason")
             assertEquals(listOf("0/1", "1/1"), log.reports)

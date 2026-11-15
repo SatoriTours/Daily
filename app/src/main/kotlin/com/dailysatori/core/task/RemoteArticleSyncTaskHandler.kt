@@ -52,6 +52,7 @@ class RemoteArticleSyncTaskHandler(
         var updated = 0
         var skipped = 0
         var successfulSources = 0
+        var transientFailures = 0
         val failures = mutableListOf<String>()
 
         reporter.report(0, sources.size.toLong(), "准备同步远程文章", checkpointJson = """{"mode":"${payload.mode}"}""")
@@ -69,10 +70,15 @@ class RemoteArticleSyncTaskHandler(
                     updated += shared.value.updated
                     skipped += shared.value.skipped
                     failures += shared.value.failures
+                    if (shared.value.transient) transientFailures += 1
                 }
                 // Another task already synced this source: the source is in the repository, not refetched.
                 NewsSourceFetchShare.Merged -> successfulSources += 1
-                is NewsSourceFetchShare.Failed -> failures += source.name + ": 同步失败，稍后重试"
+                is NewsSourceFetchShare.Failed -> {
+                    // A failed shared fetch has no classified cause here: keep it retryable.
+                    transientFailures += 1
+                    failures += source.name + ": 同步失败，稍后重试"
+                }
             }
             reporter.report(
                 current = (index + 1).toLong(),
@@ -83,7 +89,12 @@ class RemoteArticleSyncTaskHandler(
         }
 
         val resultJson = """{"inserted":$inserted,"updated":$updated,"skipped":$skipped,"failureCount":${failures.size}}"""
-        return remoteArticleSyncOutcome(successfulSources, failures, resultJson)
+        return remoteArticleSyncOutcome(
+            successfulSources = successfulSources,
+            failures = failures,
+            resultJson = resultJson,
+            retryable = transientFailures > 0,
+        )
     }
 
     private class SourceFetch(
@@ -92,6 +103,8 @@ class RemoteArticleSyncTaskHandler(
         val updated: Int,
         val skipped: Int,
         val failures: List<String>,
+        /** True only for failures that can heal by waiting (5xx, timeout, rate limit). */
+        val transient: Boolean = false,
     )
 
     /**
@@ -138,9 +151,13 @@ class RemoteArticleSyncTaskHandler(
                 SourceFetch(1, sync.inserted, sync.updated, sync.skipped,
                     sync.failures.map { source.name + ": " + it })
             }
-            is RemoteNewsResult.Failure -> SourceFetch(0, 0, 0, 0, listOf(source.name + ": " + result.message))
+            is RemoteNewsResult.Failure -> SourceFetch(
+                0, 0, 0, 0, listOf(source.name + ": " + result.message), transient = result.transient,
+            )
         }
-        is RemoteNewsResult.Failure -> SourceFetch(0, 0, 0, 0, listOf(source.name + ": " + config.message))
+        is RemoteNewsResult.Failure -> SourceFetch(
+            0, 0, 0, 0, listOf(source.name + ": " + config.message), transient = config.transient,
+        )
     }
 
     companion object {
@@ -148,14 +165,23 @@ class RemoteArticleSyncTaskHandler(
     }
 }
 
+/**
+ * Outcome of one sync run. A failure that cannot heal by waiting (404, unsupported body, broken
+ * configuration) ends the task instead of retrying in the background, so it leaves the running list and
+ * its successors are no longer blocked; only genuinely transient failures keep the bounded retry.
+ */
 internal fun remoteArticleSyncOutcome(
     successfulSources: Int,
     failures: List<String>,
     resultJson: String,
-): AsyncTaskExecutionResult = if (successfulSources == 0 && failures.isNotEmpty()) {
-    AsyncTaskExecutionResult.RetryableFailure("remote_article_sync_failed", failures.joinToString("\n"))
-} else {
-    AsyncTaskExecutionResult.Success(resultJson)
+    retryable: Boolean,
+): AsyncTaskExecutionResult = when {
+    successfulSources > 0 || failures.isEmpty() -> AsyncTaskExecutionResult.Success(resultJson)
+    retryable -> AsyncTaskExecutionResult.RetryableFailure("remote_article_sync_failed", failures.joinToString("\n"))
+    else -> AsyncTaskExecutionResult.PermanentFailure(
+        "remote_article_sync_failed",
+        failures.joinToString("\n") + "\n这些来源无法自动恢复，已停止重试；修正远程新闻设置后可手动重试",
+    )
 }
 
 fun remoteArticleSyncTaskPayloadJson(mode: String, sourceId: Long? = null): String =
