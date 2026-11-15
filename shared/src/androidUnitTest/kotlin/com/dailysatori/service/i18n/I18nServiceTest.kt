@@ -16,7 +16,7 @@ class I18nServiceTest {
         loadTranslations(service, "zh", "en")
 
         assertEquals("zh", service.getCurrentLanguage())
-        assertEquals("诊断与日志", service.t("diagnostics.title"))
+        assertEquals("诊断管理", service.t("diagnostics.title"))
         assertEquals("导出最近半小时日志与崩溃现场", service.t("diagnostics.subtitle"))
         assertEquals("导出最近 30 分钟日志", service.t("diagnostics.exportRecent"))
         assertEquals("已保存到所选位置", service.t("diagnostics.saved"))
@@ -30,7 +30,7 @@ class I18nServiceTest {
         loadTranslations(service, "en", "zh")
 
         assertEquals("en", service.getCurrentLanguage())
-        assertEquals("Diagnostics and logs", service.t("diagnostics.title"))
+        assertEquals("Diagnostics", service.t("diagnostics.title"))
     }
 
     @Test fun changingLanguageSelectsTheCorrespondingLoadedTranslations() = withSettings { settings ->
@@ -38,10 +38,10 @@ class I18nServiceTest {
         loadTranslations(service, "zh", "en")
         service.setLanguage("zh")
 
-        assertEquals("诊断与日志", service.t("diagnostics.title"))
+        assertEquals("诊断管理", service.t("diagnostics.title"))
         assertEquals("zh", settings.get("app_language"))
         service.setLanguage("en")
-        assertEquals("Diagnostics and logs", service.t("diagnostics.title"))
+        assertEquals("Diagnostics", service.t("diagnostics.title"))
     }
 
     @Test fun completionFeedbackStaysCompactForLongTasksWithLinks() = withSettings { settings ->
