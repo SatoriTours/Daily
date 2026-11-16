@@ -34,6 +34,8 @@ data class RemoteFeedProbe(
     val pagesChecked: Int,
     val hasBody: Boolean,
     val message: String,
+    /** Feed-level title used as the default subscription name; null when the feed has none. */
+    val feedTitle: String? = null,
 )
 
 class RemoteNewsService(private val client: HttpClient) {
@@ -148,6 +150,7 @@ class RemoteNewsService(private val client: HttpClient) {
             pagesChecked = pagesChecked,
             hasBody = hasBody,
             message = remoteFeedProbeMessage(mode, verified, articles, hasBody, warning),
+            feedTitle = entryPage.title,
         )
     }
 
@@ -212,7 +215,12 @@ class RemoteNewsService(private val client: HttpClient) {
         }
         if (response.status.value !in 200..299) {
             val message = bodyOrEmpty(response)
-            val text = parseRemoteNewsErrorMessage(message) ?: feedFailureMessage(response.status.value)
+            // A 401/403 body may echo the request address, so authentication answers keep our own text.
+            val text = if (response.status.value == 401 || response.status.value == 403) {
+                feedFailureMessage(response.status.value)
+            } else {
+                parseRemoteNewsErrorMessage(message) ?: feedFailureMessage(response.status.value)
+            }
             throw RemoteFeedStatusException(response.status.value, text, message)
         }
         val body = readBounded(response, maxBytes)
@@ -268,10 +276,18 @@ class RemoteNewsService(private val client: HttpClient) {
         RemoteNewsResult.Failure("无法连接 RSS 订阅地址", transient = true)
     }
 
+    /**
+     * Understandable, credential-free reason for a feed HTTP status. The address itself is never echoed,
+     * because it may carry a token in its path or query.
+     */
     private fun feedFailureMessage(status: Int): String = when (status) {
-        401, 403 -> "认证失败，请检查 RSS 地址或 Token"
-        404, 410 -> "RSS 地址不存在，请检查远程新闻设置"
-        429 -> "请求过于频繁，请稍后重试"
+        400 -> "订阅请求被拒绝（HTTP 400）：请检查 RSS 地址与参数是否完整"
+        401 -> "认证失败（HTTP 401）：该订阅需要有效的 Token 或登录凭据，请检查地址中的参数"
+        403 -> "访问被拒绝（HTTP 403）：该订阅地址不允许当前访问，可能需要 Token 或权限"
+        404, 410 -> "RSS 地址不存在（HTTP $status）：请检查完整地址是否有效"
+        408 -> "读取订阅超时（HTTP 408）：请稍后重试"
+        429 -> "请求过于频繁（HTTP 429）：请稍后重试"
+        in 500..599 -> "订阅服务暂时不可用（HTTP $status）：请稍后重试"
         else -> "无法获取 RSS 订阅（HTTP $status）"
     }
 
@@ -301,9 +317,12 @@ class RemoteNewsService(private val client: HttpClient) {
     }
 
     private fun clientFailureMessage(status: Int): String = when (status) {
-        401, 403 -> "认证失败，请检查 RSS 地址或 Token"
-        404 -> "RSS 地址不存在，请检查远程新闻设置"
-        429 -> "请求过于频繁，请稍后重试"
+        400 -> "请求被拒绝（HTTP 400）：请检查地址与参数是否完整"
+        401 -> "认证失败（HTTP 401）：该服务需要有效的 Token，请检查令牌配置"
+        403 -> "访问被拒绝（HTTP 403）：当前令牌没有访问权限"
+        404 -> "服务地址不存在（HTTP 404）：请检查远程新闻地址"
+        429 -> "请求过于频繁（HTTP 429）：请稍后重试"
+        in 500..599 -> "远程服务暂时不可用（HTTP $status）：请稍后重试"
         else -> "无法获取 RSS 订阅（HTTP $status）"
     }
 
@@ -339,12 +358,12 @@ internal fun remoteFeedProbeMessage(
     val bodyNote = if (hasBody) "" else "；未检测到正文内容，只有标题或链接"
     val modeNote = when {
         mode == RemoteFeedPagingMode.ARCHIVE && verifiedPages > 0 ->
-            "；支持标准归档同步：已验证 $verifiedPages 个归档页"
+            "；支持翻页同步：已验证 $verifiedPages 个归档页"
         mode == RemoteFeedPagingMode.PAGED && verifiedPages > 0 ->
-            "；支持标准分页同步：已验证 $verifiedPages 个分页"
-        mode == RemoteFeedPagingMode.ARCHIVE || mode == RemoteFeedPagingMode.PAGED ->
-            "；发现分页或归档链接但未能验证后续页"
-        else -> "；普通订阅模式：每次同步当前 URL"
+            "；支持翻页同步：已验证 $verifiedPages 个分页"
+        warning != null || mode == RemoteFeedPagingMode.ARCHIVE || mode == RemoteFeedPagingMode.PAGED ->
+            "；检测到分页链接但验证失败，无法确认是否支持翻页"
+        else -> "；未检测到翻页信息：每次同步当前 URL"
     }
     val warningNote = warning?.let { "；$it" }.orEmpty()
     val sampleNote = if (mode == RemoteFeedPagingMode.PLAIN) "" else "。仅验证少量页面，不保证全部历史或全文完整"

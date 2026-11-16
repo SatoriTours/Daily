@@ -50,6 +50,7 @@ internal fun parseRemoteFeedPage(
     return RemoteFeedPage(
         url = pageUrl,
         articles = remoteFeedArticles(document.entries, limit),
+        title = document.title,
         links = document.links,
         isArchive = document.isArchive,
         isComplete = document.isComplete,

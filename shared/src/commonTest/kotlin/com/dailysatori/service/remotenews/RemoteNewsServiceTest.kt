@@ -107,6 +107,8 @@ class RemoteNewsServiceTest {
             val result = service.fetchSourceArticles(RemoteNewsConfigValues(FEED_URL, ""))
             assertTrue(result is RemoteNewsResult.Failure)
             assertTrue(result.message.contains(expected), "HTTP " + status.value + " message was " + result.message)
+            assertTrue(result.message.contains("HTTP " + status.value), result.message)
+            assertFalse(result.message.contains(FEED_URL), result.message)
         }
     }
 

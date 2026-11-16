@@ -8,6 +8,7 @@ import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.core.task.NewsSourceFetchShare
 import com.dailysatori.core.task.UnifiedNewsArticleQueue
+import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
 import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.config.SettingKeys
@@ -191,6 +192,7 @@ class UnifiedNewsViewModel(
     init {
         observeArticleSummaries()
         observeSelectedRemoteArticles()
+        observeRemoteSourceOptions()
         viewModelScope.launch(Dispatchers.IO) {
             articleRepo.observeFavoriteIdentities().catch {
                 _state.update { it.copy(error = "收藏状态读取失败，请稍后重试") }
@@ -202,6 +204,36 @@ class UnifiedNewsViewModel(
             combine(hotNews.boards, hotNews.preferences) { boards, prefs ->
                 boards.filter { prefs.source(it.platform).enabled }
             }.collect { boards -> _state.update { it.copy(hotNewsBoards = boards) } }
+        }
+    }
+
+    /**
+     * Home tabs are keyed by source id, so a rename only refreshes the label: the selected tab and
+     * its loaded articles stay in place, and a removed source still falls back to the summary.
+     */
+    private fun observeRemoteSourceOptions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            remoteNewsSourceRepo.observeAll()
+                .map { sources -> sources.filter { it.enabled == 1L }.map { UnifiedNewsRemoteSourceOption(it.id, it.name) } }
+                .distinctUntilChanged()
+                .collect { options ->
+                    val current = _state.value
+                    if (options == current.remoteSources) return@collect
+                    val removed = shouldResetUnifiedNewsSourceSelection(
+                        current.sourceSelection, options, current.externalFavoriteSources,
+                    )
+                    if (removed) invalidateSourceArticleRequest()
+                    _state.update { state ->
+                        state.copy(
+                            remoteSources = options,
+                            sourceSelection = if (removed) {
+                                UnifiedNewsSourceSelection.Summary
+                            } else {
+                                state.sourceSelection.withUpdatedRemoteSourceName(options)
+                            },
+                        )
+                    }
+                }
         }
     }
 
@@ -472,7 +504,10 @@ class UnifiedNewsViewModel(
             try {
                 val taskId = asyncTaskRepo.enqueue(
                     type = AsyncTaskType.remote_article_sync.name,
-                    payloadJson = remoteArticleSyncTaskPayloadJson(mode = "manual_source", sourceId = sourceId),
+                    payloadJson = remoteArticleSyncTaskPayloadJson(
+                        mode = RemoteArticleSyncTaskHandler.MODE_MANUAL_SOURCE,
+                        sourceId = sourceId,
+                    ),
                     uniqueKey = "remote_article_sync:source:$sourceId",
                 )
                 asyncTaskScheduler.enqueue(taskId)

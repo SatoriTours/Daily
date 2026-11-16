@@ -12,6 +12,14 @@ internal fun shouldResetUnifiedNewsSourceSelection(
     else -> false
 }
 
+/** Adopts a renamed label for the selected remote source while keeping its stable id. */
+internal fun UnifiedNewsSourceSelection.withUpdatedRemoteSourceName(
+    remoteSources: List<UnifiedNewsRemoteSourceOption>,
+): UnifiedNewsSourceSelection = when (this) {
+    is UnifiedNewsSourceSelection.RemoteSource -> remoteSources.firstOrNull { it.id == id }?.let { copy(name = it.name) } ?: this
+    else -> this
+}
+
 internal fun resolvedUnifiedNewsSourceSelection(
     selection: UnifiedNewsSourceSelection,
     remoteSources: List<UnifiedNewsRemoteSourceOption>,

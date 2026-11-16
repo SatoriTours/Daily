@@ -3,14 +3,20 @@ package com.dailysatori.ui.feature.settings.remotenews
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
+import com.dailysatori.core.task.RemoteArticleSyncTaskHandler
 import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.RemoteFeedHistoryRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.diagnostics.TaskHttpRedaction
+import com.dailysatori.service.remotenews.RemoteFeedHistoryPolicy
+import com.dailysatori.service.remotenews.RemoteFeedHistoryState
+import com.dailysatori.service.remotenews.RemoteFeedHistoryStatus
+import com.dailysatori.service.remotenews.RemoteFeedHistoryStrategy
 import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
@@ -24,9 +30,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Clock
 
-data class RemoteNewsDraft(val name: String = "", val baseUrl: String = "", val enabled: Boolean = true)
+data class RemoteNewsDraft(
+    val name: String = "",
+    val baseUrl: String = "",
+    val enabled: Boolean = true,
+    /** First-import range of a new subscription; an existing subscription keeps its stored one. */
+    val historyStrategy: RemoteFeedHistoryStrategy = RemoteFeedHistoryStrategy.ALL_HISTORY,
+)
 
 data class RemoteNewsSettingsState(
     val sources: List<Remote_news_source> = emptyList(),
@@ -47,9 +60,13 @@ data class RemoteNewsSettingsState(
     val isError: Boolean = false,
     val isDeleting: Boolean = false,
     val savedDraft: RemoteNewsDraft = RemoteNewsDraft(),
+    /** First-import range chosen in the editor; only a new subscription stores it. */
+    val historyStrategy: RemoteFeedHistoryStrategy = RemoteFeedHistoryStrategy.ALL_HISTORY,
+    /** Progress of the older-document walk, keyed by subscription. */
+    val historyBySourceId: Map<Long, RemoteNewsHistoryUi> = emptyMap(),
 ) {
     val busy: Boolean get() = isSaving || isTesting || isDeleting
-    val draft: RemoteNewsDraft get() = RemoteNewsDraft(name, baseUrl, enabled)
+    val draft: RemoteNewsDraft get() = RemoteNewsDraft(name, baseUrl, enabled, historyStrategy)
     val hasChanges: Boolean get() = isEditing && draft != savedDraft
 }
 
@@ -73,13 +90,18 @@ class RemoteNewsSettingsViewModel(
     private val asyncTaskRepo: AsyncTaskRepository,
     private val asyncTaskScheduler: AsyncTaskScheduler,
     private val remoteNewsService: RemoteNewsService,
+    private val historyRepo: RemoteFeedHistoryRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsSettingsState())
     val state: StateFlow<RemoteNewsSettingsState> = _state.asStateFlow()
     private val observedSyncKeys = mutableSetOf<String>()
     private val observedTaskIds = mutableSetOf<Long>()
+    private val observedHistorySourceIds = mutableSetOf<Long>()
 
     init { load() }
+
+    /** Optional display name: a blank draft falls back to the feed channel title, then the host. */
+    fun updateName(value: String) = _state.update { if (it.busy) it else it.copy(name = value, message = null, isError = false) }
 
     fun updateBaseUrl(value: String) = _state.update { if (it.busy) it else it.copy(baseUrl = value, message = null, isError = false) }
 
@@ -87,8 +109,13 @@ class RemoteNewsSettingsViewModel(
 
     fun openAdd() = _state.update {
         it.copy(isEditing = true, editingId = null, name = "", baseUrl = "", legacyApiToken = "", enabled = true,
+            historyStrategy = RemoteFeedHistoryStrategy.ALL_HISTORY,
             message = null, isError = false, savedDraft = RemoteNewsDraft())
     }
+
+    /** Only a new subscription may choose its first-import range; editing never restarts a walk. */
+    fun updateHistoryStrategy(value: RemoteFeedHistoryStrategy) =
+        _state.update { if (it.busy || it.editingId != null) it else it.copy(historyStrategy = value, message = null, isError = false) }
 
     fun openEdit(source: Remote_news_source) = _state.update {
         it.copy(
@@ -100,7 +127,8 @@ class RemoteNewsSettingsViewModel(
             enabled = source.enabled == 1L,
             message = null,
             isError = false,
-            savedDraft = RemoteNewsDraft(source.name, source.base_url, source.enabled == 1L),
+            // The stored range of an existing subscription stays untouched by an edit.
+            savedDraft = RemoteNewsDraft(source.name, source.base_url, source.enabled == 1L, it.historyStrategy),
         )
     }
 
@@ -111,7 +139,7 @@ class RemoteNewsSettingsViewModel(
     fun load() {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copyRemoteNewsSyncCounts() }
-            _state.value.sources.forEach { observeSyncWork(it.id) }
+            _state.value.sources.forEach { observeSource(it.id) }
         }
     }
 
@@ -125,7 +153,8 @@ class RemoteNewsSettingsViewModel(
             _state.update { it.copy(message = "请填写 RSS 地址", isError = true) }
             return
         }
-        val name = remoteNewsSourceName(form.name, baseUrl)
+        // A typed name wins; only a blank name may adopt the feed's own channel title.
+        val typedName = form.name.trim()
         val legacyApiToken = remoteNewsLegacyTokenFor(baseUrl, form.legacyApiToken, form.savedDraft.baseUrl)
         val enabled = form.enabled
         if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
@@ -135,7 +164,11 @@ class RemoteNewsSettingsViewModel(
         _state.update { it.copy(isSaving = true, message = null, isError = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                sourceRepo.save(editingId, name, baseUrl, legacyApiToken, enabled)
+                val name = remoteNewsSavedName(typedName, baseUrl) {
+                    remoteNewsEntryTitle(baseUrl, legacyApiToken)
+                }
+                // The range travels with a new subscription only; an edit keeps the stored policy.
+                sourceRepo.save(editingId, name, baseUrl, legacyApiToken, enabled, form.historyStrategy.dbValue)
                 _state.update {
                     it.copyRemoteNewsSyncCounts().copy(
                         isEditing = false,
@@ -144,10 +177,13 @@ class RemoteNewsSettingsViewModel(
                         baseUrl = "",
                         legacyApiToken = "",
                         enabled = true,
+                        historyStrategy = RemoteFeedHistoryStrategy.ALL_HISTORY,
                         message = "远程新闻设置已保存",
                         isError = false,
                     )
                 }
+                // A brand-new source starts unobserved, so its walk state has no subscriber yet.
+                load()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -156,6 +192,18 @@ class RemoteNewsSettingsViewModel(
                 _state.update { it.copy(isSaving = false) }
             }
         }
+    }
+
+    /** Reads only the entry document for its channel title; paging/archive documents are not probed. */
+    private suspend fun remoteNewsEntryTitle(baseUrl: String, legacyApiToken: String): String? {
+        val config = remoteNewsService.configOrFailure(baseUrl, legacyApiToken)
+        if (config !is RemoteNewsResult.Success) return null
+        val page = remoteNewsService.fetchFeedPage(
+            config.value,
+            baseUrl,
+            timeoutMillis = REMOTE_NEWS_TITLE_TIMEOUT_MS,
+        )
+        return (page as? RemoteNewsResult.Success)?.value?.title
     }
 
     fun deleteSource(id: Long) {
@@ -173,6 +221,7 @@ class RemoteNewsSettingsViewModel(
                         baseUrl = if (editingDeleted) "" else current.baseUrl,
                         legacyApiToken = if (editingDeleted) "" else current.legacyApiToken,
                         enabled = if (editingDeleted) true else current.enabled,
+                        historyBySourceId = current.historyBySourceId - id,
                         message = "远程新闻已删除",
                     )
                 }
@@ -193,6 +242,72 @@ class RemoteNewsSettingsViewModel(
             _state.update { it.copy(message = remoteNewsDuplicateSyncMessage()) }
             return
         }
+        viewModelScope.launch(Dispatchers.IO) { enqueueSourceSync(id) }
+    }
+
+    /**
+     * Explicit history backfill: the walk is persisted first so the queued sync run finds its intent,
+     * then the ordinary source sync task carries it. Nothing here rewrites stored articles or AI state.
+     */
+    fun startHistory(id: Long) = launchHistoryWalk(id, restart = true)
+
+    /** Continues a paused or blocked walk from its stored cursor. */
+    fun resumeHistory(id: Long) = launchHistoryWalk(id, restart = false)
+
+    private fun launchHistoryWalk(id: Long, restart: Boolean) {
+        if (remoteNewsHasActiveSync(_state.value)) {
+            _state.update { it.copy(message = remoteNewsDuplicateSyncMessage()) }
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val accepted = try {
+                if (restart) {
+                    historyRepo.start(id, RemoteFeedHistoryStrategy.ALL_HISTORY, nowMillis())
+                    true
+                } else {
+                    historyRepo.resume(id, nowMillis())
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            if (!accepted) {
+                _state.update {
+                    it.copy(
+                        message = if (restart) "历史补全启动失败" else "当前没有可继续的历史补全",
+                        isError = true,
+                    )
+                }
+                return@launch
+            }
+            enqueueSourceSync(id)
+        }
+    }
+
+    /**
+     * Pauses the walk after the page in flight. It never deletes stored articles, read flags or AI
+     * results, and a paused walk is not continued by the background task.
+     */
+    fun pauseHistory(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val paused = try {
+                historyRepo.pause(id, nowMillis())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            _state.update {
+                it.copy(
+                    message = if (paused) "历史补全已暂停，当前分页结束后停止" else "当前没有进行中的历史补全",
+                    isError = !paused,
+                )
+            }
+        }
+    }
+
+    private suspend fun enqueueSourceSync(id: Long) {
         _state.update {
             it.copy(
                 syncingSourceId = id,
@@ -200,33 +315,36 @@ class RemoteNewsSettingsViewModel(
                 syncWorkBySourceId = it.syncWorkBySourceId + (id to remoteNewsQueuedSyncWork()),
             )
         }
-        observeSyncWork(id)
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val source = sourceRepo.getById(id) ?: return@launch
-                val taskId = asyncTaskRepo.enqueue(
-                    type = AsyncTaskType.remote_article_sync.name,
-                    payloadJson = remoteArticleSyncTaskPayloadJson(mode = "manual_source", sourceId = id),
-                    uniqueKey = "remote_article_sync:source:$id",
+        observeSource(id)
+        try {
+            sourceRepo.getById(id) ?: return
+            val taskId = asyncTaskRepo.enqueue(
+                type = AsyncTaskType.remote_article_sync.name,
+                payloadJson = remoteArticleSyncTaskPayloadJson(
+                    mode = RemoteArticleSyncTaskHandler.MODE_MANUAL_SOURCE,
+                    sourceId = id,
+                ),
+                uniqueKey = "remote_article_sync:source:$id",
+            )
+            asyncTaskScheduler.enqueue(taskId)
+            observeExactSyncTask(id, taskId)
+            _state.update {
+                val current = it.syncWorkBySourceId[id] ?: remoteNewsQueuedSyncWork()
+                it.copyRemoteNewsSyncCounts().copy(
+                    syncingSourceId = id,
+                    message = null,
+                    syncWorkBySourceId = it.syncWorkBySourceId + (id to current.copy(taskId = taskId)),
                 )
-                asyncTaskScheduler.enqueue(taskId)
-                observeExactSyncTask(id, taskId)
-                _state.update {
-                    val current = it.syncWorkBySourceId[id] ?: remoteNewsQueuedSyncWork()
-                    it.copyRemoteNewsSyncCounts().copy(
-                        syncingSourceId = id,
-                        message = null,
-                        syncWorkBySourceId = it.syncWorkBySourceId + (id to current.copy(taskId = taskId)),
-                    )
-                }
-            } catch (_: Exception) {
-                _state.update {
-                    it.copy(
-                        syncingSourceId = null,
-                        syncWorkBySourceId = it.syncWorkBySourceId - id,
-                        message = "远程新闻同步任务创建失败",
-                    )
-                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _state.update {
+                it.copy(
+                    syncingSourceId = null,
+                    syncWorkBySourceId = it.syncWorkBySourceId - id,
+                    message = "远程新闻同步任务创建失败",
+                )
             }
         }
     }
@@ -277,6 +395,8 @@ class RemoteNewsSettingsViewModel(
         }
     }
 
+    private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
+
     private fun RemoteNewsSettingsState.copyRemoteNewsSyncCounts(): RemoteNewsSettingsState {
         val loadedSources = sourceRepo.getAll()
         return copy(
@@ -298,6 +418,22 @@ class RemoteNewsSettingsViewModel(
         }
     }
 
+    /** A source added on this screen must be observed at once; a new id was never subscribed before. */
+    private fun observeSource(sourceId: Long) {
+        observeSyncWork(sourceId)
+        observeHistory(sourceId)
+    }
+
+    private fun observeHistory(sourceId: Long) {
+        if (!observedHistorySourceIds.add(sourceId)) return
+        viewModelScope.launch {
+            historyRepo.observe(sourceId).collect { stored ->
+                val ui = remoteNewsHistoryUi(stored)
+                _state.update { current -> current.copy(historyBySourceId = current.historyBySourceId + (sourceId to ui)) }
+            }
+        }
+    }
+
     private fun observeExactSyncTask(sourceId: Long, taskId: Long) {
         if (!observedTaskIds.add(taskId)) return
         viewModelScope.launch {
@@ -314,6 +450,31 @@ class RemoteNewsSettingsViewModel(
     }
 }
 
+/**
+ * Resolves the name saved with a subscription. A typed name always wins and never touches the network.
+ * A blank draft adopts the entry document's channel title behind a short total cap; a slow, failed or
+ * cancelled-before-title fetch still saves with the host fallback. Caller cancellation is rethrown.
+ */
+internal suspend fun remoteNewsSavedName(
+    typedName: String,
+    baseUrl: String,
+    timeoutMillis: Long = REMOTE_NEWS_TITLE_TIMEOUT_MS,
+    fetchFeedTitle: suspend () -> String?,
+): String {
+    val trimmed = typedName.trim()
+    if (trimmed.isNotEmpty()) return remoteNewsSourceName(trimmed, baseUrl)
+    val feedTitle = try {
+        withTimeoutOrNull(timeoutMillis) { fetchFeedTitle() }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
+    return remoteNewsSourceName(trimmed, baseUrl, feedTitle)
+}
+
+internal const val REMOTE_NEWS_TITLE_TIMEOUT_MS = 5_000L
+
 private val remoteNewsFinishedWorkStates = setOf(
     WorkInfo.State.SUCCEEDED,
     WorkInfo.State.FAILED,
@@ -321,11 +482,13 @@ private val remoteNewsFinishedWorkStates = setOf(
 )
 
 /**
- * A source name only has to be human readable: keep the saved name, otherwise label the source
- * with the feed host so a single URL field is enough.
+ * A source name only has to be human readable: a name the user typed always wins, then the feed's own
+ * channel title, and only then the feed host so a single URL field is enough.
  */
-internal fun remoteNewsSourceName(existingName: String, url: String): String =
-    existingName.trim().ifBlank { remoteNewsSourceNameFromUrl(url) }
+internal fun remoteNewsSourceName(existingName: String, url: String, feedTitle: String? = null): String =
+    existingName.trim()
+        .ifBlank { feedTitle?.trim().orEmpty() }
+        .ifBlank { remoteNewsSourceNameFromUrl(url) }
 
 internal fun remoteNewsSourceNameFromUrl(url: String): String {
     val trimmed = url.trim()
@@ -493,6 +656,96 @@ fun remoteNewsSummarySubtitle(state: RemoteNewsSettingsState): String =
 fun remoteNewsSourceSyncedCountText(source: Remote_news_source, state: RemoteNewsSettingsState): String =
     "一共同步 ${state.syncedArticleCountBySourceId[source.id]?.coerceAtLeast(0) ?: 0} 条"
 
+/** Compact, per-subscription view of the older-document walk. Unknown totals never become a percentage. */
+data class RemoteNewsHistoryUi(
+    val strategy: RemoteFeedHistoryStrategy = RemoteFeedHistoryStrategy.ALL_HISTORY,
+    val status: RemoteFeedHistoryStatus = RemoteFeedHistoryStatus.OFF,
+    val importedCount: Int = 0,
+    val targetCount: Int = 0,
+    val pagesRead: Int = 0,
+    val lastError: String = "",
+    val blockedReason: String = "",
+) {
+    /** A zero target means "the whole chain", so no progress fraction can be promised. */
+    val target: Int? get() = targetCount.takeIf { it > 0 }
+}
+
+enum class RemoteNewsHistoryAction { NONE, START, PAUSE, RESUME }
+
+internal fun remoteNewsHistoryUi(state: RemoteFeedHistoryState?): RemoteNewsHistoryUi =
+    if (state == null) {
+        RemoteNewsHistoryUi()
+    } else {
+        RemoteNewsHistoryUi(
+            strategy = state.strategy,
+            status = state.status,
+            importedCount = state.importedCount,
+            targetCount = state.targetCount,
+            pagesRead = state.pagesRead,
+            lastError = state.lastError,
+            blockedReason = state.blockedReason,
+        )
+    }
+
+fun remoteNewsHistoryRangeText(strategy: RemoteFeedHistoryStrategy): String = when (strategy) {
+    RemoteFeedHistoryStrategy.ALL_HISTORY -> "全部历史"
+    RemoteFeedHistoryStrategy.LATEST_500 -> "最近 500 条"
+}
+
+/** Stored first-import range of a subscription; a stored none keeps it incremental only. */
+fun remoteNewsSourceHistoryRangeText(source: Remote_news_source): String =
+    RemoteFeedHistoryPolicy.strategyOf(source.history_policy)?.let(::remoteNewsHistoryRangeText) ?: "仅增量"
+
+fun remoteNewsHistoryStatusText(ui: RemoteNewsHistoryUi?): String = when (ui?.status ?: RemoteFeedHistoryStatus.OFF) {
+    RemoteFeedHistoryStatus.OFF -> "未补全历史"
+    RemoteFeedHistoryStatus.PENDING -> "等待补全"
+    RemoteFeedHistoryStatus.RUNNING -> "补全中"
+    RemoteFeedHistoryStatus.PAUSED -> "已暂停"
+    RemoteFeedHistoryStatus.BLOCKED -> "补全受阻"
+    // A single-window subscription never claims full history.
+    RemoteFeedHistoryStatus.COMPLETE_WINDOW -> "仅近期窗口"
+    RemoteFeedHistoryStatus.COMPLETE -> when (ui?.strategy ?: RemoteFeedHistoryStrategy.ALL_HISTORY) {
+        RemoteFeedHistoryStrategy.LATEST_500 -> "最近 500 条已导入"
+        RemoteFeedHistoryStrategy.ALL_HISTORY -> "全部历史已导入"
+    }
+}
+
+fun remoteNewsHistoryProgressText(ui: RemoteNewsHistoryUi?): String {
+    if (ui == null || ui.status == RemoteFeedHistoryStatus.OFF) return ""
+    val imported = ui.importedCount.coerceAtLeast(0)
+    if (imported <= 0 && ui.pagesRead <= 0) return ""
+    // Factual wording: the counter is what this walk stored (a restart resets it), never a total.
+    val count = ui.target?.let { "本次新增 $imported/$it 篇" } ?: "本次新增 $imported 篇"
+    return if (ui.pagesRead > 0) "$count · 已读取 ${ui.pagesRead} 页" else count
+}
+
+fun remoteNewsHistoryErrorText(ui: RemoteNewsHistoryUi?): String? =
+    ui?.lastError?.trim().orEmpty()
+        .ifBlank { ui?.blockedReason?.trim().orEmpty() }
+        .ifBlank { null }
+
+fun remoteNewsHistoryAction(ui: RemoteNewsHistoryUi?, sourceEnabled: Boolean): RemoteNewsHistoryAction {
+    val status = ui?.status ?: RemoteFeedHistoryStatus.OFF
+    // An open walk stays pausable even when the subscription itself is disabled.
+    if (status.open) return RemoteNewsHistoryAction.PAUSE
+    if (!sourceEnabled) return RemoteNewsHistoryAction.NONE
+    return when (status) {
+        RemoteFeedHistoryStatus.PAUSED, RemoteFeedHistoryStatus.BLOCKED -> RemoteNewsHistoryAction.RESUME
+        RemoteFeedHistoryStatus.OFF,
+        RemoteFeedHistoryStatus.COMPLETE,
+        RemoteFeedHistoryStatus.COMPLETE_WINDOW,
+        -> RemoteNewsHistoryAction.START
+        else -> RemoteNewsHistoryAction.NONE
+    }
+}
+
+fun remoteNewsHistoryActionLabel(action: RemoteNewsHistoryAction, ui: RemoteNewsHistoryUi?): String = when (action) {
+    RemoteNewsHistoryAction.NONE -> ""
+    RemoteNewsHistoryAction.START -> if (ui?.status?.finished == true) "重新补全" else "补全历史"
+    RemoteNewsHistoryAction.PAUSE -> "暂停"
+    RemoteNewsHistoryAction.RESUME -> "继续"
+}
+
 fun remoteNewsSyncActionLabel(work: RemoteNewsSyncWorkUi?): String =
     if (work?.active == true) "取消同步" else "同步"
 
@@ -520,7 +773,3 @@ fun remoteNewsProgressMetrics(work: RemoteNewsSyncWorkUi): List<RemoteNewsSummar
     RemoteNewsSummaryMetric(work.skipped.coerceAtLeast(0).toString(), "跳过"),
 )
 
-fun remoteNewsRunningDetailLines(work: RemoteNewsSyncWorkUi): List<RemoteNewsSummaryMetric> = listOf(
-    RemoteNewsSummaryMetric(remoteNewsSyncProgressTitle(work), "当前阶段"),
-    RemoteNewsSummaryMetric(remoteNewsSyncProgressText(work), "同步进度"),
-)

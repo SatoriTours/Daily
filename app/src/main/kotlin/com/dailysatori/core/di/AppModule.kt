@@ -113,7 +113,14 @@ val appModule: Module = module {
     single { ExternalFavoriteOrganizeTaskHandler(get(), get(), get(), get(), get()) }
     single { BookViewpointGenerateTaskHandler(get(), get(), get()) }
     single { com.dailysatori.core.task.RemoteArticleSyncCoordinator() }
-    single { RemoteArticleSyncTaskHandler(get(), get(), get(), get(), get()) }
+    single {
+        RemoteArticleSyncTaskHandler(
+            get(), get(), get(), get(), get(),
+            get<com.dailysatori.data.repository.AsyncTaskRepository>(),
+            com.dailysatori.core.worker.AsyncTaskScheduler(androidContext())::enqueue,
+            get<com.dailysatori.data.repository.RemoteFeedHistoryRepository>(),
+        )
+    }
     single { UnifiedNewsArticleQueue(get(), get(), get(), get(), get(), get<AsyncTaskScheduler>()::enqueue) }
     single {
         UnifiedNewsGenerateTaskHandler(

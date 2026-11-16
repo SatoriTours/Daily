@@ -15,8 +15,9 @@
     <string name="settings_token_reset_done">Token 已重置</string>
     <string name="settings_cancel">取消</string>
     <string name="settings_saved">已保存</string>
-    <string name="settings_delete_source_title">删除新闻源？</string>
-    <string name="settings_delete_source_message">将删除新闻源“%1$s”，之后不再从此来源同步。</string>
+    <string name="settings_delete_source_title">删除订阅？</string>
+    <string name="settings_delete_subscription">删除订阅</string>
+    <string name="settings_delete_source_message">将删除订阅“%1$s”及其同步记录，之后不再从此来源同步。已导入的文章数据不会删除。</string>
     <string name="settings_delete">删除</string>
     <string name="settings_immediate_changes">修改后自动保存，无需另外点击保存。</string>
 </resources>

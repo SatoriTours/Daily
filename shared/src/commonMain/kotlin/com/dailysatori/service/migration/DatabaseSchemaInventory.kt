@@ -89,7 +89,8 @@ remote_article_sync_item:id,remote_source_id,remote_article_id,article_id,url,so
 remote_feed_sync_state:remote_source_id,entry_url,paging_mode,baseline_ready,checkpoint_ids,target_entry_ids,confirmed_anchor_url,confirmed_at,generation,gap_open,scan_start_url,scan_start_fingerprint,cursor_url,last_page_url,last_page_fingerprint,scan_pages,staged_bytes,closure_reached,blocked,blocked_reason,updated_at
 remote_feed_staged_article:id,remote_source_id,generation,remote_article_id,page_url,sequence,stale,title,url,summary,content,published_at,bytes,created_at
 remote_feed_scan_node:remote_source_id,generation,document_url,fingerprint,created_at
-remote_news_source:id,name,base_url,api_token,enabled,created_at,updated_at
+remote_feed_history_state:remote_source_id,entry_url,paging_mode,strategy,status,control_epoch,start_url,cursor_url,last_page_url,last_page_fingerprint,imported_count,target_count,pages_read,requests,last_error,blocked_reason,started_at,completed_at,updated_at
+remote_news_source:id,name,base_url,api_token,enabled,history_policy,created_at,updated_at
 session:id,session_id,is_authenticated,username,last_accessed_at,created_at,updated_at
 setting:id,key,value,created_at,updated_at
 skill_config:id,name,description,gateway_url,api_token,skill_version,enabled,builtin,provider,template_id,tool_schema_json,created_at,updated_at
@@ -112,6 +113,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
 
     internal fun validateColumns(driver: SqlDriver, version: Long, includeProjection: Boolean = true) {
         columns.filterKeys { (version>=49 || it !in setOf("remote_feed_staged_article","remote_feed_scan_node")) &&
+            (version>=51 || it!="remote_feed_history_state") &&
             (version>=47 || it!="remote_feed_sync_state") &&
             (version>=46 || it!="reminder_ai_draft_legacy") &&
             (version>=45 || it!="diary_record") && (version>=41 || !it.startsWith("diary_tag_")) &&
@@ -136,6 +138,8 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
                     "scan_start_fingerprint", "cursor_url", "last_page_url", "last_page_fingerprint",
                     "scan_pages", "staged_bytes", "closure_reached", "blocked", "blocked_reason", "updated_at",
                 )
+                version<51 && table=="remote_news_source" -> all-"history_policy"
+                version<52 && table=="remote_feed_history_state" -> all-"control_epoch"
                 version<45 && table=="diary" -> all+setOf("tags","images")
                 version<44 && table=="memory_entry" -> all-"content_origin"
                 version<43 && table=="idea_topic_source" && "snapshot_id" !in found -> all-"snapshot_id"+"snapshot_json"
@@ -154,6 +158,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
         val actual = strings(driver, "SELECT type || ':' || name FROM sqlite_master").toSet()
         return objectStatements(driver).filterKeys { name -> name !in actual && !(
             (version<47 && name=="table:remote_feed_sync_state") ||
+            (version<51 && name=="table:remote_feed_history_state") ||
             (version<49 && (name in setOf(
                 "table:remote_feed_staged_article", "table:remote_feed_scan_node",
                 "index:idx_remote_feed_staged_source",

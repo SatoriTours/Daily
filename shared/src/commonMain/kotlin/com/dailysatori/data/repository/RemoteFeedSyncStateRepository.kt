@@ -65,8 +65,8 @@ class RemoteFeedSyncStateRepository(private val db: DailySatoriDatabase) {
         )
     }
 
-    /** Remote ids of [ids] that are already part of the confirmed article store. */
-    fun confirmedRemoteArticleIds(remoteSourceId: Long, ids: List<Long>): Set<Long> {
+    /** Remote ids of [ids] that are already part of the article store of this source. */
+    fun knownRemoteArticleIds(remoteSourceId: Long, ids: List<Long>): Set<Long> {
         if (ids.isEmpty()) return emptySet()
         return q.selectKnownRemoteArticleIds(remoteSourceId, ids).executeAsList().toSet()
     }

@@ -344,6 +344,7 @@ val viewModelModule: Module = module {
             asyncTaskRepo = get(),
             asyncTaskScheduler = get(),
             remoteNewsService = get(),
+            historyRepo = get(),
         )
     }
     viewModel {

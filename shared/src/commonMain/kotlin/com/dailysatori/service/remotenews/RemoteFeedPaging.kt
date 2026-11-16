@@ -24,6 +24,8 @@ data class RemoteFeedLinks(
 /** One fetched feed document together with the RFC 5005 relations of its head section. */
 internal data class RemoteFeedDocument(
     val entries: List<RemoteFeedEntry>,
+    /** Feed-level (channel/feed) title; entry titles are article titles and are never used. */
+    val title: String? = null,
     val links: RemoteFeedLinks = RemoteFeedLinks(),
     val isArchive: Boolean = false,
     val isComplete: Boolean = false,
@@ -34,6 +36,8 @@ data class RemoteFeedPage(
     /** Final document address after redirects; relative links inside the document use it as base. */
     val url: String,
     val articles: List<RemoteArticle>,
+    /** Feed-level title of this document, when the publisher set one. */
+    val title: String? = null,
     val links: RemoteFeedLinks = RemoteFeedLinks(),
     val isArchive: Boolean = false,
     val isComplete: Boolean = false,

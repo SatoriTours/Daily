@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RemoteFeedParsingTest {
@@ -33,6 +34,14 @@ class RemoteFeedParsingTest {
         assertEquals("https://example.com/posts/1", article.url)
         assertTrue(article.content.orEmpty().contains("原子正文"))
         assertEquals("2026-11-11T02:03:04Z", article.publishedAt)
+    }
+
+    @Test
+    fun readsFeedLevelTitleButNeverEntryTitles() {
+        assertEquals("Tech", parseRemoteFeedPage(RSS_FEED, FEED_URL, FEED_URL).title)
+        assertEquals("Atom 源", parseRemoteFeedPage(ATOM_FEED, "https://example.com/feed.xml", "https://example.com/feed.xml").title)
+        assertEquals("RDF 源", parseRemoteFeedPage(RDF_FEED, FEED_URL, FEED_URL).title)
+        assertNull(parseRemoteFeedPage(RSS_FEED.replace("<title>Tech</title>", "<title>   </title>"), FEED_URL, FEED_URL).title)
     }
 
     @Test

@@ -178,6 +178,8 @@ class DatabaseMigration(
         if (currentVersion < 48) migrateV47ToV48()
         if (currentVersion < 49) migrateV48ToV49()
         if (currentVersion < 50) migrateV49ToV50()
+        if (currentVersion < 51) migrateV50ToV51()
+        if (currentVersion < 52) migrateV51ToV52()
         DatabaseSchemaInventory.validate(driver)
 
         // Metadata commits only after the complete target is verified.
@@ -1268,6 +1270,40 @@ class DatabaseMigration(
      * V49 -> V50: the gap generation gets its own fixed target, so a later entry document can never
      * widen what a promotion is allowed to close. Only one progress column is added.
      */
+    /**
+     * V51 -> V52: the history walk gains its ownership epoch, so a user pause/restart can never be
+     * overwritten by a page write of a run that already lost control. Progress rows are preserved.
+     */
+    private fun migrateV51ToV52() {
+        log.i { "Migration V51 -> V52: history walk control epoch" }
+        try {
+            RemoteFeedHistoryStateMigration.addControlEpoch(driver)
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not add the history walk control epoch" }
+            throw failure // The outer transaction preserves the original database and version.
+        }
+    }
+
+    /**
+     * V50 -> V51: first-import history. A new per-source policy column defaults to the status quo for
+     * every installed source (no bulk download), and one independent history walk table is added.
+     */
+    private fun migrateV50ToV51() {
+        log.i { "Migration V50 -> V51: RSS first-import history" }
+        try {
+            addColumnIfMissing("remote_news_source", "history_policy", "TEXT NOT NULL DEFAULT 'none'")
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not add the remote news history policy" }
+            throw failure
+        }
+        try {
+            RemoteFeedHistoryStateMigration.create(driver)
+        } catch (failure: Exception) {
+            log.e(failure) { "Could not create the remote feed history state table" }
+            throw failure // The outer transaction preserves the original database and version.
+        }
+    }
+
     private fun migrateV49ToV50() {
         log.i { "Migration V49 -> V50: fixed generation target" }
         try {

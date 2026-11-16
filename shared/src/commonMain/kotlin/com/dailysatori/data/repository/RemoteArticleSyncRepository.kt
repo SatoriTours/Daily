@@ -47,6 +47,12 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
     fun countBySource(remoteSourceId: Long): Long =
         q.countRemoteArticleSyncItemsBySource(remoteSourceId).executeAsOne()
 
+    /** Remote ids of [ids] that are already mapped for this source; used for idempotent de-duplication. */
+    fun knownRemoteArticleIds(remoteSourceId: Long, ids: List<Long>): Set<Long> {
+        if (ids.isEmpty()) return emptySet()
+        return q.selectKnownRemoteArticleIds(remoteSourceId, ids).executeAsList().toSet()
+    }
+
     fun upsertMapping(
         remoteSourceId: Long,
         remoteArticleId: Long,

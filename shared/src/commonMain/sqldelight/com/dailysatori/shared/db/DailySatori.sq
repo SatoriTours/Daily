@@ -476,6 +476,7 @@ CREATE TABLE remote_news_source (
     base_url TEXT NOT NULL,
     api_token TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
+    history_policy TEXT NOT NULL DEFAULT 'all_history',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -559,6 +560,29 @@ CREATE TABLE remote_feed_scan_node (
     fingerprint TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL,
     PRIMARY KEY(remote_source_id, generation, document_url)
+);
+
+-- First-import history walk of one subscription; independent of the incremental gap state.
+CREATE TABLE remote_feed_history_state (
+    remote_source_id INTEGER PRIMARY KEY REFERENCES remote_news_source(id) ON DELETE CASCADE,
+    entry_url TEXT NOT NULL DEFAULT '',
+    paging_mode TEXT NOT NULL DEFAULT 'plain',
+    strategy TEXT NOT NULL DEFAULT 'all_history',
+    status TEXT NOT NULL DEFAULT 'off',
+    control_epoch INTEGER NOT NULL DEFAULT 0,
+    start_url TEXT,
+    cursor_url TEXT,
+    last_page_url TEXT,
+    last_page_fingerprint TEXT,
+    imported_count INTEGER NOT NULL DEFAULT 0,
+    target_count INTEGER NOT NULL DEFAULT 0,
+    pages_read INTEGER NOT NULL DEFAULT 0,
+    requests INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    blocked_reason TEXT NOT NULL DEFAULT '',
+    started_at INTEGER,
+    completed_at INTEGER,
+    updated_at INTEGER NOT NULL
 );
 
 CREATE TABLE external_favorite_source (
@@ -2256,9 +2280,16 @@ insertRemoteNewsSource:
 INSERT INTO remote_news_source (name, base_url, api_token, enabled, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?);
 
+insertRemoteNewsSourceWithHistoryPolicy:
+INSERT INTO remote_news_source (name, base_url, api_token, enabled, history_policy, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
 updateRemoteNewsSource:
 UPDATE remote_news_source SET name = ?, base_url = ?, api_token = ?, enabled = ?, updated_at = ?
 WHERE id = ?;
+
+updateRemoteNewsSourceHistoryPolicy:
+UPDATE remote_news_source SET history_policy = ?, updated_at = ? WHERE id = ?;
 
 upsertRemoteNewsSource:
 INSERT INTO remote_news_source (id, name, base_url, api_token, enabled, created_at, updated_at)
@@ -2438,6 +2469,62 @@ ON CONFLICT(remote_source_id, generation, document_url) DO UPDATE SET
 
 deleteRemoteFeedScanNodes:
 DELETE FROM remote_feed_scan_node WHERE remote_source_id = ? AND generation = ?;
+
+-- First-import history state of one subscription
+selectRemoteFeedHistoryState:
+SELECT * FROM remote_feed_history_state WHERE remote_source_id = ?;
+
+upsertRemoteFeedHistoryState:
+INSERT INTO remote_feed_history_state (
+    remote_source_id, entry_url, paging_mode, strategy, status, control_epoch, start_url, cursor_url,
+    last_page_url, last_page_fingerprint, imported_count, target_count, pages_read, requests,
+    last_error, blocked_reason, started_at, completed_at, updated_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(remote_source_id) DO UPDATE SET
+    entry_url = excluded.entry_url,
+    paging_mode = excluded.paging_mode,
+    strategy = excluded.strategy,
+    status = excluded.status,
+    control_epoch = excluded.control_epoch,
+    start_url = excluded.start_url,
+    cursor_url = excluded.cursor_url,
+    last_page_url = excluded.last_page_url,
+    last_page_fingerprint = excluded.last_page_fingerprint,
+    imported_count = excluded.imported_count,
+    target_count = excluded.target_count,
+    pages_read = excluded.pages_read,
+    requests = excluded.requests,
+    last_error = excluded.last_error,
+    blocked_reason = excluded.blocked_reason,
+    started_at = excluded.started_at,
+    completed_at = excluded.completed_at,
+    updated_at = excluded.updated_at;
+
+-- Progress of the run that still owns the walk; a newer control epoch wins and this update does nothing.
+updateRemoteFeedHistoryStateIfEpoch:
+UPDATE remote_feed_history_state SET
+    entry_url = ?,
+    paging_mode = ?,
+    strategy = ?,
+    status = ?,
+    start_url = ?,
+    cursor_url = ?,
+    last_page_url = ?,
+    last_page_fingerprint = ?,
+    imported_count = ?,
+    target_count = ?,
+    pages_read = ?,
+    requests = ?,
+    last_error = ?,
+    blocked_reason = ?,
+    started_at = ?,
+    completed_at = ?,
+    updated_at = ?
+WHERE remote_source_id = ? AND control_epoch = ?;
+
+deleteRemoteFeedHistoryState:
+DELETE FROM remote_feed_history_state WHERE remote_source_id = ?;
 
 -- External Favorite Source queries
 selectExternalFavoriteSources:

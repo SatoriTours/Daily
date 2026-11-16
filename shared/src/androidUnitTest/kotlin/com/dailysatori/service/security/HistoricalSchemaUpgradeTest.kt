@@ -474,6 +474,15 @@ class HistoricalSchemaUpgradeTest {
             version == 49L -> RemoteFeedStateMigration.createLegacyV49(driver)
             version >= 50 -> RemoteFeedStateMigration.migrate(driver)
         }
+        if (version >= 51) {
+            driver.execute(
+                null,
+                "ALTER TABLE remote_news_source ADD COLUMN history_policy TEXT NOT NULL DEFAULT 'none'",
+                0,
+            )
+            RemoteFeedHistoryStateMigration.create(driver)
+        }
+        if (version >= 52) RemoteFeedHistoryStateMigration.addControlEpoch(driver)
         settings(driver).upsert(SettingKeys.schemaVersion, version.toString())
         DatabaseSchemaInventory.validate(driver, version)
     }

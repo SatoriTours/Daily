@@ -252,7 +252,13 @@ val sharedModule: Module = module {
     single { RemoteArticleFavoriteService(get(), get()) }
     single { RemoteArticleSyncService(get(), get()) }
     single { com.dailysatori.data.repository.RemoteFeedSyncStateRepository(get()) }
-    single { RemoteFeedSourceSyncService(get(), get(), get()) }
+    single { com.dailysatori.data.repository.RemoteFeedHistoryRepository(get()) }
+    single {
+        com.dailysatori.service.remotenews.RemoteFeedHistoryImportService(
+            get(), get(), get(), get(),
+        )
+    }
+    single { RemoteFeedSourceSyncService(get(), get(), get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }

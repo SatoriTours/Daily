@@ -48,7 +48,8 @@ class RemoteArticleSyncTaskSourceTest {
 
         val appModule = File("src/main/kotlin/com/dailysatori/core/di/AppModule.kt").readText()
         assertTrue(appModule.contains("single { com.dailysatori.core.task.RemoteArticleSyncCoordinator() }"))
-        assertTrue(appModule.contains("single { RemoteArticleSyncTaskHandler(get(), get(), get(), get(), get()) }"))
+        assertTrue(appModule.contains("RemoteArticleSyncTaskHandler("), "the handler stays wired into Koin")
+        assertTrue(appModule.contains("AsyncTaskScheduler(androidContext())::enqueue"), "history rounds are chained through WorkManager")
         assertTrue(appModule.contains("get<RemoteArticleSyncTaskHandler>()"))
     }
 
@@ -71,7 +72,8 @@ class RemoteArticleSyncTaskSourceTest {
 
         assertTrue(handler.contains("val sourceId: Long? = null"))
         assertTrue(handler.contains("payload.sourceId?.let"))
-        assertTrue(viewModel.contains("remoteArticleSyncTaskPayloadJson(mode = \"manual_source\", sourceId = sourceId)"))
+        assertTrue(viewModel.contains("RemoteArticleSyncTaskHandler.MODE_MANUAL_SOURCE"))
+        assertTrue(viewModel.contains("remoteArticleSyncTaskPayloadJson("))
         assertTrue(viewModel.contains("uniqueKey = \"remote_article_sync:source:${'$'}sourceId\""))
     }
 }

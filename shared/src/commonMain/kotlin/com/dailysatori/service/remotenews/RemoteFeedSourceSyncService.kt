@@ -77,6 +77,16 @@ data class RemoteFeedSyncOutcome(
     val requests: Int = 0,
     val stagedArticles: Int = 0,
     val message: String? = null,
+    /** State of the first-import history walk after this run. */
+    val historyStatus: RemoteFeedHistoryStatus = RemoteFeedHistoryStatus.OFF,
+    /** Another bounded history round can continue the same walk. */
+    val historyPending: Boolean = false,
+    val historyImported: Int = 0,
+    val historyMessage: String? = null,
+    /** The history round failed on something that may heal later; the task may retry it. */
+    val historyTransient: Boolean = false,
+    /** The history round failed (never "completed"); the reason is in [historyMessage]. */
+    val historyFailed: Boolean = false,
 )
 
 /**
@@ -92,6 +102,8 @@ class RemoteFeedSourceSyncService(
     private val stateRepo: RemoteFeedSyncStateRepository,
     private val articleSync: RemoteArticleSyncService,
     private val remoteNews: RemoteNewsService,
+    /** First-import history; null keeps the plain incremental behaviour used by isolated tests. */
+    private val historyImport: RemoteFeedHistoryImportService? = null,
 ) {
     suspend fun sync(
         remoteSourceId: Long,
@@ -101,10 +113,16 @@ class RemoteFeedSourceSyncService(
         now: Long,
         budget: RemoteFeedSyncBudget = RemoteFeedSyncBudget(),
         onArticleProgress: (suspend (RemoteArticleSyncProgress) -> Unit)? = null,
+        /** First-import policy of this subscription; null when the source keeps its current articles. */
+        historyPolicy: RemoteFeedHistoryStrategy? = null,
+        historyBudget: RemoteFeedHistoryBudget = RemoteFeedHistoryBudget(),
     ): RemoteFeedSyncOutcome = RemoteFeedRun(
         stateRepo = stateRepo,
         articleSync = articleSync,
         remoteNews = remoteNews,
+        historyImport = historyImport,
+        historyPolicy = historyPolicy,
+        historyBudget = historyBudget,
         remoteSourceId = remoteSourceId,
         entryUrl = entryUrl.trim(),
         config = config,
@@ -127,6 +145,9 @@ private class RemoteFeedRun(
     private val stateRepo: RemoteFeedSyncStateRepository,
     private val articleSync: RemoteArticleSyncService,
     private val remoteNews: RemoteNewsService,
+    private val historyImport: RemoteFeedHistoryImportService?,
+    private val historyPolicy: RemoteFeedHistoryStrategy?,
+    private val historyBudget: RemoteFeedHistoryBudget,
     private val remoteSourceId: Long,
     private val entryUrl: String,
     private val config: RemoteNewsConfigValues,
@@ -144,8 +165,44 @@ private class RemoteFeedRun(
     private var transient = false
     private val failures = mutableListOf<String>()
     private var entryPage: RemoteFeedPage? = null
+    private var entryMode: RemoteFeedPagingMode? = null
+    private var entryOlderUrl: String? = null
+    private var entryImported = 0
 
+    /**
+     * One run: the newest document and the incremental catch-up first, then the independent first-import
+     * history walk. History never blocks or rewrites the incremental state, and its own per-round budget
+     * decides how far it gets; the next run continues from the stored cursor.
+     */
     suspend fun sync(): RemoteFeedSyncOutcome {
+        val base = incremental()
+        if (!base.entryRead) return base
+        val history = historyImport ?: return base
+        val mode = entryMode ?: return base
+        val walked = history.advance(
+            remoteSourceId = remoteSourceId,
+            entryUrl = entryUrl,
+            config = config,
+            mode = mode,
+            entryOlderUrl = entryOlderUrl,
+            autoStrategy = historyPolicy,
+            entryImported = entryImported,
+            now = now,
+            budget = historyBudget,
+            onArticleProgress = onArticleProgress,
+        )
+        return base.copy(
+            inserted = base.inserted + walked.imported,
+            historyStatus = walked.status,
+            historyPending = walked.pending,
+            historyImported = walked.imported,
+            historyMessage = walked.message,
+            historyTransient = walked.transient,
+            historyFailed = walked.failed,
+        )
+    }
+
+    private suspend fun incremental(): RemoteFeedSyncOutcome {
         loadState()
         val entry = read(entryUrl)
         if (entry is FeedRead.Exhausted) return outcome(entryRead = false, message = "本轮请求或时间预算已用尽")
@@ -155,15 +212,30 @@ private class RemoteFeedRun(
         }
         val page = (entry as FeedRead.Page).page
         entryPage = page
-        if (!store(page.articles)) return outcome(entryRead = true, message = "入口文档有文章未能保存")
         val mode = remoteFeedPagingMode(page)
         val entryOlder = remoteFeedFollowableUrl(remoteFeedOlderDocumentUrl(page, mode), entryUrl)
+        entryMode = mode
+        entryOlderUrl = entryOlder
+        // Entries below the confirmed checkpoint are never stored again: they are either already part of
+        // the confirmed region or older content the chosen first-import range deliberately left out.
+        val entryBoundary = remoteFeedOverlap(state.checkpointIds, page.articles.map { it.id })?.runStart
+        val entryAboveCheckpoint = if (entryBoundary != null) page.articles.take(entryBoundary) else page.articles
+        // The chosen first-import range also caps the entry document itself; a resumed walk never
+        // re-truncates new entries, because the baseline is already stored by then.
+        val entryArticles = if (historyPolicy != null && !state.baselineReady) {
+            historyPolicy.targetCount?.let(entryAboveCheckpoint::take) ?: entryAboveCheckpoint
+        } else {
+            entryAboveCheckpoint
+        }
+        val insertedBeforeEntry = inserted
+        if (!store(entryArticles)) return outcome(entryRead = true, message = "入口文档有文章未能保存")
+        entryImported = inserted - insertedBeforeEntry
         if (mode == RemoteFeedPagingMode.PLAIN) {
             discardGeneration()
             state = state.copy(
                 mode = mode,
-                baselineReady = page.articles.isNotEmpty(),
-                checkpointIds = checkpointOf(page),
+                baselineReady = entryArticles.isNotEmpty(),
+                checkpointIds = checkpointOf(entryArticles),
                 targetEntryIds = emptyList(),
                 confirmedAnchorUrl = null,
                 confirmedAt = now,
@@ -177,8 +249,8 @@ private class RemoteFeedRun(
             discardGeneration()
             state = state.copy(
                 mode = mode,
-                baselineReady = page.articles.isNotEmpty(),
-                checkpointIds = checkpointOf(page),
+                baselineReady = entryArticles.isNotEmpty(),
+                checkpointIds = checkpointOf(entryArticles),
                 targetEntryIds = emptyList(),
                 confirmedAnchorUrl = entryOlder,
                 confirmedAt = now,
@@ -190,8 +262,8 @@ private class RemoteFeedRun(
             // The first readable entry document is the start point: nothing older is imported.
             discardGeneration()
             state = state.copy(
-                baselineReady = page.articles.isNotEmpty(),
-                checkpointIds = checkpointOf(page),
+                baselineReady = entryArticles.isNotEmpty(),
+                checkpointIds = checkpointOf(entryArticles),
                 targetEntryIds = emptyList(),
                 confirmedAnchorUrl = entryOlder,
                 confirmedAt = now,
@@ -405,12 +477,17 @@ private class RemoteFeedRun(
 
     private fun stage(pageUrl: String, articles: List<RemoteArticle>) {
         if (articles.isEmpty()) return
+        // Entries that already reached the article store need no candidate row: promoting them again would
+        // only rewrite the confirmed article and could move it into the current news window.
+        val known = stateRepo.knownRemoteArticleIds(remoteSourceId, articles.map { it.id })
+        val fresh = articles.filterNot { it.id in known }
+        if (fresh.isEmpty()) return
         stateRepo.stageArticles(
             remoteSourceId = remoteSourceId,
             generation = state.generation,
             pageUrl = pageUrl,
             sequenceBase = state.scanPages * 1_000_000,
-            articles = articles,
+            articles = fresh,
             now = now,
         )
     }
@@ -507,8 +584,10 @@ private class RemoteFeedRun(
         }
     }
 
-    private fun checkpointOf(page: RemoteFeedPage): List<Long> =
-        page.articles.takeLast(budget.checkpointSize).map { it.id }
+    private fun checkpointOf(page: RemoteFeedPage): List<Long> = checkpointOf(page.articles)
+
+    private fun checkpointOf(articles: List<RemoteArticle>): List<Long> =
+        articles.takeLast(budget.checkpointSize).map { it.id }
 
     private fun fingerprint(page: RemoteFeedPage): String {
         val ids = page.articles.joinToString(",") { it.id.toString() }

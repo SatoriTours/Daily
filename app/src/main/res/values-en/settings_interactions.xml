@@ -15,8 +15,9 @@
     <string name="settings_token_reset_done">Token reset</string>
     <string name="settings_cancel">Cancel</string>
     <string name="settings_saved">Saved</string>
-    <string name="settings_delete_source_title">Delete news source?</string>
-    <string name="settings_delete_source_message">Delete “%1$s”? This source will no longer sync.</string>
+    <string name="settings_delete_source_title">Delete subscription?</string>
+    <string name="settings_delete_subscription">Delete subscription</string>
+    <string name="settings_delete_source_message">Delete “%1$s” and its sync records? This source will stop syncing. Downloaded article data is kept.</string>
     <string name="settings_delete">Delete</string>
     <string name="settings_immediate_changes">Changes are saved automatically.</string>
 </resources>

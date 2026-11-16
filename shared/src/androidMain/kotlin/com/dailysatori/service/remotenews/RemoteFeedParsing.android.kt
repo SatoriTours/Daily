@@ -42,6 +42,7 @@ internal actual fun parseRemoteFeedDocument(body: String, feedUrl: String): Remo
     val documentBase = feedUrl.ifBlank { "" }
     return RemoteFeedDocument(
         entries = entryElements.mapNotNull(::feedEntry),
+        title = head.children().firstOrNull { it.normalName() == "title" }?.text()?.trim()?.takeIf(String::isNotEmpty),
         links = feedHeadLinks(head, isAtom, documentBase),
         isArchive = head.children().any { isHistoryElement(it, "archive") },
         isComplete = head.children().any { isHistoryElement(it, "complete") },

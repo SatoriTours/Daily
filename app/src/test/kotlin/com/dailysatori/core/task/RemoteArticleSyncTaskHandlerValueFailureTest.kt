@@ -91,16 +91,24 @@ class RemoteArticleSyncTaskHandlerValueFailureTest {
                     coordinator = RemoteArticleSyncCoordinator(),
                 )
                 val tasks = AsyncTaskRepository(db)
-                val payload = """{"mode":"manual_source","sourceId":1}"""
+                // A scheduled window may reuse a just-fetched source inside the short window.
+                val payload = """{"mode":"due","sourceId":1}"""
                 val first = tasks.enqueue("remote_article_sync", payload, uniqueKey = "ln:source:1:a")
                 tasks.claimForRun(first, "owner-a", Long.MAX_VALUE)
-                assertEquals(AsyncTaskExecutionResult.Success("""{"inserted":0,"updated":0,"skipped":0,"failureCount":0,"pendingCatchUp":false,"gap":false}"""),
+                assertEquals(AsyncTaskExecutionResult.Success("""{"inserted":0,"updated":0,"skipped":0,"failureCount":0,"pendingCatchUp":false,"gap":false,"historyPending":false}"""),
                     handler.execute(first, payload, "", reporter))
 
                 val second = tasks.enqueue("remote_article_sync", payload, uniqueKey = "ln:source:1:b")
                 tasks.claimForRun(second, "owner-b", Long.MAX_VALUE)
                 assertIs<AsyncTaskExecutionResult.Success>(handler.execute(second, payload, "", reporter))
                 assertEquals(1, requests, "a real success is merged inside the reuse window")
+
+                // A user command is never merged: it must really run so a pause/resume intent is honoured.
+                val manualPayload = remoteArticleSyncTaskPayloadJson("manual_source", 1)
+                val manual = tasks.enqueue("remote_article_sync", manualPayload, uniqueKey = "ln:source:1:c")
+                tasks.claimForRun(manual, "owner-c", Long.MAX_VALUE)
+                assertIs<AsyncTaskExecutionResult.Success>(handler.execute(manual, manualPayload, "", reporter))
+                assertEquals(2, requests, "a user command always owns its fetch")
             }
         }
     }

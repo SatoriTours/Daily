@@ -38,6 +38,34 @@ class UnifiedNewsSourceSwipeTest {
     }
 
     @Test
+    fun renamingASourceKeepsTheTabSelectedByIdentity() {
+        val renamedOptions = listOf(UnifiedNewsRemoteSourceOption(1, "我的订阅"))
+        val renamed = state.copy(
+            remoteSources = renamedOptions,
+            sourceSelection = UnifiedNewsSourceSelection.RemoteSource(1, "来源").withUpdatedRemoteSourceName(renamedOptions),
+        )
+        val pages = unifiedNewsSourcePages(renamed)
+        assertEquals(UnifiedNewsSourceSelection.RemoteSource(1, "我的订阅"), renamed.sourceSelection)
+        assertEquals(2, unifiedNewsSourcePageIndex(pages, renamed.sourceSelection))
+        assertEquals(2, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "来源")))
+        assertEquals("news-remote-1", unifiedNewsSourcePageKey(pages[2]))
+        assertEquals(
+            UnifiedNewsSourceSelection.RemoteSource(9, "其它"),
+            UnifiedNewsSourceSelection.RemoteSource(9, "其它").withUpdatedRemoteSourceName(renamedOptions),
+        )
+    }
+
+    @Test
+    fun homeTabsFollowRenamedSourcesWithoutChangingTheirId() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val switcher = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSourceSwitcher.kt").readText()
+        assertTrue(viewModel.contains("remoteNewsSourceRepo.observeAll()"))
+        assertTrue(viewModel.contains("withUpdatedRemoteSourceName(options)"))
+        assertTrue(switcher.contains("label = { Text(source.name) }"))
+        assertTrue(switcher.contains("?.id == source.id"))
+    }
+
+    @Test
     fun emptySourcesStillAllowSwitchingBetweenSummaryAndLocal() {
         assertEquals(listOf(UnifiedNewsSourceSelection.Summary, UnifiedNewsSourceSelection.Hotlists, UnifiedNewsSourceSelection.LocalArticles, UnifiedNewsSourceSelection.Favorites), unifiedNewsSourcePages(UnifiedNewsState()))
     }

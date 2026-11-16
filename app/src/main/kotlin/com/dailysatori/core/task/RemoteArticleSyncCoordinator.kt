@@ -59,11 +59,17 @@ class RemoteArticleSyncCoordinator(
     suspend fun <T> share(
         sourceId: Long,
         isSuccess: (T) -> Boolean = { true },
+        /**
+         * When false, a source that was just fetched successfully is still fetched by this call. Used by
+         * a bounded history round, which must observe its own progress instead of reading another run.
+         * A concurrently running owner is still awaited, so the source keeps exactly one writer.
+         */
+        reuseSuccessfulFetch: Boolean = true,
         fetch: suspend () -> T,
     ): NewsSourceFetchShare<T> {
         var takenOver = false
         while (true) {
-            val claim = lock.withLock { claimLocked(sourceId) }
+            val claim = lock.withLock { claimLocked(sourceId, reuseSuccessfulFetch) }
             when (claim) {
                 is Claim.Reuse -> return NewsSourceFetchShare.Merged
                 is Claim.Owner -> return runOwned(sourceId, claim.ticket, isSuccess, fetch)
@@ -116,10 +122,10 @@ class RemoteArticleSyncCoordinator(
         }
     }
 
-    private fun claimLocked(sourceId: Long): Claim {
+    private fun claimLocked(sourceId: Long, reuseSuccessfulFetch: Boolean): Claim {
         val slot = slots.getOrPut(sourceId) { Slot() }
         slot.running?.let { return Claim.Busy(it) }
-        if (slot.freshUntil > nowMs()) return Claim.Reuse
+        if (reuseSuccessfulFetch && slot.freshUntil > nowMs()) return Claim.Reuse
         val ticket = CompletableDeferred<OwnerOutcome>()
         slot.running = ticket
         return Claim.Owner(ticket)

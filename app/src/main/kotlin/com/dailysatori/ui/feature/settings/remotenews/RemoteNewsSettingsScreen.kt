@@ -1,34 +1,50 @@
 package com.dailysatori.ui.feature.settings.remotenews
 
 import com.dailysatori.ui.component.appbar.PageAction
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenuItem
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -44,7 +60,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import com.dailysatori.ui.component.settings.rememberSettingsEditorBack
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
-import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,10 +67,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.service.remotenews.RemoteFeedHistoryStatus
+import com.dailysatori.service.remotenews.RemoteFeedHistoryStrategy
 import com.dailysatori.shared.db.Remote_news_source
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
@@ -130,9 +151,13 @@ private fun RemoteNewsSourceListPage(
                         source = source,
                         syncedCountText = remoteNewsSourceSyncedCountText(source, state),
                         syncWork = state.syncWorkBySourceId[source.id],
+                        historyUi = state.historyBySourceId[source.id],
                         onClick = { viewModel.openEdit(source) },
                         onSync = { viewModel.syncSource(source.id) },
                         onCancelSync = { viewModel.cancelSync(source.id) },
+                        onStartHistory = { viewModel.startHistory(source.id) },
+                        onPauseHistory = { viewModel.pauseHistory(source.id) },
+                        onResumeHistory = { viewModel.resumeHistory(source.id) },
                     )
                 }
             }
@@ -239,9 +264,13 @@ private fun RemoteNewsSourceRow(
     source: Remote_news_source,
     syncedCountText: String,
     syncWork: RemoteNewsSyncWorkUi?,
+    historyUi: RemoteNewsHistoryUi?,
     onClick: () -> Unit,
     onSync: () -> Unit,
     onCancelSync: () -> Unit,
+    onStartHistory: () -> Unit,
+    onPauseHistory: () -> Unit,
+    onResumeHistory: () -> Unit,
 ) {
     val syncing = syncWork?.active == true
     Card(
@@ -274,10 +303,22 @@ private fun RemoteNewsSourceRow(
                 }
                 RemoteNewsStatusPill(source = source, syncWork = syncWork)
             }
+            if (historyUi != null && historyUi.status != RemoteFeedHistoryStatus.OFF) {
+                RemoteNewsHistoryLine(historyUi)
+            }
+            remoteNewsHistoryErrorText(historyUi)?.let { reason ->
+                Text(
+                    reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             if (syncing) {
                 RemoteNewsSyncProgressBox(syncWork)
             }
-            RemoteNewsSourceDetails(source = source, syncedCountText = syncedCountText, syncWork = syncWork)
+            if (syncWork?.active != true) {
+                RemoteNewsSourceDetails(source = source, syncedCountText = syncedCountText)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 Button(
                     onClick = if (syncing) onCancelSync else onSync,
@@ -294,6 +335,24 @@ private fun RemoteNewsSourceRow(
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Text(remoteNewsSyncActionLabel(syncWork))
+                }
+                val historyAction = remoteNewsHistoryAction(historyUi, source.enabled == 1L)
+                if (historyAction != RemoteNewsHistoryAction.NONE) {
+                    // Compact intrinsic width: a narrow screen must never break the label into two lines.
+                    OutlinedButton(
+                        onClick = when (historyAction) {
+                            RemoteNewsHistoryAction.PAUSE -> onPauseHistory
+                            RemoteNewsHistoryAction.RESUME -> onResumeHistory
+                            else -> onStartHistory
+                        },
+                        contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
+                    ) {
+                        Text(
+                            remoteNewsHistoryActionLabel(historyAction, historyUi),
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
             }
         }
@@ -335,6 +394,7 @@ private fun RemoteNewsStatusPill(source: Remote_news_source, syncWork: RemoteNew
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RemoteNewsSyncProgressBox(work: RemoteNewsSyncWorkUi) {
     Surface(
@@ -343,39 +403,44 @@ private fun RemoteNewsSyncProgressBox(work: RemoteNewsSyncWorkUi) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    remoteNewsSyncProgressTitle(work),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+            // A long stage message owns its own line; it must never compete with the short progress count.
+            Text(
+                remoteNewsSyncProgressTitle(work),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LinearProgressIndicator(
+                    progress = { remoteNewsSyncProgressFraction(work) },
+                    modifier = Modifier.weight(1f),
                 )
                 Text(
                     remoteNewsSyncProgressText(work),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
-            LinearProgressIndicator(
-                progress = { remoteNewsSyncProgressFraction(work) },
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {
+                horizontalArrangement = Arrangement.spacedBy(Spacing.l),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
                 remoteNewsProgressMetrics(work).forEach { metric ->
-                    Surface(
-                        shape = RoundedCornerShape(Radius.s),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Column(modifier = Modifier.padding(Spacing.s)) {
-                            Text(metric.value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                metric.label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                    Column(horizontalAlignment = Alignment.Start) {
+                        Text(metric.value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            metric.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -383,16 +448,54 @@ private fun RemoteNewsSyncProgressBox(work: RemoteNewsSyncWorkUi) {
     }
 }
 
+/** One compact line: walk state, imported count and page count; never an unknown-total percentage. */
 @Composable
-private fun RemoteNewsSourceDetails(source: Remote_news_source, syncedCountText: String, syncWork: RemoteNewsSyncWorkUi?) {
-    val lines = if (syncWork?.active == true) {
-        remoteNewsRunningDetailLines(syncWork).map { it.label to it.value }
-    } else {
-        listOf(
-            "同步状态" to if (source.enabled == 1L) "已启用" else "已停用",
-            "同步记录" to syncedCountText,
-        )
+private fun RemoteNewsHistoryLine(ui: RemoteNewsHistoryUi) {
+    val hasError = remoteNewsHistoryErrorText(ui) != null
+    val color = when {
+        hasError || ui.status == RemoteFeedHistoryStatus.BLOCKED -> MaterialTheme.colorScheme.error
+        ui.status.open -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val progress = remoteNewsHistoryProgressText(ui)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(RoundedCornerShape(Radius.circular))
+                .background(color),
+        )
+        Text(
+            remoteNewsHistoryStatusText(ui),
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            maxLines = 1,
+        )
+        if (progress.isNotBlank()) {
+            Text(
+                progress,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemoteNewsSourceDetails(source: Remote_news_source, syncedCountText: String) {
+    // While a sync runs, the progress card already carries the stage and source progress; this card stays idle-only.
+    val lines = listOf(
+        "同步状态" to if (source.enabled == 1L) "已启用" else "已停用",
+        "同步记录" to syncedCountText,
+        "首次导入范围" to remoteNewsSourceHistoryRangeText(source),
+    )
     Surface(
         shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
@@ -439,6 +542,7 @@ private fun RemoteNewsSourceEditorPage(
     viewModel: RemoteNewsSettingsViewModel,
 ) {
     val requestBack = rememberSettingsEditorBack(state.hasChanges, state.busy, viewModel::closeEditor)
+    val urlFocusRequester = remember { FocusRequester() }
     var confirmDelete by rememberSaveable(state.editingId) { mutableStateOf(false) }
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
@@ -457,6 +561,31 @@ private fun RemoteNewsSourceEditorPage(
     AppScaffold(
         title = if (state.editingId == null) "新增远程新闻" else "编辑远程新闻",
         onBack = requestBack,
+        pageActions = if (state.editingId == null) emptyList() else listOf(
+            PageAction(
+                label = "更多",
+                icon = Icons.Default.MoreVert,
+                enabled = !state.busy,
+                menuContent = { dismiss ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.settings_delete_subscription)) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            dismiss()
+                            confirmDelete = true
+                        },
+                        enabled = !state.busy,
+                    )
+                },
+                onClick = {},
+            ),
+        ),
         bottomBar = {
             SettingsEditorBottomBar(
                 canTest = !state.busy && state.baseUrl.isNotBlank(),
@@ -471,11 +600,20 @@ private fun RemoteNewsSourceEditorPage(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(Spacing.m)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
-            RemoteNewsSourceHelperCard()
+            RemoteNewsSourceHint()
+            OutlinedTextField(
+                value = state.name,
+                onValueChange = viewModel::updateName,
+                label = { Text("名称（可选）") },
+                enabled = !state.busy,
+                singleLine = true,
+                supportingText = { Text("留空时使用订阅频道标题") },
+                modifier = Modifier.fillMaxWidth(),
+            )
             OutlinedTextField(
                 value = state.baseUrl,
                 onValueChange = viewModel::updateBaseUrl,
@@ -483,48 +621,110 @@ private fun RemoteNewsSourceEditorPage(
                 enabled = !state.busy,
                 placeholder = { Text("https://example.com/feed.xml?token=…") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                trailingIcon = {
+                    if (state.baseUrl.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                viewModel.updateBaseUrl("")
+                                // Keep the field focused so the keyboard stays available for retyping.
+                                urlFocusRequester.requestFocus()
+                            },
+                            enabled = !state.busy,
+                        ) {
+                            Icon(Icons.Default.Clear, contentDescription = "清空地址")
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().focusRequester(urlFocusRequester),
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("启用", style = MaterialTheme.typography.bodyMedium)
                 Switch(checked = state.enabled, onCheckedChange = viewModel::updateEnabled, enabled = !state.busy)
             }
+            RemoteNewsHistoryRangePicker(state = state, viewModel = viewModel)
             state.message?.let { message ->
-                SettingsEditorMessage(message, state.isError)
+                RemoteNewsTestResult(message = message, isError = state.isError)
             }
-            if (state.editingId != null) {
-                TextButton(onClick = { confirmDelete = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.settings_delete), color = MaterialTheme.colorScheme.error)
-                }
-            }
+            Spacer(Modifier.height(Spacing.m))
         }
     }
 }
 
 @Composable
-private fun RemoteNewsSourceHelperCard() {
-    Surface(
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+private fun RemoteNewsSourceHint() {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        verticalAlignment = Alignment.Top,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text("填写 RSS 订阅地址", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text(
-                    "完整 URL 就是订阅地址，Token 等参数直接写在 URL 里即可。测试连接会读取最新文章。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+        Icon(
+            Icons.Default.Info,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            "填写完整 RSS 地址，Token 参数直接写在 URL 里。测试只读取，不会保存。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** First-import range of a new subscription; an edit never restarts the history walk. */
+@Composable
+private fun RemoteNewsHistoryRangePicker(state: RemoteNewsSettingsState, viewModel: RemoteNewsSettingsViewModel) {
+    if (state.editingId != null) {
+        Text(
+            "历史补全请在来源列表中使用“补全历史”，编辑来源不会重新抓取历史。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Text("首次导入范围", style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+            RemoteFeedHistoryStrategy.entries.forEach { strategy ->
+                FilterChip(
+                    selected = state.historyStrategy == strategy,
+                    onClick = { viewModel.updateHistoryStrategy(strategy) },
+                    enabled = !state.busy,
+                    label = { Text(remoteNewsHistoryRangeText(strategy)) },
                 )
             }
         }
+        Text(
+            "只影响首次导入；之后新增的文章会持续累计，不受此范围限制。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun RemoteNewsTestResult(message: String, isError: Boolean) {
+    val color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            if (isError) Icons.Default.ErrorOutline else Icons.Default.CheckCircle,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+        )
     }
 }

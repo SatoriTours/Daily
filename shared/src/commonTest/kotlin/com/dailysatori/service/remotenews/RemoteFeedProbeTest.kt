@@ -30,7 +30,8 @@ class RemoteFeedProbeTest {
         assertEquals(1, result.value.pagesChecked)
         assertTrue(result.value.hasBody)
         assertTrue(result.value.message.contains("连接成功，获取到 1 篇文章"))
-        assertTrue(result.value.message.contains("普通订阅模式：每次同步当前 URL"), result.value.message)
+        assertTrue(result.value.message.contains("未检测到翻页信息：每次同步当前 URL"), result.value.message)
+        assertEquals("示例", result.value.feedTitle)
     }
 
     @Test
@@ -64,7 +65,7 @@ class RemoteFeedProbeTest {
         assertEquals("paged", result.value.mode)
         assertEquals(3, result.value.pagesChecked)
         assertTrue(result.value.message.contains("已验证 2 个分页"), result.value.message)
-        assertTrue(result.value.message.contains("支持标准分页同步"), result.value.message)
+        assertTrue(result.value.message.contains("支持翻页同步"), result.value.message)
         assertTrue(result.value.message.contains("仅验证少量页面，不保证全部历史或全文完整"), result.value.message)
     }
 
@@ -88,6 +89,7 @@ class RemoteFeedProbeTest {
         assertTrue(result is RemoteNewsResult.Success)
         assertEquals("plain", result.value.mode)
         assertTrue(result.value.message.contains("后续页读取失败"), result.value.message)
+        assertTrue(result.value.message.contains("无法确认是否支持翻页"), result.value.message)
     }
 
     @Test
@@ -113,7 +115,47 @@ class RemoteFeedProbeTest {
         assertEquals(2, requested.size)
         assertEquals("Bearer token", requested.first().second)
         assertNull(requested.last().second, "a declared cross-site document never receives the token")
-        assertTrue(result.value.message.contains("支持标准分页同步"), result.value.message)
+        assertTrue(result.value.message.contains("支持翻页同步"), result.value.message)
+    }
+
+    @Test
+    fun entryDocumentTitleNeedsOneRequestEvenForAPagedFeed() = runBlocking {
+        var requests = 0
+        val service = RemoteNewsService(HttpClient(MockEngine {
+            requests++
+            respond(
+                rss(
+                    """<item><title>一</title><link>https://feed.test/1</link></item>""",
+                    """<atom:link rel="next" href="page2.rss"/>""",
+                    atomNamespace = true,
+                ),
+            )
+        }))
+
+        val page = service.fetchFeedPage(RemoteNewsConfigValues(ENTRY, ""), ENTRY)
+
+        assertTrue(page is RemoteNewsResult.Success)
+        assertEquals("示例", page.value.title)
+        assertEquals(1, requests)
+    }
+
+    @Test
+    fun authenticationFailureExplainsTheStatusWithoutEchoingTheAddressOrToken() = runBlocking {
+        val service = RemoteNewsService(HttpClient(MockEngine {
+            respond(
+                """{"error":"unauthorized https://feed.test/rss?token=secret-token"}""",
+                HttpStatusCode.Unauthorized,
+                headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }))
+
+        val result = service.probeSourceFeed(RemoteNewsConfigValues("https://feed.test/rss?token=secret-token", "secret-token"))
+
+        assertTrue(result is RemoteNewsResult.Failure)
+        assertTrue(result.message.contains("HTTP 401"), result.message)
+        assertTrue(result.message.contains("认证失败"), result.message)
+        assertFalse(result.message.contains("secret-token"), result.message)
+        assertFalse(result.message.contains("feed.test"), result.message)
     }
 
     @Test
