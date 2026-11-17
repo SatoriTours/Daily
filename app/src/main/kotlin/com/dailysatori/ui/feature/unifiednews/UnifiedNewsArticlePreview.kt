@@ -2,50 +2,14 @@ package com.dailysatori.ui.feature.unifiednews
 
 import com.dailysatori.service.hotnews.HotNewsItem
 import com.dailysatori.shared.db.Unified_news_source
-import com.dailysatori.shared.db.Unified_news_summary
 
-internal data class DailyHeadlineStory(
-    val title: String,
-    val description: String?,
-    val source: Unified_news_source?,
-)
-
-internal fun dailyHeadlineStories(
-    summary: Unified_news_summary,
-    sources: List<Unified_news_source>,
-    articleSummariesBySource: Map<Long, String> = emptyMap(),
-    query: String = "",
-): List<DailyHeadlineStory> {
-    val ownSources = sources.filter { it.summary_id == summary.id }
-    val stories = unifiedNewsBriefingContent(summary.content).points.map { point ->
-        dailyHeadlineStory(point.text, ownSources.firstOrNull { it.ref_key == point.citation }, articleSummariesBySource)
-    }
-    val keyword = query.trim()
-    if (keyword.isBlank()) return stories.take(3)
-    val sourceResults = ownSources.map { dailyHeadlineStory(it.title, it, articleSummariesBySource) }
-    return (stories + sourceResults).filter { story ->
-        listOf(story.title, story.description, story.source?.title, story.source?.summary,
-            story.source?.ref_key, story.source?.source_filename).any { it?.contains(keyword, ignoreCase = true) == true }
-    }.distinctBy { it.source?.id?.toString() ?: it.title }
-}
-
-private fun dailyHeadlineStory(
-    title: String,
-    source: Unified_news_source?,
-    articleSummariesBySource: Map<Long, String>,
-): DailyHeadlineStory {
-    val description = source?.let { unifiedNewsArticlePreview(it, "", emptyList(), articleSummariesBySource[it.id]) }
-        ?.takeIf { it.isNotBlank() && it != title }
-    return DailyHeadlineStory(title, description, source)
-}
-
-private val PreviewImageRegex = Regex("""!\[[^]]*]\([^)]*\)""")
-private val PreviewLinkRegex = Regex("""\[([^]]+)]\([^)]*\)""")
-private val PreviewCitationRegex = Regex("""\[([RCDFH]\d+)]""")
+internal val PreviewImageRegex = Regex("""!\[[^]]*]\([^)]*\)""")
+internal val PreviewLinkRegex = Regex("""\[([^]]+)]\([^)]*\)""")
+internal val PreviewCitationRegex = Regex("""\[([RCDFH]\d+)]""")
 private val PreviewListRegex = Regex("""^\s*(?:[-*+]|\d+[.)、])\s+""")
 private val PreviewWhitespaceRegex = Regex("""\s+""")
 private val PreviewFactsLabelRegex = Regex("""\*\*(?:新闻事实|核心内容)：\*\*\s*""")
-private val RepositoryNavigationMarkers = listOf("go to file", "open more actions menu", "latest commit", "folders and files")
+internal val RepositoryNavigationMarkers = listOf("go to file", "open more actions menu", "latest commit", "folders and files")
 
 internal fun unifiedNewsArticlePreview(
     source: Unified_news_source,

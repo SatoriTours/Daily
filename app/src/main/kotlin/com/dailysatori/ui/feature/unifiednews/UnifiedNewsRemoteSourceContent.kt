@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.unifiednews
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,6 +27,7 @@ import com.dailysatori.ui.component.news.NewsStateMessage
 import com.dailysatori.ui.component.news.NewsStatusBanner
 import com.dailysatori.ui.component.news.newsCompactListContentPadding
 import com.dailysatori.ui.feature.remotenews.RemoteArticleSummaryCard
+import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,7 +106,12 @@ private fun UnifiedNewsSourceArticleList(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newsCompactListContentPadding(),
+            contentPadding = PaddingValues(
+                start = Spacing.m,
+                end = Spacing.m,
+                top = Spacing.xs,
+                bottom = Height.navBar + Spacing.xxl,
+            ),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             if (sourceArticlesError != null) item(key = "source-article-error") {

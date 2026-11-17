@@ -43,7 +43,7 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
     LaunchedEffect(isActive) { if (isActive) viewModel.refreshHotNews() }
     LaunchedEffect(state.scrollToTopRequestKey) { if (state.scrollToTopRequestKey > 0) listState.animateScrollToItem(0) }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.l),
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         if (state.hotNewsBoards.isEmpty()) item { Text(i18n.t("news_sources.all_disabled")) }
         items(state.hotNewsBoards, key = { it.platform.key }) { board ->

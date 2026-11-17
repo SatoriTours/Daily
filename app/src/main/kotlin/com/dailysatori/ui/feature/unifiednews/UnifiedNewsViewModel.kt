@@ -59,6 +59,7 @@ enum class UnifiedNewsPage {
 
 sealed class UnifiedNewsSourceSelection {
     data object Summary : UnifiedNewsSourceSelection()
+    data object Opportunities : UnifiedNewsSourceSelection()
     data object Hotlists : UnifiedNewsSourceSelection()
     data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data class ExternalFavoriteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
@@ -119,6 +120,7 @@ data class UnifiedNewsState(
     val regeneratingSummaryDate: String? = null,
     val summaryRefreshCompletedToken: Int = 0,
     val localArticleRefreshRequestKey: Int = 0,
+    val opportunityRefreshRequestKey: Int = 0,
     val manualRefreshMessage: String? = null,
     val manualRefreshNotice: NewsManualRefreshNotice? = null,
     val error: String? = null,
@@ -235,6 +237,15 @@ class UnifiedNewsViewModel(
                     }
                 }
         }
+    }
+
+    fun clearOpportunityRefreshRequest() {
+        _state.update { it.copy(opportunityRefreshRequestKey = 0) }
+    }
+
+    fun selectOpportunitiesSource() {
+        invalidateSourceArticleRequest()
+        _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Opportunities, searchQuery = "") }
     }
 
     fun selectHotNewsSource() {
@@ -470,6 +481,9 @@ class UnifiedNewsViewModel(
         when (_state.value.sourceSelection) {
             UnifiedNewsSourceSelection.Hotlists -> refreshHotNews(force = true)
             UnifiedNewsSourceSelection.Summary -> regenerateCurrentWindow()
+            UnifiedNewsSourceSelection.Opportunities -> _state.update {
+                it.copy(opportunityRefreshRequestKey = it.opportunityRefreshRequestKey + 1)
+            }
             is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> incrementLocalArticleRefreshRequest()
             UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()

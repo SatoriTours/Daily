@@ -18,10 +18,11 @@ private val BriefingHeadingRegex = Regex("""^\s*#{1,6}\s+.+""")
 private val BriefingItalicAsteriskRegex = Regex("""\*(.*?)\*""")
 private val BriefingItalicUnderscoreRegex = Regex("""_(.*?)_""")
 
-fun unifiedNewsBriefingContent(content: String): UnifiedNewsBriefingContent {
+fun unifiedNewsBriefingContent(content: String, pointLimit: Int? = 5): UnifiedNewsBriefingContent {
     val coverLead = briefingDailyCoverLeadFrom(content)
     val displayed = displayUnifiedNewsMarkdown(content).withoutDailyCoverSection()
-    val points = displayed.lines().mapNotNull(::briefingPointFromLine).distinctBy { it.text }.take(5)
+    val points = displayed.lines().mapNotNull(::briefingPointFromLine).distinctBy { it.text }
+        .let { all -> pointLimit?.let(all::take) ?: all }
     return UnifiedNewsBriefingContent(
         title = "今日要闻",
         lead = coverLead ?: briefingLeadFrom(displayed),

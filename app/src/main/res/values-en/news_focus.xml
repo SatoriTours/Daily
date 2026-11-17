@@ -5,7 +5,15 @@
     <string name="news_focus_title">News</string>
     <string name="news_focus_search">Search news</string>
     <string name="news_focus_refresh">Refresh news</string>
-    <string name="news_focus_tab">Today</string>
+    <string name="news_focus_tab">Today’s headlines</string>
+    <string name="news_focus_opportunities_tab">My opportunities</string>
+    <string name="news_focus_overview">Today at a glance</string>
+    <string name="news_focus_view_source">View source</string>
+    <string name="news_cover_image">News cover image</string>
+    <string name="news_focus_opportunity_point">What the opportunity is</string>
+    <string name="news_focus_why_watch">Why it matters</string>
+    <string name="news_focus_news_basis">News evidence</string>
+    <string name="news_focus_opportunities_intro">Inferred from news and your focus</string>
     <string name="news_focus_read_briefing">Read full briefing</string>
     <string name="news_focus_key_points">Today’s key points</string>
     <string name="news_focus_reason">Why</string>

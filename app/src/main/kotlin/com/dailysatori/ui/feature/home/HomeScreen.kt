@@ -2,7 +2,9 @@ package com.dailysatori.ui.feature.home
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import com.dailysatori.service.diary.DiaryThought
 import kotlin.random.Random
 import androidx.compose.foundation.layout.Arrangement
@@ -34,9 +36,6 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -57,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import com.dailysatori.R
 import com.dailysatori.service.reminder.ReminderSummary
 import com.dailysatori.ui.feature.myspace.MySpaceScreen
@@ -98,7 +98,7 @@ val tabs = listOf(
     TabItem("我的", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
-private val HomeBottomBarHeight = Height.navBar
+private val HomeBottomBarHeight = 64.dp
 private val HomeBottomBarIconSize = IconSize.l
 private val HomeBottomBarHazeBlurRadius = 10.dp
 private const val HomeBottomBarGlassAlpha = 0.10f
@@ -279,7 +279,7 @@ private fun HomeGlassSurface(
     hazeState: HazeState,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(Radius.circular)
+    val shape = RoundedCornerShape(Radius.xl)
     Box(
         modifier = modifier.clip(shape).hazeEffect(
             state = hazeState,
@@ -319,43 +319,40 @@ private fun HomeTabNavigationBar(
     todayReminderCount: Int,
     modifier: Modifier = Modifier,
 ) {
-    NavigationBar(
-        modifier = modifier.height(HomeBottomBarHeight),
-        containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 0.dp,
-        windowInsets = WindowInsets(0, 0, 0, 0),
+    Row(
+        modifier = modifier.height(HomeBottomBarHeight).padding(horizontal = Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         tabs.forEachIndexed { index, tab ->
             val badgeCount = homeReminderBadgeCount(index, todayReminderCount)
-            NavigationBarItem(
-                icon = {
-                    BadgedBox(badge = {
-                        if (badgeCount > 0) Badge(containerColor = MaterialTheme.colorScheme.error) {
-                            Text(if (badgeCount > 99) "99+" else badgeCount.toString())
-                        }
-                    }) {
-                        Icon(
-                            if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                            contentDescription = when {
-                                badgeCount > 0 -> stringResource(R.string.diary_feed_reminder_badge, badgeCount)
-                                index == MY_TAB_INDEX -> stringResource(R.string.my_space_title)
-                                else -> tab.label
-                            },
-                            modifier = Modifier.size(HomeBottomBarIconSize),
-                        )
+            val selected = selectedIndex == index
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(vertical = Spacing.xs)
+                    .clip(RoundedCornerShape(Radius.card))
+                    .selectable(selected = selected, role = Role.Tab, onClick = { onTabSelected(index) })
+                    .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent),
+                contentAlignment = Alignment.Center,
+            ) {
+                BadgedBox(badge = {
+                    if (badgeCount > 0) Badge(containerColor = MaterialTheme.colorScheme.error) {
+                        Text(if (badgeCount > 99) "99+" else badgeCount.toString())
                     }
-                },
-                selected = selectedIndex == index,
-                onClick = { onTabSelected(index) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                ),
-            )
+                }) {
+                    Icon(
+                        if (selected) tab.selectedIcon else tab.unselectedIcon,
+                        contentDescription = when {
+                            badgeCount > 0 -> stringResource(R.string.diary_feed_reminder_badge, badgeCount)
+                            index == MY_TAB_INDEX -> stringResource(R.string.my_space_title)
+                            else -> tab.label
+                        },
+                        modifier = Modifier.size(HomeBottomBarIconSize),
+                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

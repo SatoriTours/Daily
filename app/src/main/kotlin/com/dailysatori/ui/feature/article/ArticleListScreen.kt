@@ -57,6 +57,7 @@ import com.dailysatori.ui.component.card.ArticleCard
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.input.SearchBar
+import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import androidx.compose.ui.unit.dp
@@ -76,6 +77,7 @@ fun ArticleListScreen(
     embeddedSearchQuery: String? = null,
     scrollToTopRequestKey: Int = 0,
     viewModelKey: String? = null,
+    reserveHomeBottomBar: Boolean = false,
 ) {
     val viewModel: ArticlesViewModel = koinViewModel(key = viewModelKey)
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -101,6 +103,7 @@ fun ArticleListScreen(
     ArticleListContent(
         state = state,
         listState = listState,
+        reserveHomeBottomBar = reserveHomeBottomBar,
         showTopBar = showTopBar,
         onBack = onBack,
         lockFavoritesFilter = lockFavoritesFilter,
@@ -196,6 +199,7 @@ private fun ArticleListEffects(
 private fun ArticleListContent(
     state: ArticlesState,
     listState: androidx.compose.foundation.lazy.LazyListState,
+    reserveHomeBottomBar: Boolean,
     showTopBar: Boolean,
     onBack: (() -> Unit)?,
     lockFavoritesFilter: Boolean,
@@ -225,7 +229,8 @@ private fun ArticleListContent(
             }
         }
         PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = onRefresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
-            ArticleListBody(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick)
+            ArticleListBody(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick,
+                reserveHomeBottomBar)
         }
     }
 }
@@ -238,6 +243,7 @@ private fun ArticleListBody(
     onFavoriteClick: (Long) -> Unit,
     onShareClick: (String?) -> Unit,
     onNewArticlesClick: () -> Unit,
+    reserveHomeBottomBar: Boolean,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -248,7 +254,8 @@ private fun ArticleListBody(
                 title = "暂无文章",
                 subtitle = "导入数据或保存链接来添加文章",
             )
-            else -> ArticleListItems(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick)
+            else -> ArticleListItems(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick,
+                reserveHomeBottomBar)
         }
     }
 }
@@ -261,11 +268,17 @@ private fun androidx.compose.foundation.layout.BoxScope.ArticleListItems(
     onFavoriteClick: (Long) -> Unit,
     onShareClick: (String?) -> Unit,
     onNewArticlesClick: () -> Unit,
+    reserveHomeBottomBar: Boolean,
 ) {
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(Spacing.m),
+        contentPadding = PaddingValues(
+            start = Spacing.m,
+            end = Spacing.m,
+            top = Spacing.m,
+            bottom = if (reserveHomeBottomBar) Height.navBar + Spacing.xxl else Spacing.m,
+        ),
         verticalArrangement = Arrangement.spacedBy(articleListItemSpacingDp.dp),
     ) {
         items(state.articles, key = { it.id }, contentType = { "article" }) { article ->

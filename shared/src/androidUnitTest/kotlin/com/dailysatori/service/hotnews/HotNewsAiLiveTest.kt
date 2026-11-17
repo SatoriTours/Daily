@@ -43,7 +43,7 @@ class HotNewsAiLiveTest {
             val content = sanitizeGeneratedUnifiedNewsContent(response, sources)
             assertTrue(citationTokens(content).any { it.startsWith("H") })
             val points = content.substringAfter("## 今日要点").substringBefore("\n## ").lines().filter { it.trim().startsWith("- ") }
-            assertTrue(points.size in 1..5, "汇总应最多包含五条重点")
+            assertTrue(points.isNotEmpty(), "汇总应包含值得关注的重点")
             assertTrue(points.all { hasValidCitationTokens(it, sources) && isChineseHotNewsText(it) })
         }
     }

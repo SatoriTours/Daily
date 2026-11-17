@@ -203,12 +203,14 @@ private fun UnifiedNewsMainPageRoute(
         UnifiedNewsPage.LOCAL_ARTICLES -> ArticleListScreen(
             onArticleClick = onArticleClick,
             onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
+            reserveHomeBottomBar = true,
         )
         UnifiedNewsPage.LOCAL_FAVORITES -> ArticleListScreen(
             onArticleClick = onArticleClick,
             onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
             showFavoritesOnly = true,
             lockFavoritesFilter = true,
+            reserveHomeBottomBar = true,
         )
         UnifiedNewsPage.SETTINGS -> SettingsScreen(settingsViewModel, onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) })
     }
@@ -285,7 +287,12 @@ private fun UnifiedNewsSummaryPage(
                 val pageKey = unifiedNewsSourcePageKey(selection)
                 val pageState = unifiedNewsSourcePageState(state, selection, scrollRequests[pageKey] ?: 0, refreshRequests[pageKey] ?: 0)
                 when (selection) {
-                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(pageState, viewModel, onBriefing, onOpportunities, onOpportunity, onTopic)
+                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsHeadlinesContent(pageState, viewModel, onBriefing)
+                    UnifiedNewsSourceSelection.Opportunities -> UnifiedNewsOpportunitiesContent(
+                        pageState, onOpportunities, onOpportunity, onTopic,
+                        onArticleClick = onArticleClick,
+                        onRefreshConsumed = viewModel::clearOpportunityRefreshRequest,
+                    )
                     UnifiedNewsSourceSelection.Hotlists -> HotNewsContent(pageState, viewModel, isActive = pageKey == selectedKey)
                     is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(pageState, selection, viewModel, isActive = pageKey == selectedKey)
                     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
@@ -296,6 +303,7 @@ private fun UnifiedNewsSummaryPage(
                         externalFavoriteSourceId = selection.id,
                         embeddedSearchQuery = pageState.searchQuery,
                         scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                        reserveHomeBottomBar = true,
                     )
                     UnifiedNewsSourceSelection.Favorites -> ArticleListScreen(
                         onArticleClick = onArticleClick,
@@ -306,6 +314,7 @@ private fun UnifiedNewsSummaryPage(
                         refreshRequestKey = pageState.localArticleRefreshRequestKey,
                         embeddedSearchQuery = pageState.searchQuery,
                         scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                        reserveHomeBottomBar = true,
                     )
                     UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
                         onArticleClick = onArticleClick,
@@ -314,6 +323,7 @@ private fun UnifiedNewsSummaryPage(
                         refreshRequestKey = pageState.localArticleRefreshRequestKey,
                         embeddedSearchQuery = pageState.searchQuery,
                         scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                        reserveHomeBottomBar = true,
                     )
                 }
             }
@@ -350,6 +360,7 @@ private fun unifiedNewsHeaderTabs(pages: List<UnifiedNewsSourceSelection>, onSel
     return pages.mapIndexed { index, selection ->
         val title = when (selection) {
             UnifiedNewsSourceSelection.Summary -> summaryTitle
+            UnifiedNewsSourceSelection.Opportunities -> stringResource(R.string.news_focus_opportunities_tab)
             UnifiedNewsSourceSelection.Hotlists -> stringResource(R.string.news_hotlists_tab)
             is UnifiedNewsSourceSelection.RemoteSource -> selection.name
             is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selection.name

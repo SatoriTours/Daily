@@ -619,7 +619,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(prompt.contains("值得关注"))
         assertTrue(prompt.contains("不要编造事实"))
         assertTrue(prompt.contains("每个关键判断都必须带引用"))
-        assertTrue(prompt.contains("- 新闻标题或短句 [R1]"))
+        assertTrue(prompt.contains("- 标题：1-3 句完整总结"))
     }
 
     @Test
@@ -973,8 +973,8 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsPromptUsesOnlyRemoteAndFavoriteCitationExamples() {
         val prompt = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsPrompt.kt").readText()
 
-        assertTrue(prompt.contains("- 新闻标题或短句 [R1]"))
-        assertTrue(prompt.contains("对远程来源优先使用来源标题"))
+        assertTrue(prompt.contains("- 标题：1-3 句完整总结"))
+        assertTrue(prompt.contains("远程来源的标题可保留原题"))
         assertFalse(prompt.contains("[C1]"))
         assertFalse(prompt.contains("小龙虾来源"))
     }
@@ -1977,7 +1977,7 @@ class UnifiedNewsBehaviorTest {
         )
 
         assertTrue(prompt.contains("其他二级标题下面使用 Markdown 无序列表"))
-        assertTrue(prompt.contains("- 新闻标题或短句 [R1]"))
+        assertTrue(prompt.contains("- 标题：1-3 句完整总结"))
     }
 
     @Test
@@ -1986,7 +1986,7 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(prompt.contains("不要编造事实"))
         assertTrue(prompt.contains("每个关键判断都必须带引用"))
-        assertTrue(prompt.contains("保持短句"))
+        assertTrue(prompt.contains("不要只复述标题"))
         assertTrue(prompt.contains("如果来源不足以支持可靠判断"))
     }
 

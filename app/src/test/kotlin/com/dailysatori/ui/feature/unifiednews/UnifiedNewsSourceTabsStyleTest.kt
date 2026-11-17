@@ -31,7 +31,7 @@ class UnifiedNewsSourceTabsStyleTest {
 
         assertTrue(summary.contains("bottom = Height.navBar + Spacing.xxl"))
         assertTrue(summary.contains("itemsIndexed(recommendations, key = { _, item -> item.id })"))
-        assertTrue(remote.contains("contentPadding = newsCompactListContentPadding()"))
+        assertTrue(remote.contains("bottom = Height.navBar + Spacing.xxl"), "远程列表需避开悬浮底栏")
         assertTrue(remote.contains("items(articles, key = { it.id })"))
     }
 

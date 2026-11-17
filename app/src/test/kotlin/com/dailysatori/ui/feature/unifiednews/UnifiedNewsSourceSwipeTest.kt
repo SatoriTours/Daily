@@ -23,9 +23,9 @@ class UnifiedNewsSourceSwipeTest {
     @Test
     fun pagesFollowHeaderOrderEvenWithDuplicateNamesAndIds() {
         val pages = unifiedNewsSourcePages(state)
-        assertEquals(listOf("news-summary", "news-hotlists", "news-remote-1", "news-favorite-1", "news-local", "news-favorites"), pages.map(::unifiedNewsSourcePageKey))
-        assertEquals(2, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "旧名称")))
-        assertEquals(3, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")))
+        assertEquals(listOf("news-summary", "news-opportunities", "news-hotlists", "news-remote-1", "news-favorite-1", "news-local", "news-favorites"), pages.map(::unifiedNewsSourcePageKey))
+        assertEquals(3, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "旧名称")))
+        assertEquals(4, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")))
     }
 
     @Test
@@ -33,8 +33,8 @@ class UnifiedNewsSourceSwipeTest {
         val selection = UnifiedNewsSourceSelection.ExternalFavoriteSource(1, "来源")
         val updated = state.copy(remoteSources = listOf(UnifiedNewsRemoteSourceOption(2, "新增")) + state.remoteSources)
         val pages = unifiedNewsSourcePages(updated)
-        assertEquals(4, unifiedNewsSourcePageIndex(pages, selection))
-        assertEquals("news-favorite-1", unifiedNewsSourcePageKey(pages[4]))
+        assertEquals(5, unifiedNewsSourcePageIndex(pages, selection))
+        assertEquals("news-favorite-1", unifiedNewsSourcePageKey(pages[5]))
     }
 
     @Test
@@ -46,9 +46,9 @@ class UnifiedNewsSourceSwipeTest {
         )
         val pages = unifiedNewsSourcePages(renamed)
         assertEquals(UnifiedNewsSourceSelection.RemoteSource(1, "我的订阅"), renamed.sourceSelection)
-        assertEquals(2, unifiedNewsSourcePageIndex(pages, renamed.sourceSelection))
-        assertEquals(2, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "来源")))
-        assertEquals("news-remote-1", unifiedNewsSourcePageKey(pages[2]))
+        assertEquals(3, unifiedNewsSourcePageIndex(pages, renamed.sourceSelection))
+        assertEquals(3, unifiedNewsSourcePageIndex(pages, UnifiedNewsSourceSelection.RemoteSource(1, "来源")))
+        assertEquals("news-remote-1", unifiedNewsSourcePageKey(pages[3]))
         assertEquals(
             UnifiedNewsSourceSelection.RemoteSource(9, "其它"),
             UnifiedNewsSourceSelection.RemoteSource(9, "其它").withUpdatedRemoteSourceName(renamedOptions),
@@ -67,7 +67,7 @@ class UnifiedNewsSourceSwipeTest {
 
     @Test
     fun emptySourcesStillAllowSwitchingBetweenSummaryAndLocal() {
-        assertEquals(listOf(UnifiedNewsSourceSelection.Summary, UnifiedNewsSourceSelection.Hotlists, UnifiedNewsSourceSelection.LocalArticles, UnifiedNewsSourceSelection.Favorites), unifiedNewsSourcePages(UnifiedNewsState()))
+        assertEquals(listOf(UnifiedNewsSourceSelection.Summary, UnifiedNewsSourceSelection.Opportunities, UnifiedNewsSourceSelection.Hotlists, UnifiedNewsSourceSelection.LocalArticles, UnifiedNewsSourceSelection.Favorites), unifiedNewsSourcePages(UnifiedNewsState()))
     }
 
     @Test

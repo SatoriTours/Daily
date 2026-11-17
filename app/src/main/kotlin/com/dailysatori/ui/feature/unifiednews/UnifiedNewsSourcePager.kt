@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.filterNotNull
 
 internal fun unifiedNewsSourcePages(state: UnifiedNewsState): List<UnifiedNewsSourceSelection> = buildList {
     add(UnifiedNewsSourceSelection.Summary)
+    add(UnifiedNewsSourceSelection.Opportunities)
     add(UnifiedNewsSourceSelection.Hotlists)
     state.remoteSources.forEach { add(UnifiedNewsSourceSelection.RemoteSource(it.id, it.name)) }
     state.externalFavoriteSources.forEach { add(UnifiedNewsSourceSelection.ExternalFavoriteSource(it.id, it.name)) }
@@ -21,6 +22,7 @@ internal fun unifiedNewsSourcePages(state: UnifiedNewsState): List<UnifiedNewsSo
 
 internal fun unifiedNewsSourcePageKey(selection: UnifiedNewsSourceSelection): String = when (selection) {
     UnifiedNewsSourceSelection.Summary -> "news-summary"
+    UnifiedNewsSourceSelection.Opportunities -> "news-opportunities"
     UnifiedNewsSourceSelection.Hotlists -> "news-hotlists"
     is UnifiedNewsSourceSelection.RemoteSource -> "news-remote-${selection.id}"
     is UnifiedNewsSourceSelection.ExternalFavoriteSource -> "news-favorite-${selection.id}"
@@ -69,6 +71,7 @@ internal fun rememberUnifiedNewsSourcePager(
 internal fun UnifiedNewsViewModel.selectNewsPage(selection: UnifiedNewsSourceSelection) {
     when (selection) {
         UnifiedNewsSourceSelection.Summary -> selectSummarySource()
+        UnifiedNewsSourceSelection.Opportunities -> selectOpportunitiesSource()
         UnifiedNewsSourceSelection.Hotlists -> selectHotNewsSource()
         is UnifiedNewsSourceSelection.RemoteSource -> selectRemoteSource(UnifiedNewsRemoteSourceOption(selection.id, selection.name))
         is UnifiedNewsSourceSelection.ExternalFavoriteSource -> selectExternalFavoriteSource(UnifiedNewsExternalFavoriteSourceOption(selection.id, selection.name))
@@ -89,5 +92,6 @@ internal fun unifiedNewsSourcePageState(
         sourceArticlesError = state.sourceArticlesError.takeIf { selected },
         scrollToTopRequestKey = scrollRequest,
         localArticleRefreshRequestKey = refreshRequest,
+        opportunityRefreshRequestKey = state.opportunityRefreshRequestKey.takeIf { selected } ?: 0,
     )
 }
