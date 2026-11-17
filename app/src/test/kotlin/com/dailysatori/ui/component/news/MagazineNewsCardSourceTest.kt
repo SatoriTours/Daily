@@ -28,7 +28,13 @@ class MagazineNewsCardSourceTest {
         assertTrue(source.contains("RoundedCornerShape(Radius.m)"), "封面使用主题小圆角")
         assertTrue(source.contains("MaterialTheme.colorScheme"))
         assertTrue(source.contains("resolveMagazineNewsCoverPath"))
-        assertTrue(source.contains("if (resolvedPath == null || loadFailed) return"), "无图或加载失败时不出现占位块")
+        assertTrue(
+            source.contains("if (coverModel == null && (resolvedPath == null || loadFailed)) return"),
+            "无封面模型、空路径或加载失败时不出现占位块",
+        )
+        assertTrue(source.contains("val localFileMissing = coverModel == null"), "缺失本地封面需单独判定")
+        assertTrue(source.contains("!File(resolvedPath).isFile"), "不存在的本地封面直接回退纯文字")
+        assertTrue(source.contains("onCoverState?.invoke(false)"), "缺失封面必须通知失败状态")
         assertFalse(source.contains("ic_menu_gallery"))
         assertFalse(source.contains("ic_menu_report_image"))
         assertFalse(source.contains("BorderStroke"))
