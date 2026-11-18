@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -97,14 +98,17 @@ private fun HeadlineDigestBody(
     onCitationClick: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        HeadlineDigestHeader(entry)
+        if (digest.overview.isEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { HeadlineDigestHeader(entry) }
         if (digest.overview.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(
-                    stringResource(R.string.news_focus_overview),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.news_focus_overview),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    HeadlineDigestHeader(entry)
+                }
                 digest.overview.forEach { paragraph ->
                     Text(paragraph, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
@@ -190,27 +194,12 @@ private fun HeadlineSourceAction(
 ) {
     if (sources.isEmpty()) return
     if (sources.size == 1) {
-        TextButton(
-            onClick = { onSourceClick(sources.single()) },
-            modifier = Modifier.heightIn(min = Height.touchTarget),
-            contentPadding = PaddingValues(horizontal = Spacing.s),
-        ) {
-            Text(stringResource(R.string.news_focus_view_source), style = MaterialTheme.typography.labelMedium)
-        }
+        SourceLink(stringResource(R.string.news_focus_view_source)) { onSourceClick(sources.single()) }
         return
     }
     var expanded by remember { mutableStateOf(false) }
     Box {
-        TextButton(
-            onClick = { expanded = true },
-            modifier = Modifier.heightIn(min = Height.touchTarget),
-            contentPadding = PaddingValues(horizontal = Spacing.s),
-        ) {
-            Text(
-                stringResource(R.string.news_focus_view_source) + " (" + sources.size + ")",
-                style = MaterialTheme.typography.labelMedium,
-            )
-        }
+        SourceLink(stringResource(R.string.news_focus_view_source) + " (" + sources.size + ")") { expanded = true }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             sources.forEach { source ->
                 DropdownMenuItem(
@@ -223,4 +212,16 @@ private fun HeadlineSourceAction(
             }
         }
     }
+}
+
+
+@Composable
+private fun SourceLink(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        Modifier.clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(vertical = Spacing.xs),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+    )
 }

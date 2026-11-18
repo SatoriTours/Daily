@@ -152,28 +152,15 @@ private fun OpportunityStatusRow(
     onDismiss: () -> Unit,
     onOpenAll: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(bottom = Spacing.s)) {
+    Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(R.string.news_focus_opportunities_intro),
+                progress ?: stringResource(R.string.news_focus_opportunities_intro),
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            TextButton(onClick = onOpenAll, contentPadding = PaddingValues(horizontal = Spacing.s)) {
-                Text(stringResource(R.string.my_space_recommendations_title), style = MaterialTheme.typography.labelMedium)
-            }
-        }
-        if (progress != null) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    progress,
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (progress != null) {
                 IconButton(onClick = onCancel, modifier = Modifier.size(Height.touchTarget)) {
                     Icon(
                         Icons.Default.Close,
@@ -182,6 +169,9 @@ private fun OpportunityStatusRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            TextButton(onClick = onOpenAll, contentPadding = PaddingValues(horizontal = Spacing.s)) {
+                Text(stringResource(R.string.my_space_recommendations_title), style = MaterialTheme.typography.labelMedium)
             }
         }
         if (error != null) {
