@@ -18,7 +18,11 @@ internal fun articleDetailPageContent(
     originalImageUrls: List<String> = emptyList(),
     isRemoteSnapshot: Boolean = false,
 ): String = when (page) {
-    0 -> summary.normalizedSummaryMarkdownOrFallback("暂无摘要内容")
+    // The reading area is the summary page: a synced article that has no AI summary yet still shows
+    // the body it already stored (the list card previews the same body) instead of an empty state.
+    0 -> summary.normalizedSummaryMarkdown()
+        ?: articleOriginalMarkdown(storedOriginal, original, isRemoteSnapshot)
+            .normalizedOriginalMarkdownOrFallback("暂无摘要内容", originalImageUrls)
     else -> articleOriginalMarkdown(storedOriginal, original, isRemoteSnapshot)
         .normalizedOriginalMarkdownOrFallback("暂无原文内容", originalImageUrls)
 }
@@ -26,9 +30,8 @@ internal fun articleDetailPageContent(
 private fun String?.normalizedMarkdownOrFallback(fallback: String): String =
     this?.trim()?.takeIf { it.isNotBlank() } ?: fallback
 
-private fun String?.normalizedSummaryMarkdownOrFallback(fallback: String): String {
-    val content = normalizedMarkdownOrFallback(fallback)
-    if (content == fallback) return content
+private fun String?.normalizedSummaryMarkdown(): String? {
+    val content = this?.trim()?.takeIf { it.isNotBlank() } ?: return null
     val cleaned = content
         .lines()
         .dropWhile { line -> line.trim().isBlank() || line.trim().matches(MarkdownHeadingRegex) }
@@ -36,7 +39,7 @@ private fun String?.normalizedSummaryMarkdownOrFallback(fallback: String): Strin
         .joinToString("\n")
         .replace(ExcessiveMarkdownNewlinesRegex, "\n\n")
         .trim()
-    return cleaned.ifBlank { content }.replace(generatedArticleSourceFooterRegex, "").trim().ifBlank { fallback }
+    return cleaned.ifBlank { content }.replace(generatedArticleSourceFooterRegex, "").trim().ifBlank { null }
 }
 
 private val generatedArticleSourceFooterRegex = Regex(

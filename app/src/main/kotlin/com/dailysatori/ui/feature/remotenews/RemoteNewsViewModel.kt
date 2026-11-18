@@ -127,7 +127,14 @@ class RemoteNewsViewModel(
                     detailError = null,
                 )
             }
-            val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
+            val local = try {
+                articleRepo.findLocalArticleForRemote(article)
+                    ?: remoteArticleSyncService.readLocalArticle(null, article.id, remoteNewsArticleSourceDate(), article.url) { article }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
             if (local != null) {
                 _state.update { state ->
                     if (state.selectedArticle?.id == article.id) {
@@ -252,7 +259,7 @@ class RemoteNewsViewModel(
         when (val sourceConfig = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
             is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchSourceArticles(sourceConfig.value, limit = 50)) {
                 is RemoteNewsResult.Success -> {
-                    remoteArticleSyncService.syncSourceArticles(
+                    remoteArticleSyncService.storePassively(
                         remoteSourceId = source.id,
                         sourceDate = sourceDate,
                         articles = result.value.articles,

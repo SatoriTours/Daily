@@ -32,6 +32,7 @@ enum class AsyncTaskType(val displayName: String) {
     external_favorite_organize("收藏 AI 整理"),
     article_memory_extract("文章记忆提取"),
     remote_article_reprocess("远程文章整理"),
+    article_ai("文章 AI 阅读"),
     book_viewpoint_generate("书籍观点生成"),
     diary_attachment_transcribe("日记附件转写"),
     diary_knowledge_extract("日记知识提取"),

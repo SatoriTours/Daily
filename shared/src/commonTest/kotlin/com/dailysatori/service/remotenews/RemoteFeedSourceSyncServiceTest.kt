@@ -26,6 +26,69 @@ import kotlin.test.assertTrue
  * blocked state. The minimal counterexamples of the review (R1-R4) are encoded here as behaviour.
  */
 class RemoteFeedSourceSyncServiceTest {
+    @Test fun emptyPlainIncrementKeepsBaselineAndListFirstDoesNotLoseNewAi() = runBlocking {
+        Harness().use { h ->
+            h.page(ENTRY, aiFeed(2 to "Complete old article.", 1 to "Other old article."))
+            h.round()
+            h.round()
+            assertTrue(assertNotNull(h.state()).baselineReady)
+            h.page(ENTRY, aiFeed(3 to "A complete new article.", 2 to "Complete old article.", 1 to "Other old article."))
+            h.storePassivelyFromEntry()
+            h.round()
+            h.round()
+            assertEquals(listOf(urlOf(3)), h.aiAdmitted)
+        }
+    }
+
+    @Test fun sameGuidPreviewUpgradesAtCheckpointWithoutEnrollingHistoricalOrOutsideRange() = runBlocking {
+        Harness().use { h ->
+            h.page(ENTRY, aiFeed(1 to "Historical complete article."))
+            h.round()
+            h.page(ENTRY, aiFeed(2 to null, 1 to "Historical complete article."))
+            h.round()
+            assertTrue(h.stored(2))
+            assertTrue(h.aiAdmitted.isEmpty())
+            h.page(ENTRY, aiFeed(2 to "Full newly verified article is now available.", 1 to "Historical complete article.", 0 to "Outside range."))
+            h.round()
+            h.round()
+            assertEquals(listOf(urlOf(2)), h.aiAdmitted)
+            assertFalse(h.stored(0))
+        }
+    }
+
+    @Test fun historySaveDoesNotBecomeAutomaticWhenItIsPinnedAheadOfCheckpoint() = runBlocking {
+        Harness().use { h ->
+            h.page(ENTRY, aiFeed(2 to "Complete baseline.", 1 to "Older baseline."))
+            h.round()
+            h.page(ENTRY, aiFeed(0 to "Historical content."))
+            h.storeHistoryFromEntry()
+            h.page(ENTRY, aiFeed(0 to "Historical content.", 3 to "A new article.", 2 to "Complete baseline.", 1 to "Older baseline."))
+            h.round()
+            assertEquals(listOf(urlOf(3)), h.aiAdmitted)
+        }
+    }
+
+    @Test fun rssKeepsOriginalBeyondFormerCapAndOnlyAiUsesPrefix() = runBlocking {
+        Harness().use { h ->
+            val body = "A short sentence. ".repeat(1113).trim()
+            h.page(ENTRY, aiFeed(1 to body))
+            h.round()
+            val saved = assertNotNull(h.storedArticle(1))
+            assertEquals(body, saved.original_markdown_content?.substringAfter("## 原文\n\n"))
+            val input = com.dailysatori.service.articleai.articleAiInput(body,
+                com.dailysatori.service.articleai.ArticleAiMode.BOTH, com.dailysatori.service.articleai.ArticleModelLimits(8192, 4096))
+            assertTrue(assertNotNull(input).partial)
+        }
+    }
+
+    @Test fun duplicatedTeaserDoesNotProveBodyButDuplicatedCompleteShortNewsCan() {
+        val teaser = "A first look at the new release… [Read more]"
+        val short = "The library reopens Monday."
+        val articles = parseRemoteFeedArticles(aiFeed(1 to teaser, 2 to short, description = { _, body -> body.orEmpty() }), urlOfPath(ENTRY), 10)
+        assertEquals(com.dailysatori.service.articleai.ArticleBodyKind.PREVIEW, articles[0].bodyKind)
+        assertEquals(com.dailysatori.service.articleai.ArticleBodyKind.BODY, articles[1].bodyKind)
+    }
+
     @Test
     fun firstRoundStoresOnlyTheEntryDocument() = runBlocking {
         Harness().use { h ->
@@ -498,6 +561,8 @@ class RemoteFeedSourceSyncServiceTest {
         private val articles: ArticleRepository
         private val http: HttpClient
         private val service: RemoteFeedSourceSyncService
+        private val articleSync: RemoteArticleSyncService
+        val aiAdmitted = mutableListOf<String>()
         val requested = mutableListOf<String>()
         private val pages = mutableMapOf<String, PageResponse>()
         private var sourceId: Long
@@ -522,9 +587,16 @@ class RemoteFeedSourceSyncServiceTest {
                     respond(response.body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/rss+xml"))
                 }
             })
+            val ai = com.dailysatori.data.repository.ArticleAiRepository(db, com.dailysatori.data.repository.SettingRepository(db))
+            articleSync = RemoteArticleSyncService(articles, syncRepo, ai) { row ->
+                val url = row.url
+                if (url != null && ai.enqueue(row, null, com.dailysatori.data.repository.ArticleAiRepository.NEW) != null) {
+                    aiAdmitted += url
+                }
+            }
             service = RemoteFeedSourceSyncService(
                 stateRepo,
-                RemoteArticleSyncService(articles, syncRepo),
+                articleSync,
                 RemoteNewsService(http),
             )
         }
@@ -562,6 +634,17 @@ class RemoteFeedSourceSyncServiceTest {
         fun mappings(): Long = syncRepo.countBySource(sourceId)
 
         fun stored(id: Int): Boolean = articles.getByUrl(urlOf(id)) != null
+        fun storedArticle(id: Int) = articles.getByUrl(urlOf(id))
+
+        suspend fun storePassivelyFromEntry() {
+            val items = parseRemoteFeedArticles(pages.getValue(ENTRY).body, urlOfPath(ENTRY), 50)
+            articleSync.storePassively(sourceId, "2026-11-15", items, now)
+        }
+
+        suspend fun storeHistoryFromEntry() {
+            val items = parseRemoteFeedArticles(pages.getValue(ENTRY).body, urlOfPath(ENTRY), 50)
+            articleSync.syncSourceArticles(sourceId, REMOTE_FEED_HISTORY_SOURCE_DATE, items, now)
+        }
 
         fun mappingOf(id: Int) = syncRepo.findByRemoteIdentity(sourceId, idOf(id))
 
@@ -616,6 +699,14 @@ private fun idOf(id: Int): Long = remoteFeedArticleId("id-" + id, urlOf(id), nul
 private fun urlOf(id: Int): String = "https://feed.test/a/" + id
 
 private fun urlOfPath(path: String): String = "https://feed.test" + path
+
+private fun aiFeed(vararg items: Pair<Int, String?>, description: (Int, String?) -> String = { _, _ -> "Brief preview…" }): String =
+    """<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>""" +
+        items.joinToString("") { (id, body) ->
+            """<item><title>Article $id</title><guid>id-$id</guid><link>${urlOf(id)}</link>""" +
+                """<description><![CDATA[${description(id, body)}]]></description>""" +
+                (body?.let { "<content:encoded><![CDATA[$it]]></content:encoded>" } ?: "") + "</item>"
+        } + "</channel></rss>"
 
 private fun pathOf(url: String?): String? = url?.substringAfter("https://feed.test")
 

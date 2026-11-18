@@ -13,8 +13,16 @@ class ArticleDisplayTextTest {
         val article = article("标题", "解读标题", "https://githubstatus.com/incident")
         for (status in listOf("completed", "pending", "retrying", "error")) {
             assertEquals(listOf("收藏于 ${TimeUtils.formatDate(article.created_at)}"),
-                articleMagazineMetaChips(article.copy(status = status), "发布于", "收藏于"))
+                articleMagazineMetaChips(article.copy(status = status, is_favorite = 1), "发布于", "收藏于"))
         }
+        assertEquals(listOf("发布于 ${TimeUtils.formatDate(article.created_at)}"),
+            articleMagazineMetaChips(article.copy(pub_date = article.created_at), "发布于", "收藏于"))
+    }
+
+    @Test
+    fun unstarredRemoteArticleNeverLabelsImportDateAsFavoriteDate() {
+        val article = article("RSS", null, "https://example.com/rss").copy(source_type = "remote_news")
+        assertEquals(emptyList(), articleMagazineMetaChips(article, "发布于", "收藏于"))
         assertEquals(listOf("发布于 ${TimeUtils.formatDate(article.created_at)}"),
             articleMagazineMetaChips(article.copy(pub_date = article.created_at), "发布于", "收藏于"))
     }
@@ -36,6 +44,29 @@ class ArticleDisplayTextTest {
         )
 
         assertEquals("AI 整理标题", articleDisplayTitle(article))
+    }
+
+    @Test
+    fun displayTitleKeepsLongSourceTitleInsteadOfReplacingItWithDomain() {
+        val title = "[分享创造] Casdoor 开源的这两个月：控制台里多了个插件"
+
+        assertEquals(title, articleDisplayTitle(article(title = title, aiTitle = null, url = "https://www.v2ex.com/t/1")))
+    }
+
+    @Test
+    fun displayTitleUsesOnlyTheFirstLineOfAMultilineSourceTitle() {
+        assertEquals(
+            "第一行标题",
+            articleDisplayTitle(article(title = "第一行标题\n正文不应成为标题", aiTitle = null, url = "https://example.com/1")),
+        )
+    }
+
+    @Test
+    fun displayTitleIgnoresPendingPlaceholderTitle() {
+        assertEquals(
+            "example.com",
+            articleDisplayTitle(article(title = "正在加载...", aiTitle = null, url = "https://www.example.com/posts/1")),
+        )
     }
 
     @Test

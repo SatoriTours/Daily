@@ -108,6 +108,7 @@ val appModule: Module = module {
     single { ArticleCoverDownloadTaskHandler(get()) }
     single { ArticleMemoryExtractTaskHandler(get(), get()) }
     single { RemoteArticleReprocessTaskHandler(get(), get()) }
+    single { com.dailysatori.service.articleai.ArticleAiQueue(get(), get(), get(), get(), get<AsyncTaskScheduler>()::enqueue) }
     single { ArticlePostProcessingScheduler(androidContext(), get()) }
     single { ExternalFavoriteSyncTaskHandler(get(), get(), get()) }
     single { ExternalFavoriteOrganizeTaskHandler(get(), get(), get(), get(), get()) }
@@ -157,6 +158,7 @@ val appModule: Module = module {
                 get<ArticleCoverDownloadTaskHandler>(),
                 get<ArticleMemoryExtractTaskHandler>(),
                 get<RemoteArticleReprocessTaskHandler>(),
+                get<com.dailysatori.service.articleai.ArticleAiQueue>(),
                 get<ExternalFavoriteSyncTaskHandler>(),
                 get<ExternalFavoriteOrganizeTaskHandler>(),
                 get<BookViewpointGenerateTaskHandler>(),

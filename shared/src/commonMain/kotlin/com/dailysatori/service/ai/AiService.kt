@@ -169,13 +169,15 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
         purpose: AiPurpose? = null,
+        maxOutputTokens: Int? = null,
     ): JsonObject? = withAiOperation(provider, modelName, apiAddress, purpose, isFailure = { it == null }) {
         val route = resolveAiRequestRoute(provider, modelName, apiAddress)
         val headers = aiRequestHeaders(provider)
         try {
             if (route.protocol == AiRequestProtocol.OpenAiChatCompletions) {
                 rawOpenAiChatCompletion(apiAddress, apiToken, modelName, messages, tools, temperature,
-                    thinkingMode = aiPurposeThinkingMode(provider, modelName, purpose), headers = headers)
+                    thinkingMode = aiPurposeThinkingMode(provider, modelName, purpose), headers = headers,
+                    maxOutputTokens = maxOutputTokens)
             } else {
                 langChainClient.chatCompletion(
                     messages = messages,
@@ -185,6 +187,7 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
                     headers = headers,
                     tools = tools,
                     temperature = temperature,
+                    maxOutputTokens = maxOutputTokens,
                 )
             }
         } catch (e: Exception) {
@@ -229,6 +232,7 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
         thinkingMode: AiThinkingMode = AiThinkingMode.DEFAULT,
         recordUsage: Boolean = true,
         headers: Map<String, String> = emptyMap(),
+        maxOutputTokens: Int? = null,
     ): JsonObject = withSafeGoResponse(headers) {
         val response = client.post(openAiChatCompletionEndpoint(apiAddress.trim())) {
             timeout {
@@ -240,6 +244,7 @@ class AiService(private val client: HttpClient, private val requests: AiRequestC
             headers.forEach { (name, value) -> header(name, value) }
             val requestJson = buildOpenAiChatCompletionRequest(
                 modelName.trim(), messages, tools, temperature, thinkingMode = thinkingMode,
+                maxOutputTokens = maxOutputTokens,
             ).toString()
             TaskHttpCapture.request(currentCaptureTaskId(), currentCaptureHandle(), "POST", apiAddress, headers, requestJson)
             setBody(requestJson)
@@ -377,10 +382,15 @@ fun buildOpenAiChatCompletionRequest(
     stream: Boolean = false,
     disableThinking: Boolean = false,
     thinkingMode: AiThinkingMode = AiThinkingMode.DEFAULT,
+    maxOutputTokens: Int? = null,
 ): JsonObject = buildJsonObject {
     put("model", JsonPrimitive(modelName))
     put("messages", JsonArray(messages))
     put("temperature", JsonPrimitive(temperature))
+    maxOutputTokens?.let { put(
+        if (Regex("^(gpt-5|o[134])", RegexOption.IGNORE_CASE).containsMatchIn(modelName)) "max_completion_tokens" else "max_tokens",
+        JsonPrimitive(it),
+    ) }
     if (thinkingMode == AiThinkingMode.DEEP) {
         put("thinking", buildJsonObject { put("type", JsonPrimitive("enabled")) })
         if (modelName.startsWith("deepseek-v4", ignoreCase = true)) put("reasoning_effort", JsonPrimitive("high"))

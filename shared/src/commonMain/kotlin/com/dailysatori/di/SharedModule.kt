@@ -125,6 +125,7 @@ val sharedModule: Module = module {
 
     // Repositories
     single { ArticleRepository(get()) }
+    single { com.dailysatori.data.repository.ArticleAiRepository(get(), get()) }
     single { AIConfigRepository(get()) }
     single { AsyncTaskRepository(get()) }
     single { BookRepository(get()) }
@@ -250,7 +251,13 @@ val sharedModule: Module = module {
     single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get(), settingRepo = get(), sourceRepo = get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
-    single { RemoteArticleSyncService(get(), get()) }
+    single<com.dailysatori.service.articleai.ArticleAiRemote> {
+        com.dailysatori.service.articleai.ConfiguredArticleAiRemote(get(), get())
+    }
+    single {
+        val queue = getOrNull<com.dailysatori.service.articleai.ArticleAiQueue>()
+        RemoteArticleSyncService(get(), get(), get()) { article -> queue?.onNewBody(article) }
+    }
     single { com.dailysatori.data.repository.RemoteFeedSyncStateRepository(get()) }
     single { com.dailysatori.data.repository.RemoteFeedHistoryRepository(get()) }
     single {

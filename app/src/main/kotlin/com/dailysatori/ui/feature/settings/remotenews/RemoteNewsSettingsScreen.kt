@@ -128,6 +128,7 @@ private fun RemoteNewsSourceListPage(
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 item { RemoteNewsSyncSummary(state) }
+                item { ArticleAiHistoryControls() }
                 item {
                     EmptyState(
                         icon = Icons.Default.Add,
@@ -145,6 +146,7 @@ private fun RemoteNewsSourceListPage(
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 item { RemoteNewsSyncSummary(state) }
+                item { ArticleAiHistoryControls() }
                 item { RemoteNewsSourceListHeader(state.sources.size) }
                 items(visibleSources, key = { it.id }) { source ->
                     RemoteNewsSourceRow(

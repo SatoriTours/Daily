@@ -180,6 +180,8 @@ class DatabaseMigration(
         if (currentVersion < 50) migrateV49ToV50()
         if (currentVersion < 51) migrateV50ToV51()
         if (currentVersion < 52) migrateV51ToV52()
+        if (currentVersion < 53) migrateV52ToV53()
+        if (currentVersion < 54) migrateV53ToV54()
         DatabaseSchemaInventory.validate(driver)
 
         // Metadata commits only after the complete target is verified.
@@ -1270,10 +1272,29 @@ class DatabaseMigration(
      * V49 -> V50: the gap generation gets its own fixed target, so a later entry document can never
      * widen what a promotion is allowed to close. Only one progress column is added.
      */
-    /**
-     * V51 -> V52: the history walk gains its ownership epoch, so a user pause/restart can never be
-     * overwritten by a page write of a run that already lost control. Progress rows are preserved.
-     */
+    /** V53 -> V54: a prior installation is never treated as new AI work after migration. */
+    private fun migrateV53ToV54() {
+        try {
+            addColumnIfMissing("remote_article_sync_item", "ai_feed_admission", "TEXT NOT NULL DEFAULT 'historical'")
+        } catch (error: Exception) {
+            log.e(error) { "Migration V53 -> V54: article AI feed admission" }
+            throw error
+        }
+    }
+
+    /** V52 -> V53: preserve article AI provenance, cached results and request accounting. */
+    private fun migrateV52ToV53() {
+        try {
+            ArticleAiSchema.create(driver)
+            addColumnIfMissing("remote_feed_staged_article", "body_kind", "TEXT NOT NULL DEFAULT 'UNVERIFIED'")
+            addColumnIfMissing("remote_feed_staged_article", "summary_language", "TEXT")
+        } catch (error: Exception) {
+            log.e(error) { "Migration V52 -> V53: article AI tables" }
+            throw error // Do not advance the recorded version on a partial schema upgrade.
+        }
+    }
+
+    /** V51 -> V52: fence history writes with the history walk's control epoch. */
     private fun migrateV51ToV52() {
         log.i { "Migration V51 -> V52: history walk control epoch" }
         try {

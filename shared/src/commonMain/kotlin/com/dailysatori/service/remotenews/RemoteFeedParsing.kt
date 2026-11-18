@@ -1,6 +1,7 @@
 package com.dailysatori.service.remotenews
 
 import com.dailysatori.service.externalfavorites.sha256Hex
+import com.dailysatori.service.articleai.ArticleBodyKind
 import com.dailysatori.service.parser.articleHtmlToMarkdown
 
 /** One raw entry read from an RSS 2.0, Atom or RSS 1.0 document. */
@@ -11,6 +12,7 @@ internal data class RemoteFeedEntry(
     val descriptionHtml: String?,
     val contentHtml: String?,
     val publishedAt: String?,
+    val summaryLanguage: String? = null,
 )
 
 /** The configured address answered with something that is not a usable RSS/Atom document. */
@@ -91,30 +93,41 @@ internal fun remoteFeedHttpUrl(value: String?): String? {
 private fun RemoteFeedEntry.toRemoteArticle(): RemoteArticle? {
     val url = remoteFeedHttpUrl(link) ?: return null
     val cleanTitle = title?.trim()?.takeIf(String::isNotEmpty)
-    val contentSource = contentHtml?.trim()?.takeIf(String::isNotEmpty)
-    val descriptionSource = descriptionHtml?.trim()?.takeIf(String::isNotEmpty)
-    // Some feeds publish only titles; they still belong in the list and keep their link.
-    val markdown = (contentSource ?: descriptionSource)
-        ?.let { articleHtmlToMarkdown(it, url) }
-        ?.take(MAX_BODY_CHARS)
-        ?.takeIf(String::isNotBlank)
-    // A generated description is a summary, not duplicated body text.
-    val summary = contentSource?.let { descriptionSource }
-        ?.let { articleHtmlToMarkdown(it, url) }
-        ?.take(MAX_SUMMARY_CHARS)
-        ?.trim()
-        ?.takeIf(String::isNotBlank)
+    fun markdown(html: String?) = html?.takeIf(String::isNotBlank)
+        ?.let { articleHtmlToMarkdown(it, url) }?.trim()?.takeIf(String::isNotBlank)
+    // The fetched document is already byte bounded. Preserve the complete parsed body here;
+    // only the separate AI budget is allowed to choose and label an incomplete prefix.
+    val body = markdown(contentHtml)
+    val description = markdown(descriptionHtml)
+    val markdown = body ?: description
+    val sameText = body != null && feedComparisonText(body) == description?.let(::feedComparisonText)
+    val duplicatedTeaser = sameText && isTeaser(requireNotNull(body))
+    val summary = description?.takeIf { body != null && !sameText && it.length <= MAX_SUMMARY_CHARS }
     if (cleanTitle == null && markdown == null) return null
     return RemoteArticle(
         id = remoteFeedArticleId(guid, url, cleanTitle),
         title = cleanTitle,
         url = url,
         summary = summary,
+        summaryLanguage = summary?.let { summaryLanguage },
         content = markdown,
+        bodyKind = when {
+            body != null && !duplicatedTeaser -> ArticleBodyKind.BODY
+            markdown != null -> ArticleBodyKind.PREVIEW
+            else -> ArticleBodyKind.MISSING
+        },
         publishedAt = normalizeRemoteFeedTime(publishedAt),
     )
 }
 
-private const val MAX_BODY_CHARS = 20_000
+private fun feedComparisonText(value: String): String = value.replace(Regex("\\s+"), " ").trim()
+
+private val teaserTail = Regex(
+    """(?i)(?:…+|\.{3,}|(?:\[|\b)(?:read more|continue reading|阅读全文|阅读更多|查看全文)(?:[\]）】»›]|\b).*)\s*$""",
+)
+
+private fun isTeaser(value: String): Boolean =
+    value.length <= 600 && teaserTail.containsMatchIn(feedComparisonText(value))
+
 private const val MAX_SUMMARY_CHARS = 500
 private const val ID_HEX_LENGTH = 15

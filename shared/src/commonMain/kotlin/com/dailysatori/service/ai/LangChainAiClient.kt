@@ -21,5 +21,6 @@ internal expect class LangChainAiClient() {
         headers: Map<String, String>,
         tools: List<JsonObject>,
         temperature: Double,
+        maxOutputTokens: Int? = null,
     ): JsonObject
 }

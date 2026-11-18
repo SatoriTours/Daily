@@ -1,0 +1,124 @@
+CREATE TABLE IF NOT EXISTS article_ai_source (
+  article_id INTEGER NOT NULL PRIMARY KEY REFERENCES article(id) ON DELETE CASCADE,
+  body_hash TEXT NOT NULL,
+  body_kind TEXT NOT NULL,
+  upstream_summary TEXT,
+  cache_hits INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_ai_source_hash ON article_ai_source(body_hash);
+
+CREATE TABLE IF NOT EXISTS article_ai_result (
+  body_hash TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  target TEXT NOT NULL,
+  markdown TEXT NOT NULL,
+  partial INTEGER NOT NULL,
+  PRIMARY KEY (body_hash, kind, version, target)
+);
+
+CREATE TABLE IF NOT EXISTS article_ai_job (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  article_id INTEGER NOT NULL,
+  body_hash TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  target TEXT NOT NULL,
+  priority INTEGER NOT NULL,
+  state TEXT NOT NULL DEFAULT 'queued',
+  code TEXT NOT NULL DEFAULT '',
+  not_before INTEGER NOT NULL DEFAULT 0,
+  requests INTEGER NOT NULL DEFAULT 0,
+  cache_hits INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_ai_job_pick ON article_ai_job(state, priority, id);
+CREATE INDEX IF NOT EXISTS idx_article_ai_job_hash ON article_ai_job(body_hash, version, target, id);
+
+CREATE TABLE IF NOT EXISTS article_ai_attempt (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  job_id INTEGER NOT NULL REFERENCES article_ai_job(id) ON DELETE CASCADE,
+  started_at INTEGER NOT NULL,
+  outcome TEXT NOT NULL DEFAULT 'unknown',
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  cached_input_tokens INTEGER
+);
+
+putArticleAiSource:
+INSERT INTO article_ai_source(article_id, body_hash, body_kind, upstream_summary, cache_hits)
+VALUES (?, ?, ?, ?, ?) ON CONFLICT(article_id) DO UPDATE SET body_hash=excluded.body_hash,
+body_kind=excluded.body_kind, upstream_summary=excluded.upstream_summary,
+cache_hits=CASE WHEN article_ai_source.body_hash=excluded.body_hash
+  THEN max(article_ai_source.cache_hits, excluded.cache_hits) ELSE excluded.cache_hits END;
+
+markArticleAiSharedCache:
+UPDATE article_ai_source SET cache_hits = max(cache_hits, :count)
+WHERE body_hash = :hash AND article_id != :requestOwner;
+
+getArticleAiSource:
+SELECT * FROM article_ai_source WHERE article_id = ?;
+
+articleAiCandidateIds:
+SELECT article_id FROM article_ai_source WHERE body_hash = ? ORDER BY article_id;
+
+articleAiHistory:
+SELECT article.* FROM article WHERE source_type = 'remote_news' ORDER BY id DESC;
+
+articleAiResult:
+SELECT * FROM article_ai_result WHERE body_hash = ? AND kind = ? AND version = ? AND target = ?;
+
+putArticleAiResult:
+INSERT INTO article_ai_result VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(body_hash,kind,version,target) DO UPDATE SET markdown=excluded.markdown,partial=excluded.partial;
+
+articleAiJobs:
+SELECT * FROM article_ai_job WHERE body_hash = ? AND version = ? AND target = ? ORDER BY id DESC;
+
+articleAiObserve:
+SELECT article.*, article_ai_source.*, article_ai_job.*, article_ai_result.*
+FROM article LEFT JOIN article_ai_source ON article.id = article_ai_source.article_id
+LEFT JOIN article_ai_job ON article_ai_source.body_hash = article_ai_job.body_hash
+LEFT JOIN article_ai_result ON article_ai_source.body_hash = article_ai_result.body_hash
+LEFT JOIN setting ON setting.key = 'article_ai_blocked'
+WHERE article.id = ? LIMIT 1;
+
+articleAiHistoryWaiting:
+SELECT count(*) FROM article_ai_job WHERE priority = 1 AND state IN ('queued', 'running');
+
+articleAiLastId:
+SELECT last_insert_rowid();
+
+addArticleAiJob:
+INSERT INTO article_ai_job(article_id, body_hash, mode, version, target, priority) VALUES (?, ?, ?, ?, ?, ?);
+
+raiseArticleAiPriority:
+UPDATE article_ai_job SET priority = 3 WHERE id = ? AND state = 'queued';
+
+replaceQueuedArticleAiIntent:
+UPDATE article_ai_job SET article_id = ?, mode = ?, priority = 3
+WHERE id = ? AND state = 'queued' AND requests = 0;
+
+pickArticleAiJob:
+SELECT * FROM article_ai_job WHERE state = 'queued' AND (priority > 1 OR :historyEnabled = 1)
+AND not_before <= :now
+ORDER BY priority DESC, id ASC LIMIT 1;
+
+articleAiNextTime:
+SELECT MIN(not_before) FROM article_ai_job WHERE state = 'queued' AND (priority > 1 OR :historyEnabled = 1);
+
+setArticleAiJob:
+UPDATE article_ai_job SET state = ?, code = ?, not_before = ?, cache_hits = cache_hits + :cacheHits WHERE id = ?;
+
+beginArticleAiAttempt:
+UPDATE article_ai_job SET state = 'running', requests = requests + 1 WHERE id = ?;
+
+addArticleAiAttempt:
+INSERT INTO article_ai_attempt(job_id, started_at) VALUES (?, ?);
+
+finishArticleAiAttempt:
+UPDATE article_ai_attempt SET outcome = ?, input_tokens = ?, output_tokens = ?, cached_input_tokens = ? WHERE id = ?;
+
+interruptArticleAiJobs:
+UPDATE article_ai_job SET state = 'failed', code = 'interrupted' WHERE state = 'running';

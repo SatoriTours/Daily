@@ -53,6 +53,15 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
 import com.dailysatori.ui.feature.article.openArticleUrl
+import com.dailysatori.ui.feature.article.ArticleAiReader
+import com.dailysatori.ui.feature.article.ArticleAiReaderViewModel
+import com.dailysatori.ui.feature.article.ArticleAiMenu
+import com.dailysatori.ui.feature.article.ArticleAiRedoDialog
+import com.dailysatori.ui.feature.article.rememberArticleReaderSelection
+import com.dailysatori.ui.component.indicator.LoadingIndicator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
 import com.dailysatori.ui.feature.myspace.toReadNewsArticle
@@ -77,11 +86,16 @@ fun RemoteArticleDetailScreen(
     val density = LocalDensity.current
     var showOriginalSheet by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
+    val aiViewModel: ArticleAiReaderViewModel? = if (localArticleId != null)
+        koinViewModel(key = "ai-reader:$localArticleId") { parametersOf(localArticleId) } else null
+    val ai = aiViewModel?.view?.collectAsStateWithLifecycle()?.value
+    val selection = if (ai != null && localArticleId != null) rememberArticleReaderSelection(localArticleId, ai) else null
+    var force by remember { mutableStateOf<com.dailysatori.service.articleai.ArticleAiMode?>(null) }
 
     BackHandler(onBack = onBack)
 
     AppScaffold(
-        title = article.domain ?: article.feedName ?: "文章",
+        title = "",
         onBack = onBack,
         pageActions = listOf(RemoteArticleDetailActions(
                 article = article,
@@ -91,9 +105,16 @@ fun RemoteArticleDetailScreen(
                 showFavoriteAction = showFavoriteAction,
                 onOriginalClick = { showOriginalSheet = true },
                 onFavoriteClick = onFavoriteClick,
+                aiMenu = if (ai != null) { dismiss -> ArticleAiMenu(ai, selection, dismiss) { force = it } } else null,
             )),
     ) { modifier ->
-        Column(modifier = modifier.fillMaxSize()) {
+        if (ai != null && selection != null && aiViewModel != null) {
+            ArticleAiReader(ai, selection, remoteArticleDisplayTitle(article), remoteArticleMetaChips(article),
+                sourceName ?: article.feedName ?: article.domain ?: sourceIdentity,
+                if (article.content.isNullOrBlank()) remoteArticleDetailPageContent(0, article.summary, article.viewpoints, null)
+                else remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),
+                modifier, request = { aiViewModel.request(it) })
+        } else Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleDetailPager(
                 article = article,
                 coverHeightDp = coverHeightDp,
@@ -103,6 +124,7 @@ fun RemoteArticleDetailScreen(
             )
         }
     }
+    ArticleAiRedoDialog(force, { force = null }) { aiViewModel?.request(it, redo = true) }
 
     if (showOriginalSheet) {
         RemoteArticleOriginalBottomSheet(article = article, onDismiss = { showOriginalSheet = false })
@@ -118,12 +140,13 @@ private fun RemoteArticleDetailActions(
     showFavoriteAction: Boolean,
     onOriginalClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    aiMenu: (@Composable (() -> Unit) -> Unit)? = null,
 ): PageAction {
     val markRead = com.dailysatori.ui.feature.myspace.markNewsReadAction(article.toReadNewsArticle(sourceIdentity, localArticleId))
     return PageAction("更多操作", Icons.Default.MoreVert, menuContent = { dismiss ->
         val closeMenu: (Boolean) -> Unit = { dismiss() }
         com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
-        RemoteArticleOriginalMenuItem(closeMenu, onOriginalClick)
+        if (aiMenu == null) RemoteArticleOriginalMenuItem(closeMenu, onOriginalClick) else aiMenu(dismiss)
             if (showFavoriteAction) RemoteArticleFavoriteMenuItem(isFavorite, closeMenu, onFavoriteClick)
             RemoteArticleOpenMenuItem(article, closeMenu)
     }) {}

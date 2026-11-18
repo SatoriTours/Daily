@@ -34,6 +34,8 @@ class ArticleDetailViewModel(
     private val tagRepo: TagRepository,
     private val postProcessingScheduler: ArticlePostProcessingScheduler,
     private val webpageParserService: WebpageParserService,
+    private val articleAi: com.dailysatori.data.repository.ArticleAiRepository,
+    private val articleAiQueue: com.dailysatori.service.articleai.ArticleAiQueue,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticleDetailState())
     val state: StateFlow<ArticleDetailState> = _state.asStateFlow()
@@ -113,8 +115,28 @@ class ArticleDetailViewModel(
 
     fun refreshArticle() {
         refreshArticleWithMessage("正在打开网页...") {
-            webpageParserService.refreshArticle(articleId)
+            val article = articleRepo.getById(articleId)
+            if (article?.source_type == "remote_news") refreshRemoteOriginal(article)
+            else webpageParserService.refreshArticle(articleId)
         }
+    }
+
+    private suspend fun refreshRemoteOriginal(article: Article) {
+        val url = article.url ?: error("文章没有来源链接")
+        val before = articleAi.input(article)
+        val fetched = webpageParserService.extractContent(url)
+        val body = com.dailysatori.service.articleai.analyzeArticleBody(fetched.content)
+        if (body.kind != com.dailysatori.service.articleai.ArticleBodyKind.BODY)
+            throw com.dailysatori.service.parser.ArticleBodyMissingException()
+        val updated = articleAi.transaction {
+            val current = articleRepo.getById(articleId) ?: return@transaction null
+            if (articleAi.originalVersion(current) != articleAi.originalVersion(article)) return@transaction null
+            articleRepo.updateOriginalMarkdownContent(articleId, "## 原文\n\n${body.markdown}")
+            articleRepo.getById(articleId)?.also {
+                articleAi.record(it, com.dailysatori.service.remotenews.RemoteArticle(articleId, content = body.markdown))
+            }
+        }
+        if (updated != null && before.hash != body.hash) articleAiQueue.onNewBody(updated)
     }
 
     fun refreshArticleWithXApi() {

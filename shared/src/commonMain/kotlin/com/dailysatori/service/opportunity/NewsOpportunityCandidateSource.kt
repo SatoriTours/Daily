@@ -30,7 +30,7 @@ class NewsOpportunityCandidateSource(
             val result = remoteNews.fetchSourceArticles(RemoteNewsConfigValues(source.base_url, source.api_token), limit = LIMIT)
             when (result) {
                 is RemoteNewsResult.Success -> {
-                    val saved = sync.syncSourceArticles(source.id, date, result.value.articles.take(LIMIT), now.toEpochMilliseconds())
+                    val saved = sync.storePassively(source.id, date, result.value.articles.take(LIMIT), now.toEpochMilliseconds())
                     if (saved.failures.isNotEmpty()) failed = true
                 }
                 is RemoteNewsResult.Failure -> failed = true

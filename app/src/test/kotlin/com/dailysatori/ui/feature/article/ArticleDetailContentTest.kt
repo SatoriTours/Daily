@@ -52,8 +52,23 @@ class ArticleDetailContentTest {
     }
 
     @Test
+    fun summaryPageShowsStoredBodyWhenNoAiSummaryExists() {
+        assertEquals("Full original", articleDetailPageContent(0, summary = null, original = "Full original"))
+        assertEquals(
+            "Full original",
+            articleDetailPageContent(
+                page = 0,
+                summary = " ",
+                original = null,
+                storedOriginal = "## 摘要\n\nSummary\n\n## 关键观点\n\n- Point\n\n## 原文\n\nFull original",
+                isRemoteSnapshot = true,
+            ),
+        )
+    }
+
+    @Test
     fun fallsBackWhenPagerContentIsMissing() {
-        assertEquals("暂无摘要内容", articleDetailPageContent(0, null, "original"))
+        assertEquals("暂无摘要内容", articleDetailPageContent(0, null, null))
         assertEquals("暂无原文内容", articleDetailPageContent(1, "summary", null))
     }
 

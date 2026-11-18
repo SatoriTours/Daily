@@ -496,6 +496,7 @@ CREATE TABLE remote_article_sync_item (
     favorited_at INTEGER,
     first_seen_at INTEGER NOT NULL,
     last_seen_at INTEGER NOT NULL,
+    ai_feed_admission TEXT NOT NULL DEFAULT 'historical',
     UNIQUE(remote_source_id, remote_article_id)
 );
 
@@ -544,6 +545,8 @@ CREATE TABLE remote_feed_staged_article (
     url TEXT,
     summary TEXT,
     content TEXT,
+    body_kind TEXT NOT NULL DEFAULT 'UNVERIFIED',
+    summary_language TEXT,
     published_at TEXT,
     bytes INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
@@ -2350,14 +2353,19 @@ SELECT COUNT(*) FROM remote_article_sync_item WHERE remote_source_id = ?;
 
 upsertRemoteArticleSyncItem:
 INSERT INTO remote_article_sync_item (
-    remote_source_id, remote_article_id, article_id, url, source_date, first_seen_at, last_seen_at
+    remote_source_id, remote_article_id, article_id, url, source_date, first_seen_at, last_seen_at, ai_feed_admission
 )
-VALUES (?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(remote_source_id, remote_article_id) DO UPDATE SET
     article_id = excluded.article_id,
     url = COALESCE(excluded.url, remote_article_sync_item.url),
     source_date = excluded.source_date,
-    last_seen_at = excluded.last_seen_at;
+    last_seen_at = excluded.last_seen_at,
+    ai_feed_admission = excluded.ai_feed_admission;
+
+selectConfirmedAiFeedIds:
+SELECT remote_article_id FROM remote_article_sync_item
+WHERE remote_source_id = ? AND remote_article_id IN ? AND ai_feed_admission != 'passive';
 
 updateRemoteArticleSyncProcessingState:
 UPDATE remote_article_sync_item
@@ -2430,9 +2438,9 @@ WHERE remote_source_id = ? AND generation = ? AND remote_article_id = ?;
 upsertStagedRemoteArticle:
 INSERT INTO remote_feed_staged_article (
     remote_source_id, generation, remote_article_id, page_url, sequence, stale,
-    title, url, summary, content, published_at, bytes, created_at
+    title, url, summary, content, body_kind, summary_language, published_at, bytes, created_at
 )
-VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(remote_source_id, generation, remote_article_id) DO UPDATE SET
     page_url = excluded.page_url,
     sequence = excluded.sequence,
@@ -2441,6 +2449,8 @@ ON CONFLICT(remote_source_id, generation, remote_article_id) DO UPDATE SET
     url = COALESCE(excluded.url, remote_feed_staged_article.url),
     summary = COALESCE(excluded.summary, remote_feed_staged_article.summary),
     content = COALESCE(excluded.content, remote_feed_staged_article.content),
+    body_kind = excluded.body_kind,
+    summary_language = excluded.summary_language,
     published_at = COALESCE(excluded.published_at, remote_feed_staged_article.published_at),
     bytes = excluded.bytes;
 

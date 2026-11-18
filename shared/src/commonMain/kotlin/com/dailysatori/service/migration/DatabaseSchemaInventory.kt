@@ -85,11 +85,15 @@ reminder_ai_draft_legacy:id,batch_id,source_index,source_text,draft_json,overrid
 reminder_event:id,reminder_id,event_type,scheduled_at,actual_at,metadata_json
 reminder_profile:id,name,kind,profile_json,created_at,updated_at
 reminder_policy_snapshot:id,format_version,payload_json,sha256,created_at
-remote_article_sync_item:id,remote_source_id,remote_article_id,article_id,url,source_date,source_content_hash,processed_content_hash,processing_state,processing_error,processing_version,favorited_at,first_seen_at,last_seen_at
+remote_article_sync_item:id,remote_source_id,remote_article_id,article_id,url,source_date,source_content_hash,processed_content_hash,processing_state,processing_error,processing_version,favorited_at,first_seen_at,last_seen_at,ai_feed_admission
 remote_feed_sync_state:remote_source_id,entry_url,paging_mode,baseline_ready,checkpoint_ids,target_entry_ids,confirmed_anchor_url,confirmed_at,generation,gap_open,scan_start_url,scan_start_fingerprint,cursor_url,last_page_url,last_page_fingerprint,scan_pages,staged_bytes,closure_reached,blocked,blocked_reason,updated_at
-remote_feed_staged_article:id,remote_source_id,generation,remote_article_id,page_url,sequence,stale,title,url,summary,content,published_at,bytes,created_at
+remote_feed_staged_article:id,remote_source_id,generation,remote_article_id,page_url,sequence,stale,title,url,summary,content,published_at,bytes,created_at,body_kind,summary_language
 remote_feed_scan_node:remote_source_id,generation,document_url,fingerprint,created_at
 remote_feed_history_state:remote_source_id,entry_url,paging_mode,strategy,status,control_epoch,start_url,cursor_url,last_page_url,last_page_fingerprint,imported_count,target_count,pages_read,requests,last_error,blocked_reason,started_at,completed_at,updated_at
+article_ai_source:article_id,body_hash,body_kind,upstream_summary,cache_hits
+article_ai_result:body_hash,kind,version,target,markdown,partial
+article_ai_job:id,article_id,body_hash,mode,version,target,priority,state,code,not_before,requests,cache_hits
+article_ai_attempt:id,job_id,started_at,outcome,input_tokens,output_tokens,cached_input_tokens
 remote_news_source:id,name,base_url,api_token,enabled,history_policy,created_at,updated_at
 session:id,session_id,is_authenticated,username,last_accessed_at,created_at,updated_at
 setting:id,key,value,created_at,updated_at
@@ -114,6 +118,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
     internal fun validateColumns(driver: SqlDriver, version: Long, includeProjection: Boolean = true) {
         columns.filterKeys { (version>=49 || it !in setOf("remote_feed_staged_article","remote_feed_scan_node")) &&
             (version>=51 || it!="remote_feed_history_state") &&
+            (version>=53 || !it.startsWith("article_ai_")) &&
             (version>=47 || it!="remote_feed_sync_state") &&
             (version>=46 || it!="reminder_ai_draft_legacy") &&
             (version>=45 || it!="diary_record") && (version>=41 || !it.startsWith("diary_tag_")) &&
@@ -140,6 +145,8 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
                 )
                 version<51 && table=="remote_news_source" -> all-"history_policy"
                 version<52 && table=="remote_feed_history_state" -> all-"control_epoch"
+                version<53 && table=="remote_feed_staged_article" -> all-setOf("body_kind","summary_language")
+                version<54 && table=="remote_article_sync_item" -> all-"ai_feed_admission"
                 version<45 && table=="diary" -> all+setOf("tags","images")
                 version<44 && table=="memory_entry" -> all-"content_origin"
                 version<43 && table=="idea_topic_source" && "snapshot_id" !in found -> all-"snapshot_id"+"snapshot_json"
@@ -159,6 +166,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
         return objectStatements(driver).filterKeys { name -> name !in actual && !(
             (version<47 && name=="table:remote_feed_sync_state") ||
             (version<51 && name=="table:remote_feed_history_state") ||
+            (version<53 && name.substringAfter(':').removePrefix("idx_").startsWith("article_ai_")) ||
             (version<49 && (name in setOf(
                 "table:remote_feed_staged_article", "table:remote_feed_scan_node",
                 "index:idx_remote_feed_staged_source",

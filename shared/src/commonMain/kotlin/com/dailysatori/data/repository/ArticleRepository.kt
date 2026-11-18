@@ -382,6 +382,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         remoteArticle: RemoteArticle,
         existingArticleId: Long? = null,
         preserveAiContent: Boolean = false,
+        preserveOriginal: Boolean = false,
     ): RemoteArticleSyncSaveResult? {
         val fields = remoteArticle.toLocalFavoriteArticleFields().copy(isFavorite = 0L)
         val originalMarkdown = remoteArticle.canonicalOriginalMarkdown()
@@ -429,7 +430,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             coverImageUrl = existing.cover_image_url ?: fields.coverImageUrl,
             pubDate = existing.pub_date ?: fields.pubDate,
         )
-        markRemoteNewsMetadata(existing.id, originalMarkdown)
+        if (!preserveOriginal) markRemoteNewsMetadata(existing.id, originalMarkdown)
         return getById(existing.id)?.let { RemoteArticleSyncSaveResult(article = it, inserted = false, updated = true) }
     }
 

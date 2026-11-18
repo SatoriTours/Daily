@@ -38,6 +38,9 @@ data class RemoteArticle(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("processed_at") val processedAt: String? = null,
     val content: String? = null,
+    @SerialName("body_kind") val bodyKind: com.dailysatori.service.articleai.ArticleBodyKind =
+        com.dailysatori.service.articleai.ArticleBodyKind.BODY,
+    @SerialName("summary_language") val summaryLanguage: String? = null,
 )
 
 @Serializable

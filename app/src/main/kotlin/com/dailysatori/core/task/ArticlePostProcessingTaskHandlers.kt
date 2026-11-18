@@ -28,15 +28,7 @@ class ArticlePostProcessingScheduler(
 
     fun enqueueRemoteArticlePostProcessing(articleId: Long, needsReprocessing: Boolean) {
         if (articleId <= 0L) return
-        val taskIds = buildList {
-            if (needsReprocessing) add(createTask(AsyncTaskType.remote_article_reprocess, articleId))
-            add(createTask(AsyncTaskType.article_memory_extract, articleId))
-        }
-        if (taskIds.size == 1) {
-            taskScheduler.enqueue(taskIds.single())
-        } else {
-            taskScheduler.enqueueSequential("remote-article-post-processing:$articleId", taskIds)
-        }
+        enqueueMemoryExtraction(articleId)
     }
 
     private fun enqueue(type: AsyncTaskType, articleId: Long) {
@@ -95,7 +87,8 @@ class RemoteArticleReprocessTaskHandler(
         reporter: AsyncTaskProgressReporter,
     ): AsyncTaskExecutionResult {
         val articleId = decodeArticleId(payloadJson) ?: return invalidArticlePayload()
-        if (articleRepo.getById(articleId) == null) return AsyncTaskExecutionResult.Success()
+        val article = articleRepo.getById(articleId) ?: return AsyncTaskExecutionResult.Success()
+        if (article.source_type == "remote_news") return AsyncTaskExecutionResult.Success()
         reporter.report(0, 1, "正在整理收藏文章", """{"stage":"processing"}""")
         try {
             parser.reprocessArticle(articleId)

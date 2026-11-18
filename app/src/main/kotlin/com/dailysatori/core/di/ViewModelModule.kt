@@ -146,9 +146,13 @@ val viewModelModule: Module = module {
             tagRepo = get<TagRepository>(),
             postProcessingScheduler = get(),
             webpageParserService = get<WebpageParserService>(),
+            articleAi = get(),
+            articleAiQueue = get(),
         )
     }
+    viewModel { params -> com.dailysatori.ui.feature.article.ArticleAiReaderViewModel(params.get(), get(), get(), get()) }
     viewModel { DiaryThoughtViewModel(get()) }
+    viewModel { com.dailysatori.ui.feature.settings.remotenews.ArticleAiHistoryViewModel(get()) }
     viewModel { com.dailysatori.ui.feature.diary.DiaryTagViewModel(get(), get(), get(), get(), get()) }
     viewModel {
         DiaryViewModel(

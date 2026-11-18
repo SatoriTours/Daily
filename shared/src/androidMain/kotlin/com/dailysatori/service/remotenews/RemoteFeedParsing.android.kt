@@ -69,6 +69,7 @@ private fun feedEntry(entry: Element): RemoteFeedEntry? {
         guid = text("guid", "id") ?: about,
         descriptionHtml = html("description", "summary"),
         contentHtml = html("content:encoded", "content"),
+        summaryLanguage = node("description", "summary")?.attr("xml:lang")?.takeIf(String::isNotBlank),
         publishedAt = text("pubdate", "published", "updated", "dc:date", "date"),
     )
 }

@@ -67,6 +67,7 @@ internal actual class LangChainAiClient actual constructor() {
         headers: Map<String, String>,
         tools: List<JsonObject>,
         temperature: Double,
+        maxOutputTokens: Int?,
     ): JsonObject = withContext(Dispatchers.IO) {
         withSafeGoErrors(headers) {
             val toolNames = mutableMapOf<String, String>()
@@ -75,13 +76,33 @@ internal actual class LangChainAiClient actual constructor() {
             val requestBuilder = ChatRequest.builder()
                 .messages(chatMessages)
                 .temperature(temperature)
+            maxOutputTokens?.let { requestBuilder.maxOutputTokens(it) }
             if (toolSpecifications.isNotEmpty()) {
                 requestBuilder.toolSpecifications(toolSpecifications)
                 requestBuilder.toolChoice(ToolChoice.AUTO)
             }
             val response = createModel(route, apiToken, modelName, headers, temperature)
                 .chat(requestBuilder.build())
-            toOpenAiResponse(response.aiMessage())
+            val normalized = toOpenAiResponse(response.aiMessage())
+            if (maxOutputTokens == null) normalized else buildJsonObject {
+                val choice = normalized.getValue("choices").jsonArray.first().jsonObject
+                put("choices", JsonArray(listOf(buildJsonObject {
+                    choice.forEach { (key, value) -> put(key, value) }
+                    response.finishReason()?.let {
+                        put("finish_reason", JsonPrimitive(when (it.name) {
+                            "STOP" -> "stop"
+                            "LENGTH" -> "length"
+                            else -> it.name.lowercase()
+                        }))
+                    }
+                })))
+                response.tokenUsage()?.let { usage ->
+                    put("usage", buildJsonObject {
+                        usage.inputTokenCount()?.let { put("prompt_tokens", JsonPrimitive(it)) }
+                        usage.outputTokenCount()?.let { put("completion_tokens", JsonPrimitive(it)) }
+                    })
+                }
+            }
         }
     }
 

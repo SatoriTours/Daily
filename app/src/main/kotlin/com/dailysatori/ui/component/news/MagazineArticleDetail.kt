@@ -33,6 +33,7 @@ fun ArticleReaderHeader(
     modifier: Modifier = Modifier,
     sourceName: String? = null,
     onSourceClick: (() -> Unit)? = null,
+    sourceAction: (@Composable () -> Unit)? = null,
 ) {
     val i18n = koinInject<I18nService>()
     Column(
@@ -45,12 +46,17 @@ fun ArticleReaderHeader(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Text(
-            text = i18n.t("article.source") + ": " + articleReaderMetadata(sourceName, metaChips, i18n.t("article.source_unknown")),
-            modifier = onSourceClick?.let { Modifier.clickable(onClick = it) } ?: Modifier,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            val metadata = articleReaderMetadata(sourceName, metaChips, i18n.t("article.source_unknown"))
+            Text(
+                text = if (sourceAction == null) i18n.t("article.source") + ": " + metadata else metadata,
+                modifier = Modifier.weight(1f).then(onSourceClick?.let { Modifier.clickable(onClick = it) } ?: Modifier),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            sourceAction?.invoke()
+        }
     }
 }
 

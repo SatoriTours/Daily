@@ -53,7 +53,7 @@ class UnifiedNewsArticleQueue(
     }
 
     private fun enqueueArticle(source: Unified_news_source, url: String?, existing: Article?, pending: MutableSet<Long>): Long? {
-        if (existing?.source_type == "remote_news" && existing.reusableOriginalBody().isNullOrBlank()) return existing.id
+        if (existing?.source_type == "remote_news") return existing.id
         val untranslated = existing?.let {
             articleNeedsTranslation(it.ai_content.orEmpty()) || articleNeedsTranslation(it.ai_markdown_content.orEmpty())
         } == true

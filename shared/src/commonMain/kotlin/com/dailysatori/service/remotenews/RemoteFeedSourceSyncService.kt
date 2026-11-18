@@ -216,9 +216,10 @@ private class RemoteFeedRun(
         val entryOlder = remoteFeedFollowableUrl(remoteFeedOlderDocumentUrl(page, mode), entryUrl)
         entryMode = mode
         entryOlderUrl = entryOlder
-        // Entries below the confirmed checkpoint are never stored again: they are either already part of
-        // the confirmed region or older content the chosen first-import range deliberately left out.
         val entryBoundary = remoteFeedOverlap(state.checkpointIds, page.articles.map { it.id })?.runStart
+            ?: if (mode == RemoteFeedPagingMode.PLAIN) {
+                page.articles.indexOfFirst { it.id in state.checkpointIds }.takeIf { it >= 0 }
+            } else null
         val entryAboveCheckpoint = if (entryBoundary != null) page.articles.take(entryBoundary) else page.articles
         // The chosen first-import range also caps the entry document itself; a resumed walk never
         // re-truncates new entries, because the baseline is already stored by then.
@@ -228,14 +229,24 @@ private class RemoteFeedRun(
             entryAboveCheckpoint
         }
         val insertedBeforeEntry = inserted
-        if (!store(entryArticles)) return outcome(entryRead = true, message = "入口文档有文章未能保存")
+        if (!store(entryArticles, enqueueAi = state.baselineReady)) return outcome(entryRead = true, message = "入口文档有文章未能保存")
         entryImported = inserted - insertedBeforeEntry
+        if (state.baselineReady && entryBoundary != null) {
+            val mapped = articleSync.refreshMapped(remoteSourceId, sourceDate, page.articles.drop(entryBoundary), now)
+            updated += mapped.updated
+            failures += mapped.failures
+            if (mapped.failures.isNotEmpty()) return outcome(entryRead = true, message = "入口文档已存文章未能更新")
+        }
         if (mode == RemoteFeedPagingMode.PLAIN) {
             discardGeneration()
             state = state.copy(
                 mode = mode,
-                baselineReady = entryArticles.isNotEmpty(),
-                checkpointIds = checkpointOf(entryArticles),
+                baselineReady = state.baselineReady || entryArticles.isNotEmpty(),
+                checkpointIds = when {
+                    entryArticles.isEmpty() -> state.checkpointIds
+                    state.baselineReady -> checkpointOf(page)
+                    else -> checkpointOf(entryArticles)
+                },
                 targetEntryIds = emptyList(),
                 confirmedAnchorUrl = null,
                 confirmedAt = now,
@@ -479,7 +490,7 @@ private class RemoteFeedRun(
         if (articles.isEmpty()) return
         // Entries that already reached the article store need no candidate row: promoting them again would
         // only rewrite the confirmed article and could move it into the current news window.
-        val known = stateRepo.knownRemoteArticleIds(remoteSourceId, articles.map { it.id })
+        val known = stateRepo.confirmedArticleIds(remoteSourceId, articles.map { it.id })
         val fresh = articles.filterNot { it.id in known }
         if (fresh.isEmpty()) return
         stateRepo.stageArticles(
@@ -496,7 +507,7 @@ private class RemoteFeedRun(
     private suspend fun promoteStaged(): Boolean {
         val rows = stateRepo.stagedArticles(remoteSourceId, state.generation)
         for (row in rows) {
-            val result = articleSync.syncSourceArticles(remoteSourceId, sourceDate, listOf(row.article), now, onArticleProgress)
+            val result = articleSync.syncSourceArticles(remoteSourceId, sourceDate, listOf(row.article), now, onArticleProgress, enqueueAi = true)
             inserted += result.inserted
             updated += result.updated
             skipped += result.skipped
@@ -564,9 +575,9 @@ private class RemoteFeedRun(
         state = state.copy(blocked = true, blockedReason = reason, closureReached = false)
     }
 
-    private suspend fun store(articles: List<RemoteArticle>): Boolean {
+    private suspend fun store(articles: List<RemoteArticle>, enqueueAi: Boolean): Boolean {
         if (articles.isEmpty()) return true
-        val result = articleSync.syncSourceArticles(remoteSourceId, sourceDate, articles, now, onArticleProgress)
+        val result = articleSync.syncSourceArticles(remoteSourceId, sourceDate, articles, now, onArticleProgress, enqueueAi)
         inserted += result.inserted
         updated += result.updated
         skipped += result.skipped

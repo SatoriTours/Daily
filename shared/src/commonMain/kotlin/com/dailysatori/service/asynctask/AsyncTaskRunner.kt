@@ -267,7 +267,7 @@ private fun AsyncTaskRunOutcome.diagnosticStage(): String = when (this) {
 }
 
 /** Serial task types own one execution at a time; their waiters are woken by the owner's terminal state. */
-internal val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name, AsyncTaskType.assistant_turn.name, "assistant_history_backfill", "assistant_summary")
+internal val SERIAL_TASK_TYPES = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name, AsyncTaskType.assistant_turn.name, AsyncTaskType.article_ai.name, "assistant_history_backfill", "assistant_summary")
 
 fun isSerialAsyncTaskType(type: String): Boolean = type in SERIAL_TASK_TYPES
 

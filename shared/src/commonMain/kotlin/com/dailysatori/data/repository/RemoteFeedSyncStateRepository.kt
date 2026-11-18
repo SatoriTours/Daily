@@ -71,6 +71,9 @@ class RemoteFeedSyncStateRepository(private val db: DailySatoriDatabase) {
         return q.selectKnownRemoteArticleIds(remoteSourceId, ids).executeAsList().toSet()
     }
 
+    fun confirmedArticleIds(remoteSourceId: Long, ids: List<Long>): Set<Long> =
+        ids.chunked(500).flatMap { q.selectConfirmedAiFeedIds(remoteSourceId, it).executeAsList() }.toSet()
+
     fun stagedArticles(remoteSourceId: Long, generation: Long, includeStale: Boolean = false): List<RemoteFeedStagedArticle> {
         val rows = if (includeStale) {
             q.selectStagedRemoteArticles(remoteSourceId, generation).executeAsList()
@@ -90,6 +93,8 @@ class RemoteFeedSyncStateRepository(private val db: DailySatoriDatabase) {
                     url = row.url,
                     summary = row.summary,
                     content = row.content,
+                    bodyKind = com.dailysatori.service.articleai.ArticleBodyKind.valueOf(row.body_kind),
+                    summaryLanguage = row.summary_language,
                     publishedAt = row.published_at,
                 ),
             )
@@ -122,6 +127,8 @@ class RemoteFeedSyncStateRepository(private val db: DailySatoriDatabase) {
                 url = article.url,
                 summary = article.summary,
                 content = article.content,
+                body_kind = article.bodyKind.name,
+                summary_language = article.summaryLanguage,
                 published_at = article.publishedAt,
                 bytes = bytes.toLong(),
                 created_at = now,

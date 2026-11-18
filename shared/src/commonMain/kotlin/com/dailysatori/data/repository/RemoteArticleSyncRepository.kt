@@ -60,6 +60,7 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
         url: String?,
         sourceDate: String,
         now: Long,
+        aiAdmission: String? = null,
     ) {
         val existing = findByRemoteIdentity(remoteSourceId, remoteArticleId)
         q.upsertRemoteArticleSyncItem(
@@ -70,6 +71,7 @@ class RemoteArticleSyncRepository(private val db: DailySatoriDatabase) {
             source_date = sourceDate,
             first_seen_at = existing?.first_seen_at ?: now,
             last_seen_at = now,
+            ai_feed_admission = aiAdmission ?: existing?.ai_feed_admission ?: "historical",
         )
     }
 

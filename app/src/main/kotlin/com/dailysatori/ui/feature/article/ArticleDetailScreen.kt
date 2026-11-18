@@ -92,11 +92,18 @@ fun ArticleDetailScreen(
     var showRefreshConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
+    val isRemote = state.article?.source_type == "remote_news"
+    val aiViewModel: ArticleAiReaderViewModel? = if (isRemote) koinViewModel(key = "ai-reader:$articleId") {
+        parametersOf(articleId)
+    } else null
+    val ai = aiViewModel?.view?.collectAsStateWithLifecycle()?.value
+    val selection = ai?.let { rememberArticleReaderSelection(articleId, it) }
+    var force by remember { mutableStateOf<com.dailysatori.service.articleai.ArticleAiMode?>(null) }
 
     val i18n = koinInject<I18nService>()
 
     AppScaffold(
-        title = i18n.t("article.detail_title"),
+        title = if (isRemote) "" else i18n.t("article.detail_title"),
         onBack = onBack,
         pageActions = listOf(ArticleDetailActions(
                 state = state,
@@ -107,9 +114,25 @@ fun ArticleDetailScreen(
                 onCopyClick = { url -> copyArticleUrl(context, url) },
                 onOpenClick = { openArticleUrl(context, state.article?.url) },
                 onDeleteClick = { showDeleteConfirm = true },
+                aiMenu = if (ai != null) { dismiss -> ArticleAiMenu(ai, selection, dismiss) { force = it } } else null,
             )),
     ) { modifier ->
-        ArticleDetailContent(
+        val article = state.article
+        if (isRemote && article != null) {
+            if (ai == null || selection == null || aiViewModel == null) LoadingIndicator(modifier)
+            else ArticleAiReader(
+                ai, selection, articleMagazineTitle(article),
+                articleMagazineMetaChips(article, i18n.t("article.published_on"), i18n.t("article.saved_on")),
+                state.sourceNames.joinToString(" · ").ifBlank { extractDomain(article.url) },
+                articleDetailPageContent(
+                    page = if (ai.kind == com.dailysatori.service.articleai.ArticleBodyKind.SOURCE_SUMMARY) 0 else 1,
+                    summary = article.ai_content, original = article.ai_markdown_content,
+                    storedOriginal = article.original_markdown_content, isRemoteSnapshot = true,
+                    originalImageUrls = listOfNotNull(article.cover_image_url),
+                ), modifier, request = { aiViewModel.request(it) },
+                refreshError = state.refreshError,
+            )
+        } else ArticleDetailContent(
             state = state,
             coverHeightDp = coverHeightDp,
             onCoverHeightChange = { coverHeightDp = it },
@@ -117,8 +140,10 @@ fun ArticleDetailScreen(
             modifier = modifier,
         )
     }
+    ArticleAiRedoDialog(force, { force = null }) { aiViewModel?.request(it, redo = true) }
 
     ArticleDetailDialogs(
+        isRemote = isRemote,
         showRefreshConfirm = showRefreshConfirm,
         showDeleteConfirm = showDeleteConfirm,
         onRefreshDismiss = { showRefreshConfirm = false },
@@ -139,6 +164,7 @@ fun ArticleDetailScreen(
 
 @Composable
 private fun ArticleDetailDialogs(
+    isRemote: Boolean,
     showRefreshConfirm: Boolean,
     showDeleteConfirm: Boolean,
     onRefreshDismiss: () -> Unit,
@@ -148,6 +174,7 @@ private fun ArticleDetailDialogs(
 ) {
     if (showRefreshConfirm) {
         ArticleRefreshConfirmDialog(
+            isRemote = isRemote,
             onConfirm = {
                 onRefreshDismiss()
                 onRefreshConfirm()
@@ -177,12 +204,13 @@ private fun ArticleDetailActions(
     onCopyClick: (String) -> Unit,
     onOpenClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    aiMenu: (@Composable (() -> Unit) -> Unit)? = null,
 ): PageAction {
     val markRead = state.article?.let { com.dailysatori.ui.feature.myspace.markNewsReadAction(it.toReadNewsArticle()) }
     return PageAction("更多操作", Icons.Default.MoreVert, menuContent = { dismiss ->
         val closeMenu: (Boolean) -> Unit = { dismiss() }
         com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
-        ArticleOriginalMenuItem(closeMenu, onOriginalClick)
+        if (aiMenu == null) ArticleOriginalMenuItem(closeMenu, onOriginalClick) else aiMenu(dismiss)
             ArticleRefreshMenuItem(state, closeMenu, onRefreshClick)
             ArticleXApiRefreshMenuItem(state, closeMenu, onXApiRefreshClick)
             ArticleFavoriteMenuItem(state, closeMenu, onFavoriteClick)
@@ -384,7 +412,9 @@ private fun ArticleDetailBody(article: Article) {
                 page = 0,
                 summary = article.ai_content,
                 original = article.ai_markdown_content,
+                storedOriginal = article.original_markdown_content,
                 originalImageUrls = listOfNotNull(article.cover_image_url),
+                isRemoteSnapshot = article.source_type == "remote_news",
             ),
             typography = MarkdownStyles.readingTypography(),
             padding = MarkdownStyles.summaryPadding(),
@@ -458,7 +488,8 @@ private fun ArticleMagazineHeader(article: Article, sourceNames: List<String>) {
 }
 
 @Composable
-private fun ArticleRefreshConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun ArticleRefreshConfirmDialog(isRemote: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val i18n = koinInject<I18nService>()
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
@@ -468,7 +499,8 @@ private fun ArticleRefreshConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> 
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         title = { Text("刷新文章？") },
-        text = { Text("刷新会重新获取网页内容并重新生成摘要，已有 AI 摘要和原文可能被覆盖。确定刷新吗？") },
+        text = { Text(if (isRemote) i18n.t("article_ai.refresh_note")
+            else "刷新会重新获取网页内容并重新生成摘要，已有 AI 摘要和原文可能被覆盖。确定刷新吗？") },
         confirmButton = { TextButton(onClick = onConfirm) { Text("刷新") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
@@ -510,8 +542,8 @@ private fun extractDomain(url: String?): String = articleDisplayDomain(url)
 private fun articleMagazineTitle(article: Article): String = articleDisplayTitle(article)
 
 internal fun articleMagazineMetaChips(article: Article, publishedLabel: String, savedLabel: String): List<String> =
-    listOf(article.pub_date?.let { "$publishedLabel ${TimeUtils.formatDate(it)}" }
-        ?: "$savedLabel ${TimeUtils.formatDate(article.created_at)}")
+    listOfNotNull(article.pub_date?.let { "$publishedLabel ${TimeUtils.formatDate(it)}" }
+        ?: article.created_at.takeIf { article.is_favorite == 1L }?.let { "$savedLabel ${TimeUtils.formatDate(it)}" })
 
 @Composable
 private fun ArticleCoverImage(
