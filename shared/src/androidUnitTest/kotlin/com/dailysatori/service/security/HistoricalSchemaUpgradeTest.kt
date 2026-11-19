@@ -483,6 +483,16 @@ class HistoricalSchemaUpgradeTest {
             RemoteFeedHistoryStateMigration.create(driver)
         }
         if (version >= 52) RemoteFeedHistoryStateMigration.addControlEpoch(driver)
+        if (version >= 53) {
+            ArticleAiSchema.create(driver)
+            driver.execute(null,
+                "ALTER TABLE remote_feed_staged_article ADD COLUMN body_kind TEXT NOT NULL DEFAULT 'UNVERIFIED'", 0)
+            driver.execute(null, "ALTER TABLE remote_feed_staged_article ADD COLUMN summary_language TEXT", 0)
+        }
+        if (version >= 54) {
+            driver.execute(null,
+                "ALTER TABLE remote_article_sync_item ADD COLUMN ai_feed_admission TEXT NOT NULL DEFAULT 'historical'", 0)
+        }
         settings(driver).upsert(SettingKeys.schemaVersion, version.toString())
         DatabaseSchemaInventory.validate(driver, version)
     }
