@@ -125,6 +125,9 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.sqldelight.sqlite.driver)
+    // 标准 Compose 测试规则：Activity、帧、语义点击与滚动都由规则驱动。
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.sqldelight.android.driver)
     testImplementation(libs.ktor.client.mock)
     testImplementation("org.robolectric:robolectric:4.14.1")
