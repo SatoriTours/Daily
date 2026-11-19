@@ -108,6 +108,11 @@ abstract class StartupActivity : ComponentActivity() {
         queued.firstOrNull()?.let { setIntent(it) }
         app.consumeStartupNotice()?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
         onStartupReady(savedInstanceState)
+        com.dailysatori.service.diagnostics.DiagnosticLog.diagnostics.emit(
+            com.dailysatori.service.diagnostics.DiagnosticCode.OPERATION_PROGRESS,
+            com.dailysatori.service.diagnostics.DiagnosticSource.APP,
+            fields = mapOf("startupStage" to "business_view_attached"),
+        )
         recordFirstBusinessDraw()
         queued.drop(1).forEach { onNewIntent(it) }
     }
@@ -119,6 +124,8 @@ abstract class StartupActivity : ComponentActivity() {
             override fun onDraw() {
                 if (recorded) return
                 recorded = true
+                // Worker and scheduler setup waits for this frame so they cannot slow the first draw.
+                (application as? DailySatoriApplication)?.onFirstBusinessFrame()
                 com.dailysatori.service.diagnostics.DiagnosticLog.diagnostics.emit(
                     com.dailysatori.service.diagnostics.DiagnosticCode.OPERATION_PROGRESS,
                     com.dailysatori.service.diagnostics.DiagnosticSource.APP,

@@ -155,6 +155,9 @@ class UnifiedNewsViewModel(
     private val sourceArticleRequestLock = Any()
     private var hotNewsRefreshJob: Job? = null
     private val hotNewsRetryJobs = mutableMapOf<HotNewsPlatform, Job>()
+    private var hotNewsObservation: Job? = null
+    private var startupContentReported = false
+    private var startupArticlesReported = false
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun observeArticleSummaries() {
@@ -202,7 +205,15 @@ class UnifiedNewsViewModel(
                 _state.update { it.copy(favoriteArticleIdentities = favorites) }
             }
         }
-        viewModelScope.launch(Dispatchers.IO) {
+    }
+
+    /**
+     * The hot list is a single tab of this screen; observing its boards and preferences on startup
+     * only adds work to the first frame of the default tab.
+     */
+    private fun observeHotNews() {
+        if (hotNewsObservation != null) return
+        hotNewsObservation = viewModelScope.launch(Dispatchers.IO) {
             combine(hotNews.boards, hotNews.preferences) { boards, prefs ->
                 boards.filter { prefs.source(it.platform).enabled }
             }.collect { boards -> _state.update { it.copy(hotNewsBoards = boards) } }
@@ -250,11 +261,13 @@ class UnifiedNewsViewModel(
 
     fun selectHotNewsSource() {
         invalidateSourceArticleRequest()
+        observeHotNews()
         _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Hotlists, searchQuery = "") }
         refreshHotNews()
     }
 
     fun refreshHotNews(force: Boolean = false, platform: HotNewsPlatform? = null) {
+        observeHotNews()
         if (hotNewsRefreshJob?.isActive == true) return
         hotNewsRefreshJob = viewModelScope.launch(Dispatchers.IO) { hotNews.refresh(platform, force = force) }
     }
@@ -352,7 +365,6 @@ class UnifiedNewsViewModel(
                     val nextSelection = resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)
                     val lastSuccessful = if (todaySummary.isSuccessfulDisplaySummary) todaySummary else latestSuccessfulFallback ?: currentState.lastSuccessfulSummary
                     val lastSources = lastSuccessful?.let { summary -> allSourcesBySummaryId[summary.id] }.orEmpty()
-                    val articleIds = newsArticleQueue.enqueue(displaySummaries.firstOrNull()?.let { sourcesBySummaryId[it.id] }.orEmpty())
                     _state.update {
                         it.copy(
                             sourceSelection = nextSelection,
@@ -364,8 +376,28 @@ class UnifiedNewsViewModel(
                             lastSuccessfulSources = lastSources,
                             sources = displaySummaries.firstOrNull()?.let { summary -> sourcesBySummaryId[summary.id] }.orEmpty(),
                             sourcesBySummaryId = sourcesBySummaryId,
-                            articleIdsByNewsSource = it.articleIdsByNewsSource + articleIds,
                             isLoading = it.navigationTarget != null && it.isLoading,
+                        )
+                    }
+                    if (!startupContentReported && displaySummaries.any { it.content.isNotBlank() }) {
+                        startupContentReported = true
+                        DiagnosticLog.diagnostics.emit(
+                            DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.APP,
+                            fields = mapOf("startupStage" to "news_headlines_ready", "count" to displaySummaries.size.toString()),
+                        )
+                    }
+                    // Article summaries only decorate the rendered list: queue them after the body is readable.
+                    val articleIds = newsArticleQueue.enqueue(
+                        displaySummaries.firstOrNull()?.let { sourcesBySummaryId[it.id] }.orEmpty(),
+                    )
+                    if (articleIds.isNotEmpty()) {
+                        _state.update { it.copy(articleIdsByNewsSource = it.articleIdsByNewsSource + articleIds) }
+                    }
+                    if (!startupArticlesReported) {
+                        startupArticlesReported = true
+                        DiagnosticLog.diagnostics.emit(
+                            DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.APP,
+                            fields = mapOf("startupStage" to "news_articles_ready", "count" to articleIds.size.toString()),
                         )
                     }
                 }

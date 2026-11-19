@@ -12,11 +12,23 @@ object I18nInitializer {
         return context.createConfigurationContext(configuration)
     }
 
-    fun init(context: Context, i18nService: I18nService) {
+    /** The selected language is needed before the first UI attach; resources are not. */
+    fun initLanguage(i18nService: I18nService) {
         i18nService.init()
+    }
+
+    fun loadTranslations(context: Context, i18nService: I18nService) {
         val langs = listOf("zh", "en")
         langs.forEach { lang ->
             try {
+                // The flat bundle is prepared with the source resources; YAML stays the source of truth.
+                val bundle = runCatching {
+                    context.assets.open("i18n/$lang.txt").bufferedReader().readText()
+                }.getOrNull()
+                if (bundle != null) {
+                    i18nService.loadTranslationBundle(lang, bundle)
+                    return@forEach
+                }
                 val content = context.assets.open("i18n/$lang.yaml").bufferedReader().readText()
                 i18nService.loadTranslation(lang, content)
             } catch (e: Exception) {

@@ -41,6 +41,12 @@ import org.koin.java.KoinJavaComponent.get
 
 open class DailySatoriApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val firstBusinessFrame = kotlinx.coroutines.CompletableDeferred<Unit>()
+
+    /** Schedulers and the debug web server must not compete with the first home frame. */
+    fun onFirstBusinessFrame() {
+        firstBusinessFrame.complete(Unit)
+    }
     val startup = StartupCoordinator(applicationScope, onFailure = {
         com.dailysatori.core.diagnostics.SafeAndroidLog.e("DailySatoriStartup", "Database preparation failed", it)
     }) {
@@ -64,6 +70,10 @@ open class DailySatoriApplication : Application() {
         startup.start()
         applicationScope.launch {
             startup.state.first { it == StartupState.Ready }
+            // Worker-only processes have no first frame: never wait longer than the grace period.
+            kotlinx.coroutines.withTimeoutOrNull(BACKGROUND_SERVICE_GRACE_MS) { firstBusinessFrame.await() }
+            DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.APP,
+                fields = mapOf("startupStage" to "background_services_started"))
             initializeBackgroundServices()
         }
     }
@@ -92,9 +102,13 @@ open class DailySatoriApplication : Application() {
             startupStep("task_recovery") {
                 get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAfterProcessStart()
             }
-            startupStep("translations") {
-                I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
-                startupLanguage = get<I18nService>(I18nService::class.java).getCurrentLanguage()
+            startupStep("translations_language") {
+                val i18n = get<I18nService>(I18nService::class.java)
+                I18nInitializer.initLanguage(i18n)
+                startupLanguage = i18n.getCurrentLanguage()
+            }
+            startupStep("translations_assets") {
+                I18nInitializer.loadTranslations(this, get<I18nService>(I18nService::class.java))
             }
         } catch (failure: Exception) {
             try { driver?.close() } finally { stopKoin() }
@@ -157,6 +171,10 @@ open class DailySatoriApplication : Application() {
             get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).getEnabled(),
         )
         WeeklySummaryScheduler(this).ensureScheduled()
+    }
+
+    private companion object {
+        const val BACKGROUND_SERVICE_GRACE_MS = 2_000L
     }
 
     private fun isDiagnosticProcess(): Boolean {

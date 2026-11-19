@@ -98,7 +98,7 @@ val tabs = listOf(
     TabItem("我的", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
-private val HomeBottomBarHeight = 64.dp
+private val HomeBottomBarHeight = Height.touchTarget
 private val HomeBottomBarIconSize = IconSize.l
 private val HomeBottomBarHazeBlurRadius = 10.dp
 private const val HomeBottomBarGlassAlpha = 0.10f
@@ -330,9 +330,10 @@ private fun HomeTabNavigationBar(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(vertical = Spacing.xs)
                     .clip(RoundedCornerShape(Radius.card))
                     .selectable(selected = selected, role = Role.Tab, onClick = { onTabSelected(index) })
+                    .padding(horizontal = Spacing.s, vertical = Spacing.xs)
+                    .clip(RoundedCornerShape(Radius.card))
                     .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent),
                 contentAlignment = Alignment.Center,
             ) {

@@ -58,6 +58,25 @@ class I18nServiceTest {
         }
     }
 
+    @Test fun resourceSyntaxOutsideTheFastReaderFallsBackToYamlParsing() = withSettings { settings ->
+        val service = I18nService(settings)
+        service.init()
+        // Four-space nesting is valid YAML that the startup reader deliberately refuses.
+        service.loadTranslation("zh", "group:\n    deep: \"\u503c\"\n")
+        assertEquals("\u503c", service.t("group.deep"))
+    }
+
+    @Test fun startupBundleProvidesTheSameStringsAsTheYamlResources() = withSettings { settings ->
+        val service = I18nService(settings)
+        service.init()
+        for (language in listOf("zh", "en")) {
+            service.loadTranslationBundle(language, File("../app/src/main/assets/i18n/$language.txt").readText())
+        }
+        assertEquals("诊断管理", service.t("diagnostics.title"))
+        service.setLanguage("en")
+        assertEquals("Diagnostics", service.t("diagnostics.title"))
+    }
+
     private fun loadTranslations(service: I18nService, vararg languages: String) {
         languages.forEach { language ->
             service.loadTranslation(language, File("src/commonMain/resources/i18n/$language.yaml").readText())

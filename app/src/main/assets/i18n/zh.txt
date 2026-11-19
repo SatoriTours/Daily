@@ -1,0 +1,1575 @@
+reminder_ui.today_count	今天 %d 项
+reminder_ui.overdue_count	%d 项逾期
+reminder_ui.paused_count	已暂停 · %d 项
+reminder_ui.complete_cycle	完成本次
+reminder_ui.completed_message	已完成「%s」
+reminder_ui.cycle_completed	本次已完成，后续周期继续提醒
+reminder_ui.undo	撤销
+reminder_ui.complete_failed	完成失败，任务可能已变化，请重试。
+reminder_ui.undo_failed	无法撤销，任务可能已变化，请查看最新状态。
+reminder_ui.no_repeat	不重复
+reminder_ui.reminder_time	提醒时间
+reminder_ui.repeat	重复
+reminder_ui.manual_source	手动创建
+reminder_ui.source_unknown	来源记录不可用
+reminder_ui.edit_task	编辑待办
+reminder_ui.complete_access	完成：%s
+reminder_ui.completed_access	已完成：%s
+phone.expand_text	展开全文
+phone.collapse_text	收起全文
+phone.more_actions	更多操作
+phone.local_original	原文仅加密保存在本机
+phone.clear_preserves_results	清除原文不会影响已生成的待办与账目。
+phone.source_info	来源信息
+phone.open_source_record	查看来源记录
+phone.source_not_found	未找到对应的来源记录。
+phone.source_load_failed	来源信息加载失败，请重试。
+phone.load_again	重新加载
+phone.loading_results	正在加载处理结果
+phone.no_results	未生成待办或账目
+phone.todo_count	已生成 %d 个待办
+phone.ledger_count	已生成 %d 个账目
+phone.ledger_posted	已入账
+phone.ledger_detail	账目详情
+phone.todo_detail	待办详情
+phone.result_not_found	未找到该记录，可能已被删除。
+phone.amount_unknown	金额待确认
+phone.deadline_unset	未设置截止时间
+phone.edit	编辑
+phone.ledger_settings	分类、备注与其他设置
+phone.reminder_status.draft	待确认
+phone.reminder_status.active	待完成
+phone.reminder_status.notified	待完成
+phone.reminder_status.dismissed	待完成
+phone.reminder_status.paused	已暂停
+phone.reminder_status.completed	已完成
+phone.reminder_status.expired	已过期
+phone.intake_title	信息接入
+phone.intake_hint	把新信息整理成待办和账目
+phone.reminder_setup	提醒权限待完善，点此设置
+phone.settings_intro	选择信息来源和识别用途。只处理开启后收到的新信息。
+phone.receive_hint	开启后接收新信息，不读取历史记录
+phone.grant_sms_access	开启短信权限
+phone.manage_sms_access	管理短信权限
+phone.sms_access_hint	授权后才能接收新短信
+phone.notification_access_hint	在系统设置中允许读取通知
+phone.sources_hint	只处理你选择的应用通知
+phone.todos_hint	取件、缴费、预约等需要处理的事项
+phone.ledger_hint	在本机识别支付、收入和退款
+phone.cloud_short	AI 辅助识别待办
+phone.cloud_hint	仅发送通过脱敏检查的待办语句，需单独同意
+phone.reminders_title	待办提醒
+phone.reminder_notifications	提醒通知
+phone.reminder_timing	准时提醒
+phone.permission_ready	权限已开启，可在系统设置中管理
+phone.setup_sources	设置接入来源
+phone.empty_setup_hint	先接入短信或应用通知，再选择提取待办、识别账目。开启后收到的新信息会显示在这里。
+phone.empty_pending_title	暂时没有需要确认的内容
+phone.empty_pending_hint	需要核对的待办和账目会集中在这里，确认后再保存。
+phone.empty_todos_title	还没有生成待办
+phone.empty_todos_hint	从短信和通知中识别的事项，确认后会显示在这里。
+phone.empty_ledger_title	本月还没有账目
+phone.empty_ledger_hint	已识别并记入的交易会显示在这里，需要核对的交易在「待确认」中。
+phone.empty_history_title	还没有处理记录
+phone.empty_history_hint	收到可识别的新信息后，可以在这里查看来源和处理结果。
+phone.sms_access_title	需要短信接收权限
+phone.sms_access_reason	手机助手需要短信接收权限，才能从新短信中提取待办和账目。不会读取历史短信，也不会发送短信。
+phone.sms_access_settings	短信权限尚未开启，可能已被拒绝或受到系统、安装方式限制。点击「打开应用设置」，在「权限」中允许短信权限，然后返回。\n\n如果权限不可选择，系统可能限制了此次安装的短信授权，应用无法自行解除。可以改用通知接入，选择短信应用作为来源；通知接入只处理可见通知，可能遗漏或截断内容。
+phone.continue_access	继续授权
+phone.open_app_settings	打开应用设置
+phone.settings_unavailable	未能打开系统设置。请手动进入手机「设置 → 应用 → Daily Satori → 权限」。
+phone.restricted_help	权限受限制？
+phone.restricted_hint	查看系统限制说明与设置入口
+phone.restricted_settings_help	如果系统提示「受限制的设置」，请打开应用信息页；若右上角菜单提供「允许受限制的设置」，可在确认信任本应用后开启，再返回通知使用权页面授权。不同手机的名称和入口可能不同。\n\n这与短信接收权限的安装限制不同，开启此项不保证能授权短信。
+phone.access.off	未开启
+phone.access.permission	等待授权
+phone.access.purpose	选择识别用途
+phone.access.sources	选择应用来源
+phone.access.waiting	等待系统连接
+phone.access.connected	已接通
+phone.title	手机助手
+phone.row_hint	从短信和通知提取待办与账目
+phone.settings	来源与识别设置
+phone.history	最近处理
+phone.reprocess	重新识别
+phone.ai_reprocess	交给 AI 二次处理
+phone.load_more	加载更早记录
+phone.sms	短信
+phone.notification	通知
+phone.receive	接收新信息
+phone.choose_purpose	请至少开启一种识别用途，否则不会生成结果。
+phone.block_source	屏蔽此来源
+phone.extract_todos	提取待办
+phone.extract_ledger	识别账目
+phone.cloud	允许脱敏 AI 分析待办
+phone.cloud_notice	允许将%s中通过脱敏检查的待办语句发送给默认 AI 服务。验证码不发送；金额、账号、链接等会移除。包含无法安全脱敏内容的信息只在本机处理。此授权不包含另一种来源，也不上传记账正文。
+phone.privacy	短信和通知分别选择用途。仅保存候选信息并在本机加密，记账在本机解析；普通聊天、广告和验证码不进入流水。微信和支付宝仅处理服务类通知。
+phone.changes_notice	变更设置会停止旧的待处理任务。需要继续时，可在最近处理中重试；已经生成的结果保留。
+phone.sms_permission	需要短信接收权限，开启接收时申请。
+phone.notify_permission	允许本应用发送待办提醒
+phone.alarm_permission	允许准时发送定时提醒
+phone.pending	待确认
+phone.todos	待办
+phone.ledger	账目
+phone.overview	短信：%s · 通知：%s
+phone.on	已接通
+phone.off	未接通
+phone.coverage	只处理开启后收到的新信息。系统限制、通知缺失或内容隐藏可能导致漏记。来源与结果按需核对。
+phone.operation_failed	处理未完成，请检查权限与设置后重试。
+phone.edit_todo	确认或补建待办
+phone.todo_title	待办事项
+phone.deadline	截止时间（可留空）
+phone.deadline_hint	格式：2026-10-06 17:30
+phone.unscheduled_hint	截止时间留空时只创建待办，不设置定时提醒。
+phone.todo_candidate	待办候选
+phone.view_todo	查看待办
+phone.complete	完成
+phone.retry	重试未完成项
+phone.add_todo	补建待办
+phone.add_ledger	补建账目
+phone.result_counts	已生成 %d 个待办 · %d 个账目
+phone.related_notice	这条信息同时关联待办和账目。请核对后完成事项，支付记录不会自动完成待办。
+phone.source_erased	原文已清除，处理结果和防重记录保留。
+phone.clear_source	清除原文
+phone.clear_notice	清除本条信息及其结果中保存的来源正文，保留待办、账目和防重身份。原文清除后不再自动处理本条信息。
+phone.state.queued	等待处理
+phone.state.pending	需要确认
+phone.state.done	已生成待办
+phone.state.ignored	已忽略
+phone.state.failed	处理失败
+phone.state.skipped	不适用
+phone.state.completed	已完成
+phone.state.stopped	设置已变更，处理已停止
+phone.reason.ambiguous_action	信息没有明确说明需要你执行付款，请核对后确认。
+phone.reason.ambiguous_deadline	截止时间不明确或已过期，请核对；也可留空创建无定时提醒的待办。
+phone.reason.processing_failed	这项处理失败，其他已经生成的结果保留，可单独重试。
+bookkeeping.sources_intro	选择需要接入的应用
+bookkeeping.sources_new_only	仅处理选中应用的新通知
+bookkeeping.sources_all	全部应用
+bookkeeping.sources_selected_tab	已选应用 %d
+bookkeeping.sources_selected_label	已选择
+bookkeeping.sources_selected_count	%d 个应用
+bookkeeping.sources_close_search	收起搜索
+bookkeeping.sources_clear_search	清空搜索
+bookkeeping.sources_privacy	仅接入通知，不读取短信历史
+bookkeeping.sources_no_matches	没有找到匹配的应用
+bookkeeping.sources_no_matches_hint	试试其他名称，或清空搜索。
+bookkeeping.sources_none_selected	还没有选择应用
+bookkeeping.sources_none_selected_hint	切换到「全部应用」，选择需要接入的来源。
+bookkeeping.sources_no_apps	暂时没有可选应用
+bookkeeping.sources_no_apps_hint	返回后重新打开此页面，刷新应用列表。
+bookkeeping.sources_save_failed	本次选择未能保存，请重试。
+bookkeeping.title	自动记账
+bookkeeping.row_hint	从选定应用的新通知生成账目
+bookkeeping.enabled	监听交易通知
+bookkeeping.local_notice	只处理你选中的应用通知，在本机解析并加密保存，不上传云端。开启后仅监听新通知；通知缺失、系统限制或强行停止应用可能导致漏记。
+bookkeeping.grant	开启通知使用权
+bookkeeping.manage_access	管理通知使用权
+bookkeeping.sources	选择通知来源（%d 个）
+bookkeeping.select_sources	通知来源
+bookkeeping.search_sources	搜索应用
+bookkeeping.sources_notice	请选择银行、支付或短信应用。微信和支付宝仅处理支付类标题；短信应用仅提供通知中的文字，不读取短信历史。
+bookkeeping.done	完成
+bookkeeping.refresh	重新检查
+bookkeeping.operation_failed	操作失败，账目尚未更新。请重新检查后重试。
+bookkeeping.capture_failed	最近一次通知处理失败，可能有漏记。请核对账目和权限。
+bookkeeping.previous_month	上月
+bookkeeping.next_month	下月
+bookkeeping.month_totals	%s · 收入 %s · 支出 %s · 退款 %s
+bookkeeping.totals_notice	按通知到达时间归入所选日／周／月，各币种分别统计。待确认账目、转账和还款不计入收支；退款单独统计。
+bookkeeping.previous_period	上一期
+bookkeeping.next_period	下一期
+bookkeeping.period.day	日
+bookkeeping.period.week	周
+bookkeeping.period.month	月
+bookkeeping.bucket_empty	无记录
+bookkeeping.pending	待确认（%d 笔）
+bookkeeping.posted	已记账
+bookkeeping.empty	本月暂无账目。开启监听、授权并选择来源后，新的交易通知会显示在这里。
+bookkeeping.unknown_amount	金额待确认
+bookkeeping.account_tail	尾号 %s
+bookkeeping.received_time	%s · 通知时间 %s
+bookkeeping.confirm	确认
+bookkeeping.edit	编辑
+bookkeeping.ignore	忽略
+bookkeeping.delete	删除
+bookkeeping.show_source	原文
+bookkeeping.hide_source	收起
+bookkeeping.edit_entry	确认或修改账目
+bookkeeping.amount	金额
+bookkeeping.currency	币种
+bookkeeping.unknown_currency	币种待确认
+bookkeeping.type	类型
+bookkeeping.merchant	商户或备注
+bookkeeping.duplicate_confirmation	这笔可能与已有账目重复。确认后将作为独立账目计入统计；若为同一笔交易，请取消并忽略。
+bookkeeping.save	保存
+bookkeeping.cancel	取消
+bookkeeping.status.off	监听已关闭
+bookkeeping.status.grant_required	需要开启系统通知使用权
+bookkeeping.status.select_required	请选择至少一个通知来源
+bookkeeping.status.connected	通知监听已连接
+bookkeeping.status.disconnected	已授权，等待系统连接。可关闭再开启监听重试。
+bookkeeping.kind.expense	支出
+bookkeeping.kind.income	收入
+bookkeeping.kind.refund	退款
+bookkeeping.kind.transfer	转账
+bookkeeping.kind.repayment	还款
+bookkeeping.kind.unknown	请选择类型
+bookkeeping.reason.missing_amount	通知没有明确金额
+bookkeeping.reason.ambiguous_amount	通知包含多个金额，需要核对
+bookkeeping.reason.ambiguous_currency	通知没有明确币种，请根据原文选择
+bookkeeping.reason.invalid_amount	金额格式或精度需要核对
+bookkeeping.reason.ambiguous_kind	交易类型需要核对
+bookkeeping.reason.unconfirmed	通知未明确表明交易已完成
+bookkeeping.reason.possible_duplicate	与近期同金额账目可能重复，需要核对
+bookkeeping.reason.incomplete	交易信息不完整
+sms.created_notice	已创建 %d 个待办
+sms.no_deadline	未设置截止时间
+sms.unscheduled	已添加待办，期限不明确，暂不安排定时提醒。可编辑补充。
+sms.source_short	短信来源
+sms.view_short	查看待办
+sms.more	更多操作
+sms.behavior	创建时仅显示应用内数量提示。未完成时在截止前两小时提醒；临近截止才创建时提醒一次。安静时段静默通知，完成或截止后停止。
+sms.title	短信待办
+sms.row_hint	从短信提取需要处理的事项，并在截止前提醒
+sms.monitor	监听新短信
+sms.cloud	允许 AI 分析脱敏短信
+sms.privacy	默认关闭。验证码不保存、不上传。账号、卡号、余额、金额和其他数字会遮蔽；期限在本地计算。姓名、地址等无法可靠脱敏的短信仅在本地处理。发送者不提供给 AI。
+sms.consent	开启后，仅将本地脱敏的候选短信和本地计算的期限发送给你配置的 AI 服务。原短信加密保存在本机。关闭后停止后续 AI 请求；已发出的请求无法撤回，返回结果也不会自动创建待办。
+sms.agree	同意并开启
+sms.cancel	取消
+sms.permission_missing	短信权限已撤销，监听无法工作。可关闭后重新开启授权。
+sms.enable_notifications	开启通知，否则只能在应用内查看待办
+sms.exact_alarm_hint	允许精确提醒，减少系统延迟
+sms.sync_pending	同步待处理短信
+sms.sync_started	已同步待处理短信，处理完成后自动添加待办。
+sms.automatic_hint	开启监听后，新短信会自动处理，无需手动导入。
+sms.clear_blocked	清除发送者屏蔽名单
+sms.skipped	已跳过验证码、屏蔽来源或不需要处理的短信。
+sms.confirmed	待办已创建并安排提醒。
+sms.action_failed	操作未完成。请检查时间格式、未来截止时间和 AI 授权；待办不会因提醒安排失败而丢失。
+sms.local_candidate	短信事项
+sms.deadline	截止时间
+sms.estimated	按接收时间估算
+sms.source	查看短信来源
+sms.redacted_preview	可提供给 AI 的脱敏正文
+sms.view_reminder	查看或修改待办
+sms.reschedule	重新安排提醒
+sms.confirm	确认创建待办
+sms.retry	重新请求 AI
+sms.ignore	忽略
+sms.block	屏蔽此发送者
+sms.sender	发送者（可选）
+sms.body	短信正文
+sms.received	接收时间
+sms.time_hint	使用本地时间，格式 YYYY-MM-DD HH:mm。期限留空时仅保存待办；补充期限后自动安排提醒。
+sms.task_title	待办内容
+sms.notification_title	短信中有待处理事项
+sms.notification_body	打开短信待办查看期限及处理状态。
+sms.status_queued	等待脱敏分析
+sms.status_local_only	仅本地处理
+sms.status_pending	正在自动添加待办
+sms.status_ready	正在创建待办
+sms.status_created	已创建待办
+sms.status_ignored	已忽略
+sms.status_expired	短信期限已过，未安排定时提醒
+sms.status_failed	处理失败，可重试
+diary_polish.action	AI 整理
+diary_polish.title	语音日记整理
+diary_polish.load_failed	加载整理记录失败，请重新打开日记；仍可正常编辑和保存正文。
+diary_polish.privacy	将这段原始转写、选定的采用版本及相关修改意见发送给默认 AI，去重复、理顺表达并分段，不作摘要或扩写。原文始终保留；请核对后应用，再保存日记。
+diary_polish.reference_version	参考采用版本 %s
+diary_polish.version	采用版本 %s
+diary_polish.feedback	对此版本的修改意见
+diary_polish.feedback_placeholder	例如：不要删掉我的犹豫；金额应为28元，不是26元。
+diary_polish.feedback_hint	意见只作用本篇日记。关闭预览后点击日记“保存”，版本和意见会一起保留。重新整理以选定版意见优先，参考最近5条历史意见。
+diary_polish.feedback_limit	%s / 4,000 字
+diary_polish.loading	正在整理原始转写…
+diary_polish.draft	整理结果（可编辑）
+diary_polish.target	确认替换以下正文
+diary_polish.original	查看原始转写
+diary_polish.hide_original	收起原始转写
+diary_polish.restore	使用原始转写恢复正文
+diary_polish.regenerate	重新整理
+diary_polish.cancel	取消
+diary_polish.apply	确认替换
+diary_polish.conflict	无法安全定位正文，或正文已更改。请关闭预览，选中要替换的录音文字，再打开；其他文字不会自动覆盖。
+diary_polish.missing_config	请先配置默认 AI。
+diary_polish.settings	打开 AI 设置
+diary_polish.invalid_input	原始转写不能为空，且不能超过 24,000 字；单版意见不能超过 4,000 字，参考版本不能超过 48,000 字。不会截断原文后整理。
+diary_polish.invalid_response	AI 未返回有效正文，原文未改动，请重试。
+diary_polish.failed	整理失败，原文未改动，请检查配置或稍后重试。
+diary_tags.undo_step	撤销上一步
+diary_tags.pending_draft	新标签尚待确认，点选可手动添加。
+diary_tags.pending_names	待确认的新标签
+diary_tags.approve_name	加入词库
+diary_tags.title	日记标签
+diary_tags.settings_hint	自动提炼重点，统一同义标签
+diary_tags.edit	调整标签
+diary_tags.done	完成
+diary_tags.edit_hint	点标签可替换，点 × 删除；设为重点会固定保留。保存日记后生效。
+diary_tags.add	添加标签
+diary_tags.replace	替换标签
+diary_tags.apply	确定
+diary_tags.remove	删除标签
+diary_tags.pin	设为重点并保留
+diary_tags.cancel_replace	取消替换
+diary_tags.existing	已有标签 · 点选即可添加或替换
+diary_tags.privacy	使用默认 AI 分析日记正文，通常生成 1–2 个标签，最多 3 个。
+diary_tags.manual_full	手动标签已占满三个名额，AI 不再补充。
+diary_tags.regenerate	AI 重新生成
+diary_tags.generating	正在生成…
+diary_tags.cancel	取消
+diary_tags.invalid_name	标签需为 1–24 个字符，不能包含逗号或换行。
+diary_tags.result_stale	内容或标签已变化，请重新生成。
+diary_tags.generate_failed	生成失败，原标签已保留。请检查默认 AI 配置后重试。
+diary_tags.automatic	保存后自动打标签
+diary_tags.automatic_hint	只处理新建或正文有修改的日记，不影响保存速度。
+diary_tags.fill_missing	为历史日记补充标签
+diary_tags.fill_missing_hint	只处理没有标签的日记，已有标签保持原样
+diary_tags.fill_missing_count	%1$d 篇无标签日记可补充
+diary_tags.fill_confirm	补充历史标签
+diary_tags.fill_body	将使用默认 AI 分析 %1$d 篇无标签日记的正文。已有标签的日记保持原样，可在任务中心查看进度。
+diary_tags.batch_queued	已提交后台处理；未配置默认 AI 时不会生成。
+diary_tags.synonyms	AI 检查同义标签
+diary_tags.synonyms_hint	只分析标签名称，合并前由你确认。
+diary_tags.suggestions	待确认的合并建议
+diary_tags.review	查看合并
+diary_tags.dismiss	忽略建议
+diary_tags.manage_hint	点标签可统一改名或合并；相关但不同的概念可以继续分开。
+diary_tags.target	统一名称
+diary_tags.choose_target	选择已有标签，或输入新的名称
+diary_tags.merge_title	统一标签名称
+diary_tags.merge_preview	预览影响
+diary_tags.merge_body	将“%1$s”统一为“%2$s”，影响 %3$d 篇日记；原名称保留为搜索别名。
+diary_tags.merge_confirm	确认合并
+diary_tags.undo	撤销上次合并
+diary_tags.undo_conflict	合并后标签已被修改，为保护新内容，无法直接撤销。
+diary_tags.operation_failed	操作失败，请稍后重试。
+diary_tags.busy	处理中…
+diary_tags.active	%1$d 个标签任务正在处理中
+diary_tags.failed	%1$d 篇日记生成失败
+diary_tags.retry	重试失败任务
+diary_tags.empty	暂无标签，保存日记后会自动整理。
+diary_tags.no_suggestions	未发现需要合并的标签。
+diary_tags.queued	标签等待生成
+diary_tags.running	正在生成标签
+diary_tags.retrying	标签等待重试
+diary_tags.failed_status	标签生成失败 · 点标签入口可重试
+reminder_ai_progress.title	正在理解你的提醒
+reminder_ai_progress.subtitle	识别提醒内容、日期和重复规则
+reminder_ai_progress.elapsed	已等待 %1$d 秒
+reminder_ai_progress.queue	等待执行
+reminder_ai_progress.analyzing	AI 解析
+reminder_ai_progress.validating	校验结果
+reminder_ai_progress.generating	生成草稿
+reminder_ai_progress.done	已完成
+reminder_ai_progress.pending	待开始
+reminder_ai_progress.running	正在处理
+reminder_ai_progress.ai_wait	正在等待 AI 返回结果
+reminder_ai_progress.retry_countdown	%1$d 秒后自动重试
+reminder_ai_progress.retry_waiting	等待自动重试
+reminder_ai_progress.retry_hint	暂未获得解析结果，将自动重试。
+reminder_ai_progress.long_wait	仍在等待 AI 的结果，你可以先离开此页。
+reminder_ai_progress.original	你的原话
+reminder_ai_progress.background	可以离开此页，解析会在后台继续。
+reminder_ai_progress.back	返回上一页
+reminder_batch_review.discarded	未保存的草稿已放弃
+reminder_batch_review.invalid_count	有 %1$d 条提醒需要完善，请展开编辑。
+reminder_batch_review.select_hint	请至少选择一条提醒
+reminder_batch_review.content_needed	请填写 1–2000 个字符的提醒内容。
+reminder_batch_review.dates_needed	请补充有效的开始和结束日期。
+reminder_batch_review.time_needed	请选择提醒时间。
+reminder_batch_review.title	已整理出 %1$d 条提醒
+reminder_batch_review.subtitle	检查内容与时间，确认后才会创建提醒。
+reminder_batch_review.item	提醒 %1$d
+reminder_batch_review.select	选择提醒 %1$d
+reminder_batch_review.next	下次提醒
+reminder_batch_review.monthly	每月 %1$d 日
+reminder_batch_review.yearly	每年 %1$d 月 %2$d 日
+reminder_batch_review.repeat_window	%1$s 至 %2$d 月 %3$d 日
+reminder_batch_review.date_range	%1$s 至 %2$s
+reminder_batch_review.work_quiet	工作时间仅显示通知，不播放声音。
+reminder_batch_review.collapse_edit	收起编辑
+reminder_batch_review.unsaved	未保存的提醒不会发送通知。
+reminder_batch_review.original	查看原始输入
+reminder_batch_review.save_hint	仅保存已选中的提醒
+reminder_batch_review.save	保存 %1$d 条提醒
+reminder_batch_review.saved	提醒已保存
+reminder_batch_review.discard_hint	未保存的草稿将被放弃，已保存的提醒不受影响。
+reminder_detail.complete	标记完成
+reminder_detail.complete_hint	完成后，这条提醒将永久结束，不再发送通知。
+reminder_detail.edit_hint	修改提醒内容、日期和时间
+reminder_detail.pause	暂停提醒
+reminder_detail.pause_hint	暂时停止通知，之后可手动恢复
+reminder_detail.resume	恢复提醒
+reminder_detail.resume_hint	按现有日期和配置继续发送通知
+reminder_detail.resume_blocked	请先使用当前默认配置修复，再恢复提醒
+reminder_detail.more	更多操作
+reminder_detail.less	收起更多操作
+reminder_detail.apply_defaults	使用当前默认配置
+reminder_detail.apply_defaults_hint	将此提醒的节奏与通知效果更新为设置中的默认配置
+reminder_detail.delete	删除提醒
+diary_feed.title	我的日记
+diary_feed.subtitle	把平凡的日子，慢慢收藏。
+diary_feed.capture_title	今天，有什么想留下？
+diary_feed.capture_hint	一句话，一张照片，都很好。
+diary_feed.write_now	写下此刻
+diary_feed.record_voice	语音记录
+diary_feed.review_title	本月回顾
+diary_feed.review_no_summary	这个月留下的片段，都在这里。
+diary_feed.empty_title	故事，从这里开始
+diary_feed.empty_hint	随手记下一点今天，或说给自己听。
+diary_feed.today	今天
+diary_feed.yesterday	昨天
+diary_feed.expand	展开
+diary_feed.collapse	收起
+diary_feed.month_review	月度回顾
+diary_feed.read_review	阅读%1$s回顾 →
+diary_feed.month_count	%1$d篇记录
+diary_feed.review_source	根据本月%1$d篇日记整理
+diary_feed.month_notes	本月记录
+diary_feed.question_title	留给下个月的一个问题
+diary_feed.question	哪些记录，值得变成下一步的小行动？
+diary_feed.summary_empty	月度回顾还在整理中，可以先回看本月记录。
+diary_feed.source_note	回顾来自你的日记，点击记录可阅读原文。
+diary_feed.photo_count	%1$d张
+diary_feed.entry	日记
+diary_feed.reminder_badge	我的，今天还有%1$d项提醒
+diary_feed.month_title	%1$s回顾
+diary_feed.attachment_entry	附件记录
+diagnostics.title	诊断管理
+diagnostics.subtitle	导出最近半小时日志与崩溃现场
+diagnostics.description	持续记录已脱敏的请求信息、业务操作和异常。导出点击时刻之前 30 分钟的日志，保存为一份便于人工智能分析的文本文件。
+diagnostics.privacy	不记录凭据、日记、对话或完整正文；未知自由文本会省略。日志只保存在本机，不会自动上传。
+diagnostics.coverage	内嵌网页和系统下载仅记录可观测事件；应用被强制关闭或内存不足时，可能丢失末尾记录。具体记录范围和缺失情况会写入报告。
+diagnostics.storage	本地诊断占用
+diagnostics.gaps	存在历史清理、丢弃、截断或写入异常，请查看导出报告中的健康信息。
+diagnostics.exportRecent	导出最近 30 分钟日志
+diagnostics.exportCrash	导出上次崩溃现场
+diagnostics.lastCrash	上次崩溃
+diagnostics.noCrash	暂无可导出的崩溃现场
+diagnostics.destination	下一步请选择「下载」或其他目录保存；选择云存储位置可能会上传文件，请妥善保管导出的日志。
+diagnostics.chooseDestination	请在系统文件选择器中选择保存位置
+diagnostics.preparing	正在生成日志快照…
+diagnostics.saving	正在保存，请勿退出…
+diagnostics.saved	已保存到所选位置
+diagnostics.failed	导出失败，请检查可用空间和目录权限后重试。
+diagnostics.failedResidual	保存失败，所选目录可能残留不完整文件，请检查并删除。
+diagnostics.cleanup	本地数据
+diagnostics.clear	清理诊断日志
+diagnostics.clearConfirm	清理本地诊断、崩溃现场和临时快照？不会删除已导出的文件或旧任务中心日志。
+diagnostics.confirm	确认清理
+diagnostics.cancel	取消
+diagnostics.unavailable	本地诊断存储暂不可用
+diagnostics.expired	本次导出已失效，请重新导出；所选目录可能留有空文件。
+diagnostics.pickerFailed	无法打开系统保存界面，请稍后重试。
+error.network	网络连接错误，请检查网络后重试
+error.server	服务器错误，请稍后重试
+error.timeout	请求超时，请稍后重试
+error.unknown	发生未知错误，请稍后重试
+error.validation	输入数据无效，请检查后重试
+error.permission	权限不足，请联系管理员
+error.notFound	请求的资源不存在
+error.duplicate	数据已存在，无法重复添加
+success.save	保存成功
+success.delete	删除成功
+success.update	更新成功
+success.import	导入成功
+success.export	导出成功
+success.backup	备份成功
+success.restore	恢复成功
+success.add	添加成功
+success.copy	复制成功
+success.book_refreshed	已刷新
+button.confirm	确定
+button.cancel	取消
+button.save	保存
+button.delete	删除
+button.refresh	刷新
+button.add	添加
+button.edit	编辑
+button.view	查看
+button.search	搜索
+button.clear	清除
+button.back	返回
+button.select	选择
+button.update	更新
+button.restore	还原
+button.learned	了解了
+button.close	关闭
+button.copy_address	复制地址
+button.hide_password	隐藏密码
+button.show_password	显示密码
+button.add_tag	添加标签
+button.insert	插入
+button.retry	重试
+ui.cancel	取消
+ui.save	保存
+ui.saveChanges	保存更改
+ui.saveLink	保存链接
+ui.updateArticle	更新文章
+ui.aiAnalysis	AI 分析
+ui.link	链接
+ui.title	标题
+ui.tags	标签
+ui.comment	备注
+ui.optional	选填
+ui.inputOrModifyArticleTitle	输入或修改文章标题
+ui.addCommentInfo	添加备注信息
+ui.search	搜索
+ui.processing	处理中
+ui.selected_tags	已选标签
+ui.existing_tags	现有标签
+ui.inputTags	输入标签，用逗号分隔
+nav.articles	文章
+nav.diary	日记
+nav.books	读书
+nav.settings	我的
+nav.home	首页
+title.add_book	添加书籍
+title.settings	设置
+title.books	读书悟道
+title.books_wisdom	读书悟道
+title.ai_config	AI 配置管理
+title.plugin_center	插件中心
+title.backup_restore	从备份恢复
+title.select_book	选择书籍
+title.delete_book	删除书籍
+title.refresh_book	刷新书籍
+tooltip.select_book	选择书籍
+tooltip.add_book	添加书籍
+tooltip.add_insight	添加感悟
+tooltip.ai_config_help	AI配置说明
+tooltip.update_all_plugins	更新所有插件
+tooltip.server_settings	服务器设置
+tooltip.back	返回
+tooltip.clear	清除
+tooltip.search	搜索
+label.password	密码
+label.book_author	作者
+label.book_category	分类
+label.book_title	书名
+hint.search_articles	搜索文章...
+hint.search_content	记录现在，畅想未来...
+hint.select_first	请先选择需要转换的文本
+hint.enter_new_tag	输入新标签...
+hint.enter_server_password	请输入服务器密码
+hint.enter_book_name	输入书名进行搜索...
+hint.title	请输入标题
+news_focus.background_running	后台已有任务正在处理，等待完成即可。
+news_focus.background_started	已在后台开始更新，完成后会自动显示。
+news_focus.title	新闻
+news_focus.search	搜索新闻
+news_focus.refresh	刷新新闻
+news_focus.tab	每日重点
+news_focus.headlines	今日要闻
+news_focus.past_headlines	当日要闻
+news_focus.read_more	查看详细新闻 →
+news_focus.more	查看更多
+news_focus.continuous	持续更新 · 点子推进
+news_focus.continuous_detail	持续根据新闻更新，跨日期保留
+news_focus.ranking_hint	收录为点子持续推进，加入待办后移出推荐
+news_focus.recommended	推荐
+news_focus.recommended_count	为你推荐 · %1$d 个机会
+news_focus.direction	关注方向：%1$s
+news_focus.adjust	调整
+news_focus.history	选择日期
+news_focus.news_count	%1$s · %2$d 条来源
+news_focus.updated	%1$s · 更新于 %2$s
+news_focus.source	来源：%1$s
+news_focus.read_article	阅读新闻 →
+news_focus.related	关联机会 %1$d
+news_focus.empty	暂无新闻要闻
+news_focus.empty_hint	刷新新闻后，可在这里查看总结与详细报道。
+news_focus.news_list	重点新闻
+news_focus.no_summary	该条新闻暂无摘要，点击阅读新闻查看内容。
+personal_settings.my_title	我的
+personal_settings.title	设置
+personal_settings.library	收藏与任务
+personal_settings.favorites	文章收藏
+personal_settings.tasks	任务中心
+personal_settings.sources	内容来源
+personal_settings.news	新闻来源
+personal_settings.external	外部收藏同步
+personal_settings.ai	AI 与工具
+personal_settings.access	提醒与访问
+personal_settings.privacy	隐私说明
+personal_settings.updates	版本更新
+article.detail_title	文章详情
+article.published_on	发布于
+article.saved_on	收藏于
+article.source	来源
+article.source_unknown	来源未知
+article.all_articles	全部文章
+article.favorite_articles	收藏文章
+article.search_result	搜索: "{query}"
+article.filter_by_tag	标签: {tag}
+article.filter_by_date	按日期筛选
+article.calendar_title	文章日历
+article.select_tag	选择标签
+article.filter_tags	标签筛选
+article.show_all	显示全部文章
+article.show_favorite_only	只看收藏文章
+article.view_all_articles	查看全部文章
+article.loading_more	加载更多内容...
+empty.no_viewpoint	暂无观点，请先添加书籍
+empty.no_plugins	暂无插件
+empty.search	暂无搜索结果
+dialog.confirm_delete	确认删除
+dialog.server_address	HTTP服务器地址
+dialog.convert_to_table	转换为表格
+dialog.convert_to_list	转换为列表
+dialog.format_code_block	格式化为代码块
+dialog.add_emphasis	添加强调格式
+dialog.select_from_album	从相册选择
+dialog.take_photo	拍照
+dialog.ai_config_help	AI配置说明
+dialog.restart_app	重启应用
+dialog.restore_success	还原成功
+dialog.restore_failed	还原失败
+dialog.about	关于
+dialog.functions	功能
+dialog.ai_config_desc	设置多个场景下的 AI 模型
+dialog.plugin_center_desc	管理扩展插件与订阅源
+dialog.system	系统
+dialog.backup_desc	保护您的数据安全
+dialog.web_server	Web服务器
+dialog.web_server_desc	配置远程访问与代理设置
+dialog.check_update	检查更新
+dialog.check_update_desc	获取最新版本
+dialog.google_books_api_key	Google Cloud API Key
+dialog.google_books_api_key_desc	配置 Google Cloud API Key
+dialog.enter_api_key	请输入 API Key
+dialog.save	保存
+dialog.cancel	取消
+dialog.server_info	服务器信息
+dialog.backup_success	备份文件已成功还原
+dialog.delete_book	删除书籍
+dialog.delete_book_confirm	确定要删除
+dialog.delete_book_warning	此操作无法撤销，书籍相关的所有观点也将被删除
+dialog.refresh_book	刷新书籍
+dialog.refresh_book_message	将重新拉取
+dialog.refresh_book_warning	的观点内容，这可能需要一些时间。是否继续？
+dialog.refreshing_book	正在刷新
+dialog.add_image	添加图片
+dialog.ai_magic	AI魔法
+dialog.about_description	Daily Satori 是您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理
+setting.web_server	Web服务器
+setting.web_server_address	HTTP服务器地址
+setting.http_server_address	HTTP服务器地址
+setting.websocket_access	WebSocket远程访问
+setting.web_server_subtitle	配置远程访问与代理设置
+setting.websocket_remote	WebSocket远程访问
+setting.connection_status	连接状态
+setting.server_password	服务器密码
+setting.last_update	上次更新：
+setting.updating	更新中
+setting.ai_config_subtitle	设置多个场景下的 AI 模型
+setting.plugin_center_subtitle	管理扩展插件与订阅源
+setting.backup_restore_subtitle	保护您的数据安全
+setting.check_update_subtitle	获取最新版本
+setting.google_books_api_key	Google Cloud API Key
+setting.google_books_api_key_subtitle	配置 Google Cloud API Key
+setting.version	版本
+setting.server_info	服务器信息
+setting.server_management	服务器管理
+setting.server_password_subtitle	保护您的服务器安全
+setting.restart_service	重启服务
+setting.restart_service_subtitle	重新启动 Web 服务器
+setting.password_tip	密码长度为 6-20 位
+setting.network_tip	确保您的设备与访问端在同一局域网内，通过浏览器访问上方地址即可管理您的数据。
+setting.download_images	下载文章图片
+setting.download_images_subtitle	下载缺失的文章封面图片
+setting.download_images_progress	正在下载 {current}/{total}
+backup_restore.delete_failed	删除失败
+backup_restore.delete_success	删除成功
+backup_restore.no_backup_path	未设置备份路径
+backup_restore.path_not_exist	备份路径不存在
+backup_restore.title	从备份恢复
+backup_restore.choose_file	选择备份文件
+backup_restore.source_title	备份来源
+backup_restore.select_title	选择备份
+backup_restore.choose_file_short	选择文件
+backup_restore.directory_files	备份目录中的文件
+backup_restore.restore_selected	恢复此备份
+backup_restore.warning_short	恢复会替换当前数据，请先备份需要保留的内容。
+backup_restore.backup_count	共 %d 份备份
+backup_restore.choose_file_hint	从本机或其他设备的加密备份中恢复
+backup_restore.selected_file	已选择的外部备份文件
+backup_restore.available_backups	目录中的备份 · %d
+backup_restore.empty	目录中暂无备份，请从右上方选择加密备份文件。
+backup_restore.encrypted_file	加密备份文件
+backup_restore.restore	恢复备份
+backup_restore.confirm_title	确认恢复
+backup_restore.warning	恢复将替换当前数据，完成后自动重启。请先备份需要保留的内容。
+backup_restore.password_label	创建此备份时的密码
+backup_restore.confirm	恢复并重启
+backup_restore.cancel	取消
+backup_restore.reading	正在读取备份…
+backup_restore.decrypting	正在解密备份…
+backup_restore.extracting	正在解压附件…
+backup_restore.validating	正在校验完整性…
+backup_restore.preparing	正在适配本机数据…
+backup_restore.staging	正在保存待恢复数据…
+backup_restore.restart	数据已准备好，正在重启完成恢复…
+backup_restore.restart_manual	数据已准备好，自动重启失败；请完全关闭并重新打开应用完成恢复
+backup_restore.select_required	请先选择备份文件
+backup_restore.legacy_life	此旧备份不含生活资料，恢复后会保留本机原有资料；旧设备上的生活资料需重新创建完整备份才能迁移
+backup_restore.password_required	请输入创建此备份时的密码
+backup_restore.password_error	密码不正确或备份已损坏，请核对密码或选择其他备份；当前数据未替换
+backup_restore.access_error	无法读取备份文件，请重新选择并检查访问权限；当前数据未替换
+backup_restore.space_error	存储空间不足，请释放空间后重试；当前数据未替换
+backup_restore.version_error	备份来自较新版本，请升级应用后重试；当前数据未替换
+backup_restore.invalid_error	备份不完整或附件校验失败，请选择完整备份；当前数据未替换
+backup_restore.failed	恢复未能准备完成，请检查备份文件、访问权限和存储空间
+backup_restore.load_failed	无法读取备份目录，可直接选择备份文件
+backup_settings.backup_failed	备份失败
+backup_settings.backup_success	备份成功
+backup_settings.path_saved	路径已保存
+backup_settings.select_failed	选择路径失败
+app.description	您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理。
+book.author	作者：
+book.category	分类：
+book.summary	简介
+book.view_all_viewpoints	查看所有观点
+book.record_thought	记感想
+book.shuffle	换一换
+book.refresh_content	刷新书籍内容
+book.delete_current	删除当前书籍
+book.all_books	所有书籍
+book.not_found_delete	未找到可删除的书籍，请先选择一本书
+book.not_found_refresh	未找到可刷新的书籍，请先添加书籍
+book.delete_confirm	确定要删除《{title}》吗？\\n此操作无法撤销，书籍相关的所有观点也将被删除。
+book.refresh_confirm	将重新拉取《{title}》的观点内容，这可能需要一些时间。是否继续？
+book.refreshing	正在刷新《{title}》...
+book.refresh_success	《{title}》已刷新
+book.refresh_failed	刷新失败，请稍后重试
+book_search.search_failed	搜索失败
+book_search.add_success	书籍添加成功
+book_search.add_failed	添加书籍失败
+book_search.already_exists	该书籍已存在
+message.copy_success	复制成功
+message.success_title	成功
+message.error_title	错误
+message.network_error	网络错误
+message.please_select	请选择...
+message.please_enter	请输入...
+message.invalid_input	无效的...
+message.select_text_first	请先选择文本
+status.connected	已连接
+status.disconnected	未连接
+menu.convert_to_table	转换为表格
+menu.convert_to_list	转换为列表
+menu.format_as_code_block	格式化为代码块
+menu.add_emphasis	添加强调
+menu.select_from_gallery	从相册选择
+menu.take_photo	拍照
+menu.shuffle	换一换
+menu.refresh_book	刷新书籍
+menu.delete_book	删除书籍
+placeholder.title	无标题
+placeholder.content	暂无内容
+placeholder.summary	暂无摘要
+placeholder.url	https://example.com
+placeholder.date	暂无日期
+placeholder.author	未知作者
+component.search	搜索
+component.clear	清除
+component.back	返回
+component.confirm	确定
+component.cancel	取消
+component.filter	过滤
+component.select	选择
+component.search_placeholder	搜索...
+component.search_hint	搜索文章
+component.search_articles_hint	搜索文章...
+component.tooltip_search	搜索
+component.tooltip_clear	清除
+component.tooltip_back	返回
+component.tooltip_filter	过滤
+component.filter_title	过滤条件
+component.filter_date	日期
+component.filter_tags	标签
+component.filter_favorite	仅显示收藏
+component.filter_select_date	选择日期
+component.filter_clear_all	清除全部
+component.filter_prefix	已过滤:
+component.filtered_indicator_prefix	已过滤:
+component.filtered_indicator_clear	清除
+component.empty_articles_title	还没有收藏内容
+component.empty_articles_subtitle	您可以通过分享功能添加新文章
+component.empty_no_data	暂无数据
+component.empty_add_content	点击下方按钮添加新内容
+component.loading	加载中...
+component.processing	处理中...
+component.ai_analyzing	AI分析中...
+component.article_info_website	网站
+component.article_info_date	日期
+component.article_info_tags	标签
+component.article_info_reading_time	阅读时间
+component.article_info_word_count	字数
+component.button_add	添加
+component.button_save	保存
+component.button_delete	删除
+component.button_edit	编辑
+component.button_cancel	取消
+component.button_confirm	确定
+component.favorites_only	只看收藏
+component.show_all	显示全部
+component.processing_dialog_success	完成
+ai_chat.title	AI助手
+ai_chat.assistant	AI助手
+ai_chat.you	您
+ai_chat.tool	工具调用
+ai_chat.thinking	思考中...
+ai_chat.processing	处理中...
+ai_chat.retry	重试
+ai_chat.send	发送
+ai_chat.input_hint	输入您的问题...
+ai_chat.new_chat	新对话
+ai_chat.welcome_message	您好！我是您的智能助手，可以帮您搜索和总结应用内的内容。
+ai_chat.empty_title	开始与AI助手对话
+ai_chat.empty_subtitle	我是您的智能助手，可以帮您搜索和总结应用内的内容
+ai_chat.suggestion_articles	搜索相关文章
+ai_chat.suggestion_diary	查找日记内容
+ai_chat.suggestion_books	搜索读书笔记
+ai_chat.suggestion_summary	总结最近内容
+ai_chat.step_start	开始分析您的问题...
+ai_chat.step_analyzing_query	分析查询意图
+ai_chat.step_intent_identified	识别意图：
+ai_chat.step_planning_tools	制定搜索计划
+ai_chat.step_tool_planned	计划执行：
+ai_chat.step_searching	搜索相关内容
+ai_chat.step_executing_tool	执行搜索：
+ai_chat.step_tool_completed	完成执行：
+ai_chat.step_summarizing	总结搜索结果
+ai_chat.step_error_occurred	处理过程中出现错误
+ai_chat.intent_articles	查找文章
+ai_chat.intent_diary	查找日记
+ai_chat.intent_books	查找书籍
+ai_chat.intent_summary	内容总结
+ai_chat.intent_general	综合搜索
+ai_chat.error_occurred	抱歉，处理您的请求时出现了错误，请稍后重试。
+ai_chat.help	帮助
+ai_chat.help_title	使用帮助
+ai_chat.got_it	知道了
+ai_chat.help_features_title	主要功能
+ai_chat.help_features_content	• 智能搜索文章、日记和读书笔记\\n• 自动总结和整理信息\\n• 多轮对话交互\\n• 实时显示处理步骤
+ai_chat.help_usage_title	使用方法
+ai_chat.help_usage_content	1. 输入您想要查找或总结的内容\\n2. AI会自动分析并制定搜索计划\\n3. 查看处理步骤和搜索结果\\n4. 获取AI总结的答案
+ai_chat.help_tips_title	使用技巧
+ai_chat.help_tips_content	• 使用具体的关键词搜索\\n• 可以指定时间范围\\n• 支持多轮对话细化需求\\n• 可以询问相关建议
+ai_config.api_address_required	请输入API地址
+ai_config.api_token_required	请输入API Token
+ai_config.create_title	创建配置
+ai_config.edit_title	编辑配置
+ai_config.name_required	请输入配置名称
+ai_config.save_failed	保存失败
+ai_config.save_success	保存成功
+ai_config.go_usage_notice	OpenCode Go 主要面向编程 Agent，Daily 的非编程用途可用性不能保证。请使用已订阅 Go 的 API Key。
+ai_config.responses_unsupported	暂不支持 Responses 协议
+ai_config.model_unadapted	模型协议尚未适配，请选择已支持的模型
+ai_config.delete_confirm_with_purpose	确定删除这个非默认模型配置吗？若已被指定为功能模型，删除后将自动恢复为跟随默认模型。
+ai_purpose.title	功能模型分配
+ai_purpose.subtitle	为不同业务场景指定适合的模型配置。未专门指定时，将自动使用默认模型。
+ai_purpose.no_configs_title	暂无可用 AI 模型
+ai_purpose.no_configs_desc	请先添加并配置 AI 模型后，再在此处为不同场景分配模型。
+ai_purpose.go_to_config	前往模型配置
+ai_purpose.follow_default	跟随默认模型
+ai_purpose.default_badge	默认
+ai_purpose.current_default	当前默认
+ai_purpose.select_model_title	选择模型
+ai_purpose.save_failed	保存模型分配失败，请重试
+ai_purpose.card_default_fallback	跟随默认
+ai_purpose.card_no_default	未配置默认模型
+ai_purpose.deep_effect_notice	深度效果取决于模型能力；DeepSeek 官方与 OpenCode Go 的 DeepSeek 按场景控制思考，其他模型遵循服务商默认设置。
+ai_purpose.interactive_title	快速交互
+ai_purpose.interactive_desc	适用于日常即时响应场景，包括：聊天、点子对话、主动输入整理、待办解析、资料整理、日记润色。
+ai_purpose.interactive_highlight	突出快速响应与低延迟交互
+ai_purpose.external_title	经济后台处理
+ai_purpose.external_desc	适用于大批量非实时后台任务，包括：URL/新闻摘要、翻译、X等外部收藏整理。
+ai_purpose.external_highlight	突出经济实惠的后台批量处理
+ai_purpose.reflection_title	深度总结
+ai_purpose.reflection_desc	适用于长文沉淀与系统归纳，包括：点子方案沉淀、思想归纳、读书感悟、周报、日记月总结。
+ai_purpose.reflection_highlight	突出深度思考、推理与多维归纳
+weekly_summary.title	周报
+weekly_summary.refresh	刷新周报
+weekly_summary.generating	正在生成周报...
+weekly_summary.generating_hint	AI 正在分析您这周的文章和日记，请稍候
+weekly_summary.no_summary	暂无周报
+weekly_summary.no_summary_hint	当一周结束后，系统会自动生成周报总结
+weekly_summary.generate_now	立即生成
+weekly_summary.generate_success	周报生成成功
+weekly_summary.generate_failed	周报生成失败，请稍后重试
+weekly_summary.articles	篇文章
+weekly_summary.diaries	篇日记
+weekly_summary.retry	重试
+weekly_summary.regenerate	重新生成
+weekly_summary.history	历史记录
+weekly_summary.week_label	第{week}周
+weekly_summary.diary_detail	日记详情
+weekly_summary.diary_not_found	未找到该日记
+weekly_summary.viewpoint_detail	读书笔记
+weekly_summary.viewpoint_not_found	未找到该读书笔记
+reminder_editor.more_actions	更多操作
+reminder_editor.active_days	周期内提醒日期
+reminder_editor.details	详细配置
+reminder_editor.profile	提醒配置
+reminder_editor.behavior	实际提醒行为
+reminder_editor.leap_policy	非闰年时使用：
+reminder_editor.feb_28	2 月 28 日
+reminder_editor.mar_1	3 月 1 日
+management.content	内容与来源
+management.running	运行状态
+management.app	应用设置
+management.favorites	收藏库
+management.count	%1$d 项
+management.external	外部收藏
+management.external_count	%1$d 项 · %2$d 个来源
+management.news	新闻源
+management.news_count	已同步 %1$d 篇 · %2$d 个来源
+management.no_sources	尚未配置来源
+management.tasks	同步与任务
+management.task_status	进行中 %1$d · 近24小时失败 %2$d
+management.failed_tasks	查看失败任务
+management.general	通用设置
+management.general_hint	AI、提醒、网络与备份
+management.privacy	数据与隐私
+management.privacy_hint	数据存储与使用说明
+management.today_reminders	今日提醒 · %1$d 项待完成
+management.all_reminders	全部提醒
+management.recent_tasks	近24小时
+management.all_tasks	全部任务
+management.preferences	使用偏好
+management.ai	AI 与扩展
+management.network	网络服务
+management.data	数据与维护
+management.storage	本地存储
+management.storage_hint	日记、提醒、收藏和同步任务保存在此设备上。
+management.external_data	外部服务
+management.external_data_hint	外部收藏同步仅在你连接的来源启用时访问对应服务。使用 AI 功能时，相关内容会发送到你配置的模型服务。
+management.backup_hint	备份、恢复、导入和网络服务可在通用设置中管理。恢复或导入前，请确认所选文件。
+my_space.read_marked	已读
+my_space.title	我的
+my_space.intro	了解自己，把收获变成行动。
+my_space.thoughts	我的思想
+my_space.reminders	我的提醒
+my_space.view_all	查看全部
+my_space.next	接下来
+my_space.useful	产品机会
+my_space.chat	和自己聊聊
+my_space.ai	AI 协助
+my_space.all	全部
+my_space.expand	展开
+my_space.settings	设置与管理
+my_space.thought_empty	你的思想，会在这里慢慢清晰
+my_space.thought_empty_hint	从日记中整理你看重的事与做事准则，每条观点都保留依据。
+my_space.organize	整理我的思想
+my_space.thought_meta	根据 %1$d 篇日记整理
+my_space.thought_explicit	你表达的想法
+my_space.thought_inferred	AI 的理解 · 待你确认
+my_space.thought_quote	你曾写道
+my_space.thought_more	查看全部思想
+my_space.reminder_empty	近期没有提醒
+my_space.add_reminder	添加提醒
+my_space.opportunity_empty	还没有产品机会
+my_space.opportunity_hint	从已配置的新闻源和本地文章中寻找可做的软件产品；暂无文章时请检查新闻源。
+my_space.focus	我的关注点
+my_space.focus_hint	你想做哪类软件，或特别了解哪些用户的问题？
+my_space.focus_placeholder	例如：给独立开发者做自动化工具，解决重复发布工作
+my_space.news_intro	为你挑选，先看重点。
+my_space.news_hint	从新闻中寻找可做的软件产品，个人偏好只用于筛选方向。文章正文及已启用的个人分析会发送到你配置的 AI 服务。
+my_space.recommendations_title	产品机会
+my_space.recommendation_basis	筛选依据
+my_space.thought_basis	已启用的个人偏好
+my_space.edit_focus	编辑关注点
+my_space.set_focus	设置关注点
+my_space.articles	新闻中的机会
+my_space.analyze	更新机会
+my_space.analysis_scope	候选 %1$d 篇 · 待分析 %2$d 篇
+my_space.analysis_confirm	将获取最新新闻，使用默认 AI 模型寻找可做的软件产品机会。正文和已启用的个人分析会发送到你配置的 AI 服务。
+my_space.pending	待看
+my_space.saved	已收藏
+my_space.legacy_saved	待整理
+my_space.no_legacy_saved	没有待整理的旧收藏
+my_space.legacy_saved_hint	此前已收藏但尚未收录为点子的机会。收录为点子后可在点子主题中持续推进，并从此处移出。
+my_space.acted	已行动
+my_space.ignored	已忽略
+my_space.none	这里暂时没有内容
+my_space.no_pending	暂无待看的产品机会
+my_space.no_pending_hint	目前没有新的机会，可以更新后再看看。
+my_space.no_saved	还没有收藏的机会
+my_space.no_acted	还没有已行动的机会
+my_space.no_ignored	还没有忽略的机会
+my_space.no_relation	这批新闻没有发现适合你尝试的软件产品机会。
+my_space.fact	新闻里的信号
+my_space.relevance	谁需要它，为什么适合我 · 推断
+my_space.action	最小可做版本
+my_space.caveat	还需验证什么
+my_space.evidence	查看原文依据
+my_space.original	打开原文
+my_space.view_opportunity	查看机会
+my_space.save	收藏
+my_space.unsave	取消收藏
+my_space.irrelevant	与我无关
+my_space.restore	恢复到待看
+my_space.discuss	聊聊这个
+my_space.convert	转成提醒
+my_space.view_reminder	查看提醒
+my_space.from_reading	为你推荐的文章
+my_space.read	标记已读
+my_space.read_done	已读 · 已加入分析范围
+my_space.read_error	已读记录保存失败，请重试
+my_space.retry	继续更新
+my_space.cancel	取消
+my_space.confirm	确定
+my_space.save_changes	保存
+my_space.saving	保存中…
+my_space.close	关闭
+my_space.context	本轮参考 · 发送前可移除
+my_space.remove_context	移除本轮上下文
+my_space.default_context	使用已启用的思想偏好；不预先附带完整日记
+my_space.no_context	本轮不附带思想档案
+my_space.unavailable	内容已变化或不可用，请返回重新选择
+my_space.permission	思想用于 AI 的开关已关闭，可在思想详情的偏好中调整
+my_space.focus_saved	关注点已保存
+my_space.error	操作未完成，请重试
+my_space.busy	正在分析，仍可查看上次结果
+my_space.queued	等待分析任务执行
+my_space.context_thought	所选思想观点
+my_space.context_opportunity	所选新闻机会点
+my_space.created	提醒已保存
+my_space.analyze_missing	请先设置关注方向，或启用已有个人偏好
+my_space.recommendation_context_title	先设置筛选方向
+my_space.recommendation_context_hint	填写想做的软件方向，或从日记整理个人偏好；准备好后会从新闻中寻找产品机会。
+my_space.waiting_for_thoughts	正在整理个人偏好，完成后会自动从新闻中寻找产品机会。
+my_space.updating_recommendations	正在寻找机会…
+my_space.source_unavailable	原文链接不可用，仍可查看已保存摘录
+my_space.use_thoughts	同时参考已启用且有依据的思想总结；关闭思想的 AI 开关后仅使用这些关注点。
+my_space.focus_change	修改关注点后，会自动更新推荐；收藏和已行动的内容保留。
+my_space.history	历史对话
+my_space.chat_hint	有些想法，聊一聊就更清楚了。
+settings_interactions.unsaved_title	有未保存的修改
+settings_interactions.unsaved_message	离开后，本次修改将不会保存。
+settings_interactions.discard_changes	放弃修改
+settings_interactions.continue_editing	继续编辑
+settings_interactions.token_title	API Token
+settings_interactions.token_hidden	已设置 · 点击复制
+settings_interactions.token_copy	复制 Token
+settings_interactions.token_copied	Token 已复制
+settings_interactions.token_show	显示 Token
+settings_interactions.token_hide	隐藏 Token
+settings_interactions.token_reset	重置 Token
+settings_interactions.token_reset_message	重置后，原 Token 将失效，已连接的客户端需要更新凭据。
+settings_interactions.token_reset_done	Token 已重置
+settings_interactions.cancel	取消
+settings_interactions.saved	已保存
+settings_interactions.delete_source_title	删除新闻源？
+settings_interactions.delete_source_message	将删除新闻源“%1$s”，之后不再从此来源同步。
+settings_interactions.delete	删除
+settings_interactions.immediate_changes	修改后自动保存，无需另外点击保存。
+attention.task_count	%1$s 个任务失败待确认
+attention.task_active	%1$s 个任务进行中
+attention.task_pending	失败待确认
+attention.view_reasons	查看原因
+attention.all_tasks	全部任务
+attention.task_unknown_error	任务执行失败，未记录具体原因。可展开诊断信息查看执行记录。
+attention.failure_reason	失败原因
+attention.acknowledge	我已了解，消除红点
+attention.reminder_pending	这条提醒尚未完成，计入今日待办红点。完成本次提醒后红点消除。
+attention.reminder_complete	完成本次提醒
+attention.retry	重新整理
+task_failure.context_changed	原因说明：分析期间，关注点或用于分析的思想内容发生变化，为避免保存过时结果，本次分析已停止。此前已完成的结果仍保留。\n处理建议：确认关注点和思想内容稳定后，在新闻机会点页面重新分析。
+task_failure.auth	处理建议：检查对应服务的 Key 或登录授权是否有效，以及账号是否拥有该接口的访问权限。
+task_failure.config	处理建议：打开对应功能的设置，检查服务地址、模型及所需配置，再从原功能重新执行。
+task_failure.model	处理建议：选择支持语音转写的模型，并确认账号已开通该模型的访问权限。
+task_failure.rate_limit	处理建议：请求频率受限，请稍后重试；若持续失败，检查服务商额度和限流设置。
+task_failure.timeout	处理建议：请求未在规定时间内完成。检查网络和服务商状态后重试；已安排的自动重试可在执行概览中查看。
+task_failure.interrupted	处理建议：任务被系统中断，将按调度自动重试；可在执行概览中查看重试时间。
+task_failure.ai_response	处理建议：AI 返回的内容未通过格式或原文引用校验。已完成结果仍保留，请重新分析未完成的内容。
+task_failure.input	处理建议：检查任务对应的来源、文章或附件是否仍存在，更新输入后从原功能重新执行。
+task_failure.general	处理建议：结合下方执行记录确认停止的步骤；检查对应功能的配置、网络和服务商状态后重试。若再次失败，请导出诊断日志。
+task_failure.acknowledge_hint	消除红点只表示已读，不会重试任务或修复失败。
+speech_test.button	选择音频并测试
+speech_test.testing	正在测试转写…
+speech_test.hint	选择一段有清晰人声的短音频（不超过 1 MB）。测试使用当前填写的 Key 和模型，无需先保存；音频会发送给所选服务商并可能消耗额度，不会创建日记。
+speech_test.success	测试成功：当前 Key 和模型已完成音频转写。转写结果：
+speech_test.auth	测试失败：鉴权或权限校验未通过。请检查所选服务商的 API Key、账号状态及模型访问权限。
+speech_test.model	测试失败：模型或转写接口不可用。请确认已开通所选语音模型。
+speech_test.unavailable	测试失败：服务暂不可用或请求受限。请稍后重试，并检查服务商余额、额度和服务状态。
+speech_test.audio	测试失败：请选择不超过 1 MB、包含清晰人声的音频，支持 WAV、MP3、M4A、MP4、AAC、OGG、FLAC、WebM。
+speech_test.timeout	测试失败：30 秒内未完成转写。请检查网络和服务商状态后重试。
+speech_test.network	测试失败：无法读取音频或连接服务。请检查文件访问权限、网络和代理设置后重试。
+speech_test.rejected	测试失败：服务拒绝请求或未返回有效转写文字。请检查音频格式、模型权限及服务商配置后重试。
+settings_design.hot_news	核心平台
+settings_design.news_hint	配置远程新闻服务
+settings_design.auth	授权管理
+settings_design.auth_hint	短信、通知的读取授权与来源
+settings_design.search_list_hint	搜索名称或关键词
+settings_design.service_access	服务与访问
+settings_design.model_selection	模型选择
+settings_design.usage_preferences	使用偏好
+settings_design.connection_settings	连接设置
+settings_design.access_enable	访问与启用
+settings_design.skill_info	技能信息
+settings_design.service_connection	服务连接
+settings_design.more	更多操作
+settings_design.backup_location	备份位置
+settings_design.backup_intro	先设置备份目录和加密密码，再创建完整备份。
+settings_design.backup_configuration	备份设置
+settings_design.backup_protected	加密保护
+settings_design.backup_content_hint	备份包含应用数据与附件。请妥善保存密码，恢复时需要手动输入。
+settings_design.backup_verify_caption	检查完整性，不覆盖当前数据
+settings_design.backup_verify_action	验证
+settings_design.set_backup_password	设置备份密码
+settings_design.change_backup_password	修改备份密码
+settings_design.backup_password_help	密码至少 10 位，用于加密新备份。请妥善保存；恢复旧备份仍需创建时的密码。
+settings_design.backup_directory	备份目录
+settings_design.choose_directory_hint	尚未选择，点击设置备份位置
+settings_design.backup_encryption	加密密码
+settings_design.backup_password_set	已设置，创建备份时自动使用
+settings_design.backup_password_missing	未设置，点击设置至少 10 位的密码
+settings_design.backup_password	备份加密密码
+settings_design.save_backup_password	保存备份密码
+settings_design.backup_now	立即备份
+settings_design.backup_missing_title	未匹配附件：%d 个文件，%d 处引用
+settings_design.backup_missing_description	以下文件未收集到本次备份中。清单来自数据库引用，尚不能证明文件已从设备删除；当前数据和旧备份未改动。
+settings_design.backup_missing_more	继续显示（还有 %d 处引用）
+settings_design.backup_missing_copy	复制完整附件清单（含文件路径）
+settings_design.backup_missing_copied	附件清单已复制
+settings_design.backup_attachment_diary_attachment	日记附件
+settings_design.backup_attachment_diary_image	日记图片
+settings_design.backup_attachment_article_image	文章图片
+settings_design.backup_attachment_article_cover	文章封面
+settings_design.backup_attachment_book_cover	书籍封面
+settings_design.backup_attachment_record	所属日记／文章／书籍 ID：%d
+settings_design.backup_attachment_row	引用行 ID：%d
+settings_design.backup_attachment_original	数据库原始路径：
+settings_design.backup_attachment_target	备份内应有路径：
+settings_design.backup_verify_title	备份验证
+settings_design.backup_verify_safety	检查备份能否恢复
+settings_design.backup_verify_description	检查最近备份的完整性和恢复准备，不改动当前数据或备份文件。
+settings_design.backup_verify_start	验证最近备份
+settings_design.backup_verify_password	此备份原来的密码（仅本次验证使用）
+settings_design.backup_verify_retry	使用此密码重试验证
+settings_design.backup_verify_password_manual	每次验证均需手动输入。不会读取或修改已保存的备份密码，结束后清空本次输入。
+settings_design.backup_verify_copy_log	一键复制完整诊断日志
+settings_design.backup_verify_log_copied	诊断日志已复制，可发给 aidebug
+settings_design.backup_verify_show_log	查看完整诊断日志
+settings_design.backup_verify_hide_log	收起诊断日志
+settings_design.backup_verify_file	验证文件：
+settings_design.backup_verify_backup_time	备份时间：
+settings_design.backup_verify_checked_at	验证时间：
+settings_design.backup_verify_status_passed	验证通过
+settings_design.backup_verify_status_limited	仅完成有限验证
+settings_design.backup_verify_status_failed	验证失败
+settings_design.backup_verify_status_incomplete	验证未完成
+settings_design.backup_verify_passed_detail	文件完整性、数据库、附件引用及恢复准备检查通过。以下是该备份的内容概览；本次没有执行实际恢复。
+settings_design.backup_verify_limited_detail	旧备份没有文件校验清单，无法证明所有文件完整。已检查数据库、附件引用及恢复准备；不等同于完整验证通过。
+settings_design.backup_verify_issue_no_directory	请先选择备份目录。
+settings_design.backup_verify_issue_no_backup	目录中没有文件名时间有效的应用加密备份。
+settings_design.backup_verify_issue_no_password	没有可用的已保存密码，请输入此备份原来的密码。不会更改当前备份密码。
+settings_design.backup_verify_issue_busy	备份或恢复正在进行，请稍后重试。
+settings_design.backup_verify_issue_backup_changed	最近的备份已发生变化。请重新点击“验证最近备份”，避免用旧密码验证另一个文件。
+settings_design.backup_verify_issue_cancelled	验证已取消，未记录为通过。
+settings_design.backup_verify_issue_missing_attachments	备份中未找到数据库引用的部分附件，已停止恢复演练。旧版备份可能漏存录音；诊断日志包含缺失类别及数量。若当前数据完整，请创建新备份后验证；本次未改动当前数据或原备份。
+settings_design.backup_verify_summary_missing_files	备份缺失附件：%d 个
+settings_design.backup_verify_stage_selecting	正在查找最近备份…
+settings_design.backup_verify_stage_reading	正在读取备份文件…
+settings_design.backup_verify_stage_decrypting	正在解密并验证加密完整性…
+settings_design.backup_verify_stage_extracting	正在解压并检查 ZIP…
+settings_design.backup_verify_stage_files	正在核对文件清单、大小和 SHA-256…
+settings_design.backup_verify_stage_database	正在检查数据库完整性和版本…
+settings_design.backup_verify_stage_preparing	正在演练数据库迁移、附件路径及恢复准备…
+settings_design.backup_verify_stage_life_archive	正在检查人生档案…
+settings_design.backup_verify_stage_cleanup	正在清理验证临时文件…
+settings_design.backup_verify_stage_complete	检查完成
+settings_design.backup_verify_error_selecting	无法访问备份目录。请重新选择目录并检查访问权限。
+settings_design.backup_verify_error_reading	备份文件无法读取。请检查文件、目录权限及可用空间。
+settings_design.backup_verify_error_decrypting	无法解密：密码不匹配，或备份文件已损坏。可以输入此备份原来的密码重试。
+settings_design.backup_verify_error_extracting	ZIP 损坏、包含不安全或重复路径，或解压空间不足、体积异常。
+settings_design.backup_verify_error_files	文件清单、大小或哈希不一致，内容缺失，或备份格式版本不兼容。
+settings_design.backup_verify_error_database	数据库损坏、缺少应用数据表，或版本不兼容。
+settings_design.backup_verify_error_preparing	恢复准备失败：可能缺少附件、所需表或字段，或迁移及敏感数据处理失败。
+settings_design.backup_verify_error_life_archive	人生档案内容无效，或无法完成加密恢复准备。
+settings_design.backup_verify_error_cleanup	未能清理私有验证临时文件，本次不记录为通过。
+settings_design.backup_verify_error_complete	验证未能完成，请重试。
+settings_design.backup_verify_summary_diary	日记：%d 篇
+settings_design.backup_verify_summary_article	文章：%d 篇
+settings_design.backup_verify_summary_book	书籍：%d 本
+settings_design.backup_verify_summary_bookkeeping_entry	账目：%d 条
+settings_design.backup_verify_summary_reminder	提醒：%d 条
+settings_design.backup_verify_summary_setting	设置：%d 项
+settings_design.backup_verify_summary_life_archive	人生档案：%d 条
+settings_design.backup_verify_summary_files	用户文件：%d 个
+settings_design.backup_verify_summary_images	图片文件：%d 个
+settings_design.backup_verify_summary_audio	音频文件：%d 个
+settings_design.restore_backup	恢复备份
+settings_design.tag_catalog	标签目录
+settings_design.importance	通知优先级
+settings_design.lock_screen	锁屏显示
+settings_design.work_days	工作日
+settings_design.collapse	收起
+settings_design.expand	展开
+settings_design.daily	日常使用
+settings_design.capabilities	模型与能力
+settings_design.data	内容与数据
+settings_design.application	应用
+settings_design.reminders	提醒与通知
+settings_design.reminders_hint	声音 · 勿扰
+settings_design.phone	手机助手
+settings_design.phone_hint	短信 · 通知
+settings_design.tags	日记标签
+settings_design.tags_hint	自动整理
+settings_design.models	模型与语音
+settings_design.models_hint	模型 · 转写
+settings_design.skills	提示词与技能
+settings_design.skills_hint	技能 · 插件
+settings_design.tools	工具与连接
+settings_design.tools_hint	外部工具 · Web
+settings_design.sources	内容来源
+settings_design.sources_hint	新闻 · 收藏
+settings_design.storage	数据管理
+settings_design.storage_hint	备份 · 恢复
+settings_design.privacy	隐私说明
+settings_design.privacy_hint	数据使用
+settings_design.check_update	检查更新
+settings_design.current_version	当前版本 %1$s
+settings_design.checking_update	检查中…
+settings_design.update_preparing	正在准备下载…
+settings_design.update_downloading_known	正在下载 %1$d%% · %2$s / %3$s
+settings_design.update_downloading_unknown	已下载 %1$s · 总大小未知
+settings_design.update_verifying	下载完成，正在校验安装包…
+settings_design.update_dialog_downloading	正在下载更新
+settings_design.update_dialog_verifying	正在校验更新
+settings_design.check_update_hint	当前版本 · 获取最新版本
+settings_design.export_logs	导出日志
+settings_design.export_logs_hint	最近 30 分钟 · 仅保存到本机
+settings_design.updates	更新渠道与关于
+settings_design.updates_hint	渠道 · 版本
+settings_design.diagnostics	诊断管理
+settings_design.diagnostics_hint	运行状态与本地日志
+settings_design.sms	短信权限
+settings_design.sms_hint	手机助手 · 短信
+settings_design.notification_access	通知来源与权限
+settings_design.notification_access_hint	手机助手 · 通知
+settings_design.reminder_access	准时提醒权限
+settings_design.reminder_access_hint	提醒与通知 · 系统权限
+settings_design.speech	语音转写
+settings_design.speech_hint	语音服务商、模型与密钥
+settings_design.ai_purpose	功能模型分配
+settings_design.ai_purpose_hint	快速 · 后台 · 深度
+settings_design.plugins	提示词插件
+settings_design.plugins_hint	提示词插件管理
+settings_design.web	Web 服务
+settings_design.web_hint	地址与访问令牌
+settings_design.favorites	外部收藏
+settings_design.favorites_hint	收藏来源管理
+settings_design.restore	恢复
+settings_design.restore_hint	从备份恢复数据
+settings_design.import	导入
+settings_design.import_hint	迁移历史数据
+settings_design.ai	模型配置
+settings_design.skill_tab	技能
+settings_design.mcp	外部工具
+settings_design.mcp_hint	为 AI 连接搜索和网页读取服务。
+settings_design.mcp_add	添加外部工具
+settings_design.mcp_edit	编辑外部工具
+settings_design.mcp_empty	尚未连接外部工具
+settings_design.mcp_empty_hint	点击右上角 + 添加服务，配置并启用后使用。
+settings_design.mcp_choose_provider	请选择工具服务商
+settings_design.news	新闻来源
+settings_design.backup	备份
+settings_design.about	关于
+settings_design.search	搜索设置
+settings_design.close_search	关闭搜索
+settings_design.clear_search	清空搜索
+settings_design.search_hint	搜索设置、功能或权限
+settings_design.no_results	没有找到相关设置
+settings_design.results	搜索结果
+idea_topic.capture_existing_hint	该来源已收录为主点子主题，可直接查看或推进。
+idea_topic.source_untitled	未命名来源
+idea_topic.open_original	打开原始内容
+idea_topic.session_summary_partial	此摘要仅覆盖部分消息，完整沟通记录仍保留。
+idea_topic.event_original_attribution	来自已合并主题（%s）
+idea_topic.event_capture_title	从%s收录
+idea_topic.event_capture_description	%s：%s
+idea_topic.event_captured	收录新点子
+idea_topic.event_progress	追加进展
+idea_topic.event_merged	主题合并
+idea_topic.event_merge_description	从「%s」合入「%s」
+idea_topic.event_content_updated	修订正式内容
+idea_topic.event_changed_fields	更新了 %s
+idea_topic.event_status_changed	状态变更
+idea_topic.event_status_description	从%s变更为%s
+idea_topic.event_draft_proposed	AI 提出完善草稿
+idea_topic.event_suggested_title	建议标题：%s
+idea_topic.event_draft_applied	确认应用草稿
+idea_topic.event_new_title	新标题：%s
+idea_topic.event_draft_discarded	放弃草稿
+idea_topic.event_ai_request_failed	AI 请求失败
+idea_topic.title	我的点子
+idea_topic.entry_hint	从日记和产品机会持续收录、研究与推进点子
+idea_topic.search_placeholder	搜索点子标题...
+idea_topic.empty_title	还没有收录的点子
+idea_topic.empty_hint	可以从日记详情或产品机会卡片中点击「收为点子」，在此持续推进与交流。
+idea_topic.sources_count	%d 个来源
+idea_topic.last_updated	更新于 %s
+idea_topic.next_action_prefix	下一步: 
+idea_topic.progress_summary_prefix	最新进展: 
+idea_topic.status.all	全部
+idea_topic.status.to_research	待研究
+idea_topic.status.researching	研究中
+idea_topic.status.in_progress	推进中
+idea_topic.status.completed	已完成
+idea_topic.tab_overview	概览
+idea_topic.tab_provenance	来龙去脉
+idea_topic.tab_conversations	沟通
+idea_topic.overview_title	标题
+idea_topic.overview_description	描述
+idea_topic.overview_provenance_summary	来龙去脉总结
+idea_topic.overview_conclusions	研究结论
+idea_topic.overview_next_action	下一步
+idea_topic.status_label	业务状态
+idea_topic.action_edit	编辑点子
+idea_topic.action_save	保存
+idea_topic.action_cancel	取消
+idea_topic.action_propose	请 AI 完善
+idea_topic.action_proposing	AI 思考中...
+idea_topic.action_cancel_ai	停止生成
+idea_topic.action_merge	合入已有主题
+idea_topic.action_delete	删除主题
+idea_topic.append_progress	追加进展
+idea_topic.progress_input_hint	记录新的推进动态...
+idea_topic.sources_header	关联来源
+idea_topic.events_header	事件时间线
+idea_topic.source_type_diary	日记
+idea_topic.source_type_opportunity	产品机会
+idea_topic.source_snapshot_title	原始快照
+idea_topic.source_analysis_title	AI 分析快照
+idea_topic.source_unavailable	原文链接已失效，展示收录快照
+idea_topic.new_session	新建沟通
+idea_topic.session_title_hint	沟通主题（可选）
+idea_topic.session_summary	讨论总结
+idea_topic.session_summary_needs_update	有新消息，摘要待更新
+idea_topic.session_summarize	生成总结
+idea_topic.session_summarizing	正在总结...
+idea_topic.session_messages_empty	还没有消息，输入交流内容开始沟通
+idea_topic.load_older	加载更早消息
+idea_topic.send_hint	反馈新情况，或继续聊这个点子…
+idea_topic.send_feedback	发送反馈
+idea_topic.discussion_title	持续讨论
+idea_topic.topic_materials	点子资料
+idea_topic.back_to_discussion	返回讨论
+idea_topic.discussion_history	历史讨论
+idea_topic.discussion_empty_title	这个点子，可以一直聊下去
+idea_topic.discussion_empty_hint	说说你的想法、试过的结果，或现在卡在哪里。
+idea_topic.discussion_example_idea	我想先聊聊这个想法
+idea_topic.discussion_example_feedback	我试了一下，有些新发现
+idea_topic.discussion_example_blocked	这个方向好像行不通
+idea_topic.view_summary	查看
+idea_topic.update_summary	更新总结
+idea_topic.summary_notice	这是 AI 对讨论的归纳，不代表你已确认所有结论；原始反馈和对话仍然保留。
+idea_topic.close	关闭
+idea_topic.message_you	你
+idea_topic.message_ai	AI
+idea_topic.replying	正在回复…
+idea_topic.reply_interrupted	回复未完成，反馈已保留
+idea_topic.feedback_saved_reply_failed	反馈已保存，AI 暂未回复
+idea_topic.view_new_reply	查看新回复
+idea_topic.retry	重试
+idea_topic.draft_title	AI 完善草稿
+idea_topic.draft_pending	待确认
+idea_topic.draft_applied	已确认生效
+idea_topic.draft_discarded	已放弃
+idea_topic.draft_changes	变更内容
+idea_topic.draft_preview	预览与编辑
+idea_topic.draft_apply	确认并更新正式内容
+idea_topic.draft_discard	放弃草稿
+idea_topic.draft_field_title	标题
+idea_topic.draft_field_description	描述
+idea_topic.draft_field_provenance	来龙去脉
+idea_topic.draft_field_conclusions	研究结论
+idea_topic.draft_field_next_action	下一步
+idea_topic.merge_title	合入已有主题
+idea_topic.merge_select_target	选择目标主主题
+idea_topic.merge_notice	合并后，本主题的来源、历史事件和沟通将合入目标主题，本主题将被标记为已合并并重定向。操作不可撤销。
+idea_topic.merge_confirm	确认合并
+idea_topic.delete_title	删除主题
+idea_topic.delete_message	确定要删除该主题吗？删除范围包含该主主题及已合入它的主题、来源快照、推进记录、沟通记录和 AI 草稿。原日记和新闻不受影响。此操作不可恢复。
+idea_topic.delete_confirm	确认删除
+idea_topic.deleted_notice	该主题已被删除
+idea_topic.merged_redirect_notice	该主题已合入主主题「%s」
+idea_topic.capture_title	收为点子
+idea_topic.capture_mode_new	新建主题
+idea_topic.capture_mode_existing	加入已有主题
+idea_topic.capture_title_label	点子标题
+idea_topic.capture_desc_label	点子描述
+idea_topic.capture_select_topic	选择已有主题
+idea_topic.capture_already_captured	已收录为点子
+idea_topic.capture_view_topic	查看点子
+idea_topic.capture_submit	确认收录
+idea_topic.error.not_found	主题不存在或已被删除
+idea_topic.error.busy	AI 正在生成中，请稍候
+idea_topic.error.input_too_long	输入内容过长，请缩短后重试
+idea_topic.error.storage_failure	存储读写失败
+idea_topic.error.ai_not_configured	未配置 AI 接口
+idea_topic.error.ai_failure	AI 请求失败，请重试
+idea_topic.error.invalid_input	输入无效，标题不能为空
+idea_topic.error.merge_cycle	无法合并：存在循环引用
+idea_topic.error.already_merged	该主题已被合并
+idea_topic.error.stale_draft	正式内容已变更，该草稿已过期
+idea_topic.error.invalid_ai_response	AI 回复格式无效，请重试
+ledger.title	账目
+ledger.failed	账目加载失败，请稍后重试。
+ledger.tab.detail	明细
+ledger.tab.analysis	分析
+ledger.period.day	日
+ledger.period.week	周
+ledger.period.month	月
+ledger.period.quarter	季
+ledger.period.year	年
+ledger.scope.day	当日
+ledger.scope.week	本周
+ledger.scope.month	本月
+ledger.scope.quarter	本季
+ledger.scope.year	全年
+ledger.previous_period	上一期
+ledger.next_period	下一期
+ledger.change	较上期
+ledger.summary.income	收入
+ledger.summary.refund	退款
+ledger.summary.balance	结余
+ledger.summary.line	%s · 收入 %s · 支出 %s · 退款 %s
+ledger.pending	待确认 %d 笔 · 金额或币种没能确定
+ledger.pending_title	待确认账目
+ledger.weekday.monday	周一
+ledger.weekday.tuesday	周二
+ledger.weekday.wednesday	周三
+ledger.weekday.thursday	周四
+ledger.weekday.friday	周五
+ledger.weekday.saturday	周六
+ledger.weekday.sunday	周日
+ledger.no_records	无记录
+ledger.empty	还没有账目。在「设置 → 授权管理」开启来源后，新的交易通知会自动记在这里。
+ledger.trend	支出趋势
+ledger.trend_unit.day	按日
+ledger.trend_unit.week	按周
+ledger.trend_unit.month	按日
+ledger.trend_unit.quarter	按周
+ledger.trend_unit.year	按月
+ledger.trend_max	最高 %s
+ledger.by_category	按分类
+ledger.by_merchant	按商户
+ledger.merchant_count	%d 笔
+ledger.unknown_merchant	未知商户
+ledger.detail.category	分类
+ledger.detail.remember	记住这个商户，下次自动归类
+ledger.detail.note	备注
+ledger.detail.merchant	商户
+ledger.detail.account_tail	账号尾号
+ledger.detail.source	来源
+ledger.detail.original	原文
+ledger.detail.excluded	不计入统计
+ledger.detail.excluded_hint	转账、还款或垫付可以打开，不计入收支与分类分析。
+ledger.detail.delete	删除这笔账目
+ledger.detail.move_to_todo	移到待办
+ledger.category.food	餐饮
+ledger.category.transport	交通
+ledger.category.shopping	购物
+ledger.category.home	居住
+ledger.category.health	医疗
+ledger.category.entertainment	娱乐
+ledger.category.bills	缴费
+ledger.category.other	其他
+ledger.category.short.food	餐
+ledger.category.short.transport	行
+ledger.category.short.shopping	购
+ledger.category.short.home	住
+ledger.category.short.health	医
+ledger.category.short.entertainment	娱
+ledger.category.short.bills	费
+ledger.category.short.other	其
+myspace.ledger_empty	还没有账目
+myspace.ledger_hint	本月支出 %s · 待确认 %d 笔
+auth.title	授权管理
+auth.intro_title	这些授权用来做什么
+auth.intro_todos	把缴费、取件、预约类信息变成待办，出现在「我的提醒」
+auth.intro_ledger	把支付、退款类信息变成账目，出现在「账目」
+auth.intro_note	只处理开启后收到的新信息；本机解析，金融正文不上传云端；随时可以关闭。
+auth.read	读取%s
+auth.read_hint	不读取历史记录，只处理开启后收到的新信息
+auth.todo_hint	%s里需要处理的事项会变成待办
+auth.ledger_hint	%s里的支付、退款会变成账目
+auth.section.data	数据
+auth.records	处理记录
+auth.records_hint	未识别或被忽略的信息都在这里：可以补建待办、补建账目、重新识别，或交给 AI 二次处理
+auth.retention	原文保留
+auth.retention_hint	收到的新信息原文会加密保存在本机，包括暂时没有识别结果的内容，便于以后用新算法重新识别；处理记录里可以查看和逐条清除，清除后不影响已生成的待办与账目。
+news_sources.title	内容来源
+news_sources.intro	核心平台默认启用；关闭后停止后续获取，并从新生成的精选中排除。历史精选会保留。补充订阅默认关闭。
+news_sources.core	核心平台
+news_sources.supplemental	补充订阅
+news_sources.official_first	优先从平台官方接口或网页获取，失败时使用 RSSHub 订阅。
+news_sources.x_hint	复用已启用的 X 收藏来源授权，通过官方趋势与搜索获取近 24 小时帖子，按互动量排序。每次最多 20 帖，沿用 15 分钟缓存，按 X 官方规则计费。登录授权的个性化趋势需要 X Premium；应用 Bearer Token 使用全球趋势。
+news_sources.x_manage_auth	管理 X 授权
+news_sources.x_auth_required	请启用 X 收藏来源；必要时重新登录。
+news_sources.x_access_denied	X 官方 API 无访问权限，请检查令牌类型、应用权限和 X Premium 资格；已有榜单仍保留。
+news_sources.x_quota_exceeded	X 官方 API 额度不足，请在 X 开发者控制台检查余额；已有榜单仍保留。
+news_sources.x_rate_limited	X 官方 API 请求受限，请稍后重试；已有榜单仍保留。
+news_sources.x_fetch_failed	X 官方 API 获取失败，请检查网络或授权；不会回退 RSS。
+news_sources.xiaohongshu_hint	填写 RSSHub 小红书用户或专辑订阅地址，需指定用户／专辑 ID；当前没有全站热榜路由。
+news_sources.linuxdo_hint	优先读取 Linux DO 官方 RSS；若受访问限制，可填写已配置 Linux DO 的 RSSHub Discourse 路由。
+news_sources.toutiao_hint	优先读取今日头条热榜；RSSHub 备用为热点频道订阅，顺序不代表热榜排名。
+news_sources.supplemental_hint	直接读取媒体官方 RSS。
+news_sources.configured	订阅已配置 · 修改
+news_sources.edit_feed	配置 RSS 订阅
+news_sources.feed_address	RSS / Atom 完整地址
+news_sources.feed_hint	填写完整 HTTP(S) 地址，可使用自建 RSSHub。支持直连的来源留空仍使用平台接口；小红书必须填写订阅地址。X 使用官方 API，无需订阅地址。补充订阅使用此地址直连。
+news_sources.rsshub_docs	查看 RSSHub 路由文档
+news_sources.test	测试获取
+news_sources.testing	测试中…
+news_sources.test_success	%s：成功获取 %d 条内容
+news_sources.test_failed	获取失败，请检查订阅地址、网络，以及 RSSHub 实例所需的凭据配置。
+news_sources.save_failed	保存失败，请重试。
+news_sources.invalid_url	请输入完整 HTTP(S) 地址，不支持包含用户名或密码的地址。
+news_sources.defaults	恢复默认地址
+news_sources.feed_required	请在设置 → 内容来源 → 核心平台中配置 RSSHub 订阅地址。
+news_sources.all_disabled	尚未启用内容来源，可在设置 → 内容来源中开启。
+news_sources.subscription	RSS 订阅 · 按订阅顺序
+article_ai.processing	处理中
+article_ai.queue_paused	文章 AI 已暂停
+article_ai.paused_configuration	未配置文章 AI
+article_ai.paused_auth	AI 鉴权失败
+article_ai.paused_billing	AI 余额或额度不足
+article_ai.paused_rate	AI 限流或额度受限
+article_ai.run_now	立即处理
+article_ai.retry	重试
+article_ai.original	查看原文
+article_ai.summary	查看摘要
+article_ai.translation	查看译文
+article_ai.fetch_error	正文抓取失败
+article_ai.no_body	无可处理正文
+article_ai.uncertain	语言不确定
+article_ai.force_summary	✦ AI 总结
+article_ai.force_both	强制翻译和总结
+article_ai.redo	重新处理
+article_ai.redo_note	可能产生一次新的 AI 请求。失败不会覆盖已有内容。
+article_ai.cancel	取消
+article_ai.source_summary	来源摘要
+article_ai.ai_summary	AI 摘要 · 仅供参考
+article_ai.ai_translation	AI 中文译文
+article_ai.partial	仅处理文章前部，未覆盖全文
+article_ai.preview	仅来源预览
+article_ai.unverified	正文出处未确认
+article_ai.history	历史文章 AI 处理
+article_ai.count	计算实际待处理篇数
+article_ai.start	启动或继续
+article_ai.pause	暂停历史
+article_ai.pending	待处理（未入队）
+article_ai.waiting	已入队
+article_ai.resume_queue	修正配置后恢复队列
+article_ai.ready	摘要已就绪
+article_ai.force_menu	强制中文总结
+article_ai.refresh_note	刷新只重新获取原文。只有正文变化才会按规则重新排队；抓取失败保留已保存内容。

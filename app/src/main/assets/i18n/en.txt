@@ -1,0 +1,1575 @@
+reminder_ui.today_count	%d today
+reminder_ui.overdue_count	%d overdue
+reminder_ui.paused_count	Paused · %d
+reminder_ui.complete_cycle	Complete this occurrence
+reminder_ui.completed_message	Completed: %s
+reminder_ui.cycle_completed	Occurrence completed. Future reminders remain active.
+reminder_ui.undo	Undo
+reminder_ui.complete_failed	Could not complete the task. It may have changed. Please retry.
+reminder_ui.undo_failed	Could not undo. The task may have changed. Check its latest status.
+reminder_ui.no_repeat	Does not repeat
+reminder_ui.reminder_time	Reminder time
+reminder_ui.repeat	Repeat
+reminder_ui.manual_source	Created manually
+reminder_ui.source_unknown	Source unavailable
+reminder_ui.edit_task	Edit task
+reminder_ui.complete_access	Complete: %s
+reminder_ui.completed_access	Completed: %s
+phone.expand_text	Read full text
+phone.collapse_text	Collapse text
+phone.more_actions	More actions
+phone.local_original	Original text is encrypted on this device
+phone.clear_preserves_results	Clearing original text does not delete generated tasks or entries.
+phone.source_info	Source information
+phone.open_source_record	View source record
+phone.source_not_found	The corresponding source record was not found.
+phone.source_load_failed	Could not load source information. Please retry.
+phone.load_again	Reload
+phone.loading_results	Loading results
+phone.no_results	No tasks or entries generated
+phone.todo_count	%d tasks generated
+phone.ledger_count	%d entries generated
+phone.ledger_posted	Posted
+phone.ledger_detail	Entry details
+phone.todo_detail	Task details
+phone.result_not_found	This record was not found. It may have been deleted.
+phone.amount_unknown	Amount needs confirmation
+phone.deadline_unset	No deadline set
+phone.edit	Edit
+phone.ledger_settings	Category, notes and other settings
+phone.reminder_status.draft	Needs confirmation
+phone.reminder_status.active	To do
+phone.reminder_status.notified	To do
+phone.reminder_status.dismissed	To do
+phone.reminder_status.paused	Paused
+phone.reminder_status.completed	Completed
+phone.reminder_status.expired	Expired
+phone.intake_title	Message sources
+phone.intake_hint	Turn new messages into tasks and entries
+phone.reminder_setup	Reminder permissions need attention. Tap to set up.
+phone.settings_intro	Choose sources and recognition purposes. Only new messages received after enabling a source are processed.
+phone.receive_hint	Receive new messages without reading history
+phone.grant_sms_access	Enable SMS permission
+phone.manage_sms_access	Manage SMS permission
+phone.sms_access_hint	Permission is required to receive new SMS
+phone.notification_access_hint	Allow notification access in system settings
+phone.sources_hint	Only notifications from selected apps are processed
+phone.todos_hint	Pickups, bills, appointments and other actions
+phone.ledger_hint	Recognize payments, income and refunds locally
+phone.cloud_short	AI task recognition
+phone.cloud_hint	Only safely redacted task text is sent, with separate consent
+phone.reminders_title	Task reminders
+phone.reminder_notifications	Reminder notifications
+phone.reminder_timing	On-time reminders
+phone.permission_ready	Enabled. Manage in system settings.
+phone.setup_sources	Set up sources
+phone.empty_setup_hint	Connect SMS or app notifications and choose task or transaction recognition. New messages received after setup will appear here.
+phone.empty_pending_title	Nothing needs confirmation
+phone.empty_pending_hint	Tasks and entries that need checking appear here before you save them.
+phone.empty_todos_title	No tasks created yet
+phone.empty_todos_hint	Tasks recognized from messages appear here after confirmation.
+phone.empty_ledger_title	No entries this month
+phone.empty_ledger_hint	Recorded transactions appear here. Transactions that need checking appear under To confirm.
+phone.empty_history_title	No processing history yet
+phone.empty_history_hint	Sources and results appear here after a new eligible message is received.
+phone.sms_access_title	SMS reception permission needed
+phone.sms_access_reason	The assistant needs SMS reception permission to extract tasks and entries from new messages. It does not read message history or send SMS.
+phone.sms_access_settings	SMS permission is not enabled. It may have been denied or restricted by the system or installation method. Tap Open app settings, allow SMS under Permissions, then return.\n\nIf SMS cannot be enabled, this installation may be restricted; the app cannot remove this restriction itself. You can instead use notification access and select your SMS app as a source. Only visible notification text is processed and may be missing or truncated.
+phone.continue_access	Continue
+phone.open_app_settings	Open app settings
+phone.settings_unavailable	Could not open system settings. Open Settings → Apps → Daily Satori → Permissions manually.
+phone.restricted_help	Access restricted?
+phone.restricted_hint	View system restrictions and settings
+phone.restricted_settings_help	If the system reports Restricted settings, open the app info page. If its overflow menu offers Allow restricted settings, enable it only if you trust this app, then return to grant notification access. Names and availability vary by device.\n\nThis differs from SMS installation restrictions; enabling it does not guarantee SMS permission.
+phone.access.off	Off
+phone.access.permission	Permission needed
+phone.access.purpose	Choose a purpose
+phone.access.sources	Choose apps
+phone.access.waiting	Waiting for connection
+phone.access.connected	Connected
+phone.title	Phone assistant
+phone.row_hint	Extract tasks and entries from SMS and notifications
+phone.settings	Sources and recognition
+phone.history	Recent processing
+phone.reprocess	Re-run recognition
+phone.ai_reprocess	Send to AI again
+phone.load_more	Load earlier records
+phone.sms	SMS
+phone.notification	Notifications
+phone.receive	Receive new messages
+phone.choose_purpose	Enable at least one purpose to generate results.
+phone.block_source	Block this source
+phone.extract_todos	Extract tasks
+phone.extract_ledger	Recognize transactions
+phone.cloud	Allow AI to analyze redacted task text
+phone.cloud_notice	Allow safely redacted task clauses from %s to be sent to your default AI service. Verification messages are excluded; amounts, accounts and links are removed. Text that cannot be safely redacted stays on this device. Consent does not include the other source or transaction text.
+phone.privacy	Choose purposes for SMS and notifications separately. Candidate messages are encrypted locally; transactions are parsed on this device. Ordinary chat, ads and verification messages are excluded. WeChat and Alipay use service notifications only.
+phone.changes_notice	Settings changes stop earlier queued work. Retry unfinished work from recent processing when needed. Existing results are retained.
+phone.sms_permission	SMS reception permission is requested when you enable reception.
+phone.notify_permission	Allow this app to send task reminders
+phone.alarm_permission	Allow scheduled reminders to arrive on time
+phone.pending	To confirm
+phone.todos	Tasks
+phone.ledger	Entries
+phone.overview	SMS: %s · Notifications: %s
+phone.on	Connected
+phone.off	Disconnected
+phone.coverage	Only new messages received after enabling a source are processed. System restrictions, missing notifications and hidden content may cause omissions. Check sources and results when needed.
+phone.operation_failed	Processing did not finish. Check permissions and settings, then retry.
+phone.edit_todo	Confirm or add a task
+phone.todo_title	Task
+phone.deadline	Deadline (optional)
+phone.deadline_hint	Format: 2026-10-06 17:30
+phone.unscheduled_hint	Leave the deadline empty to create a task without scheduled reminders.
+phone.todo_candidate	Task candidate
+phone.view_todo	View task
+phone.complete	Complete
+phone.retry	Retry unfinished results
+phone.add_todo	Add task
+phone.add_ledger	Add entry
+phone.result_counts	%d tasks created · %d entries
+phone.related_notice	This message links tasks and entries. Check before completing a task; a payment does not automatically complete it.
+phone.source_erased	Source text removed; results and deduplication identity retained.
+phone.clear_source	Remove source text
+phone.clear_notice	Remove source text from this message and its stored results while retaining tasks, entries and deduplication identity. This message will no longer be processed automatically.
+phone.state.queued	Waiting for processing
+phone.state.pending	Confirmation needed
+phone.state.done	Task created
+phone.state.ignored	Ignored
+phone.state.failed	Processing failed
+phone.state.skipped	Not applicable
+phone.state.completed	Completed
+phone.state.stopped	Stopped after settings changed
+phone.reason.ambiguous_action	The message does not clearly request a payment. Check before confirming.
+phone.reason.ambiguous_deadline	The deadline is unclear or past. Check it, or leave it empty for an unscheduled task.
+phone.reason.processing_failed	This result failed. Existing successful results are retained and unfinished results can be retried.
+bookkeeping.sources_intro	Choose apps to connect
+bookkeeping.sources_new_only	Only new notifications from selected apps are processed
+bookkeeping.sources_all	All apps
+bookkeeping.sources_selected_tab	Selected %d
+bookkeeping.sources_selected_label	Selected
+bookkeeping.sources_selected_count	%d apps
+bookkeeping.sources_close_search	Close search
+bookkeeping.sources_clear_search	Clear search
+bookkeeping.sources_privacy	Notifications only; SMS history is not read
+bookkeeping.sources_no_matches	No matching apps
+bookkeeping.sources_no_matches_hint	Try another name or clear the search.
+bookkeeping.sources_none_selected	No apps selected yet
+bookkeeping.sources_none_selected_hint	Switch to All apps and choose sources to connect.
+bookkeeping.sources_no_apps	No apps available
+bookkeeping.sources_no_apps_hint	Go back and reopen this page to refresh the app list.
+bookkeeping.sources_save_failed	Your latest selection could not be saved. Please retry.
+bookkeeping.title	Automatic bookkeeping
+bookkeeping.row_hint	Record transactions from selected apps' new notifications
+bookkeeping.enabled	Monitor transaction notifications
+bookkeeping.local_notice	Only selected apps' notifications are processed locally and stored encrypted, without cloud uploads. Only new notifications are monitored. Missing notifications, system restrictions or force-stopping the app may cause missed entries.
+bookkeeping.grant	Enable notification access
+bookkeeping.manage_access	Manage notification access
+bookkeeping.sources	Select sources (%d)
+bookkeeping.select_sources	Notification sources
+bookkeeping.search_sources	Search apps
+bookkeeping.sources_notice	Select banking, payment or SMS apps. WeChat and Alipay require payment-related titles. SMS apps only provide notification text; message history is not read.
+bookkeeping.done	Done
+bookkeeping.refresh	Check again
+bookkeeping.operation_failed	The operation failed and the ledger was not updated. Check again and retry.
+bookkeeping.capture_failed	The latest notification could not be processed. Check your entries and permissions for missed transactions.
+bookkeeping.previous_month	Previous
+bookkeeping.next_month	Next
+bookkeeping.month_totals	%s · Income %s · Expenses %s · Refunds %s
+bookkeeping.totals_notice	Entries are grouped by notification arrival time into the selected day, week or month. Currencies are counted separately. Pending entries, transfers and repayments are excluded from income and expenses; refunds are counted separately.
+bookkeeping.previous_period	Previous
+bookkeeping.next_period	Next
+bookkeeping.period.day	Day
+bookkeeping.period.week	Week
+bookkeeping.period.month	Month
+bookkeeping.bucket_empty	No records
+bookkeeping.pending	Pending (%d)
+bookkeeping.posted	Recorded
+bookkeeping.empty	No entries this month. Enable monitoring, grant access and select sources to capture new transaction notifications.
+bookkeeping.unknown_amount	Amount unknown
+bookkeeping.account_tail	Account ending %s
+bookkeeping.received_time	%s · Notification time %s
+bookkeeping.confirm	Confirm
+bookkeeping.edit	Edit
+bookkeeping.ignore	Ignore
+bookkeeping.delete	Delete
+bookkeeping.show_source	Source
+bookkeeping.hide_source	Hide
+bookkeeping.edit_entry	Confirm or edit entry
+bookkeeping.amount	Amount
+bookkeeping.currency	Currency
+bookkeeping.unknown_currency	Unconfirmed currency
+bookkeeping.type	Type
+bookkeeping.merchant	Merchant or note
+bookkeeping.duplicate_confirmation	This may duplicate an existing entry. Confirming counts it as a separate transaction. If it is the same transaction, cancel and ignore it.
+bookkeeping.save	Save
+bookkeeping.cancel	Cancel
+bookkeeping.status.off	Monitoring is off
+bookkeeping.status.grant_required	System notification access is required
+bookkeeping.status.select_required	Select at least one notification source
+bookkeeping.status.connected	Notification listener connected
+bookkeeping.status.disconnected	Access granted; waiting for the system to connect. Turn monitoring off and on to retry.
+bookkeeping.kind.expense	Expense
+bookkeeping.kind.income	Income
+bookkeeping.kind.refund	Refund
+bookkeeping.kind.transfer	Transfer
+bookkeeping.kind.repayment	Repayment
+bookkeeping.kind.unknown	Choose a type
+bookkeeping.reason.missing_amount	The notification has no explicit amount
+bookkeeping.reason.ambiguous_amount	The notification contains multiple amounts
+bookkeeping.reason.ambiguous_currency	Choose the currency after checking the original notification
+bookkeeping.reason.invalid_amount	Check the amount's format or precision
+bookkeeping.reason.ambiguous_kind	Confirm the transaction type
+bookkeeping.reason.unconfirmed	The notification does not confirm a completed transaction
+bookkeeping.reason.possible_duplicate	A recent entry has the same amount; check for a duplicate
+bookkeeping.reason.incomplete	Transaction details are incomplete
+sms.created_notice	Created %d to-dos
+sms.no_deadline	No deadline set
+sms.unscheduled	To-do added. No timed reminder until a reliable deadline is set. Edit to add one.
+sms.source_short	SMS source
+sms.view_short	View to-do
+sms.more	More actions
+sms.behavior	Creation only shows an in-app count. Remind two hours before the deadline if unfinished; if created close to the deadline, remind once. Quiet hours use silent notifications. Stop after completion or expiry.
+sms.title	SMS to-dos
+sms.row_hint	Extract actions from SMS and remind you before the deadline
+sms.monitor	Monitor new SMS
+sms.cloud	Allow AI to analyze redacted SMS
+sms.privacy	Off by default. Verification messages are neither stored nor uploaded. Accounts, cards, balances, amounts and other numbers are masked; deadlines are calculated locally. Messages with names or addresses that cannot be safely redacted stay local. Senders are never sent to AI.
+sms.consent	Only locally redacted candidate text and locally calculated deadlines are sent to your configured AI provider. Original messages are encrypted on this device. Turning this off prevents further requests. Requests already sent cannot be recalled, but their results will not create to-dos automatically.
+sms.agree	Agree and enable
+sms.cancel	Cancel
+sms.permission_missing	SMS permission was revoked. Turn monitoring off and on to grant it again.
+sms.enable_notifications	Enable notifications to receive reminders outside the app
+sms.exact_alarm_hint	Allow exact alarms to reduce system delays
+sms.sync_pending	Sync pending SMS
+sms.sync_started	Pending SMS synced. To-dos will be added after processing.
+sms.automatic_hint	Once monitoring is enabled, new SMS are processed automatically. No manual import needed.
+sms.clear_blocked	Clear blocked senders
+sms.skipped	Skipped a verification message, blocked sender or message without an action.
+sms.confirmed	To-do created and reminder scheduled.
+sms.action_failed	Could not finish. Check the time format, future deadline and AI consent. A scheduling failure does not delete the to-do.
+sms.local_candidate	SMS action
+sms.deadline	Deadline
+sms.estimated	Estimated from receipt time
+sms.source	View SMS source
+sms.redacted_preview	Redacted text eligible for AI
+sms.view_reminder	View or edit to-do
+sms.reschedule	Reschedule reminder
+sms.confirm	Confirm and create to-do
+sms.retry	Retry AI analysis
+sms.ignore	Ignore
+sms.block	Block this sender
+sms.sender	Sender (optional)
+sms.body	SMS text
+sms.received	Receipt time
+sms.time_hint	Use local time: YYYY-MM-DD HH:mm. Leave the deadline blank to save only a to-do; adding it schedules reminders.
+sms.task_title	To-do text
+sms.notification_title	SMS may need action
+sms.notification_body	Open SMS to-dos to check deadlines and processing status.
+sms.status_queued	Waiting for redacted analysis
+sms.status_local_only	Local processing only
+sms.status_pending	Adding to-do automatically
+sms.status_ready	Creating to-do
+sms.status_created	To-do created
+sms.status_ignored	Ignored
+sms.status_expired	Deadline passed; no timed reminder scheduled
+sms.status_failed	Processing failed; retry available
+diary_polish.action	AI tidy up
+diary_polish.title	Tidy up voice diary
+diary_polish.load_failed	Could not load tidy-up records. Reopen the diary to retry. You can still edit and save the diary text.
+diary_polish.privacy	This original transcript, your selected adopted version and its related feedback are sent to your default AI to remove repetition, improve wording and add paragraphs, not to summarize or expand. The original is always retained. Review, apply, then save the diary.
+diary_polish.reference_version	Reference adopted version %s
+diary_polish.version	Adopted version %s
+diary_polish.feedback	Feedback on this version
+diary_polish.feedback_placeholder	For example: keep my uncertainty; the amount should be 28, not 26.
+diary_polish.feedback_hint	Feedback applies only to this diary. Close the preview and save the diary to keep versions and feedback together. Regeneration prioritizes the selected version's feedback and refers to the latest five earlier comments.
+diary_polish.feedback_limit	%s / 4,000 characters
+diary_polish.loading	Tidying up the original transcript…
+diary_polish.draft	Result (editable)
+diary_polish.target	Confirm replacing this diary text
+diary_polish.original	View original transcript
+diary_polish.hide_original	Hide original transcript
+diary_polish.restore	Restore diary text from original
+diary_polish.regenerate	Tidy up again
+diary_polish.cancel	Cancel
+diary_polish.apply	Confirm replacement
+diary_polish.conflict	The target cannot be safely located, or the diary text has changed. Close this preview, select the recording text to replace, then reopen. Other text is never automatically overwritten.
+diary_polish.missing_config	Configure a default AI first.
+diary_polish.settings	Open AI settings
+diary_polish.invalid_input	The transcript must not be empty or exceed 24,000 characters. Each version's feedback is limited to 4,000 characters and the reference version to 48,000. The original will not be truncated.
+diary_polish.invalid_response	AI returned no valid diary text. The original is unchanged. Please retry.
+diary_polish.failed	Tidy-up failed. The original is unchanged. Check your configuration or try again later.
+diary_tags.undo_step	Undo
+diary_tags.pending_draft	New tags need confirmation. Tap to add one manually.
+diary_tags.pending_names	New tags awaiting confirmation
+diary_tags.approve_name	Add to vocabulary
+diary_tags.title	Diary tags
+diary_tags.settings_hint	Find key themes and unify equivalent tags
+diary_tags.edit	Edit tags
+diary_tags.done	Done
+diary_tags.edit_hint	Tap a tag to replace it, or × to remove it. Make primary pins it. Changes apply when you save the diary.
+diary_tags.add	Add a tag
+diary_tags.replace	Replace tag
+diary_tags.apply	Apply
+diary_tags.remove	Remove tag
+diary_tags.pin	Make primary and keep
+diary_tags.cancel_replace	Cancel replacement
+diary_tags.existing	Existing tags · tap to add or replace
+diary_tags.privacy	The default AI analyzes your diary text, usually choosing 1–2 tags, at most 3.
+diary_tags.manual_full	Manual tags fill all three slots. AI will not add more.
+diary_tags.regenerate	Regenerate with AI
+diary_tags.generating	Generating…
+diary_tags.cancel	Cancel
+diary_tags.invalid_name	Use 1–24 characters without commas or line breaks.
+diary_tags.result_stale	Content or tags changed. Generate again.
+diary_tags.generate_failed	Generation failed; your tags are preserved. Check your default AI configuration and retry.
+diary_tags.automatic	Automatically tag after saving
+diary_tags.automatic_hint	Processes new diaries and edited text in the background.
+diary_tags.fill_missing_hint	Only diaries without tags; existing tags stay unchanged
+diary_tags.fill_missing_count	%1$d untagged diaries can be filled
+diary_tags.fill_missing	Tag untagged past diaries
+diary_tags.fill_confirm	Tag past diaries
+diary_tags.fill_body	The default AI will analyze %1$d untagged diary entries. Existing tags are preserved. Track progress in the task center.
+diary_tags.batch_queued	Submitted for background processing. A default AI configuration is required.
+diary_tags.synonyms	Check synonyms with AI
+diary_tags.synonyms_hint	Only tag names are analyzed. You confirm every merge.
+diary_tags.suggestions	Merge suggestions
+diary_tags.review	Review merge
+diary_tags.dismiss	Dismiss suggestion
+diary_tags.manage_hint	Tap a tag to rename or merge it. Related but distinct concepts can stay separate.
+diary_tags.target	Canonical name
+diary_tags.choose_target	Choose an existing tag or enter a new name
+diary_tags.merge_title	Unify tag names
+diary_tags.merge_preview	Preview impact
+diary_tags.merge_body	Unify “%1$s” as “%2$s” across %3$d diaries. The old name remains a search alias.
+diary_tags.merge_confirm	Confirm merge
+diary_tags.undo	Undo last merge
+diary_tags.undo_conflict	Tags changed after merging. Undo is unavailable to protect your changes.
+diary_tags.operation_failed	Operation failed. Please try again.
+diary_tags.busy	Working…
+diary_tags.active	%1$d tagging tasks in progress
+diary_tags.failed	Tag generation failed for %1$d diaries
+diary_tags.retry	Retry failed tasks
+diary_tags.empty	No tags yet. They are generated after saving a diary.
+diary_tags.no_suggestions	No merge suggestions found.
+diary_tags.queued	Tags queued
+diary_tags.running	Generating tags
+diary_tags.retrying	Tags waiting to retry
+diary_tags.failed_status	Tag generation failed · open tags to retry
+reminder_ai_progress.title	Understanding your reminder
+reminder_ai_progress.subtitle	Identifying the content, dates, and repeat rules
+reminder_ai_progress.elapsed	Waiting for %1$d seconds
+reminder_ai_progress.queue	Waiting to start
+reminder_ai_progress.analyzing	AI analysis
+reminder_ai_progress.validating	Checking the result
+reminder_ai_progress.generating	Preparing drafts
+reminder_ai_progress.done	Complete
+reminder_ai_progress.pending	Not started
+reminder_ai_progress.running	In progress
+reminder_ai_progress.ai_wait	Waiting for the AI response
+reminder_ai_progress.retry_countdown	Retrying automatically in %1$d seconds
+reminder_ai_progress.retry_waiting	Waiting to retry automatically
+reminder_ai_progress.retry_hint	No result was received; the request will retry automatically.
+reminder_ai_progress.long_wait	Still waiting for the AI response. You can leave this page while it runs.
+reminder_ai_progress.original	Your request
+reminder_ai_progress.background	You can leave this page; analysis will continue in the background.
+reminder_ai_progress.back	Go back
+reminder_batch_review.discarded	Unsaved drafts discarded
+reminder_batch_review.invalid_count	%1$d reminders need attention. Open their editors to complete them.
+reminder_batch_review.select_hint	Select at least one reminder
+reminder_batch_review.content_needed	Enter reminder content between 1 and 2000 characters.
+reminder_batch_review.dates_needed	Enter valid start and end dates.
+reminder_batch_review.time_needed	Choose a reminder time.
+reminder_batch_review.title	Prepared %1$d reminders
+reminder_batch_review.subtitle	Review the content and time. Reminders are created only when you save.
+reminder_batch_review.item	Reminder %1$d
+reminder_batch_review.select	Select reminder %1$d
+reminder_batch_review.next	Next reminder
+reminder_batch_review.monthly	Every month on day %1$d
+reminder_batch_review.yearly	Every year on %1$d/%2$d
+reminder_batch_review.repeat_window	%1$s through %2$d/%3$d
+reminder_batch_review.date_range	%1$s to %2$s
+reminder_batch_review.work_quiet	During work hours, notifications are silent.
+reminder_batch_review.collapse_edit	Hide editor
+reminder_batch_review.unsaved	Unsaved reminders will not send notifications.
+reminder_batch_review.original	View original request
+reminder_batch_review.save_hint	Only selected reminders will be saved
+reminder_batch_review.save	Save %1$d reminders
+reminder_batch_review.saved	Reminders saved
+reminder_batch_review.discard_hint	Unsaved drafts will be discarded. Saved reminders will be kept.
+reminder_detail.complete	Mark as complete
+reminder_detail.complete_hint	Completing this reminder permanently ends it and stops all future notifications.
+reminder_detail.edit_hint	Change the reminder content, dates, and time
+reminder_detail.pause	Pause reminder
+reminder_detail.pause_hint	Stop notifications temporarily; resume them manually later
+reminder_detail.resume	Resume reminder
+reminder_detail.resume_hint	Continue notifications using the existing dates and settings
+reminder_detail.resume_blocked	Apply current defaults to repair the settings before resuming
+reminder_detail.more	More actions
+reminder_detail.less	Hide more actions
+reminder_detail.apply_defaults	Use current defaults
+reminder_detail.apply_defaults_hint	Replace this reminder’s schedule and notification effects with the defaults in Settings
+reminder_detail.delete	Delete reminder
+diary_feed.title	My journal
+diary_feed.subtitle	Collect the little moments of everyday life.
+diary_feed.capture_title	What would you like to keep today?
+diary_feed.capture_hint	A sentence, a photo — every moment counts.
+diary_feed.write_now	Write a moment
+diary_feed.record_voice	Voice note
+diary_feed.review_title	Month in review
+diary_feed.review_no_summary	The moments you kept this month are right here.
+diary_feed.empty_title	Your story starts here
+diary_feed.empty_hint	Write a little about today, or record a voice note.
+diary_feed.today	Today
+diary_feed.yesterday	Yesterday
+diary_feed.expand	Expand
+diary_feed.collapse	Collapse
+diary_feed.month_review	Monthly review
+diary_feed.read_review	Read the %1$s review →
+diary_feed.month_count	%1$d entries
+diary_feed.review_source	Based on %1$d diary entries this month
+diary_feed.month_notes	This month’s entries
+diary_feed.question_title	A question for next month
+diary_feed.question	Which entries could inspire your next small step?
+diary_feed.summary_empty	Your monthly review is being prepared. Revisit this month’s entries below.
+diary_feed.source_note	Based on your diary. Tap an entry to read the original.
+diary_feed.photo_count	%1$d photos
+diary_feed.entry	Diary entry
+diary_feed.reminder_badge	My space, %1$d reminders remaining today
+diary_feed.month_title	%1$s review
+diary_feed.attachment_entry	Entry with attachments
+diagnostics.title	Diagnostics
+diagnostics.subtitle	Export recent logs and the last crash
+diagnostics.description	Records safe request metadata, business operations and errors. Export one AI-readable text file for the 30 minutes before you tap export.
+diagnostics.privacy	Credentials, diary entries, conversations and full bodies are excluded. Unknown free text is omitted. Logs stay local and are never uploaded automatically.
+diagnostics.coverage	WebView and system downloads expose limited lifecycle events. Forced termination or low memory may lose the tail. The report explains coverage and gaps.
+diagnostics.storage	Local diagnostic storage
+diagnostics.gaps	History was pruned, dropped or truncated, or a write failed. Check report health information.
+diagnostics.exportRecent	Export last 30 minutes
+diagnostics.exportCrash	Export last crash
+diagnostics.lastCrash	Last crash
+diagnostics.noCrash	No crash snapshot available
+diagnostics.destination	Choose Downloads or another location next. A cloud provider may upload the file. Keep exported logs safe.
+diagnostics.chooseDestination	Choose a destination in the system file picker
+diagnostics.preparing	Preparing log snapshot…
+diagnostics.saving	Saving, please keep this screen open…
+diagnostics.saved	Saved to the selected location
+diagnostics.failed	Export failed. Check free space and directory permissions, then retry.
+diagnostics.failedResidual	Saving failed. An incomplete file may remain at the destination; check and remove it.
+diagnostics.cleanup	Local data
+diagnostics.clear	Clear diagnostic logs
+diagnostics.clearConfirm	Clear local diagnostics, crash snapshots and temporary exports? Previously exported files and old task-center logs will not be deleted.
+diagnostics.confirm	Confirm clear
+diagnostics.cancel	Cancel
+diagnostics.unavailable	Local diagnostic storage is unavailable
+diagnostics.expired	This export expired. Export again; an empty file may remain at the selected destination.
+diagnostics.pickerFailed	Unable to open the system save dialog. Please try again later.
+error.network	Network connection error, please check your network and try again
+error.server	Server error, please try again later
+error.timeout	Request timeout, please try again later
+error.unknown	Unknown error occurred, please try again later
+error.validation	Invalid input data, please check and try again
+error.permission	Insufficient permissions, please contact administrator
+error.notFound	The requested resource does not exist
+error.duplicate	Data already exists and cannot be added again
+success.save	Save successful
+success.delete	Delete successful
+success.update	Update successful
+success.import	Import successful
+success.export	Export successful
+success.backup	Backup successful
+success.restore	Restore successful
+success.add	Add successful
+success.copy	Copy successful
+success.book_refreshed	has been refreshed
+button.confirm	Confirm
+button.cancel	Cancel
+button.save	Save
+button.delete	Delete
+button.refresh	Refresh
+button.add	Add
+button.edit	Edit
+button.view	View
+button.search	Search
+button.clear	Clear
+button.back	Back
+button.select	Select
+button.update	Update
+button.restore	Restore
+button.learned	Got it
+button.close	Close
+button.copy_address	Copy Address
+button.hide_password	Hide Password
+button.show_password	Show Password
+button.add_tag	Add Tag
+button.insert	Insert
+button.retry	Retry
+ui.cancel	Cancel
+ui.save	Save
+ui.saveChanges	Save Changes
+ui.saveLink	Save Link
+ui.updateArticle	Update Article
+ui.aiAnalysis	AI Analysis
+ui.link	Link
+ui.title	Title
+ui.tags	Tags
+ui.comment	Comment
+ui.optional	Optional
+ui.inputOrModifyArticleTitle	Enter or modify article title
+ui.addCommentInfo	Add comment information
+ui.search	Search
+ui.processing	Processing
+ui.selected_tags	Selected Tags
+ui.existing_tags	Existing Tags
+ui.inputTags	Enter tags, separated by commas
+nav.articles	Articles
+nav.diary	Diary
+nav.books	Books
+nav.settings	Settings
+nav.home	Home
+title.add_book	Add Book
+title.settings	Settings
+title.books	Reading & Insights
+title.books_wisdom	Reading & Insights
+title.ai_config	AI Configuration
+title.plugin_center	Plugin Center
+title.backup_restore	Restore from Backup
+title.select_book	Select Book
+title.delete_book	Delete Book
+title.refresh_book	Refresh Book
+tooltip.select_book	Select book
+tooltip.add_book	Add book
+tooltip.add_insight	Add insight
+tooltip.ai_config_help	AI configuration help
+tooltip.update_all_plugins	Update all plugins
+tooltip.server_settings	Server settings
+tooltip.back	Back
+tooltip.clear	Clear
+tooltip.search	Search
+label.password	Password
+label.book_author	Author
+label.book_category	Category
+label.book_title	Title
+hint.search_articles	Search articles...
+hint.search_content	Record the present, imagine the future...
+hint.select_first	Please select the text to convert first
+hint.enter_new_tag	Enter new tag...
+hint.enter_server_password	Enter server password
+hint.enter_book_name	Enter book name to search...
+hint.title	Please enter title
+news_focus.background_running	A background task is already processing. Please wait for it to finish.
+news_focus.background_started	The update has started in the background. Results will appear when it finishes.
+news_focus.title	News
+news_focus.search	Search news
+news_focus.refresh	Refresh news
+news_focus.tab	Daily highlights
+news_focus.headlines	Today’s headlines
+news_focus.past_headlines	Headlines
+news_focus.read_more	Read the news →
+news_focus.more	View more
+news_focus.continuous	Continuously updated · Idea advancing
+news_focus.continuous_detail	Updated from news, retained across dates
+news_focus.ranking_hint	Capture as ideas to advance; added tasks leave recommendations
+news_focus.recommended	Recommended
+news_focus.recommended_count	For you · %1$d opportunities
+news_focus.direction	Focus: %1$s
+news_focus.adjust	Adjust
+news_focus.history	Choose a date
+news_focus.news_count	%1$s · %2$d sources
+news_focus.updated	%1$s · Updated %2$s
+news_focus.source	Source: %1$s
+news_focus.read_article	Read article →
+news_focus.related	Related opportunities %1$d
+news_focus.empty	No headlines yet
+news_focus.empty_hint	Refresh the news to see summaries and reports here.
+news_focus.news_list	Top stories
+news_focus.no_summary	No summary available. Open the article to read more.
+personal_settings.my_title	My space
+personal_settings.title	Settings
+personal_settings.library	Library & tasks
+personal_settings.favorites	Saved articles
+personal_settings.tasks	Task center
+personal_settings.sources	Content sources
+personal_settings.news	News sources
+personal_settings.external	External favorites sync
+personal_settings.ai	AI & tools
+personal_settings.access	Reminders & access
+personal_settings.privacy	Privacy information
+personal_settings.updates	App updates
+article.detail_title	Article Details
+article.published_on	Published on
+article.saved_on	Saved on
+article.source	Source
+article.source_unknown	Unknown source
+article.all_articles	All Articles
+article.favorite_articles	Favorite Articles
+article.search_result	Search: "{query}"
+article.filter_by_tag	Tag: {tag}
+article.filter_by_date	Filter by Date
+article.calendar_title	Article Calendar
+article.select_tag	Select Tag
+article.filter_tags	Filter Tags
+article.show_all	Show All Articles
+article.show_favorite_only	Show Favorites Only
+article.view_all_articles	View All Articles
+article.loading_more	Loading more content...
+empty.no_viewpoint	No viewpoints yet, please add a book first
+empty.no_plugins	No plugins available
+empty.search	No search results
+dialog.confirm_delete	Confirm Delete
+dialog.server_address	HTTP Server Address
+dialog.convert_to_table	Convert to Table
+dialog.convert_to_list	Convert to List
+dialog.format_code_block	Format as Code Block
+dialog.add_emphasis	Add Emphasis Formatting
+dialog.select_from_album	Select from Album
+dialog.take_photo	Take Photo
+dialog.ai_config_help	AI Configuration Help
+dialog.restart_app	Restart App
+dialog.restore_success	Restore Successful
+dialog.restore_failed	Restore Failed
+dialog.about	About
+dialog.functions	Functions
+dialog.ai_config_desc	Configure AI models for multiple scenarios
+dialog.plugin_center_desc	Manage extension plugins and subscriptions
+dialog.system	System
+dialog.backup_desc	Protect your data security
+dialog.web_server	Web Server
+dialog.web_server_desc	Configure remote access and proxy settings
+dialog.check_update	Check Update
+dialog.check_update_desc	Get the latest version
+dialog.google_books_api_key	Google Cloud API Key
+dialog.google_books_api_key_desc	Configure Google Cloud API Key
+dialog.enter_api_key	Please enter API Key
+dialog.save	Save
+dialog.cancel	Cancel
+dialog.server_info	Server Information
+dialog.backup_success	Backup file restored successfully
+dialog.delete_book	Delete Book
+dialog.delete_book_confirm	Are you sure you want to delete
+dialog.delete_book_warning	This action cannot be undone, and all viewpoints related to the book will also be deleted
+dialog.refresh_book	Refresh Book
+dialog.refresh_book_message	Will re-fetch
+dialog.refresh_book_warning	viewpoint content, this may take some time. Continue?
+dialog.refreshing_book	Refreshing
+dialog.add_image	Add Image
+dialog.ai_magic	AI Magic
+dialog.about_description	Daily Satori is your personalized reading assistant with article collection, AI content analysis, and diary management
+setting.web_server	Web Server
+setting.web_server_address	HTTP Server Address
+setting.http_server_address	HTTP Server Address
+setting.websocket_access	WebSocket Remote Access
+setting.web_server_subtitle	Configure remote access and proxy settings
+setting.websocket_remote	WebSocket Remote Access
+setting.connection_status	Connection Status
+setting.server_password	Server Password
+setting.last_update	Last updated:
+setting.updating	Updating
+setting.ai_config_subtitle	Configure AI models for multiple scenarios
+setting.plugin_center_subtitle	Manage extension plugins and subscriptions
+setting.backup_restore_subtitle	Protect your data security
+setting.check_update_subtitle	Get the latest version
+setting.google_books_api_key	Google Cloud API Key
+setting.google_books_api_key_subtitle	Configure Google Cloud API Key
+setting.version	Version
+setting.server_info	Server Information
+setting.server_management	Server Management
+setting.server_password_subtitle	Protect your server security
+setting.restart_service	Restart Service
+setting.restart_service_subtitle	Restart web server
+setting.password_tip	Password length should be 6-20 characters
+setting.network_tip	Ensure your device and access point are on the same local network. Access the address above via browser to manage your data.
+setting.download_images	Download Article Images
+setting.download_images_subtitle	Download missing article cover images
+setting.download_images_progress	Downloading {current}/{total}
+backup_restore.delete_failed	Delete failed
+backup_restore.delete_success	Delete successful
+backup_restore.no_backup_path	Backup path not set
+backup_restore.path_not_exist	Backup path does not exist
+backup_restore.title	Restore from backup
+backup_restore.choose_file	Choose backup file
+backup_restore.source_title	Backup source
+backup_restore.select_title	Select a backup
+backup_restore.choose_file_short	Choose file
+backup_restore.directory_files	Files in the backup directory
+backup_restore.restore_selected	Restore this backup
+backup_restore.warning_short	Restoring replaces current data. Back up anything you need to keep first.
+backup_restore.backup_count	%d backups
+backup_restore.choose_file_hint	Restore an encrypted backup from this or another device
+backup_restore.selected_file	Selected external backup file
+backup_restore.available_backups	Backups in directory · %d
+backup_restore.empty	No backups in the directory. Choose an encrypted backup file at the top right.
+backup_restore.encrypted_file	Encrypted backup file
+backup_restore.restore	Restore backup
+backup_restore.confirm_title	Confirm restore
+backup_restore.warning	Restoring replaces current data and restarts the app. Back up anything you want to keep first.
+backup_restore.password_label	Password used to create this backup
+backup_restore.confirm	Restore and restart
+backup_restore.cancel	Cancel
+backup_restore.reading	Reading backup…
+backup_restore.decrypting	Decrypting backup…
+backup_restore.extracting	Extracting attachments…
+backup_restore.validating	Checking integrity…
+backup_restore.preparing	Preparing data for this device…
+backup_restore.staging	Saving pending restore…
+backup_restore.restart	Data is ready. Restarting to finish restoring…
+backup_restore.restart_manual	Data is ready, but automatic restart failed. Fully close and reopen the app to finish restoring.
+backup_restore.select_required	Choose a backup file first
+backup_restore.legacy_life	This older backup does not include Life Archive. Existing local records will be kept. Create a new complete backup on the old device to transfer them.
+backup_restore.password_required	Enter the password used to create this backup
+backup_restore.password_error	Incorrect password or damaged backup. Check the password or choose another backup. Current data has not been replaced.
+backup_restore.access_error	Cannot read the backup. Choose the file again and check access permissions. Current data has not been replaced.
+backup_restore.space_error	Not enough storage. Free up space and try again. Current data has not been replaced.
+backup_restore.version_error	This backup requires a newer app version. Update the app and retry. Current data has not been replaced.
+backup_restore.invalid_error	Backup is incomplete or attachments failed verification. Choose a complete backup. Current data has not been replaced.
+backup_restore.failed	Could not prepare the restore. Check the backup file, access permissions, and available storage.
+backup_restore.load_failed	Cannot read the backup directory. You can choose a backup file directly.
+backup_settings.backup_failed	Backup failed
+backup_settings.backup_success	Backup successful
+backup_settings.path_saved	Path saved
+backup_settings.select_failed	Failed to select path
+app.description	Your personalized reading assistant with article collection, AI content analysis, and diary management.
+book.author	Author:
+book.category	Category:
+book.summary	Summary
+book.view_all_viewpoints	View All Viewpoints
+book.record_thought	Record Thought
+book.shuffle	Shuffle
+book.refresh_content	Refresh Book Content
+book.delete_current	Delete Current Book
+book.all_books	All Books
+book.not_found_delete	No book found to delete, please select a book first
+book.not_found_refresh	No book found to refresh, please add a book first
+book.delete_confirm	Are you sure you want to delete "{title}"?\\nThis action cannot be undone, and all viewpoints related to this book will also be deleted.
+book.refresh_confirm	Will re-fetch the viewpoint content of "{title}", this may take some time. Continue?
+book.refreshing	Refreshing "{title}"...
+book.refresh_success	{title} has been refreshed
+book.refresh_failed	Refresh failed, please try again later
+book_search.search_failed	Search failed
+book_search.add_success	Book added successfully
+book_search.add_failed	Failed to add book
+book_search.already_exists	Book already exists
+message.copy_success	Copied successfully
+message.success_title	Success
+message.error_title	Error
+message.network_error	Network error
+message.please_select	Please select...
+message.please_enter	Please enter...
+message.invalid_input	Invalid...
+message.select_text_first	Please select text first
+status.connected	Connected
+status.disconnected	Disconnected
+menu.convert_to_table	Convert to Table
+menu.convert_to_list	Convert to List
+menu.format_as_code_block	Format as Code Block
+menu.add_emphasis	Add Emphasis
+menu.select_from_gallery	Select from Gallery
+menu.take_photo	Take Photo
+menu.shuffle	Shuffle
+menu.refresh_book	Refresh Book
+menu.delete_book	Delete Book
+placeholder.title	Untitled
+placeholder.content	No content
+placeholder.summary	No summary
+placeholder.url	https://example.com
+placeholder.date	No date
+placeholder.author	Unknown author
+component.search	Search
+component.clear	Clear
+component.back	Back
+component.confirm	Confirm
+component.cancel	Cancel
+component.filter	Filter
+component.select	Select
+component.search_placeholder	Search...
+component.search_hint	Search articles
+component.search_articles_hint	Search articles...
+component.tooltip_search	Search
+component.tooltip_clear	Clear
+component.tooltip_back	Back
+component.tooltip_filter	Filter
+component.filter_title	Filter Conditions
+component.filter_date	Date
+component.filter_tags	Tags
+component.filter_favorite	Show Favorites Only
+component.filter_select_date	Select Date
+component.filter_clear_all	Clear All
+component.filter_prefix	Filtered:
+component.filtered_indicator_prefix	Filtered:
+component.filtered_indicator_clear	Clear
+component.empty_articles_title	No favorites yet
+component.empty_articles_subtitle	You can add new articles using the share feature
+component.empty_no_data	No data
+component.empty_add_content	Click the button below to add new content
+component.loading	Loading...
+component.processing	Processing...
+component.ai_analyzing	AI Analyzing...
+component.article_info_website	Website
+component.article_info_date	Date
+component.article_info_tags	Tags
+component.article_info_reading_time	Reading time
+component.article_info_word_count	Word count
+component.button_add	Add
+component.button_save	Save
+component.button_delete	Delete
+component.button_edit	Edit
+component.button_cancel	Cancel
+component.button_confirm	Confirm
+component.favorites_only	Favorites Only
+component.show_all	Show All
+component.processing_dialog_success	Complete
+ai_chat.title	AI Assistant
+ai_chat.assistant	AI Assistant
+ai_chat.you	You
+ai_chat.tool	Tool Call
+ai_chat.thinking	Thinking...
+ai_chat.processing	Processing...
+ai_chat.retry	Retry
+ai_chat.send	Send
+ai_chat.input_hint	Type your question...
+ai_chat.new_chat	New Chat
+ai_chat.welcome_message	Hello! I am your AI assistant, I can help you search and summarize content in the app.
+ai_chat.empty_title	Start Chat with AI Assistant
+ai_chat.empty_subtitle	I'm your intelligent assistant, helping you search and summarize content within the app
+ai_chat.suggestion_articles	Search Related Articles
+ai_chat.suggestion_diary	Find Diary Content
+ai_chat.suggestion_books	Search Reading Notes
+ai_chat.suggestion_summary	Summarize Recent Content
+ai_chat.step_start	Analyzing your question...
+ai_chat.step_analyzing_query	Analyzing query intent...
+ai_chat.step_intent_identified	Intent identified:
+ai_chat.step_planning_tools	Creating search plan...
+ai_chat.step_tool_planned	Planned to execute:
+ai_chat.step_searching	Searching relevant content...
+ai_chat.step_executing_tool	Executing:
+ai_chat.step_tool_completed	Execution completed:
+ai_chat.step_summarizing	Summarizing search results...
+ai_chat.step_error_occurred	An error occurred during processing
+ai_chat.intent_articles	Find Articles
+ai_chat.intent_diary	Find Diary
+ai_chat.intent_books	Find Books
+ai_chat.intent_summary	Content Summary
+ai_chat.intent_general	General Search
+ai_chat.error_occurred	Sorry, an error occurred while processing your request. Please try again later.
+ai_chat.help	Help
+ai_chat.help_title	Usage Help
+ai_chat.got_it	Got It
+ai_chat.help_features_title	Main Features
+ai_chat.help_features_content	• Smart search for articles, diaries, and reading notes\\n• Automatic summarization and organization\\n• Multi-turn conversation\\n• Real-time processing steps
+ai_chat.help_usage_title	How to Use
+ai_chat.help_usage_content	1. Enter what you want to find or summarize\\n2. AI automatically analyzes and creates search plan\\n3. View processing steps and search results\\n4. Get AI-summarized answers
+ai_chat.help_tips_title	Usage Tips
+ai_chat.help_tips_content	• Use specific keywords for searching\\n• You can specify time ranges\\n• Support multi-turn conversations\\n• Can ask for related suggestions
+ai_config.api_address_required	Please enter API address
+ai_config.api_token_required	Please enter API Token
+ai_config.create_title	Create Configuration
+ai_config.edit_title	Edit Configuration
+ai_config.name_required	Please enter configuration name
+ai_config.save_failed	Save failed
+ai_config.save_success	Save successful
+ai_config.go_usage_notice	OpenCode Go primarily serves coding agents; availability for Daily's non-coding use is not guaranteed. Use an API key with an active Go subscription.
+ai_config.responses_unsupported	Responses API is not supported yet
+ai_config.model_unadapted	Model protocol is not adapted yet; select a supported model
+ai_config.delete_confirm_with_purpose	Are you sure you want to delete this non-default configuration? Any feature assigned to this model will automatically revert to following the default model.
+ai_purpose.title	Purpose Models
+ai_purpose.subtitle	Assign tailored models to different scenarios. Unassigned tasks automatically use the default model.
+ai_purpose.no_configs_title	No AI Models Configured
+ai_purpose.no_configs_desc	Please configure AI models first before assigning them to different scenarios.
+ai_purpose.go_to_config	Go to Model Settings
+ai_purpose.follow_default	Follow Default Model
+ai_purpose.default_badge	Default
+ai_purpose.current_default	Current Default
+ai_purpose.select_model_title	Select Model
+ai_purpose.save_failed	Failed to save model assignment, please try again
+ai_purpose.card_default_fallback	Follow Default
+ai_purpose.card_no_default	No default model configured
+ai_purpose.deep_effect_notice	Quality depends on the model. Official DeepSeek and DeepSeek on OpenCode Go use purpose-specific thinking controls; other models keep provider defaults.
+ai_purpose.interactive_title	Interactive Tasks
+ai_purpose.interactive_desc	For real-time responses: chat, idea dialogue, input structuring, reminder parsing, reference filing, diary polishing.
+ai_purpose.interactive_highlight	Optimized for fast response and low latency
+ai_purpose.external_title	Economic Background
+ai_purpose.external_desc	For batch and async tasks: URL/news summaries, translation, X and external bookmarking.
+ai_purpose.external_highlight	Optimized for cost-effective background processing
+ai_purpose.reflection_title	Deep Reflection
+ai_purpose.reflection_desc	For comprehensive synthesis: idea project synthesis, thought induction, reading insights, weekly summaries, monthly reviews.
+ai_purpose.reflection_highlight	Optimized for deep reasoning and structural synthesis
+weekly_summary.title	Weekly
+weekly_summary.refresh	Refresh
+weekly_summary.generating	Generating weekly summary...
+weekly_summary.generating_hint	AI is analyzing your articles and diaries this week
+weekly_summary.no_summary	No weekly summary
+weekly_summary.no_summary_hint	The system will automatically generate a summary when a week ends
+weekly_summary.generate_now	Generate Now
+weekly_summary.generate_success	Weekly summary generated successfully
+weekly_summary.generate_failed	Failed to generate weekly summary, please try again later
+weekly_summary.articles	articles
+weekly_summary.diaries	diaries
+weekly_summary.retry	Retry
+weekly_summary.regenerate	Regenerate
+weekly_summary.history	History
+weekly_summary.week_label	Week {week}
+weekly_summary.diary_detail	Diary Detail
+weekly_summary.diary_not_found	Diary not found
+weekly_summary.viewpoint_detail	Reading Note
+weekly_summary.viewpoint_not_found	Reading note not found
+reminder_editor.more_actions	More actions
+reminder_editor.active_days	Active days within each occurrence
+reminder_editor.details	Details
+reminder_editor.profile	Reminder profile
+reminder_editor.behavior	Reminder behavior
+reminder_editor.leap_policy	In non-leap years, use:
+reminder_editor.feb_28	February 28
+reminder_editor.mar_1	March 1
+management.content	Content & sources
+management.running	Activity
+management.app	App settings
+management.favorites	Favorites
+management.count	%1$d items
+management.external	External favorites
+management.external_count	%1$d items · %2$d sources
+management.news	News sources
+management.news_count	%1$d articles synced · %2$d sources
+management.no_sources	No sources configured
+management.tasks	Sync & tasks
+management.task_status	%1$d active · %2$d failed in 24h
+management.failed_tasks	View failed tasks
+management.general	General settings
+management.general_hint	AI, reminders, network and backups
+management.privacy	Data & privacy
+management.privacy_hint	How your data is stored and used
+management.today_reminders	Today · %1$d reminders pending
+management.all_reminders	All reminders
+management.recent_tasks	Last 24 hours
+management.all_tasks	All tasks
+management.preferences	Preferences
+management.ai	AI & extensions
+management.network	Network services
+management.data	Data & maintenance
+management.storage	Local storage
+management.storage_hint	Diaries, reminders, favorites and sync tasks are stored on this device.
+management.external_data	External services
+management.external_data_hint	External favorites access connected services only when their sources are enabled. AI features send relevant content to your configured model service.
+management.backup_hint	Manage backups, restores, imports and network services in General settings. Check the selected file before restoring or importing.
+my_space.read_marked	Read
+my_space.title	Me
+my_space.intro	Understand yourself. Turn insights into action.
+my_space.thoughts	My thoughts
+my_space.reminders	My reminders
+my_space.view_all	View all
+my_space.next	Up next
+my_space.useful	Product opportunities
+my_space.chat	Think it through
+my_space.ai	With AI
+my_space.all	View all
+my_space.expand	Explore
+my_space.settings	Settings & management
+my_space.thought_empty	Your thoughts will take shape here
+my_space.thought_empty_hint	Find what matters and how you make decisions, with sources for every insight.
+my_space.organize	Organize my thoughts
+my_space.thought_meta	Based on %1$d diary entries
+my_space.thought_explicit	What you expressed
+my_space.thought_inferred	AI interpretation · For you to confirm
+my_space.thought_quote	You wrote
+my_space.thought_more	View all thoughts
+my_space.reminder_empty	No upcoming reminders
+my_space.add_reminder	Add reminder
+my_space.opportunity_empty	No product opportunities yet
+my_space.opportunity_hint	Looks for buildable software products in configured news sources and local articles. Check your news sources if no articles are available.
+my_space.focus	My interests
+my_space.focus_hint	What kind of software do you want to build, or whose problems do you know well?
+my_space.focus_placeholder	For example: automation tools for indie developers to simplify releases
+my_space.news_intro	Picked for you, with the key points first.
+my_space.news_hint	Looks for buildable software products in the news. Personal context only helps filter ideas. Article text and enabled personal context are sent to your configured AI service.
+my_space.recommendations_title	Product opportunities
+my_space.recommendation_basis	Screening context
+my_space.thought_basis	Enabled personal preferences
+my_space.edit_focus	Edit interests
+my_space.set_focus	Set interests
+my_space.articles	Opportunities from news
+my_space.analyze	Find opportunities
+my_space.analysis_scope	%1$d candidates · %2$d pending
+my_space.analysis_confirm	Fetch recent news and use your default AI model to find buildable software product opportunities. Article text and enabled personal context will be sent to your configured AI service.
+my_space.pending	To review
+my_space.saved	Saved
+my_space.legacy_saved	To Organize
+my_space.no_legacy_saved	No legacy saved opportunities to organize
+my_space.legacy_saved_hint	Opportunities saved previously that are not yet captured as idea topics. Capturing them allows advancing them in idea topics and removes them from here.
+my_space.acted	Acted on
+my_space.ignored	Hidden
+my_space.none	Nothing here yet
+my_space.no_pending	No opportunities to review
+my_space.no_pending_hint	There are no new opportunities. Run another search to check again.
+my_space.no_saved	No saved opportunities yet
+my_space.no_acted	No opportunities acted on yet
+my_space.no_ignored	No hidden opportunities yet
+my_space.no_relation	No software product opportunity suitable for you was found in this news batch.
+my_space.fact	Signal from the news
+my_space.relevance	Who needs it and why it fits · Inference
+my_space.action	Smallest buildable version
+my_space.caveat	What to validate
+my_space.evidence	View source evidence
+my_space.original	Open source
+my_space.view_opportunity	View opportunity
+my_space.save	Save
+my_space.unsave	Unsave
+my_space.irrelevant	Not relevant
+my_space.restore	Restore
+my_space.discuss	Think about this
+my_space.convert	Create reminder
+my_space.view_reminder	View reminder
+my_space.from_reading	Recommended for you
+my_space.read	Mark as read
+my_space.read_done	Read · Added for analysis
+my_space.read_error	Could not save reading status. Try again.
+my_space.retry	Continue update
+my_space.cancel	Cancel
+my_space.confirm	Confirm
+my_space.save_changes	Save
+my_space.saving	Saving…
+my_space.close	Close
+my_space.context	Context for this turn · Removable
+my_space.remove_context	Remove context
+my_space.default_context	Uses enabled thought preferences; no full diary attached by default
+my_space.no_context	No thought archive attached for this turn
+my_space.unavailable	Content changed or is unavailable. Go back and select it again.
+my_space.permission	AI use of thoughts is disabled. Change this in thought preferences.
+my_space.focus_saved	Interests saved
+my_space.error	Could not complete the action. Try again.
+my_space.busy	Analyzing; previous results remain available
+my_space.queued	Waiting for analysis
+my_space.context_thought	Selected thought
+my_space.context_opportunity	Selected reading insight
+my_space.created	Reminder saved
+my_space.analyze_missing	Set a direction or enable your personal preferences first
+my_space.recommendation_context_title	Set a screening direction
+my_space.recommendation_context_hint	Enter the kind of software you want to build, or organize preferences from your diary. Product opportunities will be found in the news when ready.
+my_space.waiting_for_thoughts	Organizing your preferences. Product opportunities will be found in the news when ready.
+my_space.updating_recommendations	Finding opportunities…
+my_space.source_unavailable	Source link unavailable; the saved excerpt is still available
+my_space.use_thoughts	Also uses enabled, supported thought summaries. Disabling AI use of thoughts leaves only these interests.
+my_space.focus_change	Changing interests automatically updates recommendations. Saved and acted-on items remain.
+my_space.history	Conversation history
+my_space.chat_hint	Some thoughts become clearer when you talk them through.
+settings_interactions.unsaved_title	Unsaved changes
+settings_interactions.unsaved_message	Your changes will not be saved if you leave.
+settings_interactions.discard_changes	Discard changes
+settings_interactions.continue_editing	Keep editing
+settings_interactions.token_title	API Token
+settings_interactions.token_hidden	Configured · Tap to copy
+settings_interactions.token_copy	Copy token
+settings_interactions.token_copied	Token copied
+settings_interactions.token_show	Show token
+settings_interactions.token_hide	Hide token
+settings_interactions.token_reset	Reset token
+settings_interactions.token_reset_message	The current token will stop working. Connected clients will need the new token.
+settings_interactions.token_reset_done	Token reset
+settings_interactions.cancel	Cancel
+settings_interactions.saved	Saved
+settings_interactions.delete_source_title	Delete news source?
+settings_interactions.delete_source_message	Delete “%1$s”? This source will no longer sync.
+settings_interactions.delete	Delete
+settings_interactions.immediate_changes	Changes are saved automatically.
+attention.task_count	%1$s failed tasks awaiting acknowledgement
+attention.task_active	%1$s tasks in progress
+attention.task_pending	Failures to acknowledge
+attention.view_reasons	View reasons
+attention.all_tasks	All tasks
+attention.task_unknown_error	The task failed without a recorded reason. Expand diagnostics to view its execution history.
+attention.failure_reason	Failure reason
+attention.acknowledge	Acknowledge and clear badge
+attention.reminder_pending	This reminder is unfinished and counts toward today's pending badge. Complete this occurrence to clear it.
+attention.reminder_complete	Complete this occurrence
+attention.retry	Try again
+task_failure.context_changed	Explanation: The focus or thought context changed during analysis. Analysis stopped to avoid saving outdated results; completed results are retained.\nNext step: Once the context is stable, run analysis again from News opportunities.
+task_failure.auth	Next step: Check the service Key or sign-in authorization and the account's permission to access this API.
+task_failure.config	Next step: Check the service URL, model and required settings, then run the task again from its feature.
+task_failure.model	Next step: Select an audio transcription model and confirm that the account has access to it.
+task_failure.rate_limit	Next step: Wait before retrying. If this persists, check the provider's quota and rate limits.
+task_failure.timeout	Next step: Check the network and provider status before retrying. Scheduled retries appear in the execution summary.
+task_failure.interrupted	Next step: The system interrupted this task. It will retry automatically; see the execution summary for its schedule.
+task_failure.ai_response	Next step: The AI response failed format or source-quote validation. Completed results are retained; analyze unfinished items again.
+task_failure.input	Next step: Check that the source, article or attachment still exists, update the input, then run the task again from its feature.
+task_failure.general	Next step: Check the execution history below to find where the task stopped, then check settings, network and provider status. Export diagnostics if it fails again.
+task_failure.acknowledge_hint	Clearing the badge only marks this failure as read. It does not retry or fix the task.
+speech_test.button	Choose audio and test
+speech_test.testing	Testing transcription…
+speech_test.hint	Choose a short recording with clear speech (up to 1 MB). This tests the current Key and model before saving. Audio is sent to the selected provider and may use paid quota; no diary is created.
+speech_test.success	Test passed: The current Key and model transcribed the audio. Result:
+speech_test.auth	Test failed: Authentication or permission was denied. Check the provider's API Key, account status and model access.
+speech_test.model	Test failed: The model or transcription endpoint is unavailable. Confirm that the selected speech model is enabled.
+speech_test.unavailable	Test failed: The service is unavailable or requests are limited. Try later and check the provider's balance, quota and service status.
+speech_test.audio	Test failed: Choose clear speech audio up to 1 MB in WAV, MP3, M4A, MP4, AAC, OGG, FLAC or WebM format.
+speech_test.timeout	Test failed: Transcription did not complete within 30 seconds. Check the network and provider status before retrying.
+speech_test.network	Test failed: Unable to read the audio or connect to the service. Check file access, network and proxy settings.
+speech_test.rejected	Test failed: The service rejected the request or returned no valid transcript. Check the audio format, model permissions and provider settings.
+settings_design.hot_news	Core platforms
+settings_design.news_hint	Configure remote news services
+settings_design.auth	Authorizations
+settings_design.auth_hint	SMS and notification permissions and sources
+settings_design.search_list_hint	Search names or keywords
+settings_design.service_access	Service & access
+settings_design.model_selection	Model selection
+settings_design.usage_preferences	Preferences
+settings_design.connection_settings	Connection settings
+settings_design.access_enable	Access & availability
+settings_design.skill_info	Skill details
+settings_design.service_connection	Service connection
+settings_design.more	More actions
+settings_design.backup_location	Backup location
+settings_design.backup_intro	Set a backup directory and encryption password, then create a full backup.
+settings_design.backup_configuration	Backup settings
+settings_design.backup_protected	Encrypted
+settings_design.backup_content_hint	Backups include app data and attachments. Keep your password safe; enter it manually when restoring.
+settings_design.backup_verify_caption	Check integrity without replacing current data
+settings_design.backup_verify_action	Verify
+settings_design.set_backup_password	Set backup password
+settings_design.change_backup_password	Change backup password
+settings_design.backup_password_help	Use at least 10 characters to encrypt new backups. Keep the password safe; older backups still require their original password.
+settings_design.backup_directory	Backup directory
+settings_design.choose_directory_hint	Choose a location to save backups
+settings_design.backup_encryption	Encryption password
+settings_design.backup_password_set	Configured, used automatically for new backups
+settings_design.backup_password_missing	Not configured. Tap to set at least 10 characters.
+settings_design.backup_password	Backup password
+settings_design.save_backup_password	Save backup password
+settings_design.backup_now	Back up now
+settings_design.backup_missing_title	Unmatched attachments: %d files, %d references
+settings_design.backup_missing_description	These database references were not collected into this backup. This does not prove the files were deleted from the device. Current data and previous backups are unchanged.
+settings_design.backup_missing_more	Show more (%d references remaining)
+settings_design.backup_missing_copy	Copy full attachment list (includes file paths)
+settings_design.backup_missing_copied	Attachment list copied
+settings_design.backup_attachment_diary_attachment	Diary attachment
+settings_design.backup_attachment_diary_image	Diary image
+settings_design.backup_attachment_article_image	Article image
+settings_design.backup_attachment_article_cover	Article cover
+settings_design.backup_attachment_book_cover	Book cover
+settings_design.backup_attachment_record	Related diary / article / book ID: %d
+settings_design.backup_attachment_row	Reference row ID: %d
+settings_design.backup_attachment_original	Original database path: 
+settings_design.backup_attachment_target	Expected backup path: 
+settings_design.backup_verify_title	Backup verification
+settings_design.backup_verify_safety	Check that a backup can be restored
+settings_design.backup_verify_description	Check the latest backup's integrity and restore preparation without changing current data or backup files.
+settings_design.backup_verify_start	Verify latest backup
+settings_design.backup_verify_password	Original password for this backup (used only for this check)
+settings_design.backup_verify_retry	Retry verification with this password
+settings_design.backup_verify_password_manual	Enter the password for each check. The saved backup password is never read or changed. This input is cleared afterward.
+settings_design.backup_verify_copy_log	Copy full diagnostic log
+settings_design.backup_verify_log_copied	Diagnostic log copied; ready to share with aidebug
+settings_design.backup_verify_show_log	Show full diagnostic log
+settings_design.backup_verify_hide_log	Hide diagnostic log
+settings_design.backup_verify_file	Verified file: 
+settings_design.backup_verify_backup_time	Backup time: 
+settings_design.backup_verify_checked_at	Checked at: 
+settings_design.backup_verify_status_passed	Verification passed
+settings_design.backup_verify_status_limited	Limited verification only
+settings_design.backup_verify_status_failed	Verification failed
+settings_design.backup_verify_status_incomplete	Verification incomplete
+settings_design.backup_verify_passed_detail	File integrity, database, attachment references, and restore preparation checks passed. Below is a summary of this backup. No actual restore was performed.
+settings_design.backup_verify_limited_detail	This legacy backup has no file manifest, so full file integrity cannot be established. Database, attachment references, and restore preparation were checked. This is not a full pass.
+settings_design.backup_verify_issue_no_directory	Choose a backup directory first.
+settings_design.backup_verify_issue_no_backup	No application encrypted backup with a valid filename timestamp was found.
+settings_design.backup_verify_issue_no_password	No saved password is available. Enter this backup's original password; the current backup password will not change.
+settings_design.backup_verify_issue_busy	A backup or restore is in progress. Try again later.
+settings_design.backup_verify_issue_backup_changed	The latest backup has changed. Choose Verify latest backup again to avoid checking a different file with the old password.
+settings_design.backup_verify_issue_cancelled	Verification was cancelled and was not recorded as passed.
+settings_design.backup_verify_issue_missing_attachments	Some attachments referenced by the database were not found in the backup. The restore rehearsal stopped. Older backups may omit audio recordings; the diagnostic log lists missing categories and counts. If your current data is complete, create and verify a new backup. Current data and the original backup are unchanged.
+settings_design.backup_verify_summary_missing_files	Attachments missing from backup: %d
+settings_design.backup_verify_stage_selecting	Finding the latest backup…
+settings_design.backup_verify_stage_reading	Reading the backup file…
+settings_design.backup_verify_stage_decrypting	Decrypting and checking encrypted integrity…
+settings_design.backup_verify_stage_extracting	Extracting and checking the ZIP…
+settings_design.backup_verify_stage_files	Checking the manifest, file sizes, and SHA-256…
+settings_design.backup_verify_stage_database	Checking database integrity and version…
+settings_design.backup_verify_stage_preparing	Rehearsing migrations, attachment paths, and restore preparation…
+settings_design.backup_verify_stage_life_archive	Checking life archive data…
+settings_design.backup_verify_stage_cleanup	Cleaning up private temporary files…
+settings_design.backup_verify_stage_complete	Checks completed
+settings_design.backup_verify_error_selecting	Cannot access the backup directory. Select it again and check access permissions.
+settings_design.backup_verify_error_reading	Cannot read the backup file. Check the file, directory permissions, and available space.
+settings_design.backup_verify_error_decrypting	Cannot decrypt: the password does not match or the backup is damaged. Retry with this backup's original password.
+settings_design.backup_verify_error_extracting	The ZIP is damaged, has unsafe or duplicate paths, or exceeds extraction space or size limits.
+settings_design.backup_verify_error_files	The manifest, sizes, or hashes do not match, content is missing, or the backup format version is incompatible.
+settings_design.backup_verify_error_database	The database is damaged, is missing application tables, or has an incompatible version.
+settings_design.backup_verify_error_preparing	Restore preparation failed: attachments, required tables or columns may be missing, or migration or secret processing failed.
+settings_design.backup_verify_error_life_archive	Life archive data is invalid or encrypted restore preparation failed.
+settings_design.backup_verify_error_cleanup	Private verification temporary files could not be removed. This check is not recorded as passed.
+settings_design.backup_verify_error_complete	Verification could not finish. Try again.
+settings_design.backup_verify_summary_diary	Diary entries: %d
+settings_design.backup_verify_summary_article	Articles: %d
+settings_design.backup_verify_summary_book	Books: %d
+settings_design.backup_verify_summary_bookkeeping_entry	Ledger entries: %d
+settings_design.backup_verify_summary_reminder	Reminders: %d
+settings_design.backup_verify_summary_setting	Settings: %d
+settings_design.backup_verify_summary_life_archive	Life archive records: %d
+settings_design.backup_verify_summary_files	User files: %d
+settings_design.backup_verify_summary_images	Image files: %d
+settings_design.backup_verify_summary_audio	Audio files: %d
+settings_design.restore_backup	Restore backup
+settings_design.tag_catalog	Tag catalog
+settings_design.importance	Notification priority
+settings_design.lock_screen	Lock screen
+settings_design.work_days	Workdays
+settings_design.collapse	Collapse
+settings_design.expand	Expand
+settings_design.daily	Everyday
+settings_design.capabilities	Models & capabilities
+settings_design.data	Content & data
+settings_design.application	Application
+settings_design.reminders	Reminders & notifications
+settings_design.reminders_hint	Sound · Quiet hours
+settings_design.phone	Phone assistant
+settings_design.phone_hint	SMS · Notifications
+settings_design.tags	Diary tags
+settings_design.tags_hint	Automatic organization
+settings_design.models	Models & speech
+settings_design.models_hint	Models · Transcription
+settings_design.skills	Prompts & skills
+settings_design.skills_hint	Skills · Plugins
+settings_design.tools	Tools & connections
+settings_design.tools_hint	MCP · Web
+settings_design.sources	Content sources
+settings_design.sources_hint	News · Favorites
+settings_design.storage	Data management
+settings_design.storage_hint	Backup · Restore
+settings_design.privacy	Privacy
+settings_design.privacy_hint	Data use
+settings_design.check_update	Check for updates
+settings_design.current_version	Current version %1$s
+settings_design.checking_update	Checking…
+settings_design.update_preparing	Preparing download…
+settings_design.update_downloading_known	Downloading %1$d%% · %2$s / %3$s
+settings_design.update_downloading_unknown	Downloaded %1$s · Total size unknown
+settings_design.update_verifying	Download complete · Verifying package…
+settings_design.update_dialog_downloading	Downloading update
+settings_design.update_dialog_verifying	Verifying update
+settings_design.check_update_hint	Current version · Latest release
+settings_design.export_logs	Export logs
+settings_design.export_logs_hint	Last 30 minutes · Saved on device
+settings_design.updates	Channel & about
+settings_design.updates_hint	Channel · Version
+settings_design.diagnostics	Diagnostics
+settings_design.diagnostics_hint	Status & local logs
+settings_design.sms	SMS permission
+settings_design.sms_hint	Phone assistant · SMS
+settings_design.notification_access	Notification sources & access
+settings_design.notification_access_hint	Phone assistant · Notifications
+settings_design.reminder_access	Exact reminder permissions
+settings_design.reminder_access_hint	Reminders · System permissions
+settings_design.speech	Speech transcription
+settings_design.speech_hint	Provider, model and API key
+settings_design.ai_purpose	Purpose Models
+settings_design.ai_purpose_hint	Interactive · Background · Deep
+settings_design.plugins	Prompt plugins
+settings_design.plugins_hint	Manage prompt plugins
+settings_design.web	Web service
+settings_design.web_hint	Address and access token
+settings_design.favorites	External favorites
+settings_design.favorites_hint	Manage favorite sources
+settings_design.restore	Restore
+settings_design.restore_hint	Restore data from backup
+settings_design.import	Import
+settings_design.import_hint	Migrate previous data
+settings_design.ai	Models
+settings_design.skill_tab	Skills
+settings_design.mcp	MCP
+settings_design.mcp_hint	Connect AI to search and web reading services.
+settings_design.mcp_add	Add MCP service
+settings_design.mcp_edit	Edit MCP service
+settings_design.mcp_empty	No MCP services
+settings_design.mcp_empty_hint	Tap + in the top right to add a service, then configure and enable it.
+settings_design.mcp_choose_provider	Choose an MCP provider
+settings_design.news	News sources
+settings_design.backup	Backup
+settings_design.about	About
+settings_design.search	Search settings
+settings_design.close_search	Close search
+settings_design.clear_search	Clear search
+settings_design.search_hint	Search settings, features or permissions
+settings_design.no_results	No matching settings
+settings_design.results	Search results
+idea_topic.capture_existing_hint	This source is already captured. Open its topic to continue.
+idea_topic.source_untitled	Untitled source
+idea_topic.open_original	Open original content
+idea_topic.session_summary_partial	This summary covers only some messages. The full conversation is retained.
+idea_topic.event_original_attribution	From merged topic (%s)
+idea_topic.event_capture_title	Captured from %s
+idea_topic.event_capture_description	%s: %s
+idea_topic.event_captured	Idea captured
+idea_topic.event_progress	Progress update
+idea_topic.event_merged	Topics merged
+idea_topic.event_merge_description	Merged %s into %s
+idea_topic.event_content_updated	Official content revised
+idea_topic.event_changed_fields	Updated %s
+idea_topic.event_status_changed	Status changed
+idea_topic.event_status_description	Changed from %s to %s
+idea_topic.event_draft_proposed	AI update draft proposed
+idea_topic.event_suggested_title	Suggested title: %s
+idea_topic.event_draft_applied	Draft applied
+idea_topic.event_new_title	New title: %s
+idea_topic.event_draft_discarded	Draft discarded
+idea_topic.event_ai_request_failed	AI request failed
+idea_topic.title	My Ideas
+idea_topic.entry_hint	Capture, research, and advance ideas from diaries and news opportunities
+idea_topic.search_placeholder	Search ideas...
+idea_topic.empty_title	No ideas yet
+idea_topic.empty_hint	Capture ideas from diary entries or product opportunity cards to track and research them here.
+idea_topic.sources_count	%d sources
+idea_topic.last_updated	Updated %s
+idea_topic.next_action_prefix	Next: 
+idea_topic.progress_summary_prefix	Latest progress: 
+idea_topic.status.all	All
+idea_topic.status.to_research	To Research
+idea_topic.status.researching	Researching
+idea_topic.status.in_progress	In Progress
+idea_topic.status.completed	Completed
+idea_topic.tab_overview	Overview
+idea_topic.tab_provenance	Provenance
+idea_topic.tab_conversations	Conversations
+idea_topic.overview_title	Title
+idea_topic.overview_description	Description
+idea_topic.overview_provenance_summary	Provenance Summary
+idea_topic.overview_conclusions	Conclusions
+idea_topic.overview_next_action	Next Action
+idea_topic.status_label	Status
+idea_topic.action_edit	Edit Content
+idea_topic.action_save	Save
+idea_topic.action_cancel	Cancel
+idea_topic.action_propose	Ask AI to Refine
+idea_topic.action_proposing	AI Generating...
+idea_topic.action_cancel_ai	Stop
+idea_topic.action_merge	Merge into Topic
+idea_topic.action_delete	Delete Topic
+idea_topic.append_progress	Add Progress
+idea_topic.progress_input_hint	Record progress update...
+idea_topic.sources_header	Linked Sources
+idea_topic.events_header	Event Timeline
+idea_topic.source_type_diary	Diary
+idea_topic.source_type_opportunity	Product Opportunity
+idea_topic.source_snapshot_title	Original Snapshot
+idea_topic.source_analysis_title	AI Analysis Snapshot
+idea_topic.source_unavailable	Original link unavailable, showing captured snapshot
+idea_topic.new_session	New Conversation
+idea_topic.session_title_hint	Topic (optional)
+idea_topic.session_summary	Summary
+idea_topic.session_summary_needs_update	New messages, summary needs update
+idea_topic.session_summarize	Summarize
+idea_topic.session_summarizing	Summarizing...
+idea_topic.session_messages_empty	No messages yet, send a message to start
+idea_topic.load_older	Load older messages
+idea_topic.send_hint	Share an update or keep discussing this idea…
+idea_topic.send_feedback	Send feedback
+idea_topic.discussion_title	Ongoing discussion
+idea_topic.topic_materials	Idea details
+idea_topic.back_to_discussion	Back to discussion
+idea_topic.discussion_history	Past discussions
+idea_topic.discussion_empty_title	Keep the conversation going
+idea_topic.discussion_empty_hint	Share your thoughts, what you tried, or where you are stuck.
+idea_topic.discussion_example_idea	I'd like to discuss this idea
+idea_topic.discussion_example_feedback	I tried it and have new findings
+idea_topic.discussion_example_blocked	This approach may not work
+idea_topic.view_summary	View
+idea_topic.update_summary	Update summary
+idea_topic.summary_notice	This is an AI recap, not confirmation of every conclusion. Your original feedback and conversations are retained.
+idea_topic.close	Close
+idea_topic.message_you	You
+idea_topic.message_ai	AI
+idea_topic.replying	Replying…
+idea_topic.reply_interrupted	Reply incomplete; feedback retained
+idea_topic.feedback_saved_reply_failed	Feedback saved; AI has not replied
+idea_topic.view_new_reply	View new reply
+idea_topic.retry	Retry
+idea_topic.draft_title	AI Refinement Draft
+idea_topic.draft_pending	Pending Confirmation
+idea_topic.draft_applied	Applied
+idea_topic.draft_discarded	Discarded
+idea_topic.draft_changes	Changes
+idea_topic.draft_preview	Preview & Edit
+idea_topic.draft_apply	Confirm & Update Content
+idea_topic.draft_discard	Discard Draft
+idea_topic.draft_field_title	Title
+idea_topic.draft_field_description	Description
+idea_topic.draft_field_provenance	Provenance
+idea_topic.draft_field_conclusions	Conclusions
+idea_topic.draft_field_next_action	Next Action
+idea_topic.merge_title	Merge into Topic
+idea_topic.merge_select_target	Select Target Topic
+idea_topic.merge_notice	Sources, history, and conversations will be merged into the target. This topic will redirect to the target. This cannot be undone.
+idea_topic.merge_confirm	Confirm Merge
+idea_topic.delete_title	Delete Topic
+idea_topic.delete_message	Delete this topic? This deletes the topic, merged topics, snapshots, progress, conversations, and drafts. Original diaries and news will not be deleted. This cannot be undone.
+idea_topic.delete_confirm	Delete
+idea_topic.deleted_notice	This topic has been deleted
+idea_topic.merged_redirect_notice	This topic has been merged into "%s"
+idea_topic.capture_title	Capture as Idea
+idea_topic.capture_mode_new	New Topic
+idea_topic.capture_mode_existing	Join Existing Topic
+idea_topic.capture_title_label	Idea Title
+idea_topic.capture_desc_label	Idea Description
+idea_topic.capture_select_topic	Select Existing Topic
+idea_topic.capture_already_captured	Already Captured
+idea_topic.capture_view_topic	View Idea
+idea_topic.capture_submit	Confirm Capture
+idea_topic.error.not_found	Topic not found or deleted
+idea_topic.error.busy	AI is generating, please wait
+idea_topic.error.input_too_long	Input too long, please shorten
+idea_topic.error.storage_failure	Storage operation failed
+idea_topic.error.ai_not_configured	AI service not configured
+idea_topic.error.ai_failure	AI request failed, please retry
+idea_topic.error.invalid_input	Invalid input, title cannot be empty
+idea_topic.error.merge_cycle	Cannot merge: cycle detected
+idea_topic.error.already_merged	This topic is already merged
+idea_topic.error.stale_draft	Content has changed, draft is stale
+idea_topic.error.invalid_ai_response	Invalid AI response. Please retry.
+ledger.title	Ledger
+ledger.failed	The ledger could not be loaded. Please try again.
+ledger.tab.detail	Details
+ledger.tab.analysis	Analysis
+ledger.period.day	Day
+ledger.period.week	Week
+ledger.period.month	Month
+ledger.period.quarter	Quarter
+ledger.period.year	Year
+ledger.scope.day	Today
+ledger.scope.week	This week
+ledger.scope.month	This month
+ledger.scope.quarter	This quarter
+ledger.scope.year	This year
+ledger.previous_period	Previous
+ledger.next_period	Next
+ledger.change	vs previous
+ledger.summary.income	Income
+ledger.summary.refund	Refunds
+ledger.summary.balance	Balance
+ledger.summary.line	%s · Income %s · Expenses %s · Refunds %s
+ledger.pending	%d pending · amount or currency unclear
+ledger.pending_title	Pending entries
+ledger.weekday.monday	Mon
+ledger.weekday.tuesday	Tue
+ledger.weekday.wednesday	Wed
+ledger.weekday.thursday	Thu
+ledger.weekday.friday	Fri
+ledger.weekday.saturday	Sat
+ledger.weekday.sunday	Sun
+ledger.no_records	No records
+ledger.empty	No entries yet. Turn on sources in Settings → Authorizations and new transaction notifications appear here.
+ledger.trend	Expense trend
+ledger.trend_unit.day	By day
+ledger.trend_unit.week	By week
+ledger.trend_unit.month	By day
+ledger.trend_unit.quarter	By week
+ledger.trend_unit.year	By month
+ledger.trend_max	Peak %s
+ledger.by_category	By category
+ledger.by_merchant	By merchant
+ledger.merchant_count	%d entries
+ledger.unknown_merchant	Unknown merchant
+ledger.detail.category	Category
+ledger.detail.remember	Remember this merchant for next time
+ledger.detail.note	Note
+ledger.detail.merchant	Merchant
+ledger.detail.account_tail	Account ending
+ledger.detail.source	Source
+ledger.detail.original	Message
+ledger.detail.excluded	Exclude from statistics
+ledger.detail.excluded_hint	Turn on for transfers, repayments or advances; they stay out of income, expenses and analysis.
+ledger.detail.delete	Delete this entry
+ledger.detail.move_to_todo	Move to reminders
+ledger.category.food	Food
+ledger.category.transport	Transport
+ledger.category.shopping	Shopping
+ledger.category.home	Home
+ledger.category.health	Health
+ledger.category.entertainment	Fun
+ledger.category.bills	Bills
+ledger.category.other	Other
+ledger.category.short.food	Fd
+ledger.category.short.transport	Tr
+ledger.category.short.shopping	Sh
+ledger.category.short.home	Hm
+ledger.category.short.health	Hl
+ledger.category.short.entertainment	Fn
+ledger.category.short.bills	Bl
+ledger.category.short.other	Ot
+myspace.ledger_empty	No entries yet
+myspace.ledger_hint	%s spent this month · %d pending
+auth.title	Authorizations
+auth.intro_title	What these authorizations are for
+auth.intro_todos	Turns bills, pickups and appointments into todos in My reminders
+auth.intro_ledger	Turns payments and refunds into ledger entries
+auth.intro_note	Only new messages after enabling are processed; everything is parsed on this device and financial text is never uploaded. You can turn it off anytime.
+auth.read	Read %s
+auth.read_hint	Message history is not read; only new messages after enabling are processed
+auth.todo_hint	Actionable items in %s become todos
+auth.ledger_hint	Payments and refunds in %s become ledger entries
+auth.section.data	Data
+auth.records	Processing history
+auth.records_hint	Everything that produced no result or was ignored lives here: rebuild a todo or entry, re-run recognition, or send it to AI again
+auth.retention	Message retention
+auth.retention_hint	Received texts are stored encrypted on this device, including messages without any result yet, so later algorithms can process them again. You can review and clear them in the processing history without affecting generated todos and entries.
+news_sources.title	Content sources
+news_sources.intro	Core platforms are enabled by default. Disabling stops future fetching and excludes the source from new curated summaries. Existing summaries remain. Supplemental feeds start disabled.
+news_sources.core	Core platforms
+news_sources.supplemental	Supplemental feeds
+news_sources.official_first	Fetch from the platform API or website first, then fall back to RSSHub.
+news_sources.x_hint	Reuses an enabled X bookmark source. Official trends and search fetch posts from the last 24 hours, ranked by interactions. Up to 20 posts per fetch, cached for 15 minutes, billed by X. Personalized trends with user authorization require X Premium; an app Bearer Token uses worldwide trends.
+news_sources.x_manage_auth	Manage X authorization
+news_sources.x_auth_required	Enable an X bookmark source; sign in again if needed.
+news_sources.x_access_denied	X API access denied. Check token type, app permissions and X Premium eligibility. Cached posts are retained.
+news_sources.x_quota_exceeded	X API credits are insufficient. Check your developer console balance. Cached posts are retained.
+news_sources.x_rate_limited	X API rate limit reached. Try again later. Cached posts are retained.
+news_sources.x_fetch_failed	X API fetch failed. Check your network or authorization. No RSS fallback is used.
+news_sources.xiaohongshu_hint	Enter an RSSHub Xiaohongshu user or board feed with the required ID. No site-wide trending route is available.
+news_sources.linuxdo_hint	Try Linux DO official RSS first. If access is blocked, enter a Discourse route on an RSSHub instance configured for Linux DO.
+news_sources.toutiao_hint	Try Toutiao trending first. The RSSHub fallback is a hot-news channel feed; its order is not a trending rank.
+news_sources.supplemental_hint	Fetch directly from the publisher's official RSS feed.
+news_sources.configured	Feed configured · Edit
+news_sources.edit_feed	Configure RSS feed
+news_sources.feed_address	Full RSS / Atom URL
+news_sources.feed_hint	Enter a complete HTTP(S) URL, including a self-hosted RSSHub URL. Sources with direct access still work with a blank fallback. Xiaohongshu requires a feed URL. X uses the official API without a feed URL. Supplemental sources fetch this URL directly.
+news_sources.rsshub_docs	RSSHub route documentation
+news_sources.test	Test fetch
+news_sources.testing	Testing…
+news_sources.test_success	%s: fetched %d entries
+news_sources.test_failed	Fetch failed. Check the feed URL, network, and any credentials required by the RSSHub instance.
+news_sources.save_failed	Could not save. Please retry.
+news_sources.invalid_url	Enter a complete HTTP(S) URL without a username or password.
+news_sources.defaults	Restore default URL
+news_sources.feed_required	Configure an RSSHub feed in Settings → Content sources → Core platforms.
+news_sources.all_disabled	No content sources are enabled. Enable them in Settings → Content sources.
+news_sources.subscription	RSS feed · Feed order
+article_ai.processing	Processing
+article_ai.queue_paused	Article AI paused
+article_ai.paused_configuration	Article AI not configured
+article_ai.paused_auth	AI authentication failed
+article_ai.paused_billing	AI billing or quota limit
+article_ai.paused_rate	AI rate or quota limit
+article_ai.run_now	Process now
+article_ai.retry	Retry
+article_ai.original	Read original
+article_ai.summary	Read summary
+article_ai.translation	Read translation
+article_ai.fetch_error	Article fetch failed
+article_ai.no_body	No usable body
+article_ai.uncertain	Uncertain language
+article_ai.force_summary	✦ AI summary
+article_ai.force_both	Force translation and summary
+article_ai.redo	Process again
+article_ai.redo_note	This may make a new AI request. Existing content is kept if it fails.
+article_ai.cancel	Cancel
+article_ai.source_summary	Publisher summary
+article_ai.ai_summary	AI summary · For reference
+article_ai.ai_translation	AI Chinese translation
+article_ai.partial	Only the beginning was processed; this does not cover the full article.
+article_ai.preview	Publisher preview only
+article_ai.unverified	Article body provenance not verified
+article_ai.history	AI processing for older articles
+article_ai.count	Count articles needing processing
+article_ai.start	Start or resume
+article_ai.pause	Pause history
+article_ai.pending	Remaining (not queued)
+article_ai.waiting	Queued
+article_ai.resume_queue	Resume after fixing AI settings
+article_ai.ready	Summary ready
+article_ai.force_menu	Force Chinese summary
+article_ai.refresh_note	Refresh fetches the original again. Processing is queued only if the body changes. A fetch failure keeps the existing content.

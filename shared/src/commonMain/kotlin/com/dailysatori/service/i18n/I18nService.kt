@@ -16,9 +16,14 @@ class I18nService(private val settingRepo: SettingRepository) {
     }
 
     /** Loading another resource must not change the selected language. */
+    /** Startup path: the bundle was flattened when the app was built, so no YAML parsing runs. */
+    fun loadTranslationBundle(lang: String, bundle: String) {
+        translations[lang] = I18nFlatBundle.decode(bundle)
+    }
+
     fun loadTranslation(lang: String, yamlContent: String) {
-        val data = Yaml.default.parseToYamlNode(yamlContent)
-        translations[lang] = yamlNodeToMap(data)
+        translations[lang] = I18nTranslationParser.parse(yamlContent)
+            ?: yamlNodeToMap(Yaml.default.parseToYamlNode(yamlContent))
     }
 
     fun t(key: String, defaultValue: String? = null): String {
