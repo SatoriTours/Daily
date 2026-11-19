@@ -77,9 +77,23 @@ class RemoteNewsUiBehaviorTest {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
         val openBody = viewModel.substringAfter("fun openArticle(article: RemoteArticle)").substringBefore("fun toggleSelectedArticleFavorite")
 
-        assertTrue(openBody.contains("selectedArticle = article"))
-        assertTrue(openBody.contains("runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()"))
-        assertTrue(openBody.contains("selectedArticleIsFavorite = local?.is_favorite == 1L"))
+        val compact = openBody.replace(Regex("\\s+"), " ")
+
+        // 先发布选中文章再查询本地收藏：收藏查询失败不能阻止正文打开。
+        assertTrue(compact.contains("selectedArticle = article"))
+        assertTrue(compact.contains("articleRepo.findLocalArticleForRemote(article)"))
+        assertTrue(
+            compact.indexOf("selectedArticle = article") < compact.indexOf("findLocalArticleForRemote(article)"),
+            "收藏查询必须在文章已发布之后进行",
+        )
+        // 协程取消继续传播，其余异常退化为“没有本地收藏”。
+        assertTrue(
+            compact.contains("catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }"),
+            "取消必须继续传播",
+        )
+        assertTrue(compact.contains("catch (_: Exception) { null }"), "收藏查询失败不得中断打开")
+        // 收藏语义不变：只依据本地文章标记收藏状态。
+        assertTrue(compact.contains("selectedArticleIsFavorite = local?.is_favorite == 1L"))
     }
 
     @Test
@@ -156,11 +170,18 @@ class RemoteNewsUiBehaviorTest {
         ).readText()
         val loadBody = viewModel.substringAfter("private suspend fun loadArticles(").substringBefore("private suspend fun loadFeeds")
 
+        val compact = loadBody.replace(Regex("\\s+"), " ")
+
         assertTrue(repository.contains("fun saveRemoteArticleForSync("))
-        assertTrue(loadBody.contains("remoteNewsSourceRepo.getEnabled().firstOrNull()"))
-        assertTrue(loadBody.contains("remoteNewsService.fetchSourceArticles(sourceConfig.value, limit = 50)"))
-        assertTrue(loadBody.contains("remoteArticleSyncService.syncSourceArticles("))
-        assertTrue(loadBody.contains("remoteArticleSyncRepo.getArticlesBySourceDate(source.id, remoteNewsArticleSourceDate())"))
+        assertTrue(compact.contains("remoteNewsSourceRepo.getEnabled().firstOrNull()"))
+        assertTrue(compact.contains("remoteNewsService.fetchSourceArticles(sourceConfig.value, limit = 50)"))
+        // 列表加载走被动入库：写入内容与来源日期，但不写入收藏。
+        assertTrue(compact.contains("remoteArticleSyncService.storePassively("))
+        assertTrue(compact.contains("remoteSourceId = source.id"))
+        assertTrue(compact.contains("articles = result.value.articles"))
+        assertTrue(compact.contains("val sourceDate = remoteNewsArticleSourceDate()"))
+        assertTrue(compact.contains("remoteArticleSyncRepo.getArticlesBySourceDate(source.id, remoteNewsArticleSourceDate()"))
+        assertFalse(compact.contains("saveRemoteArticleAsFavorite"), "被动同步不得写入收藏")
         assertTrue(repository.contains("fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article?"))
         assertTrue(mapper.contains("isFavorite: Long = 1L"))
         assertFalse(repository.contains("WebpageParserService"))

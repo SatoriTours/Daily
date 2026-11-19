@@ -29,6 +29,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.sql.Driver
+import java.sql.DriverManager
 import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
@@ -37,6 +39,15 @@ import kotlin.test.*
 @Config(sdk = [28], application = Application::class, qualifiers = "zh-rCN")
 class ArticleAiReaderRenderTest {
     @Test fun cachedModesAndOriginalTitleScrollOnTheRealReader() {
+        // Robolectric 沙箱与普通用例用不同类加载器解析 JDBC 驱动，而 DriverManager 的驱动扫描只
+        // 执行一次：先跑的一方决定后续能否连接 jdbc:sqlite。两种类加载器各注册一次，结果不再依赖
+        // 用例执行顺序（不改变任何阅读页断言）。
+        listOfNotNull(ClassLoader.getSystemClassLoader(), javaClass.classLoader).distinct().forEach { loader ->
+            runCatching {
+                val driverType = Class.forName("org.sqlite.JDBC", true, loader)
+                DriverManager.registerDriver(driverType.getDeclaredConstructor().newInstance() as Driver)
+            }
+        }
         JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { driver ->
             val db = DailySatoriDatabase(driver)
             DailySatoriDatabase.Schema.create(driver)
