@@ -69,7 +69,9 @@ class HomeIaTest {
     fun bottomBarUsesCompactFloatingLiquidGlassStyle() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
 
-        assertTrue(source.contains("private val HomeBottomBarHeight = 64.dp"))
+        assertTrue(source.contains("private val HomeBottomBarHeight = Height.touchTarget"),
+            "紧凑底栏沿用统一的 48dp 触控目标高度，而不是 64dp")
+        assertTrue(source.contains(".height(HomeBottomBarHeight)"), "底栏按该 48dp 常量布局")
         assertTrue(source.contains("private val HomeBottomBarIconSize = IconSize.l"))
         assertTrue(source.contains("RoundedCornerShape(Radius.xl)"), "底栏保持 24dp 悬浮圆角而非全药丸")
         assertFalse(source.contains("BorderStroke("))
