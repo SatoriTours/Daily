@@ -5,11 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.TagRepository
+import com.dailysatori.service.articleai.manualProcessable
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
-import com.dailysatori.service.articleai.manualProcessable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,11 +29,6 @@ data class ArticleDetailState(
     val refreshError: String? = null,
 )
 
-class ArticleDetailViewModel(
-    private val articleId: Long,
-    private val articleRepo: ArticleRepository,
-    private val tagRepo: TagRepository,
-    private val postProcessingScheduler: ArticlePostProcessingScheduler,
 /** A refresh only counts when the page produced a complete body; a preview is reported, not silently reused. */
 internal fun refreshedRemoteArticleBody(content: String?): com.dailysatori.service.articleai.ArticleBody {
     val body = com.dailysatori.service.articleai.analyzeArticleBody(content)
@@ -45,6 +40,11 @@ internal fun refreshedRemoteArticleBody(content: String?): com.dailysatori.servi
     return body
 }
 
+class ArticleDetailViewModel(
+    private val articleId: Long,
+    private val articleRepo: ArticleRepository,
+    private val tagRepo: TagRepository,
+    private val postProcessingScheduler: ArticlePostProcessingScheduler,
     private val webpageParserService: WebpageParserService,
     private val articleAi: com.dailysatori.data.repository.ArticleAiRepository,
     private val articleAiQueue: com.dailysatori.service.articleai.ArticleAiQueue,
@@ -160,6 +160,13 @@ internal fun refreshedRemoteArticleBody(content: String?): com.dailysatori.servi
         }
     }
 
+    private suspend fun processStoredBody(noTextMessage: String) {
+        val article = articleRepo.getById(articleId) ?: error("文章已删除")
+        if (!articleAi.input(article).manualProcessable())
+            throw com.dailysatori.service.parser.ArticleBodyMissingException(noTextMessage)
+        articleAiQueue.manual(articleId)
+    }
+
     private fun refreshArticleWithMessage(
         initialStatus: String,
         refresh: suspend () -> Unit,
@@ -169,13 +176,6 @@ internal fun refreshedRemoteArticleBody(content: String?): com.dailysatori.servi
                 it.copy(
                     isRefreshing = true,
                     processingStatus = initialStatus,
-    private suspend fun processStoredBody(noTextMessage: String) {
-        val article = articleRepo.getById(articleId) ?: error("文章已删除")
-        if (!articleAi.input(article).manualProcessable())
-            throw com.dailysatori.service.parser.ArticleBodyMissingException(noTextMessage)
-        articleAiQueue.manual(articleId)
-    }
-
                     processingStage = "pending",
                     processingProgress = "",
                     refreshError = null,
