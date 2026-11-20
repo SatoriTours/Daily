@@ -70,6 +70,33 @@ class ArticleAiQueueTest {
         assertEquals(2, requests.size)
     }
 
+    @Test fun explicitRequestProcessesStoredPreviewWithoutWaitingForFullBody() = withFixture {
+        val id = save("preview", "A short preview paragraph in English about a release.\n\nA second preview paragraph.",
+            bodyKind = ArticleBodyKind.PREVIEW)
+        queue.onNewBody(articles.getById(id)!!)
+        assertTrue(requests.isEmpty())
+        queue.manual(id)
+        tick()
+        assertEquals(listOf(ArticleAiMode.BOTH), requests.map { it.first })
+        val result = view(id)
+        assertEquals(ArticleBodyKind.PREVIEW, result.kind)
+        assertNotNull(result.summary)
+        assertNotNull(result.translation)
+    }
+
+    @Test fun refreshRepeatsRequestsForUnchangedBodyWhileAiProcessReusesResults() = withFixture {
+        val id = save("redo", "A trusted article in English about reliable processing.")
+        queue.manual(id)
+        tick()
+        assertEquals(1, requests.size)
+        queue.manual(id)
+        tick()
+        assertEquals(1, requests.size, "AI 处理不重抓，也不应重复付费请求")
+        queue.manual(id, redo = true)
+        tick()
+        assertEquals(2, requests.size, "刷新即使正文相同也要重新跑 AI")
+    }
+
     @Test fun versionChangeWhileRemoteRunsFencesTheResult() = withFixture {
         val id = save("moving", "Original English news from yesterday.")
         queue.manual(id)
@@ -218,9 +245,15 @@ class ArticleAiQueueTest {
         }
         val queue = ArticleAiQueue(repo, articles, AsyncTaskRepository(db), remote, {}, { clock })
 
-        fun save(key: String, body: String, summary: String? = null): Long {
+        fun save(
+            key: String,
+            body: String,
+            summary: String? = null,
+            bodyKind: ArticleBodyKind = ArticleBodyKind.BODY,
+        ): Long {
             val remote = RemoteArticle(1, "Title", "https://example.com/$key", summary,
-                content = body, summaryLanguage = if (summary != null) "zh-CN" else null)
+                content = body, bodyKind = bodyKind,
+                summaryLanguage = if (summary != null) "zh-CN" else null)
             val id = articles.saveRemoteArticleForSync(remote)!!.article.id
             repo.record(articles.getById(id)!!, remote)
             return id

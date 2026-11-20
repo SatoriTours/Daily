@@ -60,3 +60,7 @@ private fun String.hasMalformedImagePlaceholder(): Boolean =
     MalformedImagePlaceholderRegex.containsMatchIn(this)
 
 internal fun canManuallyRefreshArticle(isRefreshing: Boolean, articleStatus: String?): Boolean = true
+
+/** Processing needs stored text; a preview is enough, an empty or unparsed article is not. */
+internal fun canStartArticleAiProcess(isRefreshing: Boolean, hasProcessableText: Boolean): Boolean =
+    !isRefreshing && hasProcessableText

@@ -1751,4 +1751,4 @@ article_ai:
   resume_queue: "修正配置后恢复队列"
   ready: "摘要已就绪"
   force_menu: "强制中文总结"
-  refresh_note: "刷新只重新获取原文。只有正文变化才会按规则重新排队；抓取失败保留已保存内容。"
+  refresh_note: "刷新会重新获取原文，并用 AI 处理已保存的内容；抓取失败时保留已保存内容。"

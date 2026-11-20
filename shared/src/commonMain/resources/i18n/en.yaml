@@ -1751,4 +1751,4 @@ article_ai:
   resume_queue: "Resume after fixing AI settings"
   ready: "Summary ready"
   force_menu: "Force Chinese summary"
-  refresh_note: "Refresh fetches the original again. Processing is queued only if the body changes. A fetch failure keeps the existing content."
+  refresh_note: "Refresh fetches the original again, then runs AI on the saved content. A fetch failure keeps the existing content."

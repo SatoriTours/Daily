@@ -9,6 +9,7 @@ import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
+import com.dailysatori.service.articleai.manualProcessable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,17 @@ class ArticleDetailViewModel(
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
     private val postProcessingScheduler: ArticlePostProcessingScheduler,
+/** A refresh only counts when the page produced a complete body; a preview is reported, not silently reused. */
+internal fun refreshedRemoteArticleBody(content: String?): com.dailysatori.service.articleai.ArticleBody {
+    val body = com.dailysatori.service.articleai.analyzeArticleBody(content)
+    if (body.kind != com.dailysatori.service.articleai.ArticleBodyKind.BODY) {
+        throw com.dailysatori.service.parser.ArticleBodyMissingException(
+            "重新抓取未取得完整正文（只拿到来源预览或错误页）；已保留现有内容，可用「AI 处理」处理已保存的正文或预览",
+        )
+    }
+    return body
+}
+
     private val webpageParserService: WebpageParserService,
     private val articleAi: com.dailysatori.data.repository.ArticleAiRepository,
     private val articleAiQueue: com.dailysatori.service.articleai.ArticleAiQueue,
@@ -123,11 +135,8 @@ class ArticleDetailViewModel(
 
     private suspend fun refreshRemoteOriginal(article: Article) {
         val url = article.url ?: error("文章没有来源链接")
-        val before = articleAi.input(article)
         val fetched = webpageParserService.extractContent(url)
-        val body = com.dailysatori.service.articleai.analyzeArticleBody(fetched.content)
-        if (body.kind != com.dailysatori.service.articleai.ArticleBodyKind.BODY)
-            throw com.dailysatori.service.parser.ArticleBodyMissingException()
+        val body = refreshedRemoteArticleBody(fetched.content)
         val updated = articleAi.transaction {
             val current = articleRepo.getById(articleId) ?: return@transaction null
             if (articleAi.originalVersion(current) != articleAi.originalVersion(article)) return@transaction null
@@ -135,13 +144,19 @@ class ArticleDetailViewModel(
             articleRepo.getById(articleId)?.also {
                 articleAi.record(it, com.dailysatori.service.remotenews.RemoteArticle(articleId, content = body.markdown))
             }
-        }
-        if (updated != null && before.hash != body.hash) articleAiQueue.onNewBody(updated)
+        } ?: throw IllegalStateException("处理期间原文已更新，请重新刷新")
+        if (!articleAi.input(updated).manualProcessable())
+            throw com.dailysatori.service.parser.ArticleBodyMissingException("重新抓取未取得可用正文；已保留现有内容")
+        // The source was fetched again, so rerun AI even when the body text matches the last version.
+        articleAiQueue.manual(articleId, redo = true)
     }
 
-    fun refreshArticleWithXApi() {
-        refreshArticleWithMessage("正在通过 X API 获取内容...") {
-            webpageParserService.refreshArticleWithXApi(articleId)
+    /** Runs AI on what is already stored; a preview is forced, a full body only fills missing results. */
+    fun processWithExistingBody() {
+        refreshArticleWithMessage("正在用已保存的正文进行 AI 处理...") {
+            val article = articleRepo.getById(articleId) ?: error("文章已删除")
+            if (article.source_type == "remote_news") processStoredBody("文章没有可处理的正文或来源预览")
+            else webpageParserService.reprocessArticle(articleId)
         }
     }
 
@@ -154,6 +169,13 @@ class ArticleDetailViewModel(
                 it.copy(
                     isRefreshing = true,
                     processingStatus = initialStatus,
+    private suspend fun processStoredBody(noTextMessage: String) {
+        val article = articleRepo.getById(articleId) ?: error("文章已删除")
+        if (!articleAi.input(article).manualProcessable())
+            throw com.dailysatori.service.parser.ArticleBodyMissingException(noTextMessage)
+        articleAiQueue.manual(articleId)
+    }
+
                     processingStage = "pending",
                     processingProgress = "",
                     refreshError = null,

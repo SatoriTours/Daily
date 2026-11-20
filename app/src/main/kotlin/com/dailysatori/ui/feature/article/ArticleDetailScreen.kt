@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.ContentCopy
@@ -58,7 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.dailysatori.service.externalfavorites.xPostIdFromStatusUrl
+import com.dailysatori.data.repository.reusableOriginalBody
 import com.dailysatori.ui.component.card.articleDisplayDomain
 import com.dailysatori.ui.component.card.articleDisplayTitle
 import com.dailysatori.core.util.TimeUtils
@@ -109,7 +110,7 @@ fun ArticleDetailScreen(
                 state = state,
                 onOriginalClick = { showOriginalSheet = true },
                 onRefreshClick = { showRefreshConfirm = true },
-                onXApiRefreshClick = viewModel::refreshArticleWithXApi,
+                onAiProcessClick = viewModel::processWithExistingBody,
                 onFavoriteClick = viewModel::toggleFavorite,
                 onCopyClick = { url -> copyArticleUrl(context, url) },
                 onOpenClick = { openArticleUrl(context, state.article?.url) },
@@ -199,7 +200,7 @@ private fun ArticleDetailActions(
     state: ArticleDetailState,
     onOriginalClick: () -> Unit,
     onRefreshClick: () -> Unit,
-    onXApiRefreshClick: () -> Unit,
+    onAiProcessClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onCopyClick: (String) -> Unit,
     onOpenClick: () -> Unit,
@@ -212,7 +213,7 @@ private fun ArticleDetailActions(
         com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
         if (aiMenu == null) ArticleOriginalMenuItem(closeMenu, onOriginalClick) else aiMenu(dismiss)
             ArticleRefreshMenuItem(state, closeMenu, onRefreshClick)
-            ArticleXApiRefreshMenuItem(state, closeMenu, onXApiRefreshClick)
+            ArticleAiProcessMenuItem(state, closeMenu, onAiProcessClick)
             ArticleFavoriteMenuItem(state, closeMenu, onFavoriteClick)
             ArticleCopyLinkMenuItem(state.article?.url, closeMenu, onCopyClick)
             ArticleOpenMenuItem(closeMenu, onOpenClick)
@@ -239,7 +240,7 @@ private fun ArticleRefreshMenuItem(
     onRefreshClick: () -> Unit,
 ) {
     DropdownMenuItem(
-        text = { Text("刷新文章") },
+        text = { Text(articleRefreshMenuLabel()) },
         leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
         enabled = canManuallyRefreshArticle(state.isRefreshing, state.article?.status),
         onClick = {
@@ -250,20 +251,18 @@ private fun ArticleRefreshMenuItem(
 }
 
 @Composable
-private fun ArticleXApiRefreshMenuItem(
+private fun ArticleAiProcessMenuItem(
     state: ArticleDetailState,
     onExpandedChange: (Boolean) -> Unit,
-    onXApiRefreshClick: () -> Unit,
+    onAiProcessClick: () -> Unit,
 ) {
-    val visible = canRefreshArticleWithXApi(state.article?.url)
-    if (!visible) return
     DropdownMenuItem(
-        text = { Text(articleXApiRefreshMenuLabel()) },
-        leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-        enabled = !state.isRefreshing,
+        text = { Text(articleAiProcessMenuLabel()) },
+        leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
+        enabled = canStartArticleAiProcess(state.isRefreshing, state.article?.let { hasProcessableArticleText(it) } == true),
         onClick = {
             onExpandedChange(false)
-            onXApiRefreshClick()
+            onAiProcessClick()
         },
     )
 }
@@ -498,9 +497,9 @@ private fun ArticleRefreshConfirmDialog(isRemote: Boolean, onConfirm: () -> Unit
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text("刷新文章？") },
+        title = { Text("刷新并重新处理？") },
         text = { Text(if (isRemote) i18n.t("article_ai.refresh_note")
-            else "刷新会重新获取网页内容并重新生成摘要，已有 AI 摘要和原文可能被覆盖。确定刷新吗？") },
+            else "刷新会重新获取网页内容，并用 AI 重新生成摘要和译文；已有 AI 结果可能被覆盖。确定刷新吗？") },
         confirmButton = { TextButton(onClick = onConfirm) { Text("刷新") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
     )
@@ -526,10 +525,12 @@ internal fun articleCopyLinkClipLabel(): String = "网页链接"
 
 internal fun articleCopyLinkSuccessMessage(): String = "已复制网页链接"
 
-internal fun articleXApiRefreshMenuLabel(): String = "用 X API 刷新"
+internal fun articleRefreshMenuLabel(): String = "刷新"
 
-internal fun canRefreshArticleWithXApi(url: String?): Boolean =
-    !url.isNullOrBlank() && xPostIdFromStatusUrl(url) != null
+internal fun articleAiProcessMenuLabel(): String = "AI 处理"
+
+internal fun hasProcessableArticleText(article: Article): Boolean =
+    !article.reusableOriginalBody().isNullOrBlank()
 
 private fun copyArticleUrl(context: Context, url: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

@@ -17,11 +17,11 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
 
     fun record(article: Article, remote: RemoteArticle) {
         val old = q.getArticleAiSource(article.id).executeAsOneOrNull()
-        val candidate = analyzeArticleBody(remote.content, remote.bodyKind)
+        val candidate = analyzeArticleBody(remote.content, remote.bodyKind, analyzeIncomplete = true)
         // A recurring feed preview or error does not invalidate a previously verified full version.
         if (old?.body_kind == ArticleBodyKind.BODY.name && candidate.kind != ArticleBodyKind.BODY &&
             analyzeArticleBody(article.reusableOriginalBody()).hash == old.body_hash) return
-        val body = analyzeArticleBody(article.reusableOriginalBody(), remote.bodyKind)
+        val body = analyzeArticleBody(article.reusableOriginalBody(), remote.bodyKind, analyzeIncomplete = true)
         val summary = remote.summary?.trim()?.takeIf {
             remote.summaryLanguage?.lowercase() in setOf("zh", "zh-cn", "zh-hans") &&
                 !it.equals(body.markdown, ignoreCase = true) &&
@@ -37,7 +37,7 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
     fun input(article: Article): ArticleBody {
         val source = q.getArticleAiSource(article.id).executeAsOneOrNull()
         val kind = source?.body_kind?.let(ArticleBodyKind::valueOf) ?: legacyKind(article)
-        return analyzeArticleBody(article.reusableOriginalBody(), kind)
+        return analyzeArticleBody(article.reusableOriginalBody(), kind, analyzeIncomplete = true)
     }
 
     fun originalVersion(article: Article): String = article.reusableOriginalBody().orEmpty()
@@ -52,8 +52,13 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
             ArticleBodyKind.BODY else ArticleBodyKind.UNVERIFIED
     }
 
-    private fun upstream(id: Long, hash: String): String? =
-        q.getArticleAiSource(id).executeAsOneOrNull()?.takeIf { it.body_hash == hash }?.upstream_summary
+    private fun upstream(id: Long, hash: String): String? {
+        val source = q.getArticleAiSource(id).executeAsOneOrNull() ?: return null
+        // Preview snapshots stored before fingerprinting kept an empty body hash; do not drop their
+        // publisher summary just because the fingerprint is now derived from the preview text.
+        val usable = source.body_hash == hash || (source.body_hash.isEmpty() && source.body_kind != ArticleBodyKind.BODY.name)
+        return source.takeIf { usable }?.upstream_summary
+    }
 
     fun view(article: Article): ArticleAiView {
         val body = input(article)
@@ -84,7 +89,9 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
     fun enqueue(article: Article, requested: ArticleAiMode?, priority: Long, redo: Boolean = false): Long? =
         transaction {
             val body = input(article)
-            if (body.kind != ArticleBodyKind.BODY) return@transaction null
+            // A preview or unverified snapshot is only processed when the user explicitly asks for it.
+            if (body.kind != ArticleBodyKind.BODY && (priority != MANUAL || !body.manualProcessable()))
+                return@transaction null
             val previous = jobs(body.hash)
             val queued = previous.firstOrNull { it.state == "queued" }
             val running = previous.firstOrNull { it.state == "running" }
@@ -96,15 +103,19 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
                 }
             }
             if (priority != MANUAL && previous.any { it.state == "failed" }) return@transaction null
-            val mode = requested ?: plan(article) ?: return@transaction null
+            val mode = requested ?: plan(article)
+                ?: forcedMode(article, body).takeIf { priority == MANUAL }
+                ?: return@transaction null
             val retrying = requested != null && priority == MANUAL && previous.firstOrNull()?.state == "failed"
             val needed = if (redo || retrying) mode else missing(article.id, body.hash, mode) ?: return@transaction null
             // A live request already produces a fresh result for the fields it owns. Save at most
             // one follow-up for uncovered fields; clicks for the same running mode cost nothing.
             val uncovered = running?.mode?.let(ArticleAiMode::valueOf)?.let { needed.without(it) }
             val intent = if (running == null) needed else uncovered ?: return@transaction null
-            if (q.getArticleAiSource(article.id).executeAsOneOrNull() == null)
-                q.putArticleAiSource(article.id, body.hash, body.kind.name, null, cacheCount(body.hash, article.id))
+            val storedSource = q.getArticleAiSource(article.id).executeAsOneOrNull()
+            if (storedSource == null || storedSource.body_hash != body.hash)
+                q.putArticleAiSource(article.id, body.hash, body.kind.name, storedSource?.upstream_summary,
+                    cacheCount(body.hash, article.id))
             if (queued != null) {
                 if (queued.mode == intent.name && queued.priority == MANUAL) return@transaction null
                 if (queued.requests == 0L) {
@@ -116,6 +127,13 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
             q.addArticleAiJob(article.id, body.hash, intent.name, VERSION, TARGET, priority)
             q.articleAiLastId().executeAsOne()
         }
+
+    /** Requests both fields for a processed-on-demand snapshot, reusing any verified upstream summary. */
+    private fun forcedMode(article: Article, body: ArticleBody): ArticleAiMode? {
+        if (!body.manualProcessable()) return null
+        if (body.language != ArticleLanguage.FOREIGN) return ArticleAiMode.SUMMARY
+        return if (hasSummary(article.id, body.hash)) ArticleAiMode.TRANSLATION else ArticleAiMode.BOTH
+    }
 
     fun historyCandidates(): List<Article> = q.articleAiHistory().executeAsList().asSequence()
         .mapNotNull { article ->

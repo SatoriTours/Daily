@@ -33,6 +33,17 @@ class ArticleAiPolicyTest {
         assertEquals(ArticleBodyKind.MISSING, analyzeArticleBody(null).kind)
     }
 
+    @Test fun requestedProcessingKeepsIncompleteKindButDerivesVersionData() {
+        val preview = analyzeArticleBody("A short preview paragraph in English.", ArticleBodyKind.PREVIEW,
+            analyzeIncomplete = true)
+        assertEquals(ArticleBodyKind.PREVIEW, preview.kind)
+        assertEquals(ArticleLanguage.FOREIGN, preview.language)
+        assertTrue(preview.hash.isNotBlank() && preview.units > 0)
+        assertTrue(preview.manualProcessable())
+        assertNull(preview.automatic(hasSummary = false))
+        assertFalse(analyzeArticleBody(" ", ArticleBodyKind.PREVIEW, analyzeIncomplete = true).manualProcessable())
+    }
+
     @Test fun ignoresLayoutButNotLinkTargetsInFingerprint() {
         assertEquals(analyzeArticleBody("新闻  正文\n\n测试").hash, analyzeArticleBody("新闻 正文 测试").hash)
         assertNotEquals(analyzeArticleBody("[正文](https://a.com)").hash, analyzeArticleBody("[正文](https://b.com)").hash)

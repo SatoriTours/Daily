@@ -602,6 +602,7 @@ class WebpageParserService(
     private val pendingProcessingIds = ArrayDeque<Long>()
     private val queuedAt = mutableMapOf<Long, Long>()
     private val activeProcessingIds = mutableSetOf<Long>()
+    private val refreshIntents = mutableSetOf<Long>()
     private val slotChanges = MutableStateFlow(0L)
     private val aiProcessor = ArticleAiProcessor(aiService, settingRepo)
 
@@ -748,6 +749,13 @@ class WebpageParserService(
         }
     }
 
+    /** One pending refresh per article: repeated clicks merge and the intent survives until it runs. */
+    private fun requestRefreshAfterProcessing(articleId: Long) {
+        articleRepo.updateStatus(articleId, "pending")
+        synchronized(queueLock) { refreshIntents += articleId }
+        enqueueArticleProcessing(articleId)
+    }
+
     private fun enqueueArticleProcessing(articleId: Long) {
         val shouldDrain = synchronized(queueLock) {
             if (activeProcessingIds.contains(articleId) || pendingProcessingIds.contains(articleId)) {
@@ -762,23 +770,26 @@ class WebpageParserService(
     }
 
     private fun drainProcessingQueue() {
-        val articleIds = mutableListOf<Pair<Long, Long>>()
+        val articleIds = mutableListOf<Triple<Long, Long, Boolean>>()
         synchronized(queueLock) {
             while (activeProcessingIds.size < MAX_CONCURRENT_PROCESSING && pendingProcessingIds.isNotEmpty()) {
                 val articleId = pendingProcessingIds.removeFirst()
                 val waitMs = DiagnosticLog.elapsed() - (queuedAt.remove(articleId) ?: DiagnosticLog.elapsed())
-                if (activeProcessingIds.add(articleId)) articleIds.add(articleId to waitMs.coerceAtLeast(0))
+                if (activeProcessingIds.add(articleId)) {
+                    articleIds.add(Triple(articleId, waitMs.coerceAtLeast(0), refreshIntents.remove(articleId) == true))
+                }
             }
         }
-        articleIds.forEach { (articleId, waitMs) ->
+        articleIds.forEach { (articleId, waitMs, refresh) ->
             scope.launch {
                 DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_PROGRESS, DiagnosticSource.PARSER,
                     fields = mapOf("articleStage" to "queued", "durationMs" to waitMs.toString()))
                 try {
                     val article = articleRepo.getById(articleId)
-                    if (article != null && isRecoverableArticleForProcessing(article.status, article.ai_content, article.ai_markdown_content)) {
+                    if (article != null && (refresh || isRecoverableArticleForProcessing(article.status, article.ai_content, article.ai_markdown_content))) {
                         setProcessingState(articleId, "pending")
-                        val extracted = existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }
+                        val extracted = (if (refresh) null else existingArticleOriginalExtractedContent(article))
+                            ?: article.url?.let { extractContent(it) }
                         if (extracted != null) {
                             articleRepo.update(
                                 id = articleId,
@@ -796,10 +807,13 @@ class WebpageParserService(
                             )
                             setProcessingState(articleId, "webContentFetched")
                         }
-                        processAiTasks(articleId, extracted)
+                        processAiTasks(articleId, extracted, forceAi = refresh)
                     }
                 } catch (e: Exception) {
                     log.e(e) { "Queued article processing failed: articleId=$articleId" }
+                    if (refresh && shouldPersistArticleProcessingError(e)) {
+                        recordProcessingFailure(articleId, e, retryOnFailure = false)
+                    }
                 } finally {
                     finishQueuedArticle(articleId)
                 }
@@ -835,15 +849,31 @@ class WebpageParserService(
     private fun finishQueuedArticle(articleId: Long) {
         synchronized(queueLock) {
             activeProcessingIds.remove(articleId)
+            // A refresh requested while this article was running is served once after it releases the slot.
+            if (articleId in refreshIntents && articleId !in pendingProcessingIds) {
+                pendingProcessingIds.addLast(articleId)
+                queuedAt[articleId] = DiagnosticLog.elapsed()
+            }
         }
         slotChanges.update { it + 1 }
         drainProcessingQueue()
     }
 
-    suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null, retryOnFailure: Boolean = false) =
-        DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) { processAiTasksRecorded(articleId, extracted, retryOnFailure) }
+    suspend fun processAiTasks(
+        articleId: Long,
+        extracted: ExtractedContent? = null,
+        retryOnFailure: Boolean = false,
+        forceAi: Boolean = false,
+    ) = DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) {
+        processAiTasksRecorded(articleId, extracted, retryOnFailure, forceAi)
+    }
 
-    private suspend fun processAiTasksRecorded(articleId: Long, extracted: ExtractedContent?, retryOnFailure: Boolean) {
+    private suspend fun processAiTasksRecorded(
+        articleId: Long,
+        extracted: ExtractedContent?,
+        retryOnFailure: Boolean,
+        forceAi: Boolean,
+    ) {
         val article = articleRepo.getById(articleId) ?: return
         try {
             val sourceSnapshot = persistOriginal(article, extracted)
@@ -878,6 +908,7 @@ class WebpageParserService(
                 onProgress = { setProcessingState(articleId, "aiProcessing", it) },
                 ensureCurrent = { ensureSourceCurrent(articleId, sourceSnapshot) },
                 sourceUrl = article.url.orEmpty(),
+                force = forceAi,
             )
             ensureSourceCurrent(articleId, sourceSnapshot)
             articleRepo.updateStatusIfOriginalMatches(articleId, sourceSnapshot, "completed")
@@ -947,6 +978,26 @@ class WebpageParserService(
         articleRepo.updateStatus(articleId, status)
         setProcessingState(articleId, status, errorMessage)
         return false
+    }
+
+    /** A failed refresh keeps the saved article instead of leaving the loading placeholder behind. */
+    private fun restoreArticleAfterFailedRefresh(articleId: Long, before: Article) {
+        val current = articleRepo.getById(articleId) ?: return
+        if (current.title != "正在加载...") return
+        articleRepo.update(
+            id = articleId,
+            title = before.title,
+            aiTitle = current.ai_title,
+            aiContent = current.ai_content,
+            aiMarkdownContent = current.ai_markdown_content,
+            url = current.url,
+            isFavorite = current.is_favorite ?: 0L,
+            comment = current.comment,
+            status = current.status.orEmpty().ifBlank { "error" },
+            coverImage = current.cover_image,
+            coverImageUrl = current.cover_image_url,
+            pubDate = current.pub_date,
+        )
     }
 
 
@@ -1058,10 +1109,11 @@ class WebpageParserService(
         val url = article.url ?: throw Exception("Article has no URL")
         val ownsProcessing = markArticleActive(articleId)
         if (!ownsProcessing) {
-            articleRepo.updateStatus(articleId, "pending")
-            enqueueArticleProcessing(articleId)
+            requestRefreshAfterProcessing(articleId)
             return
         }
+        // This run already services any refresh that was owed for the article.
+        synchronized(queueLock) { refreshIntents.remove(articleId) }
 
         log.i { "refreshArticle: articleId=$articleId, url=$url" }
 
@@ -1083,7 +1135,8 @@ class WebpageParserService(
 
             setProcessingState(articleId, "pending")
 
-            val extracted = existingArticleOriginalExtractedContent(article) ?: extractContent(url)
+            // A manual refresh must actually open the page; a stored body cannot stand in for it.
+            val extracted = extractContent(url)
 
             articleRepo.update(
                 id = articleId,
@@ -1102,12 +1155,13 @@ class WebpageParserService(
 
             setProcessingState(articleId, "webContentFetched")
 
-            processAiTasks(articleId, extracted)
+            processAiTasks(articleId, extracted, forceAi = true)
 
             log.i { "refreshArticle completed: articleId=$articleId" }
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "refreshArticle failed: articleId=$articleId" }
+            restoreArticleAfterFailedRefresh(articleId, article)
             recordProcessingFailure(articleId, e, retryOnFailure = false)
             throw e
         } finally {

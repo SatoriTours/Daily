@@ -39,8 +39,16 @@ private val hangul = Regex("[\\p{IsHangul}]")
 private val words = Regex("[\\p{L}\\p{M}]+(?:['’-][\\p{L}\\p{M}]+)*")
 private val whitespace = Regex("\\s+")
 
-fun analyzeArticleBody(value: String?, origin: ArticleBodyKind = ArticleBodyKind.BODY): ArticleBody {
-    if (origin != ArticleBodyKind.BODY) return ArticleBody(origin)
+/**
+ * [analyzeIncomplete] keeps the origin kind but still derives text, language and fingerprint so a
+ * preview the user explicitly asked to process can be queued, cached and displayed as its own version.
+ */
+fun analyzeArticleBody(
+    value: String?,
+    origin: ArticleBodyKind = ArticleBodyKind.BODY,
+    analyzeIncomplete: Boolean = false,
+): ArticleBody {
+    if (origin != ArticleBodyKind.BODY && !analyzeIncomplete) return ArticleBody(origin)
     val body = value.orEmpty().replace("\r\n", "\n").replace('\uFEFF', ' ').replace(noise, "").trim()
     if (body.isEmpty()) return ArticleBody(ArticleBodyKind.MISSING)
     if (errorPage.containsMatchIn(body.take(1400)) && body.length < 3000 ||
@@ -65,9 +73,15 @@ fun analyzeArticleBody(value: String?, origin: ArticleBodyKind = ArticleBodyKind
         other.isNotEmpty() && (chinese == 0 || otherLetters >= chinese * 5) -> ArticleLanguage.FOREIGN
         else -> ArticleLanguage.UNCERTAIN
     }
-    return ArticleBody(ArticleBodyKind.BODY, body, sha256Hex(fingerprintText(body)), language,
+    val kind = if (origin == ArticleBodyKind.BODY) ArticleBodyKind.BODY else origin
+    return ArticleBody(kind, body, sha256Hex(fingerprintText(body)), language,
         chinese + other.size + words.findAll(prose.replace(han, " ").replace(Regex("[^ぁ-ヿ가-힣]+"), " ")).count())
 }
+
+/** A preview or unverified snapshot still carries paragraphs the user may explicitly process. */
+fun ArticleBody.manualProcessable(): Boolean =
+    markdown.isNotBlank() && (kind == ArticleBodyKind.BODY || kind == ArticleBodyKind.PREVIEW ||
+        kind == ArticleBodyKind.SOURCE_SUMMARY || kind == ArticleBodyKind.UNVERIFIED)
 
 private fun fingerprintText(body: String): String = buildString {
     var offset = 0

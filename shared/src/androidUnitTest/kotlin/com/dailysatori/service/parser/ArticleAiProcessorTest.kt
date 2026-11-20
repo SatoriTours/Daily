@@ -246,6 +246,16 @@ class ArticleAiProcessorTest {
         }
     }
 
+    @Test fun forcedRunRepeatsRequestsForUnchangedSource() = runBlocking {
+        withProcessor({ overviewResponse() }) { processor, requests, _ ->
+            processor.process(28, "中文正文。", "标题", config)
+            processor.process(28, "中文正文。", "标题", config)
+            assertEquals(1, requests.size, "未变化的正文不应重复付费请求")
+            processor.process(28, "中文正文。", "标题", config, force = true)
+            assertEquals(2, requests.size, "手动刷新必须忽略同内容检查点")
+        }
+    }
+
     @Test fun changedSourceInvalidatesCheckpoint() = runBlocking {
         withProcessor({ overviewResponse() }) { processor, requests, _ ->
             processor.process(5, "旧版中文正文。", "标题", config)

@@ -237,24 +237,36 @@ class AppUrlIntakeTest {
             .substringBefore("suspend fun reprocessArticle")
 
         assertTrue(refresh.contains("markArticleActive(articleId)"))
-        assertTrue(refresh.contains("articleRepo.updateStatus(articleId, \"pending\")"))
-        assertTrue(refresh.contains("enqueueArticleProcessing(articleId)"))
+        assertTrue(refresh.contains("requestRefreshAfterProcessing(articleId)"))
         assertTrue(refresh.contains("finishQueuedArticle(articleId)"))
+        assertTrue(source.contains("articleRepo.updateStatus(articleId, \"pending\")"))
     }
 
     @Test
-    fun refreshAndReprocessReuseExistingOriginalBeforeOpeningUrl() {
+    fun refreshOpensTheUrlAgainWhileQueueAndReprocessReuseTheStoredBody() {
         val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
-        val refresh = source.substringAfter("suspend fun refreshArticle")
-            .substringBefore("suspend fun reprocessArticle")
+        val refresh = source.substringAfter("suspend fun refreshArticle(")
+            .substringBefore("suspend fun refreshArticleWithXApi")
         val reprocess = source.substringAfter("suspend fun reprocessArticle")
             .substringBefore("private companion object")
         val queue = source.substringAfter("private fun drainProcessingQueue")
             .substringBefore("private fun setProcessingState")
 
         assertTrue(source.contains("existingArticleOriginalExtractedContent(article)"))
-        assertTrue(refresh.contains("existingArticleOriginalExtractedContent(article) ?: extractContent(url)"))
-        assertTrue(queue.contains("existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }"))
+        // 手动刷新必须真的打开页面，不能用已保存的正文顶替。
+        assertFalse(refresh.contains("existingArticleOriginalExtractedContent"))
+        assertTrue(refresh.contains("val extracted = extractContent(url)"))
+        // 抓取成功即使内容相同也重跑 AI。
+        assertTrue(refresh.contains("processAiTasks(articleId, extracted, forceAi = true)"))
+        // 抓取失败保留原标题与已有内容。
+        assertTrue(refresh.contains("restoreArticleAfterFailedRefresh(articleId, article)"))
+        // 每篇文章只保留一个刷新意图，队列执行时统一重抓并强制 AI。
+        assertTrue(source.contains("refreshIntents += articleId"))
+        assertTrue(source.contains("refreshIntents.remove(articleId) == true"))
+        assertTrue(source.contains("articleId in refreshIntents && articleId !in pendingProcessingIds"))
+        assertTrue(queue.contains("if (refresh) null else existingArticleOriginalExtractedContent(article)"))
+        assertTrue(queue.contains("processAiTasks(articleId, extracted, forceAi = refresh)"))
+        assertTrue(queue.contains("article.url?.let { extractContent(it) }"))
         assertTrue(reprocess.contains("val extracted = existingArticleOriginalExtractedContent(article)"))
         assertTrue(reprocess.contains("processAiTasks(articleId, extracted)"))
     }

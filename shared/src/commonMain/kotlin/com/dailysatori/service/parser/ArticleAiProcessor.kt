@@ -36,11 +36,12 @@ private data class ArticleAiCheckpoint(
 )
 
 private class ArticleAiSession(private val settings: SettingRepository, private val key: String, fingerprint: String,
-    private val ensureCurrent: () -> Unit) {
+    private val ensureCurrent: () -> Unit, force: Boolean = false) {
     private val json = Json { ignoreUnknownKeys = true }
     private val mutex = Mutex()
-    private var checkpoint = settings.get(key)?.let { runCatching { json.decodeFromString<ArticleAiCheckpoint>(it) }.getOrNull() }
-        ?.takeIf { it.fingerprint == fingerprint } ?: ArticleAiCheckpoint(fingerprint)
+    private var checkpoint = if (force) ArticleAiCheckpoint(fingerprint) else
+        settings.get(key)?.let { runCatching { json.decodeFromString<ArticleAiCheckpoint>(it) }.getOrNull() }
+            ?.takeIf { it.fingerprint == fingerprint } ?: ArticleAiCheckpoint(fingerprint)
 
     suspend fun overview() = mutex.withLock { checkpoint.overview }
     suspend fun summary(id: String) = mutex.withLock { checkpoint.summaries[id] }
@@ -59,7 +60,9 @@ private class ArticleAiSession(private val settings: SettingRepository, private 
 
 internal class ArticleAiProcessingException : IllegalStateException("原文已保存，部分 AI 处理失败，可稍后重试")
 
-class ArticleBodyMissingException : IllegalStateException("文章缺少原文，已停止自动重试；补齐正文后可重新整理")
+class ArticleBodyMissingException(
+    message: String = "文章缺少原文，已停止自动重试；补齐正文后可重新整理",
+) : IllegalStateException(message)
 
 internal class ArticleAiProcessor(private val ai: AiService, private val settings: SettingRepository) {
     // One request budget across all articles handled by this processor.
@@ -73,10 +76,12 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         onProgress: (String) -> Unit = {},
         ensureCurrent: () -> Unit = {},
         sourceUrl: String = "",
+        force: Boolean = false,
     ) = com.dailysatori.service.ai.withAiRequestSession {
         if (original.isBlank()) throw ArticleBodyMissingException()
         val fingerprint = sha256Hex("article-v4-brief\n$original\n$title\n$sourceUrl\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
-        val session = ArticleAiSession(settings, "article.ai.v3:$articleId", fingerprint, ensureCurrent)
+        // A user-requested refresh must produce fresh results even when the source text is unchanged.
+        val session = ArticleAiSession(settings, "article.ai.v3:$articleId", fingerprint, ensureCurrent, force)
         val failures = supervisorScope {
             val overview = async {
                 articleStage("overview") {

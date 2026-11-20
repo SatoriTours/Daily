@@ -63,7 +63,8 @@ class ArticleDetailLayoutTest {
         assertTrue(actionsBody.contains("PageAction(\"更多操作\"") && actionsBody.contains("menuContent ="))
         assertTrue(actionsBody.contains("ArticleOriginalMenuItem("))
         assertTrue(actionsBody.contains("ArticleRefreshMenuItem("))
-        assertTrue(actionsBody.contains("ArticleXApiRefreshMenuItem("))
+        assertTrue(actionsBody.contains("ArticleAiProcessMenuItem("))
+        assertFalse(actionsBody.contains("ArticleXApiRefreshMenuItem("))
         assertTrue(actionsBody.contains("ArticleFavoriteMenuItem("))
         assertTrue(actionsBody.contains("ArticleCopyLinkMenuItem("))
         assertTrue(actionsBody.contains("ArticleOpenMenuItem("))
@@ -89,18 +90,20 @@ class ArticleDetailLayoutTest {
     }
 
     @Test
-    fun localArticleDetailShowsXApiRefreshOnlyForXStatusArticles() {
+    fun localArticleDetailReplacesBothRefreshEntriesWithTwoActions() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        val xApiBody = source.functionBody("ArticleXApiRefreshMenuItem")
+        val aiProcessBody = source.functionBody("ArticleAiProcessMenuItem")
 
-        assertTrue(source.contains("viewModel::refreshArticleWithXApi"))
-        assertTrue(xApiBody.contains("Text(articleXApiRefreshMenuLabel())"))
-        assertTrue(xApiBody.contains("visible = canRefreshArticleWithXApi(state.article?.url)"))
-        assertTrue(xApiBody.contains("enabled = !state.isRefreshing"))
-        assertEquals("用 X API 刷新", articleXApiRefreshMenuLabel())
-        assertTrue(canRefreshArticleWithXApi("https://x.com/i/status/2068340624907202872"))
-        assertTrue(canRefreshArticleWithXApi("https://twitter.com/user/status/2068340624907202872"))
-        assertFalse(canRefreshArticleWithXApi("https://example.com/article"))
+        assertTrue(source.contains("onRefreshConfirm = viewModel::refreshArticle"))
+        assertTrue(source.contains("viewModel::processWithExistingBody"))
+        assertFalse(source.contains("refreshArticleWithXApi"))
+        assertTrue(aiProcessBody.contains("Text(articleAiProcessMenuLabel())"))
+        assertTrue(aiProcessBody.contains("enabled = canStartArticleAiProcess("))
+        assertEquals("刷新", articleRefreshMenuLabel())
+        assertEquals("AI 处理", articleAiProcessMenuLabel())
+        assertTrue(canStartArticleAiProcess(isRefreshing = false, hasProcessableText = true))
+        assertFalse(canStartArticleAiProcess(isRefreshing = true, hasProcessableText = true))
+        assertFalse(canStartArticleAiProcess(isRefreshing = false, hasProcessableText = false))
     }
 
     @Test

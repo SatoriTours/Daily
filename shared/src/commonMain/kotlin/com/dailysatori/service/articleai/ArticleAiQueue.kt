@@ -91,7 +91,10 @@ class ArticleAiQueue(
 
     private fun current(job: Article_ai_job): ArticleBody? =
         repo.candidates(job).asSequence().mapNotNull(articles::getById).map(repo::input)
-            .firstOrNull { it.kind == ArticleBodyKind.BODY && it.hash == job.body_hash }
+            .firstOrNull {
+                it.hash == job.body_hash && it.manualProcessable() &&
+                    (it.kind == ArticleBodyKind.BODY || job.priority == ArticleAiRepository.MANUAL)
+            }
 
     private fun processConfig(job: Article_ai_job) = remote.config().also {
         if (it == null) {
