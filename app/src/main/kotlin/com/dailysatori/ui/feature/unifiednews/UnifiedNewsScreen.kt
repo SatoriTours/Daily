@@ -20,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
+import com.dailysatori.ui.theme.MoreActionsIcon
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -492,7 +492,7 @@ private fun UnifiedNewsSourceDetailErrorScreen(message: String, onBack: () -> Un
 private fun UnifiedNewsMenu(viewModel: UnifiedNewsViewModel) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "更多") }
+        IconButton(onClick = { expanded = true }) { Icon(MoreActionsIcon, contentDescription = "更多") }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             MenuItem("本地收藏", Icons.Default.Bookmark) { viewModel.switchPage(UnifiedNewsPage.LOCAL_FAVORITES); expanded = false }
         }

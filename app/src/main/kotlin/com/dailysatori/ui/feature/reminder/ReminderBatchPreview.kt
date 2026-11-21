@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
@@ -150,7 +149,7 @@ private fun BatchReminderCardHeader(ordinal: Int, item: ReminderBatchUiItem, onT
         }
         if (editable) Box {
             IconButton(onClick = { showMenu = true }) {
-                Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.reminder_detail_more))
+                Icon(MoreActionsIcon, contentDescription = stringResource(R.string.reminder_detail_more))
             }
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.reminder_batch_remove), color = MaterialTheme.colorScheme.error) }, onClick = { showMenu = false; onRemoveItem(item.id) })

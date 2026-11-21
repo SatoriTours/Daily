@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -65,7 +64,7 @@ fun PageActions(actions: List<PageAction>) {
                 modifier = Modifier.heightIn(min = Height.touchTarget)) { Text(action.label) }
         } else if (action.menuContent != null) CustomPageActionMenu(action)
         else IconButton(onClick = action::perform, enabled = action.enabled, modifier = Modifier.size(Height.touchTarget)) {
-            Icon(action.icon, action.label, tint = actionColor(action), modifier = Modifier.size(IconSize.m))
+            Icon(action.icon, action.label, tint = actionColor(action), modifier = Modifier.size(if (action.icon == MoreActionsIcon) IconSize.l else IconSize.m))
         }
     }
     if (layout.overflow.isNotEmpty()) PageActionMenu(layout.overflow)
@@ -77,7 +76,7 @@ private fun CustomPageActionMenu(action: PageAction) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }, enabled = action.enabled, modifier = Modifier.size(Height.touchTarget)) {
-            Icon(action.icon, action.label, tint = actionColor(action), modifier = Modifier.size(IconSize.m))
+            Icon(action.icon, action.label, tint = actionColor(action), modifier = Modifier.size(if (action.icon == MoreActionsIcon) IconSize.l else IconSize.m))
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             action.menuContent?.invoke { expanded = false }
@@ -91,8 +90,8 @@ private fun PageActionMenu(actions: List<PageAction>) {
     var submenu by remember { mutableStateOf<PageAction?>(null) }
     Box {
         IconButton(onClick = { submenu = null; expanded = true }, modifier = Modifier.size(Height.touchTarget)) {
-            Icon(Icons.Default.MoreHoriz, stringResource(R.string.page_actions_more),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.m))
+            Icon(MoreActionsIcon, stringResource(R.string.page_actions_more),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.l))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             val nested = submenu?.menuContent
@@ -100,7 +99,7 @@ private fun PageActionMenu(actions: List<PageAction>) {
             else actions.forEach { action ->
                 DropdownMenuItem(
                     text = { Text(action.label, color = actionColor(action)) },
-                    leadingIcon = { Icon(action.icon, null, tint = actionColor(action), modifier = Modifier.size(IconSize.m)) },
+                    leadingIcon = { Icon(action.icon, null, tint = actionColor(action), modifier = Modifier.size(if (action.icon == MoreActionsIcon) IconSize.l else IconSize.m)) },
                     enabled = action.enabled,
                     modifier = Modifier.heightIn(min = Height.touchTarget),
                     onClick = {

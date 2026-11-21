@@ -55,52 +55,52 @@ class ArticleDetailLayoutTest {
     }
 
     @Test
-    fun localArticleDetailKeepsAllActionsInOverflowMenu() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        val actionsBody = source.functionBody("ArticleDetailActions")
-
-        assertTrue(actionsBody.contains("Icons.Default.MoreVert"))
-        assertTrue(actionsBody.contains("PageAction(\"更多操作\"") && actionsBody.contains("menuContent ="))
-        assertTrue(actionsBody.contains("ArticleOriginalMenuItem("))
-        assertTrue(actionsBody.contains("ArticleRefreshMenuItem("))
-        assertTrue(actionsBody.contains("ArticleAiProcessMenuItem("))
-        assertFalse(actionsBody.contains("ArticleXApiRefreshMenuItem("))
-        assertTrue(actionsBody.contains("ArticleFavoriteMenuItem("))
-        assertTrue(actionsBody.contains("ArticleCopyLinkMenuItem("))
-        assertTrue(actionsBody.contains("ArticleOpenMenuItem("))
-        assertTrue(actionsBody.contains("ArticleDeleteMenuItem("))
-        assertFalse(actionsBody.contains("IconButton(onClick = onFavoriteClick)"))
-        assertFalse(actionsBody.contains("IconButton(onClick = { openArticleUrl"))
+    fun articleAndAssistantMenusHaveDistinctNamesAndArticleKeepsAssistant() {
+        val article = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val remote = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+        assertFalse(article.contains("showAssistant = false"), "The article must keep its independent assistant launcher")
+        assertFalse(remote.contains("showAssistant = localArticleId == null"))
+        val articleLabels = File("src/main/assets/i18n/zh.txt").readLines()
+        val assistantLabels = File("src/main/res/values/strings.xml").readText()
+        assertTrue("article.more_actions\t文章更多操作" in articleLabels)
+        assertTrue(assistantLabels.contains("name=\"assistant_more\">助手更多操作"))
     }
 
     @Test
-    fun localArticleDetailCanCopyArticleUrlFromOverflowMenu() {
+    fun articleDetailSeparatesHeaderActionsFromOverflow() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        val copyBody = source.functionBody("ArticleCopyLinkMenuItem")
-
-        assertTrue(source.contains("ClipboardManager"))
-        assertTrue(source.contains("ClipData.newPlainText(articleCopyLinkClipLabel(), url)"))
-        assertTrue(copyBody.contains("Text(articleCopyLinkMenuLabel())"))
-        assertTrue(copyBody.contains("enabled = !url.isNullOrBlank()"))
-        assertTrue(copyBody.contains("onCopyClick(url)"))
-        assertTrue(source.contains("Toast.makeText(context, articleCopyLinkSuccessMessage(), Toast.LENGTH_SHORT).show()"))
-        assertEquals("复制网页链接", articleCopyLinkMenuLabel())
-        assertEquals("网页链接", articleCopyLinkClipLabel())
-        assertEquals("已复制网页链接", articleCopyLinkSuccessMessage())
+        val actions = source.functionBody("ArticleDetailActions")
+        assertTrue(actions.contains("Icons.Default.FavoriteBorder"), "收藏必须从顶栏直接切换")
+        assertTrue(actions.contains("Icons.Default.AutoStories"), "顶栏必须提供智能阅读")
+        val overflow = source.functionBody("ArticleDetailOverflow")
+        assertTrue(overflow.contains("MoreActionsIcon"))
+        assertTrue(overflow.contains("MarkNewsReadMenuItem("))
+        assertTrue(overflow.contains("ArticleCopyLinkMenuItem("))
+        assertTrue(overflow.contains("ArticleRefreshMenuItem("))
+        assertTrue(overflow.indexOf("HorizontalDivider(") in 1 until overflow.indexOf("ArticleDeleteMenuItem {"))
+        assertFalse(overflow.contains("onOriginalClick"))
+        assertFalse(overflow.contains("onAiProcessClick"))
+        assertFalse(overflow.contains("onFavoriteClick"))
+        assertFalse(overflow.contains("onOpenClick"))
     }
 
     @Test
-    fun localArticleDetailReplacesBothRefreshEntriesWithTwoActions() {
+    fun originalSheetKeepsLinkActionsAndClipboardBehavior() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        val aiProcessBody = source.functionBody("ArticleAiProcessMenuItem")
+        val sheet = source.functionBody("ArticleOriginalBottomSheet")
+        assertTrue(source.functionBody("ArticleMagazineHeader").contains("ArticleOriginalLink("))
+        assertTrue(sheet.contains("copyArticleUrl("))
+        assertTrue(sheet.contains("openArticleUrl("))
+        assertTrue(source.contains("ClipData.newPlainText("))
+        assertTrue(source.functionBody("ArticleCopyLinkMenuItem").contains("enabled = !url.isNullOrBlank()"))
+    }
 
+    @Test
+    fun articleDetailPreservesRefreshAndLocalAiHandlers() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
         assertTrue(source.contains("onRefreshConfirm = viewModel::refreshArticle"))
-        assertTrue(source.contains("viewModel::processWithExistingBody"))
+        assertTrue(source.contains("viewModel.processWithExistingBody()") && source.contains("processWithExistingBody(retranslate = true)"))
         assertFalse(source.contains("refreshArticleWithXApi"))
-        assertTrue(aiProcessBody.contains("Text(articleAiProcessMenuLabel())"))
-        assertTrue(aiProcessBody.contains("enabled = canStartArticleAiProcess("))
-        assertEquals("刷新", articleRefreshMenuLabel())
-        assertEquals("AI 处理", articleAiProcessMenuLabel())
         assertTrue(canStartArticleAiProcess(isRefreshing = false, hasProcessableText = true))
         assertFalse(canStartArticleAiProcess(isRefreshing = true, hasProcessableText = true))
         assertFalse(canStartArticleAiProcess(isRefreshing = false, hasProcessableText = false))

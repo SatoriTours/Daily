@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +33,7 @@ fun LedgerEntryScreen(entryId: String, onBack: () -> Unit, vm: LedgerViewModel =
     val entry = state.ledger.entries.firstOrNull { it.id == entryId && it.status != LedgerStatus.DELETED && it.status != LedgerStatus.IGNORED }
     var editing by remember(entryId) { mutableStateOf(false) }
     var settings by remember(entryId) { mutableStateOf(false) }
-    SettingsScaffold(title = i18n.t("phone.ledger_detail"), onBack = onBack, pageActions = if (entry != null) listOf(PageAction(i18n.t("phone.ledger_settings"), Icons.Default.MoreHoriz) { settings = true }) else emptyList()) { modifier ->
+    SettingsScaffold(title = i18n.t("phone.ledger_detail"), onBack = onBack, pageActions = if (entry != null) listOf(PageAction(i18n.t("phone.ledger_settings"), MoreActionsIcon) { settings = true }) else emptyList()) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             when {
                 state.failed -> item { Text(i18n.t("ledger.failed"), color = MaterialTheme.colorScheme.error) }

@@ -10,6 +10,7 @@ import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -151,12 +152,14 @@ class ArticleDetailViewModel(
         articleAiQueue.manual(articleId, redo = true)
     }
 
-    /** Runs AI on what is already stored; a preview is forced, a full body only fills missing results. */
-    fun processWithExistingBody() {
-        refreshArticleWithMessage("正在用已保存的正文进行 AI 处理...") {
+    private var manualProcessing: Job? = null
+
+    fun processWithExistingBody(retranslate: Boolean = false) {
+        if (manualProcessing?.isActive == true || state.value.isRefreshing) return
+        manualProcessing = refreshArticleWithMessage("正在用已保存的正文进行 AI 处理...") {
             val article = articleRepo.getById(articleId) ?: error("文章已删除")
             if (article.source_type == "remote_news") processStoredBody("文章没有可处理的正文或来源预览")
-            else webpageParserService.reprocessArticle(articleId)
+            else webpageParserService.reprocessArticle(articleId, retranslate)
         }
     }
 
@@ -170,42 +173,40 @@ class ArticleDetailViewModel(
     private fun refreshArticleWithMessage(
         initialStatus: String,
         refresh: suspend () -> Unit,
-    ) {
-        viewModelScope.launch(Dispatchers.IO) {
+    ): Job = viewModelScope.launch(Dispatchers.IO) {
+        _state.update {
+            it.copy(
+                isRefreshing = true,
+                processingStatus = initialStatus,
+                processingStage = "pending",
+                processingProgress = "",
+                refreshError = null,
+            )
+        }
+        try {
+            refresh()
+        } catch (e: Exception) {
+            val article = articleRepo.getById(articleId)
             _state.update {
                 it.copy(
-                    isRefreshing = true,
-                    processingStatus = initialStatus,
-                    processingStage = "pending",
-                    processingProgress = "",
-                    refreshError = null,
+                    isRefreshing = false,
+                    article = article,
+                    refreshError = e.message ?: "刷新失败",
                 )
             }
-            try {
-                refresh()
-            } catch (e: Exception) {
-                val article = articleRepo.getById(articleId)
-                _state.update {
-                    it.copy(
-                        isRefreshing = false,
-                        article = article,
-                        refreshError = e.message ?: "刷新失败",
-                    )
-                }
-                return@launch
+            return@launch
+        }
+        val article = articleRepo.getById(articleId)
+        if (article != null && article.status == "error") {
+            _state.update {
+                it.copy(
+                    isRefreshing = false,
+                    article = article,
+                    refreshError = article.ai_content ?: "处理失败",
+                )
             }
-            val article = articleRepo.getById(articleId)
-            if (article != null && article.status == "error") {
-                _state.update {
-                    it.copy(
-                        isRefreshing = false,
-                        article = article,
-                        refreshError = article.ai_content ?: "处理失败",
-                    )
-                }
-            } else {
-                _state.update { it.copy(isRefreshing = false, article = article, refreshError = null) }
-            }
+        } else {
+            _state.update { it.copy(isRefreshing = false, article = article, refreshError = null) }
         }
     }
 }

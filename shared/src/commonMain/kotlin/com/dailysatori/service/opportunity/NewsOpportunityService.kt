@@ -46,6 +46,12 @@ class NewsOpportunityService(
         persistAndPublish(archive.copy(articles = archive.articles.filterNot { it.identity() == identity } + article))
     }
 
+    suspend fun markUnread(key: String) = execution.withLock {
+        ensureLoaded()
+        // Unmarking changes the explicit read list, not candidates or existing analysis.
+        persistAndPublish(archive.copy(articles = archive.articles.filterNot { it.identity() == key.trim() }))
+    }
+
     suspend fun saveFocus(text: String) = execution.withLock {
         ensureLoaded()
         require(text.length <= MAX_FOCUS_LENGTH) { "关注点不能超过 2,000 字" }
@@ -264,6 +270,7 @@ class NewsOpportunityService(
         items = archive.items.sortedByDescending { it.createdAt },
         focus = archive.focus,
         readCount = archive.articles.size,
+        readArticleKeys = archive.articles.map { it.identity() }.toSet(),
         candidateCount = analysisArticles().size,
         error = archive.lastError?.takeUnless(::isOpportunityCancellationMessage),
         dismissedErrorTaskId = archive.dismissedErrorTaskId,

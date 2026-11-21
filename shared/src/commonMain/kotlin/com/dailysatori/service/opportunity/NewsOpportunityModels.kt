@@ -57,6 +57,7 @@ data class OpportunityState(
     val error: String? = null,
     val hasAnalysisContext: Boolean = false,
     val dismissedErrorTaskId: Long? = null,
+    val readArticleKeys: Set<String> = emptySet(),
 )
 
 fun isOpportunityCancellationMessage(message: String?): Boolean = message?.let {

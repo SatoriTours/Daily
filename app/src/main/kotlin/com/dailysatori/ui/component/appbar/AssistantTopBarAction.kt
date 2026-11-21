@@ -11,7 +11,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.Height
 
 val LocalAssistantLauncher = staticCompositionLocalOf<(() -> Unit)?> { null }
 
@@ -19,7 +19,7 @@ val LocalAssistantLauncher = staticCompositionLocalOf<(() -> Unit)?> { null }
 @Composable
 fun AssistantTopBarAction() {
     val open = LocalAssistantLauncher.current ?: return
-    IconButton(onClick = open, modifier = Modifier.size(Spacing.xxl)) {
+    IconButton(onClick = open, modifier = Modifier.size(Height.touchTarget)) {
         Icon(Icons.Default.AutoAwesome, stringResource(R.string.assistant_open), tint = MaterialTheme.colorScheme.primary)
     }
 }

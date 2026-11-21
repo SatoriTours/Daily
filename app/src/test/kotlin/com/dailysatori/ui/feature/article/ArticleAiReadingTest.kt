@@ -15,14 +15,12 @@ class ArticleAiReadingTest {
         assertEquals("queue_paused", articleAiPauseKey("unknown"))
     }
 
-    @Test fun readingDoesNotSwitchModeWhenSummaryArrives() {
+    @Test fun bodyAndSummaryRetainTheirOwnReadingNotes() {
         val loading = ArticleAiView(ArticleBodyKind.BODY, ArticleLanguage.FOREIGN, 20, null, null,
             false, false, false, "running", null, null, "")
         val completed = loading.copy(summary = "摘要", translation = "译文", translationPartial = true, jobState = "succeeded")
-        val openedWhileProcessing = ArticleReaderSelection(initialArticleReadMode(loading))
-        assertEquals(ArticleReadMode.ORIGINAL, openedWhileProcessing.mode)
-        assertEquals(ArticleReadMode.SUMMARY, initialArticleReadMode(completed))
-        assertEquals(emptyList(), articleReadingNotes(completed, openedWhileProcessing.mode))
+        assertTrue(loading.canRequestReading())
+        assertEquals(emptyList(), articleReadingNotes(completed, ArticleReadMode.ORIGINAL))
         assertEquals(listOf("ai_translation", "partial"), articleReadingNotes(completed, ArticleReadMode.TRANSLATION))
         assertEquals(listOf("source_summary"), articleReadingNotes(completed.copy(sourceSummary = true), ArticleReadMode.SUMMARY))
     }

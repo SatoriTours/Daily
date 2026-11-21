@@ -72,8 +72,8 @@ private fun PhoneMessageMenu(row: PhoneMessage, actions: PhoneMessageActions, bu
     val i18n: I18nService = koinInject()
     var opened by remember(row.id) { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { opened = true }, modifier = Modifier.size(Height.buttonSmall)) {
-            Icon(Icons.Default.MoreHoriz, i18n.t("phone.more_actions"), Modifier.size(IconSize.m),
+        IconButton(onClick = { opened = true }, modifier = Modifier.size(Height.touchTarget)) {
+            Icon(MoreActionsIcon, i18n.t("phone.more_actions"), Modifier.size(IconSize.l),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = opened, onDismissRequest = { opened = false }) {

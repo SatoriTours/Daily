@@ -123,7 +123,8 @@ class ArticleDetailContentTest {
 
     @Test
     fun deleteArticleDialogCopyWarnsBeforeDeleting() {
-        assertEquals("删除文章", articleDeleteDialogTitle())
-        assertEquals("确定要删除这篇文章吗？", articleDeleteDialogMessage())
+        val strings = java.io.File("src/main/assets/i18n/zh.txt").readLines()
+        assertTrue("article.delete_article\t删除文章" in strings)
+        assertTrue("article.delete_article_note\t确定要删除这篇文章吗？" in strings)
     }
 }

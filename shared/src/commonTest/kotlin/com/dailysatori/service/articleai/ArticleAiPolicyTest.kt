@@ -3,18 +3,26 @@ package com.dailysatori.service.articleai
 import kotlin.test.*
 
 class ArticleAiPolicyTest {
+    @Test fun readingPlanUsesBodyLengthAndOnlyRequestsMissingResults() {
+        assertNull(analyzeArticleBody("图".repeat(300)).automatic(false))
+        assertEquals(ArticleAiMode.SUMMARY, analyzeArticleBody("图".repeat(301)).automatic(false))
+        assertEquals(ArticleAiMode.TRANSLATION, analyzeArticleBody("book ".repeat(150)).automatic(false))
+        assertEquals(ArticleAiMode.BOTH, analyzeArticleBody("book ".repeat(151)).automatic(false))
+        assertEquals(ArticleAiMode.TRANSLATION, analyzeArticleBody("book ".repeat(151)).automatic(true))
+    }
+
     @Test fun charactersAndWordsExcludeMarkupAndCode() {
         val text = "汉".repeat(98) + "，[新闻](https://example.com)！ `a b c`"
         assertEquals(100, analyzeArticleBody(text).units)
         assertNull(analyzeArticleBody(text).automatic(false))
-        assertEquals(ArticleAiMode.SUMMARY, analyzeArticleBody(text + "新增").automatic(false))
+        assertEquals(ArticleAiMode.SUMMARY, analyzeArticleBody(text + "新".repeat(201)).automatic(false))
     }
 
     @Test fun mixedJapaneseAndShortForeign() {
         assertEquals(ArticleLanguage.CHINESE, analyzeArticleBody("腾讯发布新的AI项目，使用 Go 和 React。").language)
         assertEquals(ArticleLanguage.FOREIGN, analyzeArticleBody("東京大学が新研究を発表しました。").language)
         assertEquals(ArticleLanguage.UNCERTAIN, analyzeArticleBody("国際交通情報").language)
-        assertEquals(ArticleAiMode.BOTH, analyzeArticleBody("Hello world!").automatic(false))
+        assertEquals(ArticleAiMode.TRANSLATION, analyzeArticleBody("Hello world!").automatic(false))
         assertEquals(ArticleAiMode.TRANSLATION, analyzeArticleBody("Café ouvert.").automatic(true))
         assertEquals(ArticleLanguage.UNCERTAIN, analyzeArticleBody("2026 🤔").language)
     }

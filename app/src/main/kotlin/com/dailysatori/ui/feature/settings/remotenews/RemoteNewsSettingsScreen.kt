@@ -1,7 +1,6 @@
 package com.dailysatori.ui.feature.settings.remotenews
 
 import com.dailysatori.ui.component.appbar.PageAction
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenuItem
 
 import androidx.compose.foundation.layout.Arrangement
@@ -566,7 +565,7 @@ private fun RemoteNewsSourceEditorPage(
         pageActions = if (state.editingId == null) emptyList() else listOf(
             PageAction(
                 label = "更多",
-                icon = Icons.Default.MoreVert,
+                icon = MoreActionsIcon,
                 enabled = !state.busy,
                 menuContent = { dismiss ->
                     DropdownMenuItem(

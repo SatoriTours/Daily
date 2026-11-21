@@ -491,7 +491,7 @@
     <string name="assistant_background_blocked">Enable cloud consent in Assistant first. Only paused history tasks can be continued.</string>
     <string name="assistant_open">Open AI assistant</string>
     <string name="assistant_close">Close assistant</string>
-    <string name="assistant_more">More actions</string>
+    <string name="assistant_more">More assistant actions</string>
     <string name="assistant_attach_page">Reference current page</string>
     <string name="assistant_memory">Memory</string>
     <string name="assistant_tasks">Background tasks</string>

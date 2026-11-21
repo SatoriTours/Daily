@@ -82,6 +82,21 @@ class UnifiedNewsArticleQueueTest {
         assertEquals(1, scheduled.size)
     }
 
+    @Test fun chineseSummaryCopiedAsBodyStillQueuesEnglishTranslation() = withQueue { queue, articles, tasks, scheduled, _ ->
+        val summary = "市立图书馆改造完成，读者可继续使用现有借书证。"
+        val body = "The city library reopens on May 13. The children's room is on the second floor."
+        val id = articles.insert(title = "图书馆重新开放", url = "https://v2ex.com/t/8",
+            aiContent = summary, aiMarkdownContent = summary, status = "completed")
+        articles.updateOriginalMarkdownContent(id, body)
+        val previous = tasks.enqueue("save_article", "{}", "save_article:https://v2ex.com/t/8")
+        assertTrue(tasks.claimForRun(previous, "test", Long.MAX_VALUE))
+        tasks.finishSuccess(previous, "{}")
+
+        assertEquals(mapOf(1L to id), queue.enqueue(listOf(source)))
+        assertEquals("remote_article_reprocess", tasks.getById(scheduled.single())!!.type)
+        assertEquals(body, articles.getById(id)!!.original_markdown_content)
+    }
+
     @Test fun completedArticleIsReusedWithoutNewAiWork() = withQueue { queue, articles, _, scheduled, _ ->
         val id = articles.insert(title = source.title, url = "https://v2ex.com/t/8",
             aiContent = "已有完整总结", aiMarkdownContent = "已有正文", status = "completed")

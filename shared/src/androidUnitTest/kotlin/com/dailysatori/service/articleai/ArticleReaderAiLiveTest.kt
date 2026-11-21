@@ -16,7 +16,7 @@ import org.junit.Assume.assumeTrue
 import kotlin.test.*
 
 class ArticleReaderAiLiveTest {
-    @Test fun ChineseSummaryAndOneCombinedRequestPreservingSourceDetails() = runBlocking<Unit> {
+    @Test fun shortEnglishOnlyTranslatesAndLongEnglishAlsoSummarizes() = runBlocking<Unit> {
         assumeTrue(System.getenv("DAILY_AI_LIVE_TEST") == "1")
         val file = File("../.local/ai-test.json")
         require(file.isFile) { "Missing local AI test configuration" }
@@ -29,14 +29,7 @@ class ArticleReaderAiLiveTest {
             DailySatoriDatabase.Schema.create(driver)
             HttpClient(OkHttp) { install(HttpTimeout) { connectTimeoutMillis = 12_000; requestTimeoutMillis = 45_000 } }.use { client ->
                 val service = ConfiguredArticleAiRemote(AiConfigService(AIConfigRepository(DailySatoriDatabase(driver))), AiService(client))
-                val chinese = """
-                    市图书馆将于五月十三日恢复开放。施工期间，馆方完成了馆内照明系统检修，更新了阅读区的桌椅，并扩大了无障碍通道。旧借书证仍然可以使用，不需要更换。
-                    周末开放时间为上午九时至晚上六时，周一继续闭馆。阅览室可以直接入内，团体参观需要提前预约。儿童活动场次在官网公布，工作人员提醒读者带好借书证。
-                """.trimIndent()
-                val zh = assertNotNull(analyzeArticleBody(chinese).automatic(false))
-                assertEquals(ArticleAiMode.SUMMARY, zh)
-                val summary = assertNotNull(request(service, config, zh, chinese).summary)
-                assertTrue(summary.length < chinese.length && summary.contains("图书馆"))
+                assertNull(analyzeArticleBody("短中文正文不需要调用模型。").automatic(false))
 
                 val english = """
                     The library will reopen on May 13 after repairs. Readers can keep their current cards.
@@ -45,22 +38,43 @@ class ArticleReaderAiLiveTest {
 
                     The sample configuration is `max_books = 5`. The children's room is on the second floor.
                 """.trimIndent()
-                val both = assertNotNull(analyzeArticleBody(english).automatic(false))
-                assertEquals(ArticleAiMode.BOTH, both)
-                val result = request(service, config, both, english)
-                assertTrue(assertNotNull(result.summary).contains("图书馆"))
+                val short = assertNotNull(analyzeArticleBody(english).automatic(false))
+                assertEquals(ArticleAiMode.TRANSLATION, short)
+                val result = request(service, config, short, english)
+                assertNull(result.summary)
                 val translation = assertNotNull(result.translation)
                 assertTrue(translation.contains("https://example.com/library") && translation.contains("max_books = 5"))
                 assertTrue(translation.contains("儿童"))
+
+                val longEnglish = english + "\n\n" + """
+                    The city council approved a renovation plan after public consultation. Staff will offer guided tours
+                    of the restored building during the first month. The basement now houses the local history collection,
+                    including maps and photographs donated by residents. Visitors can request these materials at the desk.
+                    An elevator connects all three floors, and a new ramp provides step-free access from the main street.
+                    The public computers remain free for library card holders. Visitors without cards can request a temporary
+                    pass, subject to availability. A quiet study area has been added next to the reading room, and five
+                    individual desks can be booked through the library's website. Group study rooms remain on the ground floor.
+                    The outdoor reading garden will open in June, after workers finish the new path. A volunteer team has planted
+                    native flowers near the entrance. A separate return box beside the entrance will remain open outside regular hours.
+                    The library will publish the schedule for summer workshops later this month.
+                """.trimIndent()
+                val both = assertNotNull(analyzeArticleBody(longEnglish).automatic(false))
+                assertEquals(ArticleAiMode.BOTH, both)
+                val longResult = request(service, config, both, longEnglish)
+                assertTrue(assertNotNull(longResult.summary).contains("图书馆"))
+                val fullText = assertNotNull(longResult.translation)
+                assertTrue(fullText.contains("志愿") && fullText.contains("工作坊"),
+                    "Full translation must retain details near the end of the source")
             }
         }
     }
 
     private suspend fun request(service: ArticleAiRemote, config: Ai_config, mode: ArticleAiMode, body: String): ArticleAiOutput {
-        val input = assertNotNull(articleAiInput(body, mode, articleModelLimits(config.model_name)))
+        val limits = articleModelLimits(config.model_name)
+        val inputs = assertNotNull(articleReadingInputs(body, mode, limits))
         // Do not emit the provider error or HTTP payload to the test report.
         return try {
-            service.request(config, mode, input)
+            requestFullArticleReading(limits, inputs) { sectionMode, input -> service.request(config, sectionMode, input) }
         } catch (error: Exception) {
             val status = (error as? com.dailysatori.service.ai.AiHttpFailure)?.status
             error("Article AI live request failed: ${error::class.simpleName}, HTTP=${status ?: "unknown"}")

@@ -115,49 +115,90 @@ class ArticleAiQueue(
                 return@fenced null
             }
             val config = processConfig(job) ?: return@fenced null
-            val input = articleAiInput(body.markdown, ArticleAiMode.valueOf(job.mode), articleModelLimits(config.model_name))
-            if (input == null) {
+            val inputs = articleReadingInputs(body.markdown, ArticleAiMode.valueOf(job.mode), articleModelLimits(config.model_name))
+            if (inputs == null) {
                 repo.finish(job, "failed", "budget")
                 return@fenced null
             }
-            job to Triple(config, input, repo.begin(job, now()))
+            job to Triple(config, inputs, repo.begin(job, now()))
         } ?: return null
         val (job, prepared) = start
-        val (config, input, auditId) = prepared
+        val (config, inputs, auditId) = prepared
+        val usages = mutableListOf<ArticleAiUsage>()
         try {
-            val output = remote.request(config, ArticleAiMode.valueOf(job.mode), input)
+            val output = requestFullArticleReading(articleModelLimits(config.model_name), inputs) { mode, input ->
+                check(current(job) != null) { "Article source changed" }
+                remote.request(config, mode, input).also { usages += it.usage }
+            }
             fenced(lease) {
                 val valid = current(job) != null
-                repo.audit(auditId, if (valid) "succeeded" else "obsolete", output.usage)
-                if (valid) repo.save(job, output, input.partial)
+                repo.audit(auditId, if (valid) "succeeded" else "obsolete", combinedUsage(usages))
+                if (valid) repo.save(job, output, partial = false)
                 repo.finish(job, if (valid) "succeeded" else "obsolete")
             }
         } catch (cancelled: CancellationException) {
             repo.transaction { repo.audit(auditId, "interrupted"); repo.finish(job, "failed", "interrupted") }
             throw cancelled
         } catch (error: Exception) {
-            fenced(lease) { recordFailure(job, auditId, error) }
+            fenced(lease) {
+                if (current(job) == null) {
+                    repo.audit(auditId, "obsolete", combinedUsage(usages))
+                    repo.finish(job, "obsolete")
+                } else recordFailure(job, auditId, error, usages)
+            }
         } finally {
             if (lease != null && !tasks.hasRunningLease(lease.taskId, lease.owner)) repo.recover()
         }
         return job.id
     }
 
-    private fun recordFailure(job: Article_ai_job, auditId: Long, error: Exception) {
+    private fun combinedUsage(usages: List<ArticleAiUsage>): ArticleAiUsage {
+        fun total(selector: (ArticleAiUsage) -> Long?): Long? =
+            usages.mapNotNull(selector).takeIf { it.isNotEmpty() }?.sum()
+        return ArticleAiUsage(total { it.input }, total { it.output }, total { it.cached })
+    }
+
+    private fun recordFailure(job: Article_ai_job, auditId: Long, error: Exception, usages: List<ArticleAiUsage>) {
         val status = (error as? AiHttpFailure)?.status
         val invalid = error as? InvalidArticleAiOutput
         val pause = status in setOf(401, 402, 403, 429)
-        // A timeout, broken connection or ambiguous gateway response may already have been billed.
-        // Only an explicit service-unavailable response is eligible for one automatic retry.
-        val retry = status == 503 && job.requests == 0L
+        // Do not replay already paid sections; preserve the old complete translation on failure.
+        val retry = status == 503 && job.requests == 0L && usages.isEmpty()
         val code = status?.let { "http_$it" } ?: if (invalid != null) "incomplete" else "request_unknown"
-        repo.audit(auditId, code, invalid?.usage ?: ArticleAiUsage())
+        repo.audit(auditId, code, combinedUsage(usages + listOfNotNull(invalid?.usage)))
         if (pause) repo.block(code)
         repo.finish(job, if (retry) "queued" else "failed", code, if (retry) now() + 30_000 else 0)
     }
 
     private fun <T> fenced(lease: AsyncTaskExecutionLease?, block: () -> T): T? =
         repo.transaction { if (lease == null || tasks.hasRunningLease(lease.taskId, lease.owner)) block() else null }
+}
+
+internal suspend fun requestFullArticleReading(
+    limits: ArticleModelLimits,
+    inputs: List<Pair<ArticleAiMode, ArticleAiInput>>,
+    request: suspend (ArticleAiMode, ArticleAiInput) -> ArticleAiOutput,
+): ArticleAiOutput {
+    val outputs = inputs.map { (mode, input) -> request(mode, input) }
+    val summaries = outputs.mapNotNull { it.summary }
+    val summary = if (summaries.size <= 1) summaries.singleOrNull()
+        else summarizeSections(limits, summaries, request)
+    val translation = outputs.mapNotNull { it.translation }.takeIf { it.isNotEmpty() }?.joinToString("\n\n")
+    return ArticleAiOutput(summary, translation, ArticleAiUsage())
+}
+
+private suspend fun summarizeSections(
+    limits: ArticleModelLimits,
+    summaries: List<String>,
+    request: suspend (ArticleAiMode, ArticleAiInput) -> ArticleAiOutput,
+): String {
+    var sections = summaries
+    while (sections.size > 1) {
+        val inputs = requireNotNull(articleReadingInputs(sections.joinToString("\n\n"), ArticleAiMode.SUMMARY, limits))
+        check(inputs.size < sections.size) { "Article summaries exceed the model budget" }
+        sections = inputs.map { (mode, input) -> requireNotNull(request(mode, input).summary) }
+    }
+    return sections.single()
 }
 
 data class ArticleAiHistoryStatus(val pending: Int, val waiting: Int, val running: Boolean, val blocked: String)

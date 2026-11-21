@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -155,7 +154,7 @@ internal fun ReminderEditorMoreActions(reminder: Reminder, enabled: Boolean, sho
     var expanded by remember(reminder.id) { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }, enabled = enabled) {
-            Icon(Icons.Default.MoreVert, stringResource(R.string.reminder_editor_more_actions))
+            Icon(MoreActionsIcon, stringResource(R.string.reminder_editor_more_actions))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             reminderActions(reminder).filterNot { it == ReminderAction.EDIT || !showComplete && it == ReminderAction.COMPLETE }.forEach { action ->

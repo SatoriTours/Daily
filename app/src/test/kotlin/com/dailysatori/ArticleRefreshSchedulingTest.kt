@@ -185,7 +185,7 @@ class ArticleRefreshSchedulingTest {
         fun aiCount(postId: String): Int = aiCounts[bodyText(postId)]?.get() ?: 0
 
         private fun bodyText(postId: String): String =
-            "文章" + postId + "的唯一正文标记，用于统计抓取与 AI 请求。"
+            "文章" + postId + "的唯一正文标记，用于统计抓取与 AI 请求。" + "已获取到稳定的完整正文内容。".repeat(25)
 
         private fun fxEmbedJson(postId: String) = buildJsonObject {
             put("code", 200)

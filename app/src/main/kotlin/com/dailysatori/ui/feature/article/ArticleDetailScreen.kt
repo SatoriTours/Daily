@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.core.service.ClipboardMonitorService
 import com.dailysatori.ui.component.appbar.PageAction
 
 import android.content.ClipData
@@ -14,31 +15,36 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Article
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.ui.Alignment
+import com.dailysatori.service.articleai.ArticleAiMode
+import com.dailysatori.service.articleai.analyzeArticleBody
+import com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem
+import com.dailysatori.ui.feature.myspace.markNewsReadAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,7 +71,6 @@ import com.dailysatori.ui.component.card.articleDisplayTitle
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.feature.myspace.toReadNewsArticle
-import com.dailysatori.ui.feature.myspace.MarkNewsReadButton
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
@@ -87,7 +92,6 @@ fun ArticleDetailScreen(
 ) {
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     val density = LocalDensity.current
     var showOriginalSheet by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
@@ -98,31 +102,35 @@ fun ArticleDetailScreen(
         parametersOf(articleId)
     } else null
     val ai = aiViewModel?.view?.collectAsStateWithLifecycle()?.value
-    val selection = ai?.let { rememberArticleReaderSelection(articleId, it) }
-    var force by remember { mutableStateOf<com.dailysatori.service.articleai.ArticleAiMode?>(null) }
+    val remoteBusy = ai?.jobState in setOf("queued", "running")
+    val translation = if (isRemote) ai?.translation else state.article?.let(::localReaderTranslation)
+    val hasOriginal = state.article?.reusableOriginalBody()?.isNotBlank() == true
+    val canProcess = !state.isRefreshing && if (isRemote) ai?.canRequestReading() == true && !remoteBusy
+        else state.article?.let(::canProcessLocalArticle) == true
+    val openOriginal = { showOriginalSheet = true }
 
     val i18n = koinInject<I18nService>()
 
     AppScaffold(
         title = if (isRemote) "" else i18n.t("article.detail_title"),
         onBack = onBack,
-        pageActions = listOf(ArticleDetailActions(
-                state = state,
-                onOriginalClick = { showOriginalSheet = true },
-                onRefreshClick = { showRefreshConfirm = true },
-                onAiProcessClick = viewModel::processWithExistingBody,
-                onFavoriteClick = viewModel::toggleFavorite,
-                onCopyClick = { url -> copyArticleUrl(context, url) },
-                onOpenClick = { openArticleUrl(context, state.article?.url) },
-                onDeleteClick = { showDeleteConfirm = true },
-                aiMenu = if (ai != null) { dismiss -> ArticleAiMenu(ai, selection, dismiss) { force = it } } else null,
-            )),
+        pageActions = ArticleDetailActions(state, viewModel::toggleFavorite, canProcess,
+            onSmartReadClick = {
+                if (isRemote) aiViewModel?.request()
+                else viewModel.processWithExistingBody()
+            },
+            onRetranslate = if (hasOriginal && translation != null) ({
+                if (isRemote) aiViewModel?.request(ArticleAiMode.TRANSLATION, redo = true)
+                else viewModel.processWithExistingBody(retranslate = true)
+            }) else null,
+            busy = state.isRefreshing || remoteBusy,
+            onRefreshClick = { showRefreshConfirm = true }, onDeleteClick = { showDeleteConfirm = true }),
     ) { modifier ->
         val article = state.article
         if (isRemote && article != null) {
-            if (ai == null || selection == null || aiViewModel == null) LoadingIndicator(modifier)
+            if (ai == null) LoadingIndicator(modifier)
             else ArticleAiReader(
-                ai, selection, articleMagazineTitle(article),
+                ai, articleMagazineTitle(article),
                 articleMagazineMetaChips(article, i18n.t("article.published_on"), i18n.t("article.saved_on")),
                 state.sourceNames.joinToString(" · ").ifBlank { extractDomain(article.url) },
                 articleDetailPageContent(
@@ -130,19 +138,19 @@ fun ArticleDetailScreen(
                     summary = article.ai_content, original = article.ai_markdown_content,
                     storedOriginal = article.original_markdown_content, isRemoteSnapshot = true,
                     originalImageUrls = listOfNotNull(article.cover_image_url),
-                ), modifier, request = { aiViewModel.request(it) },
+                ), modifier,
                 refreshError = state.refreshError,
+                onOriginalClick = openOriginal,
             )
         } else ArticleDetailContent(
             state = state,
             coverHeightDp = coverHeightDp,
             onCoverHeightChange = { coverHeightDp = it },
             density = density,
+            onOriginalClick = openOriginal,
             modifier = modifier,
         )
     }
-    ArticleAiRedoDialog(force, { force = null }) { aiViewModel?.request(it, redo = true) }
-
     ArticleDetailDialogs(
         isRemote = isRemote,
         showRefreshConfirm = showRefreshConfirm,
@@ -158,7 +166,7 @@ fun ArticleDetailScreen(
 
     if (showOriginalSheet) {
         state.article?.let { article ->
-            ArticleOriginalBottomSheet(article = article, onDismiss = { showOriginalSheet = false })
+            ArticleOriginalBottomSheet(article, ai?.original, translation, ai?.hasPartialTranslation() == true, onDismiss = { showOriginalSheet = false })
         }
     }
 }
@@ -198,131 +206,88 @@ private fun ArticleDetailDialogs(
 @Composable
 private fun ArticleDetailActions(
     state: ArticleDetailState,
-    onOriginalClick: () -> Unit,
-    onRefreshClick: () -> Unit,
-    onAiProcessClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-    onCopyClick: (String) -> Unit,
-    onOpenClick: () -> Unit,
+    canProcess: Boolean,
+    onSmartReadClick: () -> Unit,
+    onRetranslate: (() -> Unit)?,
+    busy: Boolean,
+    onRefreshClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    aiMenu: (@Composable (() -> Unit) -> Unit)? = null,
-): PageAction {
-    val markRead = state.article?.let { com.dailysatori.ui.feature.myspace.markNewsReadAction(it.toReadNewsArticle()) }
-    return PageAction("更多操作", Icons.Default.MoreVert, menuContent = { dismiss ->
-        val closeMenu: (Boolean) -> Unit = { dismiss() }
-        com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
-        if (aiMenu == null) ArticleOriginalMenuItem(closeMenu, onOriginalClick) else aiMenu(dismiss)
-            ArticleRefreshMenuItem(state, closeMenu, onRefreshClick)
-            ArticleAiProcessMenuItem(state, closeMenu, onAiProcessClick)
-            ArticleFavoriteMenuItem(state, closeMenu, onFavoriteClick)
-            ArticleCopyLinkMenuItem(state.article?.url, closeMenu, onCopyClick)
-            ArticleOpenMenuItem(closeMenu, onOpenClick)
-            ArticleDeleteMenuItem(closeMenu, onDeleteClick)
-    }) {}
-}
-
-@Composable
-private fun ArticleOriginalMenuItem(onExpandedChange: (Boolean) -> Unit, onOriginalClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text("查看原文") },
-        leadingIcon = { Icon(Icons.Default.Article, contentDescription = null) },
-        onClick = {
-            onExpandedChange(false)
-            onOriginalClick()
-        },
+): List<PageAction> {
+    val article = state.article ?: return emptyList()
+    val i18n = koinInject<I18nService>()
+    val isFavorite = article.is_favorite == 1L
+    return listOf(
+        PageAction(i18n.t(if (isFavorite) "article.unfavorite" else "article.favorite"),
+            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            alwaysVisible = true, onClick = onFavoriteClick),
+        PageAction(i18n.t("article_ai.smart_reading"), Icons.Default.AutoStories,
+            alwaysVisible = true, enabled = canProcess, onClick = onSmartReadClick),
+        ArticleDetailOverflow(state, article, onRetranslate, busy, onRefreshClick, onDeleteClick),
     )
 }
 
 @Composable
-private fun ArticleRefreshMenuItem(
+private fun ArticleDetailOverflow(
     state: ArticleDetailState,
-    onExpandedChange: (Boolean) -> Unit,
+    article: Article,
+    onRetranslate: (() -> Unit)?,
+    busy: Boolean,
     onRefreshClick: () -> Unit,
-) {
+    onDeleteClick: () -> Unit,
+): PageAction {
+    val i18n = koinInject<I18nService>()
+    val context = LocalContext.current
+    val clipboardMonitor = koinInject<ClipboardMonitorService>()
+    val markRead = markNewsReadAction(article.toReadNewsArticle(), reversible = true)
+    return PageAction(i18n.t("article.more_actions"), MoreActionsIcon,
+        alwaysVisible = true, menuContent = { dismiss ->
+            MarkNewsReadMenuItem(markRead, dismiss)
+            ArticleCopyLinkMenuItem(article.url) { url ->
+                dismiss()
+                copyArticleUrl(context, url, i18n, clipboardMonitor)
+            }
+            if (onRetranslate != null) DropdownMenuItem(
+                text = { Text(i18n.t("article.retranslate")) },
+                leadingIcon = { Icon(Icons.Default.Translate, null) },
+                enabled = !busy,
+                onClick = { dismiss(); onRetranslate() },
+            )
+            ArticleRefreshMenuItem(state) { dismiss(); onRefreshClick() }
+            HorizontalDivider(Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs))
+            ArticleDeleteMenuItem { dismiss(); onDeleteClick() }
+        }) {}
+}
+
+@Composable
+private fun ArticleRefreshMenuItem(state: ArticleDetailState, onRefreshClick: () -> Unit) {
+    val i18n = koinInject<I18nService>()
     DropdownMenuItem(
-        text = { Text(articleRefreshMenuLabel()) },
+        text = { Text(i18n.t("article.refresh_article")) },
         leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
         enabled = canManuallyRefreshArticle(state.isRefreshing, state.article?.status),
-        onClick = {
-            onExpandedChange(false)
-            onRefreshClick()
-        },
+        onClick = onRefreshClick,
     )
 }
 
 @Composable
-private fun ArticleAiProcessMenuItem(
-    state: ArticleDetailState,
-    onExpandedChange: (Boolean) -> Unit,
-    onAiProcessClick: () -> Unit,
-) {
+private fun ArticleCopyLinkMenuItem(url: String?, onCopyClick: (String) -> Unit) {
+    val i18n = koinInject<I18nService>()
     DropdownMenuItem(
-        text = { Text(articleAiProcessMenuLabel()) },
-        leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
-        enabled = canStartArticleAiProcess(state.isRefreshing, state.article?.let { hasProcessableArticleText(it) } == true),
-        onClick = {
-            onExpandedChange(false)
-            onAiProcessClick()
-        },
-    )
-}
-
-@Composable
-private fun ArticleFavoriteMenuItem(
-    state: ArticleDetailState,
-    onExpandedChange: (Boolean) -> Unit,
-    onFavoriteClick: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = { Text(if (state.article?.is_favorite == 1L) "取消收藏" else "收藏") },
-        leadingIcon = {
-            Icon(if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null)
-        },
-        onClick = {
-            onExpandedChange(false)
-            onFavoriteClick()
-        },
-    )
-}
-
-@Composable
-private fun ArticleCopyLinkMenuItem(
-    url: String?,
-    onExpandedChange: (Boolean) -> Unit,
-    onCopyClick: (String) -> Unit,
-) {
-    DropdownMenuItem(
-        text = { Text(articleCopyLinkMenuLabel()) },
+        text = { Text(i18n.t("article.copy_link")) },
         leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
         enabled = !url.isNullOrBlank(),
-        onClick = {
-            onExpandedChange(false)
-            if (!url.isNullOrBlank()) onCopyClick(url)
-        },
+        onClick = { if (!url.isNullOrBlank()) onCopyClick(url) },
     )
 }
 
 @Composable
-private fun ArticleOpenMenuItem(onExpandedChange: (Boolean) -> Unit, onOpenClick: () -> Unit) {
+private fun ArticleDeleteMenuItem(onDeleteClick: () -> Unit) {
+    val i18n = koinInject<I18nService>()
     DropdownMenuItem(
-        text = { Text("在浏览器打开") },
-        leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
-        onClick = {
-            onExpandedChange(false)
-            onOpenClick()
-        },
-    )
-}
-
-@Composable
-private fun ArticleDeleteMenuItem(onExpandedChange: (Boolean) -> Unit, onDeleteClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text("删除文章", color = MaterialTheme.colorScheme.error) },
+        text = { Text(i18n.t("article.delete_article"), color = MaterialTheme.colorScheme.error) },
         leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-        onClick = {
-            onExpandedChange(false)
-            onDeleteClick()
-        },
+        onClick = onDeleteClick,
     )
 }
 
@@ -332,6 +297,7 @@ private fun ArticleDetailContent(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
+    onOriginalClick: () -> Unit,
     modifier: Modifier,
 ) {
     when {
@@ -342,7 +308,7 @@ private fun ArticleDetailContent(
             title = "文章未找到",
             subtitle = "该文章可能已被删除",
         )
-        else -> ArticleDetailLoadedContent(state, coverHeightDp, onCoverHeightChange, density, modifier)
+        else -> ArticleDetailLoadedContent(state, coverHeightDp, onCoverHeightChange, density, onOriginalClick, modifier)
     }
 }
 
@@ -352,6 +318,7 @@ private fun ArticleDetailLoadedContent(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
+    onOriginalClick: () -> Unit,
     modifier: Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -363,7 +330,7 @@ private fun ArticleDetailLoadedContent(
         if (article.status == "error" && !article.original_markdown_content.isNullOrBlank()) {
             ArticleRefreshError("原文已保存，AI 处理失败，可刷新重试")
         }
-        ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density, state.sourceNames)
+        ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density, state.sourceNames, onOriginalClick)
     }
 }
 
@@ -386,6 +353,7 @@ private fun ArticleDetailPage(
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
     sourceNames: List<String>,
+    onOriginalClick: () -> Unit,
 ) {
     val hasCover = !coverImage.isNullOrBlank()
     val listState = rememberLazyListState()
@@ -396,7 +364,7 @@ private fun ArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             ArticleCoverImage(imagePath = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        ArticleMagazineHeader(article, sourceNames)
+        ArticleMagazineHeader(article, sourceNames, onOriginalClick)
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "summary-content") { ArticleDetailBody(article) }
         }
@@ -405,48 +373,78 @@ private fun ArticleDetailPage(
 
 @Composable
 private fun ArticleDetailBody(article: Article) {
-    Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
-        ArticleReaderBody(
-            content = articleDetailPageContent(
-                page = 0,
-                summary = article.ai_content,
-                original = article.ai_markdown_content,
-                storedOriginal = article.original_markdown_content,
-                originalImageUrls = listOfNotNull(article.cover_image_url),
-                isRemoteSnapshot = article.source_type == "remote_news",
-            ),
-            typography = MarkdownStyles.readingTypography(),
-            padding = MarkdownStyles.summaryPadding(),
-        )
-    }
+    val original = articleDetailPageContent(1, article.ai_content, article.ai_markdown_content,
+        article.original_markdown_content, listOfNotNull(article.cover_image_url))
+    val stored = article.reusableOriginalBody()
+    val summary = article.ai_content.takeUnless { !stored.isNullOrBlank() && analyzeArticleBody(stored).isShort }
+    ArticleReadingContent(summary, localReaderTranslation(article) ?: original)
 }
+
+private fun localReaderTranslation(article: Article): String? =
+    articleTranslationMarkdown(article.original_markdown_content, article.ai_markdown_content)
+        ?.takeUnless { it == article.ai_content?.trim() }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ArticleOriginalBottomSheet(article: Article, onDismiss: () -> Unit) {
-    val original = articleDetailPageContent(page = 1, summary = article.ai_content, original = article.ai_markdown_content,
-        storedOriginal = article.original_markdown_content, isRemoteSnapshot = article.source_type == "remote_news",
-        originalImageUrls = listOfNotNull(article.cover_image_url))
-    val translation = articleTranslationMarkdown(original, article.ai_markdown_content)
+private fun ArticleOriginalBottomSheet(
+    article: Article,
+    readerOriginal: String?,
+    translation: String?,
+    partialTranslation: Boolean,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val i18n = koinInject<I18nService>()
+    val clipboardMonitor = koinInject<ClipboardMonitorService>()
+    val original = readerOriginal ?: articleDetailPageContent(page = 1, summary = article.ai_content,
+        original = article.ai_markdown_content, storedOriginal = article.original_markdown_content,
+        isRemoteSnapshot = article.source_type == "remote_news", originalImageUrls = listOfNotNull(article.cover_image_url))
     var showTranslation by remember(article.id) { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        if (translation != null) {
-            Row(modifier = Modifier.padding(horizontal = Spacing.l), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                FilterChip(selected = !showTranslation, onClick = { showTranslation = false }, label = { Text("原文") })
-                FilterChip(selected = showTranslation, onClick = { showTranslation = true }, label = { Text("中文译文") })
+        LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.l)) {
+            item {
+                Text(
+                    i18n.t(if (showTranslation && translation != null) "article_ai.translation_title" else "article_ai.original_title"),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                article.url?.takeIf { it.isNotBlank() }?.let { url ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        TextButton(onClick = { copyArticleUrl(context, url, i18n, clipboardMonitor) }, modifier = Modifier.weight(1f)) {
+                            Text(i18n.t("article.copy_link"))
+                        }
+                        TextButton(onClick = { openArticleUrl(context, url) }, modifier = Modifier.weight(1f)) {
+                            Text(i18n.t("article.open_in_browser"))
+                        }
+                    }
+                }
+                if (translation != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        FilterChip(selected = !showTranslation, onClick = { showTranslation = false },
+                            label = { Text(i18n.t("article_ai.original_title")) })
+                        FilterChip(selected = showTranslation, onClick = { showTranslation = true },
+                            label = { Text(i18n.t("article_ai.translation_title")) })
+                    }
+                }
+            }
+            item {
+                if (showTranslation && partialTranslation) ReadingNote("translate_excerpt_note")
+                ArticleReaderBody(
+                    content = if (showTranslation && translation != null) translation else original,
+                    typography = MarkdownStyles.readingTypography(),
+                    padding = MarkdownStyles.readingPadding(),
+                )
             }
         }
-        Text(
-            if (showTranslation && translation != null) "中文译文" else "原文",
-            modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),
-            style = MaterialTheme.typography.titleLarge,
-        )
-        Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
-            ArticleReaderBody(
-                content = if (showTranslation && translation != null) translation else original,
-                typography = MarkdownStyles.readingTypography(),
-                padding = MarkdownStyles.readingPadding(),
-            )
+    }
+}
+
+@Composable
+internal fun ArticleOriginalLink(onClick: () -> Unit) {
+    val i18n = koinInject<I18nService>()
+    TextButton(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(i18n.t("article_ai.original"))
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(IconSize.xs))
         }
     }
 }
@@ -473,8 +471,7 @@ private fun rememberArticleDetailNestedScrollConnection(
 }
 
 @Composable
-private fun ArticleMagazineHeader(article: Article, sourceNames: List<String>) {
-    val context = LocalContext.current
+private fun ArticleMagazineHeader(article: Article, sourceNames: List<String>, onOriginalClick: () -> Unit) {
     val i18n = koinInject<I18nService>()
     ArticleReaderHeader(
         title = articleMagazineTitle(article),
@@ -482,7 +479,7 @@ private fun ArticleMagazineHeader(article: Article, sourceNames: List<String>) {
         sourceName = sourceNames.joinToString(" · ").ifBlank {
             extractDomain(article.url).takeIf { it != "文章详情" }.orEmpty()
         },
-        onSourceClick = article.url?.takeIf { it.isNotBlank() }?.let { url -> { openArticleUrl(context, url) } },
+        sourceAction = { ArticleOriginalLink(onOriginalClick) },
     )
 }
 
@@ -497,45 +494,37 @@ private fun ArticleRefreshConfirmDialog(isRemote: Boolean, onConfirm: () -> Unit
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text("刷新并重新处理？") },
-        text = { Text(if (isRemote) i18n.t("article_ai.refresh_note")
-            else "刷新会重新获取网页内容，并用 AI 重新生成摘要和译文；已有 AI 结果可能被覆盖。确定刷新吗？") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("刷新") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        title = { Text(i18n.t("article.refresh_title")) },
+        text = { Text(i18n.t(if (isRemote) "article_ai.refresh_note" else "article.refresh_note")) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(i18n.t("article.refresh_article")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(i18n.t("article_ai.cancel")) } },
     )
 }
 
 @Composable
 private fun ArticleDeleteConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val i18n = koinInject<I18nService>()
     ConfirmDialog(
-        title = articleDeleteDialogTitle(),
-        message = articleDeleteDialogMessage(),
+        title = i18n.t("article.delete_article"),
+        message = i18n.t("article.delete_article_note"),
         onConfirm = onConfirm,
         onDismiss = onDismiss,
     )
 }
 
-internal fun articleDeleteDialogTitle(): String = "删除文章"
+private fun canProcessLocalArticle(article: Article): Boolean {
+    val body = analyzeArticleBody(article.reusableOriginalBody())
+    val hasSummary = !article.ai_content.isNullOrBlank() &&
+        !com.dailysatori.service.parser.articleNeedsTranslation(article.ai_content.orEmpty())
+    val mode = body.automatic(hasSummary)
+    return mode?.summary == true || (mode?.translation == true && localReaderTranslation(article) == null)
+}
 
-internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
-
-internal fun articleCopyLinkMenuLabel(): String = "复制网页链接"
-
-internal fun articleCopyLinkClipLabel(): String = "网页链接"
-
-internal fun articleCopyLinkSuccessMessage(): String = "已复制网页链接"
-
-internal fun articleRefreshMenuLabel(): String = "刷新"
-
-internal fun articleAiProcessMenuLabel(): String = "AI 处理"
-
-internal fun hasProcessableArticleText(article: Article): Boolean =
-    !article.reusableOriginalBody().isNullOrBlank()
-
-private fun copyArticleUrl(context: Context, url: String) {
+private fun copyArticleUrl(context: Context, url: String, i18n: I18nService, monitor: ClipboardMonitorService) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText(articleCopyLinkClipLabel(), url))
-    Toast.makeText(context, articleCopyLinkSuccessMessage(), Toast.LENGTH_SHORT).show()
+    monitor.markProcessed(url)
+    clipboard.setPrimaryClip(ClipData.newPlainText(i18n.t("article.web_link"), url))
+    Toast.makeText(context, i18n.t("article.link_copied"), Toast.LENGTH_SHORT).show()
 }
 
 private fun extractDomain(url: String?): String = articleDisplayDomain(url)

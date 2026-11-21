@@ -17,7 +17,9 @@ import com.dailysatori.service.opportunity.ReadNewsArticle
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.shared.db.Article
 import kotlinx.datetime.Clock
+import com.dailysatori.service.i18n.I18nService
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 fun Article.toReadNewsArticle() = ReadNewsArticle(
     key = readNewsKey(url, "local:$id"), title = title.orEmpty(), content = original_markdown_content.orEmpty(),
@@ -33,8 +35,14 @@ fun RemoteArticle.toReadNewsArticle(sourceIdentity: String, localId: Long? = nul
 )
 
 @Composable
-internal fun markNewsReadAction(article: ReadNewsArticle, viewModel: MySpaceViewModel = koinViewModel()): PageAction? {
-    if (!article.hasReadableBody()) return null
+internal fun markNewsReadAction(
+    article: ReadNewsArticle,
+    viewModel: MySpaceViewModel = koinViewModel(),
+    reversible: Boolean = false,
+): PageAction? {
+    val readable = article.hasReadableBody()
+    if (!readable && !reversible) return null
+    val read = if (reversible) article.key in viewModel.state.collectAsStateWithLifecycle().value.readArticleKeys else false
     var saved by rememberSaveable(article.key, article.content) { mutableStateOf(false) }
     var saving by remember(article.key) { mutableStateOf(false) }
     val failed by viewModel.operationFailed.collectAsStateWithLifecycle()
@@ -47,11 +55,14 @@ internal fun markNewsReadAction(article: ReadNewsArticle, viewModel: MySpaceView
             android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    return PageAction(stringResource(if (saved) R.string.my_space_read_marked else R.string.my_space_read),
-        Icons.Outlined.CheckCircle, enabled = !saving && !saved) {
+    val label = if (reversible) koinInject<I18nService>().t(if (read) "article.mark_unread" else "article.mark_read")
+        else stringResource(if (saved) R.string.my_space_read_marked else R.string.my_space_read)
+    return PageAction(label, Icons.Outlined.CheckCircle, enabled = !saving && (read || (readable && (reversible || !saved)))) {
         saving = true
-        viewModel.markRead(article) {
-            saved = true; saving = false
+        if (read) viewModel.markUnread(article.key) { saving = false }
+        else viewModel.markRead(article) {
+            if (!reversible) saved = true
+            saving = false
             android.widget.Toast.makeText(context, success, android.widget.Toast.LENGTH_SHORT).show()
         }
     }

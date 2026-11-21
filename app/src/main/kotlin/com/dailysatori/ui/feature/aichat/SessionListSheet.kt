@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -172,7 +171,7 @@ private fun SessionRow(session: AssistantSessionSummary, current: Boolean, onSel
         }
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.size(Spacing.xxl)) {
-                Icon(Icons.Default.MoreHoriz, stringResource(R.string.assistant_manage_session), Modifier.size(IconSize.m))
+                Icon(MoreActionsIcon, stringResource(R.string.assistant_manage_session), Modifier.size(IconSize.l))
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.assistant_delete_session), color = MaterialTheme.colorScheme.error) },

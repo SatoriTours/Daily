@@ -54,8 +54,8 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     AppScaffold(title = i18n.t("sms.title"), onBack = onBack, pageActions = listOf(
-        PageAction(i18n.t("sms.sync_pending"), Icons.Default.MoreVert, enabled = !state.busy, onClick = viewModel::syncPending),
-        PageAction(i18n.t("sms.clear_blocked"), Icons.Default.MoreVert, enabled = !state.busy, onClick = viewModel::clearBlockedSenders),
+        PageAction(i18n.t("sms.sync_pending"), MoreActionsIcon, enabled = !state.busy, onClick = viewModel::syncPending),
+        PageAction(i18n.t("sms.clear_blocked"), MoreActionsIcon, enabled = !state.busy, onClick = viewModel::clearBlockedSenders),
     )) { modifier ->
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item {
@@ -162,7 +162,7 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
                 Text(record.source.sender.ifBlank { i18n.t("sms.local_candidate") }, Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, i18n.t("sms.more")) }
+                    IconButton(onClick = { menu = true }) { Icon(MoreActionsIcon, i18n.t("sms.more")) }
                     DropdownMenu(menu, onDismissRequest = { menu = false }) {
                         if (created || record.status in setOf(SmsSourceStatus.FAILED, SmsSourceStatus.LOCAL_ONLY))
                             DropdownMenuItem(text = { Text(i18n.t(if (created) "sms.reschedule" else "sms.retry")) }, enabled = !busy, onClick = { menu = false; onRetry() })

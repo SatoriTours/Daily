@@ -513,7 +513,7 @@
     <string name="assistant_background_blocked">请先在助手页开启云端授权；只能继续已暂停的历史任务。</string>
     <string name="assistant_open">打开 AI 助手</string>
     <string name="assistant_close">关闭助手</string>
-    <string name="assistant_more">更多操作</string>
+    <string name="assistant_more">助手更多操作</string>
     <string name="assistant_attach_page">引用当前页</string>
     <string name="assistant_memory">记忆管理</string>
     <string name="assistant_tasks">后台任务</string>

@@ -7,6 +7,7 @@ import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.data.repository.reusableOriginalBody
 import com.dailysatori.service.hotnews.HotNewsService
 import com.dailysatori.service.parser.articleNeedsTranslation
+import com.dailysatori.service.parser.hasMissingEnglishArticleTranslation
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Unified_news_source
 
@@ -55,7 +56,8 @@ class UnifiedNewsArticleQueue(
     private fun enqueueArticle(source: Unified_news_source, url: String?, existing: Article?, pending: MutableSet<Long>): Long? {
         if (existing?.source_type == "remote_news") return existing.id
         val untranslated = existing?.let {
-            articleNeedsTranslation(it.ai_content.orEmpty()) || articleNeedsTranslation(it.ai_markdown_content.orEmpty())
+            articleNeedsTranslation(it.ai_content.orEmpty()) || articleNeedsTranslation(it.ai_markdown_content.orEmpty()) ||
+                hasMissingEnglishArticleTranslation(it.original_markdown_content, it.ai_content, it.ai_markdown_content)
         } == true
         if (!untranslated && !existing?.ai_content.isNullOrBlank() && !existing?.ai_markdown_content.isNullOrBlank() && existing?.status == "completed") {
             return existing.id

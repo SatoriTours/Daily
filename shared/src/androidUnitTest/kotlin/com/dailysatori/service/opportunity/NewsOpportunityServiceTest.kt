@@ -77,6 +77,23 @@ class NewsOpportunityServiceTest {
     }
 
     @Test
+    fun markingUnreadPersistsWithoutRemovingAnalysis() = withFixture { fixture ->
+        val article = article()
+        fixture.service.markRead(article)
+        fixture.service.analyze()
+        val items = fixture.service.state.value.items
+        assertTrue(items.isNotEmpty())
+        assertEquals(setOf(article.key), fixture.service.state.value.readArticleKeys)
+
+        fixture.service.markUnread(article.key)
+        fixture.service.refresh()
+
+        assertEquals(0, fixture.service.state.value.readCount)
+        assertTrue(fixture.service.state.value.readArticleKeys.isEmpty())
+        assertEquals(items, fixture.service.state.value.items)
+    }
+
+    @Test
     fun sameCandidateAndReadArticleAreAnalyzedOnlyOnce() = withFixture(candidates = listOf(article(readAt = 0))) { fixture ->
         fixture.service.markRead(article())
         fixture.service.analyze()

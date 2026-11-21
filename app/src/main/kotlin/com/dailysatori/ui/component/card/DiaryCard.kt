@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatQuote
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -227,12 +226,12 @@ private fun DiaryCardHeader(
         }
         if (showDelete) {
             Box {
-                IconButton(onClick = { onMenuChange(true) }, modifier = Modifier.size(Height.buttonSmall)) {
+                IconButton(onClick = { onMenuChange(true) }, modifier = Modifier.size(Height.touchTarget)) {
                     Icon(
-                        Icons.Default.MoreHoriz,
+                        MoreActionsIcon,
                         contentDescription = "更多",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(IconSize.xs),
+                        modifier = Modifier.size(IconSize.l),
                     )
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { onMenuChange(false) }) {

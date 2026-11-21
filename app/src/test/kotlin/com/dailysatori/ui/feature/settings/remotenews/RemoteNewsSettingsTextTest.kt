@@ -241,7 +241,7 @@ class RemoteNewsSettingsTextTest {
         assertTrue(screen.contains("viewModel.updateBaseUrl(\"\")"))
         assertTrue(screen.contains("urlFocusRequester.requestFocus()"))
         assertTrue(screen.contains("keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done)"))
-        assertTrue(screen.contains("Icons.Default.MoreVert"))
+        assertTrue(screen.contains("MoreActionsIcon"))
         assertTrue(screen.contains("R.string.settings_delete_subscription"))
         assertTrue(screen.contains("if (state.editingId == null) emptyList()"))
         assertTrue(screen.contains("settings_delete_source_title"))

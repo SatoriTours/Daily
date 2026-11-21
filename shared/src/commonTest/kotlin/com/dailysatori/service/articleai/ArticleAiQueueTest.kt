@@ -59,9 +59,9 @@ class ArticleAiQueueTest {
         queue.pauseHistory()
         queue.manual(duplicate)
         tick()
-        assertEquals(listOf(ArticleAiMode.BOTH), requests.map { it.first })
+        assertEquals(listOf(ArticleAiMode.TRANSLATION), requests.map { it.first })
         assertNotNull(view(news).translation)
-        assertNotNull(view(duplicate).summary)
+        assertNull(view(duplicate).summary)
         tick()
         assertEquals(1, requests.size)
         queue.resumeHistory()
@@ -77,10 +77,10 @@ class ArticleAiQueueTest {
         assertTrue(requests.isEmpty())
         queue.manual(id)
         tick()
-        assertEquals(listOf(ArticleAiMode.BOTH), requests.map { it.first })
+        assertEquals(listOf(ArticleAiMode.TRANSLATION), requests.map { it.first })
         val result = view(id)
         assertEquals(ArticleBodyKind.PREVIEW, result.kind)
-        assertNotNull(result.summary)
+        assertNull(result.summary)
         assertNotNull(result.translation)
     }
 
@@ -95,6 +95,28 @@ class ArticleAiQueueTest {
         queue.manual(id, redo = true)
         tick()
         assertEquals(2, requests.size, "刷新即使正文相同也要重新跑 AI")
+    }
+
+    @Test fun retranslationReplacesOnlyTranslationAndRetainsItAfterFailure() = withFixture {
+        val id = save("retranslate", "The library is open today. ".repeat(40))
+        queue.manual(id)
+        tick()
+        val started = view(id)
+        assertNotNull(started.translation)
+        translated = "重新生成的中文译文。"
+        queue.manual(id, ArticleAiMode.TRANSLATION, redo = true)
+        tick()
+        assertEquals(ArticleAiMode.TRANSLATION, requests.last().first)
+        assertEquals(started.summary, view(id).summary)
+        val replacement = assertNotNull(view(id).translation)
+        assertNotEquals(started.translation, replacement)
+        assertTrue(replacement.split("\n\n").all { it == translated })
+        beforeResponse = { error("fixture failure") }
+        queue.manual(id, ArticleAiMode.TRANSLATION, redo = true)
+        tick()
+        assertEquals("failed", view(id).jobState)
+        assertEquals(replacement, view(id).translation)
+        assertEquals(started.summary, view(id).summary)
     }
 
     @Test fun versionChangeWhileRemoteRunsFencesTheResult() = withFixture {
@@ -119,6 +141,21 @@ class ArticleAiQueueTest {
         assertNull(view(id).translation)
         save("another", "Original English news from yesterday.")
         assertNull(view(articles.getByUrl("https://example.com/another")!!.id).translation)
+    }
+
+    @Test fun englishParagraphAfterChineseIntroductionAutomaticallyGetsTranslationOnly() = withFixture {
+        val chinese = "这是市立图书馆的简体中文导读，内容概括了馆方长期提供的借阅和阅览服务。".repeat(6)
+        val english = "The library reopens on May 13. The children's room is on the second floor."
+        val id = save("bilingual", "$chinese\n\n$english", "市立图书馆即将重新开放。")
+        queue.onNewBody(articles.getById(id)!!)
+        tick()
+        assertEquals(ArticleAiMode.TRANSLATION, requests.single().first)
+        assertEquals("市立图书馆即将重新开放。", view(id).summary)
+        assertEquals("中文翻译", view(id).translation)
+        assertTrue(view(id).original.orEmpty().endsWith(english))
+        queue.onNewBody(articles.getById(id)!!)
+        tick()
+        assertEquals(1, requests.size)
     }
 
     @Test fun verifiedUpstreamOnlyRequestsTranslationAndFailedRedoKeepsIt() = withFixture {
@@ -191,17 +228,19 @@ class ArticleAiQueueTest {
         assertEquals(1, requests.size)
     }
 
-    @Test fun overBudgetBodyRetainsFullOriginalAndPersistsBothPartialLabels() = withFixture {
+    @Test fun overBudgetBodyTranslatesEverySectionBeforePublishing() = withFixture {
         val body = "A complete sentence in a long article. ".repeat(600).trim()
         val id = save("oversize", body)
         queue.manual(id, ArticleAiMode.BOTH, redo = true)
         tick()
-        val input = requests.single().second
-        assertTrue(input.partial && body.startsWith(input.body) && input.body.endsWith('.'))
+        val translated = requests.filter { it.first.translation }.map { it.second }
+        assertTrue(translated.size > 1)
+        assertEquals(body, translated.joinToString(" ") { it.body })
         val result = view(id)
         assertEquals(body, result.original)
-        assertTrue(result.summaryPartial)
-        assertTrue(result.translationPartial)
+        assertFalse(result.summaryPartial)
+        assertFalse(result.translationPartial)
+        assertEquals(translated.size, result.translation.orEmpty().split("\n\n").size)
     }
 
     @Test fun requiresStopAndAllFieldsAndKeepsUnknownUsageNull() {
@@ -233,13 +272,14 @@ class ArticleAiQueueTest {
         private val repo = ArticleAiRepository(db, settings)
         val requests = mutableListOf<Pair<ArticleAiMode, ArticleAiInput>>()
         var beforeResponse: suspend () -> Unit = {}
+        var translated = "中文翻译"
         var clock = 100L
         private val remote = object : ArticleAiRemote {
             override fun config() = Ai_config(1, "openai", "https://example.com", "fixture", "test", 1, 0, 0)
             override suspend fun request(config: Ai_config, mode: ArticleAiMode, input: ArticleAiInput): ArticleAiOutput {
                 requests += mode to input
                 beforeResponse()
-                return ArticleAiOutput("中文摘要".takeIf { mode.summary }, "中文翻译".takeIf { mode.translation },
+                return ArticleAiOutput("中文摘要".takeIf { mode.summary }, translated.takeIf { mode.translation },
                     ArticleAiUsage(20, 10, null))
             }
         }

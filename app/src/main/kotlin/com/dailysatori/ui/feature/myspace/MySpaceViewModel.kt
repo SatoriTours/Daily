@@ -70,6 +70,10 @@ class MySpaceViewModel(
         service.markRead(article)
         withContext(Dispatchers.Main) { onSaved() }
     }
+    fun markUnread(key: String, onSaved: () -> Unit) = mutate {
+        service.markUnread(key)
+        withContext(Dispatchers.Main) { onSaved() }
+    }
     fun linkReminder(id: String, reminderId: String, onSaved: () -> Unit) = mutate {
         service.linkReminder(id, reminderId)
         withContext(Dispatchers.Main) { onSaved() }

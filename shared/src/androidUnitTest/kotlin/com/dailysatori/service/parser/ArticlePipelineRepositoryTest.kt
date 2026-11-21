@@ -146,6 +146,74 @@ class ArticlePipelineRepositoryTest {
         }
     }
 
+    @Test fun englishBodyIsTranslatedOnSaveAndLegacySummaryIsKeptDuringBackfill() = runBlocking {
+        withArticle { db, articles, id, _ ->
+            val body = "The city library reopens on May 13.\n\nThe children's room is on the second floor."
+            val translation = "市立图书馆将于五月十三日重新开放。\n\n儿童阅览室位于二楼。"
+            val calls = java.util.concurrent.ConcurrentLinkedQueue<String>()
+            var translationResponse = translation
+            HttpClient(MockEngine {
+                if (it.body.toByteArray().decodeToString().contains("忠实翻译")) {
+                    calls.add("translation")
+                    if (translationResponse.isBlank()) respondCompletion("invalid json")
+                    else respondCompletion(buildJsonObject { put("complete", true); put("markdown", translationResponse) }.toString())
+                } else {
+                    calls.add("overview")
+                    respondOverview("市立图书馆", "图书馆即将重新开放。")
+                }
+            }).use { client ->
+                val service = parser(db, client)
+                articles.updateOriginalMarkdownContent(id, body)
+                service.saveWebpage("https://example.com/article", null, "市立图书馆", null)
+                val saved = assertNotNull(articles.getById(id))
+                assertEquals(body, saved.original_markdown_content)
+                assertEquals(translation, saved.ai_markdown_content)
+                assertNull(saved.ai_content)
+                assertEquals(listOf("translation"), calls.toList())
+
+                val legacy = articles.insert(title = "Historical library notice", url = "https://example.com/historical",
+                    aiContent = "图书馆将在五月重新开放。", aiMarkdownContent = "图书馆将在五月重新开放。", status = "completed")
+                articles.updateOriginalMarkdownContent(legacy, body)
+                calls.clear()
+                service.reprocessArticle(legacy)
+                val repaired = assertNotNull(articles.getById(legacy))
+                assertEquals("completed", repaired.status)
+                assertEquals("图书馆将在五月重新开放。", repaired.ai_content)
+                assertEquals(body, repaired.original_markdown_content)
+                assertEquals(translation, articleTranslationMarkdown(body, repaired.ai_markdown_content))
+                assertEquals(listOf("translation"), calls.toList())
+                service.reprocessArticle(legacy)
+                assertEquals(listOf("translation"), calls.toList())
+
+                translationResponse = "市立图书馆将于五月十三日恢复开放。儿童阅览室设在二层。"
+                service.reprocessArticle(legacy, retranslate = true)
+                val replacement = translationResponse
+                assertEquals(replacement, articles.getById(legacy)?.ai_markdown_content)
+                translationResponse = ""
+                assertFailsWith<ArticleAiProcessingException> { service.reprocessArticle(legacy, retranslate = true) }
+                val failed = assertNotNull(articles.getById(legacy))
+                assertEquals(replacement, failed.ai_markdown_content)
+                assertEquals(repaired.ai_content, failed.ai_content)
+                assertEquals(body, failed.original_markdown_content)
+                assertEquals(List(3) { "translation" }, calls.toList())
+            }
+        }
+    }
+
+    @Test fun shortChineseBodyNeedsNoAiAndKeepsFullText() = runBlocking {
+        withArticle { db, articles, id, _ ->
+            val body = "市立图书馆将于五月十三日重新开放，现有借书证继续有效。"
+            articles.updateOriginalMarkdownContent(id, body)
+            HttpClient(MockEngine { error("Short Chinese does not need payment") }).use { client ->
+                parser(db, client).saveWebpage("https://example.com/article", null, "English title", null)
+                val saved = assertNotNull(articles.getById(id))
+                assertEquals("completed", saved.status)
+                assertNull(saved.ai_content)
+                assertEquals(body, saved.ai_markdown_content)
+            }
+        }
+    }
+
     @Test fun aiFailureKeepsOriginalAndDoesNotPretendToBeCompleted() = runBlocking {
         withArticle { db, articles, id, original ->
             HttpClient(MockEngine { respondCompletion("invalid json") }).use { client ->

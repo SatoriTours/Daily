@@ -29,7 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreHoriz
+import com.dailysatori.ui.theme.MoreActionsIcon
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
@@ -254,7 +254,7 @@ fun AiChatScreen(
                         }
                         Box {
                             IconButton(onClick = { showMore = true }) {
-                                Icon(Icons.Default.MoreHoriz, stringResource(R.string.assistant_more))
+                                Icon(MoreActionsIcon, stringResource(R.string.assistant_more))
                             }
                             DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
                                 DropdownMenuItem(text = { Text(stringResource(R.string.assistant_attach_page)) },

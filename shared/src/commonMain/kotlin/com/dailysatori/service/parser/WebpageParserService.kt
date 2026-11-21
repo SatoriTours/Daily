@@ -1,5 +1,7 @@
 package com.dailysatori.service.parser
 
+import com.dailysatori.service.articleai.analyzeArticleBody
+
 import com.dailysatori.data.repository.reusableOriginalBody
 
 import co.touchlab.kermit.Logger
@@ -10,7 +12,6 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ImageRepository
-import com.dailysatori.data.repository.needsChineseReprocessing
 import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.REMOTE_PROCESSING_STALE
 import com.dailysatori.data.repository.TagRepository
@@ -864,8 +865,9 @@ class WebpageParserService(
         extracted: ExtractedContent? = null,
         retryOnFailure: Boolean = false,
         forceAi: Boolean = false,
+        retranslate: Boolean = false,
     ) = DiagnosticLog.diagnostics.operation(DiagnosticSource.PARSER) {
-        processAiTasksRecorded(articleId, extracted, retryOnFailure, forceAi)
+        processAiTasksRecorded(articleId, extracted, retryOnFailure, forceAi, retranslate)
     }
 
     private suspend fun processAiTasksRecorded(
@@ -873,6 +875,7 @@ class WebpageParserService(
         extracted: ExtractedContent?,
         retryOnFailure: Boolean,
         forceAi: Boolean,
+        retranslate: Boolean,
     ) {
         val article = articleRepo.getById(articleId) ?: return
         try {
@@ -882,34 +885,19 @@ class WebpageParserService(
             setProcessingState(articleId, "webContentFetched", "Original saved")
             articleRepo.updateStatus(articleId, "aiProcessing")
             scheduleCover(articleId)
-            val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
-            if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
-                throw IllegalStateException("AI config not set")
+            val body = analyzeArticleBody(original)
+            val sameOriginal = sourceSnapshot == article.original_markdown_content
+            val usableSummary = !forceAi && sameOriginal &&
+                existingSummaryOrNull(article.ai_content)?.let { !articleNeedsTranslation(it) } == true
+            val plan = body.automatic(usableSummary)
+            val needsSummary = !retranslate && plan?.summary == true
+            val needsTranslation = retranslate || (plan?.translation == true &&
+                (forceAi || !sameOriginal || hasMissingEnglishArticleTranslation(original, article.ai_content, article.ai_markdown_content)))
+            if (!retranslate && plan?.translation != true) {
+                articleRepo.updateMarkdownIfOriginalMatches(articleId, sourceSnapshot, original)
             }
-            val normalizedConfig = normalizeAiConfigValues(
-                apiAddress = config.api_address,
-                apiToken = config.api_token,
-                modelName = config.model_name,
-                provider = config.provider,
-            )
-            aiProcessor.process(articleId, original, extracted?.title ?: article.title.orEmpty(), normalizedConfig,
-                onOverview = { overview ->
-                    ensureSourceCurrent(articleId, sourceSnapshot)
-                    articleRepo.updateOverviewIfOriginalMatches(articleId, sourceSnapshot, overview.title, overview.summary)
-                    ensureSourceCurrent(articleId, sourceSnapshot)
-                    setProcessingState(articleId, "aiProcessing", "Summary ready")
-                },
-                onMarkdown = { markdown ->
-                    ensureSourceCurrent(articleId, sourceSnapshot)
-                    articleRepo.updateMarkdownIfOriginalMatches(articleId, sourceSnapshot, markdown)
-                    ensureSourceCurrent(articleId, sourceSnapshot)
-                    setProcessingState(articleId, "aiProcessing", "Content ready")
-                },
-                onProgress = { setProcessingState(articleId, "aiProcessing", it) },
-                ensureCurrent = { ensureSourceCurrent(articleId, sourceSnapshot) },
-                sourceUrl = article.url.orEmpty(),
-                force = forceAi,
-            )
+            if (needsSummary || needsTranslation) runArticleAi(article, extracted, sourceSnapshot, original,
+                needsSummary, needsTranslation, forceAi || retranslate)
             ensureSourceCurrent(articleId, sourceSnapshot)
             articleRepo.updateStatusIfOriginalMatches(articleId, sourceSnapshot, "completed")
             ensureSourceCurrent(articleId, sourceSnapshot)
@@ -920,6 +908,44 @@ class WebpageParserService(
             if (recordProcessingFailure(articleId, e, retryOnFailure)) return
             throw e
         }
+    }
+
+    private suspend fun runArticleAi(
+        article: Article, extracted: ExtractedContent?, sourceSnapshot: String, original: String,
+        needsSummary: Boolean, needsTranslation: Boolean, forceAi: Boolean,
+    ) {
+        val articleId = article.id
+        val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
+        if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
+            throw IllegalStateException("AI config not set")
+        }
+        val normalizedConfig = normalizeAiConfigValues(
+            apiAddress = config.api_address,
+            apiToken = config.api_token,
+            modelName = config.model_name,
+            provider = config.provider,
+        )
+        aiProcessor.process(articleId, original, extracted?.title ?: article.title.orEmpty(), normalizedConfig,
+            onOverview = { overview ->
+                ensureSourceCurrent(articleId, sourceSnapshot)
+                articleRepo.updateOverviewIfOriginalMatches(articleId, sourceSnapshot, overview.title, overview.summary)
+                ensureSourceCurrent(articleId, sourceSnapshot)
+                setProcessingState(articleId, "aiProcessing", "Summary ready")
+            },
+            onMarkdown = { markdown ->
+                ensureSourceCurrent(articleId, sourceSnapshot)
+                articleRepo.updateMarkdownIfOriginalMatches(articleId, sourceSnapshot, markdown)
+                ensureSourceCurrent(articleId, sourceSnapshot)
+                setProcessingState(articleId, "aiProcessing", "Content ready")
+            },
+            onProgress = { setProcessingState(articleId, "aiProcessing", it) },
+            ensureCurrent = { ensureSourceCurrent(articleId, sourceSnapshot) },
+            sourceUrl = article.url.orEmpty(),
+            force = forceAi,
+            keepOverview = !needsSummary,
+            keepMarkdown = !needsTranslation,
+            translate = needsTranslation,
+        )
     }
 
     private fun persistOriginal(article: Article, extracted: ExtractedContent?): String {
@@ -1225,7 +1251,7 @@ class WebpageParserService(
         }
     }
 
-    suspend fun reprocessArticle(articleId: Long) {
+    suspend fun reprocessArticle(articleId: Long, retranslate: Boolean = false) {
         awaitProcessingOwnership(articleId)
         try {
             val article = articleRepo.getById(articleId) ?: throw CancellationException("文章已删除")
@@ -1233,6 +1259,11 @@ class WebpageParserService(
                 ?: throw ArticleBodyMissingException()
             val extracted = existingArticleOriginalExtractedContent(article)?.copy(content = body)
                 ?: throw ArticleBodyMissingException()
+            val usableSummary = existingSummaryOrNull(article.ai_content)?.let { !articleNeedsTranslation(it) } == true
+            val missingTranslation = hasMissingEnglishArticleTranslation(body, article.ai_content, article.ai_markdown_content)
+            if (retranslate && (missingTranslation || articleTranslationMarkdown(body, article.ai_markdown_content) == null)) return
+            val plan = analyzeArticleBody(body).automatic(usableSummary)
+            if (!retranslate && article.status == "completed" && plan?.summary != true && !missingTranslation) return
             val expectedSourceHash = remoteArticleSyncRepo?.findByArticleId(articleId)?.source_content_hash.orEmpty()
             remoteArticleSyncRepo?.markProcessing(articleId)
             articleRepo.update(
@@ -1243,13 +1274,12 @@ class WebpageParserService(
                 coverImageUrl = article.cover_image_url, pubDate = article.pub_date,
             )
             setProcessingState(articleId, "webContentFetched")
-            processAiTasks(articleId, extracted)
+            processAiTasks(articleId, extracted, retranslate = retranslate)
 
             val processed = articleRepo.getById(articleId) ?: throw IllegalStateException("Processed article disappeared")
-            val output = listOf(processed.ai_title, processed.ai_content, processed.ai_markdown_content)
-                .filterNotNull()
-                .joinToString("\n")
-            if (needsChineseReprocessing(output)) {
+            if ((plan?.summary == true && articleNeedsTranslation(processed.ai_content.orEmpty())) ||
+                ((retranslate || plan?.translation == true) &&
+                    hasMissingEnglishArticleTranslation(body, processed.ai_content, processed.ai_markdown_content))) {
                 articleRepo.updateStatus(articleId, "error")
                 setProcessingState(articleId, "error", "AI did not produce Chinese content")
                 throw IllegalStateException("文章整理未生成有效中文内容")

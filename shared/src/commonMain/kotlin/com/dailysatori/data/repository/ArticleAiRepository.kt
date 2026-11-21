@@ -69,7 +69,7 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
         return ArticleAiView(body.kind, body.language, body.units, summary?.markdown ?: upstream,
             translation?.markdown, summary?.partial == 1L, translation?.partial == 1L, summary == null && upstream != null,
             job?.state, job?.mode?.let(ArticleAiMode::valueOf), job?.code, settings.get(BLOCKED).orEmpty(),
-            article.reusableOriginalBody())
+            article.reusableOriginalBody(), body.isShort)
     }
 
     fun observe(id: Long, article: () -> Article?): Flow<ArticleAiView?> =
@@ -78,7 +78,7 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
     fun plan(article: Article): ArticleAiMode? {
         val body = input(article)
         val summary = hasSummary(article.id, body.hash)
-        val translation = result(body.hash, TRANSLATION) != null
+        val translation = result(body.hash, TRANSLATION)?.partial == 0L
         return when (body.automatic(summary)) {
             ArticleAiMode.BOTH -> if (translation) ArticleAiMode.SUMMARY else ArticleAiMode.BOTH
             ArticleAiMode.TRANSLATION -> ArticleAiMode.TRANSLATION.takeUnless { translation }
@@ -131,8 +131,7 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
     /** Requests both fields for a processed-on-demand snapshot, reusing any verified upstream summary. */
     private fun forcedMode(article: Article, body: ArticleBody): ArticleAiMode? {
         if (!body.manualProcessable()) return null
-        if (body.language != ArticleLanguage.FOREIGN) return ArticleAiMode.SUMMARY
-        return if (hasSummary(article.id, body.hash)) ArticleAiMode.TRANSLATION else ArticleAiMode.BOTH
+        return body.readingMode(hasSummary(article.id, body.hash))
     }
 
     fun historyCandidates(): List<Article> = q.articleAiHistory().executeAsList().asSequence()
@@ -174,14 +173,14 @@ class ArticleAiRepository(private val db: DailySatoriDatabase, private val setti
         if (jobs(hash).any { it.article_id == articleId && it.state == "succeeded" }) 0
         else listOf(SUMMARY, TRANSLATION).count { result(hash, it) != null }.toLong()
 
-    private fun hasSummary(id: Long, hash: String) = upstream(id, hash) != null || result(hash, SUMMARY) != null
+    private fun hasSummary(id: Long, hash: String) = upstream(id, hash) != null || result(hash, SUMMARY)?.partial == 0L
     private fun result(hash: String, kind: String) =
         q.articleAiResult(hash, kind, VERSION, TARGET).executeAsOneOrNull()
     private fun jobs(hash: String) = q.articleAiJobs(hash, VERSION, TARGET).executeAsList()
 
     private fun missing(id: Long, hash: String, mode: ArticleAiMode): ArticleAiMode? {
         val summary = mode.summary && !hasSummary(id, hash)
-        val translation = mode.translation && result(hash, TRANSLATION) == null
+        val translation = mode.translation && result(hash, TRANSLATION)?.partial != 0L
         return ArticleAiMode.entries.firstOrNull { it.summary == summary && it.translation == translation }
     }
 
@@ -217,4 +216,5 @@ data class ArticleAiView(
     val error: String?,
     val blocked: String,
     val original: String? = null,
+    val shortBody: Boolean = false,
 )

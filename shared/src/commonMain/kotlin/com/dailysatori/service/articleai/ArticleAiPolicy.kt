@@ -1,6 +1,7 @@
 package com.dailysatori.service.articleai
 
 import com.dailysatori.service.externalfavorites.sha256Hex
+import com.dailysatori.service.parser.articleNeedsTranslation
 
 enum class ArticleBodyKind { BODY, SOURCE_SUMMARY, PREVIEW, MISSING, ERROR_PAGE, UNVERIFIED }
 enum class ArticleLanguage { CHINESE, FOREIGN, UNCERTAIN }
@@ -15,10 +16,15 @@ data class ArticleBody(
     val language: ArticleLanguage = ArticleLanguage.UNCERTAIN,
     val units: Int = 0,
 ) {
-    fun automatic(hasSummary: Boolean): ArticleAiMode? = when {
-        kind != ArticleBodyKind.BODY -> null
-        language == ArticleLanguage.CHINESE && units > 100 && !hasSummary -> ArticleAiMode.SUMMARY
-        language == ArticleLanguage.FOREIGN -> if (hasSummary) ArticleAiMode.TRANSLATION else ArticleAiMode.BOTH
+    val isShort: Boolean get() = units <= if (language == ArticleLanguage.FOREIGN) 150 else 300
+
+    fun automatic(hasSummary: Boolean): ArticleAiMode? =
+        if (kind == ArticleBodyKind.BODY) readingMode(hasSummary) else null
+
+    fun readingMode(hasSummary: Boolean): ArticleAiMode? = when {
+        language == ArticleLanguage.CHINESE && !isShort && !hasSummary -> ArticleAiMode.SUMMARY
+        language == ArticleLanguage.FOREIGN && !isShort && !hasSummary -> ArticleAiMode.BOTH
+        language == ArticleLanguage.FOREIGN -> ArticleAiMode.TRANSLATION
         else -> null
     }
 }
@@ -69,6 +75,7 @@ fun analyzeArticleBody(
             otherLetters <= chinese * 3 -> ArticleLanguage.FOREIGN
         other.isEmpty() && (japanese > 0 || korean > 0 ||
             chinese <= 20 && ambiguousHanEvidence.containsMatchIn(prose)) -> ArticleLanguage.UNCERTAIN
+        chinese > 0 && articleNeedsTranslation(body) -> ArticleLanguage.FOREIGN
         chinese > 0 && (other.isEmpty() || chinese * 3 >= otherLetters && chinese >= other.size * 2) -> ArticleLanguage.CHINESE
         other.isNotEmpty() && (chinese == 0 || otherLetters >= chinese * 5) -> ArticleLanguage.FOREIGN
         else -> ArticleLanguage.UNCERTAIN
@@ -116,6 +123,23 @@ fun articleAiInput(body: String, mode: ArticleAiMode, limits: ArticleModelLimits
     val prefix = if (tokens <= limit) body else completeArticlePrefix(body, limit) ?: return null
     val used = articleTokenEstimate(prefix)
     return ArticleAiInput(prefix, tokens > limit, used, fixed + if (mode.translation) used * 2 else 0)
+}
+
+/** Partition an over-budget document without treating a valid prefix as a full translation. */
+internal fun articleReadingInputs(
+    body: String,
+    mode: ArticleAiMode,
+    limits: ArticleModelLimits,
+): List<Pair<ArticleAiMode, ArticleAiInput>>? {
+    articleAiInput(body, mode, limits)?.takeUnless { it.partial }?.let { return listOf(mode to it) }
+    val inputs = mutableListOf<Pair<ArticleAiMode, ArticleAiInput>>()
+    var rest = body
+    while (rest.isNotBlank()) {
+        val part = articleAiInput(rest, mode, limits) ?: return null
+        inputs += mode to part.copy(partial = false)
+        rest = rest.substring(part.body.length).trimStart()
+    }
+    return inputs.takeIf { it.isNotEmpty() }
 }
 
 private fun completeArticlePrefix(body: String, limit: Int): String? {

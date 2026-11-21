@@ -1,5 +1,8 @@
 package com.dailysatori.service.parser
 
+import com.dailysatori.service.articleai.ArticleLanguage
+import com.dailysatori.service.articleai.analyzeArticleBody
+
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.ai.AiPurpose
@@ -77,6 +80,9 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         ensureCurrent: () -> Unit = {},
         sourceUrl: String = "",
         force: Boolean = false,
+        keepOverview: Boolean = false,
+        keepMarkdown: Boolean = false,
+        translate: Boolean = articleNeedsTranslation(original),
     ) = com.dailysatori.service.ai.withAiRequestSession {
         if (original.isBlank()) throw ArticleBodyMissingException()
         val fingerprint = sha256Hex("article-v4-brief\n$original\n$title\n$sourceUrl\n${config.apiAddress}\n${config.provider}\n${config.modelName}")
@@ -84,7 +90,7 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         val session = ArticleAiSession(settings, "article.ai.v3:$articleId", fingerprint, ensureCurrent, force)
         val failures = supervisorScope {
             val overview = async {
-                articleStage("overview") {
+                if (keepOverview) true else articleStage("overview") {
                     onProgress("Generating summary")
                     val result = session.overview()?.takeIf(::isUsableChineseOverview) ?: generateOverview(original, title, sourceUrl, config,
                         cached = session::summary, save = session::saveSummary).also { session.saveOverview(it) }
@@ -92,8 +98,8 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
                 }
             }
             val translation = async {
-                articleStage("translation") {
-                    val markdown = if (articleNeedsTranslation(original)) {
+                if (keepMarkdown) true else articleStage("translation") {
+                    val markdown = if (translate) {
                         onProgress("Translating article")
                         translateArticle(original, config, cached = session::translation, save = session::saveTranslation)
                     } else original
@@ -135,7 +141,8 @@ internal class ArticleAiProcessor(private val ai: AiService, private val setting
         cached: suspend (String) -> String?, save: suspend (String, String) -> Unit,
     ): String = splitArticleTranslationChunks(original).mapConcurrently(2) { chunk ->
             cached(chunk)?.takeIf { it.isNotBlank() && !articleNeedsTranslation(it) }
-                ?: (if (articleNeedsTranslation(chunk)) translateChunk(chunk, config) else chunk)
+                ?: (if (articleNeedsTranslation(chunk) || analyzeArticleBody(chunk).language == ArticleLanguage.FOREIGN)
+                    translateChunk(chunk, config) else chunk)
                 .also { save(chunk, it) }
         }.joinToString("\n\n")
 
@@ -237,7 +244,17 @@ private val EnglishProseWord = Regex("\\b[A-Za-z]{2,}\\b")
 
 fun articleTranslationMarkdown(original: String?, translated: String?): String? =
     translated?.trim()?.takeIf { it.isNotBlank() && !original.isNullOrBlank() &&
-        it != original.trim() && articleNeedsTranslation(original) && !articleNeedsTranslation(it) }
+        it != original.trim() && (articleNeedsTranslation(original) ||
+            analyzeArticleBody(original).language == ArticleLanguage.FOREIGN) &&
+        chineseProse.containsMatchIn(protectedArticleSyntax.replace(it, "")) && !articleNeedsTranslation(it) }
+
+private val chineseProse = Regex("[\\p{IsHan}]")
+
+/** A Chinese title or a summary copied into the processed body does not make a translation. */
+fun hasMissingEnglishArticleTranslation(original: String?, summary: String?, processedBody: String?): Boolean =
+    !original.isNullOrBlank() && (articleNeedsTranslation(original) ||
+        analyzeArticleBody(original).language == ArticleLanguage.FOREIGN) &&
+        (processedBody?.trim() == summary?.trim() || articleTranslationMarkdown(original, processedBody) == null)
 
 internal data class ProtectedArticleMarkdown(val text: String, val values: List<Pair<String, String>>) {
     fun restore(translated: String): String = values.fold(translated) { text, (marker, value) ->

@@ -16,7 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreVert
+import com.dailysatori.ui.theme.MoreActionsIcon
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,12 +54,15 @@ import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
 import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.feature.article.ArticleAiReader
+import com.dailysatori.ui.feature.article.canRequestReading
+import com.dailysatori.service.articleai.ArticleAiMode
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Translate
 import com.dailysatori.ui.feature.article.ArticleAiReaderViewModel
-import com.dailysatori.ui.feature.article.ArticleAiMenu
-import com.dailysatori.ui.feature.article.ArticleAiRedoDialog
-import com.dailysatori.ui.feature.article.rememberArticleReaderSelection
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.service.i18n.I18nService
+import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import com.dailysatori.ui.theme.MarkdownStyles
@@ -89,15 +92,18 @@ fun RemoteArticleDetailScreen(
     val aiViewModel: ArticleAiReaderViewModel? = if (localArticleId != null)
         koinViewModel(key = "ai-reader:$localArticleId") { parametersOf(localArticleId) } else null
     val ai = aiViewModel?.view?.collectAsStateWithLifecycle()?.value
-    val selection = if (ai != null && localArticleId != null) rememberArticleReaderSelection(localArticleId, ai) else null
-    var force by remember { mutableStateOf<com.dailysatori.service.articleai.ArticleAiMode?>(null) }
+    val busy = ai?.jobState in setOf("queued", "running")
+    val i18n = koinInject<I18nService>()
 
     BackHandler(onBack = onBack)
 
     AppScaffold(
         title = "",
         onBack = onBack,
-        pageActions = listOf(RemoteArticleDetailActions(
+        pageActions = listOfNotNull(
+            ai?.let { PageAction(i18n.t("article_ai.smart_reading"), Icons.Default.AutoStories,
+                enabled = !busy && it.canRequestReading(), alwaysVisible = true) { aiViewModel?.request() } },
+            RemoteArticleDetailActions(
                 article = article,
                 sourceIdentity = sourceIdentity,
                 localArticleId = localArticleId,
@@ -105,15 +111,16 @@ fun RemoteArticleDetailScreen(
                 showFavoriteAction = showFavoriteAction,
                 onOriginalClick = { showOriginalSheet = true },
                 onFavoriteClick = onFavoriteClick,
-                aiMenu = if (ai != null) { dismiss -> ArticleAiMenu(ai, selection, dismiss) { force = it } } else null,
+                onRetranslate = if (!busy && ai?.translation != null && !ai.original.isNullOrBlank())
+                    ({ aiViewModel?.request(ArticleAiMode.TRANSLATION, redo = true) }) else null,
             )),
     ) { modifier ->
-        if (ai != null && selection != null && aiViewModel != null) {
-            ArticleAiReader(ai, selection, remoteArticleDisplayTitle(article), remoteArticleMetaChips(article),
+        if (ai != null) {
+            ArticleAiReader(ai, remoteArticleDisplayTitle(article), remoteArticleMetaChips(article),
                 sourceName ?: article.feedName ?: article.domain ?: sourceIdentity,
                 if (article.content.isNullOrBlank()) remoteArticleDetailPageContent(0, article.summary, article.viewpoints, null)
                 else remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),
-                modifier, request = { aiViewModel.request(it) })
+                modifier, onOriginalClick = { showOriginalSheet = true })
         } else Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleDetailPager(
                 article = article,
@@ -124,8 +131,6 @@ fun RemoteArticleDetailScreen(
             )
         }
     }
-    ArticleAiRedoDialog(force, { force = null }) { aiViewModel?.request(it, redo = true) }
-
     if (showOriginalSheet) {
         RemoteArticleOriginalBottomSheet(article = article, onDismiss = { showOriginalSheet = false })
     }
@@ -140,15 +145,21 @@ private fun RemoteArticleDetailActions(
     showFavoriteAction: Boolean,
     onOriginalClick: () -> Unit,
     onFavoriteClick: () -> Unit,
-    aiMenu: (@Composable (() -> Unit) -> Unit)? = null,
+    onRetranslate: (() -> Unit)? = null,
 ): PageAction {
     val markRead = com.dailysatori.ui.feature.myspace.markNewsReadAction(article.toReadNewsArticle(sourceIdentity, localArticleId))
-    return PageAction("更多操作", Icons.Default.MoreVert, menuContent = { dismiss ->
+    val i18n = koinInject<I18nService>()
+    return PageAction(i18n.t("article.more_actions"), MoreActionsIcon, alwaysVisible = true, menuContent = { dismiss ->
         val closeMenu: (Boolean) -> Unit = { dismiss() }
         com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
-        if (aiMenu == null) RemoteArticleOriginalMenuItem(closeMenu, onOriginalClick) else aiMenu(dismiss)
-            if (showFavoriteAction) RemoteArticleFavoriteMenuItem(isFavorite, closeMenu, onFavoriteClick)
-            RemoteArticleOpenMenuItem(article, closeMenu)
+        RemoteArticleOriginalMenuItem(closeMenu, onOriginalClick)
+        if (showFavoriteAction) RemoteArticleFavoriteMenuItem(isFavorite, closeMenu, onFavoriteClick)
+        if (onRetranslate != null) DropdownMenuItem(
+            text = { Text(i18n.t("article.retranslate")) },
+            leadingIcon = { Icon(Icons.Default.Translate, null) },
+            onClick = { dismiss(); onRetranslate() },
+        )
+        RemoteArticleOpenMenuItem(article, closeMenu)
     }) {}
 }
 
