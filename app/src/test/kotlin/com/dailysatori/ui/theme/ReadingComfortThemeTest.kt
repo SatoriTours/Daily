@@ -23,15 +23,29 @@ class ReadingComfortThemeTest {
     @Test
     fun detailScreensUseComfortableReadingMargins() {
         val article = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val reader = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleAiReader.kt").readText()
         val remoteArticle = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
         val remoteDigest = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteDigestDetailScreen.kt").readText()
         val crayfish = File("src/main/kotlin/com/dailysatori/ui/feature/crayfishnews/CrayfishNewsDetailScreen.kt").readText()
-        val articleContentItem = article.substringAfter("item(key = \"content-\$page\")").substringBefore("MarkdownContent(")
-        val remoteArticleContentItem = remoteArticle.substringAfter("item(key = \"remote-content-\$page\")").substringBefore("RemoteArticleMarkdownContent(")
+        assertTrue(article.contains("ArticleReadingContent(summary,"))
+        assertTrue(remoteArticle.contains("ArticleAiReader(ai,"))
+        val readingContent = reader.section("internal fun ArticleReadingContent(", "internal fun ReadingNote(")
+        val remotePreview = remoteArticle.section("private fun RemoteArticleDetailBody(", "private fun RemoteArticleOriginalBottomSheet(")
 
-        assertTrue(articleContentItem.contains("horizontal = Spacing.l, vertical = Spacing.s"))
-        assertTrue(remoteArticleContentItem.contains("horizontal = Spacing.l, vertical = Spacing.s"))
+        assertTrue(readingContent.contains("horizontal = Spacing.l, vertical = Spacing.s"))
+        assertTrue(readingContent.contains("padding = MarkdownStyles.summaryPadding()"))
+        assertTrue(readingContent.section("ArticleReaderBody(body,", "padding = MarkdownStyles.readingPadding())")
+            .contains("typography = MarkdownStyles.readingTypography()"))
+        assertTrue(remotePreview.contains("horizontal = Spacing.l, vertical = Spacing.s"))
+        assertTrue(remotePreview.contains("padding = MarkdownStyles.remoteArticlePadding()"))
         assertTrue(remoteDigest.contains("contentPadding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.m)"))
         assertTrue(crayfish.contains("contentPadding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.m)"))
+    }
+
+    private fun String.section(start: String, end: String): String {
+        assertTrue(contains(start), "Missing start anchor: $start")
+        val section = substringAfter(start)
+        assertTrue(section.contains(end), "Missing end anchor after $start: $end")
+        return section.substringBefore(end)
     }
 }

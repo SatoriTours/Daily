@@ -70,8 +70,11 @@ class MainContentRhythmTest {
         assertTrue(diaryBody.contains("Modifier.padding(Spacing.m)") ||
             diaryContent.contains(".padding(horizontal = Spacing.m)"), "Diary content uses shared horizontal spacing")
         assertTrue(diaryBody.contains("hasOverflow || expanded") && diaryBody.contains("expanded = !expanded"))
-        assertTrue(diary.contains("Icons.Default.MoreHoriz"))
-        assertFalse(diary.contains("Icons.Default.MoreVert"))
+        val diaryMenu = diary.extractBetween("IconButton(onClick = { onMenuChange(true) }", "DropdownMenu(expanded = menuExpanded")
+        assertTrue(diaryMenu.contains("MoreActionsIcon"))
+        assertTrue(diaryMenu.contains("Modifier.size(Height.touchTarget)"))
+        assertTrue(diaryMenu.contains("Modifier.size(IconSize.l)"))
+        assertFalse(diaryMenu.contains("Icons.Default.MoreHoriz") || diaryMenu.contains("Icons.Default.MoreVert"))
         assertTrue(diaryScreen.contains("AppScaffold("))
         assertTrue(diaryScreen.contains("isMainPage = true"))
         assertFalse(diaryScreen.contains("onMyNavigationClick = onMyClick"))

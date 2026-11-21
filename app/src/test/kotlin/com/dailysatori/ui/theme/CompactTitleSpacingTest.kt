@@ -21,21 +21,21 @@ class CompactTitleSpacingTest {
     @Test
     fun localArticleDetailUsesCompactFirstBodyPadding() {
         val source = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt")
-        val firstBodyWrapper = source.substringBetween(
-            start = "item(key = \"content-\$page\")",
-            end = "MarkdownContent(",
-        )
+        val reader = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/article/ArticleAiReader.kt")
+        assertTrue(source.substringBetween("private fun ArticleDetailBody(", "private fun localReaderTranslation(")
+            .contains("ArticleReadingContent(summary,"))
+        val firstBodyWrapper = reader.substringBetween("internal fun ArticleReadingContent(", "if (distinctSummary != null)")
 
-        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s))"))
-        assertFalse(firstBodyWrapper.contains("Box(modifier = Modifier.padding(Spacing.m))"))
+        assertTrue(firstBodyWrapper.contains("Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)"))
+        assertFalse(firstBodyWrapper.contains("Modifier.padding(Spacing.m)"))
     }
 
     @Test
     fun remoteArticleDetailUsesCompactFirstBodyPadding() {
         val source = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt")
         val firstBodyWrapper = source.substringBetween(
-            start = "item(key = \"remote-content-\$page\")",
-            end = "RemoteArticleMarkdownContent(",
+            start = "private fun RemoteArticleDetailBody(",
+            end = "ArticleReaderBody(",
         )
 
         assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s))"))
@@ -48,5 +48,9 @@ private fun readProjectFile(path: String): String =
         ?: java.io.File(path.removePrefix("app/")))
         .readText()
 
-private fun String.substringBetween(start: String, end: String): String =
-    substringAfter(start).substringBefore(end)
+private fun String.substringBetween(start: String, end: String): String {
+    assertTrue(contains(start), "Missing start anchor: $start")
+    val section = substringAfter(start)
+    assertTrue(section.contains(end), "Missing end anchor after $start: $end")
+    return section.substringBefore(end)
+}

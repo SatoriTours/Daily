@@ -247,8 +247,8 @@ class AppUrlIntakeTest {
         val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
         val refresh = source.substringAfter("suspend fun refreshArticle(")
             .substringBefore("suspend fun refreshArticleWithXApi")
-        val reprocess = source.substringAfter("suspend fun reprocessArticle")
-            .substringBefore("private companion object")
+        val reprocess = source.substringAfter("suspend fun reprocessArticle(")
+            .substringBefore("private fun findExistingArticleByUrl(")
         val queue = source.substringAfter("private fun drainProcessingQueue")
             .substringBefore("private fun setProcessingState")
 
@@ -267,8 +267,11 @@ class AppUrlIntakeTest {
         assertTrue(queue.contains("if (refresh) null else existingArticleOriginalExtractedContent(article)"))
         assertTrue(queue.contains("processAiTasks(articleId, extracted, forceAi = refresh)"))
         assertTrue(queue.contains("article.url?.let { extractContent(it) }"))
-        assertTrue(reprocess.contains("val extracted = existingArticleOriginalExtractedContent(article)"))
-        assertTrue(reprocess.contains("processAiTasks(articleId, extracted)"))
+        // 普通补处理和重译都必须使用数据库中的同一份原文，不能回退到抓取。
+        assertTrue(reprocess.contains("val body = article.reusableOriginalBody()"))
+        assertTrue(reprocess.contains("val extracted = existingArticleOriginalExtractedContent(article)?.copy(content = body)"))
+        assertFalse(reprocess.contains("extractContent("))
+        assertTrue(reprocess.contains("processAiTasks(articleId, extracted, retranslate = retranslate)"))
     }
 
 
