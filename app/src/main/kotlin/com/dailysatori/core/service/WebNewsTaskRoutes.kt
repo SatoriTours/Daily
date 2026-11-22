@@ -93,7 +93,7 @@ internal fun Route.setupNewsRoutes(enqueue: (Long) -> Unit) {
     }
 }
 
-internal fun Route.setupTaskRoutes(notifyTerminal: (Long) -> Unit) {
+internal fun Route.setupTaskRoutes(cancelTask: (Long) -> Unit) {
     route("/tasks") {
         get {
             val showTerminal = call.request.queryParameters["showTerminal"]?.toBooleanStrictOrNull() ?: true
@@ -123,8 +123,7 @@ internal fun Route.setupTaskRoutes(notifyTerminal: (Long) -> Unit) {
                 call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
                 return@post
             }
-            repo.cancel(id)
-            notifyTerminal(id)
+            cancelTask(id)
             call.respondText(respondOk(), ContentType.Application.Json)
         }
     }

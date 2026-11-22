@@ -21,19 +21,6 @@ class ExternalFavoriteSyncTaskSourceTest {
     }
 
     @Test
-    fun schedulerEnqueuesManualSyncIntoAsyncTaskFramework() {
-        val source = File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
-
-        assertTrue(source.contains("AsyncTaskType.external_favorite_sync.name"))
-        assertTrue(source.contains("externalFavoriteSyncTaskPayloadJson(sourceId, mode, automatic)"))
-        assertTrue(source.contains("\"external_favorite_sync:\$sourceId:\$mode\""))
-        assertTrue(source.contains("asyncTaskRepo.enqueueUniqueFamily("))
-        assertTrue(source.contains("ExistingWorkPolicy.APPEND_OR_REPLACE"))
-        assertTrue(source.contains("ExternalFavoriteQueueWorker"))
-        assertTrue(source.contains("runnableTasksByType"))
-    }
-
-    @Test
     fun settingsPageObservesManualSyncAsyncTaskState() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsViewModel.kt").readText()
 

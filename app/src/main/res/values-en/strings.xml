@@ -586,6 +586,12 @@
     <string name="task_center_detail_log">Diagnostic log</string>
     <string name="task_center_detail_log_empty">No log</string>
     <string name="task_center_detail_cancel">Cancel task</string>
+    <string name="task_center_bulk_cancel_title">Cancel all unfinished tasks</string>
+    <string name="task_center_bulk_cancel_message">Queued: %1$d · Running: %2$d · Retrying: %3$d\n\nThis includes tasks hidden by filters or not shown in the list. Only tasks counted here that are still unfinished will be cancelled. History, existing results, and future schedules will be kept.</string>
+    <string name="task_center_bulk_cancel_confirm">Confirm cancellation</string>
+    <string name="task_center_bulk_cancel_back">Go back</string>
+    <string name="task_center_bulk_cancel_empty">There are no unfinished tasks right now.</string>
+    <string name="task_center_bulk_cancel_failed">Could not complete the action. Check task statuses and try again.</string>
     <string name="task_center_detail_superseded">Older failure; a later task of the same kind succeeded.</string>
     <string name="task_center_requests_empty_log">The execution log is empty or unavailable (it may have been cleared); no request record to show</string>
     <string name="task_center_requests_empty_no_capture">The log has no HTTP request lines, so there is no request record to show. Missing records do not prove the task sent nothing.</string>

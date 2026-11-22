@@ -100,7 +100,8 @@ val appModule: Module = module {
     single<com.dailysatori.service.assistant.AssistantConversation> {
         com.dailysatori.service.assistant.PersistentAssistantConversation(
             get(), get(), get(), get<com.dailysatori.service.diary.DiaryThoughtChatContextProvider>(),
-            get<com.dailysatori.service.assistant.AssistantHistoryBackfill>(), get<AsyncTaskScheduler>()::enqueue,
+            get<com.dailysatori.service.assistant.AssistantHistoryBackfill>(),
+            get<AsyncTaskScheduler>()::enqueue, get<AsyncTaskScheduler>()::cancel,
         )
     }
     single { SaveArticleTaskHandler(get(), get()) }

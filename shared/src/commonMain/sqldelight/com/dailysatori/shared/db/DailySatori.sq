@@ -1375,6 +1375,7 @@ WHERE type = :task_type
           AND (
               priority > :candidate_priority
               OR (priority = :candidate_priority AND created_at < :candidate_created_at)
+              OR (priority = :candidate_priority AND created_at = :candidate_created_at AND id < :candidate_id)
           )
       )
   )
@@ -1481,7 +1482,7 @@ selectRunnableAsyncTasks:
 SELECT * FROM async_task
 WHERE status IN ('queued', 'retrying')
   AND (run_after_ms IS NULL OR run_after_ms <= ?)
-ORDER BY priority DESC, created_at ASC
+ORDER BY priority DESC, created_at ASC, id ASC
 LIMIT ?;
 
 selectRunnableAsyncTasksByType:
@@ -1612,9 +1613,19 @@ SET status = ?, finished_at = ?, lease_owner = NULL, lease_until_ms = NULL,
     last_error_code = ?, last_error_message = ?, updated_at = ?
 WHERE id = ? AND status = 'running';
 
+selectActiveAsyncTaskCancellationTargets:
+SELECT id, type, status FROM async_task
+WHERE status IN ('queued', 'running', 'retrying');
+
+selectDueAsyncTaskDependencyCandidates:
+SELECT * FROM async_task
+WHERE status IN ('queued', 'retrying')
+  AND (run_after_ms IS NULL OR run_after_ms <= :nowMs)
+  AND instr(payload_json, '"_afterTaskId"') > 0;
+
 cancelAsyncTask:
 UPDATE async_task
-SET status = ?, finished_at = ?, updated_at = ?
+SET status = ?, finished_at = ?, updated_at = ?, run_after_ms = NULL, lease_owner = NULL, lease_until_ms = NULL
 WHERE id = ? AND status IN ('queued', 'running', 'retrying');
 
 markExpiredRunningAsyncTasksForRetry:

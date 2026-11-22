@@ -118,7 +118,7 @@ class WebServerService(private val ctx: Context) {
                             setupBookRoutes()
                             setupNewsRoutes { AsyncTaskScheduler(ctx).enqueue(it) }
                             setupAiRoutes()
-                            setupTaskRoutes { AsyncTaskScheduler(ctx).notifyTerminal(it) }
+                            setupTaskRoutes { AsyncTaskScheduler(ctx).cancel(it) }
                             setupStatsRoutes()
                             setupAuthRoutes()
                         }

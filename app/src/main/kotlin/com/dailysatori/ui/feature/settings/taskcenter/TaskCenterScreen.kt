@@ -22,6 +22,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,6 +52,7 @@ import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.asynctask.asyncTaskStatusDisplayName
 import com.dailysatori.service.asynctask.asyncTaskTypeDisplayName
+import com.dailysatori.ui.component.appbar.PageAction
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
 import com.dailysatori.ui.theme.Radius
@@ -66,6 +68,7 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
     val viewModel: TaskCenterViewModel = koinViewModel()
     LaunchedEffect(viewModel, recentFailures) { viewModel.applyEntryFilter(recentFailures) }
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val bulkCancel = viewModel.bulkCancel.collectAsStateWithLifecycle().value
     val selected = state.selectedTask
     var logOpen by rememberSaveable(selected?.id) { mutableStateOf(false) }
     var logQuery by rememberSaveable(selected?.id) { mutableStateOf("") }
@@ -100,6 +103,8 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                     filterLabelFormat = logCopy.logFilter,
                 ) { logFilter = it },
             )
+        } else if (selected == null) {
+            listOf(taskCenterBulkCancelAction(bulkCancel, state.activeTotal, viewModel::requestBulkCancel))
         } else {
             emptyList()
         },
@@ -137,6 +142,55 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
             else -> TaskCenterTaskList(state = state, viewModel = viewModel, modifier = modifier)
         }
     }
+    TaskCenterBulkCancelDialog(bulkCancel, viewModel::dismissBulkCancel, viewModel::confirmBulkCancel)
+}
+
+@Composable
+private fun taskCenterBulkCancelAction(
+    state: TaskCenterBulkCancelState,
+    activeTotal: Long?,
+    onRequest: () -> Unit,
+): PageAction = PageAction(
+    label = stringResource(R.string.page_actions_more),
+    enabled = state == TaskCenterBulkCancelState.Idle,
+    menuContent = { closeMenu ->
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.task_center_bulk_cancel_title)) },
+            enabled = activeTotal != 0L,
+            onClick = { closeMenu(); onRequest() },
+        )
+    },
+    onClick = {},
+)
+
+@Composable
+internal fun TaskCenterBulkCancelDialog(
+    state: TaskCenterBulkCancelState,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val message = when (state) {
+        is TaskCenterBulkCancelState.Confirm -> stringResource(
+            R.string.task_center_bulk_cancel_message, state.queued, state.running, state.retrying,
+        )
+        TaskCenterBulkCancelState.Empty -> stringResource(R.string.task_center_bulk_cancel_empty)
+        TaskCenterBulkCancelState.Failed -> stringResource(R.string.task_center_bulk_cancel_failed)
+        else -> return
+    }
+    val confirm = state is TaskCenterBulkCancelState.Confirm
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.task_center_bulk_cancel_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            if (confirm) TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.task_center_bulk_cancel_confirm), color = MaterialTheme.colorScheme.error)
+            } else TextButton(onClick = onDismiss) { Text(stringResource(R.string.task_center_bulk_cancel_back)) }
+        },
+        dismissButton = if (confirm) {
+            { TextButton(onClick = onDismiss) { Text(stringResource(R.string.task_center_bulk_cancel_back)) } }
+        } else null,
+    )
 }
 
 @Composable

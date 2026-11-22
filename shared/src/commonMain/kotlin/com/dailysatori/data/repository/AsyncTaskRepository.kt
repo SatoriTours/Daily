@@ -45,6 +45,8 @@ data class AsyncTaskCenterPage(
     val hasMore: Boolean get() = loadedCount >= requestedLimit
 }
 
+data class AsyncTaskCancellationTarget(val id: Long, val type: String, val status: String)
+
 class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
@@ -85,23 +87,25 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         return separated.map { it.id }.distinct()
     }
 
-    /** Pending tasks of one serial type, used to wake the same-type waiters of a terminal owner. */
-    fun pendingTaskIdsOfType(type: String): List<Long> =
-        q.selectPendingAsyncTasksByType(type, Long.MAX_VALUE).executeAsList().map { it.id }
+    fun dueSuccessorsOf(ownerIds: Set<Long>, nowMs: Long): List<Pair<Long, Async_task>> =
+        q.selectDueAsyncTaskDependencyCandidates(nowMs).executeAsList().mapNotNull { task ->
+            predecessorIdFromPayload(task.payload_json)?.takeIf { it in ownerIds }?.let { it to task }
+        }
 
     /** Durable predecessor identity recorded in the payload; null when the task has none. */
-    fun predecessorIdOf(taskId: Long): Long? = runCatching {
-        Json.parseToJsonElement(getById(taskId)?.payload_json ?: return null)
-            .jsonObject["_afterTaskId"]?.jsonPrimitive?.longOrNull
+    fun predecessorIdOf(taskId: Long): Long? = getById(taskId)?.payload_json?.let(::predecessorIdFromPayload)
+
+    private fun predecessorIdFromPayload(payload: String): Long? = runCatching {
+        Json.parseToJsonElement(payload).jsonObject["_afterTaskId"]?.jsonPrimitive?.longOrNull
     }.getOrNull()
 
-    /** The task currently preventing a serial claim, for diagnostics only. */
-    fun serialClaimBlocker(taskId: Long): Long? {
+    /** The running owner or earlier due task preventing a serial claim. */
+    fun serialClaimBlocker(taskId: Long, nowMs: Long = Clock.System.now().toEpochMilliseconds()): Long? {
         val task = getById(taskId) ?: return null
         return q.selectSerialClaimBlocker(
             task_type = task.type,
             candidate_id = taskId,
-            runnable_at = Clock.System.now().toEpochMilliseconds(),
+            runnable_at = nowMs,
             candidate_priority = task.priority,
             candidate_created_at = task.created_at,
         ).executeAsOneOrNull()
@@ -176,15 +180,23 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         uniqueKeyPrefix: String,
         maxAttempts: Long = 5,
         priority: Long = 0,
+        deliveryId: String? = null,
     ): Long = q.transactionWithResult {
+        // An OS one-time request may survive after its task finishes or is cancelled; never bind it again.
+        val receipt = deliveryId?.let { "async_task_delivery:$it" }
+        val settings = SettingRepository(db)
+        receipt?.let { settings.get(it)?.toLongOrNull() }?.let { return@transactionWithResult it }
         val existing = q.selectActiveAsyncTaskByUniqueKeyPrefix(type, uniqueKeyPrefix).executeAsOneOrNull()
-        if (existing != null) {
-            val now = Clock.System.now().toEpochMilliseconds()
-            q.refreshActiveAsyncTaskEnqueue(updated_at = now, id = existing.id)
+        val taskId = if (existing != null) {
+            if (existing.status != AsyncTaskStatus.running.name) {
+                q.refreshActiveAsyncTaskEnqueue(Clock.System.now().toEpochMilliseconds(), existing.id)
+            }
             existing.id
         } else {
             insertTask(type, payloadJson, uniqueKey, null, maxAttempts, priority)
         }
+        receipt?.let { settings.upsert(it, taskId.toString()) }
+        taskId
     }
 
     fun enqueueBatch(name: String, requests: List<AsyncTaskEnqueueRequest>): AsyncTaskBatchEnqueueResult =
@@ -237,7 +249,9 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         val now = Clock.System.now().toEpochMilliseconds()
         val existing = uniqueKey?.let { q.selectAsyncTaskByUniqueKey(it).executeAsOneOrNull() }
         if (existing != null && existing.status in activeStatuses) {
-            q.refreshActiveAsyncTaskEnqueue(updated_at = now, id = existing.id)
+            if (existing.status != AsyncTaskStatus.running.name) {
+                q.refreshActiveAsyncTaskEnqueue(updated_at = now, id = existing.id)
+            }
             return existing.id
         }
         q.insertAsyncTask(
@@ -469,7 +483,27 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     }
 
     fun cancel(id: Long) {
-        val now = Clock.System.now().toEpochMilliseconds()
+        cancelAt(id, Clock.System.now().toEpochMilliseconds())
+    }
+
+    fun activeCancellationSnapshot(): List<AsyncTaskCancellationTarget> =
+        q.selectActiveAsyncTaskCancellationTargets(::AsyncTaskCancellationTarget).executeAsList()
+
+    fun cancelActive(id: Long, nowMs: Long): AsyncTaskCancellationTarget? = q.transactionWithResult {
+        val task = getById(id)?.takeIf { it.status in activeStatuses } ?: return@transactionWithResult null
+        cancelAt(id, nowMs)
+        AsyncTaskCancellationTarget(id, task.type, task.status)
+    }
+
+    /** Recheck activity in the write transaction. A terminal task must keep its status and result. */
+    fun cancelActiveSnapshot(ids: Set<Long>, nowMs: Long): List<AsyncTaskCancellationTarget> {
+        if (ids.isEmpty()) return emptyList()
+        return q.transactionWithResult {
+            activeCancellationSnapshot().filter { it.id in ids }.onEach { cancelAt(it.id, nowMs) }
+        }
+    }
+
+    private fun cancelAt(id: Long, now: Long) {
         q.cancelAsyncTask(AsyncTaskStatus.cancelled.name, now, now, id)
     }
 

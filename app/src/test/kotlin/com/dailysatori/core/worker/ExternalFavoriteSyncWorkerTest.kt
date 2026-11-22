@@ -164,8 +164,6 @@ class ExternalFavoriteSyncWorkerTest {
 
         assertTrue(source.contains("fun cancelSync(source: External_favorite_source)"))
         assertTrue(source.contains("FavoriteSyncMode.entries.forEach"))
-        assertTrue(source.contains("cancelLatestByUniqueKey"))
-        assertTrue(source.contains("asyncTaskScheduler?.cancel(taskId)"))
         assertTrue(source.contains("cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name))"))
         assertTrue(source.contains("cancelPeriodic(sourceId)"))
         assertTrue(source.contains("enqueuePeriodic(source)"))

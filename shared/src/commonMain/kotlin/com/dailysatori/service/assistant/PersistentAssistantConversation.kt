@@ -18,11 +18,13 @@ class PersistentAssistantConversation(
         contextProvider: com.dailysatori.service.diary.DiaryThoughtChatContextProvider, schedule: (Long) -> Unit) :
         this(driver, actions, memory, schedule) { this.contextProvider = contextProvider }
     private var backfill: AssistantHistoryBackfill? = null
+    private var stopTask: (Long) -> Unit = {}
     constructor(driver: SqlDriver, actions: AssistantActionService, memory: AssistantMemoryService,
         contextProvider: com.dailysatori.service.diary.DiaryThoughtChatContextProvider,
-        backfill: AssistantHistoryBackfill, schedule: (Long) -> Unit) :
+        backfill: AssistantHistoryBackfill, schedule: (Long) -> Unit, stopTask: (Long) -> Unit = {}) :
         this(driver, actions, memory, contextProvider, schedule) {
         this.backfill = backfill
+        this.stopTask = stopTask
         requestHistory()
     }
     private val inputContext = AssistantInputContext(driver)
@@ -137,11 +139,13 @@ class PersistentAssistantConversation(
     }
 
     override fun cancel(turnId: Long) {
+        val taskId = turns.get(turnId)?.taskId
         store.transaction {
             turns.cancel(turnId)
             store.exec("UPDATE assistant_action SET status='cancelled' WHERE turn_id=? AND target_id IS NULL", turnId)
         }
         store.changed()
+        if (taskId != null) runCatching { stopTask(taskId) }
     }
 
     override fun retry(turnId: Long) {

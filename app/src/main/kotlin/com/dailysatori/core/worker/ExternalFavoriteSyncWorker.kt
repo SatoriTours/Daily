@@ -22,6 +22,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.await
 import androidx.work.workDataOf
 import androidx.lifecycle.Observer
 import com.dailysatori.core.task.externalFavoriteSyncTaskPayloadJson
@@ -45,9 +46,13 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.koin.core.context.GlobalContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
 
 internal object ExternalFavoriteTaskCancellationRegistry {
     private val runningJobs = ConcurrentHashMap<Long, Job>()
@@ -92,12 +97,12 @@ class ExternalFavoriteSyncScheduler(
 
     fun enqueueHistoryBatch(sourceId: Long, automatic: Boolean) {
         val repo = asyncTaskRepo ?: return
-        repo.enqueue(
+        val taskId = repo.enqueue(
             type = AsyncTaskType.external_favorite_sync.name,
             payloadJson = """{"sourceId":$sourceId,"mode":"history","automatic":$automatic,"historyBatch":true}""",
             uniqueKey = externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.history.name, automatic),
         )
-        wake()
+        if (!repo.isRunning(taskId)) wake()
     }
 
     fun enqueue(
@@ -106,14 +111,7 @@ class ExternalFavoriteSyncScheduler(
         automatic: Boolean = false,
     ): Long? {
         if (asyncTaskRepo != null && asyncTaskScheduler != null) {
-            val taskId = asyncTaskRepo.enqueueUniqueFamily(
-                type = AsyncTaskType.external_favorite_sync.name,
-                payloadJson = externalFavoriteSyncTaskPayloadJson(sourceId, mode, automatic),
-                uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode, automatic),
-                uniqueKeyPrefix = externalFavoriteSyncUniqueKeyPrefix(sourceId, automatic),
-            )
-            wake()
-            return taskId
+            return enqueuePersisted(asyncTaskRepo, sourceId, mode, automatic)
         }
         val request = buildExternalFavoriteSyncWorkRequest(sourceId, mode)
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -122,6 +120,35 @@ class ExternalFavoriteSyncScheduler(
             request,
         )
         return null
+    }
+
+    internal suspend fun deliverLegacyWork(workId: UUID, sourceId: Long, mode: String, automatic: Boolean) {
+        val repo = asyncTaskRepo ?: return
+        legacyIngress.withLock {
+            val work = WorkManager.getInstance(context).getWorkInfoByIdFlow(workId).first() ?: return
+            if (work.state.isFinished) return
+            // Older periodic requests carried exactly the same input as one-time work.
+            val periodic = work.periodicityInfo != null
+            enqueuePersisted(repo, sourceId, mode, automatic || periodic, workId.takeUnless { periodic }?.toString())
+        }
+    }
+
+    private fun enqueuePersisted(
+        repo: AsyncTaskRepository,
+        sourceId: Long,
+        mode: String,
+        automatic: Boolean,
+        deliveryId: String? = null,
+    ): Long {
+        val taskId = repo.enqueueUniqueFamily(
+            type = AsyncTaskType.external_favorite_sync.name,
+            payloadJson = externalFavoriteSyncTaskPayloadJson(sourceId, mode, automatic),
+            uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode, automatic),
+            uniqueKeyPrefix = externalFavoriteSyncUniqueKeyPrefix(sourceId, automatic),
+            deliveryId = deliveryId,
+        )
+        if (repo.getById(taskId)?.status in setOf(AsyncTaskStatus.queued.name, AsyncTaskStatus.retrying.name)) wake()
+        return taskId
     }
 
     fun wake() {
@@ -147,20 +174,20 @@ class ExternalFavoriteSyncScheduler(
             ?.let { wakeAfter((it - now).coerceAtLeast(1L)) }
     }
 
-    fun cancelSync(source: External_favorite_source) {
+    suspend fun cancelSync(source: External_favorite_source) = legacyIngress.withLock {
         val sourceId = source.id
         FavoriteSyncMode.entries.forEach { mode ->
+            // Finish cancelling old wrappers before dropping the fence. An in-flight delivery either
+            // already has a durable row below, or will see its WorkSpec is cancelled.
+            WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name)).await()
             listOf(false, true).forEach { automatic ->
-                asyncTaskRepo
-                    ?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name, automatic))
-                    ?.let { taskId ->
-                        ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
-                        asyncTaskScheduler?.cancel(taskId)
-                    }
+                val key = externalFavoriteSyncUniqueKey(sourceId, mode.name, automatic)
+                asyncTaskRepo?.getLatestByUniqueKey(key)?.id?.let { taskId ->
+                    asyncTaskScheduler?.cancel(taskId)
+                }
             }
-            WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, mode.name))
         }
-        cancelPeriodic(sourceId)
+        cancelPeriodic(sourceId).await()
         enqueuePeriodic(source)
     }
 
@@ -200,8 +227,11 @@ class ExternalFavoriteSyncScheduler(
         sources.forEach(::enqueuePeriodic)
     }
 
-    fun cancelPeriodic(sourceId: Long) {
+    fun cancelPeriodic(sourceId: Long) =
         WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, "periodic"))
+
+    private companion object {
+        val legacyIngress = Mutex()
     }
 }
 
@@ -228,7 +258,7 @@ class ExternalFavoriteSyncWorker(
 
         setProgress(externalFavoriteSyncProgressData("queued", 0, DEFAULT_X_BOOKMARK_SYNC_MAX_PAGES, 0, false))
         val automatic = inputData.getBoolean(KEY_AUTOMATIC, false)
-        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().enqueue(sourceId, mode.name, automatic)
+        GlobalContext.get().get<ExternalFavoriteSyncScheduler>().deliverLegacyWork(id, sourceId, mode.name, automatic)
         return Result.success()
     }
 
@@ -340,22 +370,22 @@ class ExternalFavoriteQueueWorker(
         val afterRun = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         val scheduler = koin.get<ExternalFavoriteSyncScheduler>()
         val current = repository.getById(task.id)
+        val cancelled = current?.status == AsyncTaskStatus.cancelled.name
         val currentRunAfter = current?.run_after_ms
         // A blocked serial claim is busy contention, not a failure: keep the original delayed re-wake so
         // the worker cannot spin, and never re-run the owner that is still holding the serial slot.
         val claimWasBusy = favoriteClaimWasBusy(outcome, current?.status, currentRunAfter, afterRun)
-        if (claimWasBusy) {
+        // The scheduler that persists cancellation owns the lane handoff and cross-type wake-up.
+        if (!cancelled && claimWasBusy) {
             scheduler.wakeAfter(SERIAL_CLAIM_RETRY_DELAY_MS)
-        } else if (repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, afterRun, 1).isNotEmpty()) {
+        } else if (!cancelled &&
+            repository.runnableTasksByType(AsyncTaskType.external_favorite_sync.name, afterRun, 1).isNotEmpty()
+        ) {
             scheduler.wake()
-        }
-        if (current?.status == AsyncTaskStatus.cancelled.name) {
-            // A cancelled run is a terminal transition; its successors must not wait for a retry.
-            AsyncTaskScheduler(applicationContext).notifyTerminal(task.id)
         }
         scheduleNextRetry(repository, afterRun)
         // 真实终态：Blocked/RetryScheduled/Skipped/用户取消都不得冒充 completed。
-        val outcomeName = if (current?.status == AsyncTaskStatus.cancelled.name) {
+        val outcomeName = if (cancelled) {
             "cancelled"
         } else {
             outcome.foregroundOutcomeName()

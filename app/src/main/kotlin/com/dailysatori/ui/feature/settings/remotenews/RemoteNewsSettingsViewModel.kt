@@ -351,7 +351,7 @@ class RemoteNewsSettingsViewModel(
 
     fun cancelSync(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            asyncTaskRepo.cancelLatestByUniqueKey(remoteNewsSyncUniqueKey(id))
+            asyncTaskRepo.cancelLatestByUniqueKey(remoteNewsSyncUniqueKey(id))?.let(asyncTaskScheduler::cancel)
             _state.update {
                 it.copy(
                     syncingSourceId = if (it.syncingSourceId == id) null else it.syncingSourceId,

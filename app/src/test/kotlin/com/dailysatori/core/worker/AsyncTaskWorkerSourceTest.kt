@@ -7,15 +7,9 @@ import kotlin.test.assertEquals
 
 class AsyncTaskWorkerSourceTest {
     @Test
-    fun retrySchedulingUsesDatabaseDeadlineWithoutBlockingSequentialChain() {
+    fun retryDelayUsesTheDatabaseDeadline() {
         assertEquals(3_000L, asyncTaskRetryDelayMs(runAfterMs = 5_000L, nowMs = 2_000L))
         assertEquals(0L, asyncTaskRetryDelayMs(runAfterMs = 1_000L, nowMs = 2_000L))
-
-        val source = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
-        assertTrue(source.contains("enqueueRetry(taskId"))
-        val retryBranch = source.substringAfter("AsyncTaskRunOutcome.RetryScheduled ->").substringBefore("\n        }")
-        assertTrue(retryBranch.contains("Result.success()"))
-        assertTrue(retryBranch.contains("waitingForPredecessor(taskId)"))
     }
 
     @Test
@@ -90,15 +84,5 @@ class AsyncTaskWorkerSourceTest {
         assertTrue(submission.contains("q.transactionWithResult"))
         assertTrue(submission.contains("attachReminderAiBatchTask(taskId"))
         assertTrue(submission.contains("ReminderAiBatchSubmission"))
-    }
-
-    @Test
-    fun systemInterruptionSchedulesTheDatabaseRetryBeforeWorkerStops() {
-        val worker = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
-
-        val cancellationBranch = worker
-            .substringAfter("ForegroundDiagnostics.workerCancelled(ForegroundDiagnostics.ASYNC_TASK, taskId)")
-            .substringBefore("throw error")
-        assertTrue(cancellationBranch.contains("enqueueRetry(taskId"))
     }
 }

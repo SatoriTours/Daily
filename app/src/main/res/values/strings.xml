@@ -608,6 +608,12 @@
     <string name="task_center_detail_log">诊断日志</string>
     <string name="task_center_detail_log_empty">暂无日志</string>
     <string name="task_center_detail_cancel">取消任务</string>
+    <string name="task_center_bulk_cancel_title">取消全部未完成任务</string>
+    <string name="task_center_bulk_cancel_message">排队中：%1$d · 运行中：%2$d · 重试中：%3$d\n\n包括当前筛选或列表未显示的任务。只取消本次确认范围内仍未完成的任务，保留历史、已有结果和未来定时计划。</string>
+    <string name="task_center_bulk_cancel_confirm">确认取消</string>
+    <string name="task_center_bulk_cancel_back">返回</string>
+    <string name="task_center_bulk_cancel_empty">当前没有未完成的任务。</string>
+    <string name="task_center_bulk_cancel_failed">无法完成操作，请查看任务状态后重试。</string>
     <string name="task_center_detail_superseded">这是历史失败记录，后续同类任务已经成功完成。</string>
     <string name="task_center_requests_empty_log">执行日志为空或不可用（可能已清理）；当前没有可展示的请求记录</string>
     <string name="task_center_requests_empty_no_capture">日志中没有 HTTP 请求记录；当前没有可展示的请求记录。缺少记录并不等于未发送请求。</string>

@@ -18,6 +18,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.core.task.AsyncTaskLogStore
+import com.dailysatori.data.repository.AsyncTaskCancellationTarget
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ReminderAiBatchRepository
 import com.dailysatori.core.task.ReminderAiParseTaskHandler
@@ -25,9 +26,11 @@ import com.dailysatori.core.task.reminderAiParseTaskPayloadJson
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.asynctask.AsyncTaskRunOutcome
 import com.dailysatori.service.asynctask.AsyncTaskRunner
-import com.dailysatori.service.asynctask.AsyncTaskWakeUp
+import com.dailysatori.service.asynctask.AsyncTaskStatus
+import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.asynctask.isSerialAsyncTaskType
 import com.dailysatori.service.asynctask.NoopAsyncTaskLogger
+import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
 import org.koin.core.context.GlobalContext
@@ -35,49 +38,63 @@ import java.util.concurrent.TimeUnit
 
 class AsyncTaskScheduler(private val context: Context) {
     fun enqueue(taskId: Long) {
-        val taskType = GlobalContext.get().get<AsyncTaskRepository>().getById(taskId)?.type
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            asyncTaskWorkName(taskId),
-            ExistingWorkPolicy.KEEP,
-            buildAsyncTaskWorkRequest(taskId, taskType),
-        )
+        val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val task = repo.getById(taskId) ?: return
+        val now = Clock.System.now().toEpochMilliseconds()
+        if (!task.isPending()) return
+        val runAfter = task.run_after_ms
+        if (runAfter != null && runAfter > now) {
+            enqueueRetry(taskId, runAfter)
+        }
+        // Enqueue is also a queue kick: a superseded head may have left another target up next.
+        val next = if (isSerialAsyncTaskType(task.type)) repo.serialHead(task, now) else task
+        if (next != null && repo.canScheduleNow(next, now)) {
+            enqueueWork(asyncTaskWorkName(next.id), next)
+        }
     }
 
-    /**
-     * One terminal notification for a finished owner. Every target gets an independent wake-up name so it
-     * can never be swallowed by a delayed or still running work of the same task; repeated notifications
-     * collapse by name and the DB lease still allows only one handler.
-     */
-    fun notifyTerminal(ownerTaskId: Long) {
+    fun notifyTerminal(ownerTaskId: Long, recoverOthers: Boolean = false) {
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
         val owner = repo.getById(ownerTaskId) ?: return
+        if (owner.status in repo.activeStatusNames()) return
+        val now = Clock.System.now().toEpochMilliseconds()
         val ownerIdentity = ownerTaskId.toString() + "-" + (owner.finished_at ?: 0L)
-        val targets = LinkedHashSet<Long>()
-        targets += repo.successorIdsOf(ownerTaskId)
-        if (isSerialAsyncTaskType(owner.type)) targets += repo.pendingTaskIdsOfType(owner.type)
-        targets.remove(ownerTaskId)
-        targets.forEach { successorId ->
-            val task = repo.getById(successorId) ?: return@forEach
-            if (task.status !in repo.activeStatusNames()) return@forEach
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                asyncTaskWakeUpWorkName(successorId, ownerIdentity),
-                ExistingWorkPolicy.KEEP,
-                buildAsyncTaskWorkRequest(successorId, task.type),
-            )
+        val favoriteOwner = owner.type == AsyncTaskType.external_favorite_sync.name
+        val targets = repo.successorIdsOf(ownerTaskId).toMutableSet()
+        if (!favoriteOwner) repo.serialHead(owner, now)?.id?.let(targets::add)
+        // The dedicated favourite worker drains its own lane; only explicit cross-type dependencies escape it.
+        val woken = targets.mapNotNull(repo::getById)
+            .filter { (!favoriteOwner || it.type != owner.type) && repo.canScheduleNow(it, now) }
+        woken.forEach { enqueueWork(asyncTaskWakeUpWorkName(it.id, ownerIdentity), it) }
+        // Some handlers insert follow-up tasks without scheduling them. Don't re-enqueue this release's targets.
+        if (recoverOthers) recoverAndEnqueueRunnable(woken.mapTo(hashSetOf()) { it.id })
+    }
+
+    fun scheduleDatabaseRetry(taskId: Long) {
+        val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val task = repo.getById(taskId)?.takeIf { it.status == AsyncTaskStatus.retrying.name } ?: return
+        val deadline = task.run_after_ms ?: return
+        enqueueRetry(taskId, deadline)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val head = repo.serialHead(task, now)
+        if (head != null && head.id != taskId && repo.canScheduleNow(head, now)) {
+            enqueueWork(asyncTaskWakeUpWorkName(head.id, "$taskId-retry-$deadline"), head)
         }
     }
 
     fun enqueueRetry(taskId: Long, runAfterMs: Long) {
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val task = repo.getById(taskId)?.takeIf { it.isPending() } ?: return
         val now = Clock.System.now().toEpochMilliseconds()
+        enqueueWork(asyncTaskRetryWorkName(taskId, runAfterMs), task, asyncTaskRetryDelayMs(runAfterMs, now))
+    }
+
+    // Release wakes use a name independent of an older WorkManager attempt that's still finishing.
+    private fun enqueueWork(name: String, task: Async_task, delayMs: Long = 0) {
         WorkManager.getInstance(context).enqueueUniqueWork(
-            asyncTaskRetryWorkName(taskId, runAfterMs),
+            name,
             ExistingWorkPolicy.KEEP,
-            buildAsyncTaskWorkRequest(
-                taskId = taskId,
-                taskType = repo.getById(taskId)?.type,
-                initialDelayMs = asyncTaskRetryDelayMs(runAfterMs, now),
-            ),
+            buildAsyncTaskWorkRequest(task.id, task.type, initialDelayMs = delayMs),
         )
     }
 
@@ -91,7 +108,55 @@ class AsyncTaskScheduler(private val context: Context) {
     }
 
     fun cancel(taskId: Long) {
+        val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val finishedAt = Clock.System.now().toEpochMilliseconds()
+        val cancelled = repo.cancelActive(taskId, finishedAt)
+        val type = cancelled?.type
+            ?: repo.getById(taskId)?.takeIf { it.status == AsyncTaskStatus.cancelled.name }?.type
+            ?: return
+        if (type == AsyncTaskType.external_favorite_sync.name) {
+            if (cancelled != null) completeCancellation(repo, listOf(cancelled), finishedAt)
+            return
+        }
+        // Some other callers persist a cancellation before asking the scheduler to stop the work.
+        stopExecution(taskId)
+        notifyTerminal(taskId)
+    }
+
+    fun cancelSnapshot(taskIds: Set<Long>) {
+        val repo = GlobalContext.get().get<AsyncTaskRepository>()
+        val finishedAt = Clock.System.now().toEpochMilliseconds()
+        completeCancellation(repo, repo.cancelActiveSnapshot(taskIds, finishedAt), finishedAt)
+    }
+
+    private fun stopExecution(taskId: Long) {
+        ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
         WorkManager.getInstance(context).cancelAllWorkByTag(asyncTaskWorkTag(taskId))
+    }
+
+    private fun completeCancellation(
+        repo: AsyncTaskRepository,
+        cancelled: List<AsyncTaskCancellationTarget>,
+        finishedAt: Long,
+    ) {
+        if (cancelled.isEmpty()) return
+        cancelled.forEach { stopExecution(it.id) }
+        val now = Clock.System.now().toEpochMilliseconds()
+        val targets = linkedMapOf<Long, Pair<Long, Async_task>>()
+        // Discover explicit successors once, after the whole snapshot has transitioned.
+        repo.dueSuccessorsOf(cancelled.mapTo(hashSetOf()) { it.id }, now).forEach { (ownerId, task) ->
+            targets[task.id] = ownerId to task
+        }
+        cancelled.distinctBy { it.type }.forEach { owner ->
+            repo.serialHead(owner.type, now)?.let { targets.putIfAbsent(it.id, owner.id to it) }
+        }
+        var wakeFavorites = false
+        targets.values.forEach { (ownerId, task) ->
+            if (!repo.canScheduleNow(task, now)) return@forEach
+            if (task.type == AsyncTaskType.external_favorite_sync.name) wakeFavorites = true
+            else enqueueWork(asyncTaskWakeUpWorkName(task.id, "$ownerId-$finishedAt"), task)
+        }
+        if (wakeFavorites) ExternalFavoriteSyncScheduler(context).wake()
     }
 
     fun recoverAfterProcessStart() {
@@ -107,18 +172,38 @@ class AsyncTaskScheduler(private val context: Context) {
         // Repair leases before any UI or worker can start new tasks. Enqueue on IO afterwards.
     }
 
-    fun recoverAndEnqueueRunnable() {
+    fun recoverAndEnqueueRunnable() = recoverAndEnqueueRunnable(emptySet())
+
+    private fun recoverAndEnqueueRunnable(alreadyWoken: Set<Long>) {
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
         val now = Clock.System.now().toEpochMilliseconds()
         repo.markExpiredRunningForRetry(now)
-        enqueueRunnable(repo, now)
+        val serialTypes = hashSetOf<String>()
+        repo.runnableTasks(now, Long.MAX_VALUE).forEach { task ->
+            if (task.type == AsyncTaskType.external_favorite_sync.name) return@forEach
+            if (isSerialAsyncTaskType(task.type) && !serialTypes.add(task.type)) return@forEach
+            if (task.id !in alreadyWoken && repo.canScheduleNow(task, now)) {
+                enqueueWork(asyncTaskWorkName(task.id), task)
+            }
+        }
         repo.futureRetryingTasks(now).forEach { task ->
+            if (task.type == AsyncTaskType.external_favorite_sync.name) return@forEach
             task.run_after_ms?.let { enqueueRetry(task.id, it) }
         }
     }
 
-    private fun enqueueRunnable(repo: AsyncTaskRepository, now: Long) =
-        repo.runnableTasks(now, Long.MAX_VALUE).forEach { task -> enqueue(task.id) }
+    private fun AsyncTaskRepository.serialHead(owner: Async_task, now: Long): Async_task? = serialHead(owner.type, now)
+
+    private fun AsyncTaskRepository.serialHead(type: String, now: Long): Async_task? =
+        if (isSerialAsyncTaskType(type)) runnableTasksByType(type, now, 1).firstOrNull() else null
+
+    private fun AsyncTaskRepository.canScheduleNow(task: Async_task, now: Long): Boolean =
+        task.isPending() && (task.run_after_ms ?: Long.MIN_VALUE) <= now &&
+            !waitingForPredecessor(task.id) &&
+            (!isSerialAsyncTaskType(task.type) || serialClaimBlocker(task.id, now) == null)
+
+    private fun Async_task.isPending(): Boolean =
+        status == AsyncTaskStatus.queued.name || status == AsyncTaskStatus.retrying.name
 }
 
 class GenericAsyncTaskWorker(
@@ -138,71 +223,46 @@ class GenericAsyncTaskWorker(
         val repo = GlobalContext.get().get<AsyncTaskRepository>()
         val taskType = inputData.getString(KEY_TASK_TYPE) ?: repo.getById(taskId)?.type
         if (taskType == "external_favorite_sync") {
-            GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
+            if (repo.getById(taskId)?.status in setOf(AsyncTaskStatus.queued.name, AsyncTaskStatus.retrying.name)) {
+                GlobalContext.get().get<ExternalFavoriteSyncScheduler>().wake()
+            }
             return Result.success()
         }
         ForegroundDiagnostics.workerStarted(
             ForegroundDiagnostics.ASYNC_TASK, taskId, taskType, runAttemptCount,
         )
-        if (isLongRunningAsyncTask(taskType)) {
-            val foreground = createAsyncTaskForegroundInfo(applicationContext, taskId, taskType.orEmpty())
-            ForegroundDiagnostics.requestStarted(
-                ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, foreground.foregroundServiceType,
-                taskId, taskType, runAttemptCount,
-            )
-            try {
-                setForeground(foreground)
-                ForegroundDiagnostics.requestSucceeded(
-                    ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, taskId, taskType,
-                )
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                ForegroundDiagnostics.requestFailed(
-                    ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, taskId, taskType, error,
-                )
-                throw error
-            }
-        }
-        val registry = GlobalContext.get().get<AsyncTaskHandlerRegistry>()
-        val logStore = runCatching { GlobalContext.get().get<AsyncTaskLogStore>() }.getOrNull()
+        val scheduler = AsyncTaskScheduler(applicationContext)
         val runner = AsyncTaskRunner(
             repository = repo,
-            registry = registry,
-            logger = logStore ?: NoopAsyncTaskLogger,
-            wakeUp = object : AsyncTaskWakeUp {
-                override fun onTaskTerminal(taskId: Long) {
-                    AsyncTaskScheduler(applicationContext).notifyTerminal(taskId)
-                }
+            registry = GlobalContext.get().get<AsyncTaskHandlerRegistry>(),
+            logger = runCatching { GlobalContext.get().get<AsyncTaskLogStore>() }.getOrNull() ?: NoopAsyncTaskLogger,
+            beforeExecute = {
+                if (isLongRunningAsyncTask(taskType)) enterForeground(taskId, taskType.orEmpty())
             },
         )
         val outcome = try {
             runner.run(taskId)
         } catch (error: CancellationException) {
             ForegroundDiagnostics.workerCancelled(ForegroundDiagnostics.ASYNC_TASK, taskId)
-            repo.getById(taskId)?.run_after_ms?.let {
-                AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it)
-            }
+            scheduler.scheduleDatabaseRetry(taskId)
             throw error
         }
         val result = when (outcome) {
             AsyncTaskRunOutcome.Succeeded -> {
-                AsyncTaskScheduler(applicationContext).recoverAndEnqueueRunnable()
+                scheduler.notifyTerminal(taskId, recoverOthers = true)
                 Result.success()
             }
-            AsyncTaskRunOutcome.Skipped -> Result.success()
-            is AsyncTaskRunOutcome.Blocked -> Result.retry()
+            AsyncTaskRunOutcome.Skipped -> {
+                if (repo.getById(taskId)?.status == AsyncTaskStatus.cancelled.name) scheduler.notifyTerminal(taskId)
+                Result.success()
+            }
+            is AsyncTaskRunOutcome.Blocked -> Result.success()
             AsyncTaskRunOutcome.Failed -> {
+                scheduler.notifyTerminal(taskId)
                 if (inputData.getBoolean(KEY_CONTINUE_CHAIN_ON_FAILURE, false)) Result.success() else Result.failure()
             }
             AsyncTaskRunOutcome.RetryScheduled -> {
-                if (repo.getById(taskId)?.status == "queued" || repo.waitingForPredecessor(taskId)) {
-                    ForegroundDiagnostics.workerFinished(
-                        ForegroundDiagnostics.ASYNC_TASK, outcome.foregroundOutcomeName(), taskId, taskType,
-                    )
-                    return Result.retry()
-                }
-                repo.getById(taskId)?.run_after_ms?.let { AsyncTaskScheduler(applicationContext).enqueueRetry(taskId, it) }
+                scheduler.scheduleDatabaseRetry(taskId)
                 Result.success()
             }
         }
@@ -210,6 +270,27 @@ class GenericAsyncTaskWorker(
             ForegroundDiagnostics.ASYNC_TASK, outcome.foregroundOutcomeName(), taskId, taskType,
         )
         return result
+    }
+
+    private suspend fun enterForeground(taskId: Long, taskType: String) {
+        val foreground = createAsyncTaskForegroundInfo(applicationContext, taskId, taskType)
+        ForegroundDiagnostics.requestStarted(
+            ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, foreground.foregroundServiceType,
+            taskId, taskType, runAttemptCount,
+        )
+        try {
+            setForeground(foreground)
+            ForegroundDiagnostics.requestSucceeded(
+                ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, taskId, taskType,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            ForegroundDiagnostics.requestFailed(
+                ForegroundDiagnostics.ASYNC_TASK, foreground.notificationId, taskId, taskType, error,
+            )
+            throw error
+        }
     }
 
     companion object {

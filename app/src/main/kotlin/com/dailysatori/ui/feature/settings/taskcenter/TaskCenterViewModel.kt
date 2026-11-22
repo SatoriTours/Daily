@@ -17,12 +17,13 @@ import com.dailysatori.shared.db.Async_task
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.service.diagnostics.TaskHttpCapture
 import com.dailysatori.service.diagnostics.TaskHttpCaptureState
-import com.dailysatori.core.worker.ExternalFavoriteTaskCancellationRegistry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -32,6 +33,21 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import com.dailysatori.service.asynctask.AsyncTaskStatus
+
+internal sealed interface TaskCenterBulkCancelState {
+    data object Idle : TaskCenterBulkCancelState
+    data object Loading : TaskCenterBulkCancelState
+    data object Cancelling : TaskCenterBulkCancelState
+    data object Empty : TaskCenterBulkCancelState
+    data object Failed : TaskCenterBulkCancelState
+    data class Confirm(
+        val ids: Set<Long>,
+        val queued: Int,
+        val running: Int,
+        val retrying: Int,
+    ) : TaskCenterBulkCancelState
+}
 
 data class TaskCenterState(
     val types: Set<String> = emptySet(),
@@ -93,6 +109,9 @@ class TaskCenterViewModel(
     remoteSourceRepository: RemoteNewsSourceRepository,
     favoriteSourceRepository: ExternalFavoriteSourceRepository,
 ) : ViewModel() {
+    private val bulkCancelState = MutableStateFlow<TaskCenterBulkCancelState>(TaskCenterBulkCancelState.Idle)
+    internal val bulkCancel = bulkCancelState.asStateFlow()
+
     private val sourceNames = remoteSourceRepository.observeAll()
         .combine(favoriteSourceRepository.observeAll()) { remote, favorites ->
             TaskCenterSourceNames(
@@ -285,12 +304,50 @@ class TaskCenterViewModel(
 
     fun cancel(taskId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.cancel(taskId)
-            ExternalFavoriteTaskCancellationRegistry.cancel(taskId)
             scheduler.cancel(taskId)
-            scheduler.recoverAndEnqueueRunnable()
-            // Cancelling here is a terminal transition like success/failure: release successors.
-            scheduler.notifyTerminal(taskId)
+        }
+    }
+
+    fun requestBulkCancel() {
+        if (!bulkCancelState.compareAndSet(TaskCenterBulkCancelState.Idle, TaskCenterBulkCancelState.Loading)) return
+        runBulkCancelAction {
+            val snapshot = repository.activeCancellationSnapshot()
+            if (snapshot.isEmpty()) TaskCenterBulkCancelState.Empty else TaskCenterBulkCancelState.Confirm(
+                ids = snapshot.mapTo(hashSetOf()) { it.id },
+                queued = snapshot.count { it.status == AsyncTaskStatus.queued.name },
+                running = snapshot.count { it.status == AsyncTaskStatus.running.name },
+                retrying = snapshot.count { it.status == AsyncTaskStatus.retrying.name },
+            )
+        }
+    }
+
+    fun dismissBulkCancel() {
+        val current = bulkCancelState.value
+        when (current) {
+            is TaskCenterBulkCancelState.Confirm, TaskCenterBulkCancelState.Empty, TaskCenterBulkCancelState.Failed ->
+                bulkCancelState.compareAndSet(current, TaskCenterBulkCancelState.Idle)
+            else -> Unit
+        }
+    }
+
+    fun confirmBulkCancel() {
+        val snapshot = bulkCancelState.value as? TaskCenterBulkCancelState.Confirm ?: return
+        if (!bulkCancelState.compareAndSet(snapshot, TaskCenterBulkCancelState.Cancelling)) return
+        runBulkCancelAction {
+            scheduler.cancelSnapshot(snapshot.ids)
+            TaskCenterBulkCancelState.Idle
+        }
+    }
+
+    private fun runBulkCancelAction(action: () -> TaskCenterBulkCancelState) {
+        viewModelScope.launch(Dispatchers.IO) {
+            bulkCancelState.value = try {
+                action()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                TaskCenterBulkCancelState.Failed
+            }
         }
     }
 

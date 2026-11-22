@@ -19,7 +19,13 @@ import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.shared.db.DailySatoriDatabase
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -32,7 +38,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -61,8 +67,8 @@ class AsyncTaskSuccessorWakeUpTest {
             val (predecessor, successor) = linkedTasks(repository)
             repository.claimForRun(predecessor, "owner", Long.MAX_VALUE)
 
-            assertEquals(ListenableWorker.Result.retry(), worker(successor).doReadyWork(),
-                "a blocked task keeps WorkManager retry as its persistent fallback")
+            assertEquals(ListenableWorker.Result.success(), worker(successor).doReadyWork(),
+                "waiting for a dependency must not retry the worker")
             assertEquals(0, executed.value)
             assertEquals("queued", repository.getById(successor)?.status)
             assertEquals(0L, repository.getById(successor)?.attempt_count, "blocked work consumes no business attempt")
@@ -82,15 +88,13 @@ class AsyncTaskSuccessorWakeUpTest {
     }
 
     @Test
-    fun aFailedOrCancelledPredecessorAlsoReleasesItsSuccessor() = runBlocking {
+    fun aFailedPredecessorAlsoReleasesItsSuccessor() = runBlocking {
         withRepository(failPredecessor = true) { repository, executed ->
             val (predecessor, successor) = linkedTasks(repository)
-            assertEquals(ListenableWorker.Result.retry(), worker(successor).doReadyWork())
+            assertEquals(ListenableWorker.Result.success(), worker(successor).doReadyWork())
 
             val predecessorTaskId = predecessor
             assertEquals(ListenableWorker.Result.failure(), worker(predecessor).doReadyWork())
-            repository.finishFailure(predecessorTaskId, "sync_failed", "offline")
-            AsyncTaskScheduler(app).notifyTerminal(predecessorTaskId)
 
             assertTrue(
                 unfinishedStates(asyncTaskWakeUpWorkName(successor, ownerIdentity(predecessorTaskId))).isNotEmpty(),
@@ -132,28 +136,152 @@ class AsyncTaskSuccessorWakeUpTest {
             repository.finishSuccess(predecessor, "")
             // No wake-up was enqueued (simulating a lost event); startup recovery must still find it.
             AsyncTaskScheduler(app).recoverAndEnqueueRunnable()
+            assertTrue(unfinishedStates(asyncTaskWorkName(successor)).isNotEmpty())
             assertEquals(ListenableWorker.Result.success(), worker(successor).doReadyWork())
             assertEquals(1, executed.value)
         }
     }
 
     @Test
-    fun aSerialOwnerTerminalWakesItsSameTypeWaiters() = runBlocking {
+    fun aSerialOwnerCompletionWakesOnlyTheNextTaskAndDrainsInOrder() = runBlocking {
         withRepository(failPredecessor = false) { repository, executed ->
             val owner = repository.enqueue("remote_news_fetch", "{}", "serial-owner")
             AsyncTaskScheduler(app).enqueue(owner)
             repository.claimForRun(owner, "owner", Long.MAX_VALUE)
             val waiter = repository.enqueue("remote_news_fetch", "{}", "serial-waiter")
-            AsyncTaskScheduler(app).enqueue(waiter)
+            val later = repository.enqueue("remote_news_fetch", "{}", "serial-later")
+            val scheduler = AsyncTaskScheduler(app)
+            scheduler.enqueue(waiter)
+            scheduler.enqueue(later)
+            assertTrue(unfinishedStates(asyncTaskWorkName(waiter)).isEmpty())
+            assertTrue(unfinishedStates(asyncTaskWorkName(later)).isEmpty())
 
-            val blocked = GenericAsyncTaskWorker(app, parameters(waiter)).doReadyWork()
-            assertEquals(ListenableWorker.Result.retry(), blocked, "a serial wait still keeps WorkManager alive")
+            assertEquals(ListenableWorker.Result.success(), worker(waiter).doReadyWork(),
+                "a legacy worker waiting for the owner must not retry")
             assertEquals(0, executed.value)
 
-            AsyncTaskScheduler(app).notifyTerminal(owner)
+            repository.finishSuccess(owner, "")
+            scheduler.notifyTerminal(owner)
 
-            val pending = unfinishedStates(asyncTaskWakeUpWorkName(waiter, ownerIdentity(owner))).isNotEmpty()
-            assertTrue(pending, "the serial owner's terminal state must wake its waiter independently")
+            assertTrue(unfinishedStates(asyncTaskWakeUpWorkName(waiter, ownerIdentity(owner))).isNotEmpty())
+            assertTrue(unfinishedStates(asyncTaskWakeUpWorkName(later, ownerIdentity(owner))).isEmpty())
+            assertEquals(ListenableWorker.Result.success(), worker(waiter).doReadyWork())
+            assertTrue(unfinishedStates(asyncTaskWakeUpWorkName(later, ownerIdentity(waiter))).isNotEmpty())
+            assertEquals(ListenableWorker.Result.success(), worker(later).doReadyWork())
+            assertEquals(2, executed.value)
+        }
+    }
+
+    @Test
+    fun triggeringTheSameRunningTaskDoesNotScheduleOrExecuteAnotherAttempt() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        withRepository(false, onNews = { started.complete(Unit); release.await() }) { repo, executed ->
+            val task = repo.enqueue("remote_news_fetch", "{}", "same-target")
+            coroutineScope {
+                val original = async { worker(task).doReadyWork() }
+                started.await()
+                try {
+                    assertEquals(task, repo.enqueue("remote_news_fetch", "{}", "same-target"))
+                    AsyncTaskScheduler(app).enqueue(task)
+                    assertTrue(unfinishedStates(asyncTaskWorkName(task)).isEmpty())
+                    val duplicate = GenericAsyncTaskWorker(app, parameters(task) {
+                        error("A duplicate must not request foreground service")
+                    })
+                    assertEquals(ListenableWorker.Result.success(), duplicate.doReadyWork())
+                    assertEquals(1, executed.value)
+                    assertEquals("running", repo.getById(task)?.status)
+                } finally {
+                    release.complete(Unit)
+                }
+                assertEquals(ListenableWorker.Result.success(), original.await())
+            }
+        }
+    }
+
+    @Test
+    fun cancellingTheRunningHeadReleasesTheNextTaskAndNeverRevivesTheOwner() = runBlocking {
+        val started = CompletableDeferred<Unit>()
+        withRepository(false, onNews = { if (started.complete(Unit)) awaitCancellation() }) { repo, executed ->
+            val owner = repo.enqueue("remote_news_fetch", "{}", "cancel-head")
+            val next = repo.enqueue("remote_news_fetch", "{}", "cancel-next")
+            repo.claimForRun(owner, "prior-attempt", Long.MAX_VALUE)
+            repo.markRetry(owner, "offline", "", 0L)
+            val scheduler = AsyncTaskScheduler(app)
+            scheduler.enqueue(owner)
+            assertTrue(unfinishedStates(asyncTaskWorkName(owner)).isNotEmpty())
+            coroutineScope {
+                val running = async { worker(owner).doReadyWork() }
+                started.await()
+                scheduler.cancel(owner)
+                // This test Worker is created directly: deliver the stop WorkManager would send.
+                running.cancelAndJoin()
+            }
+            assertEquals("cancelled", repo.getById(owner)?.status)
+            assertEquals(null, repo.getById(owner)?.lease_owner)
+            assertEquals(null, repo.getById(owner)?.run_after_ms)
+            assertTrue(unfinishedStates(asyncTaskWakeUpWorkName(next, ownerIdentity(owner))).isNotEmpty())
+            repo.markRunningForRetryAfterProcessRestart(Long.MAX_VALUE)
+            scheduler.recoverAndEnqueueRunnable()
+            assertTrue(workManager.getWorkInfosByTag(asyncTaskWorkTag(owner)).get().none { !it.state.isFinished })
+            assertEquals(ListenableWorker.Result.success(), worker(owner).doReadyWork())
+            assertEquals("cancelled", repo.getById(owner)?.status)
+            assertEquals(ListenableWorker.Result.success(), worker(next).doReadyWork())
+            assertEquals(2, executed.value)
+        }
+    }
+
+    @Test
+    fun aSerialRetryDeadlineDoesNotHoldTheQueueSlot() = runBlocking {
+        withRepository(false, onNews = { throw CancellationException("system stop") }) { repo, _ ->
+            val owner = repo.enqueue("remote_news_fetch", "{}", "retry-head")
+            val next = repo.enqueue("remote_news_fetch", "{}", "retry-next")
+            assertFailsWith<CancellationException> { worker(owner).doReadyWork() }
+            val runAfter = requireNotNull(repo.getById(owner)?.run_after_ms)
+            assertEquals("retrying", repo.getById(owner)?.status)
+            assertTrue(unfinishedStates(asyncTaskRetryWorkName(owner, runAfter)).isNotEmpty())
+            assertTrue(workManager.getWorkInfosByTag(asyncTaskWorkTag(next)).get().any { !it.state.isFinished })
+        }
+    }
+
+    @Test
+    fun retryBudgetExhaustionReleasesTheNextTask() = runBlocking {
+        withRepository(false, onNews = { error("offline") }) { repo, _ ->
+            val owner = repo.enqueue("remote_news_fetch", "{}", "failed-head", maxAttempts = 1)
+            val next = repo.enqueue("remote_news_fetch", "{}", "failed-next")
+            assertEquals(ListenableWorker.Result.failure(), worker(owner).doReadyWork())
+            assertTrue(unfinishedStates(asyncTaskWakeUpWorkName(next, ownerIdentity(owner))).isNotEmpty())
+        }
+    }
+
+    @Test
+    fun submittingAfterAWindowWasSupersededKicksTheRemainingHead() = runBlocking {
+        withRepository(false) { repo, _ ->
+            val oldWindow = repo.enqueue("remote_news_fetch", "{}", "superseded-head")
+            val manual = repo.enqueue("remote_news_fetch", "{}", "remaining-manual")
+            val sync = repo.enqueue("remote_article_sync", "{}", "new-window-sync")
+            val newWindow = repo.enqueue("remote_news_fetch", "{}", "new-window")
+            repo.linkSequentialTasks(listOf(sync, newWindow))
+            repo.failSupersededPendingTasks("remote_news_fetch", "superseded", "") { it.id == oldWindow }
+
+            AsyncTaskScheduler(app).enqueue(newWindow)
+
+            assertTrue(unfinishedStates(asyncTaskWorkName(manual)).isNotEmpty())
+            assertTrue(unfinishedStates(asyncTaskWorkName(newWindow)).isEmpty())
+        }
+    }
+
+    @Test
+    fun processRecoveryArmsOnlyTheHeadOfThePersistedSerialQueue() = runBlocking {
+        withRepository(false) { repo, _ ->
+            val owner = repo.enqueue("remote_news_fetch", "{}", "process-head")
+            repo.claimForRun(owner, "lost-process", Long.MAX_VALUE)
+            val next = repo.enqueue("remote_news_fetch", "{}", "process-next")
+            repo.markRunningForRetryAfterProcessRestart(Long.MAX_VALUE)
+            AsyncTaskScheduler(app).recoverAndEnqueueRunnable()
+            assertEquals("retrying", repo.getById(owner)?.status)
+            assertTrue(unfinishedStates(asyncTaskWorkName(owner)).isNotEmpty())
+            assertTrue(unfinishedStates(asyncTaskWorkName(next)).isEmpty())
         }
     }
 
@@ -207,12 +335,9 @@ class AsyncTaskSuccessorWakeUpTest {
         withRepository(failPredecessor = false) { repository, executed ->
             val (predecessor, successor) = linkedTasks(repository)
             repository.claimForRun(predecessor, "owner", Long.MAX_VALUE)
-            assertEquals(ListenableWorker.Result.retry(), worker(successor).doReadyWork())
+            assertEquals(ListenableWorker.Result.success(), worker(successor).doReadyWork())
 
-            assertTrue(
-                workManager.getWorkInfosForUniqueWork("async-task-blocked-" + successor).get().isEmpty(),
-                "the fallback loop must be gone: WorkManager retry is the only fallback",
-            )
+            assertTrue(workManager.getWorkInfosByTag(asyncTaskWorkTag(successor)).get().isEmpty())
             assertEquals("queued", repository.getById(successor)?.status)
             assertEquals(0L, repository.getById(successor)?.attempt_count, "blocked work consumes no attempt")
         }
@@ -239,6 +364,7 @@ class AsyncTaskSuccessorWakeUpTest {
 
     private fun withRepository(
         failPredecessor: Boolean,
+        onNews: suspend () -> Unit = {},
         block: suspend (AsyncTaskRepository, Counter) -> Unit,
     ) = runBlocking {
         AndroidSqliteDriver(DailySatoriDatabase.Schema, app, null).use { driver ->
@@ -250,6 +376,7 @@ class AsyncTaskSuccessorWakeUpTest {
                 override suspend fun execute(taskId: Long, payloadJson: String, checkpointJson: String,
                     reporter: AsyncTaskProgressReporter): AsyncTaskExecutionResult {
                     executed.value++
+                    onNews()
                     return AsyncTaskExecutionResult.Success()
                 }
             }
@@ -270,7 +397,7 @@ class AsyncTaskSuccessorWakeUpTest {
         }
     }
 
-    private fun parameters(taskId: Long): WorkerParameters {
+    private fun parameters(taskId: Long, onForeground: () -> Unit = {}): WorkerParameters {
         val executor = java.util.concurrent.Executor { it.run() }
         val data = workDataOf(
             GenericAsyncTaskWorker.KEY_TASK_ID to taskId,
@@ -282,7 +409,10 @@ class AsyncTaskSuccessorWakeUpTest {
                 override fun createWorker(appContext: android.content.Context, workerClassName: String,
                     workerParameters: WorkerParameters): ListenableWorker? = null
             }, ProgressUpdater { _, _, _ -> SettableFuture.create<Void>().apply { set(null) } },
-            ForegroundUpdater { _, _, _ -> SettableFuture.create<Void>().apply { set(null) } })
+            ForegroundUpdater { _, _, _ ->
+                onForeground()
+                SettableFuture.create<Void>().apply { set(null) }
+            })
     }
 }
 

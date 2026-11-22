@@ -2,6 +2,8 @@ package com.dailysatori.core.worker
 
 import android.app.Application
 import androidx.work.ListenableWorker
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
@@ -20,12 +22,19 @@ import com.dailysatori.service.asynctask.AsyncTaskHandler
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.shared.db.DailySatoriDatabase
+import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterBulkCancelState
 import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterViewModel
 import com.google.common.util.concurrent.SettableFuture
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -126,6 +135,104 @@ class TaskCenterCancelWakeUpTest {
             }
         } finally {
             storeRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun bulkConfirmationCancelsOnlyStillActiveSnapshotTasksAndReleasesSurvivors() = withBulkTaskCenter { repository, viewModel ->
+        val running = repository.enqueue("external_favorite_sync", "{}")
+        repository.claimForRun(running, "favorite-owner", Long.MAX_VALUE)
+        val retrying = repository.enqueue("remote_news_fetch", "{}")
+        repository.claimForRun(retrying, "retry-owner", Long.MAX_VALUE)
+        repository.markRetry(retrying, "network", "retry later", Long.MAX_VALUE)
+        val completing = repository.enqueue("save_article", "{}")
+        repository.claimForRun(completing, "save-owner", Long.MAX_VALUE)
+        val queued = List(300) { repository.enqueue("remote_news_fetch", "{}") }
+        repository.linkSequentialTasks(queued)
+        viewModel.toggleType("save_article")
+
+        viewModel.requestBulkCancel()
+        viewModel.requestBulkCancel()
+        val preview = withTimeout(5_000) { viewModel.bulkCancel.first { it is TaskCenterBulkCancelState.Confirm } }
+            as TaskCenterBulkCancelState.Confirm
+        assertEquals(300, preview.queued)
+        assertEquals(2, preview.running)
+        assertEquals(1, preview.retrying)
+        viewModel.dismissBulkCancel()
+        viewModel.confirmBulkCancel()
+        assertEquals("running", repository.getById(running)?.status)
+        assertEquals("queued", repository.getById(queued.last())?.status)
+
+        viewModel.requestBulkCancel()
+        withTimeout(5_000) { viewModel.bulkCancel.first { it is TaskCenterBulkCancelState.Confirm } }
+        repository.finishSuccess(completing, """{"saved":true}""")
+        val newSuccessor = repository.enqueue("remote_news_fetch", "{}")
+        repository.linkSequentialTasks(listOf(queued.last(), newSuccessor))
+        val taggedWork = buildAsyncTaskWorkRequest(queued.last(), "remote_news_fetch", initialDelayMs = 60_000)
+        workManager.enqueue(taggedWork).result.get()
+        val futurePeriodic = PeriodicWorkRequestBuilder<GenericAsyncTaskWorker>(1, TimeUnit.DAYS)
+            .setInitialDelay(1, TimeUnit.DAYS).build()
+        workManager.enqueue(futurePeriodic).result.get()
+        val statusesAtStop = CompletableDeferred<List<String?>>()
+        val favoriteJob = Job()
+        favoriteJob.invokeOnCompletion {
+            statusesAtStop.complete(listOf(running, retrying, queued.first(), queued.last()).map {
+                repository.getById(it)?.status
+            })
+        }
+        ExternalFavoriteTaskCancellationRegistry.register(running, favoriteJob)
+        try {
+            viewModel.confirmBulkCancel()
+            viewModel.confirmBulkCancel()
+            withTimeout(5_000) { viewModel.bulkCancel.first { it == TaskCenterBulkCancelState.Idle } }
+            assertTrue(favoriteJob.isCancelled)
+            assertEquals(List(4) { "cancelled" }, withTimeout(5_000) { statusesAtStop.await() })
+            assertEquals("cancelled", repository.getById(running)?.status)
+            assertEquals("cancelled", repository.getById(retrying)?.status)
+            assertTrue(queued.all { repository.getById(it)?.status == "cancelled" })
+            assertEquals("succeeded", repository.getById(completing)?.status)
+            assertEquals("""{"saved":true}""", repository.getById(completing)?.result_json)
+            assertEquals("queued", repository.getById(newSuccessor)?.status)
+            val owner = repository.getById(queued.last())!!
+            val wakeName = asyncTaskWakeUpWorkName(newSuccessor, "${owner.id}-${owner.finished_at}")
+            assertEquals(1, workManager.getWorkInfosForUniqueWork(wakeName).get().size)
+            assertEquals(WorkInfo.State.CANCELLED, workManager.getWorkInfoById(taggedWork.id).get()?.state)
+            assertEquals(WorkInfo.State.ENQUEUED, workManager.getWorkInfoById(futurePeriodic.id).get()?.state)
+            val head = repository.getById(queued.first())!!
+            val cancelledWake = asyncTaskWakeUpWorkName(queued[1], "${head.id}-${head.finished_at}")
+            assertTrue(workManager.getWorkInfosForUniqueWork(cancelledWake).get().isEmpty())
+        } finally {
+            ExternalFavoriteTaskCancellationRegistry.unregister(running, favoriteJob)
+        }
+    }
+
+    @Test
+    fun bulkCancelWithNoActiveTasksNeverOffersConfirmation() = withBulkTaskCenter { repository, viewModel ->
+        val historical = repository.enqueue("save_article", "{}").also(repository::cancel)
+        viewModel.requestBulkCancel()
+        assertEquals(TaskCenterBulkCancelState.Empty, withTimeout(5_000) {
+            viewModel.bulkCancel.first { it != TaskCenterBulkCancelState.Loading }
+        })
+        viewModel.confirmBulkCancel()
+        assertEquals("cancelled", repository.getById(historical)?.status)
+    }
+
+    private fun withBulkTaskCenter(
+        block: suspend (AsyncTaskRepository, TaskCenterViewModel) -> Unit,
+    ) = runBlocking {
+        val root = kotlin.io.path.createTempDirectory("task-center-bulk-cancel").toFile()
+        try {
+            AndroidSqliteDriver(DailySatoriDatabase.Schema, app, null).use { driver ->
+                val db = DailySatoriDatabase(driver)
+                val repository = AsyncTaskRepository(db)
+                startKoin { modules(module { single { repository } }) }
+                block(repository, TaskCenterViewModel(
+                    repository, AsyncTaskLogStore(root), AsyncTaskScheduler(app),
+                    RemoteNewsSourceRepository(db), ExternalFavoriteSourceRepository(db),
+                ))
+            }
+        } finally {
+            root.deleteRecursively()
         }
     }
 
