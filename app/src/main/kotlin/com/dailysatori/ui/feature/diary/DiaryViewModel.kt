@@ -48,6 +48,7 @@ import kotlinx.datetime.Clock
 data class DiaryState(
     val diaries: List<Diary> = emptyList(),
     val isLoading: Boolean = false,
+    val entriesLoaded: Boolean = false,
     val isSaving: Boolean = false,
     val searchQuery: String = "",
     val selectedTag: String? = null,
@@ -218,7 +219,7 @@ class DiaryViewModel(
                 val vocabulary = tagRepo?.vocabulary() ?: DiaryTagVocabulary()
                 if (tag == null) entries else entries.filter { matchesDiaryTag(it.tags, tag, vocabulary) }
             }.collect { filtered ->
-                _state.update { it.copy(diaries = filtered, isLoading = false) }
+                _state.update { it.copy(diaries = filtered, isLoading = false, entriesLoaded = true) }
                 visibleDiaryIds.value = filtered.map { it.id }
             }
         }

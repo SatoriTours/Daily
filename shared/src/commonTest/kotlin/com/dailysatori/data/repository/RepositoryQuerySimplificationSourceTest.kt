@@ -66,6 +66,7 @@ class RepositoryQuerySimplificationSourceTest {
         assertTrue(bookRepo.contains("q.searchBooksFts"))
         assertTrue(viewpointRepo.contains("q.searchViewpointsByContentFts"))
         assertTrue(memoryRepo.contains("q.searchMemoryFts"))
+        assertTrue(memoryRepo.contains("q.searchMemoryLikeExcludingFts"))
     }
 
     @Test

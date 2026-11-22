@@ -77,6 +77,11 @@ memory_entry_fts_docsize:docid,size
 memory_entry_fts_segdir:level,idx,start_block,leaves_end_block,end_block,root
 memory_entry_fts_segments:blockid,block
 memory_entry_fts_stat:id,value
+opportunity_checkpoint:identity,position,fingerprint
+opportunity_item:id,identity,source_id,position,created_at,saved,ignored,reminder_id,saved_at,analysis_json
+opportunity_membership:kind,position,identity,source_id
+opportunity_source:id,payload_json
+opportunity_state:id,focus,last_attempt_at,last_attempt_context,last_error,dismissed_error_task_id
 phone_message:id,encrypted_payload,received_at
 reminder:id,content,notes,status,start_date,end_date,first_reminder_time,active_day_rule,recurrence_rule,time_zone_id,policy_snapshot_id,version,state_date,dismissal_count,last_notified_at,last_dismissed_at,completed_at,next_occurrence_at,deadline_at,created_at,updated_at
 reminder_ai_batch:id,parent_batch_id,original_input,normalized_key,time_zone_id,local_date,status,task_id,attempt_count,max_attempts,last_attempt_at,error_summary,terminal_notification_at,created_at,updated_at
@@ -117,6 +122,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
 
     internal fun validateColumns(driver: SqlDriver, version: Long, includeProjection: Boolean = true) {
         columns.filterKeys { (version>=49 || it !in setOf("remote_feed_staged_article","remote_feed_scan_node")) &&
+            (version>=55 || !it.startsWith("opportunity_")) &&
             (version>=51 || it!="remote_feed_history_state") &&
             (version>=53 || !it.startsWith("article_ai_")) &&
             (version>=47 || it!="remote_feed_sync_state") &&
@@ -167,6 +173,7 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
             (version<47 && name=="table:remote_feed_sync_state") ||
             (version<51 && name=="table:remote_feed_history_state") ||
             (version<53 && name.substringAfter(':').removePrefix("idx_").startsWith("article_ai_")) ||
+            (version<55 && isOpportunityObject(name)) ||
             (version<49 && (name in setOf(
                 "table:remote_feed_staged_article", "table:remote_feed_scan_node",
                 "index:idx_remote_feed_staged_source",
@@ -183,6 +190,11 @@ weekly_summary:id,week_start_date,week_end_date,content,article_count,diary_coun
                     name=="index:idx_diary_tag_history_revision" || name=="view:diary_active_tags")))
         }
     }
+
+    fun createOpportunityObjects(driver: SqlDriver) = objectStatements(driver).filterKeys(::isOpportunityObject)
+        .values.forEach { driver.execute(null, it, 0) }
+
+    private fun isOpportunityObject(name: String) = name.substringAfter(':').removePrefix("idx_").startsWith("opportunity_")
 
     private fun objectStatements(driver: SqlDriver): Map<String, String> {
         val objects = linkedMapOf<String, String>()

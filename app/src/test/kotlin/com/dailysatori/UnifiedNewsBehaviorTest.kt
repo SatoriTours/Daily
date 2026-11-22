@@ -2134,8 +2134,10 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsTransientStatesMatchBriefingCardSystem() {
         val screen = unifiedNewsScreenSource()
-        val refreshMessage = screen.substringAfter("private fun UnifiedNewsRefreshMessage").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
+        val refreshMessage = java.io.File("src/main/kotlin/com/dailysatori/ui/component/news/NewsStatusBanner.kt").readText()
 
+        assertTrue(screen.contains("NewsStatusBanner("))
+        assertTrue(screen.contains("message = refreshMessage"))
         assertTrue(refreshMessage.contains("shape = RoundedCornerShape(Radius.l)"))
         assertTrue(refreshMessage.contains("color = MaterialTheme.colorScheme.surfaceContainerHighest"))
         assertTrue(refreshMessage.contains("border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))

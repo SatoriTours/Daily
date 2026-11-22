@@ -2,7 +2,6 @@ package com.dailysatori.service.opportunity
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.AIConfigRepository
-import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.security.SecretValueCipher
@@ -35,7 +34,7 @@ class NewsOpportunityAiLiveTest {
             HttpClient(OkHttp) {
                 install(HttpTimeout) { requestTimeoutMillis = 120_000; connectTimeoutMillis = 15_000 }
             }.use { client ->
-                val service = NewsOpportunityService(NewsOpportunityStore(SettingRepository(database)),
+                val service = NewsOpportunityService(NewsOpportunityStore(database),
                     AiNewsOpportunityAnalyzer(AiService(client), AiConfigService(configs)), NoThoughts)
                 service.saveFocus("为小型开发团队开发定时任务失败提醒、重试记录和排障效率软件")
                 listOf(

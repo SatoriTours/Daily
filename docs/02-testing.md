@@ -13,8 +13,8 @@
 # 代码改动完成后的编译检查
 ./gradlew :app:compileDebugKotlin
 
-# 两个模块的单元测试（聚焦改动可用 --tests 限定测试类）
-./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest
+# 三个模块的单元测试（聚焦改动可用 --tests 限定测试类）
+./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest :bookkeeping:testDebugUnitTest
 ```
 
 ## 环境配置
@@ -66,7 +66,7 @@ python3 scripts/test-database-encryption.py --sqlcipher "$SQLCIPHER_BIN"
 `sqlcipher-4.19.0/sqlite3`。它不是 Android SQLCipher JNI/Keystore 的设备验证替代品。
 
 GitHub Actions 的 PR、主分支构建及版本发布共用 `code-test-gate.yml`：校验固定源码 SHA256、
-构建真实 SQLCipher、验证加密文件，再运行两个模块全部代码级测试。工具构建或探针失败即失败，
+构建真实 SQLCipher、验证加密文件，再运行 app、shared 和 bookkeeping 的全部代码级测试。工具构建或探针失败即失败，
 不把缺失环境当成功；另校验关键启动升级用例必须实际执行，缺失或跳过也失败。
 测试未通过不得进入 APK 构建发布。报告保存为 `test-results` artifact。
 这能自动拦截上述启动升级回归，不保证覆盖所有机型、系统权限和 Android 生命周期异常；
@@ -83,15 +83,15 @@ Arch Linux 可运行 `bash scripts/init-dev-env.sh --skip-gradle-check` 安装�
 然后重新打开 Bash 终端。脚本默认安装 SDK 到 `~/Android/Sdk`，并配置 `~/.bashrc`。
 脚本安装 Android SDK 37.0 和 Build Tools 37.0.0；可与 Gradle 使用的其他 Build Tools 版本共存。构建使用 JDK 21。
 
-需要完整构建且改动涉及两个模块时，可一次执行编译、APK 构建和两个模块的单元测试：
+需要完整构建和代码级验证时，可一次执行编译、APK 构建和三个模块的单元测试：
 
 ```bash
 ./gradlew :app:compileDebugKotlin :app:assembleDebug \
-  :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
+  :app:testDebugUnitTest :shared:testDebugUnitTest :bookkeeping:testDebugUnitTest --no-configuration-cache
 ```
 
-测试报告位于 `app/build/reports/tests/testDebugUnitTest/` 和
-`shared/build/reports/tests/testDebugUnitTest/`。当前未配置 Android instrumentation
+测试报告位于 `app/`、`shared/` 和 `bookkeeping/` 模块各自的
+`build/reports/tests/testDebugUnitTest/`。当前未配置 Android instrumentation
 测试；模拟器上的安装、启动和界面检查需另外执行。
 
 ### 本地 AI 接口验证

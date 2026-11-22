@@ -46,7 +46,7 @@ class ReminderUiSourceTest {
 
         assertTrue(handler.contains("claimTerminalNotification(batchId)"))
         assertTrue(handler.contains("notifier.notifyReady(batchId)"))
-        assertTrue(navigation.contains("composable<ReminderAiBatchRoute>"))
+        assertTrue(navigation.contains("measuredDestination<ReminderAiBatchRoute>"))
         assertTrue(navigation.contains("batchId = route.batchId"))
 
         val confirmation = batchViewModel.substringAfter("fun confirmSelected()")

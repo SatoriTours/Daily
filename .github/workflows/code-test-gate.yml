@@ -41,7 +41,7 @@ jobs:
       - name: Compile and run all code-level tests including encrypted startup upgrades
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
+          ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :shared:testDebugUnitTest :bookkeeping:testDebugUnitTest --no-configuration-cache
 
       - name: Require startup regressions to actually execute
         run: |
@@ -124,4 +124,6 @@ jobs:
             app/build/test-results/
             shared/build/reports/tests/
             shared/build/test-results/
+            bookkeeping/build/reports/tests/
+            bookkeeping/build/test-results/
           retention-days: 7

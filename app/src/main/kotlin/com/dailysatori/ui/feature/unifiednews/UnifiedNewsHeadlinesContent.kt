@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,7 +58,11 @@ internal fun UnifiedNewsHeadlinesContent(
     }
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().performanceContent(when {
+            headlineSummaries.isNotEmpty() -> PerformanceResult.OK
+            state.initialSummariesLoaded -> PerformanceResult.EMPTY
+            else -> null
+        }),
         contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.l, bottom = Height.navBar + Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {

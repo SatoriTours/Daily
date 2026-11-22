@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.book
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import com.dailysatori.service.book.BookSearchResult
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -68,7 +70,7 @@ fun BookSearchScreen(
         title = "搜索书籍",
         onBack = onBack,
     ) { modifier ->
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize().performanceContent()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,7 +183,7 @@ private fun SearchResultItem(
     ) {
         if (result.coverUrl.isNotBlank()) {
             AsyncImage(
-                model = result.coverUrl,
+                model = performanceImageModel(result.coverUrl),
                 contentDescription = result.title,
                 modifier = Modifier
                     .size(width = 60.dp, height = 90.dp)

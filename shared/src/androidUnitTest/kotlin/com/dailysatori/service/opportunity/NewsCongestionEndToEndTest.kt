@@ -2,7 +2,6 @@ package com.dailysatori.service.opportunity
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.AIConfigRepository
-import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiRequestCoordinator
@@ -34,7 +33,7 @@ class NewsCongestionEndToEndTest {
             val configs = AIConfigRepository(db)
             configs.insert("deepseek", "https://example.com/v1", "test-key", "deepseek-flash", isDefault = 1)
             configs.setPurposeConfig(AiPurpose.EXTERNAL_CONTENT, configs.getAllSync().first().id)
-            val store = NewsOpportunityStore(SettingRepository(db))
+            val store = NewsOpportunityStore(db)
             val articles = listOf(
                 ReadNewsArticle(key = "a", title = "标题a", content = "正文a 内容足够长", source = "测试", readAt = 1L),
                 ReadNewsArticle(key = "b", title = "标题b", content = "正文b 内容足够长", source = "测试", readAt = 1L),

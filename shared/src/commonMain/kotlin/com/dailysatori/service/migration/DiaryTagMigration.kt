@@ -168,7 +168,11 @@ END"""
         }
         val db=DailySatoriDatabase(driver)
         val q=db.dailySatoriQueries
-        val settings=q.selectAllSettings().executeAsList().associate { it.key to it.value_ }
+        val tagKeys = setOf(vocabularyKey, undoKey, baselineKey)
+        // Legacy settings may also contain a multi-megabyte opportunity archive.
+        val settings = q.selectSettingKeys().executeAsList()
+            .filter { it in tagKeys || stateKey.matches(it) }
+            .associateWith { q.selectSettingByKey(it).executeAsOne().value_ }
         val vocabulary=settings[vocabularyKey]?.let { Json.decodeFromString<DiaryTagVocabulary>(it) } ?: DiaryTagVocabulary()
         val aliases=flattenAliases(vocabulary.aliases)
         settings[undoKey]?.let { validateUndo(it) }
@@ -179,8 +183,7 @@ END"""
         val consumed=linkedMapOf<String,String?>()
         listOf(vocabularyKey,undoKey,baselineKey).filter { it in settings }.forEach { consumed[it]=settings[it] }
         val states=linkedMapOf<Long,DiaryTagState>()
-        settings.forEach { (nullableKey,value) ->
-            val key=nullableKey ?: return@forEach
+        settings.forEach { (key,value) ->
             val id=stateKey.matchEntire(key)?.groupValues?.get(1)?.toLongOrNull() ?: return@forEach
             if(key!="diary_tag_state_v1_$id") return@forEach
             // Orphan/unknown keys remain untouched, not guessed or prefix-deleted.

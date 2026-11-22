@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.ledger
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +46,15 @@ fun LedgerScreen(onBack: () -> Unit, viewModel: LedgerViewModel = koinViewModel(
     var editing by remember { mutableStateOf<LedgerEntry?>(null) }
     val detail = editing ?: state.entry
     SettingsScaffold(title = i18n.t("ledger.title"), onBack = onBack) { modifier ->
-        LazyColumn(modifier, contentPadding = PaddingValues(bottom = Spacing.xl),
+        LazyColumn(modifier.performanceTab(
+            if (state.tab == LedgerTab.DETAIL) PerformanceScreen.LEDGER_DETAIL else PerformanceScreen.LEDGER_ANALYSIS,
+            when {
+                state.failed -> PerformanceResult.FAILED
+                !state.loaded -> null
+                state.buckets.all { it.entries.isEmpty() } -> PerformanceResult.EMPTY
+                else -> PerformanceResult.OK
+            },
+        ), contentPadding = PaddingValues(bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item { LedgerTabRow(state.tab, viewModel::selectTab) }
             item { LedgerPeriodBar(state, viewModel::selectPeriod, viewModel::shift) }

@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticTrace
+import com.dailysatori.service.diagnostics.PerformancePoint
+import com.dailysatori.service.diagnostics.PerformanceSpan
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
@@ -28,6 +32,7 @@ data class ArticleDetailState(
     val tags: List<Tag> = emptyList(),
     val sourceNames: List<String> = emptyList(),
     val isLoading: Boolean = false,
+    val initialLoadCompleted: Boolean = false,
     val selectedTabIndex: Int = 0,
     val isRefreshing: Boolean = false,
     val processingStatus: String = "",
@@ -55,12 +60,13 @@ class ArticleDetailViewModel(
     private val webpageParserService: WebpageParserService,
     private val articleAi: com.dailysatori.data.repository.ArticleAiRepository,
     private val articleAiQueue: com.dailysatori.service.articleai.ArticleAiQueue,
+    initialTrace: DiagnosticTrace? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticleDetailState())
     val state: StateFlow<ArticleDetailState> = _state.asStateFlow()
 
     init {
-        loadArticle()
+        loadArticle(initialTrace)
         viewModelScope.launch(Dispatchers.IO) {
             tagRepo.getByArticle(articleId).collect { tags ->
                 _state.update { it.copy(tags = tags) }
@@ -89,11 +95,13 @@ class ArticleDetailViewModel(
         }
     }
 
-    fun loadArticle() {
-        viewModelScope.launch(Dispatchers.IO) {
+    fun loadArticle(trace: DiagnosticTrace? = null) {
+        val timing = PerformanceSpan(PerformancePoint.ARTICLE_DETAIL_LOAD, trace = trace ?: DiagnosticTrace(DiagnosticLog.newId()))
+        viewModelScope.launch(Dispatchers.IO + DiagnosticLog.traceContext(timing.trace)) {
             _state.update { it.copy(isLoading = true) }
-            val article = articleRepo.getById(articleId)
-            val sourceNames = articleRepo.getSourceNames(articleId)
+            val (article, sourceNames) = timing.measure {
+                articleRepo.getById(articleId) to articleRepo.getSourceNames(articleId)
+            }
             val processing = webpageParserService.processingStates.value[articleId]
             val stage = processing?.status ?: article?.status.orEmpty()
             val progress = processing?.progress.orEmpty()
@@ -102,6 +110,7 @@ class ArticleDetailViewModel(
                     article = article,
                     sourceNames = sourceNames,
                     isLoading = false,
+                    initialLoadCompleted = true,
                     isRefreshing = isArticleProcessing(stage),
                     processingStatus = articleProcessingMessage(stage, progress).orEmpty(),
                     processingStage = stage,
@@ -132,8 +141,8 @@ class ArticleDetailViewModel(
         }
     }
 
-    fun refreshArticle() {
-        refreshArticleWithMessage("正在打开网页...", failureKey = "fetch_failed") {
+    fun refreshArticle(owner: DiagnosticTrace? = null) {
+        refreshArticleWithMessage("正在打开网页...", owner, failureKey = "fetch_failed") {
             val article = articleRepo.getById(articleId)
             if (article?.source_type == "remote_news") refreshRemoteOriginal(article)
             else webpageParserService.refreshArticle(articleId)
@@ -179,9 +188,10 @@ class ArticleDetailViewModel(
 
     private fun refreshArticleWithMessage(
         initialStatus: String,
+        owner: DiagnosticTrace? = null,
         failureKey: String,
         refresh: suspend () -> Unit,
-    ): Job = viewModelScope.launch(Dispatchers.IO) {
+    ): Job = viewModelScope.launch(owner?.let { Dispatchers.IO + DiagnosticLog.traceContext(it) } ?: Dispatchers.IO) {
         _state.update {
             it.copy(
                 isRefreshing = true,

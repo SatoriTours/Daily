@@ -5,129 +5,49 @@ import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlPreparedStatement
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.migration.OpportunityArchiveMigration
+import com.dailysatori.service.security.MigrationContentSnapshot
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
-import kotlin.test.assertTrue
 import kotlin.test.assertNull
 
 class NewsOpportunityStoreTest {
     @Test
-    fun previewRoundTripsAndOldEntriesWithoutItKeepAllDetailedAndSavedFields() = withDatabase { _, settings ->
-        val article = ReadNewsArticle("legacy", "旧新闻", "正文", source = "来源", readAt = 123L)
-        val item = NewsOpportunity("id", article, "完整产品方案", "效率工具", "事实", "详细关联", "最小方案", "风险", "正文", 456L,
-            saved = true, ignored = true, reminderId = "reminder", savedAt = 789L,
-            preview = OpportunityPreview("短标题", "关注原因。", "可做一个效率工具。"))
-        val store = NewsOpportunityStore(settings)
-        val archive = OpportunityArchive(items = listOf(item))
-        store.save(archive)
-        assertEquals(archive, NewsOpportunityStore(settings).load())
-        val legacy = archive.copy(items = listOf(item.copy(preview = null)))
-        val encoded = Json.encodeToString(legacy)
-        assertTrue(!encoded.contains("\"preview\""))
-        settings.upsert(KEY, encoded)
-        val restored = store.load()
-        assertEquals(legacy, restored)
-        assertNull(restored.items.single().preview)
-    }
-
-    @Test
-    fun largeArchiveRoundTripsWithoutOversizedRowsOrUnicodeLoss() = withDatabase { _, settings ->
-        val archive = largeArchive()
-        val store = NewsOpportunityStore(settings)
-        store.save(archive)
-        assertBoundedRows(settings)
-        assertEquals(archive, NewsOpportunityStore(settings).load())
-    }
-
-    @Test
-    fun oversizedLegacyArchiveIsReadInBoundedPiecesAndMigratedWithoutLosingState() = withDatabase { _, settings ->
-        val archive = largeArchive()
-        settings.upsert(KEY, Json.encodeToString(archive))
-        assertEquals(archive, NewsOpportunityStore(settings).load())
-        assertBoundedRows(settings)
-        assertEquals(archive, NewsOpportunityStore(settings).load())
-    }
-
-    @Test
-    fun shrinkingArchiveRemovesOldChunksWithoutTouchingOtherSettings() = withDatabase { _, settings ->
-        settings.upsert("unrelated", "保留")
-        val store = NewsOpportunityStore(settings)
-        store.save(largeArchive())
-        store.save(OpportunityArchive(focus = "新方向"))
-        assertEquals(OpportunityArchive(focus = "新方向"), store.load())
-        assertEquals(setOf(KEY, "unrelated"), settings.getAllKeys().toSet())
-        assertEquals("保留", settings.get("unrelated"))
-    }
-
-    @Test
-    fun missingChunkFailsInsteadOfReturningOrSavingAnEmptyArchive() = withDatabase { _, settings ->
-        val store = NewsOpportunityStore(settings)
-        store.save(largeArchive())
-        val chunkKey = settings.getAllKeys().first { it.startsWith("$KEY:chunk:") }
-        val manifest = settings.get(KEY)
-        settings.delete(chunkKey)
-        assertFails { store.load() }
-        assertEquals(manifest, settings.get(KEY))
-    }
-
-    @Test
-    fun changedChunkIsDetectedBeforePublishingCorruptData() = withDatabase { _, settings ->
-        val store = NewsOpportunityStore(settings)
-        store.save(largeArchive())
-        val chunkKey = settings.getAllKeys().first { it.startsWith("$KEY:chunk:") }
-        val chunk = settings.get(chunkKey)!!
-        settings.upsert(chunkKey, "$chunk ")
-        assertFails { store.load() }
-    }
-
-    @Test
-    fun failedChunkWriteRollsBackAndKeepsPreviousArchive() = withDatabase { driver, settings ->
-        val store = NewsOpportunityStore(settings)
-        val original = largeArchive()
-        store.save(original)
-        driver.execute(null, """
-            CREATE TRIGGER fail_opportunity_write BEFORE INSERT ON setting
-            WHEN NEW.key = '$KEY:chunk:1'
-            BEGIN SELECT RAISE(ABORT, 'simulated write failure'); END;
-        """.trimIndent(), 0)
-        assertFails { store.save(original.copy(focus = "修改方向")) }
-        assertEquals(original, store.load())
-    }
-
-    @Test
-    fun malformedLegacyArchiveIsNotOverwritten() = withDatabase { _, settings ->
-        settings.upsert(KEY, "{broken")
-        assertFails { NewsOpportunityStore(settings).load() }
-        assertEquals("{broken", settings.get(KEY))
-    }
-
-    private fun largeArchive(): OpportunityArchive {
-        val article = ReadNewsArticle("news-1", "新闻", "中文🙂𠮷正文".repeat(120_000), source = "测试", readAt = 123L)
-        val opportunity = NewsOpportunity("opp-1", article, "软件方向", "工具", "事实", "相关", "行动", "风险", "中文", 456L,
-            saved = true, ignored = true, reminderId = "reminder-1", savedAt = 789L)
-        return OpportunityArchive(articles = listOf(article), candidates = listOf(article), items = listOf(opportunity),
-            focus = "软件方向", checkpoints = listOf(OpportunityCheckpoint("news-1", "fingerprint")),
-            lastAttemptAt = 999L, lastAttemptContext = "context", dismissedErrorTaskId = 487L)
-    }
-
-    private fun assertBoundedRows(settings: SettingRepository) {
-        assertTrue(settings.getAll().all { (it.value_?.encodeToByteArray()?.size ?: 0) <= 128 * 1024 })
-    }
-
-    private fun withDatabase(block: (SqlDriver, SettingRepository) -> Unit) {
-        val delegate = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-        val driver = BoundedReadDriver(delegate)
-        try {
+    fun oversizedUnchunkedLegacyAndNewSnapshotsUseBoundedReads() {
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).use { jdbc ->
+            val driver = BoundedReadDriver(jdbc)
             DailySatoriDatabase.Schema.create(driver)
-            block(driver, SettingRepository(DailySatoriDatabase(driver)))
-        } finally { driver.close() }
+            val db = DailySatoriDatabase(driver)
+            val settings = SettingRepository(db)
+            val text = "中文🙂𠮷\u0000正文".repeat(120_000)
+            val article = ReadNewsArticle("legacy", "旧新闻", text, source = "来源", readAt = 123)
+            val item = NewsOpportunity("id", article, "完整产品方案", "效率工具", "事实", text, "方案", "风险", "正文", 456)
+            val expected = OpportunityArchive(items = listOf(item), articles = listOf(article))
+            val encoded = Json.encodeToString(expected)
+            settings.upsert(OpportunityArchiveMigration.KEY, encoded)
+            settings.upsert(SettingKeys.schemaVersion, "54")
+            val before = MigrationContentSnapshot.capture(driver, expected)
+
+            DatabaseMigration(driver, settings).runMigrations()
+
+            before.requirePreserved(driver, migratedOpportunities = true)
+            assertEquals(encoded, settings.getLargeValue(OpportunityArchiveMigration.KEY))
+            assertEquals(expected, NewsOpportunityStore(db).load())
+            assertNull(NewsOpportunityStore(db).load().items.single().preview)
+            val migrated = MigrationContentSnapshot.capture(driver)
+            driver.execute(null, """UPDATE opportunity_item
+                SET analysis_json=substr(analysis_json,1,50000)||'X'||substr(analysis_json,50002)""", 0)
+            assertFails { migrated.requirePreserved(driver) }
+        }
     }
 
-    // JVM SQLite has no Android CursorWindow; enforce a stricter per-cell limit at the SQL boundary.
+    // JDBC has no CursorWindow. Limit individual query cells to 128 KiB during the full conversion/read.
     private class BoundedReadDriver(private val delegate: SqlDriver) : SqlDriver by delegate {
         override fun <R> executeQuery(identifier: Int?, sql: String, mapper: (SqlCursor) -> QueryResult<R>,
             parameters: Int, binders: (SqlPreparedStatement.() -> Unit)?): QueryResult<R> =
@@ -139,6 +59,4 @@ class NewsOpportunityStoreTest {
                 })
             }, parameters, binders)
     }
-
-    private companion object { const val KEY = "news_opportunity_archive_v1" }
 }

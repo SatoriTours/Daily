@@ -13,10 +13,7 @@ class MainContentRhythmTest {
         val summary = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
         val layouts = File("src/main/kotlin/com/dailysatori/ui/component/news/NewsListLayouts.kt").readText()
         val compactStatePadding = ".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"
-        val refreshMessage = news.extractBetween(
-            start = "private fun UnifiedNewsRefreshMessage",
-            end = "private fun UnifiedNewsSourceDetailLoadingScreen",
-        )
+        val refreshMessage = news.extractCallExpression("NewsStatusBanner(")
 
         val summaryPadding = summary.extractCallBlock("LazyColumn(")
             .extractCallExpression("contentPadding = PaddingValues(")

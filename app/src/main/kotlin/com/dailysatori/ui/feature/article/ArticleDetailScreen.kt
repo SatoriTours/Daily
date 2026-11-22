@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.core.diagnostics.LocalUiVisit
 import com.dailysatori.core.service.ClipboardMonitorService
 import com.dailysatori.ui.component.appbar.PageAction
 
@@ -18,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,11 +53,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -64,6 +63,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
 import com.dailysatori.data.repository.reusableOriginalBody
 import com.dailysatori.ui.component.card.articleDisplayTitle
@@ -89,7 +89,8 @@ fun ArticleDetailScreen(
     articleId: Long,
     onBack: () -> Unit = {},
 ) {
-    val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
+    val visit = LocalUiVisit.current
+    val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId, visit?.trace) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val density = LocalDensity.current
     var showOriginalSheet by remember { mutableStateOf(false) }
@@ -138,7 +139,7 @@ fun ArticleDetailScreen(
                     summary = article.ai_content, original = article.ai_markdown_content,
                     storedOriginal = article.original_markdown_content, isRemoteSnapshot = true,
                     originalImageUrls = listOfNotNull(article.cover_image_url),
-                ), modifier,
+                ), modifier.performanceContent(),
                 failureKey = failureKey,
                 onRetry = if (failureKey != null) {
                     savedReadingRetry(failureKey, processSavedBody.takeIf { canProcess },
@@ -152,7 +153,11 @@ fun ArticleDetailScreen(
             density = density,
             onProcess = processSavedBody.takeIf { canProcess },
             onRetranslate = retranslate.takeIf { !state.isRefreshing },
-            modifier = modifier,
+            modifier = modifier.performanceContent(when {
+                article != null -> PerformanceResult.OK
+                state.initialLoadCompleted && !state.isLoading && !state.isRefreshing -> PerformanceResult.EMPTY
+                else -> null
+            }),
         )
     }
     ArticleDetailDialogs(
@@ -161,7 +166,7 @@ fun ArticleDetailScreen(
         showDeleteConfirm = showDeleteConfirm,
         onRefreshDismiss = { showRefreshConfirm = false },
         onDeleteDismiss = { showDeleteConfirm = false },
-        onRefreshConfirm = viewModel::refreshArticle,
+        onRefreshConfirm = { viewModel.refreshArticle(visit?.trace) },
         onDeleteConfirm = {
             viewModel.deleteArticle()
             onBack()
@@ -380,7 +385,7 @@ private fun ArticleDetailPage(
 ) {
     val hasCover = !coverImage.isNullOrBlank()
     val listState = rememberLazyListState()
-    val nestedScrollConnection = rememberArticleDetailNestedScrollConnection(
+    val nestedScrollConnection = rememberArticleCoverNestedScrollConnection(
         hasCover, coverHeightDp, onCoverHeightChange, listState, density,
     )
     Column(modifier = Modifier.fillMaxSize()) {
@@ -477,27 +482,6 @@ internal fun ArticleOriginalMenuItem(dismiss: () -> Unit, onOriginalClick: () ->
 }
 
 @Composable
-private fun rememberArticleDetailNestedScrollConnection(
-    hasCover: Boolean,
-    coverHeightDp: Int,
-    onCoverHeightChange: (Int) -> Unit,
-    listState: LazyListState,
-    density: Density,
-): NestedScrollConnection = remember(listState, hasCover, density, coverHeightDp) {
-    object : NestedScrollConnection {
-        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-            if (!hasCover) return Offset.Zero
-            val deltaDp = with(density) { available.y.toDp().value.toInt() }
-            val contentAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-            val nextHeight = articleCoverHeightAfterScroll(coverHeightDp, deltaDp, contentAtTop)
-            if (nextHeight == coverHeightDp) return Offset.Zero
-            onCoverHeightChange(nextHeight)
-            return Offset(x = 0f, y = with(density) { (nextHeight - coverHeightDp).dp.toPx() })
-        }
-    }
-}
-
-@Composable
 private fun ArticleRefreshConfirmDialog(isRemote: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val i18n = koinInject<I18nService>()
     AlertDialog(
@@ -565,7 +549,7 @@ private fun ArticleCoverImage(
             .build()
     }
     AsyncImage(
-        model = imageRequest,
+        model = performanceImageModel(imageRequest),
         placeholder = painterResource(android.R.drawable.ic_menu_gallery),
         error = painterResource(android.R.drawable.ic_menu_report_image),
         contentDescription = null,

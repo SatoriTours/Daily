@@ -4,6 +4,8 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.platform.*
 import com.dailysatori.service.backup.exportEncryptedDatabase
+import com.dailysatori.service.diagnostics.PerformancePoint.*
+import com.dailysatori.service.diagnostics.databasePhase
 import java.io.File
 
 internal class DatabaseEncryptionMigration(private val context: PlatformContext) {
@@ -17,12 +19,14 @@ internal class DatabaseEncryptionMigration(private val context: PlatformContext)
             factory.createBackupDriver(database.path, key).useDriver { validate(it) }
         })
 
-    fun ensureEncrypted(onPreparationRequired: () -> Unit = {}) {
-        val existingKey = keys.readExisting()
+    fun ensureEncrypted(onPreparationRequired: () -> Unit = {}) = databasePhase(DB_ENCRYPT) {
+        val existingKey = databasePhase(DB_KEY) { keys.readExisting() }
         if (database.exists() && !isPlaintextDatabase(database)) {
             val key = existingKey ?: throw DatabaseSecurityException()
-            factory.createBackupDriver(database.path, key).useDriver { sqlStrings(it, "SELECT count(*) FROM setting") }
-            return
+            databasePhase(DB_VALIDATE) {
+                factory.createBackupDriver(database.path, key).useDriver { sqlStrings(it, "SELECT count(*) FROM setting") }
+            }
+            return@databasePhase
         }
         val candidate = File(database.parentFile, "daily_satori.encrypted-candidate")
         if (!database.exists() && (existingKey != null || candidate.exists()))
@@ -30,28 +34,28 @@ internal class DatabaseEncryptionMigration(private val context: PlatformContext)
         onPreparationRequired()
         candidate.parentFile?.mkdirs()
         cleanCandidate(candidate)
-        val key = existingKey ?: DatabaseKey.generate()
+        val key = existingKey ?: databasePhase(DB_KEY) { DatabaseKey.generate() }
         try {
             if (database.exists()) convertLegacy(database.path, candidate.path, key)
             else factory.createEncryptedDriver(candidate.path, key).useDriver { validate(it) }
             factory.createBackupDriver(candidate.path, key).useDriver { validate(it) }
-            transaction().stage(candidate, keys.wrap(key))
+            transaction().stage(candidate, databasePhase(DB_KEY) { keys.wrap(key) })
             transaction().applyPending()
         } finally { cleanCandidate(candidate) }
     }
 
-    fun convertLegacy(source: String, destination: String, key: DatabaseKey) {
+    fun convertLegacy(source: String, destination: String, key: DatabaseKey) = databasePhase(DB_ENCRYPT) {
         check(!File(destination).exists())
         val original = factory.createLegacyDriver(source)
         val before = try {
-            val signature = schemaAndCounts(original)
-            exportEncryptedDatabase(original, destination, key)
+            val signature = databasePhase(DB_SNAPSHOT) { schemaAndCounts(original) }
+            databasePhase(DB_COPY) { exportEncryptedDatabase(original, destination, key) }
             signature
         } catch (_: Exception) { throw DatabaseSecurityException("历史数据库转换失败，原数据已保留") }
         finally { original.close() }
         factory.createBackupDriver(destination, key).useDriver { target ->
-            check(before == schemaAndCounts(target)) { "数据库转换校验失败" }
-            SecretFieldProcessor(target, SecretCipher(context)).decryptLegacyFields()
+            databasePhase(DB_VALIDATE) { check(before == schemaAndCounts(target)) { "数据库转换校验失败" } }
+            databasePhase(DB_MIGRATE) { SecretFieldProcessor(target, SecretCipher(context)).decryptLegacyFields() }
             validate(target)
         }
     }
@@ -65,7 +69,7 @@ internal class DatabaseEncryptionMigration(private val context: PlatformContext)
 
 internal inline fun <T> SqlDriver.useDriver(block: (SqlDriver) -> T): T = try { block(this) } finally { close() }
 
-internal fun validate(driver: SqlDriver) {
+internal fun validate(driver: SqlDriver) = databasePhase(DB_VALIDATE) {
     check(sqlStrings(driver, "PRAGMA integrity_check") == listOf("ok")) { "数据库完整性检查失败" }
     check(sqlStrings(driver, "PRAGMA foreign_key_check").isEmpty()) { "数据库关联检查失败" }
     // No rows means all encrypted pages authenticated successfully.

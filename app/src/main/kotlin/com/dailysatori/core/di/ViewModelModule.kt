@@ -148,6 +148,7 @@ val viewModelModule: Module = module {
             webpageParserService = get<WebpageParserService>(),
             articleAi = get(),
             articleAiQueue = get(),
+            initialTrace = params.getOrNull(),
         )
     }
     viewModel { params -> com.dailysatori.ui.feature.article.ArticleAiReaderViewModel(params.get(), get(), get(), get()) }

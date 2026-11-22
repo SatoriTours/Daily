@@ -1,5 +1,6 @@
 package com.dailysatori.core.navigation
 
+import com.dailysatori.core.diagnostics.LocalUiVisit
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
@@ -16,7 +17,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import com.dailysatori.core.diagnostics.measuredDestination
+import com.dailysatori.core.diagnostics.rememberNavigationPerformance
 import androidx.navigation.toRoute
 import com.dailysatori.ui.feature.aiconfig.AiConfigEditScreen
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
@@ -65,15 +67,17 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
 @Composable
 private fun DailySatoriNavigationGraph(navController: NavHostController, settingsViewModel: SettingsViewModel,
     openAssistant: (AssistantOpenRequest) -> Unit) {
+    val performance = rememberNavigationPerformance(navController)
     NavHost(navController, startDestination = HomeRoute) {
-        composable<LifeArchiveRoute> {
+        measuredDestination<LifeArchiveRoute>(performance) {
             com.dailysatori.ui.feature.lifearchive.LifeArchiveScreen(
                 onBack = { navController.popBackStack() },
                 onConfigureAi = { navController.navigate(AiConfigRoute) },
                 onReminder = { navController.navigate(ReminderDetailRoute(it)) },
             )
         }
-        composable<HomeRoute>(
+        measuredDestination<HomeRoute>(
+            performance,
             enterTransition = { EnterTransition.None },
             popEnterTransition = { fadeIn(animationSpec = tween(ANIM_DURATION)) },
             exitTransition = {
@@ -126,7 +130,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<NewsBriefingRoute> { entry ->
+        measuredDestination<NewsBriefingRoute>(performance) { entry ->
             com.dailysatori.ui.feature.unifiednews.UnifiedNewsBriefingScreen(
                 summaryId = entry.toRoute<NewsBriefingRoute>().summaryId,
                 onBack = { navController.popBackStack() },
@@ -134,7 +138,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
                 onOpportunity = { navController.navigate(MyOpportunityRoute(it)) },
             )
         }
-        composable<MyThoughtsRoute> { entry ->
+        measuredDestination<MyThoughtsRoute>(performance) { entry ->
             val viewModel: DiaryThoughtViewModel = koinViewModel()
             DiaryThoughtScreen(viewModel, onBack = { navController.popBackStack() }, onDiaryClick = {
                 com.dailysatori.core.recording.DiaryRecordingOpenRequest.open(it)
@@ -142,51 +146,55 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             }, onDiscuss = { openAssistant(AssistantOpenRequest("thought", thoughtChatKey(it))) },
                 focusThoughtKey = entry.toRoute<MyThoughtsRoute>().thoughtKey)
         }
-        composable<MyOpportunitiesRoute> {
+        measuredDestination<MyOpportunitiesRoute>(performance) {
             NewsOpportunityListScreen(onBack = { navController.popBackStack() },
                 onThoughts = { navController.navigate(MyThoughtsRoute()) },
                 onOpen = { navController.navigate(MyOpportunityRoute(it)) },
                 onArticle = { navController.navigate(ArticleDetailRoute(it)) },
                 onTopic = { navController.navigate(IdeaTopicDetailRoute(it)) })
         }
-        composable<MyOpportunityRoute> { entry ->
+        measuredDestination<MyOpportunityRoute>(performance) { entry ->
             val route = entry.toRoute<MyOpportunityRoute>()
             NewsOpportunityDetailScreen(route.id, onBack = { navController.popBackStack() },
                 onChat = { openAssistant(AssistantOpenRequest("opportunity", route.id)) },
                 onArticle = { navController.navigate(ArticleDetailRoute(it)) },
                 onTopic = { navController.navigate(IdeaTopicDetailRoute(it)) })
         }
-        composable<PersonalChatRoute> { entry ->
+        measuredDestination<PersonalChatRoute>(performance) { entry ->
             val route = entry.toRoute<PersonalChatRoute>()
-            LaunchedEffect(route) {
-                openAssistant(AssistantOpenRequest(route.kind, route.key))
+            val visit = LocalUiVisit.current
+            LaunchedEffect(route, visit) {
+                if (visit == null) return@LaunchedEffect
+                openAssistant(AssistantOpenRequest(route.kind, route.key).also { it.performanceVisit = visit })
                 navController.popBackStack()
             }
         }
-        composable<AssistantRoute> { entry ->
+        measuredDestination<AssistantRoute>(performance) { entry ->
             val route = entry.toRoute<AssistantRoute>()
-            LaunchedEffect(route) {
-                openAssistant(AssistantOpenRequest(sessionId = route.sessionId))
+            val visit = LocalUiVisit.current
+            LaunchedEffect(route, visit) {
+                if (visit == null) return@LaunchedEffect
+                openAssistant(AssistantOpenRequest(sessionId = route.sessionId).also { it.performanceVisit = visit })
                 navController.popBackStack()
             }
         }
-        composable<ProfileRoute> {
+        measuredDestination<ProfileRoute>(performance) {
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onBack = { navController.popBackStack() },
             )
         }
-        composable<LedgerRoute> { com.dailysatori.ui.feature.ledger.LedgerScreen(onBack = { navController.popBackStack() }) }
-        composable<LedgerEntryRoute> { entry ->
+        measuredDestination<LedgerRoute>(performance) { com.dailysatori.ui.feature.ledger.LedgerScreen(onBack = { navController.popBackStack() }) }
+        measuredDestination<LedgerEntryRoute>(performance) { entry ->
             com.dailysatori.ui.feature.ledger.LedgerEntryScreen(entry.toRoute<LedgerEntryRoute>().entryId,
                 onBack = { navController.popBackStack() })
         }
-        composable<PhoneHistoryRoute> { entry ->
+        measuredDestination<PhoneHistoryRoute>(performance) { entry ->
             com.dailysatori.ui.feature.phone.PhoneHistoryScreen(onBack = { navController.popBackStack() },
                 messageId = entry.toRoute<PhoneHistoryRoute>().messageId)
         }
-        composable<DataPrivacyRoute> { DataPrivacyScreen(onBack = { navController.popBackStack() }) }
-        composable<ProfileFavoritesRoute> {
+        measuredDestination<DataPrivacyRoute>(performance) { DataPrivacyScreen(onBack = { navController.popBackStack() }) }
+        measuredDestination<ProfileFavoritesRoute>(performance) {
             ArticleListScreen(
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onBack = { navController.popBackStack() },
@@ -194,14 +202,15 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
                 lockFavoritesFilter = true,
             )
         }
-        composable<ProfileExternalFavoritesRoute> { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
-        composable<RemoteNewsSettingsRoute> { RemoteNewsSettingsScreen(onBack = { navController.popBackStack() }) }
-        composable<SpeechSettingsRoute> { SpeechSettingsScreen(onBack = { navController.popBackStack() }) }
-        composable<TaskCenterRoute> { entry ->
+        measuredDestination<ProfileExternalFavoritesRoute>(performance) { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
+        measuredDestination<RemoteNewsSettingsRoute>(performance) { RemoteNewsSettingsScreen(onBack = { navController.popBackStack() }) }
+        measuredDestination<SpeechSettingsRoute>(performance) { SpeechSettingsScreen(onBack = { navController.popBackStack() }) }
+        measuredDestination<TaskCenterRoute>(performance) { entry ->
             TaskCenterScreen(onBack = { navController.popBackStack() }, recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures)
         }
 
-        composable<ArticleDetailRoute>(
+        measuredDestination<ArticleDetailRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -222,7 +231,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<BookSearchRoute>(
+        measuredDestination<BookSearchRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -251,7 +261,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<BookContentSearchRoute>(
+        measuredDestination<BookContentSearchRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -280,7 +291,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<AiConfigRoute>(
+        measuredDestination<AiConfigRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -300,7 +312,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<AiConfigEditRoute>(
+        measuredDestination<AiConfigEditRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -321,7 +334,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<SettingsRoute>(
+        measuredDestination<SettingsRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -341,7 +355,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<ReminderListRoute> { entry ->
+        measuredDestination<ReminderListRoute>(performance) { entry ->
             ReminderListScreen(
                 initialTodayOnly = entry.toRoute<ReminderListRoute>().todayOnly,
                 onBack = { navController.popBackStack() },
@@ -350,14 +364,14 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<ReminderSettingsRoute> {
+        measuredDestination<ReminderSettingsRoute>(performance) {
             com.dailysatori.ui.feature.settings.reminder.ReminderSettingsScreen(onBack = { navController.popBackStack() })
         }
-        composable<SmsSettingsRoute> {
+        measuredDestination<SmsSettingsRoute>(performance) {
             com.dailysatori.ui.feature.settings.sms.SmsSettingsScreen(onBack = { navController.popBackStack() })
         }
 
-        composable<ReminderDetailRoute> { backStackEntry ->
+        measuredDestination<ReminderDetailRoute>(performance) { backStackEntry ->
             val route = backStackEntry.toRoute<ReminderDetailRoute>()
             ReminderDetailScreen(
                 reminderId = route.reminderId,
@@ -366,7 +380,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<ReminderEditRoute> { backStackEntry ->
+        measuredDestination<ReminderEditRoute>(performance) { backStackEntry ->
             val route = backStackEntry.toRoute<ReminderEditRoute>()
             ReminderEditScreen(
                 reminderId = route.reminderId,
@@ -376,7 +390,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<ReminderRoute> { backStackEntry ->
+        measuredDestination<ReminderRoute>(performance) { backStackEntry ->
             val route = backStackEntry.toRoute<ReminderRoute>()
             ReminderDetailScreen(
                 reminderId = route.reminderId,
@@ -385,7 +399,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<ReminderAiBatchRoute> { backStackEntry ->
+        measuredDestination<ReminderAiBatchRoute>(performance) { backStackEntry ->
             val route = backStackEntry.toRoute<ReminderAiBatchRoute>()
             com.dailysatori.ui.feature.reminder.ReminderAiBatchScreen(
                 batchId = route.batchId,
@@ -394,7 +408,8 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<ShareDialogRoute>(
+        measuredDestination<ShareDialogRoute>(
+            performance,
             enterTransition = {
                 slideInHorizontally(
                     animationSpec = tween(ANIM_DURATION),
@@ -415,13 +430,13 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
 
-        composable<IdeaTopicListRoute> {
+        measuredDestination<IdeaTopicListRoute>(performance) {
             com.dailysatori.ui.feature.ideatopic.IdeaTopicListScreen(
                 onBack = { navController.popBackStack() },
                 onOpen = { topicId -> navController.navigate(IdeaTopicDetailRoute(topicId)) },
             )
         }
-        composable<IdeaTopicDetailRoute> { entry ->
+        measuredDestination<IdeaTopicDetailRoute>(performance) { entry ->
             val route = entry.toRoute<IdeaTopicDetailRoute>()
             com.dailysatori.ui.feature.ideatopic.IdeaTopicDetailScreen(
                 id = route.id,
@@ -439,7 +454,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
                 },
             )
         }
-        composable<IdeaTopicSessionRoute> { entry ->
+        measuredDestination<IdeaTopicSessionRoute>(performance) { entry ->
             val route = entry.toRoute<IdeaTopicSessionRoute>()
             com.dailysatori.ui.feature.ideatopic.IdeaTopicSessionScreen(
                 topicId = route.topicId,

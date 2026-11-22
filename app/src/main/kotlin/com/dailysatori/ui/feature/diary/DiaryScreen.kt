@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.diary
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -328,7 +330,12 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
             }
 
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth().performanceContent(
+                    when {
+                        state.diaries.isNotEmpty() -> PerformanceResult.OK
+                        state.entriesLoaded -> PerformanceResult.EMPTY
+                        else -> null
+                    }),
                 state = diaryListState,
                 contentPadding = PaddingValues(top = Spacing.m, bottom = FloatingControl.scrollClearance),
                 verticalArrangement = Arrangement.spacedBy(Spacing.l),

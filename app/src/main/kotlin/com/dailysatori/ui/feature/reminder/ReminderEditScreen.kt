@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,7 +85,7 @@ fun ReminderEditScreen(
         },
     ) { modifier ->
         LazyColumn(
-            modifier = modifier.fillMaxSize(),
+            modifier = modifier.fillMaxSize().performanceContent(PerformanceResult.OK.takeIf { reminderId == null || existing != null }),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {

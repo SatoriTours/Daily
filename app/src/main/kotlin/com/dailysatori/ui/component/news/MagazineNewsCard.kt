@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
 import com.dailysatori.R
 import com.dailysatori.ui.feature.article.articleCardSummaryMaxLines
@@ -205,7 +206,7 @@ private fun MagazineNewsCover(
         }
     } else if (imageLoader != null) {
         AsyncImage(
-            model = request,
+            model = performanceImageModel(request),
             imageLoader = imageLoader,
             contentDescription = description,
             modifier = coverModifier,
@@ -221,7 +222,7 @@ private fun MagazineNewsCover(
         )
     } else {
         AsyncImage(
-            model = request,
+            model = performanceImageModel(request),
             contentDescription = description,
             modifier = coverModifier,
             contentScale = ContentScale.Crop,

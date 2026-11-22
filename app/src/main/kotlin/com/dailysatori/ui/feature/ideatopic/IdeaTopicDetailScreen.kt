@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.ideatopic
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.foundation.BorderStroke
@@ -101,7 +105,7 @@ fun IdeaTopicDetailScreen(
         }
 
         Column(
-            modifier = modifier.fillMaxSize()
+            modifier = modifier.fillMaxSize().performanceContent()
         ) {
             // Merged banner
             if (state.mergedInto != null) {
@@ -189,34 +193,41 @@ fun IdeaTopicDetailScreen(
                     )
                 }
 
-                when (selectedTab) {
-                    0 -> OverviewTabContent(
-                        detail = detail,
-                        state = state,
-                        onEditContent = { showEditContentDialog = true },
-                        onAppendProgress = { showProgressDialog = true },
-                        onMerge = { showMergeDialog = true },
-                        onDelete = { showDeleteDialog = true },
-                        onPropose = viewModel::propose,
-                        onCancelAi = viewModel::cancel,
-                        onStatusChange = viewModel::setStatus,
-                        onEditDraft = { preview -> editingDraftPreview = preview },
-                        onDiscardDraft = viewModel::discardDraft,
-                    )
-                    1 -> ProvenanceTabContent(
-                        detail = detail,
-                        state = state,
-                        onSourceClick = { snapshot -> viewingSnapshot = snapshot },
-                    )
-                    2 -> ConversationsTabContent(
-                        detail = detail,
-                        state = state,
-                        onNewSession = { showNewSessionDialog = true },
-                        onOpenSession = { sessionId ->
-                            val targetTopicId = state.topicId ?: id
-                            onSession(targetTopicId, sessionId)
-                        },
-                    )
+                val tab = when (selectedTab) {
+                    0 -> PerformanceScreen.IDEA_OVERVIEW
+                    1 -> PerformanceScreen.IDEA_PROVENANCE
+                    else -> PerformanceScreen.IDEA_HISTORY
+                }
+                Box(Modifier.weight(1f).fillMaxWidth().performanceTab(tab, PerformanceResult.OK)) {
+                    when (selectedTab) {
+                        0 -> OverviewTabContent(
+                            detail = detail,
+                            state = state,
+                            onEditContent = { showEditContentDialog = true },
+                            onAppendProgress = { showProgressDialog = true },
+                            onMerge = { showMergeDialog = true },
+                            onDelete = { showDeleteDialog = true },
+                            onPropose = viewModel::propose,
+                            onCancelAi = viewModel::cancel,
+                            onStatusChange = viewModel::setStatus,
+                            onEditDraft = { preview -> editingDraftPreview = preview },
+                            onDiscardDraft = viewModel::discardDraft,
+                        )
+                        1 -> ProvenanceTabContent(
+                            detail = detail,
+                            state = state,
+                            onSourceClick = { snapshot -> viewingSnapshot = snapshot },
+                        )
+                        2 -> ConversationsTabContent(
+                            detail = detail,
+                            state = state,
+                            onNewSession = { showNewSessionDialog = true },
+                            onOpenSession = { sessionId ->
+                                val targetTopicId = state.topicId ?: id
+                                onSession(targetTopicId, sessionId)
+                            },
+                        )
+                    }
                 }
             }
         }

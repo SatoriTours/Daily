@@ -16,8 +16,9 @@ internal class DiaryTagStore(private val db:DailySatoriDatabase) {
     fun signal()=combine(q.selectDiaryTagAssignments().asFlow(),q.selectDiaryTagDefinitions().asFlow(),
         q.selectDiaryTagAliases().asFlow(),q.selectDiaryTagCatalog().asFlow()) { _,_,_,_ -> Unit }
 
-    fun tagsByDiary():Map<Long,List<String>> = q.selectDiaryTagAssignments().executeAsList()
-        .filter { it.state=="active" }.groupBy { it.diary_id }.mapValues { (_,rows) -> rows.map { it.name } }
+    fun aliases(): Map<String, String> =
+        if (q.selectDiaryTagCatalog().executeAsOneOrNull() == null) DiaryTagVocabulary().aliases
+        else q.selectDiaryTagAliases().executeAsList().associate { it.alias to it.name }
 
     fun tags(id:Long)=q.selectDiaryTagAssignmentsForDiary(id).executeAsList().filter { it.state=="active" }.map { it.name }
 

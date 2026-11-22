@@ -11,9 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import com.dailysatori.service.diary.DiaryTagVocabulary
 import com.dailysatori.service.diary.matchesDiaryTag
-import kotlinx.serialization.json.Json
 
 class DiaryRepository(
     private val db: DailySatoriDatabase,
@@ -23,27 +23,25 @@ class DiaryRepository(
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Diary>> =
-        DiaryImages(db).observe(q.selectDiaryRoots().asFlow().mapToList(Dispatchers.IO))
+        DiaryImages(db).observe(q.selectDiaryRootsForProjection(::diaryRecord).asFlow().mapToList(Dispatchers.IO))
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Diary>> =
-        DiaryImages(db).observe(q.selectDiaryRootsPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO))
+        DiaryImages(db).observe(q.selectDiaryRootsPaginated(limit, offset, ::diaryRecord).asFlow().mapToList(Dispatchers.IO))
 
     fun getById(id: Long) = q.selectDiaryById(id).executeAsOneOrNull()?.let(DiaryImages(db)::project)
 
     fun search(query: String): Flow<List<Diary>> {
-        val matches = if (query.isBlank()) {
-            q.searchDiaries(query).asFlow().mapToList(Dispatchers.IO)
-        } else {
-            q.searchDiariesFts(query.toFtsPhraseQuery(), query).asFlow().mapToList(Dispatchers.IO)
+        val matches = searchRows(query).asFlow()
+        val rows = if (query.isBlank()) matches.mapToList(Dispatchers.IO) else {
+            combine(matches, DiaryTagStore(db).signal()) { current, _ ->
+                includeTagAliases(current.executeAsList(), query)
+            }.flowOn(Dispatchers.IO)
         }
-        if (query.isBlank()) return DiaryImages(db).observe(matches)
-        return combine(DiaryImages(db).observe(matches), getAll(), DiaryTagStore(db).signal()) { found, all, _ ->
-            includeTagAliases(found, all, query)
-        }
+        return DiaryImages(db).observe(rows)
     }
 
     fun getByDateRange(startMs: Long, endMs: Long): Flow<List<Diary>> =
-        DiaryImages(db).observe(q.selectDiaryRootsByDateRange(startMs, endMs).asFlow().mapToList(Dispatchers.IO))
+        DiaryImages(db).observe(q.selectDiaryRootsByDateRange(startMs, endMs, ::diaryRecord).asFlow().mapToList(Dispatchers.IO))
 
     fun insert(
         content: String,
@@ -149,26 +147,34 @@ class DiaryRepository(
 
     fun count(): Long = q.diaryRootCount().executeAsOne()
 
-    fun getAllSync(): List<Diary> = DiaryImages(db).project(q.selectDiaryRoots().executeAsList())
+    fun getAllSync(): List<Diary> = DiaryImages(db).project(q.selectDiaryRootsForProjection(::diaryRecord).executeAsList())
 
     fun searchSync(query: String): List<Diary> {
-        val matches = if (query.isBlank()) {
-            q.searchDiaries(query).executeAsList()
-        } else {
-            q.searchDiariesFts(query.toFtsPhraseQuery(), query).executeAsList()
-        }
-        return if (query.isBlank()) DiaryImages(db).project(matches) else includeTagAliases(DiaryImages(db).project(matches), getAllSync(), query)
+        val matches = searchRows(query).executeAsList()
+        return DiaryImages(db).project(if (query.isBlank()) matches else includeTagAliases(matches, query))
     }
 
-    private fun includeTagAliases(found: List<Diary>, all: List<Diary>, query: String): List<Diary> {
-        val vocabulary = DiaryTagStore(db).vocabulary()
-        return (found + all.filter { matchesDiaryTag(it.tags, query.trim().removePrefix("#"), vocabulary) })
-            .distinctBy { it.id }.sortedByDescending { it.created_at }
+    private fun searchRows(query: String) = if (query.isBlank()) q.searchDiaries(query, ::diaryRecord)
+        else q.searchDiariesFts(query.toFtsPhraseQuery(), query, ::diaryRecord)
+
+    private fun includeTagAliases(found: List<Diary>, query: String): List<Diary> {
+        val selected = query.trim().removePrefix("#")
+        val vocabulary = DiaryTagVocabulary(aliases = DiaryTagStore(db).aliases())
+        // Keep Kotlin's legacy tag normalization; SQL expands only matching definitions to root IDs.
+        val tagIds = q.selectDiaryTagDefinitions().executeAsList()
+            .filter { matchesDiaryTag(it.name, selected, vocabulary) }.map { it.id }
+        val aliasHits = tagIds.chunked(DIARY_QUERY_BATCH_SIZE)
+            .flatMap { q.selectDiaryRootsMatchingTags(it, ::diaryRecord).executeAsList() }
+            .sortedWith(compareByDescending<Diary> { it.created_at }.thenByDescending { it.id })
+        return (found + aliasHits).distinctBy { it.id }.sortedByDescending { it.created_at }
     }
 
     fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
-        DiaryImages(db).project(q.selectDiaryRootsByDateRange(startMs, endMs).executeAsList())
+        DiaryImages(db).project(q.selectDiaryRootsByDateRange(startMs, endMs, ::diaryRecord).executeAsList())
 
     fun getLatestSync(limit: Int = 5): List<Diary> =
-        DiaryImages(db).project(q.selectDiaryRootsPaginated(limit.toLong(), 0).executeAsList())
+        DiaryImages(db).project(q.selectDiaryRootsPaginated(limit.toLong(), 0, ::diaryRecord).executeAsList())
+
+    private fun diaryRecord(id: Long, content: String, mood: String?, createdAt: Long, updatedAt: Long, parentId: Long?) =
+        Diary(id, content, null, mood, null, createdAt, updatedAt, parentId)
 }

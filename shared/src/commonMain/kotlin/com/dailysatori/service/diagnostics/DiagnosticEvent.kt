@@ -6,16 +6,16 @@ import kotlinx.serialization.Serializable
 enum class DiagnosticCode {
     APP_START, FOREGROUND, BACKGROUND, PAGE_VIEW, NETWORK_CHANGED, HTTP_START, HTTP_HEADERS, HTTP_END, HTTP_FAILED,
     HTTP_CANCELLED, OPERATION_START, OPERATION_PROGRESS, OPERATION_END, OPERATION_FAILED, OPERATION_CANCELLED,
-    AI_FIRST_CHUNK, LEGACY_LOG, CRASH, PROCESS_EXIT, DIAGNOSTIC_GAP,
+    AI_FIRST_CHUNK, LEGACY_LOG, CRASH, PROCESS_EXIT, DIAGNOSTIC_GAP, PERFORMANCE,
 }
 
 @Serializable
-enum class DiagnosticSource { APP, HTTP, AI, TOOL, WEBVIEW, IMAGE, DOWNLOAD, TASK, BACKUP, IMPORT, PARSER, DIARY, MIGRATION, LEGACY, WEB_SERVER }
+enum class DiagnosticSource { APP, HTTP, AI, TOOL, WEBVIEW, IMAGE, DOWNLOAD, TASK, BACKUP, IMPORT, PARSER, DIARY, MIGRATION, LEGACY, WEB_SERVER, DATABASE }
 
 @Serializable
 enum class DiagnosticLevel { DEBUG, INFO, WARNING, ERROR }
 
-data class DiagnosticTrace(val id: String, val taskId: Long? = null)
+data class DiagnosticTrace(val id: String, val taskId: Long? = null, val screen: PerformanceScreen? = null)
 
 @Serializable
 class SafeDiagnosticEvent private constructor(

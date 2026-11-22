@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.unifiednews
 
 import androidx.compose.foundation.layout.Arrangement
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -105,7 +107,7 @@ private fun UnifiedNewsSourceArticleList(
     ) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().performanceContent(PerformanceResult.OK.takeIf { articles.isNotEmpty() }),
             contentPadding = PaddingValues(
                 start = Spacing.m,
                 end = Spacing.m,

@@ -12,7 +12,7 @@ class RemoteArticleDetailLayoutTest {
 
         assertTrue(source.contains("val coverImage = article.coverUrl"))
         assertTrue(source.contains("RemoteArticleCoverImage("))
-        assertTrue(source.contains("articleCoverHeightAfterScroll("))
+        assertTrue(source.contains("rememberArticleCoverNestedScrollConnection("))
         assertTrue(source.contains("originalImageUrls = listOfNotNull(article.coverUrl)"))
     }
 
@@ -69,10 +69,11 @@ class RemoteArticleDetailLayoutTest {
             "RemoteArticleDetailPager",
             "RemoteArticleDetailPage",
             "RemoteArticleDetailBody",
-            "rememberRemoteArticleDetailNestedScrollConnection",
         ).forEach { functionName ->
             assertTrue(source.functionLineCount(functionName) <= 50, "$functionName exceeds 50 lines")
         }
+        val cover = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailLayout.kt").readText()
+        assertTrue(cover.functionLineCount("rememberArticleCoverNestedScrollConnection") <= 50)
     }
 
     @Test

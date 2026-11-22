@@ -1,29 +1,21 @@
 package com.dailysatori.di
 
-import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointAiRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.ChatConversationRepository
-import com.dailysatori.data.repository.DiaryAttachmentRepository
-import com.dailysatori.data.repository.DiaryRepository
-import com.dailysatori.data.repository.DiaryMonthSummaryRepository
-import com.dailysatori.data.repository.DiaryThoughtRepository
-import com.dailysatori.service.diary.DiaryThoughtGenerator
-import com.dailysatori.service.diary.DiaryThoughtService
-import com.dailysatori.service.diary.DiaryThoughtChatContextProvider
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
-import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.IdeaTopicRepository
+import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
-import com.dailysatori.data.repository.RemoteNewsSourceRepository
-import com.dailysatori.data.repository.RemoteArticleSyncRepository
-import com.dailysatori.data.repository.ReminderRepository
 import com.dailysatori.data.repository.ReminderAiBatchRepository
+import com.dailysatori.data.repository.ReminderRepository
+import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.SkillConfigDataSource
@@ -32,100 +24,75 @@ import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.data.repository.WeeklySummaryRepository
 import com.dailysatori.platform.FileManager
-import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.adblock.AdBlockService
 import com.dailysatori.service.ai.AiConfigService
-import com.dailysatori.service.ai.AiPurpose
 import com.dailysatori.service.ai.AiModelCatalogService
 import com.dailysatori.service.ai.AiService
-import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.backup.BackupPasswordStore
+import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.book.BookAiFallbackGenerator
 import com.dailysatori.service.book.BookIntelligenceService
 import com.dailysatori.service.book.BookIntelligenceSource
 import com.dailysatori.service.book.BookReflectionService
 import com.dailysatori.service.book.BookSearchService
-import com.dailysatori.service.book.BookAiFallbackGenerator
 import com.dailysatori.service.book.DefaultBookAiFallbackGenerator
 import com.dailysatori.service.book.DoubanSuggestSearchEngine
 import com.dailysatori.service.book.WeReadSkillService
 import com.dailysatori.service.book.WebSearchEngine
+import com.dailysatori.service.crayfishnews.CrayfishNewsService
+import com.dailysatori.service.externalfavorites.DefaultExternalFavoriteSupplementResolver
+import com.dailysatori.service.externalfavorites.ExternalFavoriteAiOrganizer
+import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
+import com.dailysatori.service.externalfavorites.ExternalFavoriteSupplementResolver
+import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
+import com.dailysatori.service.externalfavorites.FavoriteSyncService
+import com.dailysatori.service.externalfavorites.GitHubStarsConnector
+import com.dailysatori.service.externalfavorites.NoopFavoriteSyncHttpLogger
+import com.dailysatori.service.externalfavorites.XBookmarksConnector
+import com.dailysatori.service.hotnews.HotNewsClient
+import com.dailysatori.service.hotnews.HotNewsService
+import com.dailysatori.service.hotnews.HotNewsStore
+import com.dailysatori.service.hotnews.HotNewsTranslator
+import com.dailysatori.service.hotnews.XHotNewsClient
+import com.dailysatori.service.hotnews.xHotNewsAuthorization
 import com.dailysatori.service.i18n.I18nService
-import com.dailysatori.service.opportunity.AiNewsOpportunityAnalyzer
-import com.dailysatori.service.opportunity.DiaryThoughtOpportunityContext
-import com.dailysatori.service.opportunity.NewsOpportunityContext
-import com.dailysatori.service.opportunity.NewsOpportunityService
-import com.dailysatori.service.opportunity.NewsOpportunityStore
-import com.dailysatori.service.opportunity.OpportunityAnalyzer
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.AiSearchOrchestrator
-import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.LocalSqlQueryService
+import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.McpToolRegistry
 import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.memory.MemoryExtractor
-import com.dailysatori.service.diary.DiaryKnowledgeCoordinator
-import com.dailysatori.service.diary.DiaryKnowledgeEnricher
-import com.dailysatori.service.diary.DiaryAssistantService
-import com.dailysatori.service.diary.DiaryTranscriptPolishService
-import com.dailysatori.service.diary.DiaryTitleGenerator
-import com.dailysatori.service.diary.diaryTitleCompletion
-import com.dailysatori.service.diary.diaryTranscriptPolishCompletion
-import com.dailysatori.service.diary.DiaryTranscriptionCoordinator
-import com.dailysatori.service.diary.DiaryLinkContentExtractor
-import com.dailysatori.service.diary.DefaultDiaryLinkContentExtractor
-import com.dailysatori.service.diary.OpenAiCompatibleSpeechTranscriptionClient
-import com.dailysatori.service.diary.SpeechTranscriptionClient
-import com.dailysatori.service.diary.SpeechSettingsService
-import com.dailysatori.service.diary.SpeechTranscriptionApi
-import com.dailysatori.service.diary.diaryAssistantCompletion
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
-import com.dailysatori.service.crayfishnews.CrayfishNewsService
-import com.dailysatori.service.diary.DiaryMonthSummaryService
-import com.dailysatori.service.externalfavorites.ExternalFavoriteAiOrganizer
-import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
-import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
-import com.dailysatori.service.externalfavorites.FavoriteSyncService
-import com.dailysatori.service.externalfavorites.GitHubStarsConnector
-import com.dailysatori.service.externalfavorites.DefaultExternalFavoriteSupplementResolver
-import com.dailysatori.service.externalfavorites.ExternalFavoriteSupplementResolver
-import com.dailysatori.service.externalfavorites.NoopFavoriteSyncHttpLogger
-import com.dailysatori.service.externalfavorites.XBookmarksConnector
-import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
-import com.dailysatori.service.reminder.ReminderDraftCodec
 import com.dailysatori.service.reminder.ReminderAiInterpretationRemote
 import com.dailysatori.service.reminder.ReminderBatchCodec
+import com.dailysatori.service.reminder.ReminderDraftCodec
 import com.dailysatori.service.reminder.ReminderTextInterpreter
-import com.dailysatori.service.remotenews.RemoteArticleSyncService
+import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
 import com.dailysatori.service.remotenews.RemoteFeedSourceSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
-import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.service.security.SecretFieldProcessor
+import com.dailysatori.service.security.SecretValueCipher
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.skill.DefaultSkillConnectionTester
 import com.dailysatori.service.skill.SkillConnectionTester
 import com.dailysatori.service.skill.SkillRegistry
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
-import com.dailysatori.service.hotnews.HotNewsClient
-import com.dailysatori.service.hotnews.HotNewsStore
-import com.dailysatori.service.hotnews.HotNewsTranslator
-import com.dailysatori.service.hotnews.HotNewsService
-import com.dailysatori.service.hotnews.XHotNewsClient
-import com.dailysatori.service.hotnews.xHotNewsAuthorization
 import com.dailysatori.service.weekly.WeeklySummaryService
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
 val sharedModule: Module = module {
+    includes(diaryModule, newsOpportunityModule, articleProcessingModule)
+
     // HttpClient (platform-specific)
     single { createHttpClient() }
 
     // Repositories
-    single { ArticleRepository(get()) }
-    single { com.dailysatori.data.repository.ArticleAiRepository(get(), get()) }
     single { AIConfigRepository(get()) }
     single { AsyncTaskRepository(get()) }
     single { BookRepository(get()) }
@@ -146,45 +113,6 @@ val sharedModule: Module = module {
     single { com.dailysatori.service.assistant.AssistantActionService(get(), get()) }
     single { com.dailysatori.service.assistant.KoogAssistantRuntime(get(), get(), get(), get(), get(), get()) }
     single { com.dailysatori.service.assistant.AssistantTurnTaskHandler(get(), get(), get<com.dailysatori.service.assistant.KoogAssistantRuntime>()) }
-    single { DiaryAttachmentRepository(get(), get(), get()) }
-    single { DiaryRepository(get(), get(), get()) }
-    single { com.dailysatori.data.repository.DiaryThreadRepository(get(), get()) }
-    single { com.dailysatori.data.repository.DiaryTagRepository(get(), get()) }
-    single {
-        val configs = get<com.dailysatori.service.ai.AiConfigService>()
-        val ai = get<com.dailysatori.service.ai.AiService>()
-        com.dailysatori.service.diary.DiaryTagGenerator { prompt, system ->
-            val config = configs.getConfig(AiPurpose.INTERACTIVE) ?: error("请先配置默认 AI")
-            ai.completePrivate(prompt, config.api_address, config.api_token, config.model_name, config.provider, system,
-                purpose = AiPurpose.INTERACTIVE)
-        }
-    }
-    single {
-        val configs = get<com.dailysatori.service.ai.AiConfigService>()
-        com.dailysatori.service.diary.DiaryTagCoordinator(get(), get(), get(), get()) {
-            configs.getConfig(AiPurpose.INTERACTIVE)?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
-        }
-    }
-    single { DiaryMonthSummaryRepository(get()) }
-    single { DiaryThoughtRepository(get()) }
-    single { DiaryThoughtGenerator(diaryAssistantCompletion(get(), get(), AiPurpose.REFLECTION)) }
-    single { DiaryThoughtService(get(), get(), get()) }
-    single { DiaryThoughtChatContextProvider(get(), get()) }
-    single {
-        val configs = get<com.dailysatori.service.ai.AiConfigService>()
-        val ai = get<com.dailysatori.service.ai.AiService>()
-        com.dailysatori.service.diary.DiaryThreadSummaryGenerator { prompt, system ->
-            val config = configs.getConfig(AiPurpose.INTERACTIVE) ?: error("请先配置默认 AI")
-            ai.completePrivate(prompt, config.api_address, config.api_token, config.model_name, config.provider, system,
-                purpose = AiPurpose.INTERACTIVE)
-        }
-    }
-    single {
-        val configs = get<com.dailysatori.service.ai.AiConfigService>()
-        com.dailysatori.service.diary.DiaryThreadSummaryCoordinator(get(), get(), get()) {
-            configs.getConfig(AiPurpose.INTERACTIVE)?.let { it.api_token.isNotBlank() && it.api_address.isNotBlank() && it.model_name.isNotBlank() } == true
-        }
-    }
     single { ExternalFavoriteSourceRepository(get()) }
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
@@ -208,7 +136,6 @@ val sharedModule: Module = module {
     single { RemoteNewsSourceRepository(get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
-    single { NewsOpportunityStore(get()) }
     single { SkillConfigRepository(get()) }
     single<SkillConfigDataSource> { get<SkillConfigRepository>() }
     single { TagRepository(get()) }
@@ -222,12 +149,6 @@ val sharedModule: Module = module {
     single { com.dailysatori.service.ai.AiRequestCoordinator(get()) }
     single { AiService(get(), get()) }
     single { com.dailysatori.service.ai.AiConversationSessionStore(get()) }
-    single<OpportunityAnalyzer> { AiNewsOpportunityAnalyzer(get(), get()) }
-    single<NewsOpportunityContext> { DiaryThoughtOpportunityContext(get(), get()) }
-    single<com.dailysatori.service.opportunity.OpportunityCandidateSource> {
-        com.dailysatori.service.opportunity.NewsOpportunityCandidateSource(get(), get<RemoteNewsSourceRepository>()::getEnabled, get(), get(), get())
-    }
-    single { NewsOpportunityService(get(), get(), get(), get()) }
     single { AiModelCatalogService(get(), get()) }
     single { BackupPasswordStore(get()) }
     single { SecretCipher(get()) }
@@ -251,13 +172,6 @@ val sharedModule: Module = module {
     single { ExternalFavoriteAiOrganizer(get(), get(), get(), get(), get(), settingRepo = get(), sourceRepo = get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get(), httpLogger = getOrNull() ?: NoopFavoriteSyncHttpLogger) }
     single { RemoteArticleFavoriteService(get(), get()) }
-    single<com.dailysatori.service.articleai.ArticleAiRemote> {
-        com.dailysatori.service.articleai.ConfiguredArticleAiRemote(get(), get())
-    }
-    single {
-        val queue = getOrNull<com.dailysatori.service.articleai.ArticleAiQueue>()
-        RemoteArticleSyncService(get(), get(), get()) { article -> queue?.onNewBody(article) }
-    }
     single { com.dailysatori.data.repository.RemoteFeedSyncStateRepository(get()) }
     single { com.dailysatori.data.repository.RemoteFeedHistoryRepository(get()) }
     single {
@@ -266,15 +180,8 @@ val sharedModule: Module = module {
         )
     }
     single { RemoteFeedSourceSyncService(get(), get(), get(), get()) }
-    single { DiaryMonthSummaryService(get(), get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single<MemoryExtractor> { get<MemoryExtractService>() }
-    single { DiaryKnowledgeCoordinator(get(), get(), get<MemoryExtractor>(), get()) }
-    single { SpeechSettingsService(get(), get()) }
-    single { SpeechTranscriptionApi(get()) }
-    single<SpeechTranscriptionClient> { OpenAiCompatibleSpeechTranscriptionClient(get(), get(), get()) }
-    single { DiaryTitleGenerator(diaryTitleCompletion(get(), get())) }
-    single { DiaryTranscriptionCoordinator(get(), get(), get(), get(), get(), get()) }
     single {
         val sources: ExternalFavoriteSourceRepository = get()
         val connector: XBookmarksConnector = get()
@@ -303,31 +210,6 @@ val sharedModule: Module = module {
         }
         AdBlockService(rulesText)
     }
-
-    // Webpage parser service (content processing pipeline)
-    single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(),
-        settingRepo = get(), coverScheduler = get(), externalFavoriteItemRepo = get()) }
-    single<DiaryLinkContentExtractor> { DefaultDiaryLinkContentExtractor(get<WebpageParserService>()) }
-    single<DiaryKnowledgeEnricher> {
-        val mcpServers: McpServerRepository = get()
-        val remoteMcp: RemoteMcpClient = get()
-        val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get())
-        DiaryKnowledgeEnricher(
-            collectWebNotes = { query ->
-                remoteMcp.collectWebSearchNotes(
-                    mcpServers.getEnabled().filter { it.server_url.startsWith("http", ignoreCase = true) },
-                    query,
-                )
-            },
-            complete = complete,
-        )
-    }
-    single<DiaryAssistantService> {
-        val complete: suspend (String, String) -> String = diaryAssistantCompletion(get(), get(), AiPurpose.EXTERNAL_CONTENT)
-        DiaryAssistantService(get(), get(), complete)
-    }
-
-    single { DiaryTranscriptPolishService(diaryTranscriptPolishCompletion(get(), get())) }
 
     // Book search service
     single { DoubanSuggestSearchEngine(get()) }

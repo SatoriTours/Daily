@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.share
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -75,7 +76,7 @@ fun ShareDialogScreen(
         },
     ) { modifier ->
         Column(
-            modifier = modifier.fillMaxSize().padding(Spacing.m),
+            modifier = modifier.fillMaxSize().performanceContent().padding(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.l),
         ) {
             Column {

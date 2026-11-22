@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.phone
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,7 +41,12 @@ fun PhoneHistoryScreen(onBack: () -> Unit, vm: PhoneAssistantViewModel = koinVie
         }
     }
     SettingsScaffold(title = i18n.t("auth.records"), onBack = onBack) { modifier ->
-        LazyColumn(modifier.fillMaxSize(), state = listState,
+        LazyColumn(modifier.fillMaxSize().performanceContent(when {
+            state.failed -> PerformanceResult.FAILED
+            !state.historyLoaded || !state.messagesLoaded -> null
+            rows.isEmpty() -> PerformanceResult.EMPTY
+            else -> PerformanceResult.OK
+        }), state = listState,
             contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
             verticalArrangement = Arrangement.spacedBy(Spacing.m - Spacing.xs)) {
             item(key = "source-info") {

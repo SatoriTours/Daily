@@ -23,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.dailysatori.ui.theme.AppColors
@@ -61,10 +62,10 @@ fun SmartImage(
         }
         Box(modifier = Modifier.size(size).then(modifier)) {
             AsyncImage(
-                model = ImageRequest.Builder(context)
+                model = performanceImageModel(ImageRequest.Builder(context)
                     .data(resolvedPath)
                     .crossfade(true)
-                    .build(),
+                    .build()),
                 placeholder = painterResource(android.R.drawable.ic_menu_gallery),
                 error = painterResource(android.R.drawable.ic_menu_report_image),
                 contentDescription = contentDescription,

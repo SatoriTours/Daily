@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.aichat
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -210,6 +213,8 @@ fun AiChatScreen(
     }
 
     if (state.showSessions) {
+        Box(Modifier.fillMaxSize().performanceTab(PerformanceScreen.CHAT_SESSIONS,
+            if (state.sessionSummaries.isEmpty()) PerformanceResult.EMPTY else PerformanceResult.OK)) {
         SessionListScreen(
             sessions = state.sessionSummaries,
             currentSessionId = state.sessionId,
@@ -219,11 +224,16 @@ fun AiChatScreen(
             onDismiss = { keyboard?.hide(); viewModel.setSessionsVisible(false) },
             snackbarHost = { SnackbarHost(snackbarHostState) },
         )
+        }
         return
     }
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.performanceTab(PerformanceScreen.CHAT_MESSAGES, when {
+            state.isLoadingMessages -> null
+            state.messages.isEmpty() -> PerformanceResult.EMPTY
+            else -> PerformanceResult.OK
+        }, state.sessionId),
         bottomBar = {
             Box(Modifier.navigationBarsPadding().imePadding()) {
                 ChatInputBar(

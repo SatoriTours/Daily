@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.settings.taskcenter
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -111,7 +114,7 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                 httpLog = state.httpLog,
                 query = logQuery,
                 filter = logFilter,
-                modifier = modifier,
+                modifier = modifier.performanceTab(PerformanceScreen.TASK_LOG, PerformanceResult.OK, task.id),
             )
             task != null -> TaskCenterTaskDetail(
                 task = task,
@@ -129,7 +132,7 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                 onArmCapture = { viewModel.armCapture(task.id, task.type) },
                 onDisarmCapture = { viewModel.disarmCapture(task.id) },
                 onOpenLog = { logOpen = true },
-                modifier = modifier,
+                modifier = modifier.performanceTab(PerformanceScreen.TASK_DETAIL, PerformanceResult.OK, task.id),
             )
             else -> TaskCenterTaskList(state = state, viewModel = viewModel, modifier = modifier)
         }
@@ -143,7 +146,16 @@ private fun TaskCenterTaskList(
     modifier: Modifier = Modifier,
 ) {
     val copy = taskCenterCopy()
-    Column(modifier = modifier.fillMaxSize()) {
+    val tab = when (state.tab) {
+        TaskCenterTab.Current -> PerformanceScreen.TASK_CURRENT
+        TaskCenterTab.Pending -> PerformanceScreen.TASK_PENDING
+        TaskCenterTab.History -> PerformanceScreen.TASK_HISTORY
+    }
+    Column(modifier = modifier.fillMaxSize().performanceTab(tab, when {
+        !state.tasksLoaded -> null
+        state.tasks.isEmpty() -> PerformanceResult.EMPTY
+        else -> PerformanceResult.OK
+    })) {
         TaskCenterTabRow(
             tab = state.tab,
             activeTotal = state.activeTotal,

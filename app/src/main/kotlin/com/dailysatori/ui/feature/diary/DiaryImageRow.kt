@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.dailysatori.ui.theme.Radius
@@ -44,10 +45,10 @@ fun DiaryImageRow(
         itemsIndexed(images.toList()) { _, imagePath ->
             Box(modifier = Modifier.size(103.dp)) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
+                    model = performanceImageModel(ImageRequest.Builder(context)
                         .data(com.dailysatori.core.util.diaryImageModel(imagePath, context.filesDir))
                         .crossfade(true)
-                        .build(),
+                        .build()),
                     contentDescription = null,
                     modifier = Modifier.size(103.dp).clip(RoundedCornerShape(Radius.l)),
                     contentScale = ContentScale.Crop,

@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.animation.AnimatedVisibility
@@ -60,7 +62,7 @@ fun ReminderAiBatchScreen(
         },
     ) { modifier ->
         LazyColumn(
-            modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m),
+            modifier = modifier.fillMaxSize().performanceContent(PerformanceResult.OK.takeIf { batch != null }), contentPadding = PaddingValues(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.l),
         ) {
             when (batch?.status) {

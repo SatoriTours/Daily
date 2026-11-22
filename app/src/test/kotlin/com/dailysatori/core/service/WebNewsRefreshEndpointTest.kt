@@ -8,8 +8,8 @@ import kotlin.test.assertTrue
 class WebNewsRefreshEndpointTest {
     @Test
     fun lanRefreshUsesTheUnifiedManualTaskInsteadOfGeneratingInline() {
-        val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
-        val endpoint = source.substringAfter("post(\"/summary/refresh\")").substringBefore("private fun Route.setupTaskRoutes")
+        val source = File("src/main/kotlin/com/dailysatori/core/service/WebNewsTaskRoutes.kt").readText()
+        val endpoint = source.substringAfter("post(\"/summary/refresh\")").substringBefore("internal fun Route.setupTaskRoutes")
 
         assertTrue(endpoint.contains("enqueueManualNewsRefresh(tasks"))
         assertTrue(endpoint.contains("observeTaskById(taskId)"))

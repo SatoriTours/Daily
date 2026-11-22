@@ -27,49 +27,53 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
-    fun remoteNewsListScrollsToTopAfterRefreshCompletes() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
+    fun activeRemoteNewsListRespondsToScrollToTopRequests() {
+        val source = unifiedSource("UnifiedNewsRemoteSourceContent")
 
-        assertTrue(source.contains("refreshCompletedToken"))
-        assertTrue(source.contains("scrollToItem(0)"))
+        assertTrue(source.contains("LaunchedEffect(scrollToTopRequestKey)"))
+        assertTrue(source.contains("listState.animateScrollToItem(0)"))
     }
 
     @Test
     fun remoteNewsListsUseStableKeysAndDerivedLoadMoreState() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
+        val source = unifiedSource("UnifiedNewsRemoteSourceContent")
 
         assertTrue(source.contains("derivedStateOf"))
-        assertTrue(source.contains("items(state.digests, key = { it.id })"))
-        assertTrue(source.contains("items(state.articles, key = { it.id })"))
-        assertTrue(source.contains("items(state.feeds, key = { it.id })"))
-        assertTrue(source.contains("item(key = \"remote-news-loading-more\")"))
-        assertTrue(source.contains("item(key = \"remote-news-load-more-error\")"))
-        assertTrue(source.contains("contentPadding = newsListContentPadding()"))
+        assertTrue(source.contains("items(articles, key = { it.id })"))
+        assertTrue(source.contains("item(key = \"source-article-loading-more\")"))
+        assertTrue(source.contains("item(key = \"source-article-error\")"))
+        assertTrue(source.contains("NewsStatusBanner("))
+        assertTrue(source.contains("contentPadding = PaddingValues("))
         assertTrue(source.contains("NewsStateMessage("))
     }
 
     @Test
     fun remoteNewsDetailErrorsDoNotReuseListErrorState() {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
-        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
+        val screen = unifiedSource("UnifiedNewsScreen")
 
         assertTrue(viewModel.contains("detailError"))
         assertTrue(viewModel.substringAfter("fun openArticle").substringBefore("fun toggleSelectedArticleFavorite").contains("detailError"))
         assertFalse(viewModel.substringAfter("fun openArticle").substringBefore("fun toggleSelectedArticleFavorite").contains("error = result.message"))
-        assertTrue(screen.contains("state.detailError"))
+        assertTrue(screen.contains("if (state.navigationTarget != null && detailError != null)"))
+        assertTrue(screen.contains("UnifiedNewsSourceDetailErrorScreen(message = detailError"))
+        assertTrue(unifiedSource("UnifiedNewsRemoteSourceContent").contains("state.sourceArticlesError"))
     }
 
     @Test
     fun remoteNewsListOpensArticleFromListPayloadWithoutDetailApi() {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
-        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
+        val screen = unifiedSource("UnifiedNewsScreen")
+        val activeOpen = unifiedSource("UnifiedNewsViewModel").substringAfter("fun openSourceArticle(article: RemoteArticle)")
+            .substringBefore("fun toggleSelectedRemoteArticleFavorite()")
         val openArticleBody = viewModel.substringAfter("fun openArticle(").substringBefore("fun toggleSelectedArticleFavorite")
 
         assertTrue(viewModel.contains("fun openArticle(article: RemoteArticle)"))
         assertTrue(openArticleBody.contains("selectedArticle = article"))
         assertFalse(openArticleBody.contains("remoteNewsService.fetchArticle"))
-        assertTrue(screen.contains("viewModel.openArticle(it)"))
-        assertFalse(screen.contains("viewModel.openArticle(it.id)"))
+        assertTrue(screen.contains("onArticleClick = viewModel::openSourceArticle"))
+        assertTrue(activeOpen.contains(") { article }"))
+        assertFalse(activeOpen.contains("remoteNewsService.fetchArticle"))
     }
 
     @Test
@@ -189,15 +193,17 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
-    fun remoteNewsScreenCanNavigateSyncedArticlesToLocalDetail() {
-        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
-        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
+    fun activeRemoteSourceCanNavigateSyncedArticlesToLocalDetail() {
+        val screen = unifiedSource("UnifiedNewsScreen")
+        val viewModel = unifiedSource("UnifiedNewsViewModel")
 
-        assertTrue(screen.contains("fun RemoteNewsScreen(onArticleClick: (Long) -> Unit = {})"))
-        assertTrue(screen.contains("LaunchedEffect(state.localArticleNavigationTarget)"))
-        assertTrue(viewModel.contains("localArticleNavigationTarget = local.id"))
-        assertTrue(viewModel.contains("fun clearLocalArticleNavigationTarget()"))
+        assertTrue(unifiedSource("UnifiedNewsRemoteSourceContent").contains("viewModel.openLocalArticle(article.id)"))
+        assertTrue(viewModel.contains("beginDetailRequest(UnifiedNewsNavigationTarget.LocalArticle(id))"))
+        assertTrue(screen.contains("as? UnifiedNewsNavigationTarget.LocalArticle"))
+        assertTrue(screen.contains("onArticleClick(target.id)"))
     }
+
+    private fun unifiedSource(name: String) = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/$name.kt").readText()
 
     @Test
     fun remoteArticleFavoriteReprocessesEnglishContentThroughLocalAiPipeline() {

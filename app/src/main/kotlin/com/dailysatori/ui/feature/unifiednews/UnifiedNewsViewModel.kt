@@ -101,6 +101,7 @@ data class UnifiedNewsState(
     val sourceArticlesLoadingSourceId: Long? = null,
     val sourceArticlesLoadingMoreSourceId: Long? = null,
     val sourceArticlesError: String? = null,
+    val initialSummariesLoaded: Boolean = false,
     val summaries: List<Unified_news_summary> = emptyList(),
     val selectedSummary: Unified_news_summary? = null,
     val lastSuccessfulSummary: Unified_news_summary? = null,
@@ -287,10 +288,10 @@ class UnifiedNewsViewModel(
         }
     }
 
-    fun openHotNews(item: HotNewsItem) {
+    fun openHotNews(item: HotNewsItem, owner: DiagnosticTrace? = null) {
         val token = beginDetailRequest(UnifiedNewsNavigationTarget.HotNews(item.identity))
         _state.update { it.copy(selectedHotNews = item, hotNewsDetailLoading = true, hotNewsDetailFailed = false) }
-        detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
+        detailLoadJob = viewModelScope.launch(owner?.let { Dispatchers.IO + DiagnosticLog.traceContext(it) } ?: Dispatchers.IO) {
             try {
                 val loader = HotNewsArticleLoader(articleRepo, hotNews, webpageParser::reprocessArticle)
                 val article = loader.load(item) { snapshot ->
@@ -371,6 +372,7 @@ class UnifiedNewsViewModel(
                             remoteSources = remoteSources,
                             externalFavoriteSources = externalFavoriteSources,
                             summaries = displaySummaries,
+                            initialSummariesLoaded = true,
                             selectedSummary = displaySummaries.firstOrNull(),
                             lastSuccessfulSummary = lastSuccessful,
                             lastSuccessfulSources = lastSources,

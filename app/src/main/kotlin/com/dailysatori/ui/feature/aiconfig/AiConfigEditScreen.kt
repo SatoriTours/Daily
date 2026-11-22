@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.aiconfig
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -83,8 +85,10 @@ fun AiConfigEditScreen(
     val canSave = canTest && state.hasChanges
     val requestBack = rememberSettingsEditorBack(state.hasChanges, !state.editable, onBack)
 
+    var requestStarted by remember(configId) { mutableStateOf(false) }
     LaunchedEffect(configId) {
         viewModel.load(configId)
+        requestStarted = true
     }
 
     AppScaffold(
@@ -105,7 +109,11 @@ fun AiConfigEditScreen(
         },
     ) { modifier ->
         LazyColumn(
-            modifier = modifier.fillMaxSize().padding(horizontal = Spacing.m),
+            modifier = modifier.fillMaxSize().performanceContent(when {
+                !requestStarted || state.isLoading -> null
+                state.saveError != null -> PerformanceResult.FAILED
+                else -> PerformanceResult.OK
+            }).padding(horizontal = Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
             contentPadding = PaddingValues(vertical = Spacing.m),
         ) {

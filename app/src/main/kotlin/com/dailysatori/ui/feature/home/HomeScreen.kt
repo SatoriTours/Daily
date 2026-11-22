@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.home
 
+import com.dailysatori.core.diagnostics.MeasuredUi
+import com.dailysatori.core.diagnostics.rememberUiVisit
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -168,6 +171,13 @@ fun HomeScreen(
         if (selectedBookId != null) selectedIndex = READING_TAB_INDEX
     }
 
+    val tabScreen = when (selectedIndex) {
+        DIARY_TAB_INDEX -> PerformanceScreen.DIARY
+        READING_TAB_INDEX -> PerformanceScreen.READING
+        MY_TAB_INDEX -> PerformanceScreen.MY
+        else -> PerformanceScreen.TODAY
+    }
+    val tabVisit = rememberUiVisit(tabScreen)
     Scaffold(contentWindowInsets = WindowInsets.navigationBars) { innerPadding ->
         Box(
             modifier = Modifier
@@ -181,38 +191,40 @@ fun HomeScreen(
                     targetState = selectedIndex,
                     modifier = Modifier.fillMaxSize(),
                 ) { index ->
-                    when (index) {
-                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
-                            onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
-                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
-                            onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
-                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick) { onIdeaTopic(it) }
-                        READING_TAB_INDEX -> BooksScreen(
-                            selectedBookId = selectedBookId,
-                            selectedViewpointId = selectedViewpointId,
-                            bookAnalysisMessage = bookAnalysisMessage,
-                            onSelectedBookConsumed = onSelectedBookConsumed,
-                            onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
-                        )
-                        MY_TAB_INDEX -> MySpaceScreen(
-                            previewSeed = myPreviewSeed,
-                            listState = myListState,
-                            onThoughts = onThoughts,
-                            onThought = onThought,
-                            onReminders = onReminders,
-                            onLifeArchive = onLifeArchive,
-                            onReminder = onReminder,
-                            onAddReminder = onAddReminder,
-                            onChat = onChat,
-                            onSettings = onProfileClick,
-                            onFavorites = onFavorites,
-                            onTasks = onTasks,
-                            onIdeaTopics = onIdeaTopics,
-                            onLedger = onLedger,
-                        )
-                        else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
-                            onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
-                            onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
+                    MeasuredUi(tabVisit.takeIf { index == selectedIndex }) {
+                        when (index) {
+                            TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick,
+                                onMyClick = onProfileClick, avatarBadgeCount = com.dailysatori.service.reminder.ReminderSummary.todayPendingCount(reminders, today),
+                                onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
+                                onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
+                            DIARY_TAB_INDEX -> DiaryScreen(onMyClick = onProfileClick) { onIdeaTopic(it) }
+                            READING_TAB_INDEX -> BooksScreen(
+                                selectedBookId = selectedBookId,
+                                selectedViewpointId = selectedViewpointId,
+                                bookAnalysisMessage = bookAnalysisMessage,
+                                onSelectedBookConsumed = onSelectedBookConsumed,
+                                onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
+                            )
+                            MY_TAB_INDEX -> MySpaceScreen(
+                                previewSeed = myPreviewSeed,
+                                listState = myListState,
+                                onThoughts = onThoughts,
+                                onThought = onThought,
+                                onReminders = onReminders,
+                                onLifeArchive = onLifeArchive,
+                                onReminder = onReminder,
+                                onAddReminder = onAddReminder,
+                                onChat = onChat,
+                                onSettings = onProfileClick,
+                                onFavorites = onFavorites,
+                                onTasks = onTasks,
+                                onIdeaTopics = onIdeaTopics,
+                                onLedger = onLedger,
+                            )
+                            else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = onProfileClick,
+                                onBriefing = onBriefing, onOpportunities = onOpportunities, onOpportunity = onOpportunity, onTopic = onIdeaTopic,
+                                onHotNewsDetailVisibleChange = { isHotNewsDetailOpen = it })
+                        }
                     }
                 }
             }

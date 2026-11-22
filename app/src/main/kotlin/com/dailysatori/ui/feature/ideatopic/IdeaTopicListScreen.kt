@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.ideatopic
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -48,7 +50,11 @@ fun IdeaTopicListScreen(
         onBack = onBack,
     ) { modifier ->
         Column(
-            modifier = modifier.fillMaxSize()
+            modifier = modifier.fillMaxSize().performanceContent(when {
+                state.isLoading -> null
+                state.topics.isEmpty() -> PerformanceResult.EMPTY
+                else -> PerformanceResult.OK
+            })
         ) {
             // Search field
             OutlinedTextField(

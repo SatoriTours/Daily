@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.book
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -44,7 +45,7 @@ fun BookContentSearchScreen(
     val state by viewModel.state.collectAsState()
 
     AppScaffold(title = "搜索读书内容", onBack = onBack) { modifier ->
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize().performanceContent()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

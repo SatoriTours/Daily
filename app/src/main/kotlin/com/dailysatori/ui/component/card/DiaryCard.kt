@@ -54,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.dailysatori.R
@@ -401,7 +402,7 @@ internal fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, photoC
     if (!imageModel.startsWith("http://") && !imageModel.startsWith("https://") && !File(imageModel).exists()) return
     Box(modifier = modifier.clip(RoundedCornerShape(Radius.s))) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(imageModel).crossfade(true).build(),
+            model = performanceImageModel(ImageRequest.Builder(LocalContext.current).data(imageModel).crossfade(true).build()),
             contentDescription = "日记图片",
             contentScale = ContentScale.Crop,
             modifier = Modifier.matchParentSize(),

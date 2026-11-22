@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.remotenews
 
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 import androidx.compose.material3.DropdownMenuItem
 
@@ -122,7 +123,7 @@ private fun RemoteNewsSourceListPage(
         if (query.isNotBlank() && visibleSources.isEmpty()) SettingsSearchEmptyState(modifier)
         else if (state.sources.isEmpty()) {
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize().performanceContent(),
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
@@ -140,7 +141,7 @@ private fun RemoteNewsSourceListPage(
             }
         } else {
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize().performanceContent(),
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {

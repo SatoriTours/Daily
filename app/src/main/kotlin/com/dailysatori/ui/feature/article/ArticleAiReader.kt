@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -38,6 +41,12 @@ class ArticleAiReaderViewModel(
 }
 
 internal enum class ArticleReadMode { ORIGINAL, SUMMARY, TRANSLATION }
+
+internal fun ArticleReadMode.performanceScreen(): PerformanceScreen = when (this) {
+    ArticleReadMode.ORIGINAL -> PerformanceScreen.ARTICLE_READ_BODY
+    ArticleReadMode.SUMMARY -> PerformanceScreen.ARTICLE_READ_SUMMARY
+    ArticleReadMode.TRANSLATION -> PerformanceScreen.ARTICLE_READ_TRANSLATION
+}
 
 internal fun initialArticleReadMode(view: ArticleAiView) =
     if (view.summary != null) ArticleReadMode.SUMMARY else ArticleReadMode.ORIGINAL
@@ -83,7 +92,8 @@ internal fun ArticleAiReader(
     val body = remember(view.translation, title, originalBody) {
         view.translation?.let { tidyArticleTranslation(it, title) } ?: originalBody
     }
-    LazyColumn(modifier = modifier.fillMaxSize()) {
+    LazyColumn(modifier = modifier.fillMaxSize().performanceTab(ArticleReadMode.ORIGINAL.performanceScreen(),
+        if (body.isBlank() && summary == null) PerformanceResult.EMPTY else PerformanceResult.OK)) {
         item(key = "reader-title") {
             ArticleReadingTitle(title)
         }
@@ -147,12 +157,14 @@ internal fun ArticleReadingContent(
             Text(i18n.t("article_ai.summary_title"), style = MaterialTheme.typography.titleMedium)
             summaryNotes.forEach { ReadingNote(it) }
             ArticleReaderBody(articleDetailPageContent(0, distinctSummary, null),
-                typography = MarkdownStyles.readingTypography(), padding = MarkdownStyles.summaryPadding())
+                typography = MarkdownStyles.readingTypography(), padding = MarkdownStyles.summaryPadding(),
+                modifier = Modifier.performanceTab(ArticleReadMode.SUMMARY.performanceScreen(), PerformanceResult.OK))
             HorizontalDivider(Modifier.padding(vertical = Spacing.m))
         }
         bodyNotes.forEach { ReadingNote(it) }
         if (body.isNotBlank()) ArticleReaderBody(body, typography = MarkdownStyles.readingTypography(),
-            padding = if (translated) MarkdownStyles.translationPadding() else MarkdownStyles.readingPadding())
+            padding = if (translated) MarkdownStyles.translationPadding() else MarkdownStyles.readingPadding(),
+            modifier = if (translated) Modifier.performanceTab(ArticleReadMode.TRANSLATION.performanceScreen(), PerformanceResult.OK) else Modifier)
     }
 }
 

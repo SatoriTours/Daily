@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
@@ -32,11 +31,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.parser.normalizeArticleMarkdownImages
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.ui.component.news.ArticleReaderBody
@@ -54,8 +51,8 @@ import com.dailysatori.ui.feature.article.ArticleReadingTitle
 import com.dailysatori.ui.theme.SmartReadingIcon
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
+import com.dailysatori.ui.feature.article.rememberArticleCoverNestedScrollConnection
 import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.feature.article.ArticleAiReader
 import com.dailysatori.ui.feature.article.canRequestReading
@@ -227,7 +224,7 @@ private fun RemoteArticleDetailPage(
     density: Density,
 ) {
     val listState = rememberLazyListState()
-    val nestedScrollConnection = rememberRemoteArticleDetailNestedScrollConnection(
+    val nestedScrollConnection = rememberArticleCoverNestedScrollConnection(
         hasCover, coverHeightDp, onCoverHeightChange, listState, density,
     )
     Column(modifier = Modifier.fillMaxSize()) {
@@ -276,27 +273,6 @@ private fun RemoteArticleOriginalBottomSheet(article: RemoteArticle, source: Str
                 typography = MarkdownStyles.remoteArticleTypography(),
                 padding = MarkdownStyles.remoteArticlePadding(),
             )
-        }
-    }
-}
-
-@Composable
-private fun rememberRemoteArticleDetailNestedScrollConnection(
-    hasCover: Boolean,
-    coverHeightDp: Int,
-    onCoverHeightChange: (Int) -> Unit,
-    listState: LazyListState,
-    density: Density,
-): NestedScrollConnection = remember(listState, hasCover, density, coverHeightDp) {
-    object : NestedScrollConnection {
-        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-            if (!hasCover) return Offset.Zero
-            val deltaDp = with(density) { available.y.toDp().value.toInt() }
-            val contentAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-            val nextHeight = articleCoverHeightAfterScroll(coverHeightDp, deltaDp, contentAtTop)
-            if (nextHeight == coverHeightDp) return Offset.Zero
-            onCoverHeightChange(nextHeight)
-            return Offset(x = 0f, y = with(density) { (nextHeight - coverHeightDp).dp.toPx() })
         }
     }
 }
@@ -350,7 +326,7 @@ private fun RemoteArticleCoverImage(imageUrl: String, modifier: Modifier = Modif
     val context = LocalContext.current
     val request = remember(context, imageUrl) { ImageRequest.Builder(context).data(imageUrl).build() }
     AsyncImage(
-        model = request,
+        model = performanceImageModel(request),
         placeholder = painterResource(android.R.drawable.ic_menu_gallery),
         error = painterResource(android.R.drawable.ic_menu_report_image),
         contentDescription = null,

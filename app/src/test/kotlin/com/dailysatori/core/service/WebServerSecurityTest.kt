@@ -18,7 +18,9 @@ class WebServerSecurityTest {
     fun webServerDoesNotLogAuthorizationOrCookieValues() {
         val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
         val authPlugin = source.substringAfter("createApplicationPlugin(name = \"ApiAuth\")")
-            .substringBefore("routing {")
+            .substringBefore("routing {") +
+            source.substringAfter("private suspend fun ApplicationCall.requireWebCredentials()")
+                .substringBefore("private fun Route.setupAuthRoutes()")
 
         assertFalse(authPlugin.contains("authHeader"))
         assertFalse(authPlugin.contains("cookieHeader"))
@@ -39,7 +41,7 @@ class WebServerSecurityTest {
 
     @Test
     fun articleMutationsExecuteRealApplicationActions() {
-        val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
+        val source = routeSource("WebArticleRoutes")
 
         assertTrue(source.contains("ArticleProcessingScheduler::class.java).enqueueSave(url)"))
         assertTrue(source.contains("repo.updateDetailsIfUnchanged("))
@@ -51,25 +53,25 @@ class WebServerSecurityTest {
     fun articleImagesUseRemoteFallbackAndExtensionlessFilesGetAnImageMimeType() {
         val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
 
-        assertTrue(source.contains("articleCoverUrl(a.cover_image, a.cover_image_url)"))
+        assertTrue(routeSource("WebArticleRoutes").contains("articleCoverUrl(a.cover_image, a.cover_image_url)"))
         assertTrue(source.contains("detectFileContentType(file, path)"))
         assertTrue(source.contains("contentEquals(\"WEBP\".encodeToByteArray())"))
     }
 
     @Test
     fun diaryAndReadingRoutesUseRealRepositories() {
-        val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
-
-        assertTrue(source.contains("DiaryAttachmentRepository::class.java).getForDiary(id)"))
-        assertTrue(source.contains("repo.updateIfUnchanged(existing, content, tags, mood)"))
-        assertTrue(source.contains("insertAndReturnId("))
-        assertTrue(source.contains("BookViewpointRepository::class.java).insert("))
-        assertTrue(source.contains("repo.delete(id)"))
+        val diary = routeSource("WebDiaryRoutes")
+        val reading = routeSource("WebReadingRoutes")
+        assertTrue(diary.contains("DiaryAttachmentRepository::class.java).getForDiary(id)"))
+        assertTrue(diary.contains("repo.updateIfUnchanged(existing, content, tags, mood)"))
+        assertTrue(reading.contains("insertAndReturnId("))
+        assertTrue(reading.contains("BookViewpointRepository::class.java).insert("))
+        assertTrue(reading.contains("repo.delete(id)"))
     }
 
     @Test
     fun aiRoutesReuseTheAppAgentAndPersistBothSidesOfTheConversation() {
-        val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
+        val source = routeSource("WebAssistantStatsRoutes")
 
         assertTrue(source.contains("McpAgentService::class.java).processQueryStreaming("))
         assertTrue(source.contains("repo.insert(sessionId, \"user\", query"))
@@ -80,7 +82,7 @@ class WebServerSecurityTest {
 
     @Test
     fun webDoesNotExposeRemoteNewsManagementAndKeepsTaskDataMinimal() {
-        val source = File("src/main/kotlin/com/dailysatori/core/service/WebServerService.kt").readText()
+        val source = routeSource("WebNewsTaskRoutes")
 
         assertFalse(source.contains("get(\"/sources\")"))
         assertFalse(source.contains("post(\"/sources/{id}/toggle\")"))
@@ -88,4 +90,6 @@ class WebServerSecurityTest {
         assertFalse(source.contains("put(\"checkpointJson\""))
         assertTrue(source.contains("observeTaskCenter(AsyncTaskFilter(showTerminal = showTerminal)"))
     }
+
+    private fun routeSource(name: String) = File("src/main/kotlin/com/dailysatori/core/service/$name.kt").readText()
 }

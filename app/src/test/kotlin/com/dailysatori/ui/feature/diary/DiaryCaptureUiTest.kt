@@ -100,7 +100,7 @@ class DiaryCaptureUiTest {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         assertTrue(home.contains("DiaryScreen(onMyClick = onProfileClick)"))
         val navigation = java.io.File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
-        assertTrue(navigation.contains("composable<SpeechSettingsRoute> { SpeechSettingsScreen("))
+        assertTrue(navigation.contains("measuredDestination<SpeechSettingsRoute>(performance) { SpeechSettingsScreen("))
         assertTrue(viewModel.contains("transcriptionCoordinator?.retry(id)"))
         assertTrue(viewModel.contains("taskScheduler?.enqueue(result.taskId)"))
     }

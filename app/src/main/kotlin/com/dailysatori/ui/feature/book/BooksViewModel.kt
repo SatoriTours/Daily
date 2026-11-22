@@ -32,6 +32,8 @@ data class BooksState(
     val currentBookId: Long? = null,
     val currentPage: Int = 0,
     val isLoading: Boolean = false,
+    val booksLoaded: Boolean = false,
+    val viewpointsLoadedFor: Long? = null,
     val refreshingBookId: Long? = null,
     val refreshMessage: String? = null,
     val error: String? = null,
@@ -60,7 +62,7 @@ class BooksViewModel(
         loadJob = viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             bookRepo.getAll().collect { books ->
-                _state.update { it.copy(books = books, isLoading = false) }
+                _state.update { it.copy(books = books, isLoading = false, booksLoaded = true) }
                 if (books.isNotEmpty() && _state.value.currentBookId == null) {
                     selectBook(books.first().id)
                 }
@@ -80,7 +82,7 @@ class BooksViewModel(
                     val viewpoints = if (bookId == null) flowOf(emptyList()) else viewpointRepo.getByBook(bookId)
                     viewpoints.map { bookId to it }
                 }.collect { (bookId, viewpoints) ->
-                    _state.update { if (it.currentBookId == bookId) it.copy(viewpoints = viewpoints) else it }
+                    _state.update { if (it.currentBookId == bookId) it.copy(viewpoints = viewpoints, viewpointsLoadedFor = bookId) else it }
                 }
         }
     }

@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 import coil3.request.ImageRequest
@@ -177,7 +178,7 @@ private fun BookSearchResultCard(
         verticalAlignment = Alignment.Top,
     ) {
         AsyncImage(
-            model = imageRequest,
+            model = performanceImageModel(imageRequest),
             placeholder = painterResource(android.R.drawable.ic_menu_gallery),
             error = painterResource(android.R.drawable.ic_menu_gallery),
             contentDescription = result.title,

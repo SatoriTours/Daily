@@ -22,6 +22,12 @@ actual class WebViewLoadHandle internal constructor(
     actual fun cancel() = cancelAction()
 }
 
+private fun webViewResult(error: Throwable?): PerformanceResult = when (error) {
+    null -> PerformanceResult.OK
+    is CancellationException -> PerformanceResult.CANCELLED
+    else -> PerformanceResult.FAILED
+}
+
 actual class WebViewLoader actual constructor() {
     private val context: Context by lazy { KoinPlatform.getKoin().get<PlatformContext>().context }
     private val loadLock = Any()
@@ -39,26 +45,12 @@ actual class WebViewLoader actual constructor() {
         callback: (Result<WebViewPageContent>) -> Unit,
     ): WebViewLoadHandle {
         DiagnosticLog.registerCoverage(DiagnosticSource.WEBVIEW, DiagnosticCoverage.LIFECYCLE_ONLY)
-        val trace = DiagnosticLog.currentTrace()
-        val requestId = DiagnosticLog.newId()
+        val timing = PerformanceSpan(PerformancePoint.WEBVIEW_LOAD)
         val completed = AtomicBoolean()
-        val started = DiagnosticLog.elapsed()
-        DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_START, DiagnosticSource.WEBVIEW,
-            fields = mapOf("url" to url), trace = trace, requestId = requestId)
         fun record(result: Result<WebViewPageContent>) {
-            if (!completed.compareAndSet(false, true)) return
-            val error = result.exceptionOrNull()
-            val code = when (error) {
-                null -> DiagnosticCode.OPERATION_END
-                is CancellationException -> DiagnosticCode.OPERATION_CANCELLED
-                else -> DiagnosticCode.OPERATION_FAILED
-            }
-            DiagnosticLog.diagnostics.emit(code, DiagnosticSource.WEBVIEW,
-                if (error == null) DiagnosticLevel.INFO else DiagnosticLevel.WARNING,
-                fields = mapOf("durationMs" to (DiagnosticLog.elapsed() - started).toString()),
-                error = error, trace = trace, requestId = requestId)
+            if (completed.compareAndSet(false, true)) timing.finish(webViewResult(result.exceptionOrNull()))
         }
-        val load = QueuedWebViewLoad(url, timeoutMs, { result -> record(result); callback(result) }, trace)
+        val load = QueuedWebViewLoad(url, timeoutMs, { result -> record(result); callback(result) }, timing.trace)
         synchronized(loadLock) {
             pendingLoads.addLast(load)
         }
@@ -142,6 +134,12 @@ actual class WebViewLoader actual constructor() {
                 webView.settings.loadWithOverviewMode = true
                 webView.settings.userAgentString = DESKTOP_USER_AGENT
 
+                var mainFrame: PerformanceSpan? = null
+                fun finishMainFrame(result: PerformanceResult) {
+                    val timing = mainFrame ?: return
+                    mainFrame = null
+                    timing.finish(result)
+                }
                 var finished = false
                 var isPolling = false
                 var lastStableHtml = ""
@@ -152,6 +150,8 @@ actual class WebViewLoader actual constructor() {
                 fun complete(result: Result<WebViewPageContent>) {
                     if (finished) return
                     finished = true
+                    // Extracted HTML can be usable even without an onPageFinished callback.
+                    finishMainFrame(result.exceptionOrNull()?.let(::webViewResult) ?: PerformanceResult.CANCELLED)
                     try {
                         callback(result)
                     } finally {
@@ -227,7 +227,9 @@ actual class WebViewLoader actual constructor() {
                     }
 
                     override fun onPageFinished(view: WebView?, webpageUrl: String?) {
-                        if (finished || isPolling || view == null) return
+                        if (finished || view == null) return
+                        finishMainFrame(PerformanceResult.OK)
+                        if (isPolling) return
                         isPolling = true
                         pollHtmlUntilStable()
                     }
@@ -265,7 +267,12 @@ actual class WebViewLoader actual constructor() {
                     complete(Result.failure(CancellationException("WebView load cancelled")))
                 }
 
-                webView.loadUrl(url)
+                mainFrame = PerformanceSpan(PerformancePoint.WEBVIEW_MAIN_FRAME, trace = trace ?: DiagnosticTrace(DiagnosticLog.newId()))
+                try { webView.loadUrl(url) }
+                catch (failure: Exception) {
+                    finishMainFrame(webViewResult(failure))
+                    throw failure
+                }
                 handler.postDelayed({
                     if (!finished && !isPolling) {
                         isPolling = true

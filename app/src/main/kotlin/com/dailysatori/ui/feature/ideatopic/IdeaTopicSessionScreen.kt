@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.ideatopic
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -79,7 +82,11 @@ internal fun IdeaTopicDiscussionContent(
         } else hasNewReply = true
     }
 
-    Column(modifier.fillMaxSize().imePadding()) {
+    Column(modifier.fillMaxSize().performanceTab(PerformanceScreen.IDEA_DISCUSSION, when {
+        state.error != null -> PerformanceResult.FAILED
+        state.topicId != null -> PerformanceResult.OK
+        else -> null
+    }, draftKey).imePadding()) {
         if (state.error != null) {
             Surface(
                 color = MaterialTheme.colorScheme.errorContainer,

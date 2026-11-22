@@ -4,6 +4,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.dailysatori.shared.db.DailySatoriDatabase
+import com.dailysatori.service.diagnostics.PerformancePoint.*
+import com.dailysatori.service.diagnostics.databasePhase
+import com.dailysatori.service.diagnostics.TimedSqlDriver
+import com.dailysatori.service.diagnostics.TimedSQLiteTransactions
 import com.dailysatori.service.security.*
 import java.io.File
 import net.zetetic.database.sqlcipher.SQLiteDatabase
@@ -19,8 +23,12 @@ internal object SqlCipherRuntime {
 
 actual class DatabaseDriverFactory(private val context: PlatformContext) {
     actual fun createDriver(): SqlDriver = createDriver("daily_satori.db")
-    actual fun createDriver(name: String): SqlDriver = createEncryptedDriver(name,
-        DatabaseKeyStore(context).readExisting() ?: throw DatabaseSecurityException())
+    actual fun createDriver(name: String): SqlDriver = databasePhase(DB_OPEN) {
+        val key = databasePhase(DB_KEY) { DatabaseKeyStore(context).readExisting() ?: throw DatabaseSecurityException() }
+        val path = databasePath(name)
+        TimedSqlDriver(if (File(path).exists()) openExisting(path, key, observeTransactions = true)
+            else createEncryptedDriver(name, key))
+    }
 
     actual fun createEncryptedDriver(name: String, key: DatabaseKey): SqlDriver {
         SqlCipherRuntime.load()
@@ -76,17 +84,17 @@ actual class DatabaseDriverFactory(private val context: PlatformContext) {
     private fun databasePath(name: String): String =
         if (File(name).isAbsolute) name else context.context.getDatabasePath(name).absolutePath
 
-    private fun openExisting(path: String, key: DatabaseKey?): SqlDriver {
+    private fun openExisting(path: String, key: DatabaseKey?, observeTransactions: Boolean = false): SqlDriver = databasePhase(DB_OPEN) {
         check(File(path).isFile) { "数据库文件不存在" }
         SqlCipherRuntime.load()
         val password = key?.sqlCipherPassword() ?: byteArrayOf()
         try {
             val database = try { SQLiteDatabase.openDatabase(path, password, null, SQLiteDatabase.OPEN_READWRITE, null as SQLiteDatabaseHook?) }
             catch (_: Exception) { throw DatabaseSecurityException("数据库无法解锁或已损坏") }
-            return try {
+            try {
                 database.rawQuery("SELECT count(*) FROM sqlite_master", emptyArray<String>()).use { check(it.moveToFirst()) }
                 database.setForeignKeyConstraintsEnabled(true)
-                retainDatabasePassword(AndroidSqliteDriver(database), password)
+                retainDatabasePassword(AndroidSqliteDriver(if (observeTransactions) TimedSQLiteTransactions(database) else database), password)
             } catch (_: Exception) { database.close(); throw DatabaseSecurityException("数据库无法解锁或已损坏") }
         } catch (failure: Throwable) { password.fill(0); throw failure }
     }

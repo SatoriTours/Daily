@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.sms
 
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import android.Manifest
@@ -57,7 +58,7 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
         PageAction(i18n.t("sms.sync_pending"), MoreActionsIcon, enabled = !state.busy, onClick = viewModel::syncPending),
         PageAction(i18n.t("sms.clear_blocked"), MoreActionsIcon, enabled = !state.busy, onClick = viewModel::clearBlockedSenders),
     )) { modifier ->
-        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+        LazyColumn(modifier.fillMaxSize().performanceContent(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                     Surface(

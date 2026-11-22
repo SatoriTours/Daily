@@ -1,7 +1,6 @@
 package com.dailysatori.ui.feature.myspace
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.service.diary.DiaryThoughtArchive
 import com.dailysatori.service.diary.DiaryThoughtState
@@ -146,7 +145,7 @@ class NewsRecommendationContextTest {
         try {
             DailySatoriDatabase.Schema.create(driver)
             val context = Context()
-            val service = NewsOpportunityService(NewsOpportunityStore(SettingRepository(DailySatoriDatabase(driver))), OpportunityAnalyzer { null }, context)
+            val service = NewsOpportunityService(NewsOpportunityStore(DailySatoriDatabase(driver)), OpportunityAnalyzer { null }, context)
             block(service, context)
         } finally { driver.close() }
     }

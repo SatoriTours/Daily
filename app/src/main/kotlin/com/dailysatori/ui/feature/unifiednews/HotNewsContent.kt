@@ -1,6 +1,9 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.activity.compose.BackHandler
+import com.dailysatori.core.diagnostics.LocalUiVisit
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,12 +45,14 @@ internal fun HotNewsContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewM
     }
     LaunchedEffect(isActive) { if (isActive) viewModel.refreshHotNews() }
     LaunchedEffect(state.scrollToTopRequestKey) { if (state.scrollToTopRequestKey > 0) listState.animateScrollToItem(0) }
-    LazyColumn(state = listState, modifier = Modifier.fillMaxSize(),
+    val owner = LocalUiVisit.current?.trace
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().performanceContent(
+        PerformanceResult.OK.takeIf { state.hotNewsBoards.any { it.items.isNotEmpty() } }),
         contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         if (state.hotNewsBoards.isEmpty()) item { Text(i18n.t("news_sources.all_disabled")) }
         items(state.hotNewsBoards, key = { it.platform.key }) { board ->
-            HotNewsBoardCard(board, board.platform in expanded, state.searchQuery, favoriteUrls, viewModel::openHotNews,
+            HotNewsBoardCard(board, board.platform in expanded, state.searchQuery, favoriteUrls, { viewModel.openHotNews(it, owner) },
                 onExpand = { expanded = if (board.platform in expanded) expanded - board.platform else expanded + board.platform },
                 onRetry = { viewModel.retryHotNews(board) }, onConfigure = { showSourceSettings = true })
         }

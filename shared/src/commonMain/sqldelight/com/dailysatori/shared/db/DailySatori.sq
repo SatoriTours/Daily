@@ -1885,13 +1885,13 @@ selectDiariesPaginated:
 SELECT * FROM diary_record ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 selectDiaryRootsPaginated:
-SELECT * FROM diary_record WHERE parent_diary_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?;
+SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 selectDiaryById:
 SELECT * FROM diary_record WHERE id = ?;
 
 searchDiaries:
-SELECT * FROM diary_record
+SELECT * FROM diary
 WHERE parent_diary_id IS NULL
   AND (
       content LIKE '%' || :legacyQuery || '%'
@@ -1906,7 +1906,7 @@ WHERE parent_diary_id IS NULL
 ORDER BY created_at DESC;
 
 searchDiariesFts:
-SELECT * FROM diary_record
+SELECT * FROM diary
 WHERE parent_diary_id IS NULL
   AND (
       id IN (SELECT rowid FROM diary_fts WHERE diary_fts MATCH :ftsQuery)
@@ -1932,9 +1932,18 @@ WHERE created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
 
 selectDiaryRootsByDateRange:
-SELECT * FROM diary_record
+SELECT * FROM diary
 WHERE parent_diary_id IS NULL AND created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
+
+selectDiaryRootsForProjection:
+SELECT * FROM diary WHERE parent_diary_id IS NULL ORDER BY created_at DESC;
+
+selectDiaryRootsMatchingTags:
+SELECT * FROM diary
+WHERE parent_diary_id IS NULL
+  AND id IN (SELECT diary_id FROM diary_tag_assignment WHERE state = 'active' AND tag_id IN :tagIds)
+ORDER BY created_at DESC, id DESC;
 
 insertDiary:
 INSERT INTO diary (content, mood, created_at, updated_at)
@@ -2046,6 +2055,11 @@ selectDiaryTagAssignmentsForDiary:
 SELECT a.*,t.name FROM diary_tag_assignment a JOIN diary_tag_definition t ON t.id=a.tag_id
 WHERE a.diary_id=? ORDER BY a.position,a.tag_id;
 
+selectActiveDiaryTagsForIds:
+SELECT a.diary_id,t.name FROM diary_tag_assignment a JOIN diary_tag_definition t ON t.id=a.tag_id
+WHERE a.diary_id IN :diaryIds AND a.state = 'active'
+ORDER BY a.diary_id,a.position,a.tag_id;
+
 selectDiaryTagProcessing:
 SELECT * FROM diary_tag_processing WHERE root_diary_id=?;
 
@@ -2097,7 +2111,8 @@ INSERT INTO diary_tag_processing(root_diary_id,processed_revision,edit_revision)
 ON CONFLICT(root_diary_id) DO UPDATE SET processed_revision=excluded.processed_revision,edit_revision=excluded.edit_revision;
 
 selectDiaryImageReferences:
-SELECT diary_id, local_path, remote_url FROM diary_attachment WHERE kind = 'image' ORDER BY diary_id, position, id;
+SELECT diary_id, local_path, remote_url FROM diary_attachment
+WHERE diary_id IN :diaryIds AND kind = 'image' ORDER BY diary_id, position, id;
 
 insertDiaryImage:
 INSERT INTO diary_attachment(diary_id,kind,local_path,remote_url,position,created_at,updated_at)
@@ -3061,11 +3076,14 @@ SELECT * FROM memory_entry WHERE title LIKE '%' || ? || '%' OR content LIKE '%' 
 searchMemoryFts:
 SELECT * FROM memory_entry
 WHERE id IN (SELECT rowid FROM memory_entry_fts WHERE memory_entry_fts MATCH :ftsQuery)
-   OR title LIKE '%' || :legacyQuery || '%'
-   OR content LIKE '%' || :legacyQuery || '%'
-ORDER BY
-    CASE WHEN id IN (SELECT rowid FROM memory_entry_fts WHERE memory_entry_fts MATCH :ftsQuery) THEN 0 ELSE 1 END,
-    created_at DESC
+ORDER BY created_at DESC
+LIMIT :limit;
+
+searchMemoryLikeExcludingFts:
+SELECT * FROM memory_entry
+WHERE (title LIKE '%' || :legacyQuery || '%' OR content LIKE '%' || :legacyQuery || '%')
+  AND id NOT IN (SELECT rowid FROM memory_entry_fts WHERE memory_entry_fts MATCH :ftsQuery)
+ORDER BY created_at DESC
 LIMIT :limit;
 
 selectAllMemory:

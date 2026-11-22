@@ -1,0 +1,123 @@
+import kotlin.Boolean;
+
+-- Content-addressed, immutable snapshots include the historical local article ID.
+CREATE TABLE IF NOT EXISTS opportunity_source (
+    id TEXT NOT NULL PRIMARY KEY,
+    payload_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS opportunity_item (
+    id TEXT NOT NULL PRIMARY KEY,
+    identity TEXT NOT NULL,
+    source_id TEXT NOT NULL REFERENCES opportunity_source(id) ON DELETE RESTRICT,
+    position INTEGER NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    saved INTEGER AS Boolean NOT NULL,
+    ignored INTEGER AS Boolean NOT NULL,
+    reminder_id TEXT,
+    saved_at INTEGER,
+    analysis_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_opportunity_item_identity ON opportunity_item(identity);
+CREATE INDEX IF NOT EXISTS idx_opportunity_item_source ON opportunity_item(source_id);
+
+CREATE TABLE IF NOT EXISTS opportunity_membership (
+    kind TEXT NOT NULL CHECK(kind IN ('read', 'candidate')),
+    position INTEGER NOT NULL,
+    identity TEXT NOT NULL,
+    source_id TEXT NOT NULL REFERENCES opportunity_source(id) ON DELETE RESTRICT,
+    PRIMARY KEY(kind, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_opportunity_membership_identity ON opportunity_membership(kind, identity);
+CREATE INDEX IF NOT EXISTS idx_opportunity_membership_source ON opportunity_membership(source_id);
+
+CREATE TABLE IF NOT EXISTS opportunity_checkpoint (
+    identity TEXT NOT NULL PRIMARY KEY,
+    position INTEGER NOT NULL UNIQUE,
+    fingerprint TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS opportunity_state (
+    id INTEGER NOT NULL PRIMARY KEY CHECK(id = 1),
+    focus TEXT NOT NULL,
+    last_attempt_at INTEGER NOT NULL,
+    last_attempt_context TEXT NOT NULL,
+    last_error TEXT,
+    dismissed_error_task_id INTEGER
+);
+
+-- Keep CursorWindow cells bounded even for long historical article bodies and AI text.
+selectOpportunitySources:
+SELECT id, substr(payload_json, 1, 32768) AS payload_head, length(payload_json) AS payload_length
+FROM opportunity_source;
+
+selectOpportunitySourcePart:
+SELECT substr(payload_json, :offset, 32768) AS part FROM opportunity_source WHERE id = :id;
+
+selectOpportunityItems:
+SELECT id, source_id, created_at, saved, ignored, reminder_id, saved_at,
+       substr(analysis_json, 1, 32768) AS analysis_head, length(analysis_json) AS analysis_length
+FROM opportunity_item ORDER BY position;
+
+selectOpportunityItemPart:
+SELECT substr(analysis_json, :offset, 32768) AS part FROM opportunity_item WHERE id = :id;
+
+selectOpportunityMembership:
+SELECT * FROM opportunity_membership ORDER BY kind, position;
+
+selectOpportunityCheckpoints:
+SELECT identity, fingerprint FROM opportunity_checkpoint ORDER BY position;
+
+selectOpportunityState:
+SELECT * FROM opportunity_state WHERE id = 1;
+
+insertOpportunitySource:
+INSERT OR IGNORE INTO opportunity_source(id, payload_json) VALUES (?, ?);
+
+insertOpportunityItem:
+INSERT INTO opportunity_item(id, identity, source_id, position, created_at, saved, ignored, reminder_id, saved_at, analysis_json)
+VALUES (:id, :identity, :source_id, (SELECT coalesce(max(position), -1) + 1 FROM opportunity_item),
+    :created_at, :saved, :ignored, :reminder_id, :saved_at, :analysis_json);
+
+updateOpportunityActions:
+UPDATE opportunity_item SET saved = :saved, ignored = :ignored, reminder_id = :reminder_id, saved_at = :saved_at WHERE id = :id;
+
+selectOpportunityItemSources:
+SELECT source_id FROM opportunity_item WHERE identity = ?;
+
+deleteOpportunityItems:
+DELETE FROM opportunity_item WHERE identity = ?;
+
+insertOpportunityMembership:
+INSERT INTO opportunity_membership(kind, position, identity, source_id)
+VALUES (:kind, (SELECT coalesce(max(position), -1) + 1 FROM opportunity_membership WHERE kind = :kind), :identity, :source_id);
+
+selectOpportunityMemberSources:
+SELECT source_id FROM opportunity_membership WHERE kind = :kind AND identity = :identity;
+
+selectOpportunityCandidateSources:
+SELECT source_id FROM opportunity_membership WHERE kind = 'candidate';
+
+deleteOpportunityMembers:
+DELETE FROM opportunity_membership WHERE kind = :kind AND identity = :identity;
+
+deleteOpportunityCandidates:
+DELETE FROM opportunity_membership WHERE kind = 'candidate';
+
+deleteUnreferencedOpportunitySource:
+DELETE FROM opportunity_source WHERE id = :id
+AND NOT EXISTS (SELECT 1 FROM opportunity_membership WHERE source_id = :id)
+AND NOT EXISTS (SELECT 1 FROM opportunity_item WHERE source_id = :id);
+
+insertOpportunityCheckpoint:
+INSERT INTO opportunity_checkpoint(identity, position, fingerprint)
+VALUES (:identity, (SELECT coalesce(max(position), -1) + 1 FROM opportunity_checkpoint), :fingerprint);
+
+deleteOpportunityCheckpoint:
+DELETE FROM opportunity_checkpoint WHERE identity = ?;
+
+putOpportunityState:
+INSERT OR REPLACE INTO opportunity_state(id, focus, last_attempt_at, last_attempt_context, last_error, dismissed_error_task_id)
+VALUES (1, ?, ?, ?, ?, ?);

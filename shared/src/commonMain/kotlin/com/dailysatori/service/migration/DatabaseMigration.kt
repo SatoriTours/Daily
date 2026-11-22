@@ -5,7 +5,9 @@ import com.dailysatori.service.diagnostics.*
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.opportunity.NewsOpportunityStore
 import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
+import com.dailysatori.shared.db.DailySatoriDatabase
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.TransacterImpl
@@ -32,6 +34,7 @@ class DatabaseMigration(
         val storedVersion = settingRepo.get(SettingKeys.schemaVersion)
         if (storedVersion == null) {
             DatabaseSchemaInventory.validate(driver)
+            if (OpportunityArchiveMigration.hasLegacyData(settingRepo)) importOpportunityArchive()
             settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
             log.i { "Fresh database already uses schema version ${DatabaseConfig.currentSchemaVersion}" }
             return
@@ -182,6 +185,7 @@ class DatabaseMigration(
         if (currentVersion < 52) migrateV51ToV52()
         if (currentVersion < 53) migrateV52ToV53()
         if (currentVersion < 54) migrateV53ToV54()
+        if (currentVersion < 55) migrateV54ToV55()
         DatabaseSchemaInventory.validate(driver)
 
         // Metadata commits only after the complete target is verified.
@@ -1272,6 +1276,19 @@ class DatabaseMigration(
      * V49 -> V50: the gap generation gets its own fixed target, so a later entry document can never
      * widen what a promotion is allowed to close. Only one progress column is added.
      */
+    private fun migrateV54ToV55() {
+        try {
+            DatabaseSchemaInventory.createOpportunityObjects(driver)
+            importOpportunityArchive()
+        } catch (error: Exception) {
+            log.e(error) { "Migration V54 -> V55: opportunity archive" }
+            throw error
+        }
+    }
+
+    private fun importOpportunityArchive() = NewsOpportunityStore(DailySatoriDatabase(driver))
+        .importLegacy(OpportunityArchiveMigration.read(settingRepo))
+
     /** V53 -> V54: a prior installation is never treated as new AI work after migration. */
     private fun migrateV53ToV54() {
         try {

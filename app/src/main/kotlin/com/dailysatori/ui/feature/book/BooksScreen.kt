@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.book
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.foundation.background
@@ -226,7 +230,13 @@ fun BooksScreen(
                 )
             }
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().performanceContent(
+                when {
+                    state.viewpoints.isNotEmpty() && state.viewpointsLoadedFor == state.currentBookId -> PerformanceResult.OK
+                    state.booksLoaded && (state.books.isEmpty() ||
+                        state.currentBookId != null && state.viewpointsLoadedFor == state.currentBookId) -> PerformanceResult.EMPTY
+                    else -> null
+                })) {
                 if (state.isLoading && state.viewpoints.isEmpty()) {
                     LoadingIndicator()
                 } else if (state.viewpoints.isEmpty()) {
@@ -260,6 +270,10 @@ fun BooksScreen(
                     ) { page ->
                         val vp = state.viewpoints[page]
 
+                        val pageModifier = if (page == pagerState.settledPage) {
+                            Modifier.performanceTab(PerformanceScreen.BOOK_VIEWPOINT, PerformanceResult.OK, vp.id)
+                        } else Modifier
+                        Box(pageModifier) {
                         ViewpointCard(
                             title = vp.title,
                             content = vp.content,
@@ -274,6 +288,7 @@ fun BooksScreen(
                             errorMessage = vp.error_message,
                             onRetry = { viewModel.regenerateViewpoint(vp.id) },
                         )
+                        }
                     }
                 }
             }

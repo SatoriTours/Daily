@@ -9,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
@@ -20,7 +21,7 @@ import com.dailysatori.ui.theme.*
 fun DataPrivacyScreen(onBack: () -> Unit) {
     SettingsScaffold(title = stringResource(R.string.management_privacy), onBack = onBack) { modifier ->
         Column(
-            modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.m),
+            modifier = modifier.fillMaxSize().performanceContent().verticalScroll(rememberScrollState()).padding(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.l),
         ) {
             PrivacySection(R.string.management_storage, R.string.management_storage_hint)

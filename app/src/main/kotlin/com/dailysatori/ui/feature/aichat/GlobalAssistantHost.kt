@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.aichat
 
+import com.dailysatori.core.diagnostics.MeasuredUi
+import com.dailysatori.core.diagnostics.UiVisit
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import android.view.Window
 import android.view.WindowManager
 import androidx.core.view.ViewCompat
@@ -27,7 +30,9 @@ import com.dailysatori.ui.component.appbar.LocalAssistantLauncher
 import com.dailysatori.ui.feature.myspace.PersonalChatViewModel
 import org.koin.androidx.compose.koinViewModel
 
-data class AssistantOpenRequest(val kind: String = "", val key: String = "", val sessionId: String? = null)
+data class AssistantOpenRequest(val kind: String = "", val key: String = "", val sessionId: String? = null) {
+    internal var performanceVisit: UiVisit? = null
+}
 
 internal enum class AssistantBackAction { HideKeyboard, ReturnToChat, Close }
 internal fun assistantBackAction(imeVisible: Boolean, sessionsVisible: Boolean): AssistantBackAction = when {
@@ -52,6 +57,7 @@ fun GlobalAssistantHost(navController: NavHostController, content: @Composable (
     val state by viewModel.state.collectAsState()
     val context by contextViewModel.state.collectAsState()
     var visible by rememberSaveable { mutableStateOf(false) }
+    var openVisit by remember { mutableStateOf<UiVisit?>(null) }
     var contextSession by rememberSaveable { mutableStateOf("") }
     var pendingReference by remember { mutableStateOf<Pair<String, AssistantOpenRequest>?>(null) }
     var pageReferenceAtOpen by remember { mutableStateOf<AssistantOpenRequest?>(null) }
@@ -61,6 +67,8 @@ fun GlobalAssistantHost(navController: NavHostController, content: @Composable (
     val entry by navController.currentBackStackEntryAsState()
     val pageReference = assistantPageReference(entry)
     val open: (AssistantOpenRequest) -> Unit = { request ->
+        openVisit?.cancel()
+        openVisit = request.performanceVisit?.apply { transferToDialog() } ?: UiVisit(PerformanceScreen.CHAT_DIALOG)
         request.sessionId?.let(viewModel::switchSession)
         if (request.kind.isNotBlank() || request.sessionId != null) viewModel.setSessionsVisible(false)
         if (request.kind.isNotBlank()) pendingReference = viewModel.state.value.sessionId to request
@@ -112,7 +120,10 @@ fun GlobalAssistantHost(navController: NavHostController, content: @Composable (
             onDispose { if (dialogWindow.window == window) dialogWindow.window = null }
         }
         val close = { keyboard?.hide(); visible = false }
+        val visit = openVisit
+        DisposableEffect(visit) { onDispose { visit?.cancel() } }
         CompositionLocalProvider(LocalAssistantLauncher provides null) {
+            MeasuredUi(visit) {
             savedUi.SaveableStateProvider(state.sessionId) {
                 val contextMatches = contextSession == state.sessionId
                 AiChatScreen(
@@ -130,6 +141,7 @@ fun GlobalAssistantHost(navController: NavHostController, content: @Composable (
                     contextLoading = !contextMatches || context.loading,
                     contextError = context.error.takeIf { contextMatches },
                 )
+            }
             }
         }
     }

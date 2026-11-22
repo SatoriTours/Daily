@@ -6,14 +6,46 @@ import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.backup.exportEncryptedDatabase
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.migration.OpportunityArchiveMigration
+import com.dailysatori.service.opportunity.NewsOpportunityStore
+import com.dailysatori.service.opportunity.OpportunityArchive
+import com.dailysatori.service.opportunity.ReadNewsArticle
 import com.dailysatori.shared.db.DailySatoriDatabase
+import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
 import org.junit.Assume.assumeTrue
 
 class DatabaseSchemaUpgradeTest {
+    @Test fun oldFixtureUpgradeReportsProtectedPhasesWithoutExposingData() = fixture { root, db, key ->
+        val events = mutableListOf<SafeDiagnosticEvent>()
+        val original = DiagnosticLog.diagnostics
+        val trace = DiagnosticTrace(DiagnosticLog.newId())
+        try {
+            DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { if (it.traceId == trace.id) events.add(it); true })
+            DiagnosticLog.withTrace(trace) { upgrade(root, db, key).upgrade() }
+        } finally {
+            DiagnosticLog.diagnostics = original
+        }
+        val phases = events.filter { it.attributes["perfResult"] == "OK" }.map { it.attributes["perfPoint"] }
+        val ordered = listOf("DB_SNAPSHOT", "DB_COPY", "DB_MIGRATE", "DB_VALIDATE", "DB_INSTALL_STAGE", "DB_INSTALL")
+        var last = -1
+        for (phase in ordered) {
+            val next = phases.indexOf(phase)
+            assertTrue(next > last, "$phase: $phases")
+            last = next
+        }
+        assertTrue(events.none { it.attributes.values.any { field -> field.contains("private-original") } })
+        jdbc(db).use {
+            assertOriginal(it)
+            assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings(it).get(SettingKeys.schemaVersion))
+        }
+        assertEquals("wrapped-original-key", key.readText())
+    }
+
     @Test fun conflictingLegacyDraftIsRetainedThroughVerifiedCandidateInstallation() = fixture { root, db, key ->
         val expected=jdbc(db).use { driver ->
             com.dailysatori.service.migration.ReminderLegacyFixture.seed(driver)
@@ -196,6 +228,9 @@ class DatabaseSchemaUpgradeTest {
             val db = File(root, "encrypted.db")
             val keyFile = File(root, "key.sec").apply { writeText("same-wrapped-key") }
             val key = DatabaseKey.generate()
+            val opportunities = OpportunityArchive(focus = "业务归档迁移", articles = listOf(
+                ReadNewsArticle("legacy", "新闻", "正文🙂", source = "来源", readAt = 31, localArticleId = 91),
+            ))
             val open: (File) -> SqlDriver = { file ->
                 HostSqlCipherDriver(binary!!, file).also {
                     it.run("PRAGMA key = \"${key.sqlCipherPassword().decodeToString()}\"; PRAGMA foreign_keys=ON;")
@@ -205,6 +240,7 @@ class DatabaseSchemaUpgradeTest {
                 DailySatoriDatabase.Schema.create(driver)
                 com.dailysatori.service.migration.AssistantLegacyFixture.seed(driver)
                 seed(driver)
+                settings(driver).upsert(OpportunityArchiveMigration.KEY, Json.encodeToString(opportunities))
                 driver.execute(null,"INSERT INTO diary_attachment(id,diary_id,kind,local_path,transcript,created_at,updated_at) VALUES(7,1,'audio','diary/audio/kept.m4a','原始转写',3,4)",0)
                 com.dailysatori.service.migration.ReminderLegacyFixture.seed(driver)
                 driver.execute(null,"""INSERT INTO reminder_ai_draft(id,batch_id,source_index,source_text,draft_json,
@@ -228,6 +264,7 @@ class DatabaseSchemaUpgradeTest {
             open(db).use { driver ->
                 assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings(driver).get(SettingKeys.schemaVersion))
                 assertOriginal(driver)
+                assertEquals(opportunities, NewsOpportunityStore(DailySatoriDatabase(driver)).load())
                 validate(driver)
                 val retained=DailySatoriDatabase(driver).dailySatoriQueries.selectDiaryAttachmentById(7).executeAsOne()
                 assertEquals("diary/audio/kept.m4a",retained.local_path)

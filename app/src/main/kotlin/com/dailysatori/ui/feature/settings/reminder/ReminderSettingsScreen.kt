@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.reminder
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,7 +55,7 @@ fun ReminderSettingsScreen(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     AppScaffold(title = stringResource(R.string.reminder_settings_title), onBack = onBack) { modifier ->
-        Column(modifier.fillMaxSize().verticalScroll(rememberScrollState(
+        Column(modifier.fillMaxSize().performanceContent().verticalScroll(rememberScrollState(
             initial = if (initialSection == "permissions") Int.MAX_VALUE else 0)).padding(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
             Text(stringResource(R.string.settings_immediate_changes), style = MaterialTheme.typography.bodySmall,

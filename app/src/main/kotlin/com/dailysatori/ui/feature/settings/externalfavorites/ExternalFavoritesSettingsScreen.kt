@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.externalfavorites
 
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import android.content.Intent
@@ -157,7 +158,7 @@ private fun ExternalFavoriteSourceListPage(
         if (query.isNotBlank() && visibleSources.isEmpty()) SettingsSearchEmptyState(modifier)
         else if (state.sources.isEmpty()) {
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize().performanceContent(),
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {

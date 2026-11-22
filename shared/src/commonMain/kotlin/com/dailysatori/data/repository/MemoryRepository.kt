@@ -56,12 +56,18 @@ class MemoryRepository(private val db: DailySatoriDatabase) {
     fun getBySource(sourceType: String, sourceId: Long): Memory_entry? =
         q.selectMemoryBySource(sourceType, sourceId).executeAsOneOrNull()
 
-    fun search(query: String, limit: Long = 10): List<Memory_entry> =
-        if (query.isBlank()) {
-            q.searchMemory(query, query, limit).executeAsList()
-        } else {
-            q.searchMemoryFts(query.toFtsPhraseQuery(), query, limit).executeAsList()
+    fun search(query: String, limit: Long = 10): List<Memory_entry> {
+        if (limit == 0L) return emptyList()
+        if (query.isBlank()) return q.searchMemory(query, query, limit).executeAsList()
+        val phrase = query.toFtsPhraseQuery()
+        return q.transactionWithResult {
+            val matches = q.searchMemoryFts(phrase, limit).executeAsList()
+            if (limit > 0 && matches.size.toLong() == limit) return@transactionWithResult matches
+            // SQLite interprets every negative limit as unlimited; do not subtract from it.
+            val remaining = if (limit < 0) -1L else limit - matches.size
+            matches + q.searchMemoryLikeExcludingFts(query, phrase, remaining).executeAsList()
         }
+    }
 
     fun getAllSync(): List<Memory_entry> =
         q.selectAllMemory().executeAsList()

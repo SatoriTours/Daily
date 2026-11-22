@@ -1,7 +1,14 @@
 package com.dailysatori.service.opportunity
 
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlPreparedStatement
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.data.repository.DiaryThoughtRepository
+import com.dailysatori.data.repository.DiaryThreadRepository
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.diary.DiaryThoughtChatContextProvider
 import com.dailysatori.service.diagnostics.DiagnosticCode
 import com.dailysatori.service.diagnostics.DiagnosticLog
 import com.dailysatori.service.diagnostics.DiagnosticSink
@@ -10,9 +17,18 @@ import com.dailysatori.service.diagnostics.SafeDiagnosticEvent
 import com.dailysatori.service.externalfavorites.sha256Hex
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import java.nio.file.Files
+import java.util.Properties
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertContains
@@ -178,7 +194,7 @@ class NewsOpportunityServiceTest {
     @Test
     fun failedDiskWriteDoesNotAdvanceInMemoryCheckpoint() = withFixture { fixture ->
         fixture.service.markRead(article())
-        fixture.driver.execute(null, "CREATE TRIGGER fail_opportunity_save BEFORE INSERT ON setting BEGIN SELECT RAISE(FAIL, 'disk failure'); END", 0)
+        fixture.driver.execute(null, "CREATE TRIGGER fail_opportunity_save BEFORE INSERT ON opportunity_checkpoint BEGIN SELECT RAISE(FAIL, 'disk failure'); END", 0)
         assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() }
         assertEquals(1, fixture.service.state.value.pendingCount)
         assertTrue(fixture.service.state.value.items.isEmpty())
@@ -523,6 +539,246 @@ class NewsOpportunityServiceTest {
     }
 
     @Test
+    fun userActionsMergeIntoResultWhileAiIsWaiting() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        fixture.service.analyze()
+        val id = fixture.service.state.value.items.single().id
+        fixture.service.saveFocus("重新分析")
+        fixture.analyzer.results += draft(title = "更新结果")
+        val paused = PausedAnalysis(fixture.analyzer)
+        coroutineScope {
+            val analysis = async { fixture.service.analyze() }
+            paused.awaitStart()
+            withTimeout(2_000) {
+                fixture.service.setSaved(id, true)
+                fixture.service.setIgnored(id, true)
+                fixture.service.linkReminder(id, "in-flight")
+            }
+            assertTrue(fixture.service.state.value.isUpdating)
+            paused.release.complete(Unit)
+            analysis.await()
+        }
+        val reopened = fixture.newService()
+        reopened.refresh()
+        val item = reopened.state.value.items.single()
+        assertEquals("更新结果", item.title)
+        assertTrue(item.saved && item.ignored)
+        assertNotNull(item.savedAt)
+        assertEquals("in-flight", item.reminderId)
+    }
+
+    @Test
+    fun changedFocusDiscardsStaleResultAndQueuedAnalysesCheckpointOnlyOnce() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        val paused = PausedAnalysis(fixture.analyzer)
+        coroutineScope {
+            val stale = async { assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() } }
+            paused.awaitStart()
+            withTimeout(2_000) { fixture.service.saveFocus("新方向") }
+            assertTrue(fixture.service.state.value.isUpdating)
+            paused.release.complete(Unit)
+            assertEquals(OpportunityFailureReason.CONTEXT_CHANGED, stale.await().reason)
+            assertTrue(fixture.service.state.value.items.isEmpty())
+            assertEquals(1, fixture.service.state.value.pendingCount)
+
+            val retry = PausedAnalysis(fixture.analyzer)
+            val first = async { fixture.service.analyze() }
+            retry.awaitStart()
+            val repeat = async(start = CoroutineStart.UNDISPATCHED) { fixture.service.analyze() }
+            assertEquals(2, fixture.analyzer.inputs.size)
+            assertFalse(repeat.isCompleted)
+            retry.release.complete(Unit)
+            first.await()
+            repeat.await()
+        }
+        assertEquals(listOf("", "新方向"), fixture.analyzer.inputs.map { it.focus })
+        assertEquals(1, fixture.service.state.value.items.size)
+        assertEquals(0, fixture.service.state.value.pendingCount)
+    }
+
+    @Test
+    fun editingCandidateDuringAiWaitCannotCommitItsOldBody() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        val paused = PausedAnalysis(fixture.analyzer)
+        coroutineScope {
+            val stale = async { assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() } }
+            paused.awaitStart()
+            withTimeout(2_000) { fixture.service.markRead(article(content = "新正文")) }
+            paused.release.complete(Unit)
+            stale.await()
+        }
+        assertTrue(fixture.service.state.value.items.isEmpty())
+        fixture.analyzer.results += draft(quote = "新正文")
+        fixture.service.analyze()
+        assertEquals("新正文", fixture.service.state.value.items.single().article.content)
+    }
+
+    @Test
+    fun cancellationReleasesAnalysisSlotWithoutLosingConcurrentEdit() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        val started = CompletableDeferred<Unit>()
+        fixture.analyzer.beforeResult = { started.complete(Unit); awaitCancellation() }
+        coroutineScope {
+            val analysis = async { fixture.service.analyze() }
+            withTimeout(2_000) { started.await(); fixture.service.saveFocus("保留修改") }
+            analysis.cancelAndJoin()
+        }
+        assertFalse(fixture.service.state.value.isUpdating)
+        assertNull(fixture.service.state.value.error)
+        assertEquals(1, fixture.service.state.value.pendingCount)
+        fixture.analyzer.beforeResult = {}
+        fixture.service.analyze()
+        assertEquals("保留修改", fixture.analyzer.inputs.last().focus)
+        assertEquals(0, fixture.service.state.value.pendingCount)
+    }
+
+    @Test
+    fun focusChangeWhileFetchingCandidatesDiscardsTheFetchBeforeAnalysis() {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var loads = 0
+        withFixture(candidateSource = OpportunityCandidateSource {
+            loads++
+            if (loads == 1) {
+                started.complete(Unit)
+                release.await()
+            }
+            listOf(article(key = "candidate-$loads"))
+        }) { fixture ->
+            coroutineScope {
+                val analysis = async { assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze(automatic = true) } }
+                withTimeout(2_000) { started.await(); fixture.service.saveFocus("新方向") }
+                release.complete(Unit)
+                assertEquals(OpportunityFailureReason.CONTEXT_CHANGED, analysis.await().reason)
+            }
+            assertEquals(0, fixture.service.state.value.candidateCount)
+            assertTrue(fixture.analyzer.inputs.isEmpty())
+            fixture.service.analyze(automatic = true)
+            assertEquals("candidate-2", fixture.service.state.value.items.single().article.key)
+        }
+    }
+
+    @Test
+    fun failedResultSaveLeavesConcurrentActionDurableAndArticlePending() = withFixture { fixture ->
+        fixture.service.markRead(article())
+        fixture.service.analyze()
+        val old = fixture.service.state.value.items.single()
+        fixture.service.saveFocus("重试关注")
+        val paused = PausedAnalysis(fixture.analyzer)
+        coroutineScope {
+            val analysis = async { assertFailsWith<NewsOpportunityAnalysisException> { fixture.service.analyze() } }
+            paused.awaitStart()
+            withTimeout(2_000) { fixture.service.linkReminder(old.id, "saved-before-failure") }
+            fixture.driver.execute(null, "CREATE TRIGGER fail_result BEFORE INSERT ON opportunity_checkpoint BEGIN SELECT RAISE(FAIL, 'disk failure'); END", 0)
+            paused.release.complete(Unit)
+            analysis.await()
+        }
+        fixture.newService().also { it.refresh() }.state.value.let { restored ->
+            assertEquals(old.copy(reminderId = "saved-before-failure"), restored.items.single())
+            assertEquals(1, restored.pendingCount)
+        }
+        fixture.driver.execute(null, "DROP TRIGGER fail_result", 0)
+        fixture.service.analyze()
+        assertEquals(0, fixture.service.state.value.pendingCount)
+        assertEquals("saved-before-failure", fixture.service.state.value.items.single().reminderId)
+    }
+
+    @Test
+    fun disablingThoughtsAtResultCommitCannotPersistOldResultOrCheckpoint() = withThoughtCommitRace { driver, writer, store, context ->
+        val service = NewsOpportunityService(store, OpportunityAnalyzer { input ->
+            assertContains(assertNotNull(input.thoughtContext), OLD_CORRECTIONS)
+            driver.afterReadingCorrections = { writer.setUseInChat(false) }
+            draft()
+        }, context)
+        service.markRead(article())
+
+        assertFailsWith<NewsOpportunityAnalysisException> { service.analyze() }
+        assertFalse(writer.useInChat())
+        assertTrue(store.load().items.isEmpty())
+        assertTrue(store.load().checkpoints.isEmpty())
+        assertTrue(service.state.value.items.isEmpty())
+        assertEquals(1, service.state.value.pendingCount)
+        assertFalse(service.state.value.isUpdating)
+    }
+
+    @Test
+    fun savingCorrectionsAtCandidateCommitCannotReplaceTheCandidateWindow() = withThoughtCommitRace { driver, writer, store, context ->
+        val old = article(key = "existing")
+        store.importLegacy(OpportunityArchive(candidates = listOf(old)))
+        var fetches = 0
+        val service = NewsOpportunityService(store, OpportunityAnalyzer {
+            assertContains(assertNotNull(it.thoughtContext), "新修正")
+            draft()
+        }, context, OpportunityCandidateSource {
+            if (++fetches == 1) driver.afterReadingCorrections = { writer.saveCorrections("新修正") }
+            listOf(article(key = "candidate-$fetches"))
+        })
+
+        assertFailsWith<NewsOpportunityAnalysisException> { service.analyze(automatic = true) }
+        assertEquals("新修正", writer.corrections())
+        assertEquals(listOf(old), store.load().candidates)
+        assertTrue(store.load().checkpoints.isEmpty())
+        assertEquals(1, service.state.value.pendingCount)
+        assertFalse(service.state.value.isUpdating)
+        service.analyze(automatic = true)
+        assertEquals("candidate-2", service.state.value.items.single().article.key)
+        assertEquals(1, store.load().checkpoints.size)
+    }
+
+    private fun withThoughtCommitRace(
+        block: suspend (ThoughtCommitDriver, DiaryThoughtRepository, NewsOpportunityStore, NewsOpportunityContext) -> Unit,
+    ) = runBlocking {
+        val root = Files.createTempDirectory("opportunity-thought-commit").toFile()
+        val url = "jdbc:sqlite:${root.resolve("race.db")}"
+        val properties = Properties().apply {
+            setProperty("journal_mode", "WAL")
+            setProperty("transaction_mode", "DEFERRED")
+        }
+        try {
+            JdbcSqliteDriver(url, properties).use { reader ->
+                DailySatoriDatabase.Schema.create(reader)
+                JdbcSqliteDriver(url, properties).use { otherConnection ->
+                    val driver = ThoughtCommitDriver(reader)
+                    val db = DailySatoriDatabase(driver)
+                    val settings = SettingRepository(db)
+                    val thoughts = DiaryThoughtRepository(settings)
+                    val context = DiaryThoughtOpportunityContext(thoughts,
+                        DiaryThoughtChatContextProvider(thoughts, DiaryThreadRepository(db, driver)))
+                    val writer = DiaryThoughtRepository(SettingRepository(DailySatoriDatabase(otherConnection)))
+                    writer.saveCorrections(OLD_CORRECTIONS)
+                    block(driver, writer, NewsOpportunityStore(db), context)
+                }
+            }
+        } finally {
+            root.deleteRecursively()
+        }
+        Unit
+    }
+
+    private class ThoughtCommitDriver(private val delegate: SqlDriver) : SqlDriver by delegate {
+        var afterReadingCorrections: (() -> Unit)? = null
+
+        override fun <R> executeQuery(
+            identifier: Int?, sql: String, mapper: (SqlCursor) -> QueryResult<R>,
+            parameters: Int, binders: (SqlPreparedStatement.() -> Unit)?,
+        ): QueryResult<R> {
+            var readCorrections = false
+            val result = delegate.executeQuery(identifier, sql, { cursor ->
+                mapper(object : SqlCursor by cursor {
+                    override fun getString(index: Int) = cursor.getString(index).also {
+                        if (it == OLD_CORRECTIONS) readCorrections = true
+                    }
+                })
+            }, parameters, binders)
+            if (readCorrections) afterReadingCorrections?.let { edit ->
+                afterReadingCorrections = null
+                edit()
+            }
+            return result
+        }
+    }
+
+    @Test
     fun cancellationIsPropagatedWithoutUnsafeErrorText() = withFixture { fixture ->
         fixture.service.markRead(article())
         fixture.analyzer.cancellation = true
@@ -543,13 +799,12 @@ class NewsOpportunityServiceTest {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {
             DailySatoriDatabase.Schema.create(driver)
-            val settings = SettingRepository(DailySatoriDatabase(driver))
-            settings.upsert("news_opportunity_archive_v1", initialArchive?.let { Json.encodeToString(it) }
-                ?: "{\"candidates\":${Json.encodeToString(candidates)}}")
+            val db = DailySatoriDatabase(driver)
             val analyzer = FakeAnalyzer(results)
-            val store = NewsOpportunityStore(settings)
+            val store = NewsOpportunityStore(db)
+            store.importLegacy(initialArchive ?: OpportunityArchive(candidates = candidates))
             val service = NewsOpportunityService(store, analyzer, context, candidateSource)
-            block(Fixture(service, analyzer, context, driver) { NewsOpportunityService(NewsOpportunityStore(settings), analyzer, context, candidateSource) })
+            block(Fixture(service, analyzer, context, driver) { NewsOpportunityService(NewsOpportunityStore(db), analyzer, context, candidateSource) })
         } finally {
             driver.close()
         }
@@ -575,7 +830,7 @@ class NewsOpportunityServiceTest {
         val inputs = mutableListOf<OpportunityAnalysisInput>()
         val failTitles = mutableSetOf<String>()
         var cancellation = false
-        var beforeResult: () -> Unit = {}
+        var beforeResult: suspend () -> Unit = {}
 
         override suspend fun analyze(input: OpportunityAnalysisInput): OpportunityDraft? {
             inputs += input
@@ -586,7 +841,18 @@ class NewsOpportunityServiceTest {
         }
     }
 
+    private class PausedAnalysis(analyzer: FakeAnalyzer) {
+        private val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        init { analyzer.beforeResult = { started.complete(Unit); release.await() } }
+
+        suspend fun awaitStart() = withTimeout(2_000) { started.await() }
+    }
+
     private companion object {
+        const val OLD_CORRECTIONS = "提交前的修正"
+
         fun legacyItem(key: String) = NewsOpportunity(key, article(key = key), "旧完整方案", "效率工具",
             "旧事实", "旧关联", "旧行动", "旧风险", "这是可核对的正文", 100,
             saved = true, savedAt = 200)

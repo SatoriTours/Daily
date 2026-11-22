@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
@@ -127,7 +128,7 @@ internal fun DiaryThoughtScreen(
             enabled = !state.isUpdating, onClick = viewModel::refresh)),
     ) { modifier ->
         LazyColumn(
-            modifier = modifier.padding(horizontal = Spacing.m),
+            modifier = modifier.performanceContent().padding(horizontal = Spacing.m),
             state = listState,
             contentPadding = PaddingValues(top = Spacing.l, bottom = Height.navBar + Spacing.xxl),
             verticalArrangement = Arrangement.spacedBy(Spacing.l),

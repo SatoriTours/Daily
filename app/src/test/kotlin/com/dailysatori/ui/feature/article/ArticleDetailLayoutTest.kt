@@ -25,6 +25,10 @@ class ArticleDetailLayoutTest {
         assertEquals(0, articleCoverHeightAfterScroll(currentHeightDp = 20, scrollDeltaDp = -40, contentAtTop = true))
         assertEquals(80, articleCoverHeightAfterScroll(currentHeightDp = 40, scrollDeltaDp = 40, contentAtTop = true))
         assertEquals(40, articleCoverHeightAfterScroll(currentHeightDp = 40, scrollDeltaDp = 40, contentAtTop = false))
+        assertEquals(260, articleCoverHeightAfterScroll(currentHeightDp = 250, scrollDeltaDp = 40, contentAtTop = true))
+        assertEquals(0, articleCoverHeightAfterScroll(currentHeightDp = 0, scrollDeltaDp = -40, contentAtTop = false))
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        assertTrue(source.contains("rememberArticleCoverNestedScrollConnection("))
     }
 
     @Test
@@ -120,7 +124,7 @@ class ArticleDetailLayoutTest {
     @Test
     fun articleDetailPreservesRefreshAndLocalAiHandlers() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        assertTrue(source.contains("onRefreshConfirm = viewModel::refreshArticle"))
+        assertTrue(source.contains("viewModel.refreshArticle(visit?.trace)"))
         assertTrue(source.contains("viewModel.processWithExistingBody()") && source.contains("processWithExistingBody(retranslate = true)"))
         assertFalse(source.contains("refreshArticleWithXApi"))
         assertTrue(canStartArticleAiProcess(isRefreshing = false, hasProcessableText = true))

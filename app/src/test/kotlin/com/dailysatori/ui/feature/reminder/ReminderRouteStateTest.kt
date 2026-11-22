@@ -134,8 +134,8 @@ class ReminderRouteStateTest {
     fun reminderSettingsEntryDoesNotCarryRemovedListCallbacks() {
         val navHost = source("core/navigation/NavHost.kt")
         val settingsRoute = navHost
-            .substringAfter("composable<SettingsRoute>")
-            .substringBefore("composable<ReminderListRoute>")
+            .substringAfter("measuredDestination<SettingsRoute>")
+            .substringBefore("measuredDestination<ReminderListRoute>")
         val settingsHost = source("ui/feature/settings/SettingsScreen.kt")
         val settings = source("ui/feature/settings/reminder/ReminderSettingsScreen.kt")
 

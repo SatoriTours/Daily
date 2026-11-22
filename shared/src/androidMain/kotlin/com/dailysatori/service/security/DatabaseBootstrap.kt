@@ -2,27 +2,30 @@ package com.dailysatori.service.security
 
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.PlatformContext
+import com.dailysatori.service.diagnostics.PerformancePoint.*
+import com.dailysatori.service.diagnostics.databasePhase
 import java.io.File
 import java.io.RandomAccessFile
 
 /** Sole initialization owner, before DI, repositories and workers. */
 object DatabaseBootstrap {
-    fun prepare(context: PlatformContext, onPreparationRequired: () -> Unit = {}): String? {
+    fun prepare(context: PlatformContext, onPreparationRequired: () -> Unit = {}): String? = databasePhase(DB_PREPARE) {
         val directory = context.context.noBackupFilesDir
         directory.mkdirs()
-        return RandomAccessFile(File(directory, "database-init.lock"), "rw").use { file ->
-            file.channel.lock().use {
-                if (requireSinglePendingOperation(directory)) onPreparationRequired()
+        RandomAccessFile(File(directory, "database-init.lock"), "rw").use { file ->
+            databasePhase(DB_LOCK) { file.channel.lock() }.use {
+                databasePhase(DB_RECOVER) { if (requireSinglePendingOperation(directory)) onPreparationRequired() }
                 val migration = DatabaseEncryptionMigration(context)
                 val schema = DatabaseSchemaUpgrade.forContext(context)
-                migration.transaction().applyPending()
-                schema.recoverPending()
-                directory.listFiles().orEmpty().filter {
-                    it.name.startsWith("database-install.finished-") || it.name.startsWith("database-schema-install.finished-")
+                val message = databasePhase(DB_RECOVER) {
+                    migration.transaction().applyPending()
+                    schema.recoverPending()
+                    directory.listFiles().orEmpty().filter {
+                        it.name.startsWith("database-install.finished-") || it.name.startsWith("database-schema-install.finished-")
+                    }.forEach { check(it.deleteRecursively()) }
+                    cleanBackupTemporaries(context.context.cacheDir)
+                    FileManager().apply { init(context.context) }.applyPendingRestore()
                 }
-                    .forEach { check(it.deleteRecursively()) }
-                cleanBackupTemporaries(context.context.cacheDir)
-                val message = FileManager().apply { init(context.context) }.applyPendingRestore()
                 migration.ensureEncrypted(onPreparationRequired)
                 schema.upgrade(onPreparationRequired)
                 message

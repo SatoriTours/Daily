@@ -1,5 +1,6 @@
 package com.dailysatori.ui.component.settings
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -147,7 +148,9 @@ fun SettingsScaffold(
                     if (navigation != null) SettingsGroupTabs(navigation, enabled = !navigationBusy) { index ->
                         if (hasUnsavedChanges) pendingTab = index else navigation.onSelect(index)
                     }
-                    Box(Modifier.weight(1f)) { content(Modifier.fillMaxSize()) }
+                    Box(Modifier.weight(1f)) {
+                        content(Modifier.fillMaxSize().let { if (navigation != null) it.performanceContent() else it })
+                    }
                 }
             },
         )

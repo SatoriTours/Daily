@@ -493,6 +493,7 @@ class HistoricalSchemaUpgradeTest {
             driver.execute(null,
                 "ALTER TABLE remote_article_sync_item ADD COLUMN ai_feed_admission TEXT NOT NULL DEFAULT 'historical'", 0)
         }
+        if (version >= 55) DatabaseSchemaInventory.createOpportunityObjects(driver)
         settings(driver).upsert(SettingKeys.schemaVersion, version.toString())
         DatabaseSchemaInventory.validate(driver, version)
     }

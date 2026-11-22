@@ -18,6 +18,12 @@ actual object DiagnosticLog {
 
     actual fun currentTrace(): DiagnosticTrace? = trace.get()
     actual fun traceContext(trace: DiagnosticTrace): CoroutineContext = this.trace.asContextElement(trace)
+    internal inline fun <T> withTrace(value: DiagnosticTrace, block: () -> T): T {
+        val previous = trace.get()
+        if (previous == value) return block()
+        trace.set(value)
+        try { return block() } finally { trace.set(previous) }
+    }
     actual fun newId(): String = UUID.randomUUID().toString()
     actual fun nextSequence(): Long = sequence.incrementAndGet()
     actual fun now(): Long = System.currentTimeMillis()

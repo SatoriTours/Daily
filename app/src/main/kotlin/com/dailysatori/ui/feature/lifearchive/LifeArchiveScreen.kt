@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.lifearchive
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
@@ -59,7 +61,11 @@ fun LifeArchiveScreen(
             }
         },
     ) { modifier ->
-        Column(modifier.fillMaxSize()) {
+        Column(modifier.fillMaxSize().performanceContent(when {
+            state.loading -> null
+            state.error == LifeArchiveError.STORAGE -> PerformanceResult.FAILED
+            else -> PerformanceResult.OK
+        })) {
             ArchiveStatus(state, viewModel, onConfigureAi)
             if (state.draft == null) ArchiveList(state, viewModel, { addingType = true }, { managingType = it })
             else {

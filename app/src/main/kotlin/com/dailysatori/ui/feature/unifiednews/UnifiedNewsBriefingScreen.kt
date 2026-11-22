@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.foundation.clickable
@@ -54,7 +56,11 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
             }
         },
     ) {})) { modifier ->
-        LazyColumn(state = listState, modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.l),
+        LazyColumn(state = listState, modifier = modifier.fillMaxSize().performanceContent(when {
+            summary != null -> PerformanceResult.OK
+            state.initialSummariesLoaded -> PerformanceResult.EMPTY
+            else -> null
+        }), contentPadding = PaddingValues(Spacing.l),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             if (summary == null) item {
                 if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())

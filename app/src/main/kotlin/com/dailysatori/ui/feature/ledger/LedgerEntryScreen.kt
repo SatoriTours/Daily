@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.ledger
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.foundation.layout.*
@@ -34,7 +36,12 @@ fun LedgerEntryScreen(entryId: String, onBack: () -> Unit, vm: LedgerViewModel =
     var editing by remember(entryId) { mutableStateOf(false) }
     var settings by remember(entryId) { mutableStateOf(false) }
     SettingsScaffold(title = i18n.t("phone.ledger_detail"), onBack = onBack, pageActions = if (entry != null) listOf(PageAction(i18n.t("phone.ledger_settings"), MoreActionsIcon) { settings = true }) else emptyList()) { modifier ->
-        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+        LazyColumn(modifier.fillMaxSize().performanceContent(when {
+            state.failed -> PerformanceResult.FAILED
+            !state.loaded -> null
+            entry == null -> PerformanceResult.EMPTY
+            else -> PerformanceResult.OK
+        }), contentPadding = PaddingValues(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             when {
                 state.failed -> item { Text(i18n.t("ledger.failed"), color = MaterialTheme.colorScheme.error) }
                 !state.loaded -> item { LinearProgressIndicator(Modifier.fillMaxWidth()) }

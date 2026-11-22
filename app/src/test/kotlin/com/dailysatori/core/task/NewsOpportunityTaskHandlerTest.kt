@@ -1,7 +1,6 @@
 package com.dailysatori.core.task
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.asynctask.AsyncTaskExecutionResult
 import com.dailysatori.service.asynctask.AsyncTaskProgressReporter
 import com.dailysatori.service.opportunity.*
@@ -177,7 +176,7 @@ class NewsOpportunityTaskHandlerTest {
                 override val enabled = false
                 override fun verifiedContext(): String? = error("Private context must not be read")
             }
-            val service = NewsOpportunityService(NewsOpportunityStore(SettingRepository(DailySatoriDatabase(driver))),
+            val service = NewsOpportunityService(NewsOpportunityStore(DailySatoriDatabase(driver)),
                 analyzer, context, candidateSource, analysisTimeoutMs)
             service.saveFocus("验证效率工具")
             service.markRead(ReadNewsArticle("one", "工具新闻", "可核对的正文", source = "来源", readAt = 1))

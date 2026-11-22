@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aiconfig
 
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
@@ -115,7 +116,7 @@ fun AiConfigScreen(
             }
         } else {
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize().performanceContent(),
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {

@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.foundation.layout.Arrangement
@@ -244,7 +246,13 @@ private fun ArticleListBody(
     onNewArticlesClick: () -> Unit,
     reserveHomeBottomBar: Boolean,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    val result = when {
+        state.articles.isNotEmpty() -> PerformanceResult.OK
+        state.loadError != null -> PerformanceResult.FAILED
+        state.dataTrace != null && !state.isLoading -> PerformanceResult.EMPTY
+        else -> null
+    }
+    Box(modifier = Modifier.fillMaxSize().performanceContent(result, state.dataTrace)) {
         when {
             state.isLoading && state.articles.isEmpty() -> LoadingIndicator()
             state.articles.isEmpty() -> EmptyState(

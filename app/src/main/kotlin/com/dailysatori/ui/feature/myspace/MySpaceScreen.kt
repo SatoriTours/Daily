@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.myspace
 
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.foundation.clickable
@@ -105,7 +106,7 @@ fun MySpaceScreen(
         pageActions = listOf(PageAction(stringResource(R.string.personal_settings_title), Icons.Outlined.Settings, onClick = onSettings)),
     ) { contentModifier ->
         LazyColumn(
-            contentModifier.fillMaxSize(),
+            contentModifier.fillMaxSize().performanceContent(),
             state = listState,
             contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
                 bottom = Height.navBar + Spacing.xl),

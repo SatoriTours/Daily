@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.settings.taskcenter
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -654,7 +657,11 @@ internal fun TaskCenterRequestScreen(
                     }
                 }
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().performanceTab(when (tab) {
+                        RequestTab.Request -> PerformanceScreen.TASK_REQUEST
+                        RequestTab.Response -> PerformanceScreen.TASK_RESPONSE
+                        RequestTab.ErrorTiming -> PerformanceScreen.TASK_ERROR_TIMING
+                    }, PerformanceResult.OK),
                     contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s),
                     verticalArrangement = Arrangement.spacedBy(Spacing.m),
                 ) {

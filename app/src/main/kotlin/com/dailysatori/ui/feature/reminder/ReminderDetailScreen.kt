@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.reminder
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,7 +81,7 @@ fun ReminderDetailScreen(
             }
         } else {
             val timeline = buildReminderTimeline(reminder, today)
-            Box(modifier.fillMaxSize()) {
+            Box(modifier.fillMaxSize().performanceContent()) {
             Column(Modifier.fillMaxSize()) {
                 LazyColumn(
                     modifier = Modifier.weight(1f),

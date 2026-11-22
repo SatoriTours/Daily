@@ -46,6 +46,7 @@ object DiagnosticRedactor {
     fun fields(input: Map<String, String>): Map<String, String> = buildMap {
         input.forEach { (key, value) ->
             when {
+                allowedPerformanceField(key, value) -> put(key, value)
                 key in numeric -> value.toLongOrNull()?.takeIf { it >= 0 }?.let { put(key, it.toString()) }
                 key == "startupStage" && value in setOf("runtime_ready", "database_prepare", "dependency_graph",
                     "database_open", "task_recovery", "translations", "translations_language", "translations_assets",

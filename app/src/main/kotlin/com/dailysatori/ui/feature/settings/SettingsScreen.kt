@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.settings
 
+import com.dailysatori.core.diagnostics.MeasuredUi
+import com.dailysatori.core.diagnostics.rememberUiVisit
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import android.widget.Toast
@@ -74,7 +78,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
             navigate(SettingsDestination(pages[it]))
         }
     }
+    val tab = if (group != null) rememberUiVisit(PerformanceScreen.valueOf("SETTINGS_" + currentPage.name)) else null
     CompositionLocalProvider(LocalSettingsGroupNavigation provides group) {
+        val parent = com.dailysatori.core.diagnostics.LocalUiVisit.current
+        MeasuredUi(tab ?: parent) {
         when (currentPage) {
             SettingsPage.MAIN -> SettingsMainPage(state, scrollState, navigate, onBack, viewModel, diagnostics)
             SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = childBack)
@@ -103,6 +110,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
             SettingsPage.WEB_SERVICE -> WebServicePage(state, viewModel, childBack)
             SettingsPage.UPDATES -> UpdatesPage(state, viewModel, childBack)
         }
+        }
     }
 }
 
@@ -130,7 +138,7 @@ private fun SettingsMainPage(
         pageActions = listOf(PageAction(i18n.t(if (searching) "settings_design.close_search" else "settings_design.search"),
             if (searching) Icons.Default.Close else Icons.Default.Search) { searching = !searching; query = "" }),
     ) { modifier ->
-        Column(modifier.fillMaxSize()) {
+        Column(modifier.fillMaxSize().performanceContent()) {
             Column(
                 Modifier.weight(1f).verticalScroll(if (searching) rememberScrollState() else scrollState)
                     .padding(horizontal = Spacing.m),

@@ -58,7 +58,11 @@ class DiagnosticExporter(private val versionName: String, private val versionCod
             DiagnosticSource.DOWNLOAD, DiagnosticSource.WEB_SERVER).forEach {
             writer.append("$it=${registered[it] ?: DiagnosticCoverage.NOT_OBSERVED}\n")
         }
-        writer.append("WebView resources and system downloads are lifecycle-only; no complete subrequest capture.\n")
+        writer.appendLine("Performance: monotonic durations from native application boundaries; related timings share a traceId when a context is available.")
+        writer.appendLine("Database: DB_READ/DB_WRITE include binding and synchronous materialization, not the SQLite query plan or lock breakdown. Outer business transactions include begin through end, plus the commit/rollback call. Queries and transactions separately sample 1/128 fast successes (<16 ms), with 120 admitted operations/min each. Logical nested transactions are not separately committed.")
+        writer.appendLine("UI: first Compose draw is not compositor presentation or completion of transitions. Content timing uses the rendered business panels, including explicit empty/error states; leaving before readiness records cancellation.")
+        writer.appendLine("Images: Coil total includes its request lifecycle; separate decode time covers observed decoder calls only (memory hits/fetcher-produced images may not decode). Page trace and per-image dataTraceId link events. Budget 120 requests/min; no GPU/presentation timing. HTTP covers instrumented clients only.")
+        writer.appendLine("WebView: page-origin operations propagate a page trace at instrumented UI entry points; background loads retain their task trace. Queued extraction and main-document callback only; subresource completion, browser rendering, custom/uninstrumented clients and system downloads are not timed.")
         writer.append("Legacy free text is omitted; only explicitly instrumented business boundaries have trace correlation.\n")
         writer.append("System exits=${DiagnosticRuntime.exitInfoCoverage}; ANR/native raw traces are not exported.\n")
     }

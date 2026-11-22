@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -89,7 +91,7 @@ internal fun UnifiedNewsOpportunitiesContent(
     }
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().performanceContent(PerformanceResult.OK.takeIf { items.isNotEmpty() }),
         contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
     ) {
         item(key = "opportunity-status") {

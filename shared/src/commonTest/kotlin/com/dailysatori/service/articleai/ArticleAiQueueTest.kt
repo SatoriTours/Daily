@@ -1,6 +1,7 @@
 package com.dailysatori.service.articleai
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.ai.AiHttpFailure
@@ -203,7 +204,7 @@ class ArticleAiQueueTest {
         driver.execute(null, "ALTER TABLE remote_article_sync_item DROP COLUMN ai_feed_admission", 0)
         settings.upsert(SettingKeys.schemaVersion, "52")
         DatabaseMigration(driver, settings).runMigrations()
-        assertEquals("54", settings.get(SettingKeys.schemaVersion))
+        assertEquals(DatabaseConfig.currentSchemaVersion.toString(), settings.get(SettingKeys.schemaVersion))
         assertEquals("Old article body.", articles.getById(id)!!.reusableOriginalBody())
         assertFalse(queue.historyStatus().running)
         assertEquals(0, queue.historyStatus().waiting)

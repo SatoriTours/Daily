@@ -151,7 +151,7 @@ class AppUrlIntakeTest {
     @Test
     fun webViewLoadingCanBeCancelledByCoroutineCaller() {
         val common = File("../shared/src/commonMain/kotlin/com/dailysatori/platform/WebViewLoader.kt").readText()
-        val parser = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val parser = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/ArticleContentFetcher.kt").readText()
         val android = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
 
         assertTrue(common.contains("expect class WebViewLoadHandle"))
@@ -343,7 +343,9 @@ class AppUrlIntakeTest {
 
     @Test
     fun parserDoesNotUseFxTwitterExtraction() {
-        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val directory = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser")
+        val source = listOf("WebpageParserService.kt", "ArticleContentFetcher.kt", "ExtractedArticleContent.kt")
+            .joinToString("\n") { directory.resolve(it).readText() }
 
         assertFalse(source.contains("api.fxtwitter.com"))
         assertFalse(source.contains("extractTwitterContent"))

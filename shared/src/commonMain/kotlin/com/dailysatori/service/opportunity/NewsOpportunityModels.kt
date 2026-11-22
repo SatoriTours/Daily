@@ -100,6 +100,7 @@ fun interface OpportunityAnalyzer {
     suspend fun analyze(input: OpportunityAnalysisInput): OpportunityDraft?
 }
 
+/** Synchronous, uncached reads; database-backed implementations share the archive store's SQL driver. */
 interface NewsOpportunityContext {
     val enabled: Boolean
     fun verifiedContext(): String?

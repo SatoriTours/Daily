@@ -41,6 +41,7 @@ data class TaskCenterState(
     val tasks: List<AsyncTaskListItem> = emptyList(),
     val hasMore: Boolean = false,
     val loadedCount: Int = 0,
+    val tasksLoaded: Boolean = false,
     val requestedLimit: Int = DEFAULT_TASK_CENTER_PAGE_SIZE,
     val selectedTask: Async_task? = null,
     val taskLog: String = "",
@@ -187,6 +188,7 @@ class TaskCenterViewModel(
                         taskPage.hasMore
                     },
                     loadedCount = taskPage.tasks.size,
+                    tasksLoaded = true,
                     requestedLimit = taskPage.requestedLimit,
                     selectedTask = selectedTask.task,
                     taskLog = selectedTask.log,

@@ -1,5 +1,8 @@
 package com.dailysatori.ui.feature.reminder
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -113,6 +116,7 @@ fun ReminderListScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val ui by viewModel.state.collectAsState()
+    val loaded by viewModel.remindersLoaded.collectAsState()
     androidx.activity.compose.BackHandler(enabled = ui.isListSearchVisible) { viewModel.toggleListSearch() }
     val all by viewModel.reminders.collectAsState()
     val sourceVm: com.dailysatori.ui.feature.phone.PhoneSourceViewModel = koinViewModel()
@@ -169,7 +173,11 @@ fun ReminderListScreen(
                 ReminderHero(listState.summary, today)
                 ReminderModeTabs(ui.listMode, viewModel::setListMode)
             }
-            LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Height.appBar + Spacing.xxl)) {
+            LazyColumn(state = scrollState, modifier = Modifier.fillMaxSize().performanceTab(when (ui.listMode) {
+                ReminderListMode.RECENT -> PerformanceScreen.REMINDER_RECENT
+                ReminderListMode.MONTHS -> PerformanceScreen.REMINDER_MONTHS
+                ReminderListMode.FINISHED -> PerformanceScreen.REMINDER_FINISHED
+            }, PerformanceResult.OK.takeIf { loaded }), contentPadding = PaddingValues(bottom = Height.appBar + Spacing.xxl)) {
                 if (ui.listMode == ReminderListMode.MONTHS) {
                     item(key = "year_nav") {
                         ReminderYearNavBar(

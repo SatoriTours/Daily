@@ -64,7 +64,8 @@ private class DiagnosticNetworkListener(
     override fun responseHeadersEnd(call: Call, response: Response) {
         status = response.code
         diagnostics.emit(DiagnosticCode.HTTP_HEADERS, source,
-            fields = mapOf("status" to response.code.toString()), trace = trace, requestId = requestId)
+            fields = mapOf("status" to response.code.toString(), "durationMs" to (DiagnosticLog.elapsed() - started).toString()),
+            trace = trace, requestId = requestId)
     }
 
     @Synchronized

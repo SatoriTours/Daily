@@ -1,7 +1,6 @@
 package com.dailysatori.service.opportunity
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.ai.AiQueueWaitTimeout
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.runBlocking
@@ -64,7 +63,7 @@ class NewsOpportunityFailureIsolationTest {
     ) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
-        val store = NewsOpportunityStore(SettingRepository(DailySatoriDatabase(driver)))
+        val store = NewsOpportunityStore(DailySatoriDatabase(driver))
         val articles = listOf("a", "b", "c", "d").map { key ->
             ReadNewsArticle(
                 key = key, title = "标题$key", content = "正文$key", source = "测试", readAt = 1L,

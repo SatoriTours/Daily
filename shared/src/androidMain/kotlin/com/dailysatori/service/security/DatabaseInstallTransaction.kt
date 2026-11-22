@@ -1,5 +1,7 @@
 package com.dailysatori.service.security
 
+import com.dailysatori.service.diagnostics.PerformancePoint.*
+import com.dailysatori.service.diagnostics.databasePhase
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -23,7 +25,7 @@ internal class DatabaseInstallTransaction(
     private val rollback get() = File(root, "rollback")
     private val journal get() = File(root, "transaction.json")
 
-    fun stage(candidate: File, wrappedKey: ByteArray) {
+    fun stage(candidate: File, wrappedKey: ByteArray) = databasePhase(DB_INSTALL_STAGE) {
         check(!root.exists()) { "存在未完成数据库转换" }
         check(candidate.isFile)
         check(incoming.mkdirs())
@@ -35,6 +37,10 @@ internal class DatabaseInstallTransaction(
 
     fun applyPending() {
         if (!root.exists()) return
+        databasePhase(DB_INSTALL) { applyStaged() }
+    }
+
+    private fun applyStaged() {
         if (File(root, "committed").exists() || File(root, "rolled-back").exists()) { retire(); return }
         if (journal.exists()) {
             recover(Json.decodeFromString<InstallJournal>(journal.readText()))
@@ -63,7 +69,7 @@ internal class DatabaseInstallTransaction(
         retire()
     }
 
-    private fun recover(plan: InstallJournal) {
+    private fun recover(plan: InstallJournal) = databasePhase(DB_RECOVER) {
         plan.items.asReversed().forEach { item ->
             val target = targets.getValue(item.name)
             val old = File(rollback, item.name)

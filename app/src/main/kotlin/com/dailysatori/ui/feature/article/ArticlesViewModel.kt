@@ -1,5 +1,10 @@
 package com.dailysatori.ui.feature.article
 
+import com.dailysatori.service.diagnostics.DiagnosticLog
+import com.dailysatori.service.diagnostics.DiagnosticTrace
+import com.dailysatori.service.diagnostics.PerformancePoint
+import com.dailysatori.service.diagnostics.PerformanceSpan
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.task.ArticlePostProcessingScheduler
@@ -23,6 +28,7 @@ import kotlinx.coroutines.launch
 data class ArticlesState(
     val articles: List<Article> = emptyList(),
     val isLoading: Boolean = false,
+    val dataTrace: DiagnosticTrace? = null,
     val searchQuery: String = "",
     val selectedTagId: Long? = null,
     val showFavoritesOnly: Boolean = false,
@@ -70,17 +76,30 @@ class ArticlesViewModel(
 
     fun loadArticles() {
         loadJob?.cancel()
-        loadJob = viewModelScope.launch(Dispatchers.IO) {
+        val timing = PerformanceSpan(PerformancePoint.ARTICLE_LIST_LOAD)
+        loadJob = viewModelScope.launch(Dispatchers.IO + DiagnosticLog.traceContext(timing.trace)) {
+            var firstPending = true
+            fun first(result: PerformanceResult) {
+                if (!firstPending) return
+                firstPending = false
+                timing.finish(result)
+            }
             val current = _state.value
             _state.update { it.copy(isLoading = it.articles.isEmpty(), loadError = null) }
             com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Loading articles with flow")
-            articlesFlowFor(current).catch { error ->
-                com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Article observation failed", error)
-                _state.update { it.copy(isLoading = false, isRefreshing = false, loadError = "文章列表读取失败，点击重试") }
-            }.collect { articles ->
-                com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Got ${articles.size} articles")
-                _state.update { it.copy(articles = articles.take(current.visibleLimit), hasMore = articles.size > current.visibleLimit,
-                    isLoading = false, loadError = null) }
+            try {
+                articlesFlowFor(current).catch { error ->
+                    first(PerformanceResult.FAILED)
+                    com.dailysatori.core.diagnostics.SafeAndroidLog.w("ArticlesVM", "Article observation failed", error)
+                    _state.update { it.copy(isLoading = false, isRefreshing = false, loadError = "文章列表读取失败，点击重试") }
+                }.collect { articles ->
+                    first(if (articles.isEmpty()) PerformanceResult.EMPTY else PerformanceResult.OK)
+                    com.dailysatori.core.diagnostics.SafeAndroidLog.d("ArticlesVM", "Got ${articles.size} articles")
+                    _state.update { it.copy(articles = articles.take(current.visibleLimit), hasMore = articles.size > current.visibleLimit,
+                        isLoading = false, dataTrace = timing.trace, loadError = null) }
+                }
+            } finally {
+                first(PerformanceResult.CANCELLED)
             }
         }
     }

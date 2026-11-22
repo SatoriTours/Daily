@@ -61,17 +61,15 @@ object DiagnosticRuntime {
     }
 
     private fun installImages() {
+        val budget = PerformanceBudget(sampleFast = false)
         SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context).components {
                 add(OkHttpNetworkFetcherFactory(callFactory = {
                     OkHttpClient.Builder().eventListenerFactory(diagnosticEventListenerFactory(DiagnosticSource.IMAGE)).build()
                 }))
-            }.eventListener(object : coil3.EventListener() {
-                override fun onError(request: coil3.request.ImageRequest, result: coil3.request.ErrorResult) {
-                    DiagnosticLog.diagnostics.emit(DiagnosticCode.OPERATION_FAILED, DiagnosticSource.IMAGE,
-                        DiagnosticLevel.WARNING, error = result.throwable)
-                }
-            }).build()
+            }.eventListenerFactory { request ->
+                ImagePerformanceListener(request.extras[imagePerformanceOwner], budget)
+            }.build()
         }
     }
 

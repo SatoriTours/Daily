@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.speech
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -76,7 +77,7 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
         },
     ) { modifier ->
         Column(
-            modifier.fillMaxSize().background(pageBackground)
+            modifier.fillMaxSize().performanceContent().background(pageBackground)
                 .verticalScroll(rememberScrollState()).padding(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {

@@ -1,6 +1,9 @@
 package com.dailysatori.ui.feature.unifiednews
 
 import androidx.activity.compose.BackHandler
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -162,6 +165,11 @@ internal fun HotNewsDetailScreen(
             Column(
                 modifier = Modifier
                     .weight(1f)
+                    .performanceTab(if (bodySelected) PerformanceScreen.HOT_NEWS_BODY else PerformanceScreen.HOT_NEWS_SUMMARY, when {
+                        state.hotNewsDetailFailed -> PerformanceResult.FAILED
+                        article != null && !state.hotNewsDetailLoading -> PerformanceResult.OK
+                        else -> null
+                    })
                     .verticalScroll(rememberScrollState()),
             ) {
                 // 标题区：自然换行不截断

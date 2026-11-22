@@ -1,7 +1,6 @@
 package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
 import com.dailysatori.service.diary.isRemoteDiaryImage
 import com.dailysatori.service.diary.preferredDiaryImagePath
 import com.dailysatori.service.diary.encodeDiaryImagePaths
@@ -13,7 +12,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.datetime.Clock
+
+// Stay below the legacy Android SQLite bind limit, even for unpaged exports.
+internal const val DIARY_QUERY_BATCH_SIZE = 900
 
 /** images is an API projection only. The retired database column is never read here. */
 internal class DiaryImages(private val db: DailySatoriDatabase) {
@@ -24,20 +27,23 @@ internal class DiaryImages(private val db: DailySatoriDatabase) {
         diary.copy(tags=DiaryTagStore(db).tags(diary.id).joinToString(",").ifBlank { null },images=encodeDiaryImagePaths(attachments.filter { it.diary_id==diary.id && it.kind=="image" }
             .map { preferredDiaryImagePath(it.local_path,it.remote_url) }))
 
-    fun project(rows:List<Diary>):List<Diary> {
-        val images=q.selectDiaryImageReferences().executeAsList().groupBy { it.diary_id }
-        val tags=DiaryTagStore(db).tagsByDiary()
-        return rows.map { diary -> diary.copy(tags=tags[diary.id]?.joinToString(","),images=encodeDiaryImagePaths(images[diary.id].orEmpty()
-            .map { preferredDiaryImagePath(it.local_path,it.remote_url) })) }
+    fun project(rows: List<Diary>): List<Diary> {
+        if (rows.isEmpty()) return rows
+        val batches = rows.map { it.id }.distinct().chunked(DIARY_QUERY_BATCH_SIZE)
+        val images = batches.flatMap { q.selectDiaryImageReferences(it).executeAsList() }
+            .groupBy({ it.diary_id }, { preferredDiaryImagePath(it.local_path, it.remote_url) })
+        val tags = batches.flatMap { q.selectActiveDiaryTagsForIds(it).executeAsList() }
+            .groupBy({ it.diary_id }, { it.name })
+        return rows.map { diary ->
+            diary.copy(tags = tags[diary.id]?.joinToString(","), images = encodeDiaryImagePaths(images[diary.id].orEmpty()))
+        }
     }
 
-    fun observe(rows:Flow<List<Diary>>):Flow<List<Diary>> =
-        combine(rows,q.selectDiaryImageReferences().asFlow().mapToList(Dispatchers.IO),DiaryTagStore(db).signal()) { diaries,refs,_ ->
-            val images=refs.groupBy { it.diary_id }
-            val tags=DiaryTagStore(db).tagsByDiary()
-            diaries.map { diary -> diary.copy(tags=tags[diary.id]?.joinToString(","),images=encodeDiaryImagePaths(images[diary.id].orEmpty()
-                .map { preferredDiaryImagePath(it.local_path,it.remote_url) })) }
-        }
+    fun observe(rows: Flow<List<Diary>>): Flow<List<Diary>> = combine(
+        rows,
+        q.selectDiaryImageReferences(emptyList()).asFlow(),
+        q.selectActiveDiaryTagsForIds(emptyList()).asFlow(),
+    ) { diaries, _, _ -> project(diaries) }.flowOn(Dispatchers.IO)
 
     /** Import initializes a new association set without turning historical timestamps into edits. */
     fun initializeImported(id:Long,value:String?) = q.transaction {

@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.myspace
 
+import com.dailysatori.core.diagnostics.performanceTab
+import com.dailysatori.service.diagnostics.PerformanceScreen
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
@@ -70,7 +74,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_recommendations_title), onBack = onBack,
         snackbarHost = { SnackbarHost(snackbar) }, pageActions = if (state.hasAnalysisContext) listOf(PageAction(stringResource(R.string.my_space_analyze), Icons.Default.Refresh, onClick = requestUpdate)) else emptyList()) { modifier ->
-        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        LazyColumn(modifier.fillMaxSize().performanceTab(PerformanceScreen.OPPORTUNITY_FILTER, PerformanceResult.OK, filter), contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             item {
                 Column(Modifier.padding(bottom = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(stringResource(R.string.news_focus_continuous_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -259,7 +263,8 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
             Button(onClick = { reminder = true }, modifier = Modifier.weight(1f)) { Text(stringResource(if (opportunityReminderId(id) in activeReminders || item.reminderId in activeReminders) R.string.my_space_view_reminder else R.string.my_space_convert)) }
         }
     }) { modifier ->
-        if (item == null) Text(stringResource(R.string.my_space_unavailable), modifier.padding(Spacing.l)) else LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
+        if (item == null) Text(stringResource(R.string.my_space_unavailable), modifier.padding(Spacing.l))
+        else LazyColumn(modifier.fillMaxSize().performanceContent(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
             item { Text(item.category, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium); Text(item.title, style = MaterialTheme.typography.headlineSmall) }
             item { Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 TextButton(onClick = {

@@ -6,7 +6,10 @@ import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.migration.DatabaseSchemaInventory
+import com.dailysatori.service.migration.OpportunityArchiveMigration
 import com.dailysatori.shared.db.DailySatoriDatabase
+import com.dailysatori.service.diagnostics.PerformancePoint.*
+import com.dailysatori.service.diagnostics.databasePhase
 import java.io.File
 import com.dailysatori.platform.DatabaseDriverFactory
 import com.dailysatori.platform.PlatformContext
@@ -36,37 +39,47 @@ internal class DatabaseSchemaUpgrade(
         check(database.isFile && keyFile.isFile) { "数据库或密钥缺失，待升级数据已保留" }
         var before: MigrationContentSnapshot? = null
         var sourceVersion: String? = null
+        var migratingOpportunities = false
         try {
             open(database).useDriver { source ->
                 sourceVersion = version(source)
                 if (sourceVersion?.toLongOrNull() == DatabaseConfig.currentSchemaVersion &&
                     DatabaseSchemaInventory.missingObjects(source).isEmpty()) {
-                    DatabaseSchemaInventory.validate(source)
+                    databasePhase(DB_VALIDATE) { DatabaseSchemaInventory.validate(source) }
                     return
                 }
                 requireSupportedVersion(sourceVersion)
                 onPreparationRequired()
-                if (sourceVersion == null) DatabaseSchemaInventory.validate(source)
+                if (sourceVersion == null) databasePhase(DB_VALIDATE) { DatabaseSchemaInventory.validate(source) }
                 requireSpace()
                 cleanCandidate()
-                before = MigrationContentSnapshot.capture(source)
-                export(source, candidate)
+                before = databasePhase(DB_SNAPSHOT) {
+                    val settings = SettingRepository(DailySatoriDatabase(source))
+                    migratingOpportunities = sourceVersion?.toLongOrNull()?.let { it < 55 }
+                        ?: OpportunityArchiveMigration.hasLegacyData(settings)
+                    val opportunities = if (migratingOpportunities) OpportunityArchiveMigration.read(settings) else null
+                    MigrationContentSnapshot.capture(source, opportunities)
+                }
+                databasePhase(DB_COPY) { export(source, candidate) }
             }
             val expected = checkNotNull(before)
             open(candidate).useDriver { target ->
-                migrate(target)
+                databasePhase(DB_MIGRATE) { migrate(target) }
                 verifyInstalled(target)
-                expected.requirePreserved(target, legacy = (sourceVersion?.toLongOrNull() ?: 38) < 38,
-                    migratedImages = sourceVersion?.toLongOrNull()?.let { it < 40 } == true,
-                    migratedTags = sourceVersion?.toLongOrNull()?.let { it < 41 } == true,
-                    migratedReminders = sourceVersion?.toLongOrNull()?.let { it < 42 } == true,
-                    migratedIdeas = sourceVersion?.toLongOrNull()?.let { it < 43 } == true,
-                    migratedAssistant = sourceVersion?.toLongOrNull()?.let { it < 44 } == true,
-                    migratedRetirement = sourceVersion?.toLongOrNull()?.let { it < 45 } == true)
+                databasePhase(DB_VALIDATE) {
+                    expected.requirePreserved(target, legacy = (sourceVersion?.toLongOrNull() ?: 38) < 38,
+                        migratedImages = sourceVersion?.toLongOrNull()?.let { it < 40 } == true,
+                        migratedTags = sourceVersion?.toLongOrNull()?.let { it < 41 } == true,
+                        migratedReminders = sourceVersion?.toLongOrNull()?.let { it < 42 } == true,
+                        migratedIdeas = sourceVersion?.toLongOrNull()?.let { it < 43 } == true,
+                        migratedAssistant = sourceVersion?.toLongOrNull()?.let { it < 44 } == true,
+                        migratedRetirement = sourceVersion?.toLongOrNull()?.let { it < 45 } == true,
+                        migratedOpportunities = migratingOpportunities)
+                }
             }
             open(database).useDriver { source ->
                 check(version(source) == sourceVersion) { "升级期间原数据库版本发生变化" }
-                expected.requirePreserved(source)
+                databasePhase(DB_VALIDATE) { expected.requirePreserved(source) }
             }
             transaction().stage(candidate, keyFile.readBytes())
             transaction().applyPending()
@@ -76,7 +89,7 @@ internal class DatabaseSchemaUpgrade(
         }
     }
 
-    private fun verifyInstalled(driver: SqlDriver) {
+    private fun verifyInstalled(driver: SqlDriver) = databasePhase(DB_VALIDATE) {
         checkDatabase(driver)
         DatabaseSchemaInventory.validate(driver)
         check(version(driver) == DatabaseConfig.currentSchemaVersion.toString()) { "数据库升级未完成" }
@@ -111,7 +124,7 @@ internal class DatabaseSchemaUpgrade(
         fun forContext(context: PlatformContext): DatabaseSchemaUpgrade {
             val factory = DatabaseDriverFactory(context)
             val keys = DatabaseKeyStore(context)
-            fun key() = keys.readExisting() ?: throw DatabaseSecurityException()
+            fun key() = databasePhase(DB_KEY) { keys.readExisting() ?: throw DatabaseSecurityException() }
             return DatabaseSchemaUpgrade(
                 File(context.context.noBackupFilesDir, "database-schema-install"),
                 context.context.getDatabasePath("daily_satori.db"), File(keys.storagePath()),

@@ -1,7 +1,12 @@
 package com.dailysatori.ui.feature.unifiednews
 
+import com.dailysatori.core.diagnostics.LocalUiVisit
+import com.dailysatori.core.diagnostics.MeasuredUi
+import com.dailysatori.core.diagnostics.rememberUiVisit
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
+import com.dailysatori.service.diagnostics.PerformanceScreen
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,11 +66,11 @@ import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.ArticleListScreen
+import com.dailysatori.ui.component.news.NewsStatusBanner
 import com.dailysatori.ui.feature.remotenews.RemoteArticleDetailScreen
 import com.dailysatori.ui.feature.remotenews.RemoteDigestDetailScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
-import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
@@ -108,7 +113,7 @@ fun UnifiedNewsScreen(
         viewModel.closeSourceDetail()
     }
 
-    if (UnifiedNewsDetailRoute(state = state, viewModel = viewModel)) return
+    if (MeasuredUnifiedNewsDetailRoute(state, viewModel)) return
 
     UnifiedNewsMainPageRoute(
         state = state,
@@ -128,39 +133,44 @@ fun UnifiedNewsScreen(
 internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
     val hotItem = state.selectedHotNews
     if (hotItem != null) {
+        val owner = LocalUiVisit.current?.trace
         HotNewsDetailScreen(state, hotItem, viewModel::closeSourceDetail,
-            onRetry = { viewModel.openHotNews(hotItem) }, onFavorite = viewModel::toggleHotNewsFavorite)
+            onRetry = { viewModel.openHotNews(hotItem, owner) }, onFavorite = viewModel::toggleHotNewsFavorite)
         return true
     }
     val remoteArticle = state.selectedRemoteArticle
     if (remoteArticle != null) {
         BackHandler(onBack = viewModel::closeSourceDetail)
-        RemoteArticleDetailScreen(
-            article = remoteArticle,
-            sourceName = state.remoteSources.firstOrNull { source ->
-                source.id == ((state.navigationTarget as? UnifiedNewsNavigationTarget.RemoteArticle)?.remoteSourceId
-                    ?: (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id)
-            }?.name,
-            sourceIdentity = ((state.navigationTarget as? UnifiedNewsNavigationTarget.RemoteArticle)?.remoteSourceId
-                ?: (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id)?.toString()
-                ?: remoteArticle.domain ?: remoteArticle.feedName.orEmpty(),
-            localArticleId = state.selectedRemoteArticleLocalId,
-            onBack = viewModel::closeSourceDetail,
-            isFavorite = state.selectedRemoteArticleIsFavorite,
-            showFavoriteAction = true,
-            onFavoriteClick = viewModel::toggleSelectedRemoteArticleFavorite,
-        )
+        Box(Modifier.fillMaxSize().performanceContent()) {
+            RemoteArticleDetailScreen(
+                article = remoteArticle,
+                sourceName = state.remoteSources.firstOrNull { source ->
+                    source.id == ((state.navigationTarget as? UnifiedNewsNavigationTarget.RemoteArticle)?.remoteSourceId
+                        ?: (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id)
+                }?.name,
+                sourceIdentity = ((state.navigationTarget as? UnifiedNewsNavigationTarget.RemoteArticle)?.remoteSourceId
+                    ?: (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id)?.toString()
+                    ?: remoteArticle.domain ?: remoteArticle.feedName.orEmpty(),
+                localArticleId = state.selectedRemoteArticleLocalId,
+                onBack = viewModel::closeSourceDetail,
+                isFavorite = state.selectedRemoteArticleIsFavorite,
+                showFavoriteAction = true,
+                onFavoriteClick = viewModel::toggleSelectedRemoteArticleFavorite,
+            )
+        }
         return true
     }
 
     val remoteDigest = state.selectedRemoteDigest
     if (remoteDigest != null) {
         BackHandler(onBack = viewModel::closeSourceDetail)
-        RemoteDigestDetailScreen(
-            digest = remoteDigest,
-            onBack = viewModel::closeSourceDetail,
-            onArticleClick = viewModel::openSourceArticle,
-        )
+        Box(Modifier.fillMaxSize().performanceContent()) {
+            RemoteDigestDetailScreen(
+                digest = remoteDigest,
+                onBack = viewModel::closeSourceDetail,
+                onArticleClick = viewModel::openSourceArticle,
+            )
+        }
         return true
     }
 
@@ -171,11 +181,24 @@ internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedN
 
     val detailError = state.error
     if (state.navigationTarget != null && detailError != null) {
-        UnifiedNewsSourceDetailErrorScreen(message = detailError, onBack = viewModel::closeSourceDetail)
+        Box(Modifier.fillMaxSize().performanceContent(PerformanceResult.FAILED)) {
+            UnifiedNewsSourceDetailErrorScreen(message = detailError, onBack = viewModel::closeSourceDetail)
+        }
         return true
     }
 
     return false
+}
+
+@Composable
+private fun MeasuredUnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
+    val visible = state.selectedHotNews != null || state.selectedRemoteArticle != null || state.selectedRemoteDigest != null ||
+        (state.navigationTarget != null && (state.isLoading || state.error != null))
+    if (!visible) return false
+    val key = state.navigationTarget ?: state.selectedHotNews ?: PerformanceScreen.NEWS_DETAIL
+    val visit = rememberUiVisit(PerformanceScreen.NEWS_DETAIL, key)
+    MeasuredUi(visit) { UnifiedNewsDetailRoute(state, viewModel) }
+    return true
 }
 
 @Composable
@@ -244,6 +267,7 @@ private fun UnifiedNewsSummaryPage(
     val scope = rememberCoroutineScope()
     var tabScrollJob by remember { mutableStateOf<Job?>(null) }
     val selectedKey = unifiedNewsSourcePageKey(state.sourceSelection)
+    val pageVisit = rememberUiVisit(performanceScreen(state.sourceSelection), selectedKey)
     val scrollRequests = remember { mutableStateMapOf<String, Int>() }
     val refreshRequests = remember { mutableStateMapOf<String, Int>() }
     LaunchedEffect(state.scrollToTopRequestKey) {
@@ -275,7 +299,11 @@ private fun UnifiedNewsSummaryPage(
         Column(modifier = modifier.fillMaxSize()) {
             val refreshMessage = state.manualRefreshMessage ?: state.error
             if (!refreshMessage.isNullOrBlank()) {
-                UnifiedNewsRefreshMessage(refreshMessage)
+                NewsStatusBanner(
+                    message = refreshMessage,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
+                )
             }
             HorizontalPager(
                 state = pagerState,
@@ -286,49 +314,61 @@ private fun UnifiedNewsSummaryPage(
                 val selection = currentPages.value.getOrNull(page) ?: return@HorizontalPager
                 val pageKey = unifiedNewsSourcePageKey(selection)
                 val pageState = unifiedNewsSourcePageState(state, selection, scrollRequests[pageKey] ?: 0, refreshRequests[pageKey] ?: 0)
-                when (selection) {
-                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsHeadlinesContent(pageState, viewModel, onBriefing)
-                    UnifiedNewsSourceSelection.Opportunities -> UnifiedNewsOpportunitiesContent(
-                        pageState, onOpportunities, onOpportunity, onTopic,
-                        onArticleClick = onArticleClick,
-                        onRefreshConsumed = viewModel::clearOpportunityRefreshRequest,
-                    )
-                    UnifiedNewsSourceSelection.Hotlists -> HotNewsContent(pageState, viewModel, isActive = pageKey == selectedKey)
-                    is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(pageState, selection, viewModel, isActive = pageKey == selectedKey)
-                    is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
-                        onArticleClick = onArticleClick,
-                        showTopBar = false,
-                        viewModelKey = pageKey,
-                        refreshRequestKey = pageState.localArticleRefreshRequestKey,
-                        externalFavoriteSourceId = selection.id,
-                        embeddedSearchQuery = pageState.searchQuery,
-                        scrollToTopRequestKey = pageState.scrollToTopRequestKey,
-                        reserveHomeBottomBar = true,
-                    )
-                    UnifiedNewsSourceSelection.Favorites -> ArticleListScreen(
-                        onArticleClick = onArticleClick,
-                        showTopBar = false,
-                        showFavoritesOnly = true,
-                        lockFavoritesFilter = true,
-                        viewModelKey = pageKey,
-                        refreshRequestKey = pageState.localArticleRefreshRequestKey,
-                        embeddedSearchQuery = pageState.searchQuery,
-                        scrollToTopRequestKey = pageState.scrollToTopRequestKey,
-                        reserveHomeBottomBar = true,
-                    )
-                    UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
-                        onArticleClick = onArticleClick,
-                        showTopBar = false,
-                        viewModelKey = pageKey,
-                        refreshRequestKey = pageState.localArticleRefreshRequestKey,
-                        embeddedSearchQuery = pageState.searchQuery,
-                        scrollToTopRequestKey = pageState.scrollToTopRequestKey,
-                        reserveHomeBottomBar = true,
-                    )
+                MeasuredUi(pageVisit.takeIf { pageKey == selectedKey }) {
+                    when (selection) {
+                        UnifiedNewsSourceSelection.Summary -> UnifiedNewsHeadlinesContent(pageState, viewModel, onBriefing)
+                        UnifiedNewsSourceSelection.Opportunities -> UnifiedNewsOpportunitiesContent(
+                            pageState, onOpportunities, onOpportunity, onTopic,
+                            onArticleClick = onArticleClick,
+                            onRefreshConsumed = viewModel::clearOpportunityRefreshRequest,
+                        )
+                        UnifiedNewsSourceSelection.Hotlists -> HotNewsContent(pageState, viewModel, isActive = pageKey == selectedKey)
+                        is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(pageState, selection, viewModel, isActive = pageKey == selectedKey)
+                        is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
+                            onArticleClick = onArticleClick,
+                            showTopBar = false,
+                            viewModelKey = pageKey,
+                            refreshRequestKey = pageState.localArticleRefreshRequestKey,
+                            externalFavoriteSourceId = selection.id,
+                            embeddedSearchQuery = pageState.searchQuery,
+                            scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                            reserveHomeBottomBar = true,
+                        )
+                        UnifiedNewsSourceSelection.Favorites -> ArticleListScreen(
+                            onArticleClick = onArticleClick,
+                            showTopBar = false,
+                            showFavoritesOnly = true,
+                            lockFavoritesFilter = true,
+                            viewModelKey = pageKey,
+                            refreshRequestKey = pageState.localArticleRefreshRequestKey,
+                            embeddedSearchQuery = pageState.searchQuery,
+                            scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                            reserveHomeBottomBar = true,
+                        )
+                        UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
+                            onArticleClick = onArticleClick,
+                            showTopBar = false,
+                            viewModelKey = pageKey,
+                            refreshRequestKey = pageState.localArticleRefreshRequestKey,
+                            embeddedSearchQuery = pageState.searchQuery,
+                            scrollToTopRequestKey = pageState.scrollToTopRequestKey,
+                            reserveHomeBottomBar = true,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+private fun performanceScreen(selection: UnifiedNewsSourceSelection): PerformanceScreen = when (selection) {
+    UnifiedNewsSourceSelection.Summary -> PerformanceScreen.NEWS_FEED
+    UnifiedNewsSourceSelection.Opportunities -> PerformanceScreen.NEWS_OPPORTUNITIES
+    UnifiedNewsSourceSelection.Hotlists -> PerformanceScreen.NEWS_HOTLISTS
+    is UnifiedNewsSourceSelection.RemoteSource -> PerformanceScreen.NEWS_SOURCE
+    is UnifiedNewsSourceSelection.ExternalFavoriteSource -> PerformanceScreen.ARTICLE_EXTERNAL_LIST
+    UnifiedNewsSourceSelection.LocalArticles -> PerformanceScreen.ARTICLE_LIST
+    UnifiedNewsSourceSelection.Favorites -> PerformanceScreen.ARTICLE_FAVORITES
 }
 
 @Composable
@@ -445,23 +485,6 @@ private fun UnifiedNewsSearchTopBar(
             actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )
-}
-
-@Composable
-private fun UnifiedNewsRefreshMessage(message: String) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
-    ) {
-        Text(
-            text = message,
-            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
 }
 
 @Composable

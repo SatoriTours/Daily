@@ -12,7 +12,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.produceIn
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 @OptIn(FlowPreview::class)
@@ -111,8 +111,9 @@ private class OpportunityFixture {
     private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).also { DailySatoriDatabase.Schema.create(it) }
     private val database = DailySatoriDatabase(driver)
     val settings = SettingRepository(database)
+    private val queries = database.newsOpportunityQueries
     val topics = IdeaTopicService(IdeaTopicRepository(database))
-    val service = NewsOpportunityService(NewsOpportunityStore(settings), OpportunityAnalyzer { null }, object : NewsOpportunityContext {
+    val service = NewsOpportunityService(NewsOpportunityStore(database), OpportunityAnalyzer { null }, object : NewsOpportunityContext {
         override val enabled = false
         override fun verifiedContext(): String? = null
     })
@@ -121,9 +122,18 @@ private class OpportunityFixture {
         .distinctUntilChanged().produceIn(scope)
 
     suspend fun seed(vararg items: NewsOpportunity) {
-        settings.upsert("news_opportunity_archive_v1", buildJsonObject {
-            put("items", Json.encodeToJsonElement(items.toList()))
-        }.toString())
+        queries.transaction {
+            driver.execute(null, "DELETE FROM opportunity_item", 0)
+            driver.execute(null, "DELETE FROM opportunity_source", 0)
+            items.forEach { item ->
+                val id = item.id
+                val draft = OpportunityDraft(item.title, item.category, item.fact, item.relevance,
+                    item.action, item.caveat, item.quote)
+                queries.insertOpportunitySource(id, Json.encodeToString(item.article))
+                queries.insertOpportunityItem(id, item.article.key, id, item.createdAt, item.saved,
+                    item.ignored, item.reminderId, item.savedAt, Json.encodeToString(draft))
+            }
+        }
         service.refresh()
     }
 
@@ -134,10 +144,9 @@ private class OpportunityFixture {
     }
 
     fun assertSavedUnchanged(id: String) {
-        val items = Json.parseToJsonElement(settings.get("news_opportunity_archive_v1")!!).jsonObject.getValue("items").jsonArray
-        val saved = items.first { it.jsonObject.getValue("id").jsonPrimitive.content == id }.jsonObject
-        assertTrue(saved.getValue("saved").jsonPrimitive.boolean)
-        assertEquals(1_000L, saved.getValue("savedAt").jsonPrimitive.long)
+        val saved = queries.selectOpportunityItems().executeAsList().first { it.id == id }
+        assertTrue(saved.saved)
+        assertEquals(1_000L, saved.saved_at)
     }
 
     suspend fun close() {

@@ -3,32 +3,9 @@ package com.dailysatori.core.service
 import android.content.Context
 import co.touchlab.kermit.Logger
 import com.dailysatori.config.WebServiceConfig
-import com.dailysatori.data.repository.ArticleRepository
-import com.dailysatori.data.repository.AsyncTaskRepository
-import com.dailysatori.data.repository.BookRepository
-import com.dailysatori.data.repository.BookViewpointRepository
-import com.dailysatori.data.repository.ChatConversationRepository
-import com.dailysatori.data.repository.DiaryRepository
-import com.dailysatori.data.repository.DiaryAttachmentRepository
+import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
-import com.dailysatori.data.repository.TagRepository
-import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
-import com.dailysatori.data.repository.WeeklySummaryRepository
-import com.dailysatori.core.worker.ArticleProcessingScheduler
-import com.dailysatori.service.parser.WebpageParserService
-import com.dailysatori.service.mcp.McpAgentService
-import com.dailysatori.service.mcp.McpSearchResult
-import com.dailysatori.service.mcp.decodeMcpSearchResults
-import com.dailysatori.service.mcp.encodeMcpSearchResults
-import com.dailysatori.service.asynctask.AsyncTaskFilter
-import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
-import com.dailysatori.ui.feature.unifiednews.enqueueManualNewsRefresh
-import com.dailysatori.ui.feature.unifiednews.hasActiveNewsRefreshTask
-import com.dailysatori.core.task.unifiedNewsRefreshUniqueKey
-import com.dailysatori.core.worker.AsyncTaskScheduler
-import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
-import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json as registerJson
@@ -46,25 +23,20 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.koin.java.KoinJavaComponent.get
-import java.io.File
-import java.util.UUID
 
 @Serializable
 data class ApiResponse(
@@ -117,59 +89,40 @@ class WebServerService(private val ctx: Context) {
                 java.net.ServerSocket(port).use { }
                 val svc = this
                 server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-            install(com.dailysatori.core.diagnostics.DiagnosticServerPlugin)
-            install(ContentNegotiation) { registerJson(svc.json) }
-            install(createApplicationPlugin(name = "ApiAuth") {
-                val log = Logger.withTag("ApiAuth")
-                onCall { call ->
-                    val path = call.request.path()
-                    if (!path.startsWith("/api/v2/")) return@onCall
-                    if (path == "/api/v2/auth/login" || path == "/api/v2/auth/status") return@onCall
+                    install(com.dailysatori.core.diagnostics.DiagnosticServerPlugin)
+                    install(ContentNegotiation) { registerJson(svc.json) }
+                    install(createApplicationPlugin(name = "ApiAuth") {
+                        val log = Logger.withTag("ApiAuth")
+                        onCall { call ->
+                            val path = call.request.path()
+                            if (!path.startsWith("/api/v2/")) return@onCall
+                            if (path == "/api/v2/auth/login" || path == "/api/v2/auth/status") return@onCall
 
-                    val sessionId = parseCookie(call.request.headers["Cookie"], "session_id")
-                    val token = call.request.headers["Authorization"]?.removePrefix("Bearer ") 
+                            if (!call.requireWebCredentials()) log.w { "ApiAuth rejected request: path=$path" }
+                        }
+                    })
+                    routing {
+                        get("/ping") {
+                            call.respondText("pong", ContentType.Text.Plain)
+                        }
 
-                    if (sessionId != null) {
-                        try {
-                            val sessionRepo = get<SessionRepository>(SessionRepository::class.java)
-                            if (sessionRepo.getBySessionId(sessionId) != null) return@onCall
-                        } catch (_: Exception) {}
+                        get("/") { svc.serveAsset(call, "website/admin.html", ContentType.Text.Html) }
+                        get("/website/{path...}") { svc.serveWebsiteAsset(call) }
+                        get("/files/{path...}") { svc.serveFile(call) }
+                        get("/images/{path...}") { svc.serveFile(call) }
+                        get("/diary_images/{path...}") { svc.serveFile(call) }
+
+                        route("/api/v2") {
+                            setupArticleRoutes()
+                            setupDiaryRoutes()
+                            setupBookRoutes()
+                            setupNewsRoutes { AsyncTaskScheduler(ctx).enqueue(it) }
+                            setupAiRoutes()
+                            setupTaskRoutes { AsyncTaskScheduler(ctx).notifyTerminal(it) }
+                            setupStatsRoutes()
+                            setupAuthRoutes()
+                        }
                     }
-
-                    if (token != null) {
-                        try {
-                            val settingRepo = get<SettingRepository>(SettingRepository::class.java)
-                            val storedToken = settingRepo.get("web_server_token")
-                            if (storedToken != null && token == storedToken) return@onCall
-                        } catch (_: Exception) {}
-                    }
-
-                    call.respondText(respondFail("Authentication required"), ContentType.Application.Json, HttpStatusCode.Unauthorized)
-                    log.w { "ApiAuth rejected request: path=$path" }
-                }
-            })
-            routing {
-                get("/ping") {
-                    call.respondText("pong", ContentType.Text.Plain)
-                }
-
-                get("/") { svc.serveAsset(call, "website/admin.html", ContentType.Text.Html) }
-                get("/website/{path...}") { svc.serveWebsiteAsset(call) }
-                get("/files/{path...}") { svc.serveFile(call) }
-                get("/images/{path...}") { svc.serveFile(call) }
-                get("/diary_images/{path...}") { svc.serveFile(call) }
-
-                route("/api/v2") {
-                    setupArticleRoutes()
-                    setupDiaryRoutes()
-                    setupBookRoutes()
-                    setupNewsRoutes()
-                    setupAiRoutes()
-                    setupTaskRoutes()
-                    setupStatsRoutes()
-                    setupAuthRoutes()
-                }
-            }
                 }.start(wait = false)
                 currentPort = port
                 log.i { "Web server started on port $port" }
@@ -191,22 +144,6 @@ class WebServerService(private val ctx: Context) {
     fun getPort(): Int = currentPort
 
     fun isRunning(): Boolean = server != null
-
-    private fun respondOk(data: JsonObject? = null): String =
-        """{"code":0,"msg":"success","data":${data?.toString() ?: "null"}}"""
-
-    /** Accepted response: the refresh runs on as a durable task; the client does not need to poll. */
-    private fun respondAccepted(status: String, taskId: Long): String = respondOk(buildJsonObject {
-        put("status", JsonPrimitive(status))
-        put("taskId", JsonPrimitive(taskId))
-    })
-
-    /** Bounded wait so the LAN client keeps its bounded request and never sees a false success. */
-    private val NEWS_REFRESH_WAIT_MS = 15_000L
-
-
-    private fun respondFail(msg: String): String =
-        """{"code":-1,"msg":"$msg"}"""
 
     private suspend fun serveAsset(call: ApplicationCall, path: String, contentType: ContentType) {
         try {
@@ -238,8 +175,12 @@ class WebServerService(private val ctx: Context) {
     }
 
     private suspend fun serveFile(call: ApplicationCall) {
+        // All aliases enter here; an auth failure returns before path resolution or file I/O.
+        call.response.headers.append("Cache-Control", "no-store")
+        if (!call.requireWebCredentials()) return
         val path = call.parameters.getAll("path")?.joinToString("/") ?: ""
-        if (path.isEmpty() || path.split("/").any { it == ".." }) {
+        if (path.isEmpty() || path.split("/").any { it.isEmpty() || it == "." || it == ".." } ||
+            path.any { it == '\\' || it.isISOControl() }) {
             call.respond(HttpStatusCode.NotFound)
             return
         }
@@ -247,19 +188,20 @@ class WebServerService(private val ctx: Context) {
         val root = File(ctx.filesDir, "DailySatori")
         val legacyRoot = File(ctx.filesDir.parentFile, "app_flutter")
         val base = path.substringBeforeLast('.')
-        val candidates = mutableListOf(File(root, path))
-        candidates.addAll(listOf("jpg", "jpeg", "png", "webp", "gif").map { File(root, "$base.$it") })
-        candidates.add(File(legacyRoot, path))
-        candidates.addAll(listOf("jpg", "jpeg", "png", "webp", "gif").map { File(legacyRoot, "$base.$it") })
+        val extensions = listOf("jpg", "jpeg", "png", "webp", "gif")
+        val roots = listOf(root, legacyRoot)
+        val candidates = roots.flatMap { dir ->
+            (listOf(path) + extensions.map { "$base.$it" }).map { dir to it }
+        }.toMutableList()
         if (!path.contains("/")) {
             val imgs = listOf("images", "diary_images")
-            candidates.addAll(imgs.flatMap { d -> listOf("jpg", "jpeg", "png", "webp", "gif").map { File(root, "$d/$base.$it") } })
-            candidates.addAll(imgs.map { File(root, "$it/$path") })
-            candidates.addAll(imgs.flatMap { d -> listOf("jpg", "jpeg", "png", "webp", "gif").map { File(legacyRoot, "$d/$base.$it") } })
-            candidates.addAll(imgs.map { File(legacyRoot, "$it/$path") })
+            roots.forEach { dir ->
+                candidates.addAll(imgs.flatMap { d -> extensions.map { dir to "$d/$base.$it" } })
+                candidates.addAll(imgs.map { dir to "$it/$path" })
+            }
         }
 
-        val file = candidates.firstOrNull { it.exists() && it.isFile }
+        val file = candidates.firstNotNullOfOrNull { (dir, relative) -> privateAttachmentFile(dir, relative) }
         if (file != null) {
             val contentType = detectFileContentType(file, path)
             call.respondBytes(file.readBytes(), contentType)
@@ -268,803 +210,35 @@ class WebServerService(private val ctx: Context) {
         }
     }
 
-    private fun fileUrl(path: String?): String {
-        if (path.isNullOrEmpty() || path == "null" || path.endsWith("/null")) return ""
-        if (path.startsWith("http://") || path.startsWith("https://")) return path
-        val normalized = path
-            .substringAfter("DailySatori/", path)
-            .removePrefix("/")
-            .removePrefix("files/")
-        return "/files/$normalized"
-    }
-
-    private fun articleCoverUrl(localPath: String?, remoteUrl: String?): String =
-        fileUrl(localPath?.takeIf { it.isNotBlank() } ?: remoteUrl)
-
-    private fun diaryImagesToJson(images: String?): JsonArray {
-        if (images.isNullOrBlank()) return JsonArray(emptyList())
-        val list = com.dailysatori.service.diary.parseDiaryImagePaths(images).map { fileUrl(it) }
-        return JsonArray(list.map { JsonPrimitive(it) })
-    }
-
-    private fun Route.setupArticleRoutes() {
-        route("/articles") {
-            get {
-                val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val page = (call.request.queryParameters["page"]?.toLongOrNull() ?: 1L).coerceIn(1L, 1_000_000L)
-                val limit = 20L
-                val offset = (page - 1) * limit
-                val favorites = call.request.queryParameters["favorites"] == "true"
-                val favoriteItems = if (favorites) repo.searchSync("").filter { (it.is_favorite ?: 0L) > 0L } else null
-                val articles = favoriteItems?.drop(offset.toInt())?.take(limit.toInt()) ?: repo.getPaginated(limit, offset).first()
-                val total = favoriteItems?.size?.toLong() ?: repo.count()
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(
-                        articles.map { a -> buildJsonObject {
-                            put("id", JsonPrimitive(a.id))
-                            put("title", JsonPrimitive(a.title ?: ""))
-                            put("url", JsonPrimitive(a.url ?: ""))
-                            put("coverImage", JsonPrimitive(articleCoverUrl(a.cover_image, a.cover_image_url)))
-                            put("aiTitle", JsonPrimitive(a.ai_title ?: ""))
-                            put("aiContent", JsonPrimitive(a.ai_content ?: ""))
-                            put("isFavorite", JsonPrimitive((a.is_favorite ?: 0) > 0))
-                            put("status", JsonPrimitive(a.status ?: ""))
-                            put("createdAt", JsonPrimitive(a.created_at))
-                            put("updatedAt", JsonPrimitive(a.updated_at))
-                            put("version", JsonPrimitive(webVersion(a)))
-                        }}
-                    ))
-                    put("pagination", buildJsonObject {
-                        put("page", JsonPrimitive(page))
-                        put("pageSize", JsonPrimitive(limit))
-                        put("totalItems", JsonPrimitive(total))
-                        put("totalPages", JsonPrimitive((total + limit - 1) / limit))
-                    })
-                }), ContentType.Application.Json)
-            }
-
-            get("/search") {
-                val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val query = call.request.queryParameters["q"] ?: ""
-                val page = (call.request.queryParameters["page"]?.toIntOrNull() ?: 1).coerceIn(1, 1_000_000)
-                val matches = repo.searchSync(query).filter { call.request.queryParameters["favorites"] != "true" || (it.is_favorite ?: 0L) > 0L }
-                val results = matches.drop((page - 1) * 20).take(20)
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(
-                        results.map { a -> buildJsonObject {
-                            put("id", JsonPrimitive(a.id))
-                            put("title", JsonPrimitive(a.title ?: ""))
-                            put("url", JsonPrimitive(a.url ?: ""))
-                            put("coverImage", JsonPrimitive(articleCoverUrl(a.cover_image, a.cover_image_url)))
-                            put("aiTitle", JsonPrimitive(a.ai_title ?: ""))
-                            put("aiContent", JsonPrimitive(a.ai_content ?: ""))
-                            put("isFavorite", JsonPrimitive((a.is_favorite ?: 0) > 0))
-                            put("status", JsonPrimitive(a.status ?: ""))
-                            put("createdAt", JsonPrimitive(a.created_at))
-                            put("updatedAt", JsonPrimitive(a.updated_at))
-                            put("version", JsonPrimitive(webVersion(a)))
-                        }}
-                    ))
-                    put("pagination", webPagination(page, matches.size))
-                }), ContentType.Application.Json)
-            }
-
-            get("/{id}") {
-                val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                val a = repo.getById(id)
-                if (a != null) {
-                    call.respondText(respondOk(buildJsonObject {
-                        put("id", JsonPrimitive(a.id))
-                        put("title", JsonPrimitive(a.title ?: ""))
-                        put("url", JsonPrimitive(a.url ?: ""))
-                        put("aiContent", JsonPrimitive(a.ai_content ?: ""))
-                        put("aiMarkdownContent", JsonPrimitive(a.ai_markdown_content ?: ""))
-                        put("originalMarkdownContent", JsonPrimitive(a.original_markdown_content ?: ""))
-                        put("sourceType", JsonPrimitive(a.source_type))
-                        put("aiTitle", JsonPrimitive(a.ai_title ?: ""))
-                        put("coverImage", JsonPrimitive(articleCoverUrl(a.cover_image, a.cover_image_url)))
-                        put("isFavorite", JsonPrimitive((a.is_favorite ?: 0) > 0))
-                        put("comment", JsonPrimitive(a.comment ?: ""))
-                        put("status", JsonPrimitive(a.status ?: ""))
-                        put("createdAt", JsonPrimitive(a.created_at))
-                        put("updatedAt", JsonPrimitive(a.updated_at))
-                            put("version", JsonPrimitive(webVersion(a)))
-                    }), ContentType.Application.Json)
-                } else {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                }
-            }
-
-            post {
-                try {
-                    val body = call.receive<JsonObject>()
-                    val url = body.stringValue("url").trim()
-                    if (url.isBlank()) {
-                        call.respondText(respondFail("URL is required"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@post
-                    }
-                    val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                    val existing = repo.getByUrl(url)
-                    if (existing != null) {
-                        call.respondText(respondOk(buildJsonObject {
-                            put("id", JsonPrimitive(existing.id))
-                            put("queued", JsonPrimitive(false))
-                            put("existing", JsonPrimitive(true))
-                        }), ContentType.Application.Json)
-                        return@post
-                    }
-                    get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueSave(url)
-                    call.respondText(respondOk(buildJsonObject {
-                        put("queued", JsonPrimitive(true))
-                        put("existing", JsonPrimitive(false))
-                    }), ContentType.Application.Json, HttpStatusCode.Accepted)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            put("/{id}") {
-                try {
-                    val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                    val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                    val article = repo.getById(id)
-                    if (article == null) {
-                        call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                        return@put
-                    }
-                    val body = call.receive<JsonObject>()
-                    if (!call.checkEditVersion(body, webVersion(article))) return@put
-                    val saved = repo.updateDetailsIfUnchanged(
-                        article, body.optionalStringValue("title", article.title),
-                        body.optionalStringValue("comment", article.comment),
-                    )
-                    if (!saved) { call.editConflict(); return@put }
-                    call.respondText(respondOk(articleSummary(repo.getById(id)!!)), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            post("/{id}/favorite") {
-                val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                if (repo.getById(id) == null) {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                    return@post
-                }
-                repo.toggleFavorite(id)
-                call.respondText(respondOk(articleSummary(repo.getById(id)!!)), ContentType.Application.Json)
-            }
-
-            post("/{id}/reprocess") {
-                val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                if (repo.getById(id) == null) {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                    return@post
-                }
-                get<WebpageParserService>(WebpageParserService::class.java).reprocessArticle(id)
-                call.respondText(respondOk(buildJsonObject { put("queued", JsonPrimitive(true)) }), ContentType.Application.Json)
-            }
-
-            delete("/{id}") {
-                val repo = get<ArticleRepository>(ArticleRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                repo.delete(id)
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
+    private fun privateAttachmentFile(root: File, path: String): File? = try {
+        val expectedRoot = File(root.parentFile!!.canonicalFile, root.name)
+        val file = File(expectedRoot, path).canonicalFile
+        file.takeIf {
+            // Do not follow a symlink replacing the allowed root, or return a target outside it.
+            expectedRoot == root.canonicalFile && it.toPath().startsWith(expectedRoot.toPath()) && it.isFile
         }
+    } catch (_: java.io.IOException) {
+        null
     }
 
-    private fun Route.setupDiaryRoutes() {
-        route("/diary") {
-            get {
-                val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                val page = (call.request.queryParameters["page"]?.toLongOrNull() ?: 1L).coerceIn(1L, 1_000_000L)
-                val limit = 20L
-                val offset = (page - 1) * limit
-                val diaries = repo.getPaginated(limit, offset).first()
-                val total = repo.count()
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(
-                        diaries.map { d -> buildJsonObject {
-                            put("id", JsonPrimitive(d.id))
-                            put("content", JsonPrimitive(d.content ?: ""))
-                            put("mood", JsonPrimitive(d.mood ?: ""))
-                            put("tags", JsonPrimitive(d.tags ?: ""))
-                            put("images", diaryImagesToJson(d.images))
-                            put("createdAt", JsonPrimitive(d.created_at))
-                            put("updatedAt", JsonPrimitive(d.updated_at))
-                            put("version", JsonPrimitive(webVersion(d)))
-                        }}
-                    ))
-                    put("pagination", buildJsonObject {
-                        put("page", JsonPrimitive(page))
-                        put("pageSize", JsonPrimitive(limit))
-                        put("totalItems", JsonPrimitive(total))
-                        put("totalPages", JsonPrimitive((total + limit - 1) / limit))
-                    })
-                }), ContentType.Application.Json)
-            }
-
-            get("/search") {
-                val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                val query = call.request.queryParameters["q"] ?: ""
-                val page = (call.request.queryParameters["page"]?.toIntOrNull() ?: 1).coerceIn(1, 1_000_000)
-                val matches = repo.searchSync(query)
-                val results = matches.drop((page - 1) * 20).take(20)
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(
-                        results.map { d -> buildJsonObject {
-                            put("id", JsonPrimitive(d.id))
-                            put("content", JsonPrimitive(d.content ?: ""))
-                            put("mood", JsonPrimitive(d.mood ?: ""))
-                            put("tags", JsonPrimitive(d.tags ?: ""))
-                            put("images", diaryImagesToJson(d.images))
-                            put("updatedAt", JsonPrimitive(d.updated_at))
-                            put("version", JsonPrimitive(webVersion(d)))
-                            put("createdAt", JsonPrimitive(d.created_at))
-                        }}
-                    ))
-                    put("pagination", webPagination(page, matches.size))
-                }), ContentType.Application.Json)
-            }
-
-            get("/{id}") {
-                val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                val d = repo.getById(id)
-                if (d != null) {
-                    val attachments = get<DiaryAttachmentRepository>(DiaryAttachmentRepository::class.java).getForDiary(id)
-                    call.respondText(respondOk(buildJsonObject {
-                        put("id", JsonPrimitive(d.id))
-                        put("content", JsonPrimitive(d.content ?: ""))
-                        put("mood", JsonPrimitive(d.mood ?: ""))
-                        put("tags", JsonPrimitive(d.tags ?: ""))
-                        put("images", diaryImagesToJson(d.images))
-                        put("attachments", JsonArray(attachments.map { attachment -> buildJsonObject {
-                            put("id", JsonPrimitive(attachment.id))
-                            put("kind", JsonPrimitive(attachment.kind))
-                            put("name", JsonPrimitive(attachment.display_name.ifBlank { attachment.local_path.substringAfterLast('/') }))
-                            put("url", JsonPrimitive(fileUrl(attachment.local_path)))
-                            put("mimeType", JsonPrimitive(attachment.mime_type))
-                            put("sizeBytes", JsonPrimitive(attachment.size_bytes))
-                            put("durationMs", JsonPrimitive(attachment.duration_ms))
-                            put("transcript", JsonPrimitive(attachment.transcript))
-                            put("transcriptStatus", JsonPrimitive(attachment.transcript_status))
-                        } }))
-                        put("createdAt", JsonPrimitive(d.created_at))
-                        put("updatedAt", JsonPrimitive(d.updated_at))
-                            put("version", JsonPrimitive(webVersion(d)))
-                    }), ContentType.Application.Json)
-                } else {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                }
-            }
-
-            post {
-                try {
-                    val body = call.receive<JsonObject>()
-                    val content = (body["content"] as? JsonPrimitive)?.content ?: ""
-                    val mood = (body["mood"] as? JsonPrimitive)?.content
-                    val tags = (body["tags"] as? JsonPrimitive)?.content
-                    val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                    if (content.isBlank()) {
-                        call.respondText(respondFail("日记内容不能为空"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@post
-                    }
-                    val id = repo.create(content, tags, mood, null)
-                    call.respondText(respondOk(diaryEditResult(repo.getById(id)!!)), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            put("/{id}") {
-                try {
-                    val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                    val body = call.receive<JsonObject>()
-                    val content = (body["content"] as? JsonPrimitive)?.content ?: ""
-                    val mood = (body["mood"] as? JsonPrimitive)?.content
-                    val tags = (body["tags"] as? JsonPrimitive)?.content
-                    val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                    val existing = repo.getById(id)
-                    if (existing == null) {
-                        call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                        return@put
-                    }
-                    if (content.isBlank()) {
-                        call.respondText(respondFail("日记内容不能为空"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@put
-                    }
-                    if (!call.checkEditVersion(body, webVersion(existing))) return@put
-                    if (!repo.updateIfUnchanged(existing, content, tags, mood)) {
-                        call.editConflict(); return@put
-                    }
-                    call.respondText(respondOk(diaryEditResult(repo.getById(id)!!)), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            delete("/{id}") {
-                val repo = get<DiaryRepository>(DiaryRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                repo.delete(id)
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
+    private suspend fun ApplicationCall.requireWebCredentials(): Boolean {
+        val sessionId = parseCookie(request.headers["Cookie"], "session_id")
+        val token = request.headers["Authorization"]?.removePrefix("Bearer ")
+        if (sessionId != null) {
+            try {
+                val sessions = get<SessionRepository>(SessionRepository::class.java)
+                if (sessions.getBySessionId(sessionId) != null) return true
+            } catch (_: Exception) {}
         }
-    }
-
-    private fun Route.setupBookRoutes() {
-        route("/books") {
-            get {
-                val repo = get<BookRepository>(BookRepository::class.java)
-                val books = try { repo.getAllSync() } catch (_: Exception) { emptyList() }
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(
-                        books.map { b -> buildJsonObject {
-                            put("id", JsonPrimitive(b.id))
-                            put("title", JsonPrimitive(b.title))
-                            put("author", JsonPrimitive(b.author))
-                            put("category", JsonPrimitive(b.category))
-                            put("coverImage", JsonPrimitive(b.cover_image))
-                            put("introduction", JsonPrimitive(b.introduction))
-                            put("createdAt", JsonPrimitive(b.created_at))
-                        put("version", JsonPrimitive(webVersion(b)))
-                        }}
-                    ))
-                }), ContentType.Application.Json)
-            }
-
-            get("/{id}") {
-                val repo = get<BookRepository>(BookRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                val b = repo.getById(id)
-                if (b != null) {
-                    call.respondText(respondOk(buildJsonObject {
-                        put("id", JsonPrimitive(b.id))
-                        put("title", JsonPrimitive(b.title))
-                        put("author", JsonPrimitive(b.author))
-                        put("category", JsonPrimitive(b.category))
-                        put("coverImage", JsonPrimitive(b.cover_image))
-                        put("introduction", JsonPrimitive(b.introduction))
-                        put("createdAt", JsonPrimitive(b.created_at))
-                        put("version", JsonPrimitive(webVersion(b)))
-                    }), ContentType.Application.Json)
-                } else {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                }
-            }
-
-            get("/search") {
-                val query = call.request.queryParameters["q"].orEmpty()
-                val books = get<BookRepository>(BookRepository::class.java).searchSync(query)
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(books.map { book -> bookToJson(book) }))
-                }), ContentType.Application.Json)
-            }
-
-            get("/{id}/viewpoints") {
-                val vpRepo = get<BookViewpointRepository>(BookViewpointRepository::class.java)
-                val bookId = call.parameters["id"]?.toLongOrNull() ?: 0L
-                val viewpoints = try { vpRepo.getByBookSync(bookId) } catch (_: Exception) { emptyList() }
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(
-                        viewpoints.map { v -> buildJsonObject {
-                            put("id", JsonPrimitive(v.id))
-                            put("title", JsonPrimitive(v.title))
-                            put("content", JsonPrimitive(v.content))
-                            put("example", JsonPrimitive(v.example))
-                            put("createdAt", JsonPrimitive(v.created_at))
-                            put("version", JsonPrimitive(webVersion(v)))
-                        }}
-                    ))
-                }), ContentType.Application.Json)
-            }
-
-            post {
-                try {
-                    val body = call.receive<JsonObject>()
-                    val title = body.stringValue("title").trim()
-                    if (title.isBlank()) {
-                        call.respondText(respondFail("Title is required"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@post
-                    }
-                    val repo = get<BookRepository>(BookRepository::class.java)
-                    val id = repo.insertAndReturnId(
-                        title = title,
-                        author = body.stringValue("author").trim(),
-                        category = body.stringValue("category").trim(),
-                        coverImage = body.stringValue("coverImage").trim(),
-                        introduction = body.stringValue("introduction").trim(),
-                    )
-                    call.respondText(respondOk(buildJsonObject { put("id", JsonPrimitive(id)) }), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            put("/{id}") {
-                try {
-                    val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                    val repo = get<BookRepository>(BookRepository::class.java)
-                    val existing = repo.getById(id)
-                    if (existing == null) {
-                        call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                        return@put
-                    }
-                    val body = call.receive<JsonObject>()
-                    val title = body.optionalStringValue("title", existing.title).orEmpty()
-                    if (title.isBlank()) {
-                        call.respondText(respondFail("Title is required"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@put
-                    }
-                    if (!call.checkEditVersion(body, webVersion(existing))) return@put
-                    val saved = repo.updateIfUnchanged(
-                        existing, title,
-                        body.optionalStringValue("author", existing.author).orEmpty(),
-                        body.optionalStringValue("category", existing.category).orEmpty(),
-                        body.optionalStringValue("coverImage", existing.cover_image).orEmpty(),
-                        body.optionalStringValue("introduction", existing.introduction).orEmpty(),
-                    )
-                    if (!saved) { call.editConflict(); return@put }
-                    call.respondText(respondOk(bookToJson(repo.getById(id)!!)), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            post("/{id}/viewpoints") {
-                try {
-                    val bookId = call.parameters["id"]?.toLongOrNull() ?: 0L
-                    if (get<BookRepository>(BookRepository::class.java).getById(bookId) == null) {
-                        call.respondText(respondFail("Book not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                        return@post
-                    }
-                    val body = call.receive<JsonObject>()
-                    val title = body.stringValue("title").trim()
-                    if (title.isBlank()) {
-                        call.respondText(respondFail("Title is required"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@post
-                    }
-                    get<BookViewpointRepository>(BookViewpointRepository::class.java).insert(
-                        bookId = bookId,
-                        title = title,
-                        content = body.stringValue("content").trim(),
-                        example = body.stringValue("example").trim(),
-                    )
-                    call.respondText(respondOk(), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "Invalid request"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-
-            get("/viewpoints/{viewpointId}") {
-                val id = call.parameters["viewpointId"]?.toLongOrNull() ?: 0L
-                val existing = get<BookViewpointRepository>(BookViewpointRepository::class.java).getById(id)
-                if (existing == null) {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                } else call.respondText(respondOk(buildJsonObject {
-                    put("id", JsonPrimitive(existing.id))
-                    put("title", JsonPrimitive(existing.title))
-                    put("content", JsonPrimitive(existing.content))
-                    put("example", JsonPrimitive(existing.example))
-                    put("version", JsonPrimitive(webVersion(existing)))
-                }), ContentType.Application.Json)
-            }
-
-            put("/viewpoints/{viewpointId}") {
-                val repo = get<BookViewpointRepository>(BookViewpointRepository::class.java)
-                val id = call.parameters["viewpointId"]?.toLongOrNull() ?: 0L
-                val existing = repo.getById(id)
-                if (existing == null) {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                    return@put
-                }
-                val body = call.receive<JsonObject>()
-                val title = body.optionalStringValue("title", existing.title).orEmpty()
-                if (title.isBlank()) {
-                    call.respondText(respondFail("标题不能为空"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                    return@put
-                }
-                if (!call.checkEditVersion(body, webVersion(existing))) return@put
-                val saved = repo.updateIfUnchanged(
-                    existing, title, body.optionalStringValue("content", existing.content).orEmpty(),
-                    body.optionalStringValue("example", existing.example).orEmpty(),
-                )
-                if (!saved) { call.editConflict(); return@put }
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
-
-            delete("/viewpoints/{viewpointId}") {
-                val repo = get<BookViewpointRepository>(BookViewpointRepository::class.java)
-                val id = call.parameters["viewpointId"]?.toLongOrNull() ?: 0L
-                if (repo.getById(id) == null) {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                    return@delete
-                }
-                repo.delete(id)
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
-
-            delete("/{id}") {
-                val repo = get<BookRepository>(BookRepository::class.java)
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                repo.delete(id)
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
+        if (token != null) {
+            try {
+                val settings = get<SettingRepository>(SettingRepository::class.java)
+                val stored = settings.get("web_server_token")
+                if (stored != null && token == stored) return true
+            } catch (_: Exception) {}
         }
-    }
-
-    private fun Route.setupStatsRoutes() {
-        route("/stats") {
-            get("/overview") {
-                val articleRepo = get<ArticleRepository>(ArticleRepository::class.java)
-                val diaryRepo = get<DiaryRepository>(DiaryRepository::class.java)
-                val bookRepo = get<BookRepository>(BookRepository::class.java)
-                val tagRepo = get<TagRepository>(TagRepository::class.java)
-                call.respondText(respondOk(buildJsonObject {
-                    put("totals", buildJsonObject {
-                        put("articles", JsonPrimitive(articleRepo.count()))
-                        put("diaries", JsonPrimitive(diaryRepo.count()))
-                        put("books", JsonPrimitive(bookRepo.count()))
-                        put("tags", JsonPrimitive(tagRepo.count()))
-                        put("favoriteArticles", JsonPrimitive(articleRepo.getFavoritesSync().size))
-                    })
-                }), ContentType.Application.Json)
-            }
-
-            get("/weekly-report") {
-                val repo = get<WeeklySummaryRepository>(WeeklySummaryRepository::class.java)
-                val reports = try { repo.getAll().first() } catch (_: Exception) { emptyList() }
-                call.respondText(respondOk(buildJsonObject {
-                    put("reports", JsonArray(
-                        reports.map { r -> buildJsonObject {
-                            put("id", JsonPrimitive(r.id))
-                            put("content", JsonPrimitive(r.content ?: ""))
-                            put("weekStart", JsonPrimitive(r.week_start_date))
-                            put("weekEnd", JsonPrimitive(r.week_end_date))
-                        }}
-                    ))
-                }), ContentType.Application.Json)
-            }
-
-            get("/recent") {
-                val articleRepo = get<ArticleRepository>(ArticleRepository::class.java)
-                val diaryRepo = get<DiaryRepository>(DiaryRepository::class.java)
-                val bookRepo = get<BookRepository>(BookRepository::class.java)
-                val articles = try { articleRepo.getPaginated(10, 0).first() } catch (_: Exception) { emptyList() }
-                val diaries = try { diaryRepo.getPaginated(10, 0).first() } catch (_: Exception) { emptyList() }
-                val books = try { bookRepo.getAllSync().take(10) } catch (_: Exception) { emptyList() }
-                call.respondText(respondOk(buildJsonObject {
-                    put("articles", JsonArray(
-                        articles.map { a -> buildJsonObject {
-                            put("id", JsonPrimitive(a.id))
-                            put("type", JsonPrimitive("article"))
-                            put("title", JsonPrimitive(a.title ?: ""))
-                            put("createdAt", JsonPrimitive(a.created_at))
-                        }}
-                    ))
-                    put("diaries", JsonArray(
-                        diaries.map { d -> buildJsonObject {
-                            put("id", JsonPrimitive(d.id))
-                            put("type", JsonPrimitive("diary"))
-                            put("content", JsonPrimitive(d.content?.take(50) ?: ""))
-                            put("createdAt", JsonPrimitive(d.created_at))
-                        }}
-                    ))
-                    put("books", JsonArray(
-                        books.map { b -> buildJsonObject {
-                            put("id", JsonPrimitive(b.id))
-                            put("type", JsonPrimitive("book"))
-                            put("title", JsonPrimitive(b.title))
-                            put("createdAt", JsonPrimitive(b.created_at))
-                        put("version", JsonPrimitive(webVersion(b)))
-                        }}
-                    ))
-                }), ContentType.Application.Json)
-            }
-        }
-    }
-
-    private fun Route.setupNewsRoutes() {
-        route("/news") {
-            get("/summary") {
-                val repo = get<UnifiedNewsSummaryRepository>(UnifiedNewsSummaryRepository::class.java)
-                val summary = repo.getLatestSuccessful()
-                if (summary == null) {
-                    call.respondText(respondOk(buildJsonObject { put("summary", JsonPrimitive("")) }), ContentType.Application.Json)
-                    return@get
-                }
-                val sources = repo.getSources(summary.id)
-                call.respondText(respondOk(buildJsonObject {
-                    put("id", JsonPrimitive(summary.id))
-                    put("date", JsonPrimitive(summary.summary_date))
-                    put("title", JsonPrimitive(summary.title))
-                    put("summary", JsonPrimitive(summary.content ?: ""))
-                    put("generatedAt", JsonPrimitive(summary.generated_at ?: summary.updated_at))
-                    put("sources", JsonArray(sources.map { source -> buildJsonObject {
-                        put("refKey", JsonPrimitive(source.ref_key))
-                        put("title", JsonPrimitive(source.title))
-                        put("sourceType", JsonPrimitive(source.source_type))
-                        put("sourceId", JsonPrimitive(source.source_id ?: 0L))
-                        put("url", JsonPrimitive(source.source_url ?: ""))
-                    } }))
-                }), ContentType.Application.Json)
-            }
-
-            post("/summary/refresh") {
-                // Same manual-refresh identity, dedupe and task lease as the app: no side-channel
-                // generation that could overwrite a newer window's summary.
-                val tasks = get<AsyncTaskRepository>(AsyncTaskRepository::class.java)
-                val submission = enqueueManualNewsRefresh(tasks, isDebugBuild = false) { taskId ->
-                    AsyncTaskScheduler(ctx).enqueue(taskId)
-                }
-                // Only this request's real task may answer; a historical terminal task is never reused.
-                val taskId = submission.taskId
-                if (taskId == null) {
-                    call.respondText(respondFail("新闻汇总刷新任务创建失败"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                    return@post
-                }
-                val completed = withTimeoutOrNull(NEWS_REFRESH_WAIT_MS) {
-                    tasks.observeTaskById(taskId).filterNotNull()
-                        .first { !hasActiveNewsRefreshTask(listOf(it.status)) }
-                }
-                // One mapping for both paths: a task that turned terminal while the wait expired is
-                // reported by its real result, never as accepted.
-                val task = completed ?: tasks.getById(taskId)
-                val window = dailyUnifiedNewsWindowFor()
-                val summary = if (completed == null) null else
-                    get<UnifiedNewsSummaryRepository>(UnifiedNewsSummaryRepository::class.java)
-                        .getByWindow(window.summaryDate, window.key.value)
-                when (val outcome = newsRefreshOutcome(
-                    taskId = taskId,
-                    taskStatus = task?.status.orEmpty(),
-                    taskError = task?.last_error_message.orEmpty(),
-                    summaryStatus = summary?.status,
-                    summaryError = summary?.error_message,
-                )) {
-                    is NewsRefreshOutcome.Completed -> call.respondText(respondOk(buildJsonObject {
-                        put("status", JsonPrimitive(outcome.status))
-                    }), ContentType.Application.Json)
-                    is NewsRefreshOutcome.Accepted -> call.respondText(respondAccepted(outcome.status, taskId),
-                        ContentType.Application.Json, HttpStatusCode.Accepted)
-                    is NewsRefreshOutcome.Failed -> call.respondText(respondFail(outcome.message),
-                        ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-        }
-    }
-
-    private fun Route.setupTaskRoutes() {
-        route("/tasks") {
-            get {
-                val showTerminal = call.request.queryParameters["showTerminal"]?.toBooleanStrictOrNull() ?: true
-                val page = get<AsyncTaskRepository>(AsyncTaskRepository::class.java)
-                    .observeTaskCenter(AsyncTaskFilter(showTerminal = showTerminal), limit = 60)
-                    .first()
-                call.respondText(respondOk(buildJsonObject {
-                    put("items", JsonArray(page.tasks.map { task -> buildJsonObject {
-                        put("id", JsonPrimitive(task.id))
-                        put("type", JsonPrimitive(task.type))
-                        put("status", JsonPrimitive(task.status))
-                        put("progressCurrent", JsonPrimitive(task.progressCurrent))
-                        put("progressTotal", JsonPrimitive(task.progressTotal))
-                        put("progressMessage", JsonPrimitive(task.progressMessage))
-                        put("createdAt", JsonPrimitive(task.createdAt))
-                        put("updatedAt", JsonPrimitive(task.updatedAt))
-                        put("hasError", JsonPrimitive(task.lastErrorMessage.isNotBlank()))
-                    } }))
-                    put("hasMore", JsonPrimitive(page.hasMore))
-                }), ContentType.Application.Json)
-            }
-
-            post("/{id}/cancel") {
-                val id = call.parameters["id"]?.toLongOrNull() ?: 0L
-                val repo = get<AsyncTaskRepository>(AsyncTaskRepository::class.java)
-                if (repo.getById(id) == null) {
-                    call.respondText(respondFail("Not found"), ContentType.Application.Json, HttpStatusCode.NotFound)
-                    return@post
-                }
-                repo.cancel(id)
-                AsyncTaskScheduler(ctx).notifyTerminal(id)
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
-        }
-    }
-
-    private fun Route.setupAiRoutes() {
-        route("/ai") {
-            get("/sessions") {
-                val repo = get<ChatConversationRepository>(ChatConversationRepository::class.java)
-                val sessions = repo.getSessions().mapNotNull { sessionId ->
-                    val messages = repo.getLatestBySession(sessionId, 30)
-                    val latest = messages.lastOrNull() ?: return@mapNotNull null
-                    val title = messages.firstOrNull { it.role == "user" }?.content.orEmpty().take(42)
-                    buildJsonObject {
-                        put("id", JsonPrimitive(sessionId))
-                        put("title", JsonPrimitive(title.ifBlank { "新对话" }))
-                        put("updatedAt", JsonPrimitive(latest.created_at))
-                    }
-                }
-                call.respondText(respondOk(buildJsonObject { put("items", JsonArray(sessions)) }), ContentType.Application.Json)
-            }
-
-            get("/sessions/{sessionId}") {
-                val sessionId = call.parameters["sessionId"].orEmpty()
-                val repo = get<ChatConversationRepository>(ChatConversationRepository::class.java)
-                val messages = repo.getBySession(sessionId).map { message -> buildJsonObject {
-                    put("id", JsonPrimitive(message.id))
-                    put("role", JsonPrimitive(message.role))
-                    put("content", JsonPrimitive(message.content))
-                    put("createdAt", JsonPrimitive(message.created_at))
-                    put("references", JsonArray(decodeMcpSearchResults(message.search_results).map(::mcpReferenceToJson)))
-                    put("steps", JsonArray(message.steps?.lines()?.filter { it.isNotBlank() }.orEmpty().map(::JsonPrimitive)))
-                } }
-                call.respondText(respondOk(buildJsonObject { put("items", JsonArray(messages)) }), ContentType.Application.Json)
-            }
-
-            delete("/sessions/{sessionId}") {
-                val sessionId = call.parameters["sessionId"].orEmpty()
-                get<ChatConversationRepository>(ChatConversationRepository::class.java).deleteBySession(sessionId)
-                call.respondText(respondOk(), ContentType.Application.Json)
-            }
-
-            post("/chat") {
-                try {
-                    val body = call.receive<JsonObject>()
-                    val query = body.stringValue("query").trim()
-                    if (query.isBlank()) {
-                        call.respondText(respondFail("Message is required"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                        return@post
-                    }
-                    val sessionId = body.stringValue("sessionId").trim().ifBlank { "web_${UUID.randomUUID()}" }
-                    val repo = get<ChatConversationRepository>(ChatConversationRepository::class.java)
-                    val userCreatedAt = System.currentTimeMillis()
-                    repo.insert(sessionId, "user", query, createdAt = userCreatedAt)
-                    val steps = mutableListOf<String>()
-                    val result = get<McpAgentService>(McpAgentService::class.java).processQueryStreaming(
-                        query = query,
-                        onStep = { step, status -> if (status == "completed" && step !in steps) steps += step },
-                        onChunk = { },
-                    )
-                    val assistantCreatedAt = System.currentTimeMillis()
-                    repo.insert(
-                        sessionId = sessionId,
-                        role = "assistant",
-                        content = result.answer,
-                        searchResults = encodeMcpSearchResults(result.searchResults),
-                        steps = steps.takeIf { it.isNotEmpty() }?.joinToString("\n"),
-                        createdAt = assistantCreatedAt,
-                    )
-                    call.respondText(respondOk(buildJsonObject {
-                        put("sessionId", JsonPrimitive(sessionId))
-                        put("message", buildJsonObject {
-                            put("role", JsonPrimitive("assistant"))
-                            put("content", JsonPrimitive(result.answer))
-                            put("createdAt", JsonPrimitive(assistantCreatedAt))
-                            put("references", JsonArray(result.searchResults.map(::mcpReferenceToJson)))
-                            put("steps", JsonArray(steps.map(::JsonPrimitive)))
-                        })
-                    }), ContentType.Application.Json)
-                } catch (e: Exception) {
-                    call.respondText(respondFail(e.message ?: "AI request failed"), ContentType.Application.Json, HttpStatusCode.BadRequest)
-                }
-            }
-        }
-    }
-
-    private suspend fun ApplicationCall.checkEditVersion(body: JsonObject, current: String): Boolean {
-        if (body.stringValue("version") == current) return true
-        editConflict()
+        respondText(respondFail("Authentication required"), ContentType.Application.Json, HttpStatusCode.Unauthorized)
         return false
-    }
-
-    private suspend fun ApplicationCall.editConflict() {
-        respondText(respondFail("手机上的内容已有更新，请保留当前修改并重新读取"),
-            ContentType.Application.Json, HttpStatusCode.Conflict)
     }
 
     private fun Route.setupAuthRoutes() {
@@ -1127,58 +301,4 @@ class WebServerService(private val ctx: Context) {
             }
         }
     }
-}
-
-private fun JsonObject.stringValue(name: String): String =
-    (this[name] as? JsonPrimitive)?.content.orEmpty()
-
-private fun JsonObject.optionalStringValue(name: String, fallback: String?): String? =
-    if (containsKey(name)) (this[name] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() } else fallback
-
-private fun JsonObject.booleanValue(name: String): Boolean? =
-    (this[name] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
-
-private fun articleSummary(article: com.dailysatori.shared.db.Article): JsonObject = buildJsonObject {
-    put("id", JsonPrimitive(article.id))
-    put("version", JsonPrimitive(webVersion(article)))
-    put("title", JsonPrimitive(article.title.orEmpty()))
-    put("isFavorite", JsonPrimitive((article.is_favorite ?: 0L) > 0L))
-    put("comment", JsonPrimitive(article.comment.orEmpty()))
-    put("status", JsonPrimitive(article.status.orEmpty()))
-}
-
-private fun bookToJson(book: com.dailysatori.shared.db.Book): JsonObject = buildJsonObject {
-    put("id", JsonPrimitive(book.id))
-    put("title", JsonPrimitive(book.title))
-    put("author", JsonPrimitive(book.author))
-    put("category", JsonPrimitive(book.category))
-    put("coverImage", JsonPrimitive(book.cover_image))
-    put("introduction", JsonPrimitive(book.introduction))
-    put("createdAt", JsonPrimitive(book.created_at))
-    put("version", JsonPrimitive(webVersion(book)))
-}
-
-private fun mcpReferenceToJson(reference: McpSearchResult): JsonObject = buildJsonObject {
-    put("id", JsonPrimitive(reference.id))
-    put("type", JsonPrimitive(reference.type))
-    put("title", JsonPrimitive(reference.title))
-    put("summary", JsonPrimitive(reference.summary.orEmpty()))
-    put("createdAt", JsonPrimitive(reference.createdAt.orEmpty()))
-    put("matchReason", JsonPrimitive(reference.matchReason.orEmpty()))
-}
-
-private fun webPagination(page: Int, total: Int): JsonObject = buildJsonObject {
-    put("page", JsonPrimitive(page))
-    put("totalItems", JsonPrimitive(total))
-    put("totalPages", JsonPrimitive(maxOf(1, (total + 19) / 20)))
-}
-
-private fun diaryEditResult(d: com.dailysatori.shared.db.Diary_record): JsonObject = buildJsonObject {
-    put("id", JsonPrimitive(d.id))
-    put("content", JsonPrimitive(d.content.orEmpty()))
-    put("tags", JsonPrimitive(d.tags.orEmpty()))
-    put("mood", JsonPrimitive(d.mood.orEmpty()))
-    put("createdAt", JsonPrimitive(d.created_at))
-    put("updatedAt", JsonPrimitive(d.updated_at))
-    put("version", JsonPrimitive(webVersion(d)))
 }

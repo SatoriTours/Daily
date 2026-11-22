@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.backup
 
+import com.dailysatori.core.diagnostics.performanceContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -51,7 +52,7 @@ internal fun BackupPageScaffold(
                     }
                 }
             }
-            Box(Modifier.weight(1f)) { content(Modifier.fillMaxSize()) }
+            Box(Modifier.weight(1f)) { content(Modifier.fillMaxSize().performanceContent()) }
         }
     }
 }
