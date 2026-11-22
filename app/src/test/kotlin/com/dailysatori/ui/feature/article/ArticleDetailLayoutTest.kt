@@ -33,7 +33,7 @@ class ArticleDetailLayoutTest {
         val detailBody = source.functionBody("ArticleDetailBody")
 
         assertFalse(detailBody.contains("border = BorderStroke"))
-        assertTrue(source.contains("ArticleReaderHeader("))
+        assertTrue(source.contains("ArticleReadingTitle("))
         assertTrue(source.contains("ArticleReaderBody("))
         assertFalse(source.contains("MagazineArticleHeader("))
         assertFalse(source.contains("MagazineArticleBody("))
@@ -42,7 +42,8 @@ class ArticleDetailLayoutTest {
     @Test
     fun localArticleDetailUsesSingleSummaryStreamAndOriginalSheet() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        val headerBody = source.functionBody("ArticleMagazineHeader")
+        val headerBody = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleAiReader.kt").readText()
+            .functionBody("ArticleReadingTitle")
         val pageBody = source.functionBody("ArticleDetailPage")
 
         assertFalse(headerBody.contains("intro = article.ai_content"))
@@ -70,17 +71,24 @@ class ArticleDetailLayoutTest {
     fun articleDetailSeparatesHeaderActionsFromOverflow() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
         val actions = source.functionBody("ArticleDetailActions")
-        assertTrue(actions.contains("Icons.Default.FavoriteBorder"), "收藏必须从顶栏直接切换")
-        assertTrue(actions.contains("Icons.Default.AutoStories"), "顶栏必须提供智能阅读")
+        assertTrue(source.contains("AppScaffold(\n        title = \"\",\n        onBack = onBack,"))
+        assertFalse(actions.contains("Icons.Default.FavoriteBorder"), "收藏不能占用顶栏")
+        assertFalse(actions.contains("Icons.Default.AutoStories"))
+        val remote = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+        val readingAction = """PageAction\(i18n\.t\("article_ai\.smart_reading"\), SmartReadingIcon"""
+        assertTrue(Regex(readingAction).containsMatchIn(actions), "本地详情提供有无障碍名称的文星图标")
+        assertTrue(Regex(readingAction).containsMatchIn(remote), "同步详情使用相同图标")
         val overflow = source.functionBody("ArticleDetailOverflow")
         assertTrue(overflow.contains("MoreActionsIcon"))
         assertTrue(overflow.contains("MarkNewsReadMenuItem("))
         assertTrue(overflow.contains("ArticleCopyLinkMenuItem("))
         assertTrue(overflow.contains("ArticleRefreshMenuItem("))
         assertTrue(overflow.indexOf("HorizontalDivider(") in 1 until overflow.indexOf("ArticleDeleteMenuItem {"))
-        assertFalse(overflow.contains("onOriginalClick"))
+        val originalEntry = overflow.indexOf("ArticleOriginalMenuItem(dismiss, onOriginalClick)")
+        assertTrue(originalEntry >= 0 && originalEntry < overflow.indexOf("DropdownMenuItem("))
         assertFalse(overflow.contains("onAiProcessClick"))
-        assertFalse(overflow.contains("onFavoriteClick"))
+        assertTrue(overflow.contains("Icons.Default.FavoriteBorder"))
+        assertTrue(overflow.contains("onFavoriteClick"))
         assertFalse(overflow.contains("onOpenClick"))
     }
 
@@ -88,11 +96,25 @@ class ArticleDetailLayoutTest {
     fun originalSheetKeepsLinkActionsAndClipboardBehavior() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
         val sheet = source.functionBody("ArticleOriginalBottomSheet")
-        assertTrue(source.functionBody("ArticleMagazineHeader").contains("ArticleOriginalLink("))
+        assertTrue(source.functionBody("ArticleDetailPage").contains("ArticleReadingTitle("))
+        assertFalse(source.contains("ArticleOriginalLink("))
+        assertTrue(sheet.contains("ArticleOriginalMetadata("))
         assertTrue(sheet.contains("copyArticleUrl("))
         assertTrue(sheet.contains("openArticleUrl("))
         assertTrue(source.contains("ClipData.newPlainText("))
         assertTrue(source.functionBody("ArticleCopyLinkMenuItem").contains("enabled = !url.isNullOrBlank()"))
+    }
+
+    @Test
+    fun detailUsesOneSafeActionableFailureInsteadOfShowingTheExceptionAndArticleStatus() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailViewModel.kt").readText()
+        val details = screen.functionBody("ArticleDetailLoadedContent")
+        assertEquals(1, Regex("ArticleRefreshError\\(").findAll(details).count())
+        assertFalse(details.contains("可刷新重试"))
+        assertTrue(details.contains("savedReadingRetry("))
+        assertFalse(viewModel.contains("refreshError = e.message"))
+        assertFalse(viewModel.contains("refreshError = article.ai_content"))
     }
 
     @Test

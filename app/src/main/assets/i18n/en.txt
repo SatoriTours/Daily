@@ -1567,6 +1567,12 @@ article_ai.translate_without_summary_note	Generate a Chinese translation without
 article_ai.translate_excerpt_note	Translate the saved excerpt only, not the full article
 article_ai.queued_status	Waiting to process
 article_ai.reading_failed	Processing failed. Saved reading content is still available.
+article_ai.fetch_failed	Could not fetch the original again. Saved content is still available. Try fetching again later.
+article_ai.retranslation_failed	Retranslation failed. The previous translation is still available.
+article_ai.retry_saved_reading	Processing did not finish. The original and existing results are kept.
+article_ai.retry_saved_summary	The summary was not generated. The original and any translation are kept.
+article_ai.retry_saved_translation	The translation was not generated. The original and any summary are kept.
+article_ai.reading_busy	The AI service is busy. Saved reading content is kept.
 article_ai.smart_reading	Smart reading
 article_ai.generate_summary	Generate Chinese summary
 article_ai.regenerate_summary	Regenerate Chinese summary

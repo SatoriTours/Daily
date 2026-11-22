@@ -917,7 +917,7 @@ class WebpageParserService(
         val articleId = article.id
         val config = aiConfigService.getConfig(AiPurpose.EXTERNAL_CONTENT)
         if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
-            throw IllegalStateException("AI config not set")
+            throw ArticleAiConfigurationMissingException()
         }
         val normalizedConfig = normalizeAiConfigValues(
             apiAddress = config.api_address,

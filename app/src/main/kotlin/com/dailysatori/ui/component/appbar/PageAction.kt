@@ -2,6 +2,7 @@ package com.dailysatori.ui.component.appbar
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.DropdownMenu
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import com.dailysatori.R
 import com.dailysatori.ui.theme.*
 
@@ -23,7 +25,7 @@ enum class PageActionPriority { Primary, Secondary }
 /** Named page actions share one right-hand slot; task-local tools belong in the editor body. */
 data class PageAction(
     val label: String,
-    val icon: ImageVector,
+    val icon: ImageVector? = null, // Omit for a direct text action.
     val enabled: Boolean = true,
     val destructive: Boolean = false,
     val priority: PageActionPriority = PageActionPriority.Secondary,
@@ -33,6 +35,7 @@ data class PageAction(
      */
     val alwaysVisible: Boolean = false,
     val menuContent: (@Composable (dismiss: () -> Unit) -> Unit)? = null,
+    val iconSize: Dp = if (icon == MoreActionsIcon) IconSize.l else IconSize.m,
     val onClick: () -> Unit,
 ) {
     fun perform() { if (enabled) onClick() }
@@ -59,12 +62,15 @@ fun arrangePageActions(actions: List<PageAction>): PageActionLayout {
 fun PageActions(actions: List<PageAction>) {
     val layout = arrangePageActions(actions)
     layout.direct.forEach { action ->
-        if (action.priority == PageActionPriority.Primary) {
+        val icon = action.icon
+        if (action.menuContent != null) CustomPageActionMenu(action)
+        else if (action.priority == PageActionPriority.Primary || icon == null) {
             TextButton(onClick = action::perform, enabled = action.enabled,
-                modifier = Modifier.heightIn(min = Height.touchTarget)) { Text(action.label) }
-        } else if (action.menuContent != null) CustomPageActionMenu(action)
-        else IconButton(onClick = action::perform, enabled = action.enabled, modifier = Modifier.size(Height.touchTarget)) {
-            Icon(action.icon, action.label, tint = actionColor(action), modifier = Modifier.size(if (action.icon == MoreActionsIcon) IconSize.l else IconSize.m))
+                modifier = Modifier.sizeIn(minWidth = Height.touchTarget, minHeight = Height.touchTarget)) {
+                Text(action.label)
+            }
+        } else IconButton(onClick = action::perform, enabled = action.enabled, modifier = Modifier.size(Height.touchTarget)) {
+            Icon(icon, action.label, tint = actionColor(action), modifier = Modifier.size(action.iconSize))
         }
     }
     if (layout.overflow.isNotEmpty()) PageActionMenu(layout.overflow)
@@ -75,8 +81,9 @@ fun PageActions(actions: List<PageAction>) {
 private fun CustomPageActionMenu(action: PageAction) {
     var expanded by remember { mutableStateOf(false) }
     Box {
+        val icon = action.icon ?: MoreActionsIcon
         IconButton(onClick = { expanded = true }, enabled = action.enabled, modifier = Modifier.size(Height.touchTarget)) {
-            Icon(action.icon, action.label, tint = actionColor(action), modifier = Modifier.size(if (action.icon == MoreActionsIcon) IconSize.l else IconSize.m))
+            Icon(icon, action.label, tint = actionColor(action), modifier = Modifier.size(if (icon == MoreActionsIcon) IconSize.l else IconSize.m))
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             action.menuContent?.invoke { expanded = false }
@@ -99,7 +106,9 @@ private fun PageActionMenu(actions: List<PageAction>) {
             else actions.forEach { action ->
                 DropdownMenuItem(
                     text = { Text(action.label, color = actionColor(action)) },
-                    leadingIcon = { Icon(action.icon, null, tint = actionColor(action), modifier = Modifier.size(if (action.icon == MoreActionsIcon) IconSize.l else IconSize.m)) },
+                    leadingIcon = action.icon?.let { icon ->
+                        { Icon(icon, null, tint = actionColor(action), modifier = Modifier.size(if (icon == MoreActionsIcon) IconSize.l else IconSize.m)) }
+                    },
                     enabled = action.enabled,
                     modifier = Modifier.heightIn(min = Height.touchTarget),
                     onClick = {

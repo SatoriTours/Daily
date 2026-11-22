@@ -48,7 +48,11 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.ui.component.news.ArticleReaderBody
-import com.dailysatori.ui.component.news.ArticleReaderHeader
+import com.dailysatori.ui.feature.article.ArticleOriginalMenuItem
+import com.dailysatori.ui.feature.article.ArticleOriginalMetadata
+import com.dailysatori.ui.feature.article.ArticleReadingTitle
+import com.dailysatori.ui.theme.SmartReadingIcon
+import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
@@ -56,7 +60,7 @@ import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.feature.article.ArticleAiReader
 import com.dailysatori.ui.feature.article.canRequestReading
 import com.dailysatori.service.articleai.ArticleAiMode
-import androidx.compose.material.icons.filled.AutoStories
+import com.dailysatori.ui.feature.article.remoteReadingRetry
 import androidx.compose.material.icons.filled.Translate
 import com.dailysatori.ui.feature.article.ArticleAiReaderViewModel
 import com.dailysatori.ui.component.indicator.LoadingIndicator
@@ -94,6 +98,9 @@ fun RemoteArticleDetailScreen(
     val ai = aiViewModel?.view?.collectAsStateWithLifecycle()?.value
     val busy = ai?.jobState in setOf("queued", "running")
     val i18n = koinInject<I18nService>()
+    val processSavedBody: () -> Unit = { aiViewModel?.request() }
+    val retranslate: (() -> Unit)? = if (!busy && ai?.translation != null && !ai.original.isNullOrBlank() && ai.blocked.isEmpty())
+        ({ aiViewModel?.request(ArticleAiMode.TRANSLATION, redo = true) }) else null
 
     BackHandler(onBack = onBack)
 
@@ -101,8 +108,9 @@ fun RemoteArticleDetailScreen(
         title = "",
         onBack = onBack,
         pageActions = listOfNotNull(
-            ai?.let { PageAction(i18n.t("article_ai.smart_reading"), Icons.Default.AutoStories,
-                enabled = !busy && it.canRequestReading(), alwaysVisible = true) { aiViewModel?.request() } },
+            if (localArticleId != null) PageAction(i18n.t("article_ai.smart_reading"), SmartReadingIcon, iconSize = IconSize.l,
+                enabled = !busy && ai?.canRequestReading() == true && ai.blocked.isEmpty(),
+                alwaysVisible = true, onClick = processSavedBody) else null,
             RemoteArticleDetailActions(
                 article = article,
                 sourceIdentity = sourceIdentity,
@@ -111,28 +119,27 @@ fun RemoteArticleDetailScreen(
                 showFavoriteAction = showFavoriteAction,
                 onOriginalClick = { showOriginalSheet = true },
                 onFavoriteClick = onFavoriteClick,
-                onRetranslate = if (!busy && ai?.translation != null && !ai.original.isNullOrBlank())
-                    ({ aiViewModel?.request(ArticleAiMode.TRANSLATION, redo = true) }) else null,
+                onRetranslate = retranslate,
             )),
     ) { modifier ->
         if (ai != null) {
-            ArticleAiReader(ai, remoteArticleDisplayTitle(article), remoteArticleMetaChips(article),
-                sourceName ?: article.feedName ?: article.domain ?: sourceIdentity,
+            ArticleAiReader(ai, remoteArticleDisplayTitle(article),
                 if (article.content.isNullOrBlank()) remoteArticleDetailPageContent(0, article.summary, article.viewpoints, null)
                 else remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),
-                modifier, onOriginalClick = { showOriginalSheet = true })
+                modifier, onRetry = remoteReadingRetry(ai, busy, processSavedBody, retranslate))
         } else Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleDetailPager(
                 article = article,
                 coverHeightDp = coverHeightDp,
                 onCoverHeightChange = { coverHeightDp = it },
                 density = density,
-                sourceName = sourceName,
             )
         }
     }
     if (showOriginalSheet) {
-        RemoteArticleOriginalBottomSheet(article = article, onDismiss = { showOriginalSheet = false })
+        val source = listOfNotNull(sourceName, article.feedName, article.domain)
+            .filter(String::isNotBlank).joinToString(" · ").ifBlank { sourceIdentity }
+        RemoteArticleOriginalBottomSheet(article, source, onDismiss = { showOriginalSheet = false })
     }
 }
 
@@ -151,8 +158,8 @@ private fun RemoteArticleDetailActions(
     val i18n = koinInject<I18nService>()
     return PageAction(i18n.t("article.more_actions"), MoreActionsIcon, alwaysVisible = true, menuContent = { dismiss ->
         val closeMenu: (Boolean) -> Unit = { dismiss() }
+        ArticleOriginalMenuItem(dismiss, onOriginalClick)
         com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
-        RemoteArticleOriginalMenuItem(closeMenu, onOriginalClick)
         if (showFavoriteAction) RemoteArticleFavoriteMenuItem(isFavorite, closeMenu, onFavoriteClick)
         if (onRetranslate != null) DropdownMenuItem(
             text = { Text(i18n.t("article.retranslate")) },
@@ -161,18 +168,6 @@ private fun RemoteArticleDetailActions(
         )
         RemoteArticleOpenMenuItem(article, closeMenu)
     }) {}
-}
-
-@Composable
-private fun RemoteArticleOriginalMenuItem(onExpandedChange: (Boolean) -> Unit, onOriginalClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text("查看原文") },
-        leadingIcon = { Icon(Icons.Default.Article, contentDescription = null) },
-        onClick = {
-            onExpandedChange(false)
-            onOriginalClick()
-        },
-    )
 }
 
 @Composable
@@ -216,11 +211,10 @@ private fun RemoteArticleDetailPager(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    sourceName: String?,
 ) {
     val coverImage = article.coverUrl
     val hasCover = !coverImage.isNullOrBlank()
-    RemoteArticleDetailPage(article, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density, sourceName)
+    RemoteArticleDetailPage(article, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density)
 }
 
 @Composable
@@ -231,7 +225,6 @@ private fun RemoteArticleDetailPage(
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    sourceName: String?,
 ) {
     val listState = rememberLazyListState()
     val nestedScrollConnection = rememberRemoteArticleDetailNestedScrollConnection(
@@ -241,13 +234,7 @@ private fun RemoteArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             RemoteArticleCoverImage(imageUrl = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        ArticleReaderHeader(
-            remoteArticleDisplayTitle(article), remoteArticleMetaChips(article),
-            sourceName = sourceName?.takeIf { it.isNotBlank() }
-                ?: article.feedName?.takeIf { it.isNotBlank() }
-                ?: article.domain?.takeIf { it.isNotBlank() }
-                ?: com.dailysatori.ui.component.card.articleDisplayDomain(article.url).takeIf { it != "文章详情" },
-        )
+        ArticleReadingTitle(remoteArticleDisplayTitle(article))
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "remote-summary-content") { RemoteArticleDetailBody(article) }
         }
@@ -273,13 +260,16 @@ private fun RemoteArticleDetailBody(article: RemoteArticle) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RemoteArticleOriginalBottomSheet(article: RemoteArticle, onDismiss: () -> Unit) {
+private fun RemoteArticleOriginalBottomSheet(article: RemoteArticle, source: String?, onDismiss: () -> Unit) {
+    val i18n = koinInject<I18nService>()
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
-            "原文",
+            i18n.t("article_ai.original_title"),
             modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),
             style = MaterialTheme.typography.titleLarge,
         )
+        ArticleOriginalMetadata(source, article.url, remoteArticleMetaChips(article),
+            modifier = Modifier.padding(horizontal = Spacing.l))
         Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
             ArticleReaderBody(
                 content = remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),

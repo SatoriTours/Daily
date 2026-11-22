@@ -8,6 +8,19 @@ import kotlin.test.assertTrue
 
 class ArticleProcessingUiTextTest {
     @Test
+    fun failedStagesPointToTheCorrectActionWithoutShowingExceptionText() {
+        assertEquals("retry_saved_summary", articleDetailFailureKey(
+            com.dailysatori.service.parser.ArticleAiProcessingException(true, false), "fetch_failed"))
+        assertEquals("retry_saved_translation", articleDetailFailureKey(
+            com.dailysatori.service.parser.ArticleAiProcessingException(false, true), "retry_saved_reading"))
+        assertEquals("retranslation_failed", articleDetailFailureKey(
+            com.dailysatori.service.parser.ArticleAiProcessingException(false, true), "retranslation_failed"))
+        assertEquals("paused_configuration", articleDetailFailureKey(
+            com.dailysatori.service.parser.ArticleAiConfigurationMissingException(), "retry_saved_reading"))
+        assertEquals("fetch_failed", articleDetailFailureKey(IllegalStateException("sensitive raw response"), "fetch_failed"))
+    }
+
+    @Test
     fun mapsArticleStatusesToReadableMessages() {
         assertEquals("正在打开网页...", articleProcessingMessage("pending"))
         assertEquals("正在通过 X API 获取内容...", articleProcessingMessage("pending", "Fetching X post"))

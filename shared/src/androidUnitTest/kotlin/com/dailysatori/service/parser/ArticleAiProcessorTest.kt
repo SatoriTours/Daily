@@ -26,10 +26,24 @@ class ArticleAiProcessorTest {
         assertNull(articleTranslationMarkdown("The original article describes a new chip.", mixed))
     }
 
+    @Test fun validFactsRemainUsableWhenChunkTitleIsNotADisplayTitle() = runBlocking {
+        val source = ("资料段落记录开放日期及无障碍服务。".repeat(260) + "\n\n").repeat(3)
+        withProcessor({ request ->
+            if (system(request).contains("只提取资料中的事实")) {
+                """{"title":"## GitHub 项目原始标题不适合直接当成最终展示标题","summary":"阅览室已开放，现场新增无障碍设施。"}"""
+            } else briefResponse()
+        }) { processor, requests, _ ->
+            var final: ArticleAiOverview? = null
+            processor.process(42, source, "图书馆改造", config, onOverview = { final = it })
+            assertNotNull(final)
+            assertTrue(requests.size > 1)
+        }
+    }
+
     @Test fun englishBriefFieldsAreRejectedEvenWithChineseLabelsAndTitle() = runBlocking {
         val english = "The company has started mass production of new chips."
-        for (field in listOf("根因报告尚未发布", "建议检查失败任务。")) {
-            withProcessor({ briefResponse().replace(field, english) }) { processor, _, _ ->
+        for (invalidFacts in listOf(english, "平台已经恢复。\n\n$english")) {
+            withProcessor({ briefResponse().replace("平台宣布故障恢复，根因报告尚未发布。", invalidFacts.replace("\n", "\\n")) }) { processor, _, _ ->
                 var published = false
                 assertFailsWith<ArticleAiProcessingException> {
                     processor.process(40, "中文原文介绍芯片量产。", "芯片量产", config,
@@ -65,14 +79,41 @@ class ArticleAiProcessorTest {
         }
     }
 
-    @Test fun newsBriefSeparatesFactsAnalysisAndVerifiedSourceInOneRequest() = runBlocking {
+    @Test fun translationDoesNotPublishRepeatedSeoulBiosysParagraphsOrAccidentalTitle() = runBlocking {
+        val original = "Seoul Biosys has commenced the production of micro LEDs that generate white light without rare earth elements. " +
+            "The technology enables chips smaller than 100 micrometers without additional packaging."
+        val opening = "首尔伟傲世已开始量产白色微型 LED，无需使用稀土材料。"
+        val size = "芯片尺寸可小于 100 微米。"
+        val title = "无稀土白色微型 LED"
+        val repeated = "# $title\n\n$opening\n\n$size # $title\n\n$opening\n\n$size"
+        withProcessor({ translationResponse(repeated) }) { processor, _, _ ->
+            var translation = ""
+            processor.process(46, original, "Seoul Biosys", config,
+                keepOverview = true, onMarkdown = { translation = it })
+            assertEquals("$opening\n\n$size", translation)
+        }
+    }
+
+    @Test fun factsOnlyBriefKeepsTheVerifiedSourceWithoutAnalysisColumns() = runBlocking {
+        withProcessor({
+            """{"title":"平台恢复服务","facts":"平台已恢复服务。根因报告尚未发布。","isNews":true,"eventTime":"10月5日"}"""
+        }) { processor, requests, _ ->
+            var summary = ""
+            processor.process(45, "10月5日，平台已恢复服务。根因报告尚未发布。", "恢复服务", config,
+                sourceUrl = "https://example.com/incident", onOverview = { summary = it.summary })
+            assertEquals("10月5日\n\n**新闻事实：** 平台已恢复服务。根因报告尚未发布。\n\n来源：[原文](<https://example.com/incident>)", summary)
+            assertEquals(1, requests.size)
+        }
+    }
+
+    @Test fun legacyModelFieldsAreAcceptedWithoutPublishingTheAnalysisColumns() = runBlocking {
         withProcessor({ briefResponse() }) { processor, requests, _ ->
             var summary = ""
             processor.process(20, "10月5日，平台宣布故障恢复，根因报告尚未发布。", "平台故障恢复", config,
                 sourceUrl = "https://example.com/incident", onOverview = { summary = it.summary })
             assertTrue(summary.startsWith("10月5日\n\n**新闻事实：**"))
-            assertTrue(summary.contains("**为什么重要（分析）：**"))
-            assertTrue(summary.contains("**工作／技术决策（分析）：**"))
+            assertFalse(summary.contains("为什么重要"))
+            assertFalse(summary.contains("技术决策"))
             assertTrue(summary.endsWith("来源：[原文](<https://example.com/incident>)"))
             assertTrue(summary.contains("根因报告尚未发布"))
             assertEquals(1, requests.size)
@@ -95,8 +136,8 @@ class ArticleAiProcessorTest {
     }
 
     @Test fun incompleteBriefAndModelInventedLinksAreNotPublished() = runBlocking {
-        for (response in listOf(briefResponse().replace("建议检查失败任务。", ""),
-            briefResponse().replace("建议检查失败任务。", "参考 https://invented.example/report"))) {
+        for (response in listOf("""{"title":"平台恢复","facts":""}""",
+            """{"title":"平台恢复","facts":"详情见 https://invented.example/report"}""")) {
             withProcessor({ response }) { processor, _, _ ->
                 var published = false
                 assertFailsWith<ArticleAiProcessingException> {
@@ -108,13 +149,14 @@ class ArticleAiProcessorTest {
         }
     }
 
-    @Test fun longArticleExtractsFactsBeforeProducingOneFinalAnalysis() = runBlocking {
+    @Test fun longArticleExtractsFactsBeforeProducingOneConciseSummary() = runBlocking {
         withProcessor({ request ->
             if (system(request).contains("只提取资料中的事实")) factsResponse() else briefResponse()
         }) { processor, requests, _ ->
             processor.process(23, "详细的技术事实。".repeat(1_000) + "\n\n末尾独有结论。", "长文", config)
-            val analyses = requests.filter { system(it).contains("工作／技术决策") }
-            assertEquals(1, analyses.size)
+            val summaries = requests.filter { system(it).contains("通常 2–3 句话") }
+            assertEquals(1, summaries.size)
+            assertFalse(system(summaries.single()).contains("\"decision\""))
             assertTrue(requests.count { system(it).contains("只提取资料中的事实") } >= 2)
         }
     }
@@ -278,7 +320,7 @@ class ArticleAiProcessorTest {
             var summary = ""
             processor.process(24, source, "标题", config, onOverview = { summary = it.summary })
             assertEquals(1, requests.size)
-            assertTrue(summary.contains("工作／技术决策（分析）"))
+            assertEquals("平台宣布故障恢复，根因报告尚未发布。", articleReaderSummary(summary))
             assertFalse(summary.contains("旧版普通摘要"))
         }
     }

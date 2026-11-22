@@ -22,7 +22,7 @@ class RemoteArticleDetailLayoutTest {
         val pagerContent = source.functionBody("RemoteArticleDetailPage")
 
         val coverIndex = pagerContent.indexOf("RemoteArticleCoverImage(")
-        val headerIndex = pagerContent.indexOf("ArticleReaderHeader(")
+        val headerIndex = pagerContent.indexOf("ArticleReadingTitle(")
         val contentIndex = pagerContent.indexOf("LazyColumn(")
 
         assertTrue(coverIndex >= 0)
@@ -38,7 +38,7 @@ class RemoteArticleDetailLayoutTest {
     fun remoteArticleHeaderUsesCompactMetadataInsteadOfHeavyHeroLabel() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
 
-        assertTrue(source.contains("ArticleReaderHeader("))
+        assertTrue(source.contains("ArticleReadingTitle("))
         assertFalse(source.contains("MagazineArticleHeader("))
         assertFalse(source.contains("阅读详情"))
         assertTrue(source.contains("remoteArticleMetaChips(article)"))
@@ -86,7 +86,8 @@ class RemoteArticleDetailLayoutTest {
         assertTrue(source.contains("if (showFavoriteAction)"))
         assertTrue(actionsBody.contains("MoreActionsIcon"))
         assertTrue(actionsBody.contains("PageAction(i18n.t(\"article.more_actions\")") && actionsBody.contains("menuContent ="))
-        assertTrue(actionsBody.contains("RemoteArticleOriginalMenuItem("))
+        val originalItem = actionsBody.indexOf("ArticleOriginalMenuItem(dismiss, onOriginalClick)")
+        assertTrue(originalItem in 0 until actionsBody.indexOf("MarkNewsReadMenuItem("))
         assertTrue(actionsBody.contains("RemoteArticleFavoriteMenuItem("))
         assertTrue(actionsBody.contains("RemoteArticleOpenMenuItem("))
         assertFalse(actionsBody.contains("IconButton(onClick = onFavoriteClick)"))

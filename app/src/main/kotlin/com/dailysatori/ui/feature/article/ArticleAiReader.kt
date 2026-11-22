@@ -9,11 +9,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ArticleAiRepository
 import com.dailysatori.data.repository.ArticleAiView
+import com.dailysatori.service.parser.articleReaderSummary
+import com.dailysatori.service.parser.tidyArticleTranslation
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.service.articleai.*
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.news.ArticleReaderBody
-import com.dailysatori.ui.component.news.ArticleReaderHeader
+import com.dailysatori.ui.component.news.articleReaderMetadata
+import com.dailysatori.ui.component.card.articleDisplayDomain
+import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -47,23 +51,41 @@ internal fun ArticleAiView.canRequestReading(): Boolean {
         (!shortBody && (summary == null || summaryPartial) && language != ArticleLanguage.UNCERTAIN)
 }
 
+internal fun savedReadingRetry(key: String, process: (() -> Unit)?, retranslate: (() -> Unit)?): (() -> Unit)? =
+    when (key) {
+        "retry_saved_reading", "retry_saved_summary", "retry_saved_translation", "reading_failed", "reading_busy" -> process
+        "retranslation_failed" -> retranslate
+        else -> null
+    }
+
+internal fun remoteReadingRetry(
+    view: ArticleAiView,
+    busy: Boolean,
+    process: () -> Unit,
+    retranslate: (() -> Unit)?,
+): (() -> Unit)? {
+    if (busy || view.blocked.isNotEmpty() || view.jobState != "failed") return null
+    if (view.canRequestReading()) return process
+    return retranslate.takeIf { view.jobMode == ArticleAiMode.TRANSLATION }
+}
+
 @Composable
 internal fun ArticleAiReader(
     view: ArticleAiView,
     title: String,
-    meta: List<String>,
-    source: String?,
     original: String,
     modifier: Modifier = Modifier,
-    refreshError: String? = null,
-    onOriginalClick: () -> Unit,
+    failureKey: String? = null,
+    onRetry: (() -> Unit)? = null,
 ) {
     val originalBody = view.original ?: original
     val summary = view.summary.takeUnless { view.shortBody && !view.original.isNullOrBlank() }
-    val body = view.translation ?: originalBody
+    val body = remember(view.translation, title, originalBody) {
+        view.translation?.let { tidyArticleTranslation(it, title) } ?: originalBody
+    }
     LazyColumn(modifier = modifier.fillMaxSize()) {
         item(key = "reader-title") {
-            ArticleReaderHeader(title, meta, sourceName = source, sourceAction = { ArticleOriginalLink(onOriginalClick) })
+            ArticleReadingTitle(title)
         }
         item(key = "reader-content") {
             val stateKey = when {
@@ -73,11 +95,12 @@ internal fun ArticleAiReader(
                 view.jobState == "failed" -> "reading_failed"
                 else -> null
             }
-            if (stateKey != null || refreshError != null) Column(Modifier.padding(horizontal = Spacing.l)) {
-                stateKey?.let { ReadingNote(it) }
-                refreshError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = AppTypography.labelMedium) }
+            if (view.jobState in setOf("queued", "running") && view.blocked.isEmpty()) {
+                stateKey?.let { Column(Modifier.padding(horizontal = Spacing.l)) { ReadingNote(it) } }
+            } else (failureKey ?: stateKey)?.let { key ->
+                ArticleRefreshError(key, onRetry.takeIf { view.blocked.isEmpty() })
             }
-            ArticleReadingContent(summary, body,
+            ArticleReadingContent(summary, body, translated = view.translation != null,
                 summaryNotes = articleReadingNotes(view, ArticleReadMode.SUMMARY).takeIf { summary != null }.orEmpty(),
                 bodyNotes = articleReadingNotes(view, if (view.translation == null) ArticleReadMode.ORIGINAL else ArticleReadMode.TRANSLATION))
         }
@@ -85,11 +108,40 @@ internal fun ArticleAiReader(
 }
 
 @Composable
+internal fun ArticleReadingTitle(title: String) {
+    val i18n = koinInject<I18nService>()
+    Text(
+        text = title.ifBlank { i18n.t("article.detail_title") },
+        modifier = Modifier.fillMaxWidth().padding(start = Spacing.l, end = Spacing.l, top = Spacing.m),
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+@Composable
+internal fun ArticleOriginalMetadata(source: String?, url: String?, meta: List<String>, modifier: Modifier = Modifier) {
+    val i18n = koinInject<I18nService>()
+    val domain = articleDisplayDomain(url).takeUnless { it == "文章详情" }
+    val sources = listOfNotNull(source?.takeIf { it.isNotBlank() }, domain).joinToString(" · ")
+    val metadata = articleReaderMetadata(sources, meta, i18n.t("article.source_unknown"))
+    Text(
+        text = "${i18n.t("article.source")}: $metadata",
+        modifier = modifier,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
 internal fun ArticleReadingContent(
-    summary: String?, body: String, summaryNotes: List<String> = emptyList(), bodyNotes: List<String> = emptyList(),
+    summary: String?, body: String, translated: Boolean = false,
+    summaryNotes: List<String> = emptyList(), bodyNotes: List<String> = emptyList(),
 ) {
     val i18n = koinInject<I18nService>()
-    val distinctSummary = summary?.trim()?.takeIf { it.isNotBlank() && it != body.trim() }
+    val distinctSummary = remember(summary, body) {
+        summary?.let(::articleReaderSummary)?.trim()?.takeIf { it.isNotBlank() && it != body.trim() }
+    }
     Column(Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
         if (distinctSummary != null) {
             Text(i18n.t("article_ai.summary_title"), style = MaterialTheme.typography.titleMedium)
@@ -100,7 +152,7 @@ internal fun ArticleReadingContent(
         }
         bodyNotes.forEach { ReadingNote(it) }
         if (body.isNotBlank()) ArticleReaderBody(body, typography = MarkdownStyles.readingTypography(),
-            padding = MarkdownStyles.readingPadding())
+            padding = if (translated) MarkdownStyles.translationPadding() else MarkdownStyles.readingPadding())
     }
 }
 

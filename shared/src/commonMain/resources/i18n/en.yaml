@@ -1732,6 +1732,12 @@ news_sources:
   all_disabled: "No content sources are enabled. Enable them in Settings → Content sources."
   subscription: "RSS feed · Feed order"
 article_ai:
+  reading_busy: "The AI service is busy. Saved reading content is kept."
+  fetch_failed: "Could not fetch the original again. Saved content is still available. Try fetching again later."
+  retranslation_failed: "Retranslation failed. The previous translation is still available."
+  retry_saved_reading: "Processing did not finish. The original and existing results are kept."
+  retry_saved_summary: "The summary was not generated. The original and any translation are kept."
+  retry_saved_translation: "The translation was not generated. The original and any summary are kept."
   queued_status: "Waiting to process"
   reading_failed: "Processing failed. Saved reading content is still available."
   translate_saved_text: "Translate saved text"

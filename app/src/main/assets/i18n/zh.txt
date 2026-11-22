@@ -1567,6 +1567,12 @@ article_ai.translate_without_summary_note	生成中文正文，保留已有摘�
 article_ai.translate_excerpt_note	仅翻译已保存的片段，不代表全文
 article_ai.queued_status	等待处理
 article_ai.reading_failed	处理失败，已保存的阅读内容仍可使用
+article_ai.fetch_failed	未能重新获取原文。已保存的内容仍可阅读，可稍后重新获取。
+article_ai.retranslation_failed	重新翻译失败，已保留旧译文。
+article_ai.retry_saved_reading	处理未完成，已保留原文和已有结果。
+article_ai.retry_saved_summary	摘要未生成，已保留原文和已有译文。
+article_ai.retry_saved_translation	译文未生成，已保留原文和已有摘要。
+article_ai.reading_busy	AI 服务繁忙，已保留阅读内容。
 article_ai.smart_reading	智能阅读
 article_ai.generate_summary	生成中文摘要
 article_ai.regenerate_summary	重新生成中文摘要

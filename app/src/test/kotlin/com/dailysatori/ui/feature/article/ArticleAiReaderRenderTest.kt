@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.ArticleAiRepository
@@ -65,27 +64,30 @@ class ArticleAiReaderRenderTest {
             val article = assertNotNull(articles.getById(id))
             val repo = ArticleAiRepository(db, settings).apply { record(article, remote) }
             val hash = repo.input(article).hash
-            db.articleAiQueries.putArticleAiResult(hash, "summary", 1, "zh-Hans", "缓存摘要样文", 0)
-            db.articleAiQueries.putArticleAiResult(hash, "translation", 1, "zh-Hans", "缓存译文样文", 1)
+            val legacySummary = "**核心内容：** 缓存摘要样文\n\n**为什么重要（分析）：** 旧版分析。"
+            val oneTranslation = "缓存译文样文\n\n末尾细节完整保留。"
+            db.articleAiQueries.putArticleAiResult(hash, "summary", 1, "zh-Hans", legacySummary, 0)
+            db.articleAiQueries.putArticleAiResult(hash, "translation", 1, "zh-Hans", "$oneTranslation\n\n$oneTranslation", 1)
             val cached = repo.view(article)
             // 全局 Koin 由本用例单一拥有：此处启动，finally 回收（失败路径同样不遗留）。
             startKoin { modules(module { single { i18n } }) }
             try {
                 val readingView = mutableStateOf(cached.copy(shortBody = false))
-                var openedOriginal = false
                 compose.setContent {
                     DailySatoriTheme {
                         Box(modifier = Modifier.size(width = 360.dp, height = 640.dp)) {
-                            ArticleAiReader(readingView.value, TITLE, emptyList(), "RSS", original,
-                                onOriginalClick = { openedOriginal = true })
+                            ArticleAiReader(readingView.value, TITLE, original)
                         }
                     }
                 }
                 compose.onNodeWithText("缓存摘要样文").assertExists()
+                compose.onNodeWithText("旧版分析。", substring = true).assertDoesNotExist()
                 compose.onNodeWithText("缓存译文样文").assertExists()
+                compose.onNodeWithText("末尾细节完整保留。").assertExists()
                 compose.onNodeWithText("仅处理文章前部", substring = true).assertExists()
-                compose.onNodeWithText("查看原文").performClick()
-                compose.runOnIdle { assertTrue(openedOriginal) }
+                compose.onNodeWithText(TITLE).assertExists()
+                compose.onNodeWithText("查看原文").assertDoesNotExist()
+                compose.onNodeWithText("example.org", substring = true).assertDoesNotExist()
 
                 compose.runOnIdle { readingView.value = cached.copy(shortBody = true, translationPartial = false) }
                 compose.onNodeWithText("缓存摘要样文").assertDoesNotExist()

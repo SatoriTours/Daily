@@ -38,8 +38,9 @@ class ArticleAiLiveTest {
                 assertTrue(news.contains("**新闻事实：**"))
                 assertTrue(news.contains("10月5日"))
                 assertTrue(news.contains("根因"))
-                assertTrue(news.contains("**为什么重要（分析）：**"))
-                assertTrue(news.contains("**工作／技术决策（分析）：**"))
+                val visibleSummary = articleReaderSummary(news)
+                assertFalse(visibleSummary.contains("**") || visibleSummary.contains("\n"))
+                assertFalse(news.contains("为什么重要") || news.contains("技术决策"))
                 assertTrue(news.endsWith("来源：[原文](<https://example.com/incident>)"))
                 assertEquals(chinese, markdown)
                 val english = "# Reliable article processing\n\nSave the complete original article before generating a summary. " +

@@ -61,7 +61,9 @@ class ArticleReaderAiLiveTest {
                 val both = assertNotNull(analyzeArticleBody(longEnglish).automatic(false))
                 assertEquals(ArticleAiMode.BOTH, both)
                 val longResult = request(service, config, both, longEnglish)
-                assertTrue(assertNotNull(longResult.summary).contains("图书馆"))
+                val summary = assertNotNull(longResult.summary)
+                assertTrue(summary.contains("图书馆"))
+                assertFalse(summary.contains("\n") || summary.contains("为什么重要") || summary.contains("技术决策"))
                 val fullText = assertNotNull(longResult.translation)
                 assertTrue(fullText.contains("志愿") && fullText.contains("工作坊"),
                     "Full translation must retain details near the end of the source")

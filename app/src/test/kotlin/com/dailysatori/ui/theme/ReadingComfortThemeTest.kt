@@ -34,8 +34,9 @@ class ReadingComfortThemeTest {
 
         assertTrue(readingContent.contains("horizontal = Spacing.l, vertical = Spacing.s"))
         assertTrue(readingContent.contains("padding = MarkdownStyles.summaryPadding()"))
-        assertTrue(readingContent.section("ArticleReaderBody(body,", "padding = MarkdownStyles.readingPadding())")
-            .contains("typography = MarkdownStyles.readingTypography()"))
+        val bodyContent = readingContent.substringAfter("ArticleReaderBody(body,")
+        assertTrue(bodyContent.contains("typography = MarkdownStyles.readingTypography()"))
+        assertTrue(bodyContent.contains("if (translated) MarkdownStyles.translationPadding() else MarkdownStyles.readingPadding()"))
         assertTrue(remotePreview.contains("horizontal = Spacing.l, vertical = Spacing.s"))
         assertTrue(remotePreview.contains("padding = MarkdownStyles.remoteArticlePadding()"))
         assertTrue(remoteDigest.contains("contentPadding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.m)"))

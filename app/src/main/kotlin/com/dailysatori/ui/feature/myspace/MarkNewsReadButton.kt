@@ -78,7 +78,7 @@ fun MarkNewsReadButton(article: ReadNewsArticle, viewModel: MySpaceViewModel = k
 @Composable
 fun MarkNewsReadMenuItem(action: PageAction?, onDismiss: () -> Unit) {
     action?.let {
-        DropdownMenuItem(text = { Text(action.label) }, leadingIcon = { Icon(action.icon, null) },
+        DropdownMenuItem(text = { Text(action.label) }, leadingIcon = action.icon?.let { icon -> { Icon(icon, null) } },
             enabled = action.enabled, onClick = { onDismiss(); action.perform() })
     }
 }

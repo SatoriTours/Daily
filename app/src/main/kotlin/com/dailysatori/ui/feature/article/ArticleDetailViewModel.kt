@@ -9,7 +9,13 @@ import com.dailysatori.service.articleai.manualProcessable
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import com.dailysatori.service.ai.AiHttpFailure
+import com.dailysatori.service.ai.AiQueueWaitTimeout
+import com.dailysatori.service.parser.ArticleAiConfigurationMissingException
+import com.dailysatori.service.parser.ArticleAiProcessingException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -127,7 +133,7 @@ class ArticleDetailViewModel(
     }
 
     fun refreshArticle() {
-        refreshArticleWithMessage("正在打开网页...") {
+        refreshArticleWithMessage("正在打开网页...", failureKey = "fetch_failed") {
             val article = articleRepo.getById(articleId)
             if (article?.source_type == "remote_news") refreshRemoteOriginal(article)
             else webpageParserService.refreshArticle(articleId)
@@ -156,7 +162,8 @@ class ArticleDetailViewModel(
 
     fun processWithExistingBody(retranslate: Boolean = false) {
         if (manualProcessing?.isActive == true || state.value.isRefreshing) return
-        manualProcessing = refreshArticleWithMessage("正在用已保存的正文进行 AI 处理...") {
+        manualProcessing = refreshArticleWithMessage("正在用已保存的正文进行 AI 处理...",
+            failureKey = if (retranslate) "retranslation_failed" else "retry_saved_reading") {
             val article = articleRepo.getById(articleId) ?: error("文章已删除")
             if (article.source_type == "remote_news") processStoredBody("文章没有可处理的正文或来源预览")
             else webpageParserService.reprocessArticle(articleId, retranslate)
@@ -172,6 +179,7 @@ class ArticleDetailViewModel(
 
     private fun refreshArticleWithMessage(
         initialStatus: String,
+        failureKey: String,
         refresh: suspend () -> Unit,
     ): Job = viewModelScope.launch(Dispatchers.IO) {
         _state.update {
@@ -183,30 +191,35 @@ class ArticleDetailViewModel(
                 refreshError = null,
             )
         }
+        var errorKey: String? = null
         try {
             refresh()
-        } catch (e: Exception) {
-            val article = articleRepo.getById(articleId)
-            _state.update {
-                it.copy(
-                    isRefreshing = false,
-                    article = article,
-                    refreshError = e.message ?: "刷新失败",
-                )
-            }
-            return@launch
+        } catch (error: Exception) {
+            if (error is CancellationException && error !is TimeoutCancellationException) throw error
+            errorKey = articleDetailFailureKey(error, failureKey)
         }
         val article = articleRepo.getById(articleId)
-        if (article != null && article.status == "error") {
-            _state.update {
-                it.copy(
-                    isRefreshing = false,
-                    article = article,
-                    refreshError = article.ai_content ?: "处理失败",
-                )
-            }
-        } else {
-            _state.update { it.copy(isRefreshing = false, article = article, refreshError = null) }
+        _state.update {
+            it.copy(isRefreshing = false, article = article,
+                refreshError = errorKey ?: failureKey.takeIf { article?.status == "error" })
         }
     }
+}
+
+internal fun articleDetailFailureKey(error: Exception, fallback: String): String = when (error) {
+    is ArticleAiConfigurationMissingException -> "paused_configuration"
+    is AiQueueWaitTimeout -> "reading_busy"
+    is AiHttpFailure -> when (error.status) {
+        401, 403 -> "paused_auth"
+        402 -> "paused_billing"
+        429 -> "paused_rate"
+        else -> if (fallback == "fetch_failed") "retry_saved_reading" else fallback
+    }
+    is ArticleAiProcessingException -> when {
+        fallback == "retranslation_failed" -> fallback
+        error.summaryFailed && !error.translationFailed -> "retry_saved_summary"
+        error.translationFailed && !error.summaryFailed -> "retry_saved_translation"
+        else -> "retry_saved_reading"
+    }
+    else -> fallback
 }

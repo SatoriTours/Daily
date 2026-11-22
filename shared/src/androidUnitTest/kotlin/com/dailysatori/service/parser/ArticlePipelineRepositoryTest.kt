@@ -5,6 +5,7 @@ import com.dailysatori.data.repository.*
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.ai.*
+import com.dailysatori.service.diagnostics.*
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.externalfavorites.ExternalFavoriteAiOrganizer
 import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
@@ -88,6 +89,104 @@ class ArticlePipelineRepositoryTest {
             }
         }
     }
+
+    @Test fun importedXBookmarkTranslatesProseWithoutRejectingEnglishAttribution() = runBlocking {
+        withArticle { db, articles, _, _ ->
+            val id = importMixedXBookmark(db)
+            val initial = assertNotNull(articles.getById(id))
+            val original = assertNotNull(initial.ai_markdown_content).trim()
+            val translated = original
+                .replace(xRepositoryDescription, "这款浏览器工具以本地 Markdown 文件保存网页注释，可离线阅读。")
+            assertFalse(articleNeedsTranslation(translated), "作者、时间与来源链接不是待翻译的正文")
+            var requests = 0
+            HttpClient(MockEngine {
+                requests++
+                val request = it.body.toByteArray().decodeToString()
+                assertTrue(request.contains("忠实翻译"))
+                respondCompletion(buildJsonObject {
+                    val protected = protectArticleMarkdown(original)
+                    put("complete", true)
+                    put("markdown", protected.values.fold(translated) { text, (marker, value) -> text.replace(value, marker) })
+                }.toString())
+            }).use { client ->
+                val service = parser(db, client)
+                assertTrue(articleNeedsTranslation(original))
+                service.reprocessArticle(id)
+                val saved = assertNotNull(articles.getById(id))
+                assertEquals("completed", saved.status)
+                assertEquals(original, saved.original_markdown_content)
+                assertEquals(translated, articleTranslationMarkdown(original, saved.ai_markdown_content))
+                assertEquals(initial.ai_content, saved.ai_content)
+                service.reprocessArticle(id)
+                assertEquals(1, requests)
+            }
+        }
+    }
+
+    @Test fun mixedXBookmarkTranslatesThroughTheLiveArticlePipeline() = runBlocking<Unit> {
+        org.junit.Assume.assumeTrue(System.getenv("DAILY_AI_LIVE_TEST") == "1")
+        val file = java.io.File("../.local/ai-test.json")
+        require(file.isFile) { "Missing local AI test configuration" }
+        val settings = runCatching { Json.parseToJsonElement(file.readText()).jsonObject }
+            .getOrElse { error("Invalid local AI test configuration") }
+        fun required(key: String): String = settings[key]?.jsonPrimitive?.contentOrNull?.trim()
+            ?.takeIf { it.isNotEmpty() } ?: error("Missing AI test setting: $key")
+        withArticle { db, articles, _, _ ->
+            val configs = AIConfigRepository(db)
+            configs.insert(required("provider"), required("apiAddress"), required("apiToken"), required("modelName"))
+            configs.setPurposeConfig(AiPurpose.EXTERNAL_CONTENT, configs.getAllSync().maxOf { it.id })
+            val id = importMixedXBookmark(db)
+            val original = assertNotNull(articles.getById(id)?.ai_markdown_content).trim()
+            HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
+                install(io.ktor.client.plugins.HttpTimeout) {
+                    connectTimeoutMillis = 15_000
+                    requestTimeoutMillis = 60_000
+                }
+            }.use { client ->
+                val events = java.util.Collections.synchronizedList(mutableListOf<SafeDiagnosticEvent>())
+                val previous = DiagnosticLog.diagnostics
+                DiagnosticLog.diagnostics = Diagnostics(DiagnosticSink { events.add(it) })
+                try {
+                    parser(db, client).reprocessArticle(id)
+                } catch (e: Exception) {
+                    val status = (e as? AiHttpFailure)?.status ?: "n/a"
+                    val failures = events.filter { it.source == DiagnosticSource.PARSER && it.eventCode == DiagnosticCode.OPERATION_FAILED }
+                        .map { "${it.attributes["articleStage"]}: ${it.exception.take(4)}" }
+                    error("X bookmark processing failed: ${e::class.simpleName}, HTTP $status, stages=$failures")
+                } finally {
+                    DiagnosticLog.diagnostics = previous
+                }
+                val saved = assertNotNull(articles.getById(id))
+                assertEquals("completed", saved.status)
+                assertEquals(original, saved.original_markdown_content)
+                val result = assertNotNull(articleTranslationMarkdown(original, saved.ai_markdown_content))
+                assertTrue(result.contains(">") && result.contains("https://github.com/example/reading-notes"))
+                assertTrue(result.contains("Markdown") && result.contains("离线"))
+                assertTrue(result.contains("- 作者：Library Tools Maintainer Team"))
+                assertTrue(result.contains(xRepositoryTitle))
+            }
+        }
+    }
+
+    private fun importMixedXBookmark(db: DailySatoriDatabase): Long {
+        val source = ExternalFavoriteSourceRepository(db)
+            .save(provider = "x", displayName = "X fixture", accountId = "fixture", accountName = "fixture", authJson = "{}")
+        val items = ExternalFavoriteItemRepository(db)
+        val note = "推荐这个开源阅读工具。\n\n> 说明见 [项目主页](https://github.com/example/reading-notes)。"
+        val metadata = buildJsonObject {
+            put("url_title", xRepositoryTitle)
+            put("url_description", xRepositoryDescription)
+        }.toString()
+        items.upsertDraft(source, ExternalFavoriteItemDraft("x", "987", "https://x.com/fixture/status/987",
+            "开源阅读工具", note, "Library Tools Maintainer Team", 1_700_000_000_000, null, metadata,
+            contentHash = "mixed-x", aiInputHash = "mixed-x"))
+        ExternalFavoriteImporter(items, ArticleRepository(db)).importPending()
+        return assertNotNull(items.getBySourceExternalId(source, "987")?.article_id)
+    }
+
+    private val xRepositoryTitle = "GitHub - example/reading-notes"
+    private val xRepositoryDescription =
+        "The browser tool saves page annotations in local Markdown files so readers can use them offline."
 
     @Test fun deletingArticleRemovesItsAiCheckpoint() = runBlocking {
         withArticle { db, articles, id, _ ->

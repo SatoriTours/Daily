@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mikepenz.markdown.model.DefaultMarkdownTypography
 import com.mikepenz.markdown.model.MarkdownPadding
@@ -31,8 +32,14 @@ object MarkdownStyles {
     fun compactTypography(): MarkdownTypography = cardTypography()
 
     @Composable
-    fun readingPadding(): MarkdownPadding = markdownPadding(
-        block = 14.dp,
+    fun readingPadding(): MarkdownPadding = readingPadding(block = 14.dp)
+
+    @Composable
+    fun translationPadding(): MarkdownPadding = readingPadding(block = Spacing.s)
+
+    @Composable
+    private fun readingPadding(block: Dp): MarkdownPadding = markdownPadding(
+        block = block,
         list = 10.dp,
         listItemBottom = 8.dp,
         indentList = 24.dp,
