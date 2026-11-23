@@ -1788,7 +1788,7 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsPromptRequestsLongerHeadlinesParagraph() {
+    fun unifiedNewsPromptRequestsCompactHeadlineOverview() {
         val prompt = buildUnifiedNewsPrompt(
             window = UnifiedNewsWindow(UnifiedNewsWindowKey.DAILY, "2026-05-27", 0L, 1L),
             sources = listOf(
@@ -1804,7 +1804,8 @@ class UnifiedNewsBehaviorTest {
         )
 
         assertTrue(prompt.contains("## 今日要闻"))
-        assertTrue(prompt.contains("150-250"))
+        assertTrue(prompt.contains("100–150"))
+        assertTrue(prompt.contains("2–3"))
         assertTrue(prompt.indexOf("## 今日要闻") < prompt.indexOf("## 今日要点"))
     }
 

@@ -83,9 +83,10 @@ class UnifiedNewsAiLiveTest {
                     assertTrue(content.contains(heading), "缺少结构标题: $heading")
                 }
                 val overview = content.substringAfter("## 今日要闻").substringBefore("## 今日要点").trim()
-                val overviewParagraphs = overview.split(Regex("""\n\s*\n""")).filter(String::isNotBlank)
-                assertTrue(overview.isNotBlank())
-                assertTrue(overviewParagraphs.size in 1..2, "今日要闻应为 1-2 段，实际 " + overviewParagraphs.size)
+                assertEquals(1, overview.lineSequence().count(String::isNotBlank), "今日要闻应为单段")
+                val overviewHanCount = overview.count { Character.UnicodeScript.of(it.code) == Character.UnicodeScript.HAN }
+                assertTrue(overviewHanCount in 1..160, "今日要闻应为紧凑导语，实际有 $overviewHanCount 个中文字")
+                assertTrue(citationTokens(overview).isNotEmpty(), "今日要闻应保留对应引用")
                 val points = content.substringAfter("## 今日要点").substringBefore("## 重要变化")
                 val entries = points.lines().filter { it.trim().startsWith("- ") }
                 assertTrue(entries.isNotEmpty())

@@ -58,7 +58,6 @@ class UnifiedNewsTabSplitTest {
 
         assertTrue(source.contains("dailyHeadlineDigest("))
         assertTrue(source.contains("R.string.news_focus_overview"))
-        assertTrue(source.contains("digest.overview.forEach"))
         assertTrue(source.contains("story.paragraphs.forEach"))
         assertTrue(source.contains("digest.remaining"))
         assertTrue(source.contains("headlineStorySourceMeta(story)"))

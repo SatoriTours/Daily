@@ -35,8 +35,9 @@ import com.dailysatori.R
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
-import com.dailysatori.ui.theme.Height
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.*
+
+private const val HeadlineOverviewPreviewLength = 150
 
 @Composable
 internal fun UnifiedNewsHeadlinesContent(
@@ -95,7 +96,7 @@ internal fun UnifiedNewsHeadlinesContent(
 }
 
 @Composable
-private fun HeadlineDigestBody(
+internal fun HeadlineDigestBody(
     entry: Unified_news_summary,
     digest: DailyHeadlineDigest,
     query: String,
@@ -103,9 +104,16 @@ private fun HeadlineDigestBody(
     onSourceClick: (Unified_news_source) -> Unit,
     onCitationClick: (String) -> Unit,
 ) {
+    val overview = remember(digest.overview) { digest.overview.joinToString(" ") }
+    val previewEnd = remember(overview) {
+        overview.offsetByCodePoints(0, minOf(overview.codePointCount(0, overview.length), HeadlineOverviewPreviewLength))
+    }
+    val overviewClipped = previewEnd < overview.length
+    val hasRemaining = query.isBlank() && digest.remaining.isNotBlank()
+
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        if (digest.overview.isEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { HeadlineDigestHeader(entry) }
-        if (digest.overview.isNotEmpty()) {
+        if (overview.isEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { HeadlineDigestHeader(entry) }
+        if (overview.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -115,18 +123,26 @@ private fun HeadlineDigestBody(
                     )
                     HeadlineDigestHeader(entry)
                 }
-                digest.overview.forEach { paragraph ->
-                    Text(paragraph, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    if (overviewClipped) overview.substring(0, previewEnd).trimEnd() + "…" else overview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (overviewClipped) HeadlineBriefingAction(onBriefing)
+            }
+            if (digest.stories.isNotEmpty() || hasRemaining) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
+        if (digest.stories.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth()) {
+                digest.stories.forEachIndexed { index, story ->
+                    if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
+                    HeadlineStoryBlock(story, onSourceClick)
                 }
             }
         }
-        Column(Modifier.fillMaxWidth()) {
-            digest.stories.forEachIndexed { index, story ->
-                if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
-                HeadlineStoryBlock(story, onSourceClick)
-            }
-        }
-        if (query.isBlank() && digest.remaining.isNotBlank()) {
+        if (hasRemaining) {
             if (digest.stories.isNotEmpty()) {
                 HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
             }
@@ -136,17 +152,22 @@ private fun HeadlineDigestBody(
                 onCitationClick = onCitationClick,
             )
         }
-        TextButton(
-            onClick = onBriefing,
-            modifier = Modifier.fillMaxWidth().heightIn(min = Height.touchTarget),
-            contentPadding = PaddingValues(vertical = Spacing.s),
-        ) {
-            Text(
-                stringResource(R.string.news_focus_read_briefing),
-                Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
+        if (!overviewClipped) HeadlineBriefingAction(onBriefing)
+    }
+}
+
+@Composable
+private fun HeadlineBriefingAction(onBriefing: () -> Unit) {
+    TextButton(
+        onClick = onBriefing,
+        modifier = Modifier.fillMaxWidth().heightIn(min = Height.touchTarget),
+        contentPadding = PaddingValues(vertical = Spacing.s),
+    ) {
+        Text(
+            stringResource(R.string.news_focus_read_briefing),
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+        )
     }
 }
 
