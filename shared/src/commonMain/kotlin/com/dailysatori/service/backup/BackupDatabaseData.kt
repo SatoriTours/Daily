@@ -37,7 +37,9 @@ internal class BackupDatabaseData(private val driver: SqlDriver) {
         }
         checkBackupDatabase()
         // Validate structure from metadata and read only aggregate counts used by the summary.
-        val summaryTables = setOf("diary", "article", "book", "bookkeeping_entry", "reminder", "setting", "opportunity_item")
+        val summaryTables = setOf(
+            "diary", "article", "book", "bookkeeping_entry", "reminder", "setting", "opportunity_item", "idea_topic",
+        )
         return expectedSchema.keys.intersect(summaryTables).associateWith { table ->
             driver.executeQuery(null, "SELECT COUNT(*) FROM \"${table.replace("\"", "\"\"")}\"", { cursor ->
                 check(cursor.next().value)

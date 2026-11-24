@@ -25,6 +25,13 @@ data class AssistantAggregate(
     val measures: List<String> = listOf("count"),
 )
 
+/** Readable body of one opportunity: the AI analysis only, never the original article payload or URL. */
+private fun opportunityContentExpression(): String =
+    listOf("title", "category", "fact", "relevance", "action", "caveat", "quote").joinToString(" || char(10) || ") {
+        "COALESCE(json_extract(r.analysis_json,'\$.$it'),'')"
+    } + " || char(10) || COALESCE(json_extract(r.analysis_json,'$.preview.reason'),'')" +
+        " || char(10) || COALESCE(json_extract(r.analysis_json,'$.preview.opportunity'),'')"
+
 /** This list, not SQLite metadata, is the permission boundary. New columns remain closed. */
 internal data class AssistantSource(
     val name: String,
@@ -50,7 +57,17 @@ internal data class AssistantSource(
 internal val assistantSources = listOf(
     AssistantSource("article", text = "title ai_title content comment status source_type",
         numbers = "id is_favorite pub_date created_at updated_at", search = "title ai_title content comment", content = "content",
-        expressions = mapOf("content" to "COALESCE(NULLIF(r.ai_markdown_content,''),NULLIF(r.original_markdown_content,''),r.ai_content,'')")),
+        // Reader-visible text prefers the newest cached translation, then the newest summary, then legacy columns.
+        expressions = mapOf("content" to (
+            "COALESCE(" +
+                "NULLIF((SELECT ar.markdown FROM article_ai_source s JOIN article_ai_result ar ON ar.body_hash=s.body_hash " +
+                "WHERE s.article_id=r.id AND ar.kind='translation' AND ar.markdown<>'' " +
+                "ORDER BY ar.version DESC, ar.target ASC LIMIT 1),'')," +
+                "NULLIF((SELECT ar.markdown FROM article_ai_source s JOIN article_ai_result ar ON ar.body_hash=s.body_hash " +
+                "WHERE s.article_id=r.id AND ar.kind='summary' AND ar.markdown<>'' " +
+                "ORDER BY ar.version DESC, ar.target ASC LIMIT 1),'')," +
+                "NULLIF(r.ai_markdown_content,''),NULLIF(r.original_markdown_content,''),r.ai_content,'')"
+            ))),
     AssistantSource("diary", text = "content tags mood", numbers = "id parent_diary_id created_at updated_at",
         search = "content tags", content = "content",
         expressions = mapOf("tags" to "(SELECT p.tags FROM diary_active_tags p WHERE p.diary_id=r.id)")),
@@ -81,5 +98,17 @@ internal val assistantSources = listOf(
     AssistantSource("idea_topic", text = "id title description provenance_summary conclusions next_action status content",
         numbers = "context_revision created_at updated_at", search = "title content", content = "content",
         expressions = mapOf("content" to "r.description || char(10) || r.provenance_summary || char(10) || r.conclusions || char(10) || r.next_action")) ,
+    // Only the stored AI analysis text is exposed; the opportunity source payload and any URL never become fields.
+    AssistantSource("opportunity_item", text = "id title category fact relevance opportunity reason content",
+        numbers = "saved ignored created_at saved_at", search = "title category fact relevance", content = "content",
+        expressions = mapOf(
+            "title" to "COALESCE(json_extract(r.analysis_json,'$.title'),'')",
+            "category" to "COALESCE(json_extract(r.analysis_json,'$.category'),'')",
+            "fact" to "COALESCE(json_extract(r.analysis_json,'$.fact'),'')",
+            "relevance" to "COALESCE(json_extract(r.analysis_json,'$.relevance'),'')",
+            "opportunity" to "COALESCE(json_extract(r.analysis_json,'$.preview.opportunity'),'')",
+            "reason" to "COALESCE(json_extract(r.analysis_json,'$.preview.reason'),'')",
+            "content" to opportunityContentExpression(),
+        )),
     // Config JSON, URLs and auth material are intentionally not fields, including in safe configuration views.
 ).associateBy { it.name }

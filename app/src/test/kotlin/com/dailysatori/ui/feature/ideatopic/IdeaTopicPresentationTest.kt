@@ -45,6 +45,45 @@ class IdeaTopicPresentationTest {
         }
     }
 
+    @Test
+    fun sourceTypeLabelsCoverEveryCaptureTypeAndUnknownTypesFailSoft() {
+        assertEquals("source_type_diary", ideaSourceTypeLabelKey(IdeaSourceTypes.Diary))
+        assertEquals("source_type_article", ideaSourceTypeLabelKey(IdeaSourceTypes.Article))
+        assertEquals("source_type_opportunity", ideaSourceTypeLabelKey(IdeaSourceTypes.NewsOpportunity))
+        assertEquals("source_type_opportunity", ideaSourceTypeLabelKey("some_future_type"))
+    }
+
+    @Test
+    fun articleCaptureEventsUseTheArticleLabelAndKeepTheOriginalTitle() {
+        val payload = IdeaCapturedEventPayload(
+            snapshot = IdeaSourceSnapshot(
+                key = IdeaSourceKey(IdeaSourceTypes.Article, "42"),
+                originalTitle = "文章原始标题",
+                originalContent = "完整正文",
+                originalRecordId = "42",
+            ),
+            initialContent = IdeaTopicContent(title = "文章标题"),
+        )
+        val event = IdeaTopicEvent(
+            id = "ev-article",
+            topicId = "topic-main",
+            originalTopicId = "topic-main",
+            kind = IdeaEventKinds.Captured,
+            payload = json.encodeToString(payload),
+            createdAt = 3_000L,
+        )
+        val labels = mapOf(
+            "idea_topic.source_type_article" to "文章",
+            "idea_topic.event_capture_title" to "从%s收录",
+            "idea_topic.event_capture_description" to "%s：%s",
+        )
+
+        val presentation = formatIdeaTopicEvent(event, "topic-main") { key -> labels[key] ?: key }
+
+        assertEquals("从文章收录", presentation.title)
+        assertEquals("文章：文章原始标题", presentation.description)
+    }
+
     private fun <T> withTranslations(language: String, block: (I18nService) -> T): T {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         try {

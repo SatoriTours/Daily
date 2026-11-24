@@ -605,6 +605,7 @@ article.copy_link	Copy link
 article.web_link	Article link
 article.link_copied	Link copied
 article.open_in_browser	Open in browser
+article.capture_idea	Capture into topic
 article.delete_article	Delete article
 article.delete_article_note	Are you sure you want to delete this article?
 article.mark_read	Mark as read
@@ -1361,6 +1362,7 @@ idea_topic.sources_header	Linked Sources
 idea_topic.events_header	Event Timeline
 idea_topic.source_type_diary	Diary
 idea_topic.source_type_opportunity	Product Opportunity
+idea_topic.source_type_article	Article
 idea_topic.source_snapshot_title	Original Snapshot
 idea_topic.source_analysis_title	AI Analysis Snapshot
 idea_topic.source_unavailable	Original link unavailable, showing captured snapshot
@@ -1612,3 +1614,31 @@ article_ai.resume_queue	Resume after fixing AI settings
 article_ai.ready	Summary ready
 article_ai.force_menu	Force Chinese summary
 article_ai.refresh_note	Refresh fetches the original again, then runs AI on the saved content. A fetch failure keeps the existing content.
+article_ai.view_tasks	View tasks
+article_ai.history_running	Running
+article_ai.history_paused	Paused
+article_ai.history_idle	Idle
+article_ai.history_empty	No historical articles pending
+article_ai.history_recount	Recount
+share.save_title	Save Link
+share.update_title	Update Article
+share.cancel	Cancel
+share.save	Save
+share.save_changes	Save Changes
+share.link	Link
+share.ai_analysis	AI Analysis
+share.title	Title
+share.title_placeholder	Leave blank to fetch page title
+share.tags	Tags
+share.tag_placeholder	Type a tag and press Done or +
+share.add_tag	Add tag
+share.remove_tag	Remove tag
+share.comment	Notes
+share.comment_placeholder	Add notes or reading context
+share.optional	(Optional)
+share.load_failed	Failed to load link details
+share.save_failed	Failed to save. Please try again.
+remote_news_settings.empty_title	No remote news sources
+remote_news_settings.empty_subtitle	Tap the top-right button to add a remote news source
+remote_news_settings.add_action	Add remote news
+diary.media_import_failed	Failed to import media. Please try again.

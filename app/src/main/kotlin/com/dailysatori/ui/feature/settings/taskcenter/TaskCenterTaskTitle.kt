@@ -15,6 +15,35 @@ data class TaskCenterSourceNames(
 
 internal fun taskCenterTaskName(type: String): String = asyncTaskTypeDisplayName(type)
 
+/** Where "open source" should take the user for one async task; null when the task has no owned source. */
+internal sealed interface TaskCenterSourceTarget {
+    data class Article(val articleId: Long) : TaskCenterSourceTarget
+    data object RemoteNewsSettings : TaskCenterSourceTarget
+    data object Opportunities : TaskCenterSourceTarget
+}
+
+private val articleTaskTypes = setOf(
+    AsyncTaskType.save_article.name,
+    AsyncTaskType.article_cover_download.name,
+    AsyncTaskType.article_memory_extract.name,
+    AsyncTaskType.remote_article_reprocess.name,
+    AsyncTaskType.article_ai.name,
+)
+
+internal fun taskCenterSourceTarget(type: String, payload: String): TaskCenterSourceTarget? = when {
+    type in articleTaskTypes -> taskCenterArticleId(payload)?.let(TaskCenterSourceTarget::Article)
+    type == AsyncTaskType.remote_article_sync.name || type == AsyncTaskType.remote_news_fetch.name ->
+        TaskCenterSourceTarget.RemoteNewsSettings
+    type == AsyncTaskType.news_opportunity_analysis.name -> TaskCenterSourceTarget.Opportunities
+    else -> null
+}
+
+/** Article handlers write `articleId`; historical payloads may still carry `article_id`. */
+internal fun taskCenterArticleId(payload: String): Long? = runCatching {
+    val json = Json.parseToJsonElement(payload).jsonObject
+    (json["articleId"] ?: json["article_id"])?.jsonPrimitive?.longOrNull?.takeIf { it > 0 }
+}.getOrNull()
+
 internal fun taskCenterTaskTitle(type: String, payload: String, sources: TaskCenterSourceNames): String {
     val title = taskCenterTaskName(type)
     return taskCenterTaskSource(type, payload, sources)?.let { "$title · $it" } ?: title

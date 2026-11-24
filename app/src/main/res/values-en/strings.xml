@@ -586,6 +586,10 @@
     <string name="task_center_detail_log">Diagnostic log</string>
     <string name="task_center_detail_log_empty">No log</string>
     <string name="task_center_detail_cancel">Cancel task</string>
+    <string name="task_center_detail_retry">Retry task</string>
+    <string name="task_center_detail_open_source">Open related item</string>
+    <string name="my_space_ignored_toast">Marked as irrelevant</string>
+    <string name="my_space_undo">Undo</string>
     <string name="task_center_bulk_cancel_title">Cancel all unfinished tasks</string>
     <string name="task_center_bulk_cancel_message">Queued: %1$d · Running: %2$d · Retrying: %3$d\n\nThis includes tasks hidden by filters or not shown in the list. Only tasks counted here that are still unfinished will be cancelled. History, existing results, and future schedules will be kept.</string>
     <string name="task_center_bulk_cancel_confirm">Confirm cancellation</string>

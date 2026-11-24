@@ -32,6 +32,13 @@ fun ideaTopicErrorLabelKey(error: IdeaTopicError): String = "idea_topic.error." 
 
 private val presentationJson = Json { ignoreUnknownKeys = true }
 
+/** One label key per capture source type; unknown future types fall back to the opportunity wording. */
+fun ideaSourceTypeLabelKey(type: String): String = when (type) {
+    IdeaSourceTypes.Diary -> "source_type_diary"
+    IdeaSourceTypes.Article -> "source_type_article"
+    else -> "source_type_opportunity"
+}
+
 fun formatIdeaTopicEvent(
     event: IdeaTopicEvent,
     currentTopicId: String? = null,
@@ -40,8 +47,8 @@ fun formatIdeaTopicEvent(
     val text = IdeaEventText(translate)
     return IdeaEventPresentation(
         title = if (event.kind == IdeaEventKinds.Captured) {
-            val diary = decode<IdeaCapturedEventPayload>(event)?.snapshot?.key?.type == IdeaSourceTypes.Diary
-            text.get("event_capture_title", text.get(if (diary) "source_type_diary" else "source_type_opportunity"))
+            val type = decode<IdeaCapturedEventPayload>(event)?.snapshot?.key?.type
+            text.get("event_capture_title", text.get(ideaSourceTypeLabelKey(type.orEmpty())))
         } else text.get("event_${event.kind}"),
         description = describeEvent(event, text),
         originalAttribution = event.originalTopicId.takeIf { currentTopicId != null && it != currentTopicId }
@@ -57,7 +64,7 @@ private class IdeaEventText(private val translate: (String) -> String) {
 
 private fun describeEvent(event: IdeaTopicEvent, text: IdeaEventText): String = when (event.kind) {
     IdeaEventKinds.Captured -> decode<IdeaCapturedEventPayload>(event)?.let {
-        val source = text.get(if (it.snapshot.key.type == IdeaSourceTypes.Diary) "source_type_diary" else "source_type_opportunity")
+        val source = text.get(ideaSourceTypeLabelKey(it.snapshot.key.type))
         text.get("event_capture_description", source, it.snapshot.originalTitle.ifBlank { it.initialContent.title })
     } ?: text.get("event_captured")
     IdeaEventKinds.Progress -> decode<IdeaProgressEventPayload>(event)?.text.orEmpty()

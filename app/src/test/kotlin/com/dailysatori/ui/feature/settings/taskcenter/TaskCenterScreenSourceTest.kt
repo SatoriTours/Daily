@@ -125,8 +125,10 @@ class TaskCenterScreenSourceTest {
     @Test
     fun laterSuccessfulTaskMarksOldFailureAsSuperseded() {
         assertTrue(taskFailureIsSuperseded(110, "failed", 118, "succeeded"))
+        assertTrue(taskFailureIsSuperseded(110, "cancelled", 118, "succeeded"))
         assertFalse(taskFailureIsSuperseded(118, "succeeded", 118, "succeeded"))
         assertFalse(taskFailureIsSuperseded(110, "failed", 119, "failed"))
+        assertFalse(taskFailureIsSuperseded(110, "cancelled", 119, "failed"))
     }
 
     @Test

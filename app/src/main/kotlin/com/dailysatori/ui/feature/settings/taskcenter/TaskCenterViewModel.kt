@@ -13,6 +13,8 @@ import com.dailysatori.service.asynctask.AsyncTaskOverview
 import com.dailysatori.service.asynctask.RECENT_TASK_FAILURE_WINDOW_MS
 import com.dailysatori.service.asynctask.recentFailedTaskFilter
 import com.dailysatori.service.asynctask.recentTaskFailureCutoffs
+import com.dailysatori.service.articleai.ArticleAiQueue
+import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.service.diagnostics.TaskHttpCapture
@@ -89,9 +91,30 @@ internal fun taskFailureIsSuperseded(
     selectedStatus: String,
     latestId: Long?,
     latestStatus: String?,
-): Boolean = selectedStatus == "failed" && latestId != null && latestId != selectedId && latestStatus == "succeeded"
+): Boolean =
+    selectedStatus in setOf(AsyncTaskStatus.failed.name, AsyncTaskStatus.cancelled.name) &&
+        latestId != null &&
+        latestId != selectedId &&
+        latestStatus == AsyncTaskStatus.succeeded.name
 
 internal const val TASK_CENTER_NO_MATCH_STATUS = "__task_center_no_match__"
+
+/** Only replaying a whole task is safe: these handlers never duplicate user-visible side effects. */
+private val taskCenterRetryableTypes = setOf(
+    AsyncTaskType.article_ai.name,
+    AsyncTaskType.remote_news_fetch.name,
+    AsyncTaskType.remote_article_sync.name,
+    AsyncTaskType.news_opportunity_analysis.name,
+    AsyncTaskType.save_article.name,
+    AsyncTaskType.remote_article_reprocess.name,
+    AsyncTaskType.article_cover_download.name,
+    AsyncTaskType.book_viewpoint_generate.name,
+)
+
+internal fun taskCenterCanRetry(task: Async_task, failureSuperseded: Boolean): Boolean =
+    !failureSuperseded &&
+        task.status in setOf(AsyncTaskStatus.failed.name, AsyncTaskStatus.cancelled.name) &&
+        task.type in taskCenterRetryableTypes
 
 private data class TaskCenterQuery(
     val effectiveFilter: AsyncTaskFilter,
@@ -108,6 +131,7 @@ class TaskCenterViewModel(
     private val scheduler: AsyncTaskScheduler,
     remoteSourceRepository: RemoteNewsSourceRepository,
     favoriteSourceRepository: ExternalFavoriteSourceRepository,
+    private val articleAiQueue: ArticleAiQueue? = null,
 ) : ViewModel() {
     private val bulkCancelState = MutableStateFlow<TaskCenterBulkCancelState>(TaskCenterBulkCancelState.Idle)
     internal val bulkCancel = bulkCancelState.asStateFlow()
@@ -232,13 +256,17 @@ class TaskCenterViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskCenterState())
 
-    fun applyEntryFilter(recentFailures: Boolean) {
+    fun applyEntryFilter(recentFailures: Boolean, initialType: String? = null) {
         if (entryFilterApplied) return
         entryFilterApplied = true
         if (recentFailures) {
-            pageLimit.value = DEFAULT_TASK_CENTER_PAGE_SIZE
+            resetPaging()
             tab.value = TaskCenterTab.Pending
             filter.value = recentFailedTaskFilter(Clock.System.now().toEpochMilliseconds())
+        } else if (initialType != null) {
+            resetPaging()
+            tab.value = TaskCenterTab.Current
+            filter.value = AsyncTaskFilter(types = setOf(initialType))
         }
     }
 
@@ -369,6 +397,50 @@ class TaskCenterViewModel(
         TaskHttpCapture.disarm(taskId)
         captureTick.update { it + 1 }
     }
+
+    /** Re-runs one failed or cancelled task as a fresh row; the old terminal row stays as history. */
+    fun retryTask(task: Async_task) {
+        if (!taskCenterCanRetry(task, false)) return
+        viewModelScope.launch(Dispatchers.IO) { retryTaskNow(task) }
+    }
+
+    /**
+     * The caller may hold a stale detail-page snapshot, so the durable row is re-read before replay:
+     * a task that a newer same-key success has already replaced must never be queued again.
+     */
+    internal fun retryTaskNow(task: Async_task) {
+        if (!taskCenterCanRetry(task, false)) return
+        val current = repository.getById(task.id) ?: return
+        val latest = current.unique_key?.let(repository::getLatestByUniqueKey)
+        val superseded = taskFailureIsSuperseded(current.id, current.status, latest?.id, latest?.status)
+        if (!taskCenterCanRetry(current, superseded)) return
+        val newId = try {
+            if (current.type == AsyncTaskType.article_ai.name) retryArticleAi(current) else reenqueue(current)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+        if (newId != null) {
+            runCatching { scheduler.enqueue(newId) }
+            openTask(newId)
+        }
+    }
+
+    /** Article AI work is owned by its own queue, so restart it there instead of duplicating a job row. */
+    private fun retryArticleAi(task: Async_task): Long? {
+        val queue = articleAiQueue ?: return reenqueue(task)
+        val articleId = taskCenterArticleId(task.payload_json)
+        if (articleId == null) queue.resume() else queue.manual(articleId)
+        return null
+    }
+
+    private fun reenqueue(task: Async_task): Long = repository.enqueue(
+        type = task.type,
+        payloadJson = task.payload_json,
+        uniqueKey = task.unique_key,
+        maxAttempts = task.max_attempts.coerceAtLeast(1),
+    )
 
     fun openTask(taskId: Long) {
         assistantResumeBlocked.value = false

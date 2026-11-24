@@ -51,7 +51,11 @@ import com.dailysatori.ui.theme.*
 import org.koin.compose.koinInject
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    onBack: (() -> Unit)? = null,
+    onOpenArticleAiTasks: (() -> Unit)? = null,
+) {
     val state by viewModel.state.collectAsState()
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
@@ -104,7 +108,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
             SettingsPage.SMS_REMINDERS, SettingsPage.BOOKKEEPING, SettingsPage.PHONE_ASSISTANT, SettingsPage.AUTHORIZATION ->
                 com.dailysatori.ui.feature.phone.AuthorizationScreen(onBack = childBack, initialSection = section)
             SettingsPage.HOT_NEWS -> HotNewsSettingsScreen(onBack = childBack)
-            SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(onBack = childBack)
+            SettingsPage.REMOTE_NEWS -> RemoteNewsSettingsScreen(
+                onBack = childBack,
+                onOpenArticleAiTasks = onOpenArticleAiTasks,
+            )
             SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = childBack)
             SettingsPage.PRIVACY -> DataPrivacyScreen(onBack = childBack)
             SettingsPage.WEB_SERVICE -> WebServicePage(state, viewModel, childBack)

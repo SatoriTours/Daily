@@ -608,6 +608,10 @@
     <string name="task_center_detail_log">诊断日志</string>
     <string name="task_center_detail_log_empty">暂无日志</string>
     <string name="task_center_detail_cancel">取消任务</string>
+    <string name="task_center_detail_retry">重新执行</string>
+    <string name="task_center_detail_open_source">查看关联内容</string>
+    <string name="my_space_ignored_toast">已标记为不相关</string>
+    <string name="my_space_undo">撤销</string>
     <string name="task_center_bulk_cancel_title">取消全部未完成任务</string>
     <string name="task_center_bulk_cancel_message">排队中：%1$d · 运行中：%2$d · 重试中：%3$d\n\n包括当前筛选或列表未显示的任务。只取消本次确认范围内仍未完成的任务，保留历史、已有结果和未来定时计划。</string>
     <string name="task_center_bulk_cancel_confirm">确认取消</string>

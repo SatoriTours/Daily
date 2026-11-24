@@ -70,6 +70,28 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             ?: q.selectArticleIntakeByUrl(normalized).executeAsOneOrNull()
     }
 
+    /**
+     * Inserts or updates the share intake row for [url] in one transaction, so a share sheet
+     * save cannot create a second article when the initialization lookup lost the race.
+     * Only user-editable fields are written; processed fields of an existing row stay intact.
+     */
+    fun upsertShareIntake(url: String, title: String?, comment: String?): Pair<Long, Boolean> =
+        q.transactionWithResult {
+            val existing = findIntakeArticle(url)
+            if (existing != null) {
+                updateUserMetadata(existing.id, title, comment)
+                existing.id to true
+            } else {
+                insert(title = title, url = url, comment = comment, status = "pending") to false
+            }
+        }
+
+    /** Writes only the user-editable fields, so concurrent processing output is never overwritten. */
+    fun updateUserMetadata(id: Long, title: String?, comment: String?) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateArticleUserMetadata(title, comment, now, id)
+    }
+
     fun createPendingFromUrl(url: String): Long = q.transactionWithResult {
         val normalized = url.trim().trimEnd('/')
         require(normalized.isNotBlank()) { "Article URL required" }
@@ -96,6 +118,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Article>> =
         q.selectLocalArticlesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
+
+    fun getFavoritesPaginated(limit: Long, offset: Long): Flow<List<Article>> =
+        q.selectFavoriteArticlesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
 
     fun getByStatus(status: String): Flow<List<Article>> =
         q.selectArticlesByStatus(status).asFlow().mapToList(Dispatchers.IO)
@@ -277,6 +302,8 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     }
 
     fun count(): Long = q.articleCount().executeAsOne()
+
+    fun countFavorites(): Long = q.favoriteArticleCount().executeAsOne()
 
     fun getAllSync(): List<Article> = q.selectArticles().executeAsList()
 

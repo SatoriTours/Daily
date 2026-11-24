@@ -172,10 +172,20 @@ class AssistantDataGateway(private val driver: SqlDriver) {
             checks += "NOT EXISTS (SELECT 1 FROM assistant_memory_exclusion WHERE source_type IN ('chat','diary','article','book','book_viewpoint'))"
         }
         if (spec.name == "idea_topic") {
+            // Only a plain numeric record id can mean "this source really links local article N".
+            // Remote-only articles carry a namespaced key such as remote:42, which must never be
+            // matched against local ids or make an unrelated local article decide their visibility.
+            val localArticleId = "s.source_record_id != '' AND s.source_record_id NOT GLOB '*[^0-9]*'"
             checks += """NOT EXISTS (SELECT 1 FROM idea_topic_source s WHERE s.topic_id=r.id AND (
-                s.source_type NOT IN ('diary','news_opportunity') OR EXISTS (
+                s.source_type NOT IN ('diary','news_opportunity','article')
+                OR (s.source_type='article' AND $localArticleId AND (
+                    EXISTS (SELECT 1 FROM assistant_memory_exclusion x WHERE x.source_type='article' AND x.source_id=s.source_record_id)
+                    OR NOT EXISTS (SELECT 1 FROM article a WHERE CAST(a.id AS TEXT)=s.source_record_id)
+                ))
+                OR (s.source_type!='article' AND EXISTS (
                     SELECT 1 FROM assistant_memory_exclusion x WHERE x.source_type=s.source_type AND x.source_id=s.source_record_id
-                ) OR (s.source_type='diary' AND NOT EXISTS (SELECT 1 FROM diary d WHERE CAST(d.id AS TEXT)=s.source_record_id))
+                ))
+                OR (s.source_type='diary' AND NOT EXISTS (SELECT 1 FROM diary d WHERE CAST(d.id AS TEXT)=s.source_record_id))
             ))""".trimIndent()
         }
         if (spec.name == "async_task") checks += "r.type NOT IN ('sms_reminder_parse','phone_assistant','phone_message_parse')"

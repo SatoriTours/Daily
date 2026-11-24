@@ -182,6 +182,9 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onBack = { navController.popBackStack() },
+                onOpenArticleAiTasks = {
+                    navController.navigate(TaskCenterRoute(initialType = com.dailysatori.service.asynctask.AsyncTaskType.article_ai.name))
+                },
             )
         }
         measuredDestination<LedgerRoute>(performance) { com.dailysatori.ui.feature.ledger.LedgerScreen(onBack = { navController.popBackStack() }) }
@@ -203,10 +206,24 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             )
         }
         measuredDestination<ProfileExternalFavoritesRoute>(performance) { ExternalFavoritesSettingsScreen(onBack = { navController.popBackStack() }) }
-        measuredDestination<RemoteNewsSettingsRoute>(performance) { RemoteNewsSettingsScreen(onBack = { navController.popBackStack() }) }
+        measuredDestination<RemoteNewsSettingsRoute>(performance) {
+            RemoteNewsSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenArticleAiTasks = {
+                    navController.navigate(TaskCenterRoute(initialType = com.dailysatori.service.asynctask.AsyncTaskType.article_ai.name))
+                },
+            )
+        }
         measuredDestination<SpeechSettingsRoute>(performance) { SpeechSettingsScreen(onBack = { navController.popBackStack() }) }
         measuredDestination<TaskCenterRoute>(performance) { entry ->
-            TaskCenterScreen(onBack = { navController.popBackStack() }, recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures)
+            TaskCenterScreen(
+                onBack = { navController.popBackStack() },
+                recentFailures = entry.toRoute<TaskCenterRoute>().recentFailures,
+                initialType = entry.toRoute<TaskCenterRoute>().initialType,
+                onOpenArticle = { navController.navigate(ArticleDetailRoute(it)) },
+                onOpenRemoteNewsSettings = { navController.navigate(RemoteNewsSettingsRoute) },
+                onOpenOpportunities = { navController.navigate(MyOpportunitiesRoute) },
+            )
         }
 
         measuredDestination<ArticleDetailRoute>(
@@ -228,6 +245,7 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             ArticleDetailScreen(
                 articleId = route.articleId,
                 onBack = { navController.popBackStack() },
+                onTopic = { navController.navigate(IdeaTopicDetailRoute(it)) },
             )
         }
 
@@ -352,6 +370,9 @@ private fun DailySatoriNavigationGraph(navController: NavHostController, setting
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onBack = { navController.popBackStack() },
+                onOpenArticleAiTasks = {
+                    navController.navigate(TaskCenterRoute(initialType = com.dailysatori.service.asynctask.AsyncTaskType.article_ai.name))
+                },
             )
         }
 

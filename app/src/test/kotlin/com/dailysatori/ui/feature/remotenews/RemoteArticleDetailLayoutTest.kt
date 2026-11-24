@@ -95,16 +95,21 @@ class RemoteArticleDetailLayoutTest {
         assertFalse(actionsBody.contains("IconButton(onClick = { openArticleUrl"))
         assertTrue(source.contains("Icons.Default.Favorite"))
         assertTrue(source.contains("Icons.Default.FavoriteBorder"))
-        assertTrue(source.contains("contentDescription = if (isFavorite) \"取消收藏\" else \"收藏\""))
+        assertTrue(source.contains("i18n.t(if (isFavorite) \"article.unfavorite\" else \"article.favorite\")"))
+        assertTrue(actionsBody.contains("RemoteArticleCopyLinkMenuItem("))
     }
 
     @Test
     fun remoteArticleDetailShowsOriginalFromOverflowBottomSheet() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+        val sheetBody = source.functionBody("RemoteArticleOriginalBottomSheet")
 
         assertTrue(source.contains("RemoteArticleOriginalBottomSheet("))
         assertTrue(source.contains("showOriginalSheet"))
         assertTrue(source.contains("remoteArticleOriginalPageContent("))
+        assertTrue(sheetBody.contains("LazyColumn("), "原文弹窗必须支持长文滚动")
+        assertTrue(sheetBody.contains("copyArticleUrl("), "原文弹窗应支持复制链接")
+        assertTrue(sheetBody.contains("FilterChip("), "有译文时应支持原文与译文切换")
     }
 }
 

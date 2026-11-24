@@ -4,6 +4,7 @@ import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.service.ideatopic.opportunityIdeaCaptureInput
@@ -80,6 +87,10 @@ internal fun UnifiedNewsOpportunitiesContent(
         if (keyword.isBlank()) pending else pending.filter { item -> item.matchesOpportunityQuery(keyword) }
     }
     val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val ignoredToast = stringResource(R.string.my_space_ignored_toast)
+    val undoLabel = stringResource(R.string.my_space_undo)
     LaunchedEffect(opportunities) { opportunities.observeRecommendations() }
     LaunchedEffect(state.opportunityRefreshRequestKey) {
         if (state.opportunityRefreshRequestKey <= 0) return@LaunchedEffect
@@ -89,47 +100,67 @@ internal fun UnifiedNewsOpportunitiesContent(
     LaunchedEffect(state.scrollToTopRequestKey) {
         if (state.scrollToTopRequestKey > 0) listState.animateScrollToItem(0)
     }
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize().performanceContent(PerformanceResult.OK.takeIf { items.isNotEmpty() }),
-        contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
-    ) {
-        item(key = "opportunity-status") {
-            OpportunityStatusRow(
-                progress = progress,
-                error = if (operationFailed) analysisError ?: stringResource(R.string.my_space_error) else analysisError,
-                onRetry = opportunities::analyze,
-                onCancel = opportunities::cancelAnalysis,
-                onDismiss = opportunities::clearError,
-                onOpenAll = onOpportunities,
-            )
-        }
-        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            OpportunityReadingItem(
-                item = item,
-                isCaptured = topicLinks[item.id] != null,
-                onOpen = { onOpportunity(item.id) },
-                onArticleClick = onArticleClick,
-                onTopicAction = {
-                    val topicId = topicLinks[item.id]
-                    if (topicId != null) onTopic(topicId) else capturingOpportunity = item
-                },
-            )
-        }
-        if (items.isEmpty()) item(key = "opportunity-empty") {
-            Column(Modifier.padding(vertical = Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(stringResource(R.string.my_space_no_pending), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    stringResource(
-                        if (!opportunityState.hasAnalysisContext) R.string.my_space_analyze_missing
-                        else R.string.my_space_no_pending_hint,
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().performanceContent(PerformanceResult.OK.takeIf { items.isNotEmpty() }),
+            contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.m, bottom = Height.navBar + Spacing.xxl),
+        ) {
+            item(key = "opportunity-status") {
+                OpportunityStatusRow(
+                    progress = progress,
+                    error = if (operationFailed) analysisError ?: stringResource(R.string.my_space_error) else analysisError,
+                    onRetry = opportunities::analyze,
+                    onCancel = opportunities::cancelAnalysis,
+                    onDismiss = opportunities::clearError,
+                    onOpenAll = onOpportunities,
                 )
             }
+            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                OpportunityReadingItem(
+                    item = item,
+                    isCaptured = topicLinks[item.id] != null,
+                    onOpen = { onOpportunity(item.id) },
+                    onArticleClick = onArticleClick,
+                    onTopicAction = {
+                        val topicId = topicLinks[item.id]
+                        if (topicId != null) onTopic(topicId) else capturingOpportunity = item
+                    },
+                    onIgnore = {
+                        opportunities.setIgnored(item.id, true)
+                        scope.launch {
+                            snackbarHostState.currentSnackbarData?.dismiss()
+                            val result = snackbarHostState.showSnackbar(
+                                message = ignoredToast,
+                                actionLabel = undoLabel,
+                                duration = SnackbarDuration.Short,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                opportunities.setIgnored(item.id, false)
+                            }
+                        }
+                    },
+                )
+            }
+            if (items.isEmpty()) item(key = "opportunity-empty") {
+                Column(Modifier.padding(vertical = Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    Text(stringResource(R.string.my_space_no_pending), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(
+                            if (!opportunityState.hasAnalysisContext) R.string.my_space_analyze_missing
+                            else R.string.my_space_no_pending_hint,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Height.navBar + Spacing.s),
+        )
     }
     capturingOpportunity?.let { opportunity ->
         val input = opportunityIdeaCaptureInput(opportunity)
@@ -205,14 +236,20 @@ internal fun OpportunityReadingItem(
     onOpen: () -> Unit,
     onArticleClick: (Long) -> Unit = {},
     onTopicAction: () -> Unit,
+    onIgnore: (() -> Unit)? = null,
 ) {
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        OpportunityReadingField(stringResource(R.string.news_focus_opportunity_point), opportunityText(item))
-        OpportunityReadingField(stringResource(R.string.news_focus_why_watch), opportunityWhyText(item))
-        OpportunityReadingField(stringResource(R.string.my_space_fact), opportunityEvidenceText(item))
+        Column(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OpportunityReadingField(stringResource(R.string.news_focus_opportunity_point), opportunityText(item))
+            OpportunityReadingField(stringResource(R.string.news_focus_why_watch), opportunityWhyText(item))
+            OpportunityReadingField(stringResource(R.string.my_space_fact), opportunityEvidenceText(item))
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(R.string.news_focus_news_basis) + " · " + item.article.title,
@@ -227,6 +264,19 @@ internal fun OpportunityReadingItem(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (onIgnore != null) {
+                TextButton(
+                    onClick = onIgnore,
+                    modifier = Modifier.heightIn(min = Height.touchTarget),
+                    contentPadding = PaddingValues(horizontal = Spacing.s),
+                ) {
+                    Text(
+                        stringResource(R.string.my_space_irrelevant),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             TextButton(
                 onClick = onTopicAction,
                 modifier = Modifier.heightIn(min = Height.touchTarget),

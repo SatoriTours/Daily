@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -78,6 +79,10 @@ internal fun TaskCenterTaskDetail(
     onAcknowledge: () -> Unit,
     onResumeAssistant: () -> Unit,
     onCancel: () -> Unit,
+    canRetry: Boolean = false,
+    onRetry: () -> Unit = {},
+    sourceTarget: TaskCenterSourceTarget? = null,
+    onOpenSourceTarget: ((TaskCenterSourceTarget) -> Unit)? = null,
     assistantResumeBlocked: Boolean,
     httpLog: String,
     captureState: TaskHttpCaptureState,
@@ -117,6 +122,15 @@ internal fun TaskCenterTaskDetail(
             TaskCenterHistoryCard(earlierRounds, expanded = showHistory) { showHistory = !showHistory }
         }
         item(key = "task-open-log") { TaskCenterNavRow(copy.detailOpenLog, copy.detailOpenLogHint, onOpenLog) }
+        if (sourceTarget != null && onOpenSourceTarget != null) {
+            item(key = "task-open-source") {
+                TaskCenterNavRow(
+                    title = copy.detailOpenSource,
+                    hint = source?.takeIf { it.isNotBlank() } ?: title,
+                    onClick = { onOpenSourceTarget(sourceTarget) },
+                )
+            }
+        }
         if (needsAttention && task.status == AsyncTaskStatus.failed.name) {
             item(key = "task-attention") {
                 Column(Modifier.padding(horizontal = Spacing.m)) {
@@ -226,6 +240,16 @@ internal fun TaskCenterTaskDetail(
                         uncollectedText = copy.viewerNotCollectedNote,
                         maxHeight = 420.dp,
                     )
+                }
+            }
+        }
+        if (canRetry) {
+            item(key = "task-retry-action") {
+                FilledTonalButton(
+                    onClick = onRetry,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                ) {
+                    Text(copy.detailRetry)
                 }
             }
         }

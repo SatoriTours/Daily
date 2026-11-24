@@ -132,6 +132,84 @@ class IdeaTopicSourceAdaptersTest {
     }
 
     @Test
+    fun articleCaptureKeepsStoredTextAndOptionalSummary() {
+        val input = articleIdeaCaptureInput(
+            articleId = 42L,
+            title = "  文章标题  ",
+            originalContent = "文章原始正文",
+            summary = "  AI 摘要正文  ",
+            url = "  https://example.com/article  ",
+            createdAt = 1_700L,
+        )
+
+        assertEquals(IdeaSourceKey(IdeaSourceTypes.Article, "42"), input.source.key)
+        assertEquals("文章标题", input.source.originalTitle)
+        assertEquals("文章原始正文", input.source.originalContent)
+        assertEquals(1_700L, input.source.originalCreatedAt)
+        assertEquals("42", input.source.originalRecordId)
+        assertEquals("https://example.com/article", input.source.originalUrl)
+        assertEquals("AI 摘要正文", input.source.analysisContent)
+        assertEquals("文章标题", input.content.title)
+        assertEquals("AI 摘要正文", input.content.description)
+        assertNull(input.targetTopicId)
+    }
+
+    @Test
+    fun articleCaptureFallsBackToStableKeysWithoutInventingAnalysis() {
+        val byUrl = articleIdeaCaptureInput(
+            articleId = null,
+            title = "标题",
+            originalContent = "正文",
+            summary = "   ",
+            url = " https://example.com/x ",
+        )
+        assertEquals(IdeaSourceKey(IdeaSourceTypes.Article, "https://example.com/x"), byUrl.source.key)
+        assertNull(byUrl.source.originalRecordId)
+        assertNull(byUrl.source.analysisContent)
+
+        val byTitle = articleIdeaCaptureInput(
+            articleId = 0L,
+            title = "  只靠标题  ",
+            originalContent = "正文",
+            sourceKeyId = "  stable-key  ",
+        )
+        assertEquals(IdeaSourceKey(IdeaSourceTypes.Article, "stable-key"), byTitle.source.key)
+        assertNull(byTitle.source.originalRecordId)
+
+        assertEquals(
+            IdeaSourceKey(IdeaSourceTypes.Article, "只靠标题"),
+            articleIdeaCaptureInput(articleId = 0L, title = " 只靠标题 ", originalContent = "").source.key,
+        )
+    }
+
+    @Test
+    fun articleCaptureRequiresSomeIdentityAndBoundsPrefilledContent() {
+        assertFailsWith<IllegalArgumentException> {
+            articleIdeaCaptureInput(articleId = null, title = "   ", originalContent = "正文")
+        }
+        val longSummary = "摘要".repeat(400)
+        val input = articleIdeaCaptureInput(
+            articleId = 1L,
+            title = "标".repeat(80),
+            originalContent = "正文",
+            summary = longSummary,
+        )
+        assertEquals(60, input.content.title.length)
+        assertEquals(500, input.content.description.length)
+        assertEquals(800, input.source.analysisContent!!.length)
+    }
+
+    @Test
+    fun articleCaptureNeverCollidesWithDiaryOrOpportunityKeys() {
+        val diary = Diary(42L, "内容", null, null, null, 1L, 1L, null)
+        assertEquals(IdeaSourceKey("diary", "42"), diaryIdeaCaptureInput(diary).source.key)
+        assertEquals(
+            IdeaSourceKey("article", "42"),
+            articleIdeaCaptureInput(articleId = 42L, title = "标题", originalContent = "正文").source.key,
+        )
+    }
+
+    @Test
     fun captureKeysAreStableAndDoNotCollideAcrossSourceTypes() {
         val diary = Diary(7L, "内容", null, null, null, 1L, 1L, null)
         val opportunity = NewsOpportunity(
@@ -150,5 +228,32 @@ class IdeaTopicSourceAdaptersTest {
         assertEquals(IdeaSourceKey("diary", "7"), diaryIdeaCaptureInput(diary).source.key)
         assertEquals(IdeaSourceKey("news_opportunity", "7"), opportunityIdeaCaptureInput(opportunity).source.key)
         assertTrue(diaryIdeaCaptureInput(diary).source.key != opportunityIdeaCaptureInput(opportunity).source.key)
+    }
+
+    @Test
+    fun localAndRemoteArticlesWithTheSameNumberKeepDistinctSourceKeys() {
+        val local = articleIdeaCaptureInput(articleId = 42L, title = "本地文章", originalContent = "正文")
+        val remote = articleIdeaCaptureInput(
+            articleId = null,
+            title = "远程文章",
+            originalContent = "正文",
+            sourceKeyId = "remote:42",
+        )
+
+        assertEquals(IdeaSourceKey(IdeaSourceTypes.Article, "42"), local.source.key)
+        assertEquals("42", local.source.originalRecordId)
+        assertEquals(IdeaSourceKey(IdeaSourceTypes.Article, "remote:42"), remote.source.key)
+        assertNull(remote.source.originalRecordId)
+        assertTrue(local.source.key != remote.source.key)
+    }
+
+    @Test
+    fun nonLocalArticleRejectsANamespaceFreeNumericSourceKey() {
+        assertFailsWith<IllegalArgumentException> {
+            articleIdeaCaptureInput(articleId = null, title = "远程文章", originalContent = "正文", sourceKeyId = " 42 ")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            articleIdeaCaptureInput(articleId = 0L, title = "远程文章", originalContent = "正文", sourceKeyId = "42")
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.dailysatori.core.service
 
 import com.dailysatori.core.worker.ArticleProcessingScheduler
+import com.dailysatori.data.repository.ArticleAiRepository
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.service.parser.WebpageParserService
 import io.ktor.http.ContentType
@@ -30,9 +31,13 @@ internal fun Route.setupArticleRoutes() {
             val limit = 20L
             val offset = (page - 1) * limit
             val favorites = call.request.queryParameters["favorites"] == "true"
-            val favoriteItems = if (favorites) repo.searchSync("").filter { (it.is_favorite ?: 0L) > 0L } else null
-            val articles = favoriteItems?.drop(offset.toInt())?.take(limit.toInt()) ?: repo.getPaginated(limit, offset).first()
-            val total = favoriteItems?.size?.toLong() ?: repo.count()
+            // Favorites page in SQL instead of pulling the whole table into memory.
+            val articles = if (favorites) {
+                repo.getFavoritesPaginated(limit, offset).first()
+            } else {
+                repo.getPaginated(limit, offset).first()
+            }
+            val total = if (favorites) repo.countFavorites() else repo.count()
             call.respondText(respondOk(buildJsonObject {
                 put("items", JsonArray(
                     articles.map { a -> buildJsonObject {
@@ -89,12 +94,20 @@ internal fun Route.setupArticleRoutes() {
             val id = call.parameters["id"]?.toLongOrNull() ?: 0L
             val a = repo.getById(id)
             if (a != null) {
+                val aiView = articleAiView(a)
+                val aiSummary = aiView?.summary?.takeIf { it.isNotBlank() }
+                val aiTranslation = aiView?.translation?.takeIf { it.isNotBlank() }
+                val remoteNews = a.source_type == ArticleRepository.SOURCE_REMOTE_NEWS
                 call.respondText(respondOk(buildJsonObject {
                     put("id", JsonPrimitive(a.id))
                     put("title", JsonPrimitive(a.title ?: ""))
                     put("url", JsonPrimitive(a.url ?: ""))
-                    put("aiContent", JsonPrimitive(a.ai_content ?: ""))
-                    put("aiMarkdownContent", JsonPrimitive(a.ai_markdown_content ?: ""))
+                    // Remote news keeps the smart-reading result authoritative while staying backward compatible.
+                    put("aiContent", JsonPrimitive(if (remoteNews) aiSummary ?: a.ai_content.orEmpty() else a.ai_content.orEmpty()))
+                    put("aiMarkdownContent",
+                        JsonPrimitive(if (remoteNews) aiTranslation ?: a.ai_markdown_content.orEmpty() else a.ai_markdown_content.orEmpty()))
+                    put("articleAiSummary", JsonPrimitive(aiSummary.orEmpty()))
+                    put("articleAiTranslation", JsonPrimitive(aiTranslation.orEmpty()))
                     put("originalMarkdownContent", JsonPrimitive(a.original_markdown_content ?: ""))
                     put("sourceType", JsonPrimitive(a.source_type))
                     put("aiTitle", JsonPrimitive(a.ai_title ?: ""))
@@ -194,6 +207,10 @@ internal fun Route.setupArticleRoutes() {
 
 private fun articleCoverUrl(localPath: String?, remoteUrl: String?): String =
     fileUrl(localPath?.takeIf { it.isNotBlank() } ?: remoteUrl)
+
+/** Smart-reading results are optional: an unregistered repository must not break the article API. */
+private fun articleAiView(article: com.dailysatori.shared.db.Article): com.dailysatori.data.repository.ArticleAiView? =
+    runCatching { get<ArticleAiRepository>(ArticleAiRepository::class.java).view(article) }.getOrNull()
 
 private fun articleSummary(article: com.dailysatori.shared.db.Article): JsonObject = buildJsonObject {
     put("id", JsonPrimitive(article.id))

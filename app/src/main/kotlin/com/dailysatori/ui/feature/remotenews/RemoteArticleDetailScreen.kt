@@ -3,8 +3,11 @@ package com.dailysatori.ui.feature.remotenews
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,18 +16,22 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Lightbulb
 import com.dailysatori.ui.theme.MoreActionsIcon
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,7 +46,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.dailysatori.core.service.ClipboardMonitorService
 import com.dailysatori.service.parser.normalizeArticleMarkdownImages
+import com.dailysatori.service.parser.tidyArticleTranslation
 import coil3.compose.AsyncImage
 import com.dailysatori.core.diagnostics.performanceImageModel
 import coil3.request.ImageRequest
@@ -48,6 +57,9 @@ import com.dailysatori.ui.component.news.ArticleReaderBody
 import com.dailysatori.ui.feature.article.ArticleOriginalMenuItem
 import com.dailysatori.ui.feature.article.ArticleOriginalMetadata
 import com.dailysatori.ui.feature.article.ArticleReadingTitle
+import com.dailysatori.ui.feature.article.ReadingNote
+import com.dailysatori.ui.feature.article.copyArticleUrl
+import com.dailysatori.ui.feature.article.hasPartialTranslation
 import com.dailysatori.ui.theme.SmartReadingIcon
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -57,7 +69,9 @@ import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.feature.article.ArticleAiReader
 import com.dailysatori.ui.feature.article.canRequestReading
 import com.dailysatori.service.articleai.ArticleAiMode
+import com.dailysatori.service.ideatopic.articleIdeaCaptureInput
 import com.dailysatori.ui.feature.article.remoteReadingRetry
+import com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureSheet
 import androidx.compose.material.icons.filled.Translate
 import com.dailysatori.ui.feature.article.ArticleAiReaderViewModel
 import com.dailysatori.ui.component.indicator.LoadingIndicator
@@ -86,9 +100,11 @@ fun RemoteArticleDetailScreen(
     sourceIdentity: String = article.domain ?: article.feedName.orEmpty(),
     localArticleId: Long? = null,
     sourceName: String? = null,
+    onTopic: ((String) -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     var showOriginalSheet by remember { mutableStateOf(false) }
+    var showCaptureSheet by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
     val aiViewModel: ArticleAiReaderViewModel? = if (localArticleId != null)
         koinViewModel(key = "ai-reader:$localArticleId") { parametersOf(localArticleId) } else null
@@ -97,7 +113,7 @@ fun RemoteArticleDetailScreen(
     val i18n = koinInject<I18nService>()
     val processSavedBody: () -> Unit = { aiViewModel?.request() }
     val retranslate: (() -> Unit)? = if (!busy && ai?.translation != null && !ai.original.isNullOrBlank() && ai.blocked.isEmpty())
-        ({ aiViewModel?.request(ArticleAiMode.TRANSLATION, redo = true) }) else null
+        ({ aiViewModel.request(ArticleAiMode.TRANSLATION, redo = true) }) else null
 
     BackHandler(onBack = onBack)
 
@@ -109,14 +125,10 @@ fun RemoteArticleDetailScreen(
                 enabled = !busy && ai?.canRequestReading() == true && ai.blocked.isEmpty(),
                 alwaysVisible = true, onClick = processSavedBody) else null,
             RemoteArticleDetailActions(
-                article = article,
-                sourceIdentity = sourceIdentity,
-                localArticleId = localArticleId,
-                isFavorite = isFavorite,
-                showFavoriteAction = showFavoriteAction,
-                onOriginalClick = { showOriginalSheet = true },
-                onFavoriteClick = onFavoriteClick,
-                onRetranslate = retranslate,
+                article = article, sourceIdentity = sourceIdentity, localArticleId = localArticleId,
+                isFavorite = isFavorite, showFavoriteAction = showFavoriteAction,
+                onOriginalClick = { showOriginalSheet = true }, onFavoriteClick = onFavoriteClick,
+                onCaptureIdeaClick = { showCaptureSheet = true }, onRetranslate = retranslate,
             )),
     ) { modifier ->
         if (ai != null) {
@@ -125,19 +137,14 @@ fun RemoteArticleDetailScreen(
                 else remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),
                 modifier, onRetry = remoteReadingRetry(ai, busy, processSavedBody, retranslate))
         } else Column(modifier = modifier.fillMaxSize()) {
-            RemoteArticleDetailPager(
-                article = article,
-                coverHeightDp = coverHeightDp,
-                onCoverHeightChange = { coverHeightDp = it },
-                density = density,
-            )
+            RemoteArticleDetailPager(article, coverHeightDp, { coverHeightDp = it }, density)
         }
     }
     if (showOriginalSheet) {
-        val source = listOfNotNull(sourceName, article.feedName, article.domain)
-            .filter(String::isNotBlank).joinToString(" · ").ifBlank { sourceIdentity }
-        RemoteArticleOriginalBottomSheet(article, source, onDismiss = { showOriginalSheet = false })
+        val source = listOfNotNull(sourceName, article.feedName, article.domain).filter(String::isNotBlank).joinToString(" · ").ifBlank { sourceIdentity }
+        RemoteArticleOriginalBottomSheet(article, source, ai?.translation, ai?.hasPartialTranslation() == true) { showOriginalSheet = false }
     }
+    if (showCaptureSheet) RemoteArticleIdeaCaptureSheet(article, localArticleId, ai?.original, ai?.summary, onTopic) { showCaptureSheet = false }
 }
 
 @Composable
@@ -149,6 +156,7 @@ private fun RemoteArticleDetailActions(
     showFavoriteAction: Boolean,
     onOriginalClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onCaptureIdeaClick: () -> Unit,
     onRetranslate: (() -> Unit)? = null,
 ): PageAction {
     val markRead = com.dailysatori.ui.feature.myspace.markNewsReadAction(article.toReadNewsArticle(sourceIdentity, localArticleId))
@@ -158,6 +166,12 @@ private fun RemoteArticleDetailActions(
         ArticleOriginalMenuItem(dismiss, onOriginalClick)
         com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem(markRead, dismiss)
         if (showFavoriteAction) RemoteArticleFavoriteMenuItem(isFavorite, closeMenu, onFavoriteClick)
+        RemoteArticleCopyLinkMenuItem(article.url, dismiss)
+        DropdownMenuItem(
+            text = { Text(i18n.t("article.capture_idea")) },
+            leadingIcon = { Icon(Icons.Default.Lightbulb, contentDescription = null) },
+            onClick = { dismiss(); onCaptureIdeaClick() },
+        )
         if (onRetranslate != null) DropdownMenuItem(
             text = { Text(i18n.t("article.retranslate")) },
             leadingIcon = { Icon(Icons.Default.Translate, null) },
@@ -168,17 +182,50 @@ private fun RemoteArticleDetailActions(
 }
 
 @Composable
+private fun RemoteArticleIdeaCaptureSheet(
+    article: RemoteArticle,
+    localArticleId: Long?,
+    aiOriginal: String?,
+    aiSummary: String?,
+    onTopic: ((String) -> Unit)?,
+    onDismiss: () -> Unit,
+) {
+    val input = remember(article, localArticleId, aiOriginal, aiSummary) {
+        articleIdeaCaptureInput(
+            articleId = localArticleId,
+            title = remoteArticleDisplayTitle(article),
+            originalContent = aiOriginal ?: article.content ?: article.summary.orEmpty(),
+            summary = aiSummary ?: article.summary,
+            url = article.url,
+            sourceKeyId = localArticleId?.takeIf { it > 0 }?.toString()
+                ?: article.id.takeIf { it > 0 }?.let { "remote:$it" },
+        )
+    }
+    IdeaTopicCaptureSheet(
+        source = input.source,
+        initialContent = input.content,
+        onCaptured = { topicId ->
+            onDismiss()
+            onTopic?.invoke(topicId)
+        },
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
 private fun RemoteArticleFavoriteMenuItem(
     isFavorite: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onFavoriteClick: () -> Unit,
 ) {
+    val i18n = koinInject<I18nService>()
+    val label = i18n.t(if (isFavorite) "article.unfavorite" else "article.favorite")
     DropdownMenuItem(
-        text = { Text(if (isFavorite) "取消收藏" else "收藏") },
+        text = { Text(label) },
         leadingIcon = {
             Icon(
                 if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                contentDescription = label,
                 tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
@@ -190,10 +237,27 @@ private fun RemoteArticleFavoriteMenuItem(
 }
 
 @Composable
+private fun RemoteArticleCopyLinkMenuItem(url: String?, dismiss: () -> Unit) {
+    val context = LocalContext.current
+    val i18n = koinInject<I18nService>()
+    val clipboardMonitor = koinInject<ClipboardMonitorService>()
+    DropdownMenuItem(
+        text = { Text(i18n.t("article.copy_link")) },
+        leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+        enabled = !url.isNullOrBlank(),
+        onClick = {
+            dismiss()
+            if (!url.isNullOrBlank()) copyArticleUrl(context, url, i18n, clipboardMonitor)
+        },
+    )
+}
+
+@Composable
 private fun RemoteArticleOpenMenuItem(article: RemoteArticle, onExpandedChange: (Boolean) -> Unit) {
     val context = LocalContext.current
+    val i18n = koinInject<I18nService>()
     DropdownMenuItem(
-        text = { Text("在浏览器打开") },
+        text = { Text(i18n.t("article.open_in_browser")) },
         leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
         onClick = {
             onExpandedChange(false)
@@ -257,22 +321,58 @@ private fun RemoteArticleDetailBody(article: RemoteArticle) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RemoteArticleOriginalBottomSheet(article: RemoteArticle, source: String?, onDismiss: () -> Unit) {
+private fun RemoteArticleOriginalBottomSheet(
+    article: RemoteArticle,
+    source: String?,
+    translation: String? = null,
+    partialTranslation: Boolean = false,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
     val i18n = koinInject<I18nService>()
+    val clipboardMonitor = koinInject<ClipboardMonitorService>()
+    val original = remember(article.content, article.coverUrl) {
+        remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl))
+    }
+    var showTranslation by remember(article.id, article.url) { mutableStateOf(false) }
+    val readableTranslation = remember(translation, article) {
+        translation?.let { tidyArticleTranslation(it, remoteArticleDisplayTitle(article)) }
+    }
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            i18n.t("article_ai.original_title"),
-            modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),
-            style = MaterialTheme.typography.titleLarge,
-        )
-        ArticleOriginalMetadata(source, article.url, remoteArticleMetaChips(article),
-            modifier = Modifier.padding(horizontal = Spacing.l))
-        Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
-            ArticleReaderBody(
-                content = remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),
-                typography = MarkdownStyles.remoteArticleTypography(),
-                padding = MarkdownStyles.remoteArticlePadding(),
-            )
+        LazyColumn(contentPadding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.s)) {
+            item {
+                Text(
+                    i18n.t(if (showTranslation && translation != null) "article_ai.translation_title" else "article_ai.original_title"),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                ArticleOriginalMetadata(source, article.url, remoteArticleMetaChips(article))
+                article.url?.takeIf { it.isNotBlank() }?.let { url ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        TextButton(onClick = { copyArticleUrl(context, url, i18n, clipboardMonitor) }, modifier = Modifier.weight(1f)) {
+                            Text(i18n.t("article.copy_link"))
+                        }
+                        TextButton(onClick = { openArticleUrl(context, url) }, modifier = Modifier.weight(1f)) {
+                            Text(i18n.t("article.open_in_browser"))
+                        }
+                    }
+                }
+                if (translation != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        FilterChip(selected = !showTranslation, onClick = { showTranslation = false },
+                            label = { Text(i18n.t("article_ai.original_title")) })
+                        FilterChip(selected = showTranslation, onClick = { showTranslation = true },
+                            label = { Text(i18n.t("article_ai.translation_title")) })
+                    }
+                }
+            }
+            item {
+                if (showTranslation && partialTranslation) ReadingNote("translate_excerpt_note")
+                ArticleReaderBody(
+                    content = if (showTranslation && readableTranslation != null) readableTranslation else original,
+                    typography = MarkdownStyles.remoteArticleTypography(),
+                    padding = if (showTranslation) MarkdownStyles.translationPadding() else MarkdownStyles.remoteArticlePadding(),
+                )
+            }
         }
     }
 }

@@ -87,10 +87,30 @@ class OpportunityReadingItemRenderTest {
         assertTrue(nodes.any { it.text() == "收为点子" })
         val capture = nodes.single { it.text() == "收为点子" }
         assertTrue(capture.boundsInRoot.width > 0)
-        val clickable = nodes.single { it.config.getOrNull(SemanticsActions.OnClick) != null &&
-            it.text().isBlank() }
-        clickable.config[SemanticsActions.OnClick].action!!.invoke()
+        val captureButton = generateSequence(capture) { it.parent }
+            .first { it.config.getOrNull(SemanticsActions.OnClick) != null }
+        captureButton.config[SemanticsActions.OnClick].action!!.invoke()
         assertEquals(1, captured)
+    }
+
+    @Test
+    fun opportunityItemSupportsDirectDetailOpenAndIgnoreAction() {
+        var opened = 0
+        var ignored = 0
+        val item = opportunity()
+        val nodes = render(item, onOpen = { opened++ }, onIgnore = { ignored++ })
+
+        val titleNode = nodes.single { it.text() == item.title }
+        val openRegion = generateSequence(titleNode) { it.parent }
+            .first { it.config.getOrNull(SemanticsActions.OnClick) != null }
+        openRegion.config[SemanticsActions.OnClick].action!!.invoke()
+        assertEquals(1, opened)
+
+        val ignoreNode = nodes.single { it.text() == "与我无关" }
+        val ignoreButton = generateSequence(ignoreNode) { it.parent }
+            .first { it.config.getOrNull(SemanticsActions.OnClick) != null }
+        ignoreButton.config[SemanticsActions.OnClick].action!!.invoke()
+        assertEquals(1, ignored)
     }
 
     @Test
@@ -119,7 +139,12 @@ class OpportunityReadingItemRenderTest {
         preview = OpportunityPreview("临时文本中转", "值得尝试", "无需安装的临时中转"),
     )
 
-    private fun render(item: NewsOpportunity, onTopicAction: () -> Unit = {}): List<SemanticsNode> {
+    private fun render(
+        item: NewsOpportunity,
+        onOpen: () -> Unit = {},
+        onTopicAction: () -> Unit = {},
+        onIgnore: (() -> Unit)? = null,
+    ): List<SemanticsNode> {
         val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible()
         controllers += controller
         val view = ComposeView(controller.get())
@@ -128,7 +153,13 @@ class OpportunityReadingItemRenderTest {
                 DailySatoriTheme {
                     Surface {
                         Column(Modifier.fillMaxWidth().padding(Spacing.m)) {
-                            OpportunityReadingItem(item, isCaptured = false, onOpen = {}, onTopicAction = onTopicAction)
+                            OpportunityReadingItem(
+                                item = item,
+                                isCaptured = false,
+                                onOpen = onOpen,
+                                onTopicAction = onTopicAction,
+                                onIgnore = onIgnore,
+                            )
                         }
                     }
                 }

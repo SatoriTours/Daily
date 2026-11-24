@@ -274,6 +274,9 @@ val viewModelModule: Module = module {
     viewModel {
         ShareDialogViewModel(
             articleRepo = get<ArticleRepository>(),
+            tagRepo = get(),
+            scheduler = get(),
+            parserService = get(),
         )
     }
     viewModel {
@@ -377,6 +380,7 @@ val viewModelModule: Module = module {
             scheduler = get(),
             remoteSourceRepository = get(),
             favoriteSourceRepository = get(),
+            articleAiQueue = get(),
         )
     }
     viewModel {

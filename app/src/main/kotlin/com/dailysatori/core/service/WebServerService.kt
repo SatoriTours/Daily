@@ -127,7 +127,9 @@ class WebServerService(private val ctx: Context) {
                 currentPort = port
                 log.i { "Web server started on port $port" }
                 return port
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                log.d(e) { "Port $port unavailable, trying next" }
+            }
         }
         throw IllegalStateException(
             "No available port in range ${WebServiceConfig.portRangeStart}-${WebServiceConfig.portRangeEnd}"
@@ -228,14 +230,20 @@ class WebServerService(private val ctx: Context) {
             try {
                 val sessions = get<SessionRepository>(SessionRepository::class.java)
                 if (sessions.getBySessionId(sessionId) != null) return true
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                // Never log the session id or cookie value.
+                log.w(e) { "Web auth lookup failed" }
+            }
         }
         if (token != null) {
             try {
                 val settings = get<SettingRepository>(SettingRepository::class.java)
                 val stored = settings.get("web_server_token")
                 if (stored != null && token == stored) return true
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                // Never log the bearer token value.
+                log.w(e) { "Web auth lookup failed" }
+            }
         }
         respondText(respondFail("Authentication required"), ContentType.Application.Json, HttpStatusCode.Unauthorized)
         return false

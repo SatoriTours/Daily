@@ -17,7 +17,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object ProfileFavoritesRoute
 @Serializable data object ProfileExternalFavoritesRoute
 @Serializable data object RemoteNewsSettingsRoute
-@Serializable data class TaskCenterRoute(val recentFailures: Boolean = false)
+@Serializable data class TaskCenterRoute(val recentFailures: Boolean = false, val initialType: String? = null)
 @Serializable data class ArticleDetailRoute(val articleId: Long)
 @Serializable data class NewsBriefingRoute(val summaryId: Long)
 @Serializable data object BookSearchRoute

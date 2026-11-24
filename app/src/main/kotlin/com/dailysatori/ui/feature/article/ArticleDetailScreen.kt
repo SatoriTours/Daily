@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
@@ -45,6 +46,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.ui.Alignment
 import com.dailysatori.service.articleai.ArticleAiMode
 import com.dailysatori.service.articleai.analyzeArticleBody
+import com.dailysatori.service.ideatopic.articleIdeaCaptureInput
+import com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureSheet
 import com.dailysatori.ui.feature.myspace.MarkNewsReadMenuItem
 import com.dailysatori.ui.feature.myspace.markNewsReadAction
 import androidx.compose.runtime.Composable
@@ -88,12 +91,14 @@ import java.io.File
 fun ArticleDetailScreen(
     articleId: Long,
     onBack: () -> Unit = {},
+    onTopic: ((String) -> Unit)? = null,
 ) {
     val visit = LocalUiVisit.current
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId, visit?.trace) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val density = LocalDensity.current
     var showOriginalSheet by remember { mutableStateOf(false) }
+    var showCaptureSheet by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
@@ -125,6 +130,7 @@ fun ArticleDetailScreen(
             onSmartReadClick = processSavedBody,
             onOriginalClick = openOriginal,
             onRetranslate = retranslate,
+            onCaptureIdeaClick = { showCaptureSheet = true },
             busy = state.isRefreshing || remoteBusy || !ai?.blocked.isNullOrEmpty() ||
                 state.refreshError == "paused_configuration",
             onRefreshClick = { showRefreshConfirm = true }, onDeleteClick = { showDeleteConfirm = true }),
@@ -179,6 +185,29 @@ fun ArticleDetailScreen(
                 ai?.hasPartialTranslation() == true, onDismiss = { showOriginalSheet = false })
         }
     }
+    if (showCaptureSheet) {
+        state.article?.let { article ->
+            val input = remember(article, ai) {
+                articleIdeaCaptureInput(
+                    articleId = article.id,
+                    title = articleMagazineTitle(article),
+                    originalContent = ai?.original ?: article.reusableOriginalBody() ?: article.ai_content.orEmpty(),
+                    summary = ai?.summary ?: article.ai_content,
+                    url = article.url,
+                    createdAt = article.pub_date ?: article.created_at,
+                )
+            }
+            IdeaTopicCaptureSheet(
+                source = input.source,
+                initialContent = input.content,
+                onCaptured = { topicId ->
+                    showCaptureSheet = false
+                    onTopic?.invoke(topicId)
+                },
+                onDismiss = { showCaptureSheet = false },
+            )
+        }
+    }
 }
 
 @Composable
@@ -221,6 +250,7 @@ private fun ArticleDetailActions(
     onSmartReadClick: () -> Unit,
     onOriginalClick: () -> Unit,
     onRetranslate: (() -> Unit)?,
+    onCaptureIdeaClick: () -> Unit,
     busy: Boolean,
     onRefreshClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -230,7 +260,7 @@ private fun ArticleDetailActions(
     return listOf(
         PageAction(i18n.t("article_ai.smart_reading"), SmartReadingIcon, iconSize = IconSize.l,
             alwaysVisible = true, enabled = canProcess, onClick = onSmartReadClick),
-        ArticleDetailOverflow(state, article, onFavoriteClick, onOriginalClick, onRetranslate, busy, onRefreshClick, onDeleteClick),
+        ArticleDetailOverflow(state, article, onFavoriteClick, onOriginalClick, onRetranslate, onCaptureIdeaClick, busy, onRefreshClick, onDeleteClick),
     )
 }
 
@@ -241,6 +271,7 @@ private fun ArticleDetailOverflow(
     onFavoriteClick: () -> Unit,
     onOriginalClick: () -> Unit,
     onRetranslate: (() -> Unit)?,
+    onCaptureIdeaClick: () -> Unit,
     busy: Boolean,
     onRefreshClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -263,6 +294,11 @@ private fun ArticleDetailOverflow(
                 dismiss()
                 copyArticleUrl(context, url, i18n, clipboardMonitor)
             }
+            DropdownMenuItem(
+                text = { Text(i18n.t("article.capture_idea")) },
+                leadingIcon = { Icon(Icons.Default.Lightbulb, contentDescription = null) },
+                onClick = { dismiss(); onCaptureIdeaClick() },
+            )
             if (onRetranslate != null) DropdownMenuItem(
                 text = { Text(i18n.t("article.retranslate")) },
                 leadingIcon = { Icon(Icons.Default.Translate, null) },
@@ -518,7 +554,7 @@ private fun canProcessLocalArticle(article: Article): Boolean {
     return mode?.summary == true || (mode?.translation == true && localReaderTranslation(article) == null)
 }
 
-private fun copyArticleUrl(context: Context, url: String, i18n: I18nService, monitor: ClipboardMonitorService) {
+internal fun copyArticleUrl(context: Context, url: String, i18n: I18nService, monitor: ClipboardMonitorService) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     monitor.markProcessed(url)
     clipboard.setPrimaryClip(ClipData.newPlainText(i18n.t("article.web_link"), url))

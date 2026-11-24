@@ -664,11 +664,7 @@ private fun SourceCard(
     onClick: () -> Unit,
 ) {
     val i18n: I18nService = koinInject()
-    val typeLabel = if (source.snapshot.key.type == IdeaSourceTypes.Diary) {
-        i18n.t("idea_topic.source_type_diary")
-    } else {
-        i18n.t("idea_topic.source_type_opportunity")
-    }
+    val typeLabel = i18n.t("idea_topic.${ideaSourceTypeLabelKey(source.snapshot.key.type)}")
 
     Surface(
         onClick = onClick,
@@ -1135,13 +1131,13 @@ internal fun IdeaSourceDetailDialog(
 ) {
     val context = LocalContext.current
     val i18n: I18nService = koinInject()
-    val isDiary = snapshot.key.type == IdeaSourceTypes.Diary
+    val sourceTypeLabel = i18n.t("idea_topic.${ideaSourceTypeLabelKey(snapshot.key.type)}")
     val hasUrl = snapshot.originalUrl?.startsWith("http://") == true || snapshot.originalUrl?.startsWith("https://") == true
     val hasLocalId = (snapshot.originalRecordId?.toLongOrNull() ?: 0) > 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(snapshot.originalTitle.ifBlank { i18n.t(if (isDiary) "idea_topic.source_type_diary" else "idea_topic.source_type_opportunity") }) },
+        title = { Text(snapshot.originalTitle.ifBlank { sourceTypeLabel }) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -1150,7 +1146,9 @@ internal fun IdeaSourceDetailDialog(
                 // Link availability or snapshot notice
                 if (hasUrl || hasLocalId) {
                     TextButton(onClick = {
-                        if (hasUrl) openArticleUrl(context, snapshot.originalUrl) else onOpenOriginal(snapshot)
+                        if (hasLocalId && snapshot.key.type == IdeaSourceTypes.Article) onOpenOriginal(snapshot)
+                        else if (hasUrl) openArticleUrl(context, snapshot.originalUrl)
+                        else onOpenOriginal(snapshot)
                     }) {
                         Text(i18n.t("idea_topic.open_original"))
                     }

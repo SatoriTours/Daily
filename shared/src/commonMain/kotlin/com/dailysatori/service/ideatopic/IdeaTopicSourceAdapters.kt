@@ -62,6 +62,50 @@ fun opportunityIdeaCaptureInput(opportunity: NewsOpportunity): IdeaCaptureInput 
     )
 }
 
+/**
+ * Article capture: the stored title and body are the snapshot, the AI summary stays optional analysis.
+ * Callers pass whatever the article UI already holds; nothing is fetched or invented here.
+ */
+fun articleIdeaCaptureInput(
+    articleId: Long?,
+    title: String,
+    originalContent: String,
+    summary: String? = null,
+    url: String? = null,
+    createdAt: Long? = null,
+    sourceKeyId: String? = null,
+): IdeaCaptureInput {
+    val cleanTitle = title.trim()
+    val cleanUrl = url?.trim()?.takeIf { it.isNotBlank() }
+    val cleanSummary = summary?.trim()?.takeIf { it.isNotBlank() }
+    val localRecordId = articleId?.takeIf { it > 0 }?.toString()
+    val keyId = sourceKeyId?.trim()?.takeIf { it.isNotBlank() }
+        ?: localRecordId
+        ?: cleanUrl
+        ?: cleanTitle
+    require(keyId.isNotBlank()) { "Article needs an id, url or title before it can be captured" }
+    // A non-local article must never reuse a bare local id as its source key, or a local article
+    // with the same number would share its capture identity and assistant privacy verdict.
+    require(localRecordId != null || keyId.any { !it.isDigit() }) {
+        "A non-local article needs a namespaced source key such as remote:42"
+    }
+    return IdeaCaptureInput(
+        source = IdeaSourceSnapshot(
+            key = IdeaSourceKey(IdeaSourceTypes.Article, keyId),
+            originalTitle = cleanTitle,
+            originalContent = originalContent,
+            originalCreatedAt = createdAt,
+            originalRecordId = localRecordId,
+            originalUrl = cleanUrl,
+            analysisContent = cleanSummary,
+        ),
+        content = IdeaTopicContent(
+            title = cleanTitle.take(60),
+            description = cleanSummary.orEmpty().take(500),
+        ),
+    )
+}
+
 private fun diaryInitialTitle(content: String): String =
     content.lineSequence().map { it.trim() }.firstOrNull { it.isNotBlank() }?.let {
         if (it.length <= DiaryTitleLimit) it else it.take(DiaryTitleLimit)

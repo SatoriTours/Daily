@@ -64,9 +64,16 @@ import kotlinx.datetime.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
+fun TaskCenterScreen(
+    onBack: () -> Unit,
+    recentFailures: Boolean = false,
+    initialType: String? = null,
+    onOpenArticle: ((Long) -> Unit)? = null,
+    onOpenRemoteNewsSettings: (() -> Unit)? = null,
+    onOpenOpportunities: (() -> Unit)? = null,
+) {
     val viewModel: TaskCenterViewModel = koinViewModel()
-    LaunchedEffect(viewModel, recentFailures) { viewModel.applyEntryFilter(recentFailures) }
+    LaunchedEffect(viewModel, recentFailures, initialType) { viewModel.applyEntryFilter(recentFailures, initialType) }
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val bulkCancel = viewModel.bulkCancel.collectAsStateWithLifecycle().value
     val selected = state.selectedTask
@@ -121,24 +128,37 @@ fun TaskCenterScreen(onBack: () -> Unit, recentFailures: Boolean = false) {
                 filter = logFilter,
                 modifier = modifier.performanceTab(PerformanceScreen.TASK_LOG, PerformanceResult.OK, task.id),
             )
-            task != null -> TaskCenterTaskDetail(
-                task = task,
-                title = taskCenterTaskName(task.type),
-                source = taskCenterTaskSource(task.type, task.payload_json, state.sourceNames),
-                taskLog = state.taskLog,
-                failureSuperseded = state.selectedFailureSuperseded,
-                needsAttention = state.attentionTasks.any { it.id == task.id },
-                onAcknowledge = { viewModel.acknowledgeFailure(task.id, task.updated_at) },
-                onResumeAssistant = { viewModel.resumeAssistantBackground(task.id) },
-                onCancel = { viewModel.cancel(task.id) },
-                assistantResumeBlocked = state.assistantResumeBlocked,
-                httpLog = state.httpLog,
-                captureState = state.captureState,
-                onArmCapture = { viewModel.armCapture(task.id, task.type) },
-                onDisarmCapture = { viewModel.disarmCapture(task.id) },
-                onOpenLog = { logOpen = true },
-                modifier = modifier.performanceTab(PerformanceScreen.TASK_DETAIL, PerformanceResult.OK, task.id),
-            )
+            task != null -> {
+                val sourceTarget = taskCenterSourceTarget(task.type, task.payload_json)
+                val openSourceTarget: ((TaskCenterSourceTarget) -> Unit)? = when (sourceTarget) {
+                    is TaskCenterSourceTarget.Article -> onOpenArticle?.let { open -> { open(sourceTarget.articleId) } }
+                    TaskCenterSourceTarget.RemoteNewsSettings -> onOpenRemoteNewsSettings?.let { open -> { open() } }
+                    TaskCenterSourceTarget.Opportunities -> onOpenOpportunities?.let { open -> { open() } }
+                    null -> null
+                }
+                TaskCenterTaskDetail(
+                    task = task,
+                    title = taskCenterTaskName(task.type),
+                    source = taskCenterTaskSource(task.type, task.payload_json, state.sourceNames),
+                    taskLog = state.taskLog,
+                    failureSuperseded = state.selectedFailureSuperseded,
+                    needsAttention = state.attentionTasks.any { it.id == task.id },
+                    onAcknowledge = { viewModel.acknowledgeFailure(task.id, task.updated_at) },
+                    onResumeAssistant = { viewModel.resumeAssistantBackground(task.id) },
+                    onCancel = { viewModel.cancel(task.id) },
+                    canRetry = taskCenterCanRetry(task, state.selectedFailureSuperseded),
+                    onRetry = { viewModel.retryTask(task) },
+                    sourceTarget = sourceTarget,
+                    onOpenSourceTarget = openSourceTarget,
+                    assistantResumeBlocked = state.assistantResumeBlocked,
+                    httpLog = state.httpLog,
+                    captureState = state.captureState,
+                    onArmCapture = { viewModel.armCapture(task.id, task.type) },
+                    onDisarmCapture = { viewModel.disarmCapture(task.id) },
+                    onOpenLog = { logOpen = true },
+                    modifier = modifier.performanceTab(PerformanceScreen.TASK_DETAIL, PerformanceResult.OK, task.id),
+                )
+            }
             else -> TaskCenterTaskList(state = state, viewModel = viewModel, modifier = modifier)
         }
     }

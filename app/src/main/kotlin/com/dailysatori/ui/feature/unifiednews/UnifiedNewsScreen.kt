@@ -113,7 +113,7 @@ fun UnifiedNewsScreen(
         viewModel.closeSourceDetail()
     }
 
-    if (MeasuredUnifiedNewsDetailRoute(state, viewModel)) return
+    if (MeasuredUnifiedNewsDetailRoute(state, viewModel, onTopic)) return
 
     UnifiedNewsMainPageRoute(
         state = state,
@@ -130,7 +130,11 @@ fun UnifiedNewsScreen(
 }
 
 @Composable
-internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
+internal fun UnifiedNewsDetailRoute(
+    state: UnifiedNewsState,
+    viewModel: UnifiedNewsViewModel,
+    onTopic: ((String) -> Unit)? = null,
+): Boolean {
     val hotItem = state.selectedHotNews
     if (hotItem != null) {
         val owner = LocalUiVisit.current?.trace
@@ -156,6 +160,7 @@ internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedN
                 isFavorite = state.selectedRemoteArticleIsFavorite,
                 showFavoriteAction = true,
                 onFavoriteClick = viewModel::toggleSelectedRemoteArticleFavorite,
+                onTopic = onTopic,
             )
         }
         return true
@@ -191,13 +196,17 @@ internal fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedN
 }
 
 @Composable
-private fun MeasuredUnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel): Boolean {
+private fun MeasuredUnifiedNewsDetailRoute(
+    state: UnifiedNewsState,
+    viewModel: UnifiedNewsViewModel,
+    onTopic: ((String) -> Unit)? = null,
+): Boolean {
     val visible = state.selectedHotNews != null || state.selectedRemoteArticle != null || state.selectedRemoteDigest != null ||
         (state.navigationTarget != null && (state.isLoading || state.error != null))
     if (!visible) return false
     val key = state.navigationTarget ?: state.selectedHotNews ?: PerformanceScreen.NEWS_DETAIL
     val visit = rememberUiVisit(PerformanceScreen.NEWS_DETAIL, key)
-    MeasuredUi(visit) { UnifiedNewsDetailRoute(state, viewModel) }
+    MeasuredUi(visit) { UnifiedNewsDetailRoute(state, viewModel, onTopic) }
     return true
 }
 

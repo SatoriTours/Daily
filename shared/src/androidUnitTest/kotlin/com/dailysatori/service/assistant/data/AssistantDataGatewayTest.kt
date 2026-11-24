@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.service.assistant.AssistantPrivacyRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
@@ -116,6 +117,156 @@ class AssistantDataGatewayTest {
                 { app.cash.sqldelight.db.QueryResult.Value(it.let { cursor -> cursor.next().value; cursor.getString(0) }) }, 0).value
             assertEquals(secret, raw) // Model projections must not mutate the user's original input.
             assertTrue(data.read("diary", "1")["ok"]!!.jsonPrimitive.boolean)
+        }
+    }
+
+    @Test
+    fun articleContentPrefersLatestTranslationThenSummaryThenLegacyColumns() = runBlocking<Unit> {
+        withGateway { data, driver ->
+            driver.execute(null, "INSERT INTO article(id,title,ai_content,ai_markdown_content,original_markdown_content,created_at,updated_at) " +
+                "VALUES (1,'标题','旧 AI 摘要','旧 AI 正文','原始正文',1,1)", 0)
+            assertEquals("旧 AI 正文", articleContent(data, 1))
+            // A source row without any result must not hide the legacy columns.
+            driver.execute(null, "INSERT INTO article_ai_source(article_id,body_hash,body_kind,cache_hits) VALUES (1,'hash','remote',0)", 0)
+            assertEquals("旧 AI 正文", articleContent(data, 1))
+            insertResult(driver, "summary", 1, "摘要一版")
+            assertEquals("摘要一版", articleContent(data, 1))
+            insertResult(driver, "translation", 1, "译文一版")
+            assertEquals("译文一版", articleContent(data, 1))
+            insertResult(driver, "translation", 3, "译文三版")
+            assertEquals("译文三版", articleContent(data, 1))
+            // An empty newer row never wins over a real older one.
+            insertResult(driver, "summary", 9, "")
+            assertEquals("译文三版", articleContent(data, 1))
+            assertEquals(1, data.search("译文三版", sources = listOf("article"))["rows"]!!.jsonArray.size)
+            // The article source keeps its safe field boundary.
+            assertFalse(data.query(AssistantQuery("article", fields = listOf("url")))["ok"]!!.jsonPrimitive.boolean)
+        }
+    }
+
+    @Test
+    fun opportunityItemsExposeAnalysisTextOnlyAndHonourDefaultPrivacy() = runBlocking<Unit> {
+        withGateway { data, driver ->
+            val analysis = Json.encodeToString(
+                com.dailysatori.service.opportunity.OpportunityDraft(
+                    title = "机会标题", category = "产品", fact = "事实正文", relevance = "相关性",
+                    action = "建议行动", caveat = "风险提示", quote = "原文引用",
+                    preview = com.dailysatori.service.opportunity.OpportunityPreview("短标题", "值得关注", "可尝试开发"),
+                ),
+            )
+            driver.execute(null, "INSERT INTO opportunity_source(id,payload_json) " +
+                "VALUES ('src-1','{\"title\":\"原始标题\",\"url\":\"https://secret.example.test/a\"}')", 0)
+            driver.execute(null, "INSERT INTO opportunity_item(id,identity,source_id,position,created_at,saved,ignored,saved_at,analysis_json) " +
+                "VALUES ('opp-1','identity-1','src-1',0,123,1,0,NULL,?)", 1) { bindString(0, analysis) }
+
+            val sources = data.catalog()["sources"]!!.jsonArray.map { it.jsonObject["source"]!!.jsonPrimitive.content }
+            assertTrue(sources.contains("opportunity_item"))
+
+            val row = data.query(AssistantQuery("opportunity_item"))["rows"]!!.jsonArray.single().jsonObject
+            assertEquals("机会标题", row["title"]!!.jsonPrimitive.content)
+            assertEquals("事实正文", row["fact"]!!.jsonPrimitive.content)
+            assertEquals("可尝试开发", row["opportunity"]!!.jsonPrimitive.content)
+            assertEquals("值得关注", row["reason"]!!.jsonPrimitive.content)
+            assertEquals(1, row["saved"]!!.jsonPrimitive.int)
+
+            val read = data.read("opportunity_item", "opp-1")
+            assertTrue(read["ok"]!!.jsonPrimitive.boolean)
+            val content = read["content"]!!.jsonPrimitive.content
+            assertTrue(content.contains("机会标题") && content.contains("风险提示") && content.contains("原文引用"))
+            assertFalse(read.toString().contains("secret.example.test"), "raw opportunity payload stays closed")
+
+            assertEquals(1, data.search("机会标题", sources = listOf("opportunity_item"))["rows"]!!.jsonArray.size)
+            assertEquals(1, data.aggregate(AssistantAggregate("opportunity_item"))["rows"]!!.jsonArray
+                .single().jsonObject["count"]!!.jsonPrimitive.int)
+
+            AssistantPrivacyRepository(driver).exclude("opportunity_item", "opp-1")
+            assertEquals(0, data.query(AssistantQuery("opportunity_item"))["rows"]!!.jsonArray.size)
+            assertEquals(0, data.search("机会标题", sources = listOf("opportunity_item"))["rows"]!!.jsonArray.size)
+            assertFalse(data.read("opportunity_item", "opp-1")["ok"]!!.jsonPrimitive.boolean)
+        }
+    }
+
+    @Test
+    fun articleBackedIdeaTopicsFollowPrivacyAndArticleDeletion() = runBlocking<Unit> {
+        withGateway { data, driver ->
+            driver.execute(null, "INSERT INTO article(id,title,created_at,updated_at) VALUES (5,'来源文章',1,1)", 0)
+            insertIdeaTopic(driver, "topic-article", "article", "5")
+            insertIdeaTopic(driver, "topic-opportunity", "news_opportunity", "opp-unrelated")
+            assertEquals(2, data.query(AssistantQuery("idea_topic"))["rows"]!!.jsonArray.size)
+
+            AssistantPrivacyRepository(driver).exclude("article", "5")
+            val afterExclusion = data.query(AssistantQuery("idea_topic"))["rows"]!!.jsonArray
+                .map { it.jsonObject["id"]!!.jsonPrimitive.content }
+            assertEquals(listOf("topic-opportunity"), afterExclusion)
+            assertFalse(data.read("idea_topic", "topic-article")["ok"]!!.jsonPrimitive.boolean)
+        }
+        withGateway { data, driver ->
+            driver.execute(null, "INSERT INTO article(id,title,created_at,updated_at) VALUES (6,'将被删除',1,1)", 0)
+            insertIdeaTopic(driver, "topic-deleted", "article", "6")
+            assertEquals(1, data.query(AssistantQuery("idea_topic"))["rows"]!!.jsonArray.size)
+            driver.execute(null, "DELETE FROM article WHERE id=6", 0)
+            assertEquals(0, data.query(AssistantQuery("idea_topic"))["rows"]!!.jsonArray.size)
+            assertEquals(0, data.search("主题", sources = listOf("idea_topic"))["rows"]!!.jsonArray.size)
+        }
+    }
+
+    @Test
+    fun remoteOnlyIdeaTopicsStayVisibleWhateverHappensToLocalArticleIds() = runBlocking<Unit> {
+        withGateway { data, driver ->
+            insertIdeaTopic(driver, "topic-remote", "article", "remote:42")
+            assertEquals(listOf("topic-remote"), topicIds(data))
+
+            // A local article reusing the same number must never decide a remote snapshot's visibility.
+            driver.execute(null, "INSERT INTO article(id,title,created_at,updated_at) VALUES (42,'本地文章',1,1)", 0)
+            assertEquals(listOf("topic-remote"), topicIds(data))
+            AssistantPrivacyRepository(driver).exclude("article", "42")
+            assertEquals(listOf("topic-remote"), topicIds(data))
+            driver.execute(null, "DELETE FROM article WHERE id=42", 0)
+            assertEquals(listOf("topic-remote"), topicIds(data))
+
+            assertTrue(data.read("idea_topic", "topic-remote")["ok"]!!.jsonPrimitive.boolean)
+            assertEquals(1, data.search("主题", sources = listOf("idea_topic"))["rows"]!!.jsonArray.size)
+        }
+    }
+
+    @Test
+    fun ideaTopicWithBlankRecordIdIsNotMatchedAgainstLocalArticles() = runBlocking<Unit> {
+        withGateway { data, driver ->
+            insertIdeaTopic(driver, "topic-blank", "article", "")
+            assertEquals(listOf("topic-blank"), topicIds(data))
+
+            // A blank record id can never mean "local article", so local rows never decide its fate.
+            driver.execute(null, "INSERT INTO article(id,title,created_at,updated_at) VALUES (42,'本地文章',1,1)", 0)
+            AssistantPrivacyRepository(driver).exclude("article", "42")
+            driver.execute(null, "DELETE FROM article WHERE id=42", 0)
+            assertEquals(listOf("topic-blank"), topicIds(data))
+        }
+    }
+
+    private suspend fun articleContent(data: AssistantDataGateway, articleId: Long): String =
+        data.read("article", articleId.toString())["content"]!!.jsonPrimitive.content
+
+    private fun insertResult(driver: JdbcSqliteDriver, kind: String, version: Long, markdown: String) {
+        driver.execute(null, "INSERT INTO article_ai_result(body_hash,kind,version,target,markdown,partial) VALUES ('hash',?,?,'zh',?,0)", 3) {
+            bindString(0, kind); bindLong(1, version); bindString(2, markdown)
+        }
+    }
+
+    private suspend fun topicIds(data: AssistantDataGateway): List<String> =
+        data.query(AssistantQuery("idea_topic"))["rows"]!!.jsonArray
+            .map { it.jsonObject["id"]!!.jsonPrimitive.content }
+
+    private fun insertIdeaTopic(driver: JdbcSqliteDriver, topicId: String, sourceType: String, recordId: String) {
+        driver.execute(null, "INSERT INTO idea_source_snapshot(id,format_version,payload_json,sha256,created_at) VALUES (?,1,'{}','sha',1)", 1) {
+            bindString(0, "snap-" + topicId)
+        }
+        driver.execute(null, "INSERT INTO idea_topic(id,title,status,created_at,updated_at) VALUES (?,'主题','pending_research',1,1)", 1) {
+            bindString(0, topicId)
+        }
+        driver.execute(null, "INSERT INTO idea_topic_source(id,topic_id,original_topic_id,source_type,source_record_id,snapshot_id,captured_at,created_at,updated_at) " +
+            "VALUES (?,?,?,?,?,?,1,1,1)", 6) {
+            bindString(0, "src-" + topicId); bindString(1, topicId); bindString(2, topicId)
+            bindString(3, sourceType); bindString(4, recordId); bindString(5, "snap-" + topicId)
         }
     }
 

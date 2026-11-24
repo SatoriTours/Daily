@@ -389,6 +389,8 @@ fun DiaryEditorSheet(
         )
     }
 
+    val mediaImportFailedMsg = koinInject<I18nService>().t("diary.media_import_failed")
+
     fun saveMedia(uri: Uri, ext: String) {
         try {
             val mimeType = context.contentResolver.getType(uri)
@@ -405,7 +407,10 @@ fun DiaryEditorSheet(
                 destFile.outputStream().use { output -> input.copyTo(output) }
             }
             images.add("diary_images/$fileName")
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            com.dailysatori.core.diagnostics.SafeAndroidLog.w("DiaryEditorSheet", "Failed to save picked media", e)
+            android.widget.Toast.makeText(context, mediaImportFailedMsg, android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     val tempPhotoUri = remember {

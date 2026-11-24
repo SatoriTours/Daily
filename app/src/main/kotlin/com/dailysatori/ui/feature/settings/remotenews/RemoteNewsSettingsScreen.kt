@@ -75,6 +75,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.remotenews.RemoteFeedHistoryStatus
 import com.dailysatori.service.remotenews.RemoteFeedHistoryStrategy
 import com.dailysatori.shared.db.Remote_news_source
@@ -84,16 +85,25 @@ import com.dailysatori.ui.component.settings.matchesSettingsQuery
 import com.dailysatori.ui.component.settings.SettingsSearchEmptyState
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
-fun RemoteNewsSettingsScreen(onBack: () -> Unit) {
+fun RemoteNewsSettingsScreen(
+    onBack: () -> Unit,
+    onOpenArticleAiTasks: (() -> Unit)? = null,
+) {
     val viewModel: RemoteNewsSettingsViewModel = koinViewModel()
     val state = viewModel.state.collectAsStateWithLifecycle().value
 
     if (state.isEditing) {
         RemoteNewsSourceEditorPage(state = state, viewModel = viewModel)
     } else {
-        RemoteNewsSourceListPage(state = state, viewModel = viewModel, onBack = onBack)
+        RemoteNewsSourceListPage(
+            state = state,
+            viewModel = viewModel,
+            onBack = onBack,
+            onOpenArticleAiTasks = onOpenArticleAiTasks,
+        )
     }
 }
 
@@ -102,8 +112,10 @@ private fun RemoteNewsSourceListPage(
     state: RemoteNewsSettingsState,
     viewModel: RemoteNewsSettingsViewModel,
     onBack: () -> Unit,
+    onOpenArticleAiTasks: (() -> Unit)?,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    val i18n = koinInject<I18nService>()
     val visibleSources = state.sources.filter { matchesSettingsQuery(query, it.name, it.base_url) }
     val snackbarHost = remember { SnackbarHostState() }
     LaunchedEffect(state.message) {
@@ -128,13 +140,12 @@ private fun RemoteNewsSourceListPage(
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 item { RemoteNewsSyncSummary(state) }
-                item { ArticleAiHistoryControls() }
                 item {
                     EmptyState(
                         icon = Icons.Default.Add,
-                        title = "暂无远程新闻",
-                        subtitle = "点击右上角新增远程新闻源",
-                        actionLabel = "新增远程新闻",
+                        title = i18n.t("remote_news_settings.empty_title"),
+                        subtitle = i18n.t("remote_news_settings.empty_subtitle"),
+                        actionLabel = i18n.t("remote_news_settings.add_action"),
                         onAction = viewModel::openAdd,
                     )
                 }
@@ -146,7 +157,7 @@ private fun RemoteNewsSourceListPage(
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
                 item { RemoteNewsSyncSummary(state) }
-                item { ArticleAiHistoryControls() }
+                item { ArticleAiHistoryControls(onOpenTasks = onOpenArticleAiTasks) }
                 item { RemoteNewsSourceListHeader(state.sources.size) }
                 items(visibleSources, key = { it.id }) { source ->
                     RemoteNewsSourceRow(

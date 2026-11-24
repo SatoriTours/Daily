@@ -605,6 +605,7 @@ article.copy_link	复制链接
 article.web_link	网页链接
 article.link_copied	链接已复制
 article.open_in_browser	在浏览器打开
+article.capture_idea	收入创意主题
 article.delete_article	删除文章
 article.delete_article_note	确定要删除这篇文章吗？
 article.mark_read	标为已读
@@ -1361,6 +1362,7 @@ idea_topic.sources_header	关联来源
 idea_topic.events_header	事件时间线
 idea_topic.source_type_diary	日记
 idea_topic.source_type_opportunity	产品机会
+idea_topic.source_type_article	文章
 idea_topic.source_snapshot_title	原始快照
 idea_topic.source_analysis_title	AI 分析快照
 idea_topic.source_unavailable	原文链接已失效，展示收录快照
@@ -1612,3 +1614,31 @@ article_ai.resume_queue	修正配置后恢复队列
 article_ai.ready	摘要已就绪
 article_ai.force_menu	强制中文总结
 article_ai.refresh_note	刷新会重新获取原文，并用 AI 处理已保存的内容；抓取失败时保留已保存内容。
+article_ai.view_tasks	查看任务
+article_ai.history_running	运行中
+article_ai.history_paused	已暂停
+article_ai.history_idle	待命
+article_ai.history_empty	暂无待处理历史文章
+article_ai.history_recount	重新统计
+share.save_title	保存链接
+share.update_title	更新文章
+share.cancel	取消
+share.save	保存
+share.save_changes	保存更改
+share.link	链接
+share.ai_analysis	AI 分析
+share.title	标题
+share.title_placeholder	留空时自动提取网页标题
+share.tags	标签
+share.tag_placeholder	输入标签后回车或点击添加
+share.add_tag	添加标签
+share.remove_tag	移除标签
+share.comment	备注
+share.comment_placeholder	记录收藏原因或阅读想法
+share.optional	(可选)
+share.load_failed	读取链接信息失败
+share.save_failed	保存失败，请重试
+remote_news_settings.empty_title	暂无远程新闻
+remote_news_settings.empty_subtitle	点击右上角新增远程新闻源
+remote_news_settings.add_action	新增远程新闻
+diary.media_import_failed	媒体导入失败，请重试

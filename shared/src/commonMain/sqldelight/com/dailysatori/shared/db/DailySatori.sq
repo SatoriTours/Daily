@@ -991,6 +991,9 @@ LIMIT 1;
 selectArticlesPaginated:
 SELECT * FROM article ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
+selectFavoriteArticlesPaginated:
+SELECT * FROM article WHERE is_favorite = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
 selectLocalArticlesPaginated:
 SELECT * FROM article WHERE source_type != 'remote_news' ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
@@ -1200,6 +1203,9 @@ updateArticle:
 UPDATE article SET title = ?, ai_title = ?, ai_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
 WHERE id = ?;
 
+updateArticleUserMetadata:
+UPDATE article SET title = COALESCE(?, title), comment = ?, updated_at = ? WHERE id = ?;
+
 markArticleFavoriteByUrl:
 UPDATE article SET
     title = COALESCE(NULLIF(title, ''), ?),
@@ -1260,6 +1266,9 @@ UPDATE article SET is_favorite = CASE WHEN is_favorite = 1 THEN 0 ELSE 1 END, up
 
 articleCount:
 SELECT COUNT(*) FROM article;
+
+favoriteArticleCount:
+SELECT COUNT(*) FROM article WHERE is_favorite = 1;
 
 -- Async task queries
 selectAsyncTaskById:

@@ -17,6 +17,7 @@ enum class IdeaTopicStatus(val storageValue: String) {
 
 object IdeaSourceTypes {
     const val Diary = "diary"
+    const val Article = "article"
     const val NewsOpportunity = "news_opportunity"
 }
 
