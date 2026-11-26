@@ -627,7 +627,8 @@ class AiChatUiStateTest {
         assertFalse(banner.contains("my_space_default_context"))
         assertFalse(banner.contains("my_space_no_context"))
         assertFalse(banner.contains("my_space_ai"))
-        assertTrue(banner.contains("IconButton(onClick = onRemove)"))
+        // 允许附加 modifier 等命名参数，但移除回调必须精确绑定 onRemove。
+        assertTrue(Regex("""\bIconButton\(\s*onClick\s*=\s*onRemove\s*(?:,|\))""").containsMatchIn(banner))
         assertTrue(banner.contains("maxLines = 2"))
     }
 
