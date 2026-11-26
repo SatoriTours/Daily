@@ -27,6 +27,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.sql.Driver
+import java.sql.DriverManager
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -56,6 +58,7 @@ class ShareDialogViewModelTest {
             context,
             Configuration.Builder().setMinimumLoggingLevel(Log.ERROR).setExecutor(SynchronousExecutor()).build(),
         )
+        ensureSqliteDriverRegistered()
         driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)
         db = DailySatoriDatabase(driver)
@@ -70,9 +73,29 @@ class ShareDialogViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        ioExecutor.shutdownNow()
-        mainExecutor.shutdownNow()
-        driver.close()
+        // setUp 失败时 lateinit 尚未赋值，不能再用第二个异常盖住真正的失败原因。
+        if (::ioExecutor.isInitialized) ioExecutor.shutdownNow()
+        if (::mainExecutor.isInitialized) mainExecutor.shutdownNow()
+        if (::driver.isInitialized) driver.close()
+    }
+
+    /**
+     * 本类跑在 Robolectric 沙箱里，而普通用例在测试类加载器里解析 JDBC 驱动；[DriverManager] 的
+     * 驱动扫描只在 JVM 首次连接时执行一次，若那次实例来自随后被销毁的类加载器，后续连接会以
+     * "No suitable driver" 失败，结果取决于测试类执行顺序。这里给两种类加载器各注册一次，任一
+     * 首次连接都能拿到可用的 jdbc:sqlite 驱动；全部失败时明确报出原因，而不是只暴露连接错误。
+     */
+    private fun ensureSqliteDriverRegistered() {
+        val loaders = listOfNotNull(ClassLoader.getSystemClassLoader(), javaClass.classLoader).distinct()
+        val failures = loaders.mapNotNull { loader ->
+            runCatching {
+                val type = Class.forName("org.sqlite.JDBC", true, loader)
+                DriverManager.registerDriver(type.getDeclaredConstructor().newInstance() as Driver)
+            }.exceptionOrNull()
+        }
+        check(failures.size < loaders.size) {
+            "无法为 jdbc:sqlite 注册 JDBC 驱动：" + failures.joinToString { it.toString() }
+        }
     }
 
     private fun viewModel() = ShareDialogViewModel(

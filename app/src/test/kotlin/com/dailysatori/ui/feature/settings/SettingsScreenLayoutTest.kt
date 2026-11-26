@@ -37,8 +37,12 @@ class SettingsScreenLayoutTest {
     @Test
     fun settingsDirectlyOwnSourceAndPrivacyConfigurationButNotTasks() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
+        // 子页可以附带自己的其他回调，但必须以 childBack 返回设置页，而不是绕到别处。
         listOf("RemoteNewsSettingsScreen", "ExternalFavoritesSettingsScreen", "DataPrivacyScreen").forEach {
-            assertTrue(source.contains("$it(onBack = childBack)"), "$it must return directly to settings")
+            assertTrue(
+                Regex("""\b$it\s*\(\s*onBack\s*=\s*childBack\s*(?:,|\))""").containsMatchIn(source),
+                "$it must return directly to settings",
+            )
         }
         assertFalse(source.contains("TaskCenterScreen"))
         val navigation = File("src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt").readText()
