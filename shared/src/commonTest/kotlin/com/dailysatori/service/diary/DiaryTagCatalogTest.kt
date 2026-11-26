@@ -5,7 +5,9 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryTagRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -30,19 +32,26 @@ class DiaryTagCatalogTest {
         Fixture().use { f ->
             val first = f.diaries.create("正文", "感想,感悟,读书")
             val second = f.diaries.create("正文", "读书")
-            val results = Channel<DiaryTagCatalog>(Channel.UNLIMITED)
-            val job = launch { f.tags.observeCatalog().collect { results.send(it) } }
-            suspend fun awaitCounts(expected: Map<String, Int>) = withTimeout(2_000) {
-                var catalog = results.receive()
-                while (catalog.counts != expected) catalog = results.receive()
+            // 采集协程绑定到自己的作用域：清理时必须等它在 Dispatchers.IO 上的查询真正结束，
+            // 之后 Fixture 才能关闭 JDBC，否则关闭后的残留在途查询会以 connection closed 失败。
+            coroutineScope {
+                val results = Channel<DiaryTagCatalog>(Channel.UNLIMITED)
+                val job = launch { f.tags.observeCatalog().collect { results.send(it) } }
+                suspend fun awaitCounts(expected: Map<String, Int>) = withTimeout(2_000) {
+                    var catalog = results.receive()
+                    while (catalog.counts != expected) catalog = results.receive()
+                }
+                try {
+                    awaitCounts(mapOf("感悟" to 1, "读书" to 2))
+                    f.tags.edit(first, listOf("旅行"))
+                    awaitCounts(mapOf("旅行" to 1, "读书" to 1))
+                    f.diaries.delete(second)
+                    awaitCounts(mapOf("旅行" to 1))
+                } finally {
+                    job.cancelAndJoin()
+                    results.close()
+                }
             }
-            try {
-                awaitCounts(mapOf("感悟" to 1, "读书" to 2))
-                f.tags.edit(first, listOf("旅行"))
-                awaitCounts(mapOf("旅行" to 1, "读书" to 1))
-                f.diaries.delete(second)
-                awaitCounts(mapOf("旅行" to 1))
-            } finally { job.cancel(); results.close() }
         }
     }
 
