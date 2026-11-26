@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -63,8 +65,9 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(Radius.m),
+                        shape = RoundedCornerShape(Radius.card),
                         color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                     ) {
                         Column {
                             SmsToggle(i18n.t("sms.monitor"), state.enabled, state.busy) { enabled ->
@@ -74,7 +77,8 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
                             }
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = Spacing.m),
-                                color = MaterialTheme.colorScheme.outlineVariant,
+                                thickness = BorderWidth.xs,
+                                color = MaterialTheme.colorScheme.outline,
                             )
                             SmsToggle(i18n.t("sms.cloud"), state.cloudAllowed, state.busy) {
                                 if (it) cloudConsent = true else viewModel.setCloudAllowed(false)
@@ -116,10 +120,16 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
             }
         }
     }
-    if (cloudConsent) AlertDialog(onDismissRequest = { cloudConsent = false }, title = { Text(i18n.t("sms.cloud")) },
+    if (cloudConsent) AlertDialog(
+        onDismissRequest = { cloudConsent = false },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(i18n.t("sms.cloud"), style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { Text(i18n.t("sms.consent")) },
         confirmButton = { TextButton(onClick = { cloudConsent = false; viewModel.setCloudAllowed(true) }) { Text(i18n.t("sms.agree")) } },
-        dismissButton = { TextButton(onClick = { cloudConsent = false }) { Text(i18n.t("sms.cancel")) } })
+        dismissButton = { TextButton(onClick = { cloudConsent = false }) { Text(i18n.t("sms.cancel")) } },
+    )
 }
 
 @Composable private fun SmsToggle(title: String, checked: Boolean, busy: Boolean, onChange: (Boolean) -> Unit) {
@@ -154,7 +164,13 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
     var expanded by remember(record.id) { mutableStateOf(false) }
     var menu by remember(record.id) { mutableStateOf(false) }
     val created = record.status == SmsSourceStatus.CREATED
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer) {
@@ -173,8 +189,8 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(record.draft?.title ?: i18n.t("sms.local_candidate"), style = MaterialTheme.typography.titleMedium)
-                Surface(shape = RoundedCornerShape(Radius.circular), color = if (created) AppColors.success.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Text(record.draft?.title ?: i18n.t("sms.local_candidate"), style = MaterialTheme.typography.titleMedium.editorial())
+                Surface(shape = RoundedCornerShape(Radius.circular), color = if (created) AppColors.success.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceContainer) {
                     Row(Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         if (created) Icon(Icons.Default.Check, null, Modifier.size(IconSize.xs), tint = AppColors.success)
                         Text(i18n.t("sms.status_${record.status.name.lowercase()}"), style = MaterialTheme.typography.labelSmall,
@@ -192,7 +208,7 @@ fun SmsSettingsScreen(onBack: () -> Unit, viewModel: SmsSettingsViewModel = koin
                     }
                 }
             } ?: if (created) Text(i18n.t("sms.unscheduled"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) else Unit
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { expanded = !expanded }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) {
                     Icon(Icons.Default.Description, null, Modifier.size(IconSize.s))

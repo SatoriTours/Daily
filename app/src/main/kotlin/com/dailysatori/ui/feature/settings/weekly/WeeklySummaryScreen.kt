@@ -2,16 +2,20 @@ package com.dailysatori.ui.feature.settings.weekly
 
 import com.dailysatori.ui.component.appbar.PageAction
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -20,9 +24,10 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,9 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.IconSize
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import androidx.compose.ui.unit.dp
+import com.dailysatori.ui.theme.editorial
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -77,21 +84,38 @@ fun WeeklySummaryScreen(
                     .padding(Spacing.m)
                     .verticalScroll(rememberScrollState()),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(IconSize.m),
-                    )
-                    Spacer(modifier = Modifier.width(Spacing.xs))
-                    Text("本周总结", style = MaterialTheme.typography.titleMedium)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Radius.card),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(Spacing.l),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(IconSize.s),
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "本周总结",
+                                style = MaterialTheme.typography.titleMedium.editorial(),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                        Text(
+                            state.currentSummary!!.content ?: "暂无内容",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(Spacing.m))
-                Text(
-                    state.currentSummary!!.content ?: "暂无内容",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
             }
         }
 

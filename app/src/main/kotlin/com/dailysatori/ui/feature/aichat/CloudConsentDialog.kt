@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -11,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 
 @Composable
 fun CloudConsentDialog(
@@ -20,10 +23,12 @@ fun CloudConsentDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDecline,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = stringResource(R.string.assistant_cloud_consent_title),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.editorial(),
             )
         },
         text = {

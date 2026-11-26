@@ -1,5 +1,6 @@
 package com.dailysatori.ui.component.news
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +43,7 @@ fun ArticleReaderHeader(
     ) {
         Text(
             text = title.ifBlank { i18n.t("article.detail_title") },
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.editorial(),
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -93,7 +94,7 @@ fun MagazineArticleHeader(
         MagazineArticleMetaChips(metaChips)
         Text(
             text = title.ifBlank { "文章详情" },
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.editorial(),
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -145,8 +146,9 @@ fun MagazineArticleBody(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         SelectionContainer {
             Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)) {
@@ -166,7 +168,7 @@ private fun MagazineArticleMetaChips(metaChips: List<String>) {
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
         chips.forEach { chip ->
-            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainer) {
                 Text(
                     text = chip,
                     modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),

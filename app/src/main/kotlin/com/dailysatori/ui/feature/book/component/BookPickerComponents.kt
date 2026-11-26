@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.book.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -46,8 +47,11 @@ import com.dailysatori.ui.feature.book.booksSwipeRefreshActionText
 import com.dailysatori.ui.feature.book.booksSwipeRefreshActionWidthDp
 import com.dailysatori.ui.feature.book.booksSwipeRefreshMaxRevealDp
 import com.dailysatori.ui.feature.book.booksSwipeRefreshingActionText
+import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlin.math.roundToInt
 
 @Composable
@@ -81,8 +85,8 @@ internal fun BookPickerSwipeRow(
             ) {
                 if (isRefreshing) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(IconSize.s),
+                        strokeWidth = BorderWidth.m,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 } else {
@@ -90,7 +94,7 @@ internal fun BookPickerSwipeRow(
                         Icons.Default.Refresh,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(IconSize.m),
                     )
                 }
                 Spacer(modifier = Modifier.height(Spacing.xxs))
@@ -122,7 +126,7 @@ internal fun BookPickerSwipeRow(
                     Icons.Default.Delete,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(IconSize.m),
                 )
                 Spacer(modifier = Modifier.height(Spacing.xxs))
                 Text(
@@ -173,24 +177,32 @@ private fun BookPickerRow(
     onSelect: () -> Unit,
     actionSide: BookPickerActionSide,
 ) {
+    val rowShape = bookPickerRowShape(actionSide)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .height(booksPickerRowMinHeightDp().dp)
-            .clip(bookPickerRowShape(actionSide))
+            .clip(rowShape)
             .background(
                 if (isSelected) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surface,
             )
+            .border(
+                BorderWidth.xs,
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                else MaterialTheme.colorScheme.outline,
+                rowShape,
+            )
             .clickable(onClick = onSelect)
-            .padding(Spacing.m),
+            .padding(horizontal = Spacing.m, vertical = Spacing.s),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Text(
                 book.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.titleMedium.editorial(),
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -209,6 +221,7 @@ private fun BookPickerRow(
             Icon(
                 Icons.Default.Check,
                 contentDescription = null,
+                modifier = Modifier.size(IconSize.s),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
@@ -219,30 +232,30 @@ private enum class BookPickerActionSide { None, Start, End }
 
 private fun bookPickerRowShape(actionSide: BookPickerActionSide) = when (actionSide) {
     BookPickerActionSide.Start -> RoundedCornerShape(
-        topStart = 0.dp,
-        bottomStart = 0.dp,
-        topEnd = Radius.s,
-        bottomEnd = Radius.s,
+        topStart = Radius.none,
+        bottomStart = Radius.none,
+        topEnd = Radius.m,
+        bottomEnd = Radius.m,
     )
     BookPickerActionSide.End -> RoundedCornerShape(
-        topStart = Radius.s,
-        bottomStart = Radius.s,
-        topEnd = 0.dp,
-        bottomEnd = 0.dp,
+        topStart = Radius.m,
+        bottomStart = Radius.m,
+        topEnd = Radius.none,
+        bottomEnd = Radius.none,
     )
-    BookPickerActionSide.None -> RoundedCornerShape(Radius.s)
+    BookPickerActionSide.None -> RoundedCornerShape(Radius.m)
 }
 
 private fun bookPickerRefreshActionShape() = RoundedCornerShape(
-    topStart = Radius.s,
-    bottomStart = Radius.s,
-    topEnd = 0.dp,
-    bottomEnd = 0.dp,
+    topStart = Radius.m,
+    bottomStart = Radius.m,
+    topEnd = Radius.none,
+    bottomEnd = Radius.none,
 )
 
 private fun bookPickerDeleteActionShape() = RoundedCornerShape(
-    topStart = 0.dp,
-    bottomStart = 0.dp,
-    topEnd = Radius.s,
-    bottomEnd = Radius.s,
+    topStart = Radius.none,
+    bottomStart = Radius.none,
+    topEnd = Radius.m,
+    bottomEnd = Radius.m,
 )

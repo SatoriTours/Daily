@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.book
 
 import com.dailysatori.core.diagnostics.performanceContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -32,8 +34,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -109,28 +113,29 @@ private fun BookContentSearchResultRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Radius.m))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .clickable(onClick = onClick)
-            .padding(Spacing.m),
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        Text(result.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(Spacing.xxs))
-        Text(
-            bookContentSearchBookLine(result.bookTitle, result.author),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.height(Spacing.xs))
-        Text(
-            result.content,
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
+            Text(result.title, style = MaterialTheme.typography.titleSmall.editorial(), fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(Spacing.xxs))
+            Text(
+                bookContentSearchBookLine(result.bookTitle, result.author),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(Spacing.xs))
+            Text(
+                result.content,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }

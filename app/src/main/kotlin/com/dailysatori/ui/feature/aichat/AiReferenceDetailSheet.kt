@@ -33,6 +33,7 @@ import com.dailysatori.ui.feature.book.ViewpointCard
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import com.mikepenz.markdown.m3.Markdown
 
 fun diaryReferenceImagePaths(images: String?): List<String> = com.dailysatori.service.diary.parseDiaryImagePaths(images)
@@ -53,7 +54,7 @@ fun AiReferenceDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
         tonalElevation = 0.dp,
@@ -67,7 +68,7 @@ fun AiReferenceDetailSheet(
         ) {
             Text(
                 text = "引用详情",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge.editorial(),
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = Spacing.m),
             )

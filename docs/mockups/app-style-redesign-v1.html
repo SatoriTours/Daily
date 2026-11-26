@@ -1,0 +1,2024 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Satori · 整体风格与主页面 Demo V1</title>
+<style>
+:root {
+  color-scheme: light;
+  /* Studio canvas */
+  --canvas: #eae6dd;
+  --canvas-card: rgba(255, 253, 249, 0.84);
+  --canvas-line: rgba(26, 25, 23, 0.09);
+
+  /* New Style: 素纸墨青 (Warm Editorial Paper & Ink) */
+  --bg: #f7f5f0;
+  --surface: #fffdf9;
+  --surface-high: #efece4;
+  --surface-highest: #e5e0d5;
+  --ink: #1a1917;
+  --ink-secondary: #4a4740;
+  --muted: #6f6a60;
+  --faint: #9a9488;
+  --line: rgba(26, 25, 23, 0.085);
+  --line-strong: rgba(26, 25, 23, 0.14);
+
+  /* Signature Accents */
+  --accent: #255b7a;
+  --accent-soft: #e3eff5;
+  --accent-ink: #19435c;
+  --accent-tint: rgba(37, 91, 122, 0.11);
+
+  --warm: #b85d3b;
+  --warm-soft: #f7e9e3;
+  --warm-ink: #8f4226;
+
+  --sage: #2f7a5a;
+  --sage-soft: #e4f2ec;
+
+  /* Typography */
+  --font-ui: -apple-system, "SF Pro Text", "PingFang SC", "Noto Sans CJK SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-serif: "Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", "STSong", "FangSong", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Phone frame & Glass */
+  --frame-border: rgba(26, 25, 23, 0.14);
+  --frame-shadow: 0 26px 60px rgba(26, 25, 23, 0.12), 0 4px 14px rgba(26, 25, 23, 0.06);
+  --card-shadow: 0 1px 2px rgba(26, 25, 23, 0.03), 0 0 0 0.5px rgba(26, 25, 23, 0.06);
+  --glass-bg: rgba(255, 253, 249, 0.62);
+  --glass-highlight: rgba(255, 255, 255, 0.72);
+  --glass-shadow: 0 10px 30px rgba(26, 25, 23, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --dock-bg: #1f2428;
+  --dock-fg: #fffdf9;
+  --radius-card: 18px;
+  --radius-pill: 999px;
+}
+
+/* Dark Theme: 夜读墨砚 (Warm Obsidian) */
+body.dark {
+  color-scheme: dark;
+  --canvas: #0b0b0a;
+  --canvas-card: rgba(26, 25, 23, 0.86);
+  --canvas-line: rgba(236, 233, 226, 0.09);
+
+  --bg: #111110;
+  --surface: #1a1917;
+  --surface-high: #242320;
+  --surface-highest: #2f2d29;
+  --ink: #ece9e2;
+  --ink-secondary: #cbc6bc;
+  --muted: #9a958b;
+  --faint: #6f6b63;
+  --line: rgba(236, 233, 226, 0.09);
+  --line-strong: rgba(236, 233, 226, 0.16);
+
+  --accent: #68b3d8;
+  --accent-soft: #163344;
+  --accent-ink: #b9e1f5;
+  --accent-tint: rgba(104, 179, 216, 0.16);
+
+  --warm: #e59172;
+  --warm-soft: #382119;
+  --warm-ink: #f7c3ae;
+
+  --sage: #64c49a;
+  --sage-soft: #183328;
+
+  --frame-border: rgba(236, 233, 226, 0.13);
+  --frame-shadow: 0 28px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(236, 233, 226, 0.04);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.28), 0 0 0 0.5px rgba(236, 233, 226, 0.07);
+  --glass-bg: rgba(28, 27, 25, 0.66);
+  --glass-highlight: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 12px 32px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --dock-bg: #ece9e2;
+  --dock-fg: #111110;
+}
+
+/* Baseline Style Toggle: 现行基线 (Stock iOS Blue & Cool Gray) */
+body.baseline {
+  --canvas: #ececf0;
+  --canvas-card: rgba(255, 255, 255, 0.88);
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-high: #efeff4;
+  --surface-highest: #e5e5ea;
+  --ink: #1d1d1f;
+  --ink-secondary: #3a3a3c;
+  --muted: #6e6e73;
+  --faint: #8e8e93;
+  --line: rgba(60, 60, 67, 0.14);
+  --line-strong: rgba(60, 60, 67, 0.22);
+  --accent: #006edb;
+  --accent-soft: #d8ecff;
+  --accent-ink: #003a66;
+  --accent-tint: rgba(0, 110, 219, 0.12);
+  --warm: #ff9500;
+  --warm-soft: #fff2db;
+  --warm-ink: #8a4f00;
+  --sage: #34c759;
+  --sage-soft: #e3f8e9;
+  --font-serif: var(--font-ui);
+  --glass-bg: rgba(255, 255, 255, 0.58);
+  --dock-bg: #006edb;
+  --dock-fg: #ffffff;
+  --radius-card: 14px;
+}
+body.baseline.dark {
+  --canvas: #0e0e10;
+  --canvas-card: rgba(28, 28, 30, 0.90);
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-high: #2c2c2e;
+  --surface-highest: #3a3a3c;
+  --ink: #f5f5f7;
+  --ink-secondary: #d1d1d6;
+  --muted: #a1a1a6;
+  --faint: #6e6e73;
+  --line: rgba(255, 255, 255, 0.16);
+  --line-strong: rgba(255, 255, 255, 0.26);
+  --accent: #0a84ff;
+  --accent-soft: #073a5c;
+  --accent-ink: #d8ecff;
+  --accent-tint: rgba(10, 132, 255, 0.16);
+  --warm: #ff9f0a;
+  --warm-soft: #3a2608;
+  --warm-ink: #ffd188;
+  --glass-bg: rgba(28, 28, 30, 0.64);
+  --dock-bg: #0a84ff;
+  --dock-fg: #ffffff;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Page Shell */
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 24px 56px;
+}
+
+/* Studio Header */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.hero-left { max-width: 600px; }
+.eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.pill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.pill-tag.subtle {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+}
+.hero h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 25px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.hero p {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.68;
+  color: var(--muted);
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--canvas-card);
+  box-shadow: 0 0 0 0.5px var(--canvas-line);
+}
+.seg button {
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* Design System Spec Strip */
+.spec-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+.spec-card {
+  background: var(--canvas-card);
+  border-radius: 14px;
+  padding: 13px 14px;
+  box-shadow: 0 0 0 0.5px var(--canvas-line);
+}
+.spec-title {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0 0 9px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.swatches {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.swatch {
+  flex: 1;
+  min-width: 0;
+}
+.swatch-dot {
+  height: 22px;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  margin-bottom: 4px;
+}
+.swatch-lbl {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+.swatch-hex {
+  display: block;
+  font-size: 9.5px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.type-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.type-serif {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.type-sans {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.spec-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.58;
+  color: var(--ink-secondary);
+}
+
+/* Phones Stage */
+.stage {
+  display: grid;
+  grid-template-columns: repeat(2, 390px);
+  justify-content: center;
+  gap: 36px;
+  align-items: start;
+}
+.pane {
+  width: 390px;
+  max-width: 100%;
+}
+.pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 4px 10px;
+}
+.pane-title {
+  font-size: 13.5px;
+  font-weight: 650;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.pane-title small {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.pane-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Mobile Device Frame */
+.phone {
+  position: relative;
+  width: 390px;
+  max-width: 100%;
+  height: 844px;
+  border-radius: 36px;
+  border: 1px solid var(--frame-border);
+  background: var(--bg);
+  box-shadow: var(--frame-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.25s ease;
+}
+
+/* Status Bar */
+.status-bar {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px 0;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.status-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.status-icons svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Top Bar — Unified Standard: max 1 page action + rightmost AI */
+.topbar {
+  height: 50px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 18px;
+}
+.topbar-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-right: 14px;
+  -webkit-mask-image: linear-gradient(to right, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 84%, transparent 100%);
+}
+.topbar-tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  position: relative;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn[aria-selected="true"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+.tab-btn[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.topbar-title {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.2;
+}
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.icon-btn:hover {
+  background: var(--surface-high);
+  color: var(--ink);
+}
+.icon-btn.ai {
+  color: var(--accent);
+}
+.icon-btn.ai:hover {
+  background: var(--accent-tint);
+}
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Scrollable Screen Content */
+.screen-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 20px 104px;
+  scrollbar-width: none;
+}
+.screen-scroll::-webkit-scrollbar { display: none; }
+.screen-scroll.diary-pad {
+  padding: 6px 16px 116px;
+}
+
+/* ========================
+   PAGE 01: TODAY (今日)
+   ======================== */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.tab-panel.active.animate { animation: fadeUp 0.18s ease; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Editorial Overview */
+.digest-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.digest-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+.digest-kicker i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+.digest-date {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.masthead-title {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  line-height: 1.38;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+.overview-copy {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.72;
+  color: var(--ink-secondary);
+}
+.section-rule {
+  height: 1px;
+  background: var(--line);
+  margin: 18px 0 4px;
+  border: 0;
+}
+.section-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 4px;
+}
+.section-label-row span {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.section-label-row i {
+  flex: 1;
+  height: 0.5px;
+  background: var(--line);
+}
+
+/* Story Block — Borderless Editorial Feed */
+.story {
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--line);
+}
+.story:last-of-type { border-bottom: 0; }
+.story-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.story-num {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  padding-top: 3px;
+  flex: none;
+  opacity: 0.85;
+}
+.story-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.44;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.story-body {
+  margin: 8px 0 0 24px;
+  font-size: 14px;
+  line-height: 1.68;
+  color: var(--ink-secondary);
+}
+.story-foot {
+  margin: 10px 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.meta-quiet {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.text-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  flex: none;
+  padding: 3px 0;
+}
+.text-link:hover { opacity: 0.78; }
+
+.briefing-cta {
+  margin-top: 6px;
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.briefing-cta svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Sub-tab B: 我的机会 (Opportunities) */
+.opp-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 0.5px solid var(--line);
+}
+.opp-status span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.opp-item {
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--line);
+  transition: opacity 0.2s ease;
+}
+.opp-item.dismissed { display: none; }
+.opp-item:last-of-type { border-bottom: 0; }
+.opp-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--warm-ink);
+  background: var(--warm-soft);
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.opp-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.42;
+  font-weight: 700;
+  color: var(--ink);
+}
+.opp-fact {
+  margin: 7px 0 0;
+  font-size: 13.8px;
+  line-height: 1.65;
+  color: var(--ink-secondary);
+}
+.opp-callout {
+  margin: 10px 0 0;
+  padding: 8px 11px;
+  border-left: 2.5px solid var(--warm);
+  background: var(--surface);
+  border-radius: 0 10px 10px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.opp-callout b {
+  color: var(--warm);
+  font-weight: 650;
+  margin-right: 4px;
+}
+.opp-actions {
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.opp-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-ghost {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.btn-ghost:hover { background: var(--surface-high); color: var(--ink); }
+.btn-soft {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.btn-soft.captured {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+
+/* Undo Toast inside Phone 01 */
+.phone-toast {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 84px;
+  padding: 10px 14px;
+  border-radius: 13px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12.5px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+  z-index: 25;
+}
+.phone-toast.show { display: flex; }
+.phone-toast button {
+  color: var(--warm);
+  font-weight: 650;
+  font-size: 12.5px;
+  padding: 2px 6px;
+}
+
+/* Sub-tab C: 热榜 (Hotlists) */
+.hot-card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+  padding: 14px 16px 6px;
+  margin-bottom: 14px;
+}
+.hot-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.hot-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--surface-high);
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+.hot-badge svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hot-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.hot-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.hot-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 0.5px solid var(--line);
+}
+.hot-rank {
+  width: 20px;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+  flex: none;
+}
+.hot-row-body { flex: 1; min-width: 0; }
+.hot-row-title {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+.hot-row-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.hot-fav {
+  color: var(--accent);
+  flex: none;
+  margin-top: 2px;
+}
+.hot-fav svg { width: 15px; height: 15px; fill: currentColor; }
+.hot-more {
+  width: 100%;
+  height: 38px;
+  border-top: 0.5px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ========================
+   PAGE 02: DIARY (日记)
+   ======================== */
+.month-anchor {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 2px 4px 10px;
+}
+.month-name {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.month-count {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.month-summary {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  padding: 13px 15px;
+  margin-bottom: 14px;
+  border-left: 2.5px solid var(--accent);
+}
+.month-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+.month-summary-head svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+.month-summary p {
+  margin: 0;
+  font-size: 13.2px;
+  line-height: 1.65;
+  color: var(--ink-secondary);
+}
+
+/* Diary Paper Card */
+.diary-card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+  padding: 15px 16px 13px;
+  margin-bottom: 12px;
+  transition: background-color 0.25s ease;
+}
+body.baseline .diary-card {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 6px 4px 16px;
+  border-bottom: 0.5px solid var(--line);
+}
+.diary-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.diary-time {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mood-pill {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-high);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+.diary-more {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+}
+.diary-more:hover { background: var(--surface-high); color: var(--ink); }
+.diary-more svg { width: 16px; height: 16px; fill: currentColor; }
+
+.ai-thread-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.ai-thread-pill svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+.ai-thread-pill span.sep { opacity: 0.5; }
+
+.diary-title {
+  margin: 0 0 6px;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--ink);
+}
+.diary-text {
+  margin: 0;
+  font-size: 14.2px;
+  line-height: 1.7;
+  color: var(--ink-secondary);
+}
+
+/* Inline Voice Attachment */
+.voice-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: var(--surface-high);
+  margin-bottom: 10px;
+}
+.voice-play {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+body.dark .voice-play { color: #0e1d26; }
+.voice-play svg { width: 11px; height: 11px; fill: currentColor; margin-left: 1px; }
+.wave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 18px;
+}
+.wave i {
+  display: block;
+  width: 2.5px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.52;
+}
+.wave i.hi { opacity: 0.95; }
+.voice-dur {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.voice-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--sage);
+  background: var(--sage-soft);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* Asymmetric 2-Photo Editorial Mosaic */
+.photo-mosaic {
+  display: grid;
+  grid-template-columns: 1.9fr 1fr;
+  gap: 7px;
+  margin-top: 11px;
+}
+.photo-slot {
+  border-radius: 11px;
+  overflow: hidden;
+  position: relative;
+  aspect-ratio: 16 / 10;
+}
+.photo-slot.sq {
+  aspect-ratio: auto;
+  height: 100%;
+}
+.photo-slot svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Quote-style Short Diary */
+.diary-quote {
+  margin: 2px 0 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--accent);
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.68;
+  color: var(--ink);
+}
+
+.diary-foot {
+  margin-top: 12px;
+  padding-top: 9px;
+  border-top: 0.5px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tag-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.tag-chip {
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.diary-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.diary-act {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Floating Right-Edge Capture Dock (Honoring 04-style-guide.md) */
+.capture-dock {
+  position: absolute;
+  right: 0;
+  bottom: 84px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+}
+.dock-handle {
+  width: 16px;
+  height: 44px;
+  border-radius: 12px 0 0 12px;
+  background: var(--dock-bg);
+  color: var(--dock-fg);
+  display: grid;
+  place-items: center;
+  box-shadow: -3px 6px 18px rgba(0, 0, 0, 0.18);
+  transition: width 0.18s ease, opacity 0.18s ease;
+}
+.dock-handle i {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.72;
+}
+.dock-tray {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-right: 14px;
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22), 0 0 0 0.5px var(--line-strong);
+}
+.capture-dock.expanded .dock-handle { display: none; }
+.capture-dock.expanded .dock-tray { display: flex; }
+.capture-dock.expanded.animate .dock-tray { animation: popIn 0.16s ease; }
+@keyframes popIn {
+  from { opacity: 0; transform: translateX(10px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+.dock-action {
+  height: 36px;
+  padding: 0 13px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--card-shadow);
+}
+.dock-action.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: none;
+}
+body.dark .dock-action.primary { color: #0e1d26; }
+.dock-action svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ========================
+   LIQUID GLASS BOTTOM BAR
+   ======================== */
+.glass-nav-wrap {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 18px;
+  z-index: 15;
+  pointer-events: none;
+}
+.glass-nav {
+  pointer-events: auto;
+  height: 54px;
+  padding: 5px 6px;
+  border-radius: 26px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: var(--glass-shadow);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.glass-nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--glass-highlight) 0%, transparent 48%, rgba(37, 91, 122, 0.04) 100%);
+  pointer-events: none;
+}
+.nav-item {
+  position: relative;
+  z-index: 1;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted);
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.nav-item.active {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nav-item.active svg { stroke-width: 2.1; }
+.nav-item span {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+.nav-badge {
+  position: absolute;
+  top: 5px;
+  right: 22px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3.5px;
+  border-radius: var(--radius-pill);
+  background: var(--warm);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5px;
+  height: 5px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 16;
+}
+.home-bar i {
+  width: 120px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--ink);
+  opacity: 0.2;
+}
+
+/* Pane Caption */
+.pane-caption {
+  margin: 12px 4px 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* Bottom Implementation Mapping Notes */
+.notes-grid {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.note-card {
+  background: var(--canvas-card);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 0 0 0.5px var(--canvas-line);
+}
+.note-card h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.note-card p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.68;
+  color: var(--muted);
+}
+.note-card code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-high);
+  color: var(--ink-secondary);
+}
+
+@media (max-width: 920px) {
+  .spec-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stage { grid-template-columns: minmax(0, 390px); gap: 32px; }
+  .notes-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 540px) {
+  .wrap { padding: 18px 14px 40px; }
+  .spec-strip { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="hero-left">
+      <div class="eyebrow-row">
+        <span class="pill-tag" id="styleBadge">新风格 · 素纸墨青</span>
+        <span class="pill-tag subtle" id="themeBadge">浅色 · 宣纸</span>
+        <span class="pill-tag subtle">交互设计稿 · 未改 App 代码</span>
+      </div>
+      <h1>Daily Satori · 界面风格升级 Demo</h1>
+      <p>沿用「纸墨杂志 + Liquid Glass」底座，将冷灰系统蓝升级为宣纸底色与靛青墨色，并引入衬线标题节奏。可切换「现行基线对比」与深浅色，点击手机内标签体验交互。</p>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="视觉风格切换">
+        <button type="button" data-style="editorial" aria-pressed="true">新风格 · 素纸墨青</button>
+        <button type="button" data-style="baseline" aria-pressed="false">现行基线对比</button>
+      </div>
+      <div class="seg" role="group" aria-label="深浅主题切换">
+        <button type="button" data-theme="light" aria-pressed="true">浅色</button>
+        <button type="button" data-theme="dark" aria-pressed="false">深色</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Compact Design System Strip -->
+  <section class="spec-strip" aria-label="整体设计规范概览">
+    <div class="spec-card">
+      <div class="spec-title"><span>纸墨底色</span><span>Paper &amp; Ink</span></div>
+      <div class="swatches">
+        <div class="swatch"><div class="swatch-dot" style="background:var(--bg)"></div><span class="swatch-lbl">画布</span><span class="swatch-hex" id="sw-bg">#F7F5F0</span></div>
+        <div class="swatch"><div class="swatch-dot" style="background:var(--surface)"></div><span class="swatch-lbl">纸面</span><span class="swatch-hex" id="sw-sf">#FFFDF9</span></div>
+        <div class="swatch"><div class="swatch-dot" style="background:var(--surface-high)"></div><span class="swatch-lbl">容器</span><span class="swatch-hex" id="sw-hi">#EFECE4</span></div>
+        <div class="swatch"><div class="swatch-dot" style="background:var(--ink)"></div><span class="swatch-lbl">墨字</span><span class="swatch-hex" id="sw-ink">#1A1917</span></div>
+      </div>
+    </div>
+    <div class="spec-card">
+      <div class="spec-title"><span>克制强调色</span><span>Accents</span></div>
+      <div class="swatches">
+        <div class="swatch"><div class="swatch-dot" style="background:var(--accent)"></div><span class="swatch-lbl" id="sw-ac-name">靛青</span><span class="swatch-hex" id="sw-ac">#255B7A</span></div>
+        <div class="swatch"><div class="swatch-dot" style="background:var(--accent-soft)"></div><span class="swatch-lbl">柔青底</span><span class="swatch-hex" id="sw-as">#E3EFF5</span></div>
+        <div class="swatch"><div class="swatch-dot" style="background:var(--warm)"></div><span class="swatch-lbl" id="sw-wm-name">赭石</span><span class="swatch-hex" id="sw-wm">#B85D3B</span></div>
+        <div class="swatch"><div class="swatch-dot" style="background:var(--sage)"></div><span class="swatch-lbl">松石</span><span class="swatch-hex" id="sw-sg">#2F7A5A</span></div>
+      </div>
+    </div>
+    <div class="spec-card">
+      <div class="spec-title"><span>字体搭配</span><span>Typography</span></div>
+      <div class="type-sample">
+        <span class="type-serif">顿悟与日常 · Serif 标题</span>
+        <span class="type-sans">正文与控件保持高可读 Sans，日期排名用等宽数字</span>
+      </div>
+    </div>
+    <div class="spec-card">
+      <div class="spec-title"><span>空间与材质</span><span>Surface &amp; Glass</span></div>
+      <p class="spec-note">新闻无框发丝分割，日记轻纸面聚拢；顶栏守住「1 操作 + AI」，底栏保留无边框 Liquid Glass 透光模糊。</p>
+    </div>
+  </section>
+
+  <!-- Two Primary Interactive Mobile Screen Demos -->
+  <main class="stage">
+    <!-- ==================== PHONE 01: 今日 ==================== -->
+    <section class="pane">
+      <div class="pane-head">
+        <div class="pane-title"><small>01</small>今日 · 统一新闻与机会</div>
+        <span class="pane-hint">可点击顶栏标签切换</span>
+      </div>
+
+      <div class="phone" id="phone-today">
+        <div class="status-bar">
+          <span>09:41</span>
+          <span class="status-icons" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 17v2M9 14v5M14 10v9M19 5v14"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M3 9a13 13 0 0 1 18 0M6 12.5a9 9 0 0 1 12 0M9.5 16a4.5 4.5 0 0 1 5 0"/><circle cx="12" cy="19.3" r="1" fill="currentColor" stroke="none"/></svg>
+            <svg viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="17" height="9" rx="2.4"/><rect x="4.4" y="9.4" width="12.2" height="5.2" rx="1.2" fill="currentColor" stroke="none"/><path d="M21.5 10.8v2.4"/></svg>
+          </span>
+        </div>
+
+        <!-- Unified News Top Bar -->
+        <header class="topbar">
+          <nav class="topbar-tabs" role="tablist" aria-label="今日内容分组">
+            <button class="tab-btn" role="tab" data-news-tab="headlines" aria-selected="true">今日要闻</button>
+            <button class="tab-btn" role="tab" data-news-tab="opportunities" aria-selected="false">我的机会</button>
+            <button class="tab-btn" role="tab" data-news-tab="hotlists" aria-selected="false">热榜</button>
+            <button class="tab-btn" role="tab" data-news-tab="headlines" aria-selected="false" style="opacity:.78">极客公园</button>
+            <button class="tab-btn" role="tab" data-news-tab="headlines" aria-selected="false" style="opacity:.78">收藏</button>
+          </nav>
+          <button class="icon-btn" type="button" aria-label="搜索与更多">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16.2 16.2 3.8 3.8"/></svg>
+          </button>
+          <button class="icon-btn ai" type="button" aria-label="打开 AI 助手">
+            <svg viewBox="0 0 24 24"><path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9l2-5.5Z"/><path d="M18.5 3.5v3M17 5h3" stroke-width="1.6"/></svg>
+          </button>
+        </header>
+
+        <div class="screen-scroll">
+          <!-- Sub-tab 1: 今日要闻 -->
+          <div class="tab-panel active" id="panel-headlines">
+            <div class="digest-meta">
+              <span class="digest-kicker"><i></i>今日总览</span>
+              <span class="digest-date">11月25日 · 08:30 更新</span>
+            </div>
+            <h2 class="masthead-title">端侧模型提效与本地优先工具回归</h2>
+            <p class="overview-copy">今日技术社区聚焦两件事：移动设备本地推理显存开销再降三成，以及越来越多独立工具放弃强云端绑定、回归离线可读与可控 AI 协作。</p>
+
+            <div class="section-label-row">
+              <span>精选要闻</span><i></i>
+            </div>
+
+            <article class="story">
+              <div class="story-head">
+                <span class="story-num">01</span>
+                <h3 class="story-title">新量化格式让 8B 模型在手机本地内存占用再降 35%</h3>
+              </div>
+              <p class="story-body">开源社区推出面向 ARM 端侧的混合精度权重打包方案，在中端手机上也能保持稳定首字延迟，离线总结与语音润色进入实用区间。</p>
+              <div class="story-foot">
+                <span class="meta-quiet">GitHub · Hacker News · 约 4 分钟</span>
+                <button class="text-link" type="button">查看来源 (2)</button>
+              </div>
+            </article>
+
+            <article class="story">
+              <div class="story-head">
+                <span class="story-num">02</span>
+                <h3 class="story-title">「本地优先 + 可控 AI」成为个人知识工具新共识</h3>
+              </div>
+              <p class="story-body">多位产品作者复盘了过去一年的留存数据：用户更愿意把长期日记与私密想法交由本地加密存储，再按需选择脱敏上下文调用模型。</p>
+              <div class="story-foot">
+                <span class="meta-quiet">V2EX · 少数派 · 约 3 分钟</span>
+                <button class="text-link" type="button">查看来源</button>
+              </div>
+            </article>
+
+            <article class="story">
+              <div class="story-head">
+                <span class="story-num">03</span>
+                <h3 class="story-title">Android 新版进一步收紧后台任务配额，长时录音需显式前移通知</h3>
+              </div>
+              <p class="story-body">系统将对静默长连接执行更严格的省电策略，后台异步同步与语音转写队列需要做好断点续作与任务状态透出。</p>
+              <div class="story-foot">
+                <span class="meta-quiet">Android Developers · 约 5 分钟</span>
+                <button class="text-link" type="button">查看来源</button>
+              </div>
+            </article>
+
+            <button class="briefing-cta" type="button">
+              <span>阅读完整今日简报</span>
+              <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+            </button>
+          </div>
+
+          <!-- Sub-tab 2: 我的机会 -->
+          <div class="tab-panel" id="panel-opportunities">
+            <div class="opp-status">
+              <span>今日筛出 2 条待看产品机会</span>
+              <button class="text-link" type="button">全部记录</button>
+            </div>
+
+            <article class="opp-item" id="opp-1">
+              <span class="opp-kicker">产品机会 · 语音与效率</span>
+              <h3 class="opp-title">语音随记到「可执行待办」之间仍有明显断层</h3>
+              <p class="opp-fact">社区讨论指出，大多数录音应用止步于转写长文本，用户在散步或通勤录完后往往不会二次整理，导致重要想法沉淀不下来。</p>
+              <div class="opp-callout"><b>机会</b>在现有语音日记润色后提供轻量「提炼待办 / 收入点子」一键动作，零打断完成闭环。</div>
+              <div class="opp-actions">
+                <span class="meta-quiet">Hacker News · 2小时前</span>
+                <div class="opp-btns">
+                  <button class="btn-ghost" type="button" id="ignoreOppBtn">与我无关</button>
+                  <button class="btn-soft" type="button" id="captureOppBtn">收为点子</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="opp-item">
+              <span class="opp-kicker">产品机会 · 信息降噪</span>
+              <h3 class="opp-title">多平台热榜跨站去重与「按兴趣只看三条」模式</h3>
+              <p class="opp-fact">同一条科技新闻常在 GitHub、HN、V2EX 重复刷屏，读者更在意跨源聚合后的事实提炼，而非逐个刷榜。</p>
+              <div class="opp-callout"><b>机会</b>在热榜详情顶部保留多平台排名折叠区，用统一中文摘要替代多端重复阅读。</div>
+              <div class="opp-actions">
+                <span class="meta-quiet">Linux DO · 4小时前</span>
+                <div class="opp-btns">
+                  <button class="btn-soft captured" type="button">查看点子 ✓</button>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- Sub-tab 3: 热榜 -->
+          <div class="tab-panel" id="panel-hotlists">
+            <section class="hot-card">
+              <div class="hot-head">
+                <div class="hot-badge">
+                  <svg viewBox="0 0 24 24"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M13.5 6l-3 12"/></svg>
+                </div>
+                <div>
+                  <div class="hot-title">GitHub 热门</div>
+                  <div class="hot-sub">更新于 08:25 · 已翻译 10/10</div>
+                </div>
+              </div>
+              <div class="hot-row">
+                <span class="hot-rank">01</span>
+                <div class="hot-row-body">
+                  <p class="hot-row-title">local-sync-kit：面向移动端的零配置 SQLite 端到端加密同步引擎</p>
+                  <div class="hot-row-meta">★ 1,420 今日 · Rust · 开源工具</div>
+                </div>
+                <span class="hot-fav" aria-label="已收藏"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15.5l-7-4.2-7 4.2V5a1 1 0 0 1 1-1Z"/></svg></span>
+              </div>
+              <div class="hot-row">
+                <span class="hot-rank">02</span>
+                <div class="hot-row-body">
+                  <p class="hot-row-title">edge-whisper-kt：Kotlin Multiplatform 轻量离线语音识别封装</p>
+                  <div class="hot-row-meta">★ 890 今日 · Kotlin · 音频模型</div>
+                </div>
+              </div>
+              <div class="hot-row">
+                <span class="hot-rank">03</span>
+                <div class="hot-row-body">
+                  <p class="hot-row-title">paper-md：专注中文长文混排与引用的极简 Markdown 排版器</p>
+                  <div class="hot-row-meta">★ 615 今日 · TypeScript · 阅读体验</div>
+                </div>
+              </div>
+              <button class="hot-more" type="button">
+                <span>展开全部 10 条</span>
+                <span>›</span>
+              </button>
+            </section>
+
+            <section class="hot-card">
+              <div class="hot-head">
+                <div class="hot-badge">
+                  <svg viewBox="0 0 24 24"><path d="M4 17 10 11l4 4 6-7M15 8h5v5"/></svg>
+                </div>
+                <div>
+                  <div class="hot-title">Hacker News</div>
+                  <div class="hot-sub">更新于 08:20 · 热门讨论</div>
+                </div>
+              </div>
+              <div class="hot-row">
+                <span class="hot-rank">01</span>
+                <div class="hot-row-body">
+                  <p class="hot-row-title">为什么我把所有笔记迁移回了单文件 SQLite，并且再没回头</p>
+                  <div class="hot-row-meta">642 赞 · 218 条讨论</div>
+                </div>
+              </div>
+              <div class="hot-row">
+                <span class="hot-rank">02</span>
+                <div class="hot-row-body">
+                  <p class="hot-row-title">移动阅读产品里最被低估的细节：行距、纸色与留白节奏</p>
+                  <div class="hot-row-meta">419 赞 · 134 条讨论</div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Undo Toast -->
+        <div class="phone-toast" id="oppToast" role="status">
+          <span>已忽略该机会</span>
+          <button type="button" id="undoOppBtn">撤销</button>
+        </div>
+
+        <!-- Floating Liquid Glass Bottom Nav -->
+        <div class="glass-nav-wrap">
+          <nav class="glass-nav" aria-label="主导航">
+            <div class="nav-item active">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.8 12h16.4M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5Z"/></svg>
+              <span>今日</span>
+            </div>
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24"><path d="M5.5 4.5h11a2 2 0 0 1 2 2v13h-11a2 2 0 0 0-2 2v-15a2 2 0 0 1 2-2Z"/><path d="M8.5 9h6.5M8.5 13h4.5"/></svg>
+              <span>日记</span>
+            </div>
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24"><path d="M4.5 6.5c2.5-1 5-.5 7.5 1 2.5-1.5 5-2 7.5-1v11.5c-2.5-1-5-.5-7.5 1-2.5-1.5-5-2-7.5-1V6.5Z"/><path d="M12 7.5V19"/></svg>
+              <span>读书</span>
+            </div>
+            <div class="nav-item">
+              <span class="nav-badge">2</span>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5.5 19c1.2-3.2 3.6-4.5 6.5-4.5s5.3 1.3 6.5 4.5"/></svg>
+              <span>我的</span>
+            </div>
+          </nav>
+        </div>
+        <div class="home-bar"><i></i></div>
+      </div>
+
+      <p class="pane-caption">「今日」去掉冰冷蓝灰，以宣纸底色 + 衬线题头 + 01/02/03 序数建立杂志阅读节奏；切到「我的机会」可见赭石色克制点亮高价值行动项。</p>
+    </section>
+
+    <!-- ==================== PHONE 02: 日记 ==================== -->
+    <section class="pane">
+      <div class="pane-head">
+        <div class="pane-title"><small>02</small>日记 · 思考与多模态记录</div>
+        <span class="pane-hint">可点击右侧悬浮手柄展开</span>
+      </div>
+
+      <div class="phone" id="phone-diary">
+        <div class="status-bar">
+          <span>09:41</span>
+          <span class="status-icons" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 17v2M9 14v5M14 10v9M19 5v14"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M3 9a13 13 0 0 1 18 0M6 12.5a9 9 0 0 1 12 0M9.5 16a4.5 4.5 0 0 1 5 0"/><circle cx="12" cy="19.3" r="1" fill="currentColor" stroke="none"/></svg>
+            <svg viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="17" height="9" rx="2.4"/><rect x="4.4" y="9.4" width="12.2" height="5.2" rx="1.2" fill="currentColor" stroke="none"/><path d="M21.5 10.8v2.4"/></svg>
+          </span>
+        </div>
+
+        <!-- Main Page Header -->
+        <header class="topbar">
+          <h2 class="topbar-title">日记</h2>
+          <button class="icon-btn" type="button" aria-label="搜索、筛选与标签">
+            <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <button class="icon-btn ai" type="button" aria-label="打开 AI 助手">
+            <svg viewBox="0 0 24 24"><path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9l2-5.5Z"/><path d="M18.5 3.5v3M17 5h3" stroke-width="1.6"/></svg>
+          </button>
+        </header>
+
+        <div class="screen-scroll diary-pad" id="diaryScroll">
+          <div class="month-anchor">
+            <span class="month-name">2026 · 十一月</span>
+            <span class="month-count">14 篇记录</span>
+          </div>
+
+          <section class="month-summary">
+            <div class="month-summary-head">
+              <svg viewBox="0 0 24 24"><path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9l2-5.5Z"/></svg>
+              <span>本月脉络</span>
+            </div>
+            <p>这个月的主题是「收敛与专注」：把新闻筛选、语音随记和长期想法理顺成一套更安静、低打扰的日常节奏。</p>
+          </section>
+
+          <!-- Entry 1: Thread + AI Summary -->
+          <article class="diary-card">
+            <div class="diary-head">
+              <span class="diary-time">今天 · 09:42</span>
+              <span class="mood-pill">平静</span>
+              <button class="diary-more" type="button" aria-label="更多操作">
+                <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+              </button>
+            </div>
+            <div class="ai-thread-pill">
+              <svg viewBox="0 0 24 24"><path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5L4.5 11 10 9l2-5.5Z"/></svg>
+              <span>续写汇总</span>
+              <span class="sep">·</span>
+              <span>3 条记录</span>
+            </div>
+            <h3 class="diary-title">重新思考知识工具的「安静感」</h3>
+            <p class="diary-text">早上翻了一遍过去半年的日记，发现真正反复回看的从来不是堆满数据的仪表盘，而是排版舒服、打开就能静下心读完的长段记录。</p>
+            <div class="diary-foot">
+              <div class="tag-list">
+                <span class="tag-chip">#产品思考</span>
+                <span class="tag-chip">#阅读</span>
+                <span class="tag-chip">#设计</span>
+              </div>
+              <div class="diary-actions">
+                <button class="diary-act" type="button">续写</button>
+                <button class="diary-act" type="button">展开</button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Entry 2: Voice + Photo Wall -->
+          <article class="diary-card">
+            <div class="diary-head">
+              <span class="diary-time">昨天 · 21:15</span>
+              <span class="mood-pill">舒展</span>
+              <button class="diary-more" type="button" aria-label="更多操作">
+                <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+              </button>
+            </div>
+            <div class="voice-strip">
+              <button class="voice-play" type="button" aria-label="播放录音">
+                <svg viewBox="0 0 24 24"><path d="M7 5.5v13l11-6.5-11-6.5Z"/></svg>
+              </button>
+              <div class="wave" aria-hidden="true">
+                <i style="height:6px"></i><i class="hi" style="height:12px"></i><i class="hi" style="height:16px"></i>
+                <i class="hi" style="height:10px"></i><i class="hi" style="height:15px"></i><i style="height:8px"></i>
+                <i style="height:13px"></i><i style="height:17px"></i><i style="height:11px"></i><i style="height:7px"></i>
+                <i style="height:14px"></i><i style="height:9px"></i><i style="height:12px"></i><i style="height:6px"></i>
+                <i style="height:10px"></i><i style="height:14px"></i><i style="height:7px"></i><i style="height:5px"></i>
+              </div>
+              <span class="voice-dur">02:18</span>
+              <span class="voice-tag">已润色</span>
+            </div>
+            <p class="diary-text">晚饭后沿着河边走了四十分钟，顺手录了一段关于本地优先架构的想法。把手机切到勿扰后，很多卡了两周的细节一下就理通了。</p>
+            <div class="photo-mosaic">
+              <div class="photo-slot">
+                <!-- Editorial dusk river illustration -->
+                <svg viewBox="0 0 260 162" preserveAspectRatio="xMidYMid slice">
+                  <defs>
+                    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#355169"/>
+                      <stop offset="52%" stop-color="#8c7a6b"/>
+                      <stop offset="100%" stop-color="#d8b594"/>
+                    </linearGradient>
+                    <linearGradient id="water1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#607582"/>
+                      <stop offset="100%" stop-color="#22303c"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="260" height="104" fill="url(#sky1)"/>
+                  <circle cx="192" cy="74" r="16" fill="#f6dfc1" opacity=".82"/>
+                  <path d="M0 98 Q62 72 132 88 T260 82 L260 106 L0 106 Z" fill="#2b3944" opacity=".78"/>
+                  <rect y="102" width="260" height="60" fill="url(#water1)"/>
+                  <path d="M170 112h44M178 122h28M162 132h48M182 142h20" stroke="#f2d5b2" stroke-width="2" stroke-linecap="round" opacity=".52"/>
+                </svg>
+              </div>
+              <div class="photo-slot sq">
+                <!-- Warm desk lamp & notebook illustration -->
+                <svg viewBox="0 0 140 162" preserveAspectRatio="xMidYMid slice">
+                  <defs>
+                    <linearGradient id="desk1" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#5c4738"/>
+                      <stop offset="100%" stop-color="#2c221c"/>
+                    </linearGradient>
+                    <radialGradient id="lamp1" cx="72%" cy="22%" r="72%">
+                      <stop offset="0%" stop-color="#f8deb8" stop-opacity=".68"/>
+                      <stop offset="100%" stop-color="#f8deb8" stop-opacity="0"/>
+                    </radialGradient>
+                  </defs>
+                  <rect width="140" height="162" fill="url(#desk1)"/>
+                  <rect width="140" height="162" fill="url(#lamp1)"/>
+                  <rect x="24" y="54" width="76" height="92" rx="6" fill="#f3ede1" transform="rotate(-6 62 100)"/>
+                  <path d="M36 74h48M38 88h42M40 102h36" stroke="#9e9280" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+                  <circle cx="106" cy="126" r="15" fill="#7c5640" stroke="#d8c3ab" stroke-width="2.5"/>
+                </svg>
+              </div>
+            </div>
+            <div class="diary-foot">
+              <div class="tag-list">
+                <span class="tag-chip">#随想</span>
+                <span class="tag-chip">#语音日记</span>
+              </div>
+              <div class="diary-actions">
+                <button class="diary-act" type="button">续写</button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Entry 3: Pull Quote (Flows behind glass nav) -->
+          <article class="diary-card">
+            <div class="diary-head">
+              <span class="diary-time">11月23日 · 16:08</span>
+              <button class="diary-more" type="button" aria-label="更多操作">
+                <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+              </button>
+            </div>
+            <blockquote class="diary-quote">克制不是减少能力，而是让真正值得读的句子、和当下要做的决定，第一时间浮现出来。</blockquote>
+          </article>
+        </div>
+
+        <!-- Edge Capture Dock (Spec-compliant 14dp handle -> Expand Write/Voice) -->
+        <div class="capture-dock" id="captureDock">
+          <button class="dock-handle" type="button" id="dockOpenBtn" aria-label="展开写日记与录音"><i></i></button>
+          <div class="dock-tray" role="group" aria-label="快速记录">
+            <button class="dock-action primary" type="button" data-dock-close>
+              <svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>
+              <span>写日记</span>
+            </button>
+            <button class="dock-action" type="button" data-dock-close>
+              <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+              <span>录音</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Floating Liquid Glass Bottom Nav -->
+        <div class="glass-nav-wrap">
+          <nav class="glass-nav" aria-label="主导航">
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.8 12h16.4M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5Z"/></svg>
+              <span>今日</span>
+            </div>
+            <div class="nav-item active">
+              <svg viewBox="0 0 24 24"><path d="M5.5 4.5h11a2 2 0 0 1 2 2v13h-11a2 2 0 0 0-2 2v-15a2 2 0 0 1 2-2Z"/><path d="M8.5 9h6.5M8.5 13h4.5"/></svg>
+              <span>日记</span>
+            </div>
+            <div class="nav-item">
+              <svg viewBox="0 0 24 24"><path d="M4.5 6.5c2.5-1 5-.5 7.5 1 2.5-1.5 5-2 7.5-1v11.5c-2.5-1-5-.5-7.5 1-2.5-1.5-5-2-7.5-1V6.5Z"/><path d="M12 7.5V19"/></svg>
+              <span>读书</span>
+            </div>
+            <div class="nav-item">
+              <span class="nav-badge">2</span>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5.5 19c1.2-3.2 3.6-4.5 6.5-4.5s5.3 1.3 6.5 4.5"/></svg>
+              <span>我的</span>
+            </div>
+          </nav>
+        </div>
+        <div class="home-bar"><i></i></div>
+      </div>
+
+      <p class="pane-caption">「日记」用微暖柔白纸卡自然聚拢时间、AI 续写汇总、语音波形与照片墙；点击右下边缘小手柄可体验无遮挡的「写日记 / 录音」轻展开。</p>
+    </section>
+  </main>
+
+  <!-- Concrete Mapping to Existing Compose Architecture -->
+  <section class="notes-grid" aria-label="落地到现有代码的映射说明">
+    <div class="note-card">
+      <h3>1. 主题色板平滑替换</h3>
+      <p>完全复用 <code>Color.kt</code> 与 <code>Theme.kt</code> 的 Material 3 语义槽位，仅升级浅色暖宣纸与深色暖墨砚色阶，以及靛青 <code>primary</code> / 赭石高亮，不破坏已有暗色适配和零硬编码约定。</p>
+    </div>
+    <div class="note-card">
+      <h3>2. 衬线标题 × 无衬线正文</h3>
+      <p>在 <code>Typography.kt</code> 中将 <code>headlineLarge</code> / <code>titleLarge</code> 等展示级标题与正文 <code>bodyMedium</code>/<code>bodyLarge</code> 分离角色，杂志封面感与可读性兼得。</p>
+    </div>
+    <div class="note-card">
+      <h3>3. 现有交互规范零冲突</h3>
+      <p>完整保留「1 页面操作 + 右侧 AI」顶栏规范、日记边缘 14dp 手柄展开、以及底部 Haze Liquid Glass 浮动导航，后续可按页面平滑逐屏落地。</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const body = document.body;
+  const styleBtns = document.querySelectorAll('[data-style]');
+  const themeBtns = document.querySelectorAll('[data-theme]');
+  const styleBadge = document.getElementById('styleBadge');
+  const themeBadge = document.getElementById('themeBadge');
+
+  const swBg = document.getElementById('sw-bg');
+  const swSf = document.getElementById('sw-sf');
+  const swHi = document.getElementById('sw-hi');
+  const swInk = document.getElementById('sw-ink');
+  const swAcName = document.getElementById('sw-ac-name');
+  const swAc = document.getElementById('sw-ac');
+  const swAs = document.getElementById('sw-as');
+  const swWmName = document.getElementById('sw-wm-name');
+  const swWm = document.getElementById('sw-wm');
+  const swSg = document.getElementById('sw-sg');
+
+  let currentStyle = 'editorial';
+  let currentTheme = 'light';
+
+  function syncState() {
+    body.classList.toggle('dark', currentTheme === 'dark');
+    body.classList.toggle('baseline', currentStyle === 'baseline');
+
+    styleBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.style === currentStyle)));
+    themeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.theme === currentTheme)));
+
+    const isBase = currentStyle === 'baseline';
+    const isDark = currentTheme === 'dark';
+
+    styleBadge.textContent = isBase ? '现行基线 · iOS 蓝灰' : '新风格 · 素纸墨青';
+    themeBadge.textContent = isBase
+      ? (isDark ? '深色 · 纯黑基线' : '浅色 · 冷灰基线')
+      : (isDark ? '深色 · 夜读墨砚' : '浅色 · 宣纸');
+
+    if (!isBase && !isDark) {
+      swBg.textContent = '#F7F5F0'; swSf.textContent = '#FFFDF9'; swHi.textContent = '#EFECE4'; swInk.textContent = '#1A1917';
+      swAcName.textContent = '靛青'; swAc.textContent = '#255B7A'; swAs.textContent = '#E3EFF5';
+      swWmName.textContent = '赭石'; swWm.textContent = '#B85D3B'; swSg.textContent = '#2F7A5A';
+    } else if (!isBase && isDark) {
+      swBg.textContent = '#111110'; swSf.textContent = '#1A1917'; swHi.textContent = '#242320'; swInk.textContent = '#ECE9E2';
+      swAcName.textContent = '靛青'; swAc.textContent = '#68B3D8'; swAs.textContent = '#163344';
+      swWmName.textContent = '赭石'; swWm.textContent = '#E59172'; swSg.textContent = '#64C49A';
+    } else if (isBase && !isDark) {
+      swBg.textContent = '#F5F5F7'; swSf.textContent = '#FFFFFF'; swHi.textContent = '#EFEFF4'; swInk.textContent = '#1D1D1F';
+      swAcName.textContent = '系统蓝'; swAc.textContent = '#006EDB'; swAs.textContent = '#D8ECFF';
+      swWmName.textContent = '系统橙'; swWm.textContent = '#FF9500'; swSg.textContent = '#34C759';
+    } else {
+      swBg.textContent = '#000000'; swSf.textContent = '#1C1C1E'; swHi.textContent = '#2C2C2E'; swInk.textContent = '#F5F5F7';
+      swAcName.textContent = '系统蓝'; swAc.textContent = '#0A84FF'; swAs.textContent = '#073A5C';
+      swWmName.textContent = '系统橙'; swWm.textContent = '#FF9F0A'; swSg.textContent = '#34C759';
+    }
+  }
+
+  styleBtns.forEach(btn => btn.addEventListener('click', () => {
+    currentStyle = btn.dataset.style;
+    syncState();
+  }));
+  themeBtns.forEach(btn => btn.addEventListener('click', () => {
+    currentTheme = btn.dataset.theme;
+    syncState();
+  }));
+
+  // URL query helpers for capture/testing (?theme=dark&style=baseline&tab=opportunities&dock=open)
+  const params = new URLSearchParams(location.search);
+  if (params.get('theme') === 'dark') currentTheme = 'dark';
+  if (params.get('style') === 'baseline') currentStyle = 'baseline';
+  syncState();
+
+  // Phone 01 sub-tab switching
+  const newsTabs = document.querySelectorAll('[data-news-tab]');
+  const newsPanels = {
+    headlines: document.getElementById('panel-headlines'),
+    opportunities: document.getElementById('panel-opportunities'),
+    hotlists: document.getElementById('panel-hotlists'),
+  };
+  function activateNewsTab(key, clickedBtn, animate = false) {
+    newsTabs.forEach((btn, idx) => {
+      const active = clickedBtn ? btn === clickedBtn : (idx < 3 && btn.dataset.newsTab === key);
+      btn.setAttribute('aria-selected', String(active));
+    });
+    Object.entries(newsPanels).forEach(([k, el]) => {
+      const isMatch = k === key;
+      el.classList.toggle('active', isMatch);
+      el.classList.toggle('animate', isMatch && animate);
+    });
+  }
+  newsTabs.forEach(btn => btn.addEventListener('click', () => {
+    activateNewsTab(btn.dataset.newsTab, btn, true);
+  }));
+  if (params.get('tab') && newsPanels[params.get('tab')]) {
+    activateNewsTab(params.get('tab'));
+  }
+
+  // Phone 01 opportunity actions
+  const opp1 = document.getElementById('opp-1');
+  const oppToast = document.getElementById('oppToast');
+  const ignoreOppBtn = document.getElementById('ignoreOppBtn');
+  const undoOppBtn = document.getElementById('undoOppBtn');
+  const captureOppBtn = document.getElementById('captureOppBtn');
+  let toastTimer = null;
+
+  ignoreOppBtn?.addEventListener('click', () => {
+    opp1.classList.add('dismissed');
+    oppToast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => oppToast.classList.remove('show'), 4000);
+  });
+  undoOppBtn?.addEventListener('click', () => {
+    opp1.classList.remove('dismissed');
+    oppToast.classList.remove('show');
+    clearTimeout(toastTimer);
+  });
+  captureOppBtn?.addEventListener('click', () => {
+    const captured = captureOppBtn.classList.toggle('captured');
+    captureOppBtn.textContent = captured ? '查看点子 ✓' : '收为点子';
+  });
+
+  // Phone 02 edge capture dock interaction
+  const dock = document.getElementById('captureDock');
+  const dockOpenBtn = document.getElementById('dockOpenBtn');
+  const diaryScroll = document.getElementById('diaryScroll');
+
+  dockOpenBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dock.classList.add('expanded', 'animate');
+  });
+  dock?.querySelectorAll('[data-dock-close]').forEach(btn => {
+    btn.addEventListener('click', () => dock.classList.remove('expanded', 'animate'));
+  });
+  diaryScroll?.addEventListener('click', () => dock.classList.remove('expanded', 'animate'));
+  diaryScroll?.addEventListener('scroll', () => dock.classList.remove('expanded', 'animate'), { passive: true });
+  if (params.get('dock') === 'open') dock.classList.add('expanded');
+})();
+</script>
+</body>
+</html>

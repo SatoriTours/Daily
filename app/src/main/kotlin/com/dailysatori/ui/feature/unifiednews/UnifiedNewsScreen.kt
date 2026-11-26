@@ -57,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.appbar.HomeCompactHeader
@@ -443,7 +442,8 @@ private fun UnifiedNewsSearchTopBar(
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(Height.searchBar),
                         shape = RoundedCornerShape(Radius.circular),
-                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = androidx.compose.foundation.BorderStroke(com.dailysatori.ui.theme.BorderWidth.xs, MaterialTheme.colorScheme.outline),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize().padding(start = Spacing.m, end = Spacing.xs),
@@ -453,7 +453,7 @@ private fun UnifiedNewsSearchTopBar(
                             Icon(
                                 Icons.Default.Search,
                                 contentDescription = "搜索",
-                                modifier = Modifier.size(IconSize.m),
+                                modifier = Modifier.size(IconSize.s),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
@@ -467,7 +467,7 @@ private fun UnifiedNewsSearchTopBar(
                                 innerTextField()
                             }
                             if (query.isNotEmpty()) {
-                                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(40.dp)) {
+                                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.size(Height.buttonSmall)) {
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = "清除",

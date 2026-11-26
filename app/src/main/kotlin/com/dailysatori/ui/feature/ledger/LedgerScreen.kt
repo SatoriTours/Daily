@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.ledger
 import com.dailysatori.core.diagnostics.performanceTab
 import com.dailysatori.service.diagnostics.PerformanceScreen
 import com.dailysatori.service.diagnostics.PerformanceResult
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,7 +55,7 @@ fun LedgerScreen(onBack: () -> Unit, viewModel: LedgerViewModel = koinViewModel(
                 state.buckets.all { it.entries.isEmpty() } -> PerformanceResult.EMPTY
                 else -> PerformanceResult.OK
             },
-        ), contentPadding = PaddingValues(bottom = Spacing.xl),
+        ), contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             item { LedgerTabRow(state.tab, viewModel::selectTab) }
             item { LedgerPeriodBar(state, viewModel::selectPeriod, viewModel::shift) }
@@ -72,10 +73,14 @@ fun LedgerScreen(onBack: () -> Unit, viewModel: LedgerViewModel = koinViewModel(
                 state.buckets.forEach { bucket ->
                     item(key = "head:${bucket.start}") { BucketHeader(state, bucket) }
                     if (bucket.entries.isNotEmpty()) item(key = "rows:${bucket.start}") {
-                        Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surface) {
+                        Surface(
+                            shape = RoundedCornerShape(Radius.card),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        ) {
                             Column {
                                 bucket.entries.forEachIndexed { index, entry ->
-                                    if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    if (index > 0) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                                     LedgerRow(entry) { navigation.openLedger(entry.id) }
                                 }
                             }
@@ -166,7 +171,11 @@ private fun LedgerSummaryCard(state: LedgerUiState) {
         else -> "${i18n.t("ledger.change")} ${if (expense >= state.previousExpense) "+" else "-"}${
             kotlin.math.abs(expense - state.previousExpense) * 100 / state.previousExpense}%"
     }
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(i18n.t("ledger.scope.${state.period.name.lowercase()}"), style = MaterialTheme.typography.bodySmall,
@@ -174,15 +183,20 @@ private fun LedgerSummaryCard(state: LedgerUiState) {
                 if (change.isNotEmpty()) Text(change, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(LedgerMoney.format(expense, state.primaryCurrency), style = MaterialTheme.typography.headlineSmall)
+            Text(LedgerMoney.format(expense, state.primaryCurrency), style = MaterialTheme.typography.headlineMedium)
             val total = state.totals.firstOrNull { it.currency == state.primaryCurrency }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            val balance = (total?.income ?: 0L) + (total?.refund ?: 0L) - (total?.expense ?: 0L)
+            val balanceText = if (balance < 0L) {
+                "-${LedgerMoney.format(kotlin.math.abs(balance), state.primaryCurrency)}"
+            } else {
+                LedgerMoney.format(balance, state.primaryCurrency)
+            }
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             Row(Modifier.fillMaxWidth()) {
                 listOf(
                     i18n.t("ledger.summary.income") to LedgerMoney.format(total?.income ?: 0L, state.primaryCurrency),
                     i18n.t("ledger.summary.refund") to LedgerMoney.format(total?.refund ?: 0L, state.primaryCurrency),
-                    i18n.t("ledger.summary.balance") to LedgerMoney.format(
-                        (total?.income ?: 0L) + (total?.refund ?: 0L) - (total?.expense ?: 0L), state.primaryCurrency),
+                    i18n.t("ledger.summary.balance") to balanceText,
                 ).forEach { (label, value) ->
                     Column(Modifier.weight(1f)) {
                         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.book
 
 import com.dailysatori.core.diagnostics.performanceContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,8 +43,10 @@ import com.dailysatori.core.diagnostics.performanceImageModel
 import com.dailysatori.service.book.BookSearchResult
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
@@ -173,77 +177,80 @@ private fun SearchResultItem(
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Radius.m))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .padding(Spacing.m),
-        verticalAlignment = Alignment.Top,
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        if (result.coverUrl.isNotBlank()) {
-            AsyncImage(
-                model = performanceImageModel(result.coverUrl),
-                contentDescription = result.title,
-                modifier = Modifier
-                    .size(width = 60.dp, height = 90.dp)
-                    .clip(RoundedCornerShape(Radius.xs)),
-            )
-            Spacer(modifier = Modifier.width(Spacing.m))
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                result.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (result.author.isNotBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.xxs))
-                Text(
-                    result.author,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            verticalAlignment = Alignment.Top,
+        ) {
+            if (result.coverUrl.isNotBlank()) {
+                AsyncImage(
+                    model = performanceImageModel(result.coverUrl),
+                    contentDescription = result.title,
+                    modifier = Modifier
+                        .size(width = 60.dp, height = 90.dp)
+                        .clip(RoundedCornerShape(Radius.xs)),
                 )
+                Spacer(modifier = Modifier.width(Spacing.m))
             }
-            if (result.introduction.isNotBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.xs))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    result.introduction,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (result.sourceSummary.isNotBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                Text(
-                    result.sourceSummary,
-                    style = MaterialTheme.typography.labelSmall,
+                    result.title,
+                    style = MaterialTheme.typography.titleSmall.editorial(),
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.primary,
                 )
+                if (result.author.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(Spacing.xxs))
+                    Text(
+                        result.author,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (result.introduction.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        result.introduction,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (result.sourceSummary.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        result.sourceSummary,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
-        }
-        Spacer(modifier = Modifier.width(Spacing.s))
-        FilledTonalButton(
-            onClick = onAdd,
-            enabled = !isAnalyzing,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = Spacing.m,
-                vertical = Spacing.xs,
-            ),
-        ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(modifier = Modifier.width(Spacing.xxs))
-            Text(compactBookAddActionText(isAnalyzing), style = MaterialTheme.typography.labelSmall)
+            Spacer(modifier = Modifier.width(Spacing.s))
+            FilledTonalButton(
+                onClick = onAdd,
+                enabled = !isAnalyzing,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = Spacing.m,
+                    vertical = Spacing.xs,
+                ),
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(Spacing.xxs))
+                Text(compactBookAddActionText(isAnalyzing), style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
@@ -255,31 +262,34 @@ fun AnalysisStatus(
     message: String?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Radius.m))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
-            .padding(Spacing.m),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)),
     ) {
-        if (isAnalyzing) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LoadingIndicator(modifier = Modifier.size(20.dp), size = 20.dp, strokeWidth = 2.dp)
-                Spacer(modifier = Modifier.width(Spacing.xs))
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+        ) {
+            if (isAnalyzing) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LoadingIndicator(modifier = Modifier.size(20.dp), size = 20.dp, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(Spacing.xs))
+                    Text(
+                        step.ifBlank { "正在分析书籍" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            if (message != null) {
+                if (isAnalyzing) Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(
-                    step.ifBlank { "正在分析书籍" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-        if (message != null) {
-            if (isAnalyzing) Spacer(modifier = Modifier.height(Spacing.xs))
-            Text(
-                message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

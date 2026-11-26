@@ -29,7 +29,8 @@ internal fun PhoneMessageCard(row: PhoneMessage, state: PhoneUiState, vm: PhoneA
     val reminders = phoneLinkedReminders(row, state.reminders)
     val actions = phoneMessageActions(row, state.preferences.forChannel(row.event.channel).cloud)
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.card), color = MaterialTheme.colorScheme.surface,
-        border = if (focused) BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.primary) else null) {
+        border = BorderStroke(if (focused) BorderWidth.s else BorderWidth.xs,
+            if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)) {
         Column(Modifier.padding(horizontal = Spacing.m).padding(top = Spacing.s, bottom = Spacing.xs)) {
             PhoneMessageHeader(row, state.sourceLabels[row.event.origin] ?: row.event.origin) {
                 PhoneMessageMenu(row, actions, state.busy, vm, onClear)
@@ -96,10 +97,10 @@ private fun PhoneMessageMenu(row: PhoneMessage, actions: PhoneMessageActions, bu
 private fun PhoneLinkedResults(entries: List<LedgerEntry>, reminders: List<Reminder>,
     onOpenLedger: (String) -> Unit, onOpenTodo: (String) -> Unit) {
     val i18n: I18nService = koinInject()
-    Surface(shape = RoundedCornerShape(Radius.inset), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    Surface(shape = RoundedCornerShape(Radius.inset), color = MaterialTheme.colorScheme.surfaceContainer) {
         Column {
             entries.forEachIndexed { index, entry ->
-                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (index > 0) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 PhoneLinkedRow(Icons.Default.AccountBalanceWallet,
                     entry.merchant.ifBlank { i18n.t("phone.ledger") },
                     i18n.t("phone.ledger") + " · " + i18n.t("bookkeeping.kind.${entry.kind.name.lowercase()}") + " · " +
@@ -107,7 +108,7 @@ private fun PhoneLinkedResults(entries: List<LedgerEntry>, reminders: List<Remin
                     entry.amountMinor?.let { phoneSignedAmount(entry) }.orEmpty()) { onOpenLedger(entry.id) }
             }
             reminders.forEachIndexed { index, reminder ->
-                if (index > 0 || entries.isNotEmpty()) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (index > 0 || entries.isNotEmpty()) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 val date = phoneLinkedReminderDate(reminder) ?: i18n.t("phone.deadline_unset")
                 PhoneLinkedRow(Icons.Default.EventAvailable, reminder.content,
                     i18n.t("phone.todos") + " · " + date + " · " + i18n.t("phone.reminder_status.${reminder.status.name.lowercase()}")) {
@@ -126,7 +127,7 @@ internal fun phoneSignedAmount(entry: LedgerEntry): String {
 
 @Composable
 private fun PhoneLinkedRow(icon: ImageVector, title: String, subtitle: String, value: String = "", onOpen: () -> Unit) {
-    Surface(onClick = onOpen, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    Surface(onClick = onOpen, color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s).heightIn(min = Height.button),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Icon(icon, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.primary)

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
@@ -104,9 +105,9 @@ private fun ViewpointHeader(
         )
         Text(
             text = viewpointDisplayTitle(title, bookTitle),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.editorial(),
             color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.ExtraBold,
+            fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -201,7 +202,10 @@ private fun ViewpointRetryBody(errorMessage: String, onRetry: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = onRetry) {
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(Radius.m),
+        ) {
             Text("重新生成这个观点")
         }
     }

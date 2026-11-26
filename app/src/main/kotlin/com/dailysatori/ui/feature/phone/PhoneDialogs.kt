@@ -20,7 +20,10 @@ internal data class PhoneTodoEdit(val row: PhoneMessage, val todo: PhoneTodo?)
     var deadline by remember(edit) { mutableStateOf(initial?.deadlineMs?.let { Instant.fromEpochMilliseconds(it).toLocalDateTime(zone).toString().take(16).replace('T', ' ') }.orEmpty()) }
     val parsed = remember(deadline) { runCatching { LocalDateTime.parse(deadline.trim().replace(' ', 'T')).toInstant(zone) }.getOrNull() }
     val valid = title.isNotBlank() && title.length <= 300 && (deadline.isBlank() || parsed != null && parsed > Clock.System.now())
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(i18n.t("phone.edit_todo")) }, text = {
+    AlertDialog(onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(i18n.t("phone.edit_todo"), style = MaterialTheme.typography.titleLarge.editorial()) }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             OutlinedTextField(title, onValueChange = { title = it }, label = { Text(i18n.t("phone.todo_title")) }, singleLine = true)
             OutlinedTextField(deadline, onValueChange = { deadline = it }, label = { Text(i18n.t("phone.deadline")) },
@@ -35,7 +38,10 @@ internal data class PhoneTodoEdit(val row: PhoneMessage, val todo: PhoneTodo?)
 
 @Composable internal fun PhoneConsentDialog(channel: PhoneChannel, onDismiss: () -> Unit, onAgree: () -> Unit) {
     val i18n: I18nService = koinInject()
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(i18n.t("phone.cloud")) },
+    AlertDialog(onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(i18n.t("phone.cloud"), style = MaterialTheme.typography.titleLarge.editorial()) },
         text = { Text(i18n.t("phone.cloud_notice", *arrayOf(i18n.t("phone.${channel.name.lowercase()}")))) },
         confirmButton = { TextButton(onClick = onAgree) { Text(i18n.t("sms.agree")) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(i18n.t("bookkeeping.cancel")) } })

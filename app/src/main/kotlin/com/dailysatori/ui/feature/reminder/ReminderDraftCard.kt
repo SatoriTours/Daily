@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.reminder
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -70,11 +71,12 @@ fun ReminderDraftCard(
     var picker by remember { mutableStateOf<DraftPicker?>(null) }
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.42f),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(stringResource(R.string.reminder_draft_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.reminder_draft_title), style = MaterialTheme.typography.titleMedium.editorial(), fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = state.content,
                 onValueChange = { onChange(state.editContent(it)) },
@@ -228,7 +230,8 @@ internal fun ReminderSettingRow(label: String, value: String, onClick: () -> Uni
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Row(
             Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
@@ -287,7 +290,10 @@ internal fun TimeDialog(initial: LocalTime, onDismiss: () -> Unit, onSelected: (
     val picker = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.reminder_select_time)) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(stringResource(R.string.reminder_select_time), style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { TimePicker(state = picker) },
         confirmButton = { TextButton(onClick = { onSelected(LocalTime(picker.hour, picker.minute)) }) { Text(stringResource(R.string.reminder_ok)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.reminder_cancel)) } },

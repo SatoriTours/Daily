@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings.backup
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.background
@@ -85,38 +86,57 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
         }
         LazyColumn(
             modifier = modifier.fillMaxSize().selectableGroup(),
-            contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.l),
+            contentPadding = PaddingValues(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
             item {
-                Row(Modifier.fillMaxWidth().padding(bottom = Spacing.s), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(i18n.t("backup_restore.select_title"), style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = { filePicker.launch(arrayOf("*/*")) }, enabled = !busy) {
-                        Icon(Icons.Default.FolderOpen, null, Modifier.size(IconSize.s))
-                        Spacer(Modifier.width(Spacing.xs))
-                        Text(i18n.t("backup_restore.choose_file_short"))
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(i18n.t("backup_restore.select_title"), style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Surface(
+                        onClick = { filePicker.launch(arrayOf("*/*")) },
+                        enabled = !busy,
+                        shape = RoundedCornerShape(Radius.circular),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = Spacing.s + Spacing.xxs, vertical = Spacing.xs),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Default.FolderOpen, null, Modifier.size(IconSize.xs), tint = MaterialTheme.colorScheme.primary)
+                            Text(i18n.t("backup_restore.choose_file_short"), style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
             if (state.isRestoring || state.errorMessage.isNotBlank() || state.successMessage.isNotBlank()) item {
-                Column(Modifier.fillMaxWidth().padding(bottom = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Column(Modifier.fillMaxWidth().padding(bottom = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                     RestoreFeedback(state)
                 }
             }
             if (state.selectedFileUri != null) item {
-                Column(Modifier.padding(bottom = Spacing.m)) {
-                    BackupFileCard(selected = true, title = state.selectedFileName,
-                        subtitle = i18n.t("backup_restore.selected_file"), enabled = false, onClick = {})
-                }
+                BackupFileCard(selected = true, title = state.selectedFileName,
+                    subtitle = i18n.t("backup_restore.selected_file"), enabled = false, onClick = {})
             }
             if (state.backupList.isNotEmpty()) item {
-                Text(i18n.t("backup_restore.directory_files"), Modifier.padding(bottom = Spacing.m),
+                Text(i18n.t("backup_restore.directory_files"), Modifier.padding(horizontal = Spacing.xs),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (state.isLoading) item { CircularProgressIndicator(Modifier.size(IconSize.m)) }
             if (state.backupList.isEmpty() && state.selectedFileUri == null && !state.isLoading) item {
-                Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
-                    Column(Modifier.fillMaxWidth().padding(Spacing.l), horizontalAlignment = Alignment.CenterHorizontally,
+                Surface(
+                    shape = RoundedCornerShape(Radius.card),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         Icon(Icons.Default.FolderOpen, null, Modifier.size(IconSize.xl), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(i18n.t("backup_restore.empty"), style = MaterialTheme.typography.bodySmall,
@@ -191,32 +211,40 @@ private fun BackupFileCard(
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(topStart = if (first) Radius.m else Radius.none,
-            topEnd = if (first) Radius.m else Radius.none, bottomStart = if (last) Radius.m else Radius.none,
-            bottomEnd = if (last) Radius.m else Radius.none),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            if (selected) BorderWidth.s else BorderWidth.xs,
+            if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outline,
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
     ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth().background(
-                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color.Transparent,
-                ).padding(Spacing.m), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
-            ) {
-                Icon(Icons.Default.Description, null, Modifier.size(IconSize.l), tint =
-                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                RadioButton(selected = selected, onClick = null)
+        Row(
+            modifier = Modifier.fillMaxWidth().background(
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.06f) else androidx.compose.ui.graphics.Color.Transparent,
+            ).padding(Spacing.m),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
+        ) {
+            Icon(
+                Icons.Default.Description,
+                null,
+                Modifier.size(IconSize.m),
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            if (!last) HorizontalDivider(Modifier.padding(start = Spacing.m + IconSize.l + Spacing.s + Spacing.xs),
-                color = MaterialTheme.colorScheme.outlineVariant)
+            RadioButton(selected = selected, onClick = null)
         }
     }
 }

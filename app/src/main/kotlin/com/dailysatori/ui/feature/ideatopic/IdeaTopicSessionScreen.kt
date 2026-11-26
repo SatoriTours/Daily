@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.ideatopic
 import com.dailysatori.core.diagnostics.performanceTab
 import com.dailysatori.service.diagnostics.PerformanceScreen
 import com.dailysatori.service.diagnostics.PerformanceResult
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -156,40 +157,43 @@ internal fun IdeaTopicDiscussionContent(
             ) { Text(i18n.t("idea_topic.view_new_reply")) }
         }
 
-        Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = Spacing.xs) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-            ) {
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(i18n.t("idea_topic.send_hint")) },
-                    maxLines = 4,
-                    shape = RoundedCornerShape(Radius.m),
-                )
-                if (state.busy) {
-                    IconButton(onClick = viewModel::cancel) {
-                        Icon(Icons.Default.Stop, i18n.t("idea_topic.action_cancel_ai"), tint = MaterialTheme.colorScheme.error)
-                    }
-                } else {
-                    IconButton(
-                        enabled = inputText.isNotBlank() && state.topicId != null,
-                        onClick = {
-                            val draft = inputText
-                            viewModel.send(draft) {
-                                if (inputText == draft) inputText = ""
-                                scrollToLatest = true
-                            }
-                        },
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            i18n.t("idea_topic.send_feedback"),
-                            tint = if (inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.fillMaxWidth()) {
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                ) {
+                    OutlinedTextField(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text(i18n.t("idea_topic.send_hint")) },
+                        maxLines = 4,
+                        shape = RoundedCornerShape(Radius.m),
+                    )
+                    if (state.busy) {
+                        IconButton(onClick = viewModel::cancel) {
+                            Icon(Icons.Default.Stop, i18n.t("idea_topic.action_cancel_ai"), tint = MaterialTheme.colorScheme.error)
+                        }
+                    } else {
+                        IconButton(
+                            enabled = inputText.isNotBlank() && state.topicId != null,
+                            onClick = {
+                                val draft = inputText
+                                viewModel.send(draft) {
+                                    if (inputText == draft) inputText = ""
+                                    scrollToLatest = true
+                                }
+                            },
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                i18n.t("idea_topic.send_feedback"),
+                                tint = if (inputText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -206,7 +210,7 @@ private fun DiscussionEmptyState(onExample: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
         Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(IconSize.xxl), tint = MaterialTheme.colorScheme.primary)
-        Text(i18n.t("idea_topic.discussion_empty_title"), style = MaterialTheme.typography.titleMedium)
+        Text(i18n.t("idea_topic.discussion_empty_title"), style = MaterialTheme.typography.titleLarge.editorial())
         Text(
             i18n.t("idea_topic.discussion_empty_hint"),
             style = MaterialTheme.typography.bodyMedium,
@@ -214,7 +218,20 @@ private fun DiscussionEmptyState(onExample: (String) -> Unit) {
         )
         listOf("discussion_example_idea", "discussion_example_feedback", "discussion_example_blocked").forEach { key ->
             val example = i18n.t("idea_topic.$key")
-            OutlinedButton(onClick = { onExample(example) }, modifier = Modifier.fillMaxWidth()) { Text(example) }
+            Surface(
+                onClick = { onExample(example) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            ) {
+                Text(
+                    text = example,
+                    modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }
@@ -231,8 +248,9 @@ private fun SessionSummaryCard(
     var showSummary by rememberSaveable { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.xs),
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs)) {
             Row(
@@ -285,11 +303,12 @@ private fun MessageItem(message: IdeaTopicMessage, canRetry: Boolean, onRetry: (
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (isUser) Alignment.End else Alignment.Start) {
         Surface(
             shape = RoundedCornerShape(
-                topStart = Radius.m, topEnd = Radius.m,
-                bottomStart = if (isUser) Radius.m else Radius.xs,
-                bottomEnd = if (isUser) Radius.xs else Radius.m,
+                topStart = Radius.card, topEnd = Radius.card,
+                bottomStart = if (isUser) Radius.card else Radius.xs,
+                bottomEnd = if (isUser) Radius.xs else Radius.card,
             ),
-            color = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+            color = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+            border = if (isUser) null else BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             modifier = Modifier.widthIn(max = Spacing.xxl * 7),
         ) {
             Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {

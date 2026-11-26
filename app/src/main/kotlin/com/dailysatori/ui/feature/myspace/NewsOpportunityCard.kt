@@ -29,14 +29,21 @@ internal fun NewsOpportunityCard(
     Surface(
         onClick = onOpen,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        Row(Modifier.padding(start = Spacing.m, top = Spacing.s, bottom = Spacing.s),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
-            Text(rank.toString().padStart(2, '0'), Modifier.padding(top = Spacing.xs),
-                style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            Modifier.padding(start = Spacing.m, end = Spacing.s, top = Spacing.s + Spacing.xs, bottom = Spacing.s + Spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                rank.toString().padStart(2, '0'),
+                Modifier.padding(top = Spacing.xxs),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+            )
             Column(Modifier.weight(1f).padding(vertical = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(item.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)

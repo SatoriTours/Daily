@@ -2,6 +2,8 @@ package com.dailysatori.ui.feature.unifiednews
 
 import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,15 +14,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,11 +125,15 @@ internal fun HeadlineDigestBody(
         if (overview.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.news_focus_overview),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xxs)) {
+                        Box(Modifier.size(Spacing.xs + Spacing.xxs).background(MaterialTheme.colorScheme.primary, CircleShape))
+                        Text(
+                            stringResource(R.string.news_focus_overview),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     HeadlineDigestHeader(entry)
                 }
                 Text(
@@ -131,20 +144,20 @@ internal fun HeadlineDigestBody(
                 if (overviewClipped) HeadlineBriefingAction(onBriefing)
             }
             if (digest.stories.isNotEmpty() || hasRemaining) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(Modifier.padding(top = Spacing.xs), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             }
         }
         if (digest.stories.isNotEmpty()) {
             Column(Modifier.fillMaxWidth()) {
                 digest.stories.forEachIndexed { index, story ->
-                    if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
-                    HeadlineStoryBlock(story, onSourceClick)
+                    if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                    HeadlineStoryBlock(story, onSourceClick, index = index + 1)
                 }
             }
         }
         if (hasRemaining) {
             if (digest.stories.isNotEmpty()) {
-                HorizontalDivider(Modifier.padding(vertical = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(Modifier.padding(vertical = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             }
             CitationText(
                 content = digest.remaining,
@@ -158,16 +171,35 @@ internal fun HeadlineDigestBody(
 
 @Composable
 private fun HeadlineBriefingAction(onBriefing: () -> Unit) {
-    TextButton(
-        onClick = onBriefing,
-        modifier = Modifier.fillMaxWidth().heightIn(min = Height.touchTarget),
-        contentPadding = PaddingValues(vertical = Spacing.s),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        Text(
-            stringResource(R.string.news_focus_read_briefing),
-            Modifier.weight(1f),
-            style = MaterialTheme.typography.labelLarge,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = Height.touchTarget)
+                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onBriefing)
+                .padding(horizontal = Spacing.m, vertical = Spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            Text(
+                stringResource(R.string.news_focus_read_briefing),
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(IconSize.s),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
@@ -185,9 +217,34 @@ private fun HeadlineDigestHeader(entry: Unified_news_summary) {
 }
 
 @Composable
-internal fun HeadlineStoryBlock(story: DailyHeadlineStory, onSourceClick: (Unified_news_source) -> Unit) {
+internal fun HeadlineStoryBlock(
+    story: DailyHeadlineStory,
+    onSourceClick: (Unified_news_source) -> Unit,
+    index: Int? = null,
+) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(story.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.Top,
+        ) {
+            if (index != null) {
+                Text(
+                    index.toString().padStart(2, '0'),
+                    modifier = Modifier.widthIn(min = IconSize.m).padding(top = Spacing.xxs),
+                    style = MaterialTheme.typography.labelLarge.editorial(),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                story.title,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium.editorial(),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
         story.paragraphs.forEach { paragraph ->
             Text(
                 paragraph,
@@ -198,7 +255,7 @@ internal fun HeadlineStoryBlock(story: DailyHeadlineStory, onSourceClick: (Unifi
         val sourceMeta = headlineStorySourceMeta(story)
         if (sourceMeta.isNotBlank() || story.sources.isNotEmpty()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {

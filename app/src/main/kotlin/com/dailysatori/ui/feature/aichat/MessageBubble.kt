@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -270,9 +271,9 @@ private fun ChatMessageActionButton(text: String, onClick: () -> Unit) {
 private fun MutedUserMessage(content: String, isExcluded: Boolean = false) {
     Surface(
         shape = RoundedCornerShape(
-            topStart = Radius.m,
-            topEnd = Radius.m,
-            bottomStart = Radius.m,
+            topStart = Radius.card,
+            topEnd = Radius.card,
+            bottomStart = Radius.card,
             bottomEnd = Radius.xs,
         ),
         color = MaterialTheme.colorScheme.primaryContainer,
@@ -322,12 +323,13 @@ private fun StructuredAssistantMessage(
 ) {
     Surface(
         shape = RoundedCornerShape(
-            topStart = Radius.m,
-            topEnd = Radius.m,
+            topStart = Radius.card,
+            topEnd = Radius.card,
             bottomStart = Radius.xs,
-            bottomEnd = Radius.m,
+            bottomEnd = Radius.card,
         ),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
@@ -384,7 +386,7 @@ private fun AssistantReferencesSection(
     ) {
         Surface(
             shape = RoundedCornerShape(Radius.m),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            color = MaterialTheme.colorScheme.surfaceContainer,
             modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
         ) {
             Row(

@@ -1,7 +1,9 @@
 package com.dailysatori.ui.component.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -11,6 +13,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.dailysatori.R
+import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.editorial
 
 @Composable
 fun rememberSettingsEditorBack(
@@ -28,14 +32,17 @@ fun rememberSettingsEditorBack(
     BackHandler(onBack = requestBack)
     if (showDiscard) AlertDialog(
         onDismissRequest = { if (!busy) showDiscard = false },
-        title = { Text(stringResource(R.string.settings_unsaved_title)) },
-        text = { Text(stringResource(R.string.settings_unsaved_message)) },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(stringResource(R.string.settings_unsaved_title), style = MaterialTheme.typography.titleMedium.editorial()) },
+        text = { Text(stringResource(R.string.settings_unsaved_message), color = MaterialTheme.colorScheme.onSurfaceVariant) },
         confirmButton = {
             TextButton(enabled = !busy, onClick = {
                 showDiscard = false
                 onDiscard()
                 onBack()
-            }) { Text(stringResource(R.string.settings_discard_changes)) }
+            }) { Text(stringResource(R.string.settings_discard_changes), color = MaterialTheme.colorScheme.error) }
         },
         dismissButton = {
             TextButton(enabled = !busy, onClick = { showDiscard = false }) {

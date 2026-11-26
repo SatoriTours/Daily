@@ -40,7 +40,7 @@ internal fun DailyHeadlinesPreview(
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(stringResource(headlinesTitleResource(summary.summary_date)),
-                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                style = MaterialTheme.typography.headlineMedium.editorial(), fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.news_focus_updated, summary.summary_date,
                 TimeUtils.formatDateTime(summary.updated_at).substringAfter(' ')), Modifier.padding(top = Spacing.xs),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -71,11 +71,11 @@ private fun DailyHeadlinesReadingContent(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs)) {
                     Text(stringResource(R.string.news_focus_key_points), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary)
-                    HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(Modifier.weight(1f), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 }
             }
             stories.forEachIndexed { index, story ->
-                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (index > 0) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 DailyHeadlineStoryRow(index, story, onCitationClick)
             }
             if (stories.isEmpty() && query.isBlank()) {
@@ -163,7 +163,7 @@ internal fun TodayNewsOpportunityCard(
                 }
             }
         }
-        if (showDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        if (showDivider) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     }
 }
 

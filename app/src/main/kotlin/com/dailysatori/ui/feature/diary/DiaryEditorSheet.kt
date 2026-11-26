@@ -109,10 +109,10 @@ private fun diaryEditorColors(): DiaryEditorColors = DiaryEditorColors(
     sheet = MaterialTheme.colorScheme.surface,
     text = MaterialTheme.colorScheme.onSurface,
     muted = MaterialTheme.colorScheme.onSurfaceVariant,
-    line = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+    line = MaterialTheme.colorScheme.outline,
     chip = MaterialTheme.colorScheme.surfaceContainer,
     primary = MaterialTheme.colorScheme.primary,
-    primarySoft = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
+    primarySoft = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
 )
 
 private fun sanitizeNull(value: String?): String {
@@ -528,8 +528,9 @@ fun DiaryEditorSheet(
                     .fillMaxWidth()
                     .fillMaxHeight(0.92f)
                     .padding(bottom = Spacing.s),
-                shape = RoundedCornerShape(topStart = Radius.l, topEnd = Radius.l),
+                shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
                 color = editorColors.sheet,
+                border = androidx.compose.foundation.BorderStroke(BorderWidth.xs, editorColors.line),
             ) {
                 Column(
                     modifier = Modifier
@@ -1056,7 +1057,7 @@ private fun DiaryTextEditDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(title) },
         text = {
             OutlinedTextField(value = value, onValueChange = onValueChange, placeholder = { Text(placeholder) }, singleLine = true)

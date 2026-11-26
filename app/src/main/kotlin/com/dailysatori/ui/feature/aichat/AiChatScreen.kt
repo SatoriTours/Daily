@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,6 +75,7 @@ import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import org.koin.androidx.compose.koinViewModel
@@ -396,7 +398,7 @@ private fun AiChatWelcomeBrief(modifier: Modifier = Modifier) {
             Surface(
                 modifier = Modifier.width(BorderWidth.s).fillMaxHeight(),
                 shape = RoundedCornerShape(Radius.circular),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+                color = MaterialTheme.colorScheme.outline,
             ) {}
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(
@@ -407,7 +409,7 @@ private fun AiChatWelcomeBrief(modifier: Modifier = Modifier) {
                 )
                 Text(
                     text = androidx.compose.ui.res.stringResource(com.dailysatori.R.string.my_space_chat_hint),
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineSmall.editorial(),
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -554,8 +556,9 @@ private fun AssistantStatusCard(text: String) {
         horizontalArrangement = Arrangement.Start,
     ) {
         Surface(
-            shape = RoundedCornerShape(Radius.m),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(Radius.card),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             modifier = Modifier.fillMaxWidth(0.8f),
         ) {
             Text(

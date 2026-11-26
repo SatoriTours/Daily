@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.bookkeeping
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -82,18 +83,25 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
         }) { modifier ->
             Column(modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(i18n.t("bookkeeping.sources_intro"), style = MaterialTheme.typography.titleMedium)
+                    Text(i18n.t("bookkeeping.sources_intro"), style = MaterialTheme.typography.titleMedium.editorial())
                     Text(i18n.t("bookkeeping.sources_new_only"), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 BookkeepingSourceTabs(selectedOnly, state.selectedSources.size) { selectedOnly = it }
                 if (visible.isEmpty()) BookkeepingSourcesEmpty(search, selectedOnly, state.sources.isEmpty(), Modifier.weight(1f))
-                else Surface(Modifier.fillMaxWidth().weight(1f, fill = false), shape = RoundedCornerShape(Radius.l),
-                    color = MaterialTheme.colorScheme.surface) {
+                else Surface(
+                    Modifier.fillMaxWidth().weight(1f, fill = false),
+                    shape = RoundedCornerShape(Radius.card),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                ) {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
                         itemsIndexed(visible, key = { _, source -> source.packageName }) { index, source ->
-                            if (index > 0) HorizontalDivider(Modifier.padding(start = Spacing.m + IconSize.xxl + Spacing.m, end = Spacing.m),
-                                color = MaterialTheme.colorScheme.outlineVariant)
+                            if (index > 0) HorizontalDivider(
+                                Modifier.padding(start = Spacing.m + IconSize.xxl + Spacing.m, end = Spacing.m),
+                                thickness = BorderWidth.xs,
+                                color = MaterialTheme.colorScheme.outline,
+                            )
                             BookkeepingSourceRow(source, source.packageName in state.selectedSources, state.busy) {
                                 onSelect(source.packageName, it)
                             }
@@ -121,7 +129,7 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
                 }
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     }
 }
 
@@ -145,7 +153,7 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
             runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap(pixels, pixels).asImageBitmap() }.getOrNull()
         }
     }
-    Surface(Modifier.size(IconSize.xxl), shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+    Surface(Modifier.size(IconSize.xxl), shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
         val bitmap = icon
         if (bitmap != null) Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(Radius.m)))
         else Box(contentAlignment = Alignment.Center) {
@@ -175,22 +183,27 @@ internal fun BookkeepingSourcesDialog(state: BookkeepingUiState, onSelect: (Stri
 
 @Composable private fun BookkeepingSourcesFooter(state: BookkeepingUiState, onDone: () -> Unit) {
     val i18n: I18nService = koinInject()
-    Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-            Text(i18n.t("bookkeeping.sources_selected_label"), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(i18n.t("bookkeeping.sources_selected_count", state.selectedSources.size), style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary)
-            if (state.busy) CircularProgressIndicator(Modifier.size(IconSize.s), strokeWidth = BorderWidth.l)
-        }
-        if (state.error) Text(i18n.t("bookkeeping.sources_save_failed"), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error)
-        Button(onClick = onDone, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = Height.button),
-            shape = RoundedCornerShape(Radius.circular)) { Text(i18n.t("bookkeeping.done")) }
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.PrivacyTip, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(i18n.t("bookkeeping.sources_privacy"), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Column(Modifier.fillMaxWidth()) {
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+            Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                    Text(i18n.t("bookkeeping.sources_selected_label"), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(i18n.t("bookkeeping.sources_selected_count", state.selectedSources.size), style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                    if (state.busy) CircularProgressIndicator(Modifier.size(IconSize.s), strokeWidth = BorderWidth.l)
+                }
+                if (state.error) Text(i18n.t("bookkeeping.sources_save_failed"), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error)
+                Button(onClick = onDone, enabled = !state.busy, modifier = Modifier.fillMaxWidth().heightIn(min = Height.button),
+                    shape = RoundedCornerShape(Radius.circular)) { Text(i18n.t("bookkeeping.done")) }
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.PrivacyTip, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(i18n.t("bookkeeping.sources_privacy"), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 }

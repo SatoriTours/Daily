@@ -70,17 +70,21 @@ fun LedgerEntryScreen(entryId: String, onBack: () -> Unit, vm: LedgerViewModel =
 @Composable
 private fun LedgerEntrySummary(entry: LedgerEntry, onSettings: () -> Unit) {
     val i18n: I18nService = koinInject()
-    Surface(shape = RoundedCornerShape(Radius.card), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Text(i18n.t("bookkeeping.kind.${entry.kind.name.lowercase()}") + " · " +
                 i18n.t(if (entry.status == LedgerStatus.POSTED) "phone.ledger_posted" else "phone.pending"),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(if (entry.amountMinor == null) i18n.t("phone.amount_unknown") else phoneSignedAmount(entry), style = MaterialTheme.typography.displayLarge)
-            Text(entry.merchant.ifBlank { i18n.t("ledger.unknown_merchant") }, style = MaterialTheme.typography.headlineSmall)
+            Text(entry.merchant.ifBlank { i18n.t("ledger.unknown_merchant") }, style = MaterialTheme.typography.headlineSmall.editorial())
             Text(phoneDisplayTime(entry.receivedAt, kotlinx.datetime.TimeZone.currentSystemDefault().id, full = true),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(Spacing.s))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             TextButton(onClick = onSettings, contentPadding = PaddingValues(), modifier = Modifier.fillMaxWidth()) {
                 Text(i18n.t("ledger.detail.category"), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Start, color = MaterialTheme.colorScheme.onSurfaceVariant)

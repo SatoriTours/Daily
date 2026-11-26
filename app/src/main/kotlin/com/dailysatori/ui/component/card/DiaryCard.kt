@@ -5,14 +5,17 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -29,10 +32,10 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,96 +104,106 @@ fun DiaryCard(
     var expanded by rememberSaveable(diary.id, contentText) { mutableStateOf(initiallyExpanded) }
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier.fillMaxWidth().animateContentSize()
-            .clickable(enabled = hasOverflow || expanded) { expanded = !expanded },
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        DiaryCardHeader(
-            diary = diary,
-            contentText = rawContentText,
-            showDelete = showDelete,
-            menuExpanded = menuExpanded,
-            onMenuChange = { menuExpanded = it },
-            onEdit = onEdit,
-            onDelete = onDelete,
-            onContinue = onContinue,
-            nowMillis = nowMillis,
-            onCaptureIdea = onCaptureIdea,
-        )
-        if (bodyPresentation.isAiSummary) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(Radius.xs))
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                    .clickable(onClick = onOpenThread)
-                    .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
-            ) {
-                Icon(
-                    Icons.Default.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(IconSize.xs),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(R.string.diary_card_ai_summary_tag),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                if (bodyPresentation.isStale) {
-                    Text(
-                        text = "· ${stringResource(R.string.diary_card_summary_stale_tag)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
-                }
-            }
-        }
-        DiaryBody(contentText, expanded, onOverflow = { hasOverflow = it }, modifier = Modifier.fillMaxWidth(),
-            hasPhotos = imagePaths.isNotEmpty())
-        if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir, expanded)
-        DiaryAttachmentList(
-            attachments = attachments,
-            onRetryTranscription = onRetryTranscription,
-            compact = !expanded,
-        )
-        if (bodyPresentation.replyCount > 0) {
-            Surface(
-                shape = RoundedCornerShape(Radius.circular),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(Radius.circular))
-                    .clickable(onClick = onOpenThread),
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize()
+                .clickable(enabled = hasOverflow || expanded) { expanded = !expanded }
+                .padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            DiaryCardHeader(
+                diary = diary,
+                contentText = rawContentText,
+                showDelete = showDelete,
+                menuExpanded = menuExpanded,
+                onMenuChange = { menuExpanded = it },
+                onEdit = onEdit,
+                onDelete = onDelete,
+                onContinue = onContinue,
+                nowMillis = nowMillis,
+                onCaptureIdea = onCaptureIdea,
+            )
+            if (bodyPresentation.isAiSummary) {
                 Row(
-                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(Radius.s))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .clickable(onClick = onOpenThread)
+                        .padding(horizontal = Spacing.s, vertical = Spacing.xs),
                 ) {
-                    Text(
-                        text = stringResource(R.string.diary_card_replies_count, bodyPresentation.replyCount),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium,
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(IconSize.xs),
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "· ${stringResource(R.string.diary_card_open_thread)}",
+                        text = stringResource(R.string.diary_card_ai_summary_tag),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
+                    if (bodyPresentation.isStale) {
+                        Text(
+                            text = "· ${stringResource(R.string.diary_card_summary_stale_tag)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
                 }
             }
+            DiaryBody(contentText, expanded, onOverflow = { hasOverflow = it }, modifier = Modifier.fillMaxWidth(),
+                hasPhotos = imagePaths.isNotEmpty())
+            if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir, expanded)
+            DiaryAttachmentList(
+                attachments = attachments,
+                onRetryTranscription = onRetryTranscription,
+                compact = !expanded,
+            )
+            if (bodyPresentation.replyCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(Radius.circular),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(Radius.circular))
+                        .clickable(onClick = onOpenThread),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.diary_card_replies_count, bodyPresentation.replyCount),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "· ${stringResource(R.string.diary_card_open_thread)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            DiaryCardFooter(
+                tags = tags,
+                isLongContent = hasOverflow || expanded,
+                expanded = expanded,
+                onTagClick = onTagClick,
+                onContinue = onContinue,
+            ) { expanded = !expanded }
         }
-        DiaryCardFooter(
-            tags = tags,
-            isLongContent = hasOverflow || expanded,
-            expanded = expanded,
-            onTagClick = onTagClick,
-            onContinue = onContinue,
-        ) { expanded = !expanded }
     }
 }
 
@@ -221,9 +234,20 @@ private fun DiaryCardHeader(
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         diary.mood?.takeIf { it.isNotBlank() && it != "null" }?.let { mood ->
-            Text(mood, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.widthIn(max = Spacing.xxl + Spacing.l))
+            Surface(
+                shape = RoundedCornerShape(Radius.circular),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                Text(
+                    mood,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.widthIn(max = Spacing.xxl + Spacing.l)
+                        .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                )
+            }
         }
         if (showDelete) {
             Box {
@@ -303,25 +327,55 @@ private fun DiaryCollapsedBody(contentText: String, hasPhotos: Boolean, onOverfl
     val isQuote = preview.title == null && contentText.trimStart().startsWith("> ")
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         preview.title?.let { title ->
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium.editorial(),
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 onTextLayout = {
                     titleOverflow = it.hasVisualOverflow
                     onOverflow(titleOverflow || bodyOverflow)
-                })
+                },
+            )
         }
         if (preview.body.isNotBlank()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                if (isQuote) Icon(Icons.Default.FormatQuote, contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(IconSize.xl))
-                Text(preview.body,
-                    style = if (hasPhotos || isQuote) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
-                    maxLines = 3, overflow = TextOverflow.Ellipsis,
+            if (isQuote) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(BorderWidth.l)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                    Text(
+                        preview.body,
+                        style = MaterialTheme.typography.bodyLarge.editorial(),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = {
+                            bodyOverflow = it.hasVisualOverflow
+                            onOverflow(titleOverflow || bodyOverflow)
+                        },
+                    )
+                }
+            } else {
+                Text(
+                    preview.body,
+                    style = if (hasPhotos) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
                     onTextLayout = {
                         bodyOverflow = it.hasVisualOverflow
                         onOverflow(titleOverflow || bodyOverflow)
-                    })
+                    },
+                )
             }
         }
     }
@@ -336,36 +390,41 @@ private fun DiaryCardFooter(
     onContinue: () -> Unit,
     onExpand: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-    ) {
-        if (tags.isNotEmpty()) {
-            LazyRow(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                items(tags, key = { it }) { tag -> DiaryTagChip(tag) { onTagClick(tag) } }
+    Column(modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs)) {
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = Spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            if (tags.isNotEmpty()) {
+                LazyRow(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    items(tags, key = { it }) { tag -> DiaryTagChip(tag) { onTagClick(tag) } }
+                }
+            } else {
+                Box(modifier = Modifier.weight(1f))
             }
-        } else {
-            Box(modifier = Modifier.weight(1f))
+            Text(
+                text = stringResource(R.string.diary_card_action_continue),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Radius.circular))
+                    .clickable(onClick = onContinue)
+                    .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+            )
+            if (isLongContent) Text(
+                text = stringResource(if (expanded) R.string.diary_feed_collapse else R.string.diary_feed_expand),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Radius.circular))
+                    .clickable(onClick = onExpand)
+                    .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+            )
         }
-        Text(
-            text = stringResource(R.string.diary_card_action_continue),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .clip(RoundedCornerShape(Radius.circular))
-                .clickable(onClick = onContinue)
-                .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
-        )
-        if (isLongContent) Text(
-            text = stringResource(if (expanded) R.string.diary_feed_collapse else R.string.diary_feed_expand),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .clip(RoundedCornerShape(Radius.circular))
-                .clickable(onClick = onExpand)
-                .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
-        )
     }
 }
 

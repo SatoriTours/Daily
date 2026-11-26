@@ -29,9 +29,15 @@ internal fun OpportunityReminderSheet(item: NewsOpportunity, myViewModel: MySpac
         ReminderEditorSheet(existing, profiles.firstOrNull()?.snapshot ?: existing.profile, viewModel, onDismiss)
         return
     }
-    ModalBottomSheet(onDismissRequest = { if (!editor.saving) onDismiss() }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(
+        onDismissRequest = { if (!editor.saving) onDismiss() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+    ) {
         Column(Modifier.fillMaxHeight().imePadding()) {
-            Text(stringResource(R.string.my_space_add_reminder), Modifier.padding(Spacing.l), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.my_space_add_reminder), Modifier.padding(Spacing.l), style = MaterialTheme.typography.titleLarge.editorial())
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 Text(stringResource(R.string.my_space_from_reading), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ReminderEditorForm(editor.toFormState(item.id), profiles, { if (!editor.saving && savedId == null) editor = editor.applyFormState(it) },

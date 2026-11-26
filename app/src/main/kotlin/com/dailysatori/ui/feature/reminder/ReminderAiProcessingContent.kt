@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.reminder
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,14 +39,19 @@ internal fun ReminderAiProcessingContent(batch: ReminderAiBatch, progress: Remin
             verticalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
             Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(IconSize.xxl), tint = MaterialTheme.colorScheme.primary)
-            Text(stringResource(R.string.reminder_ai_progress_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.reminder_ai_progress_title), style = MaterialTheme.typography.headlineSmall.editorial(), textAlign = TextAlign.Center)
             Text(stringResource(R.string.reminder_ai_progress_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Schedule, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.reminder_ai_progress_elapsed, elapsed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(Radius.card),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(Modifier.padding(Spacing.l)) {
                 ReminderAiStage.entries.forEach { stage -> ReminderAiProgressStep(stage, progress, now) }
             }
@@ -56,8 +62,12 @@ internal fun ReminderAiProcessingContent(batch: ReminderAiBatch, progress: Remin
             Text(stringResource(R.string.reminder_ai_progress_long_wait), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(stringResource(R.string.reminder_ai_progress_original), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
+            Text(stringResource(R.string.reminder_ai_progress_original), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            ) {
                 Text(batch.originalInput, Modifier.fillMaxWidth().padding(Spacing.m), style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -82,7 +92,7 @@ private fun ReminderAiProgressStep(stage: ReminderAiStage, progress: ReminderAiP
                 else -> Icon(Icons.Outlined.RadioButtonUnchecked, null, Modifier.size(IconSize.l), tint = muted)
             }
             if (stage != ReminderAiStage.GENERATING) {
-                Spacer(Modifier.weight(1f).padding(top = Spacing.xs).width(BorderWidth.s).background(MaterialTheme.colorScheme.outlineVariant))
+                Spacer(Modifier.weight(1f).padding(top = Spacing.xs).width(BorderWidth.s).background(MaterialTheme.colorScheme.outline))
             }
         }
         Column(Modifier.weight(1f).padding(bottom = if (stage == ReminderAiStage.GENERATING) Spacing.xs else Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {

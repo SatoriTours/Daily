@@ -137,7 +137,7 @@ fun SettingsScaffold(
             bottomBar = {
                 if (bottomBar != null) Surface(color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.navigationBarsPadding().imePadding()) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                         bottomBar()
                     }
                 }
@@ -175,12 +175,14 @@ private fun SettingsGroupTabs(navigation: SettingsGroupNavigation, enabled: Bool
                 ) {
                     Text(label, Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.m),
                         style = MaterialTheme.typography.titleSmall,
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
+                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                     Box(Modifier.fillMaxWidth().height(BorderWidth.l).background(
-                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLowest))
+                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background,
+                        shape = RoundedCornerShape(Radius.xxs)))
                 }
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     }
 }

@@ -118,7 +118,7 @@ fun IdeaTopicListScreen(
                             Icons.Outlined.Lightbulb,
                             null,
                             modifier = Modifier.size(Spacing.xxl),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = MaterialTheme.colorScheme.secondary,
                         )
                         Text(
                             text = i18n.t("idea_topic.empty_title"),
@@ -163,9 +163,9 @@ internal fun IdeaTopicCard(
     Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
@@ -178,7 +178,7 @@ internal fun IdeaTopicCard(
             ) {
                 Text(
                     text = content.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.editorial(),
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                     maxLines = 2,
@@ -215,6 +215,7 @@ internal fun IdeaTopicCard(
                 )
             }
 
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -242,16 +243,16 @@ internal fun IdeaTopicStatusBadge(
 ) {
     val i18n: I18nService = koinInject()
     val containerColor = when (status) {
-        IdeaTopicStatus.PendingResearch -> MaterialTheme.colorScheme.surfaceContainerHigh
+        IdeaTopicStatus.PendingResearch -> MaterialTheme.colorScheme.surfaceContainer
         IdeaTopicStatus.Researching -> MaterialTheme.colorScheme.secondaryContainer
         IdeaTopicStatus.Advancing -> MaterialTheme.colorScheme.primaryContainer
-        IdeaTopicStatus.Completed -> MaterialTheme.colorScheme.surfaceVariant
+        IdeaTopicStatus.Completed -> MaterialTheme.colorScheme.tertiaryContainer
     }
     val contentColor = when (status) {
         IdeaTopicStatus.PendingResearch -> MaterialTheme.colorScheme.onSurfaceVariant
         IdeaTopicStatus.Researching -> MaterialTheme.colorScheme.onSecondaryContainer
         IdeaTopicStatus.Advancing -> MaterialTheme.colorScheme.onPrimaryContainer
-        IdeaTopicStatus.Completed -> MaterialTheme.colorScheme.onSurfaceVariant
+        IdeaTopicStatus.Completed -> MaterialTheme.colorScheme.onTertiaryContainer
     }
 
     Surface(

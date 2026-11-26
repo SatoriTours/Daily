@@ -363,13 +363,13 @@ private fun ReminderModeTab(mode: ReminderListMode, isSelected: Boolean, onClick
         Text(
             mode.label(),
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(Spacing.s))
         Box(
             Modifier
-                .height(Spacing.xxs)
+                .height(BorderWidth.l)
                 .fillMaxWidth()
                 .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(Radius.xxs)),
         )
@@ -432,7 +432,8 @@ private fun ReminderMonthChip(month: ReminderMonthUi, isCurrent: Boolean, isSele
     Box {
         Surface(
             shape = RoundedCornerShape(Radius.m),
-            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+            border = if (isSelected) null else androidx.compose.foundation.BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             modifier = Modifier.clickable(onClick = onClick),
         ) {
             Column(
@@ -530,7 +531,7 @@ private fun ReminderStoryRow(
 ) {
     val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
     val completed = item.status == ReminderStatus.COMPLETED
-    val circleColor = if (completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val circleColor = if (completed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
         color = MaterialTheme.colorScheme.surface,
@@ -544,7 +545,8 @@ private fun ReminderStoryRow(
         Column {
             if (showDivider) HorizontalDivider(
                 Modifier.padding(start = Spacing.xxl + Spacing.s, end = Spacing.m),
-                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = BorderWidth.xs,
+                color = MaterialTheme.colorScheme.outline,
             )
             Row(Modifier.fillMaxWidth().padding(vertical = Spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(

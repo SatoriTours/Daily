@@ -18,7 +18,10 @@ internal fun LedgerEditorDialog(entry: LedgerEntry, busy: Boolean, failed: Boole
     var kind by remember(entry.id) { mutableStateOf(entry.kind) }
     var merchant by remember(entry.id) { mutableStateOf(entry.merchant) }
     val valid = LedgerMoney.parse(amount, currency) != null && kind != LedgerKind.UNKNOWN && merchant.length <= 80
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(i18n.t("bookkeeping.edit_entry")) }, text = {
+    AlertDialog(onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(i18n.t("bookkeeping.edit_entry"), style = MaterialTheme.typography.titleLarge.editorial()) }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             OutlinedTextField(amount, onValueChange = { amount = it }, label = { Text(i18n.t("bookkeeping.amount")) },
                 isError = amount.isNotEmpty() && LedgerMoney.parse(amount, currency) == null, singleLine = true)

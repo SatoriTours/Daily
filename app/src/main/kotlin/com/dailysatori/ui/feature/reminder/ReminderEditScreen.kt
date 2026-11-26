@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.reminder
 
 import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,9 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -66,19 +70,22 @@ fun ReminderEditScreen(
         title = if (existing == null) "新建提醒" else "编辑提醒",
         onBack = requestBack,
         bottomBar = {
-            Surface(shadowElevation = Spacing.xs) {
-                if (batch == null || isSms) {
-                    Button(onClick = save, enabled = editor.canSave && deadlineValid, modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
-                        Text(if (editor.saving) "保存中…" else "保存提醒")
-                    }
-                } else {
-                    val savingBatch = batch.items.values.any { it.saveStatus == BatchSaveStatus.SAVING }
-                    Button(
-                        onClick = { viewModel.saveSelectedBatch { onBack() } },
-                        enabled = batch.saveableCount > 0 && !savingBatch,
-                        modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                    ) {
-                        Text(stringResource(R.string.reminder_batch_save_selected, batch.saveableCount))
+            Surface(color = MaterialTheme.colorScheme.background) {
+                Column(Modifier.fillMaxWidth()) {
+                    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                    if (batch == null || isSms) {
+                        Button(onClick = save, enabled = editor.canSave && deadlineValid, modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
+                            Text(if (editor.saving) "保存中…" else "保存提醒")
+                        }
+                    } else {
+                        val savingBatch = batch.items.values.any { it.saveStatus == BatchSaveStatus.SAVING }
+                        Button(
+                            onClick = { viewModel.saveSelectedBatch { onBack() } },
+                            enabled = batch.saveableCount > 0 && !savingBatch,
+                            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                        ) {
+                            Text(stringResource(R.string.reminder_batch_save_selected, batch.saveableCount))
+                        }
                     }
                 }
             }
@@ -90,9 +97,14 @@ fun ReminderEditScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             if (!isSms) item {
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Radius.card),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                ) {
                     Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                        Text("提醒我什么", style = MaterialTheme.typography.titleMedium)
+                        Text("提醒我什么", style = MaterialTheme.typography.titleMedium.editorial())
                         OutlinedTextField(
                             value = ui.aiParse.prompt,
                             onValueChange = viewModel::onAiPromptChanged,
@@ -155,6 +167,8 @@ fun ReminderEditScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.reminder_batch_discard_title)) },
             text = { Text(stringResource(R.string.reminder_batch_discard_message)) },
             confirmButton = {

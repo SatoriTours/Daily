@@ -294,12 +294,12 @@ private fun AboutDialog(show: Boolean, currentVersion: String, onDismiss: () -> 
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = Radius.none,
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        title = { Text("Daily Satori") },
+        title = { Text("Daily Satori", style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { Text("v$currentVersion\n个人知识管理与 AI 阅读助手\n基于 KMP + Compose Multiplatform") },
         confirmButton = { TextButton(onClick = onDismiss) { Text("确定") } },
     )
@@ -364,7 +364,10 @@ private fun ApiTokenRow(state: SettingsState, viewModel: SettingsViewModel) {
     val busy = state.isRefreshingToken || state.isTogglingWebServer
     if (confirmReset) AlertDialog(
         onDismissRequest = { confirmReset = false },
-        title = { Text(stringResource(R.string.settings_token_reset)) },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(stringResource(R.string.settings_token_reset), style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { Text(stringResource(R.string.settings_token_reset_message)) },
         confirmButton = {
             TextButton(enabled = !busy, onClick = { confirmReset = false; visible = false; viewModel.refreshToken() }) {

@@ -38,6 +38,7 @@ import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -82,9 +83,9 @@ internal fun ArticleAiHistoryControls(onOpenTasks: (() -> Unit)? = null) {
     val busy by vm.busy.collectAsStateWithLifecycle()
     val i18n = koinInject<I18nService>()
     Surface(
-        shape = RoundedCornerShape(Radius.xl),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
@@ -123,7 +124,7 @@ private fun ArticleAiHistoryHeader(
         Text(
             text = i18n.t("article_ai.history"),
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.editorial(),
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -158,7 +159,7 @@ private fun ArticleAiHistoryBadge(status: ArticleAiHistoryStatus, i18n: I18nServ
         )
         else -> Triple(
             "article_ai.history_idle",
-            MaterialTheme.colorScheme.surfaceContainerHighest,
+            MaterialTheme.colorScheme.surfaceContainer,
             MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -224,7 +225,8 @@ private fun ArticleAiHistoryActions(
             FilledTonalButton(
                 onClick = onResumeQueue,
                 enabled = !busy,
-                modifier = Modifier.heightIn(min = Height.touchTarget),
+                shape = RoundedCornerShape(Radius.m),
+                modifier = Modifier.heightIn(min = Height.buttonSmall),
                 contentPadding = PaddingValues(horizontal = Spacing.m),
             ) {
                 Text(i18n.t("article_ai.resume_queue"))
@@ -234,7 +236,8 @@ private fun ArticleAiHistoryActions(
             FilledTonalButton(
                 onClick = onStart,
                 enabled = !busy,
-                modifier = Modifier.heightIn(min = Height.touchTarget),
+                shape = RoundedCornerShape(Radius.m),
+                modifier = Modifier.heightIn(min = Height.buttonSmall),
                 contentPadding = PaddingValues(horizontal = Spacing.m),
             ) {
                 Text(i18n.t("article_ai.start"))
@@ -243,7 +246,8 @@ private fun ArticleAiHistoryActions(
             FilledTonalButton(
                 onClick = onContinue,
                 enabled = !busy,
-                modifier = Modifier.heightIn(min = Height.touchTarget),
+                shape = RoundedCornerShape(Radius.m),
+                modifier = Modifier.heightIn(min = Height.buttonSmall),
                 contentPadding = PaddingValues(horizontal = Spacing.m),
             ) {
                 Text(i18n.t("article_ai.start"))

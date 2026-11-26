@@ -2,13 +2,16 @@
 
 package com.dailysatori.ui.feature.reminder
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -75,7 +78,12 @@ internal fun ReminderEditorForm(
             }
         }
         state.toEditorStateOrNull()?.let { editor ->
-            Card(Modifier.fillMaxWidth()) {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Radius.card),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            ) {
                 Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(stringResource(R.string.reminder_editor_behavior), style = MaterialTheme.typography.titleSmall)
                     Text(editor.actualBehaviorSummary(), style = MaterialTheme.typography.bodyMedium)

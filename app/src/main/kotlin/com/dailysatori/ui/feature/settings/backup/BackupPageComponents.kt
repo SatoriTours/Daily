@@ -1,19 +1,17 @@
 package com.dailysatori.ui.feature.settings.backup
 
 import com.dailysatori.core.diagnostics.performanceContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.component.settings.LocalSettingsGroupNavigation
 import com.dailysatori.ui.component.settings.SettingsScaffold
@@ -27,32 +25,14 @@ internal fun BackupPageScaffold(
     content: @Composable (Modifier) -> Unit,
 ) {
     val navigation = LocalSettingsGroupNavigation.current
-    SettingsScaffold(title = navigation?.title ?: title, onBack = onBack) { modifier ->
-        Column(modifier.fillMaxSize()) {
-            if (navigation != null) Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-                shape = RoundedCornerShape(Radius.m),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                Row(Modifier.padding(Spacing.xs).selectableGroup()) {
-                    navigation.tabs.forEachIndexed { index, label ->
-                        val selected = index == navigation.selectedIndex
-                        Surface(
-                            modifier = Modifier.weight(1f).selectable(selected = selected, enabled = !busy,
-                                role = Role.Tab, onClick = { if (!selected) navigation.onSelect(index) }),
-                            shape = RoundedCornerShape(Radius.s),
-                            color = if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
-                        ) {
-                            Box(Modifier.heightIn(min = Height.buttonSmall)
-                                .padding(horizontal = Spacing.s, vertical = Spacing.s), contentAlignment = Alignment.Center) {
-                                Text(label, style = MaterialTheme.typography.titleSmall,
-                                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                }
-            }
-            Box(Modifier.weight(1f)) { content(Modifier.fillMaxSize().performanceContent()) }
+    SettingsScaffold(
+        title = navigation?.title ?: title,
+        onBack = onBack,
+        useGroupNavigation = navigation != null,
+        navigationBusy = busy,
+    ) { modifier ->
+        Box(modifier.fillMaxSize()) {
+            content(Modifier.fillMaxSize().performanceContent())
         }
     }
 }
@@ -68,20 +48,41 @@ internal fun BackupSettingRow(
 ) {
     Surface(onClick = onClick, enabled = enabled, color = MaterialTheme.colorScheme.surface) {
         Column {
-            Row(Modifier.fillMaxWidth().padding(Spacing.m), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs)) {
-                Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.primary)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.m),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(Height.buttonSmall)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(icon, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.primary)
                 }
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(IconSize.s),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    null,
+                    Modifier.size(IconSize.s),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
             }
             if (showDivider) HorizontalDivider(
-                Modifier.padding(start = Spacing.m + IconSize.l + Spacing.s + Spacing.xs, end = Spacing.m),
-                color = MaterialTheme.colorScheme.outlineVariant,
+                Modifier.padding(start = Spacing.m + Height.buttonSmall + Spacing.m, end = Spacing.m),
+                thickness = BorderWidth.xs,
+                color = MaterialTheme.colorScheme.outline,
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +71,7 @@ fun DiaryThreadSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
         modifier = modifier,
@@ -139,7 +140,7 @@ private fun DiaryThreadHeader(
         ) {
             Text(
                 text = stringResource(R.string.diary_thread_title),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge.editorial(),
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
             )
@@ -187,8 +188,9 @@ private fun DiaryThreadSummarySection(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
@@ -344,8 +346,9 @@ private fun DiaryThreadEntryCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
@@ -385,13 +388,19 @@ private fun DiaryThreadEntryCard(
                 }
 
                 entry.mood?.takeIf { it.isNotBlank() && it != "null" }?.let { mood ->
-                    Text(
-                        text = mood,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(Radius.circular),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                    ) {
+                        Text(
+                            text = mood,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                        )
+                    }
                 }
             }
 

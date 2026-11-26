@@ -1,13 +1,20 @@
 package com.dailysatori.ui.component.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -25,20 +32,29 @@ fun SettingsEditorBottomBar(
     testText: String = settingsEditorTestActionText(isTesting),
     saveText: String = settingsEditorSaveActionText(isSaving),
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth().padding(Spacing.m),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        OutlinedButton(
-            onClick = onTest,
-            modifier = Modifier.weight(1f).heightIn(min = Height.button),
-            enabled = canTest && !isTesting && !isSaving,
-        ) { Text(testText) }
-        Button(
-            onClick = onSave,
-            modifier = Modifier.weight(1f).heightIn(min = Height.button),
-            enabled = canSave && !isSaving && !isTesting,
-        ) { Text(saveText) }
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Column(modifier = modifier.fillMaxWidth().navigationBarsPadding()) {
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s + Spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
+            ) {
+                OutlinedButton(
+                    onClick = onTest,
+                    modifier = Modifier.weight(1f).heightIn(min = Height.button),
+                    shape = RoundedCornerShape(Radius.m),
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface),
+                    enabled = canTest && !isTesting && !isSaving,
+                ) { Text(testText) }
+                Button(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f).heightIn(min = Height.button),
+                    shape = RoundedCornerShape(Radius.m),
+                    enabled = canSave && !isSaving && !isTesting,
+                ) { Text(saveText) }
+            }
+        }
     }
 }
 

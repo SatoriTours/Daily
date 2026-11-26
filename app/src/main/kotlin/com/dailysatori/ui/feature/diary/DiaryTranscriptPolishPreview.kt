@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.rememberScrollState
@@ -90,18 +91,25 @@ internal fun DiaryTranscriptPolishPreview(
 
     Surface(
         modifier = Modifier.fillMaxWidth().fillMaxHeight(0.66f),
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(i18n.t("diary_polish.title"), style = MaterialTheme.typography.titleSmall)
+            Text(i18n.t("diary_polish.title"), style = MaterialTheme.typography.titleMedium.editorial(), color = MaterialTheme.colorScheme.onSurface)
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(i18n.t("diary_polish.privacy"), style = MaterialTheme.typography.bodySmall)
+                Text(i18n.t("diary_polish.privacy"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (versions.isNotEmpty()) {
-                    Text(i18n.t("diary_polish.feedback_hint"), style = MaterialTheme.typography.bodySmall)
+                    Text(i18n.t("diary_polish.feedback_hint"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Box {
-                        OutlinedButton(onClick = { versionMenuOpen = true }, enabled = !loading) {
+                        OutlinedButton(
+                            onClick = { versionMenuOpen = true },
+                            enabled = !loading,
+                            shape = RoundedCornerShape(Radius.m),
+                            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        ) {
                             Text(i18n.t("diary_polish.reference_version", referenceVersion?.id ?: 0))
                         }
                         DropdownMenu(expanded = versionMenuOpen, onDismissRequest = { versionMenuOpen = false }) {
@@ -126,6 +134,7 @@ internal fun DiaryTranscriptPolishPreview(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(), enabled = !loading,
+                            shape = RoundedCornerShape(Radius.m),
                             minLines = 2, maxLines = 4,
                             label = { Text(i18n.t("diary_polish.feedback")) },
                             placeholder = { Text(i18n.t("diary_polish.feedback_placeholder")) },
@@ -135,36 +144,42 @@ internal fun DiaryTranscriptPolishPreview(
                 }
                 if (loading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
-                    Text(i18n.t("diary_polish.loading"))
+                    Text(i18n.t("diary_polish.loading"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 errorKey?.let { key ->
-                    Text(i18n.t("diary_polish.$key"), color = MaterialTheme.colorScheme.error)
+                    Text(i18n.t("diary_polish.$key"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     if (key == "missing_config") TextButton(onClick = onOpenSettings) {
                         Text(i18n.t("diary_polish.settings"))
                     }
                 }
                 if (draft.isNotBlank()) OutlinedTextField(
                     value = draft, onValueChange = { draft = it; canAdopt = true }, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Radius.m),
                     minLines = 4, maxLines = 8, enabled = !loading,
                     label = { Text(i18n.t("diary_polish.draft")) },
                 )
-                if (!canApply) Text(i18n.t("diary_polish.conflict"), style = MaterialTheme.typography.bodySmall)
+                if (!canApply) Text(i18n.t("diary_polish.conflict"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 else {
-                    Text(i18n.t("diary_polish.target"), style = MaterialTheme.typography.labelMedium)
+                    Text(i18n.t("diary_polish.target"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     SelectionContainer { Text(request.snapshot.selectedText, style = MaterialTheme.typography.bodySmall) }
                 }
                 TextButton(onClick = { showOriginal = !showOriginal }) {
                     Text(i18n.t(if (showOriginal) "diary_polish.hide_original" else "diary_polish.original"))
                 }
-                if (showOriginal) SelectionContainer { Text(request.original) }
+                if (showOriginal) SelectionContainer { Text(request.original, style = MaterialTheme.typography.bodySmall) }
                 TextButton(onClick = { cancelRequest(); errorKey = null; draft = request.original; canAdopt = true }) {
                     Text(i18n.t("diary_polish.restore"))
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs, androidx.compose.ui.Alignment.End)) {
                 TextButton(onClick = onClose) { Text(i18n.t("diary_polish.cancel")) }
                 TextButton(onClick = { generate() }, enabled = !loading) { Text(i18n.t("diary_polish.regenerate")) }
-                Button(onClick = { onApply(draft) }, enabled = !loading && canApply && canAdopt && draft.isNotBlank()) {
+                Button(
+                    onClick = { onApply(draft) },
+                    enabled = !loading && canApply && canAdopt && draft.isNotBlank(),
+                    shape = RoundedCornerShape(Radius.m),
+                ) {
                     Text(i18n.t("diary_polish.apply"))
                 }
             }

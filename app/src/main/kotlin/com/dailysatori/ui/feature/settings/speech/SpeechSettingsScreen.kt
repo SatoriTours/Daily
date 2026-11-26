@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.settings.speech
 
 import com.dailysatori.core.diagnostics.performanceContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -47,7 +48,7 @@ private data class SpeechChoice(val id: String, val title: String, val subtitle:
 
 @Composable
 fun SpeechSettingsScreen(onBack: () -> Unit) {
-    val pageBackground = MaterialTheme.colorScheme.surfaceContainerLowest
+    val pageBackground = MaterialTheme.colorScheme.background
     val viewModel: SpeechSettingsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -66,14 +67,19 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
         onDiscardChanges = viewModel::discardChanges,
         title = "语音模型", onBack = requestBack,
         bottomBar = {
-            Button(
-                onClick = { viewModel.save {
-                    Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
-                    onBack()
-                } }, enabled = state.canSave,
-                shape = RoundedCornerShape(Radius.l),
-                modifier = Modifier.fillMaxWidth().padding(Spacing.m).heightIn(min = Height.button),
-            ) { Text(if (state.saving) "保存中…" else "保存") }
+            Surface(color = MaterialTheme.colorScheme.background) {
+                Column(Modifier.fillMaxWidth()) {
+                    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                    Button(
+                        onClick = { viewModel.save {
+                            Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+                            onBack()
+                        } }, enabled = state.canSave,
+                        shape = RoundedCornerShape(Radius.l),
+                        modifier = Modifier.fillMaxWidth().padding(Spacing.m).heightIn(min = Height.button),
+                    ) { Text(if (state.saving) "保存中…" else "保存") }
+                }
+            }
         },
     ) { modifier ->
         Column(
@@ -83,10 +89,14 @@ fun SpeechSettingsScreen(onBack: () -> Unit) {
         ) {
             Text("用于语音日记转文字", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Spacing.xs))
-            Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+            Surface(
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            ) {
                 Column {
                     SpeechSelectionRow("提供商", provider.name, state.editable) { picker = SpeechPicker.PROVIDER }
-                    HorizontalDivider(Modifier.padding(horizontal = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(Modifier.padding(horizontal = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                     SpeechSelectionRow("模型", speechModelDisplayName(state.config.model), state.editable) { picker = SpeechPicker.MODEL }
                 }
             }
@@ -159,7 +169,11 @@ private fun SpeechSelectionRow(label: String, value: String, enabled: Boolean, o
 @Composable
 private fun SpeechKeyCard(value: String, enabled: Boolean, providerId: String, onChange: (String) -> Unit) {
     var keyVisible by remember(providerId) { mutableStateOf(false) }
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column {
             Text("API Key", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = Spacing.m, top = Spacing.m))
@@ -193,9 +207,13 @@ private fun SpeechKeyCard(value: String, enabled: Boolean, providerId: String, o
 private fun SpeechChoiceSheet(
     title: String, options: List<SpeechChoice>, selected: String, onDismiss: () -> Unit, onSelect: (String) -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+    ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = Spacing.m)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s))
+            Text(title, style = MaterialTheme.typography.titleLarge.editorial(), modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s))
             options.forEach { choice ->
                 Surface(onClick = { onSelect(choice.id) }, color = MaterialTheme.colorScheme.surface) {
                     Row(

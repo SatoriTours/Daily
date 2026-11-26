@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,8 +27,10 @@ import com.dailysatori.service.diary.DiaryAssistantExtraction
 import com.dailysatori.service.diary.DiaryAssistantMissingConfigurationException
 import com.dailysatori.service.diary.DiaryAssistantResult
 import com.dailysatori.service.diary.DiaryAssistantVerification
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 
 private const val DiaryAssistantPreviewMaxHeightFraction = 0.66f
 
@@ -102,8 +105,9 @@ internal fun DiaryAssistantPreviewSheet(
     }
     Surface(
         modifier = sizeModifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         when (state) {
             is DiaryAssistantPreviewState.Loading -> DiaryAssistantLoadingContent(onCancel)
@@ -129,8 +133,8 @@ internal fun DiaryAssistantPreviewSheet(
 @Composable
 private fun DiaryAssistantMissingConfigurationContent(onOpenAiSettings: () -> Unit, onCancel: () -> Unit) {
     Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(stringResource(R.string.diary_assistant_missing_config_title), style = MaterialTheme.typography.titleSmall)
-        Text(stringResource(R.string.diary_assistant_missing_config_message))
+        Text(stringResource(R.string.diary_assistant_missing_config_title), style = MaterialTheme.typography.titleMedium.editorial())
+        Text(stringResource(R.string.diary_assistant_missing_config_message), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onCancel) { Text(stringResource(R.string.diary_assistant_action_cancel)) }
             TextButton(onClick = onOpenAiSettings) {
@@ -156,8 +160,8 @@ private fun DiaryAssistantLoadingContent(onCancel: () -> Unit) {
 @Composable
 private fun DiaryAssistantFallbackContent(onAllowFallback: () -> Unit, onCancel: () -> Unit) {
     Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text("未找到可核实来源", style = MaterialTheme.typography.titleSmall)
-        Text("可以继续使用模型已有知识生成，但内容将标记为“未联网查证”。")
+        Text("未找到可核实来源", style = MaterialTheme.typography.titleMedium.editorial())
+        Text("可以继续使用模型已有知识生成，但内容将标记为“未联网查证”。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onCancel) { Text("取消") }
             TextButton(onClick = onAllowFallback) { Text("同意并继续") }
@@ -168,8 +172,8 @@ private fun DiaryAssistantFallbackContent(onAllowFallback: () -> Unit, onCancel:
 @Composable
 private fun DiaryAssistantFailureContent(message: String, onRetry: () -> Unit, onCancel: () -> Unit) {
     Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text("生成失败", style = MaterialTheme.typography.titleSmall)
-        Text(message, color = MaterialTheme.colorScheme.error)
+        Text("生成失败", style = MaterialTheme.typography.titleMedium.editorial())
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onCancel) { Text("取消") }
             TextButton(onClick = onRetry) { Text("重试") }
@@ -230,7 +234,7 @@ private fun DiaryAssistantPreviewHeader(onRetry: () -> Unit, onCancel: () -> Uni
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("AI 补充预览", style = MaterialTheme.typography.titleMedium)
+        Text("AI 补充预览", style = MaterialTheme.typography.titleMedium.editorial())
         Row {
             TextButton(onClick = onRetry) { Text("重试") }
             TextButton(onClick = onCancel) { Text("取消") }
@@ -250,7 +254,17 @@ private fun DiaryAssistantStatus(result: DiaryAssistantResult) {
             null -> "已提取网页内容"
         }
     }
-    Text(status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+    Surface(
+        shape = RoundedCornerShape(Radius.circular),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+    ) {
+        Text(
+            status,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+        )
+    }
 }
 
 @Composable
@@ -285,8 +299,13 @@ private fun DiaryAssistantEditActions(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s, Alignment.End),
     ) {
-        OutlinedButton(onClick = onReplace, enabled = enabled && canReplaceSelection) { Text("替换原文") }
-        Button(onClick = onInsert, enabled = enabled) {
+        OutlinedButton(
+            onClick = onReplace,
+            enabled = enabled && canReplaceSelection,
+            shape = RoundedCornerShape(Radius.m),
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        ) { Text("替换原文") }
+        Button(onClick = onInsert, enabled = enabled, shape = RoundedCornerShape(Radius.m)) {
             Text(if (canReplaceSelection) "插入到原文后" else "插入当前光标")
         }
     }

@@ -38,6 +38,7 @@ import com.dailysatori.shared.db.Async_task
 import com.dailysatori.ui.component.appbar.PageAction
 import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
@@ -203,7 +204,7 @@ private fun TaskCenterLogIntro(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.editorial(),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -252,7 +253,7 @@ private fun TaskCenterLogDateHeader(group: TaskCenterLogGroup, today: LocalDate)
     val label = group.date?.let { taskCenterLogDateText(it, today, copy.logDateToday, copy.logDate) } ?: copy.logNoTime
     Row(
         modifier = Modifier.fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(horizontal = Spacing.m, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -355,7 +356,7 @@ private fun TaskCenterLogRow(entry: TaskCenterLogEntry, onOpenRequest: (TaskCent
                 .fillMaxWidth()
                 .padding(start = Spacing.m + Spacing.xxl + Spacing.s, end = Spacing.m)
                 .height(BorderWidth.xs)
-                .background(MaterialTheme.colorScheme.outlineVariant),
+                .background(MaterialTheme.colorScheme.outline),
         )
     }
 }

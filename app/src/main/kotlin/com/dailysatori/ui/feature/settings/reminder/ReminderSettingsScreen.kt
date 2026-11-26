@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -128,14 +129,14 @@ fun ReminderSettingsScreen(
     ToggleRow(stringResource(R.string.reminder_default_sound), state.defaultSoundEnabled) {
         viewModel.setDefaultDelivery(it, state.defaultVibrationEnabled, state.defaultImportance, state.defaultLockScreenVisibility)
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     ToggleRow(stringResource(R.string.reminder_default_vibration), state.defaultVibrationEnabled) {
         viewModel.setDefaultDelivery(state.defaultSoundEnabled, it, state.defaultImportance, state.defaultLockScreenVisibility)
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     SettingsValueRow(i18n.t("settings_design.importance"), state.defaultImportance.label(),
         { onChoose(SettingsChoiceField.IMPORTANCE) })
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     SettingsValueRow(i18n.t("settings_design.lock_screen"), state.defaultLockScreenVisibility.label(),
         { onChoose(SettingsChoiceField.VISIBILITY) })
 }
@@ -145,14 +146,17 @@ fun ReminderSettingsScreen(
     val i18n: I18nService = koinInject()
     SettingsValueRow(stringResource(R.string.reminder_sleep_start_label), state.sleepStart.toString(),
         { onSelectTime(SettingsTimeField.SLEEP_START) })
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     SettingsValueRow(stringResource(R.string.reminder_sleep_end_label), state.sleepEnd.toString(),
         { onSelectTime(SettingsTimeField.SLEEP_END) })
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     SettingsValueRow(i18n.t("settings_design.work_days"),
         DayOfWeek.entries.filter { it in state.workDays }.map { it.shortLabel() }.joinToString(" "),
         onSelectDays)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     SettingsValueRow(stringResource(R.string.reminder_work_start_label), state.workStart.toString(),
         { onSelectTime(SettingsTimeField.WORK_START) })
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     SettingsValueRow(stringResource(R.string.reminder_work_end_label), state.workEnd.toString(),
         { onSelectTime(SettingsTimeField.WORK_END) })
 }
@@ -172,7 +176,13 @@ fun ReminderSettingsScreen(
 
 @Composable private fun <T> SettingsChoiceDialog(title: String, values: Iterable<T>, selected: (T) -> Boolean,
     label: @Composable (T) -> String, onDismiss: () -> Unit, multiple: Boolean = false, onSelected: (T) -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(title) }, text = {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(title, style = MaterialTheme.typography.titleMedium.editorial()) },
+        text = {
         Column(Modifier.heightIn(max = Spacing.xxl * 8).verticalScroll(rememberScrollState())) {
             values.forEach { value ->
                 Row(Modifier.fillMaxWidth().selectable(selected(value), role = if (multiple) Role.Checkbox else Role.RadioButton,
@@ -191,7 +201,11 @@ fun ReminderSettingsScreen(
 
 @Composable private fun SettingsCard(title: Int, content: @Composable ColumnScope.() -> Unit) {
     SettingsSectionCard(stringResource(title)) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m), content = content)
+        Column(
+            Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            content = content,
+        )
     }
 }
 
@@ -228,7 +242,16 @@ fun ReminderSettingsScreen(
 
 @Composable internal fun ProfileEditorDialog(editor: ReminderProfileEditorState, settings: ReminderSettingsState, viewModel: ReminderSettingsViewModel) {
     var timeField by remember { mutableStateOf<ProfileTimeField?>(null) }
-    AlertDialog(onDismissRequest = viewModel::dismissEditor, title = { Text(stringResource(R.string.reminder_custom_profile_title)) }, text = { ProfileEditorFields(editor, viewModel) { timeField = it } }, confirmButton = { TextButton(viewModel::saveEditor, enabled = editor.toProfile(settings) != null) { Text(stringResource(R.string.reminder_action_save)) } }, dismissButton = { TextButton(viewModel::dismissEditor) { Text(stringResource(R.string.reminder_cancel)) } })
+    AlertDialog(
+        onDismissRequest = viewModel::dismissEditor,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(stringResource(R.string.reminder_custom_profile_title), style = MaterialTheme.typography.titleMedium.editorial()) },
+        text = { ProfileEditorFields(editor, viewModel) { timeField = it } },
+        confirmButton = { TextButton(viewModel::saveEditor, enabled = editor.toProfile(settings) != null) { Text(stringResource(R.string.reminder_action_save)) } },
+        dismissButton = { TextButton(viewModel::dismissEditor) { Text(stringResource(R.string.reminder_cancel)) } },
+    )
     timeField?.let { field -> SettingsTimeDialog(if (field == ProfileTimeField.EVENING_START) editor.eveningStart else editor.dailyCutoff, { timeField = null }) { value -> viewModel.updateEditor(if (field == ProfileTimeField.EVENING_START) editor.copy(eveningStart = value) else editor.copy(dailyCutoff = value)); timeField = null } }
 }
 
@@ -246,7 +269,16 @@ fun ReminderSettingsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class) @Composable internal fun SettingsTimeDialog(initial: LocalTime, onDismiss: () -> Unit, onSelected: (LocalTime) -> Unit) {
     val picker = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.reminder_select_time)) }, text = { TimePicker(picker) }, confirmButton = { TextButton({ onSelected(LocalTime(picker.hour, picker.minute)) }) { Text(stringResource(R.string.reminder_ok)) } }, dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.reminder_cancel)) } })
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(stringResource(R.string.reminder_select_time), style = MaterialTheme.typography.titleMedium.editorial()) },
+        text = { TimePicker(picker) },
+        confirmButton = { TextButton({ onSelected(LocalTime(picker.hour, picker.minute)) }) { Text(stringResource(R.string.reminder_ok)) } },
+        dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.reminder_cancel)) } },
+    )
 }
 
 @Composable internal fun ReminderProfile.localizedName(): String = when (kind) { ReminderProfileKind.STRONG -> stringResource(R.string.reminder_profile_strong); ReminderProfileKind.STANDARD -> stringResource(R.string.reminder_profile_standard); ReminderProfileKind.GENTLE -> stringResource(R.string.reminder_profile_gentle); ReminderProfileKind.CUSTOM -> name }

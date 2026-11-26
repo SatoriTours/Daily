@@ -57,6 +57,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -249,6 +250,32 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
     val newestDiaryId = state.diaries.firstOrNull()?.id
     val timeZoneId = TimeZone.getDefault().id
     val feedEntries = remember(state.diaries, timeZoneId) { buildDiaryFeedEntries(state.diaries) }
+    val showMonthHeaders = state.searchQuery.isBlank() && state.selectedTag == null
+    val visibleMonthKeys = remember(feedEntries, showMonthHeaders) {
+        buildList {
+            feedEntries.forEach { entry ->
+                if (entry.showMonthHeader && showMonthHeaders) add(entry.monthKey)
+                add(entry.monthKey)
+            }
+        }
+    }
+    val monthCounts = remember(feedEntries) { feedEntries.groupingBy { it.monthKey }.eachCount() }
+    val activeMonthKey by remember(visibleMonthKeys) {
+        derivedStateOf {
+            visibleMonthKeys.getOrNull(diaryListState.firstVisibleItemIndex) ?: visibleMonthKeys.firstOrNull()
+        }
+    }
+    val isScrolled by remember {
+        derivedStateOf {
+            diaryListState.firstVisibleItemIndex > 0 || diaryListState.firstVisibleItemScrollOffset > 0
+        }
+    }
+    val locale = LocalConfiguration.current.locales[0]
+    val fallbackMonthKey = remember(today) { "%04d-%02d".format(today.year, today.monthNumber) }
+    val headerTitle = diaryReviewMonthLabel(activeMonthKey ?: fallbackMonthKey, locale)
+    val headerMeta = activeMonthKey?.let { key ->
+        monthCounts[key]?.let { count -> if (locale.language == "zh") "$count 篇" else "$count" }
+    }
     var recordingWasActive by remember { mutableStateOf(false) }
     LaunchedEffect(newestDiaryId) {
         if (newestDiaryId != null) diaryListState.animateScrollToItem(0)
@@ -278,10 +305,11 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
     }
 
     AppScaffold(
-        title = stringResource(R.string.diary_feed_title),
+        title = headerTitle,
+        titleMeta = headerMeta,
         showBack = false,
         isMainPage = true,
-        showHeaderDivider = false,
+        showHeaderDivider = isScrolled,
         search = if (state.isSearchVisible) PageSearch(state.searchQuery,
             stringResource(R.string.diary_action_search), viewModel::search, viewModel::toggleSearch) else null,
         pageActions = listOf(
@@ -337,8 +365,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
                         else -> null
                     }),
                 state = diaryListState,
-                contentPadding = PaddingValues(top = Spacing.m, bottom = FloatingControl.scrollClearance),
-                verticalArrangement = Arrangement.spacedBy(Spacing.l),
+                contentPadding = PaddingValues(top = Spacing.xs, bottom = FloatingControl.scrollClearance),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
             ) {
                 if (state.isLoading && state.diaries.isEmpty()) {
                     item(key = "loading") { LoadingIndicator() }
@@ -351,12 +379,14 @@ fun DiaryScreen(onMyClick: () -> Unit = {}, onTopic: (String) -> Unit = {}) {
                         )
                     }
                 }
+                val firstMonthKey = feedEntries.firstOrNull()?.monthKey
                 feedEntries.forEach { entry ->
-                    if (entry.showMonthHeader && state.searchQuery.isBlank() && state.selectedTag == null) {
+                    if (entry.showMonthHeader && showMonthHeaders) {
                         item(key = "month-${entry.monthKey}") {
                             DiaryMonthHeader(
                                 diaries = checkNotNull(entry.monthDiaries),
                                 summary = state.monthSummaries[entry.monthKey],
+                                showMonthTitle = entry.monthKey != firstMonthKey,
                             )
                         }
                     }

@@ -127,7 +127,7 @@ private fun AiPurposeEmptyState(
     ) {
         Text(
             text = i18n.t("ai_purpose.no_configs_title"),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleLarge.editorial(),
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(modifier = Modifier.height(Spacing.s))
@@ -199,14 +199,15 @@ private fun AiPurposeCard(
 
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
         border = BorderStroke(
-            BorderWidth.s,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            BorderWidth.xs,
+            MaterialTheme.colorScheme.outline,
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier
@@ -219,7 +220,7 @@ private fun AiPurposeCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.editorial(),
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
@@ -253,7 +254,7 @@ private fun AiPurposeCard(
             }
             Spacer(modifier = Modifier.height(Spacing.s))
             HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.outline,
                 thickness = BorderWidth.xs,
             )
             Spacer(modifier = Modifier.height(Spacing.s))
@@ -353,11 +354,12 @@ private fun AiPurposeSelectionDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.editorial(),
                 fontWeight = FontWeight.SemiBold,
             )
         },
@@ -403,7 +405,7 @@ private fun AiPurposeSelectionDialog(
                 }
 
                 HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.outline,
                     thickness = BorderWidth.xs,
                     modifier = Modifier.padding(vertical = Spacing.xs),
                 )

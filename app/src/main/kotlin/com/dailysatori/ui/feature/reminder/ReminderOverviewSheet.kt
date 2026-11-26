@@ -138,16 +138,20 @@ internal fun ReminderOverviewInformation(reminder: Reminder, sourceKey: String? 
         else -> "${item?.occurrenceDate ?: reminder.endDate} ${reminder.firstReminderTime}"
     }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Text(reminder.content, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(reminder.content, style = MaterialTheme.typography.titleLarge.editorial(), fontWeight = FontWeight.SemiBold)
         Text(i18n.t("phone.reminder_status.${reminder.status.name.lowercase()}"), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary)
-        Surface(shape = RoundedCornerShape(Radius.card), color = MaterialTheme.colorScheme.surface) {
+        Surface(
+            shape = RoundedCornerShape(Radius.card),
+            color = MaterialTheme.colorScheme.surface,
+            border = androidx.compose.foundation.BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        ) {
             Column(Modifier.padding(horizontal = Spacing.m)) {
                 ReminderOverviewRow(Icons.Outlined.Schedule, i18n.t(if (reminder.deadlineAt != null) "sms.deadline" else "reminder_ui.reminder_time"), time)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 ReminderOverviewRow(Icons.Outlined.Repeat, i18n.t("reminder_ui.repeat"),
                     if (item == null || item.isSingleDate) i18n.t("reminder_ui.no_repeat") else item.repeatLabel().label())
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 ReminderOverviewRow(Icons.Outlined.Source, i18n.t("phone.source_info"), sourceKey?.let { i18n.t(it) }
                     ?: i18n.t(if (reminder.id.startsWith("sms:")) "reminder_ui.source_unknown" else "reminder_ui.manual_source"))
             }

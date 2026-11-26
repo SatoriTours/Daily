@@ -3,6 +3,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -22,7 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
@@ -41,13 +45,16 @@ fun SearchBar(
             .fillMaxWidth()
             .padding(horizontal = Spacing.m, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
+        val pillShape = RoundedCornerShape(Radius.circular)
         TextField(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier
                 .weight(1f)
-                .height(Height.searchBar),
+                .height(Height.searchBar)
+                .border(BorderWidth.xs, MaterialTheme.colorScheme.outline, pillShape),
             placeholder = {
                 Text(
                     text = "搜索...",
@@ -59,7 +66,7 @@ fun SearchBar(
                 Icon(
                     Icons.Filled.Search,
                     contentDescription = "搜索",
-                    modifier = Modifier.size(IconSize.m),
+                    modifier = Modifier.size(IconSize.s),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
@@ -76,11 +83,11 @@ fun SearchBar(
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(Radius.circular),
+            shape = pillShape,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
@@ -93,9 +100,9 @@ fun SearchBar(
             ),
             textStyle = MaterialTheme.typography.bodyMedium,
         )
-        IconButton(
+        TextButton(
             onClick = onClose,
-            modifier = Modifier.size(40.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Spacing.xs),
         ) {
             Text(
                 text = "取消",

@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import android.widget.Toast
@@ -122,143 +123,146 @@ fun AiConfigEditScreen(
             }
             item {
                 SettingsFormSection(i18n.t("settings_design.service_access")) {
-                    Text("选择服务商", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    ExposedDropdownMenuBox(
-                        expanded = providerExpanded,
-                        onExpandedChange = { if (state.editable) providerExpanded = it },
-                    ) {
-                        OutlinedTextField(
-                            value = selectedProvider?.name ?: "请选择模型服务商",
-                            enabled = state.editable,
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
-                            shape = RoundedCornerShape(Radius.s),
-                            singleLine = true,
-                        )
-                        ExposedDropdownMenu(
-                            expanded = providerExpanded,
-                            onDismissRequest = { providerExpanded = false },
-                        ) {
-                            aiProviders.forEach { provider ->
-                                DropdownMenuItem(
-                                    text = { Text(provider.name) },
-                                    onClick = {
-                                        viewModel.selectProvider(provider)
-                                        providerExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    if (selectedProvider?.id == OpenCodeGoProviderId) {
-                        Text(
-                            i18n.t("ai_config.go_usage_notice"),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text("API Token", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    OutlinedTextField(
-                        value = apiToken,
-                        visualTransformation = PasswordVisualTransformation(),
-                        enabled = state.editable,
-                        onValueChange = viewModel::updateApiToken,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("sk-...") },
-                        shape = RoundedCornerShape(Radius.s),
-                        singleLine = true,
-                    )
-                }
-            }
-            item {
-                SettingsFormSection(i18n.t("settings_design.model_selection")) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "选择模型",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(
-                            onClick = viewModel::refreshModels,
-                            enabled = selectedProvider != null && !isRefreshingModels && state.editable,
-                        ) {
-                            Text(if (isRefreshingModels) "刷新中" else "刷新模型")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    if (selectedProvider == null) {
-                        OutlinedTextField(
-                            value = "",
-                            onValueChange = {},
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("请先选择服务商") },
-                            shape = RoundedCornerShape(Radius.s),
-                            singleLine = true,
-                            enabled = false,
-                        )
-                    } else if (models.isEmpty()) {
-                        OutlinedTextField(
-                            value = "",
-                            onValueChange = {},
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("暂无可选模型，可在下方手动输入") },
-                            shape = RoundedCornerShape(Radius.s),
-                            singleLine = true,
-                            enabled = false,
-                        )
-                    } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text("选择服务商", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         ExposedDropdownMenuBox(
-                            expanded = modelExpanded,
-                            onExpandedChange = { if (state.editable) modelExpanded = it },
+                            expanded = providerExpanded,
+                            onExpandedChange = { if (state.editable) providerExpanded = it },
                         ) {
                             OutlinedTextField(
-                                value = selectedModel?.name ?: "请选择模型",
+                                value = selectedProvider?.name ?: "请选择模型服务商",
                                 enabled = state.editable,
                                 onValueChange = {},
                                 readOnly = true,
                                 modifier = Modifier.fillMaxWidth().menuAnchor(),
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
-                                shape = RoundedCornerShape(Radius.s),
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
+                                shape = RoundedCornerShape(Radius.m),
                                 singleLine = true,
                             )
                             ExposedDropdownMenu(
-                                expanded = modelExpanded,
-                                onDismissRequest = { modelExpanded = false },
+                                expanded = providerExpanded,
+                                onDismissRequest = { providerExpanded = false },
                             ) {
-                                models.forEach { model ->
-                                    val availability = aiModelAvailability(selectedProvider.id, model.id)
-                                    val suffix = when (availability) {
-                                        AiModelAvailability.Supported -> ""
-                                        AiModelAvailability.RequiresResponses -> " · ${i18n.t("ai_config.responses_unsupported")}"
-                                        AiModelAvailability.Unknown -> " · ${i18n.t("ai_config.model_unadapted")}"
-                                    }
+                                aiProviders.forEach { provider ->
                                     DropdownMenuItem(
-                                        enabled = availability == AiModelAvailability.Supported,
-                                        text = { Text(model.name + suffix) },
+                                        text = { Text(provider.name) },
                                         onClick = {
-                                            viewModel.selectModel(model)
-                                            modelExpanded = false
+                                            viewModel.selectProvider(provider)
+                                            providerExpanded = false
                                         },
                                     )
                                 }
                             }
                         }
+                        if (selectedProvider?.id == OpenCodeGoProviderId) {
+                            Text(
+                                i18n.t("ai_config.go_usage_notice"),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(Spacing.s))
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text("API Token", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedTextField(
+                            value = apiToken,
+                            visualTransformation = PasswordVisualTransformation(),
+                            enabled = state.editable,
+                            onValueChange = viewModel::updateApiToken,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("sk-...") },
+                            shape = RoundedCornerShape(Radius.m),
+                            singleLine = true,
+                        )
+                    }
+                }
+            }
+            item {
+                SettingsFormSection(i18n.t("settings_design.model_selection")) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "选择模型",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(
+                                onClick = viewModel::refreshModels,
+                                enabled = selectedProvider != null && !isRefreshingModels && state.editable,
+                                contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Radius.none),
+                            ) {
+                                Text(if (isRefreshingModels) "刷新中" else "刷新模型")
+                            }
+                        }
+                        if (selectedProvider == null) {
+                            OutlinedTextField(
+                                value = "",
+                                onValueChange = {},
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("请先选择服务商") },
+                                shape = RoundedCornerShape(Radius.m),
+                                singleLine = true,
+                                enabled = false,
+                            )
+                        } else if (models.isEmpty()) {
+                            OutlinedTextField(
+                                value = "",
+                                onValueChange = {},
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("暂无可选模型，可在下方手动输入") },
+                                shape = RoundedCornerShape(Radius.m),
+                                singleLine = true,
+                                enabled = false,
+                            )
+                        } else {
+                            ExposedDropdownMenuBox(
+                                expanded = modelExpanded,
+                                onExpandedChange = { if (state.editable) modelExpanded = it },
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedModel?.name ?: "请选择模型",
+                                    enabled = state.editable,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
+                                    shape = RoundedCornerShape(Radius.m),
+                                    singleLine = true,
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = modelExpanded,
+                                    onDismissRequest = { modelExpanded = false },
+                                ) {
+                                    models.forEach { model ->
+                                        val availability = aiModelAvailability(selectedProvider.id, model.id)
+                                        val suffix = when (availability) {
+                                            AiModelAvailability.Supported -> ""
+                                            AiModelAvailability.RequiresResponses -> " · ${i18n.t("ai_config.responses_unsupported")}"
+                                            AiModelAvailability.Unknown -> " · ${i18n.t("ai_config.model_unadapted")}"
+                                        }
+                                        DropdownMenuItem(
+                                            enabled = availability == AiModelAvailability.Supported,
+                                            text = { Text(model.name + suffix) },
+                                            onClick = {
+                                                viewModel.selectModel(model)
+                                                modelExpanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         value = customModelName,
                         onValueChange = viewModel::updateCustomModelName,
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("自定义模型名称") },
-                        shape = RoundedCornerShape(Radius.s),
+                        shape = RoundedCornerShape(Radius.m),
                         singleLine = true,
                         enabled = state.editable && selectedProvider != null,
                     )
@@ -271,7 +275,6 @@ fun AiConfigEditScreen(
                         )
                     }
                     if (modelRefreshMessage != null) {
-                        Spacer(modifier = Modifier.height(Spacing.xs))
                         Text(
                             modelRefreshMessage,
                             style = MaterialTheme.typography.bodySmall,
@@ -283,11 +286,11 @@ fun AiConfigEditScreen(
             item {
                 SettingsFormSection(i18n.t("settings_design.usage_preferences")) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("设为默认配置", style = MaterialTheme.typography.bodyMedium)
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                            Text("设为默认配置", style = MaterialTheme.typography.titleSmall)
                             Text(
                                 if (wasDefault) "默认配置不能取消，只能将其他配置设为默认" else "日记、读书和 AI 助手都将使用此模型",
                                 style = MaterialTheme.typography.bodySmall,
@@ -299,6 +302,7 @@ fun AiConfigEditScreen(
                             checked = isDefault,
                             onCheckedChange = viewModel::updateIsDefault,
                             enabled = state.editable && !wasDefault,
+                            modifier = Modifier.scale(0.86f),
                         )
                     }
                 }

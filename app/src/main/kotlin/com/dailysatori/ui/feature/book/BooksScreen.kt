@@ -6,6 +6,7 @@ import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -70,6 +71,7 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.book.component.BookAddSearchSheet
 import com.dailysatori.ui.feature.book.component.BookContentSearchSheet
 import com.dailysatori.ui.feature.book.component.BookPickerSwipeRow
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.delay
@@ -184,8 +186,10 @@ fun BooksScreen(
 
     AppScaffold(
         title = booksReaderTitle(currentBook?.title, currentBook?.author),
+        titleMeta = currentBook?.category?.takeIf { it.isNotBlank() },
         showBack = false,
         isMainPage = true,
+        showHeaderDivider = state.viewpoints.isNotEmpty(),
         pageActions = buildList {
             add(PageAction(booksAddActionContentDescription(), Icons.Default.Add) { inlineMode = BooksInlineMode.AddBook })
             add(PageAction(booksContentSearchActionContentDescription(), Icons.Default.Search) { inlineMode = BooksInlineMode.ContentSearch })
@@ -300,7 +304,7 @@ fun BooksScreen(
         ModalBottomSheet(
             onDismissRequest = { inlineMode = BooksInlineMode.Reading },
             sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
             tonalElevation = 0.dp,
@@ -346,7 +350,7 @@ fun BooksScreen(
             dragHandle = {
                 ReflectionSheetDragHandle(onDismiss = closeReflectionSheet)
             },
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
             tonalElevation = 0.dp,
@@ -390,7 +394,7 @@ fun BooksScreen(
                 }
             },
             sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
             tonalElevation = 0.dp,
@@ -413,7 +417,7 @@ fun BooksScreen(
             ) {
                 Text(
                     "选择书籍",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = Spacing.m),
                 )
@@ -523,8 +527,9 @@ private fun BooksInlineNotice(text: String, onClick: (() -> Unit)? = null) {
             .fillMaxWidth()
             .padding(horizontal = Spacing.m, vertical = Spacing.xs)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Text(
             text = text,

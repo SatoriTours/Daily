@@ -32,6 +32,7 @@ fun AppScaffold(
     floatingActionButton: @Composable () -> Unit = {},
     floatingActionButtonPosition: FabPosition = FabPosition.End,
     isMainPage: Boolean = false,
+    titleMeta: String? = null,
     subtitle: String? = null,
     /** Explicit opt-in for pages that need the action space; default keeps the assistant entry. */
     showAssistant: Boolean = true,
@@ -41,8 +42,8 @@ fun AppScaffold(
     Scaffold(
         topBar = {
             if (isMainPage && search == null) {
-                Column(Modifier.statusBarsPadding().padding(start = Spacing.m, end = Spacing.m, top = Spacing.s)) {
-                    MainPageHeader(title = title, pageActions = pageActions)
+                Column(Modifier.statusBarsPadding().padding(start = Spacing.m, end = Spacing.s, top = Spacing.xs)) {
+                    MainPageHeader(title = title, titleMeta = titleMeta, pageActions = pageActions)
                     subtitle?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -50,8 +51,9 @@ fun AppScaffold(
                     }
                     if (showHeaderDivider) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(top = Spacing.s),
-                            color = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                            thickness = BorderWidth.xs,
+                            color = MaterialTheme.colorScheme.outline,
                         )
                     }
                 }

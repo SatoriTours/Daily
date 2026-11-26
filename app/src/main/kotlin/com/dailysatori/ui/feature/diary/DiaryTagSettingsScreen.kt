@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.diary
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -147,7 +148,12 @@ internal fun DiaryTagSettingsContent(viewModel: DiaryTagViewModel, modifier: Mod
         Spacer(Modifier.height(Spacing.s))
     }
     editing?.let { source ->
-        AlertDialog(onDismissRequest = { editing = null }, title = { Text(i18n.t("diary_tags.merge_title")) },
+        AlertDialog(
+            onDismissRequest = { editing = null },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = Radius.none,
+            title = { Text(i18n.t("diary_tags.merge_title"), style = MaterialTheme.typography.titleMedium.editorial()) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                     Text(i18n.t("diary_tags.choose_target"), style = MaterialTheme.typography.bodySmall)
@@ -167,7 +173,12 @@ internal fun DiaryTagSettingsContent(viewModel: DiaryTagViewModel, modifier: Mod
             }, dismissButton = { TextButton(onClick = { editing = null }) { Text(i18n.t("diary_tags.cancel")) } })
     }
     confirming?.let { merge ->
-        AlertDialog(onDismissRequest = { confirming = null }, title = { Text(i18n.t("diary_tags.merge_title")) },
+        AlertDialog(
+            onDismissRequest = { confirming = null },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = Radius.none,
+            title = { Text(i18n.t("diary_tags.merge_title"), style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text(i18n.t("diary_tags.merge_body", merge.from, merge.to, viewModel.mergeImpact(merge.from))) },
             confirmButton = {
                 TextButton(onClick = { viewModel.merge(merge.from, merge.to); confirming = null }, enabled = !state.busy) {
@@ -175,7 +186,12 @@ internal fun DiaryTagSettingsContent(viewModel: DiaryTagViewModel, modifier: Mod
                 }
             }, dismissButton = { TextButton(onClick = { confirming = null }) { Text(i18n.t("diary_tags.cancel")) } })
     }
-    if (confirmFill) AlertDialog(onDismissRequest = { confirmFill = false }, title = { Text(i18n.t("diary_tags.fill_confirm")) },
+    if (confirmFill) AlertDialog(
+        onDismissRequest = { confirmFill = false },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(i18n.t("diary_tags.fill_confirm"), style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { Text(i18n.t("diary_tags.fill_body", state.missingCount)) },
         confirmButton = { TextButton(onClick = { viewModel.fillMissing(); confirmFill = false }) {
             Text(i18n.t("diary_tags.apply"))

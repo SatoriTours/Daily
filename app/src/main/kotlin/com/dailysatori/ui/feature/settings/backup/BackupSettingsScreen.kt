@@ -2,9 +2,12 @@ package com.dailysatori.ui.feature.settings.backup
 
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import com.dailysatori.core.storage.BackupDirectoryPicker
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -17,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -54,19 +58,32 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
         uri?.let { viewModel.saveBackupDirectory(it, activity) }
     }
     BackupPageScaffold(title = i18n.t("settings_design.storage"), onBack = onBack, busy = busy) { modifier ->
-        Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.m, vertical = Spacing.l),
+        Column(modifier.verticalScroll(rememberScrollState()).padding(Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.xs), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(i18n.t("settings_design.backup_configuration"), style = MaterialTheme.typography.titleMedium)
-                if (state.hasBackupPassword) Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Icon(Icons.Default.Lock, null, Modifier.size(IconSize.xs), tint = AppColors.success)
-                    Text(i18n.t("settings_design.backup_protected"), style = MaterialTheme.typography.labelMedium,
-                        color = AppColors.success)
+                Text(i18n.t("settings_design.backup_configuration"), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.hasBackupPassword) Surface(
+                    shape = RoundedCornerShape(Radius.circular),
+                    color = AppColors.success.copy(alpha = 0.12f),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        Icon(Icons.Default.Lock, null, Modifier.size(IconSize.xs), tint = AppColors.success)
+                        Text(i18n.t("settings_design.backup_protected"), style = MaterialTheme.typography.labelSmall,
+                            color = AppColors.success)
+                    }
                 }
             }
-            Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surface) {
+            Surface(
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            ) {
                 Column {
                     BackupSettingRow(Icons.Default.Folder, i18n.t("settings_design.backup_directory"),
                         state.backupDirectoryDisplay.ifBlank { i18n.t("settings_design.choose_directory_hint") },
@@ -81,19 +98,24 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth().heightIn(min = Height.button), shape = RoundedCornerShape(Radius.m)) {
                 if (state.isBackingUp && !state.isVerifying) CircularProgressIndicator(Modifier.size(IconSize.m),
                     strokeWidth = BorderWidth.l, color = MaterialTheme.colorScheme.onPrimary)
-                else Icon(Icons.Default.Backup, null, Modifier.size(IconSize.m))
+                else Icon(Icons.Default.Backup, null, Modifier.size(IconSize.s))
                 Spacer(Modifier.width(Spacing.s))
                 Text(i18n.t("settings_design.backup_now"))
             }
             Text(i18n.t("settings_design.backup_content_hint"), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            state.error?.let { SettingsEditorMessage(it, isError = true) }
-            state.message?.let { SettingsEditorMessage(it, isError = false) }
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Spacing.xs))
+            state.error?.let { SettingsEditorMessage(it, isError = true, modifier = Modifier.padding(horizontal = Spacing.xs)) }
+            state.message?.let { SettingsEditorMessage(it, isError = false, modifier = Modifier.padding(horizontal = Spacing.xs)) }
             if (state.isBackingUp && !state.isVerifying) LinearProgressIndicator(progress = { state.backupProgress },
                 modifier = Modifier.fillMaxWidth())
-            HorizontalDivider(Modifier.padding(vertical = Spacing.s), color = MaterialTheme.colorScheme.outlineVariant)
             BackupVerificationCard(state, busy, i18n, viewModel)
-            if (!grouped) OutlinedButton(onClick = onRestore, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(i18n.t("settings_design.restore_backup")) }
+            if (!grouped) OutlinedButton(
+                onClick = onRestore,
+                enabled = !busy,
+                shape = RoundedCornerShape(Radius.m),
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.fillMaxWidth().heightIn(min = Height.button),
+            ) { Text(i18n.t("settings_design.restore_backup")) }
         }
     }
 }
@@ -116,29 +138,57 @@ private fun BackupVerificationCard(state: BackupSettingsState, busy: Boolean, i1
             enteringPassword = false
         },
     )
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.VerifiedUser, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(i18n.t("settings_design.backup_verify_start"), style = MaterialTheme.typography.titleSmall)
-                Text(i18n.t("settings_design.backup_verify_caption"), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(Height.buttonSmall)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Default.VerifiedUser, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.primary)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Text(i18n.t("settings_design.backup_verify_start"), style = MaterialTheme.typography.titleSmall)
+                    Text(i18n.t("settings_design.backup_verify_caption"), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (!state.isVerifying) {
+                    val verifyEnabled = !busy && state.backupDirectory.isNotBlank()
+                    Surface(
+                        onClick = { enteringPassword = true },
+                        enabled = verifyEnabled,
+                        shape = RoundedCornerShape(Radius.circular),
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                    ) {
+                        Text(
+                            i18n.t(if (retry) "button.retry" else "settings_design.backup_verify_action"),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (verifyEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            modifier = Modifier.padding(horizontal = Spacing.s + Spacing.xxs, vertical = Spacing.xs),
+                        )
+                    }
+                }
             }
-            if (!state.isVerifying) TextButton(onClick = { enteringPassword = true },
-                enabled = !busy && state.backupDirectory.isNotBlank()) {
-                Text(i18n.t(if (retry) "button.retry" else "settings_design.backup_verify_action"))
+            if (state.isVerifying) {
+                state.verificationFileName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                Text(i18n.t("settings_design.backup_verify_stage_${state.verificationStage.name.lowercase()}"),
+                    style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator(progress = { state.backupProgress }, modifier = Modifier.fillMaxWidth())
+                OutlinedButton(onClick = viewModel::cancelVerification, shape = RoundedCornerShape(Radius.m), modifier = Modifier.fillMaxWidth()) {
+                    Text(i18n.t("button.cancel"))
+                }
+            } else {
+                state.verificationResult?.let { BackupVerificationResultView(it, i18n) }
             }
-        }
-        if (state.isVerifying) {
-            state.verificationFileName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            Text(i18n.t("settings_design.backup_verify_stage_${state.verificationStage.name.lowercase()}"),
-                style = MaterialTheme.typography.bodyMedium)
-            LinearProgressIndicator(progress = { state.backupProgress }, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = viewModel::cancelVerification, modifier = Modifier.fillMaxWidth()) {
-                Text(i18n.t("button.cancel"))
-            }
-        } else {
-            state.verificationResult?.let { BackupVerificationResultView(it, i18n) }
         }
     }
 }

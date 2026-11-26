@@ -8,6 +8,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.editorial
 
 @Composable
 fun ConfirmDialog(
@@ -21,7 +22,7 @@ fun ConfirmDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -29,7 +30,7 @@ fun ConfirmDialog(
         title = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.editorial(),
                 color = MaterialTheme.colorScheme.onSurface,
             )
         },

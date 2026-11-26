@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.phone
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,7 +54,11 @@ internal fun PhoneSourcePanel(onOpenSource: (String) -> Unit, ledger: LedgerEntr
         }
     }
     when {
-        state.failed -> Surface(shape = RoundedCornerShape(Radius.card), color = MaterialTheme.colorScheme.surface) {
+        state.failed -> Surface(
+            shape = RoundedCornerShape(Radius.card),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        ) {
             Column(Modifier.fillMaxWidth().padding(Spacing.m)) {
                 Text(i18n.t("phone.source_load_failed"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = vm::reload) { Text(i18n.t("phone.load_again")) }
@@ -76,7 +81,12 @@ internal fun PhoneSourcePanel(onOpenSource: (String) -> Unit, ledger: LedgerEntr
 @Composable
 private fun PhoneSourceCard(source: PhoneSourceInfo, label: String, onOpenSource: (String) -> Unit) {
     val i18n: I18nService = koinInject()
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.card), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Icon(if (source.channel == PhoneChannel.SMS) Icons.AutoMirrored.Filled.Message else Icons.Default.NotificationsNone,
@@ -94,7 +104,7 @@ private fun PhoneSourceCard(source: PhoneSourceInfo, label: String, onOpenSource
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             else PhoneTextPreview(source.text)
             source.messageId?.let { id ->
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 TextButton(onClick = { onOpenSource(id) }, contentPadding = PaddingValues(), modifier = Modifier.fillMaxWidth()) {
                     Text(i18n.t("phone.open_source_record"), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Start)

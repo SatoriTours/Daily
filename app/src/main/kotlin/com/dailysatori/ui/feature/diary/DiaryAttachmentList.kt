@@ -11,6 +11,7 @@ import android.media.MediaPlayer
 import com.dailysatori.core.recording.DiaryPlaybackLoudness
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
@@ -46,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.dailysatori.data.repository.DiaryAttachmentProcessingStatus
 import com.dailysatori.shared.db.Diary_attachment
@@ -100,7 +100,7 @@ private fun DiaryAttachmentRow(
     onOpenTranscript: ((Diary_attachment, Boolean) -> Unit)?,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = Spacing.xs),
+        modifier = Modifier.fillMaxWidth().heightIn(min = Height.listItem).padding(vertical = Spacing.xs),
     ) {
         if (!compact || attachment.kind != "audio" || attachment.local_path.isBlank()) Row(
             modifier = Modifier.fillMaxWidth(),
@@ -279,6 +279,7 @@ private fun DiaryAudioPlaybackButton(
         Row(
             modifier = if (compact) Modifier.widthIn(max = Spacing.xxl * 6).fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(Radius.m))
+                .border(BorderWidth.xs, MaterialTheme.colorScheme.outline, RoundedCornerShape(Radius.m))
                 .padding(end = Spacing.s) else Modifier,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -329,9 +330,9 @@ private fun DiaryAudioPlaybackButton(
                 enabled = isPrepared && durationMs > 0,
                 modifier = Modifier.weight(1f),
                 colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    activeTrackColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outline,
                 ),
             )
             Text(formatPlaybackTime(durationMs), style = MaterialTheme.typography.labelSmall)

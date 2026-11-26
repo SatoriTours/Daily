@@ -2,6 +2,8 @@ package com.dailysatori.ui.feature.unifiednews
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -27,7 +29,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
 import com.dailysatori.shared.db.Unified_news_summary
-import com.dailysatori.ui.component.appbar.MainPageHeader
+import com.dailysatori.ui.component.appbar.AssistantTopBarAction
+import com.dailysatori.ui.component.appbar.PageAction
+import com.dailysatori.ui.component.appbar.PageActions
 import com.dailysatori.ui.feature.myspace.*
 import com.dailysatori.service.ideatopic.opportunityIdeaCaptureInput
 import com.dailysatori.ui.feature.ideatopic.IdeaTopicCaptureSheet
@@ -42,35 +46,73 @@ internal fun NewsFocusHeader(
     onRefresh: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().statusBarsPadding().background(MaterialTheme.colorScheme.background)) {
-        MainPageHeader(
-            title = stringResource(R.string.news_focus_title),
-            modifier = Modifier.padding(start = Spacing.l, end = Spacing.l, top = Spacing.s),
-            titleWeight = FontWeight.SemiBold,
-            pageActions = listOf(
-                com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.news_focus_search), Icons.Default.Search, onClick = onSearch),
-                com.dailysatori.ui.component.appbar.PageAction(stringResource(R.string.news_focus_refresh), Icons.Default.Refresh, onClick = onRefresh),
-            ),
-        )
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.l),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
-            tabs.forEachIndexed { index, tab ->
-                val selected = index == selectedTabIndex
-                val bringIntoViewRequester = remember { BringIntoViewRequester() }
-                LaunchedEffect(selected) {
-                    if (selected) bringIntoViewRequester.bringIntoView()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = Height.appBarCompact)
+                .padding(start = Spacing.m, end = Spacing.s, top = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(end = Spacing.l),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        val selected = index == selectedTabIndex
+                        val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                        LaunchedEffect(selected) {
+                            if (selected) bringIntoViewRequester.bringIntoView()
+                        }
+                        Column(
+                            Modifier
+                                .width(IntrinsicSize.Max)
+                                .bringIntoViewRequester(bringIntoViewRequester)
+                                .selectable(selected, role = Role.Tab, onClick = tab.onClick),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                tab.label,
+                                Modifier.padding(vertical = Spacing.s),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            Box(
+                                Modifier.fillMaxWidth().height(BorderWidth.l).background(
+                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background,
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xxs),
+                                ),
+                            )
+                        }
+                    }
                 }
-                Column(Modifier.width(IntrinsicSize.Max).bringIntoViewRequester(bringIntoViewRequester)
-                    .selectable(selected, role = Role.Tab, onClick = tab.onClick),
-                    horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(tab.label, Modifier.padding(vertical = Spacing.s), style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                    Box(Modifier.fillMaxWidth().height(BorderWidth.m).background(
-                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background))
-                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .width(Spacing.l)
+                        .height(Height.appBarCompact)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color.Transparent, MaterialTheme.colorScheme.background),
+                            ),
+                        ),
+                )
             }
+            PageActions(
+                listOf(
+                    PageAction(stringResource(R.string.news_focus_search), Icons.Default.Search, onClick = onSearch),
+                    PageAction(stringResource(R.string.news_focus_refresh), Icons.Default.Refresh, onClick = onRefresh),
+                ),
+            )
+            AssistantTopBarAction()
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     }
 }
 

@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.reminder
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -11,6 +12,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.dailysatori.R
 import com.dailysatori.data.repository.ReminderProfile
 import com.dailysatori.service.reminder.ReminderProfileKind
@@ -43,9 +45,15 @@ internal fun ReminderProfilesContent(state: ReminderSettingsState, viewModel: Re
 @Composable
 private fun ProfileCard(profile: ReminderProfile, viewModel: ReminderSettingsViewModel) {
     val displayName = profile.localizedName()
-    Card(Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.l), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.card),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(displayName, style = MaterialTheme.typography.titleMedium)
+            Text(displayName, style = MaterialTheme.typography.titleMedium.editorial())
             Text(stringResource(R.string.reminder_profile_summary, displayName, profile.snapshot.daytimeDismissalBackoffMinutes.joinToString(" / ")))
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                 TextButton(onClick = { viewModel.editProfile(profile, duplicate = true, displayName = displayName) }) { Text(stringResource(R.string.reminder_action_duplicate)) }

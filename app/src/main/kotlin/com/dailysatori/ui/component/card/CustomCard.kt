@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
-import androidx.compose.ui.unit.dp
 
 @Composable
 fun CustomCard(
@@ -18,23 +17,27 @@ fun CustomCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val shape = RoundedCornerShape(Radius.card)
+    val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    val border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline)
+    val elevation = CardDefaults.cardElevation(defaultElevation = Radius.none)
     if (onClick != null) {
         Card(
             onClick = onClick,
             modifier = modifier,
-            shape = RoundedCornerShape(Radius.l),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)),
-            border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = shape,
+            colors = colors,
+            border = border,
+            elevation = elevation,
             content = content,
         )
     } else {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(Radius.l),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)),
-            border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = shape,
+            colors = colors,
+            border = border,
+            elevation = elevation,
             content = content,
         )
     }

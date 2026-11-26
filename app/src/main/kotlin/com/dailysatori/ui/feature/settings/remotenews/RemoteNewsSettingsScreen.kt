@@ -181,9 +181,9 @@ private fun RemoteNewsSourceListPage(
 @Composable
 private fun RemoteNewsSyncSummary(state: RemoteNewsSettingsState) {
     Surface(
-        shape = RoundedCornerShape(Radius.xl),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
@@ -194,7 +194,7 @@ private fun RemoteNewsSyncSummary(state: RemoteNewsSettingsState) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(
                         "同步概览",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.editorial(),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -231,8 +231,9 @@ private fun RemoteNewsIconBox() {
 private fun RemoteNewsMetricTile(metric: RemoteNewsSummaryMetric, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
@@ -288,9 +289,10 @@ private fun RemoteNewsSourceRow(
     val syncing = syncWork?.active == true
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -411,9 +413,9 @@ private fun RemoteNewsStatusPill(source: Remote_news_source, syncWork: RemoteNew
 @Composable
 private fun RemoteNewsSyncProgressBox(work: RemoteNewsSyncWorkUi) {
     Surface(
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             // A long stage message owns its own line; it must never compete with the short progress count.
@@ -510,9 +512,9 @@ private fun RemoteNewsSourceDetails(source: Remote_news_source, syncedCountText:
         "首次导入范围" to remoteNewsSourceHistoryRangeText(source),
     )
     Surface(
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             lines.forEach { (label, value) ->
@@ -539,7 +541,11 @@ private fun RemoteNewsDetailRow(label: String, value: String) {
 
 @Composable
 private fun RemoteNewsChip(text: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    Surface(
+        shape = RoundedCornerShape(Radius.circular),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
@@ -559,7 +565,10 @@ private fun RemoteNewsSourceEditorPage(
     var confirmDelete by rememberSaveable(state.editingId) { mutableStateOf(false) }
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
-        title = { Text(stringResource(R.string.settings_delete_source_title)) },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        title = { Text(stringResource(R.string.settings_delete_source_title), style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { Text(stringResource(R.string.settings_delete_source_message, state.savedDraft.name)) },
         confirmButton = {
             TextButton(enabled = !state.busy, onClick = {

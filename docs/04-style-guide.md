@@ -1,41 +1,39 @@
-# Daily Satori 样式系统参考
+# Daily Satori 样式系统参考（素纸墨青 · Calm Editorial）
 
 > 统一导入：`import com.dailysatori.ui.theme.*`
+> 交互参考稿：[app-style-redesign-v1.html](./mockups/app-style-redesign-v1.html)（配合 [07-app-magazine-design-standard.md](./07-app-magazine-design-standard.md) 共同约束全部页面）
 
 ## 核心原则
 
-1. **禁止硬编码** - 颜色、间距、字体必须使用主题常量
-2. **Material 3 驱动** - 使用 `MaterialTheme.colorScheme.*` 获取颜色
-3. **优先级**：主题常量 > 内联值（禁止）
+1. **禁止硬编码** - 颜色、间距、圆角、字号必须使用主题常量（`MaterialTheme.colorScheme.*`、`MaterialTheme.typography.*`、`Spacing`、`Radius`、`Height`、`BorderWidth`）
+2. **素纸墨青基调** - 全应用统一采用「暖宣纸 × 炭墨 × 靛青」浅色与「夜读墨砚 × 月白 × 浅靛青」深色，杜绝冰冷纯灰白与刺眼纯黑
+3. **语义色克制分工** - 靛青主色负责导航、选中与核心动作；赭石只用于高信号行动项（产品机会、待确认、创意灵感）；松石绿只用于完成/已收录/已润色态
+4. **衬线标题 × 无衬线正文** - 展示级标题、页头与阅读锚点使用 `EditorialFontFamily`（衬线）；正文与交互控件使用 `UiFontFamily` / `ContentFontFamily`（无衬线）与等宽数字
+5. **纸面层次替代重边框** - 新闻/详情流采用无框发丝分割；日记、热榜等需要聚拢元信息与多模态内容的模块使用微暖纸面卡片（`surface`），禁止卡片套卡片或重阴影
 
-## 颜色
+## 颜色（Material 3 语义槽位）
 
-```kotlin
-// Material 3 主题颜色（自动适配亮色/暗色模式）
-MaterialTheme.colorScheme.primary
-MaterialTheme.colorScheme.onPrimary
-MaterialTheme.colorScheme.surface
-MaterialTheme.colorScheme.onSurface
-MaterialTheme.colorScheme.onSurfaceVariant
-MaterialTheme.colorScheme.surfaceContainer
-MaterialTheme.colorScheme.surfaceContainerHighest
-MaterialTheme.colorScheme.errorContainer
-MaterialTheme.colorScheme.onErrorContainer
-
-// AppColors 扩展色（位于 Color.kt）
-AppColors.primary          // iOS system blue, light-mode default
-AppColors.primaryLight     // iOS system blue variant for dark surfaces
-AppColors.success          // iOS system green
-AppColors.error            // iOS system red
-AppColors.warning          // iOS system orange
-AppColors.info             // iOS system blue
-```
+| 语义角色 | Material 3 槽位 | 浅色 · 宣纸 | 深色 · 墨砚 | 适用场景 |
+|----------|-----------------|-------------|-------------|----------|
+| 画布底色 | `background` | `#F7F5F0` | `#111110` | 页面底层背景、顶栏底色 |
+| 柔白纸面 | `surface` | `#FFFDF9` | `#1A1917` | 日记卡片、热榜卡片、阅读主层、底部面板 |
+| 轻容器 | `surfaceContainerLow` | `#FAF8F3` | `#151412` | 轻度抬起区块、内嵌引用底 |
+| 次级容器 | `surfaceContainer` / `surfaceVariant` | `#EFECE4` | `#242320` | 语音条、搜索框、心情胶囊、次级按钮 |
+| 高对比容器 | `surfaceContainerHigh` / `surfaceContainerHighest` | `#EAE6DC` / `#E5E0D5` | `#2A2825` / `#2F2D29` | 边缘手柄、强区分芯片、开关轨道 |
+| 主墨文字 | `onSurface` / `onBackground` | `#1A1917` | `#ECE9E2` | 标题、正文主文本 |
+| 次墨文字 | `onSurfaceVariant` | `#6F6A60` | `#9A958B` | 时间、来源、标签、辅助说明 |
+| 发丝分割 | `outline` / `outlineVariant` | `rgba(26,25,23,0.085)` / `0.14` | `rgba(236,233,226,0.10)` / `0.16` | 极细分割线与微弱容器边线 |
+| 主强调 · 靛青 | `primary` / `primaryContainer` | `#255B7A` / `#E3EFF5` | `#68B3D8` / `#163344` | 选中态、链接、AI 助手入口、续写/查看来源 |
+| 暖强调 · 赭石 | `secondary` / `secondaryContainer` | `#B85D3B` / `#F7E9E3` | `#E59172` / `#382119` | 产品机会、机会提示条、点子/待确认高亮 |
+| 静强调 · 松石 | `tertiary` / `tertiaryContainer` | `#2F7A5A` / `#E4F2EC` | `#64C49A` / `#183328` | 已收录点子、已润色语音、同步完成 |
+| 警示 · 暖朱 | `error` / `errorContainer` | `#C94136` / `#FCE6E4` | `#E86B61` / `#4A1D19` | 错误提示、危险操作、未处理红点 |
 
 ### 强调色使用规范
 
-选择态、导航态和轻量分区标题统一使用 `MaterialTheme.colorScheme.primary`。例如底部导航选中态、新闻来源筛选选中态、读书观点中的“案例”分区标题，都应使用主题主色保持一致。
-
-禁止为同类强调状态引入新的非主题色；如需弱背景，使用 `MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)` 或既有主题容器色。
+- 选中态、导航态、AI 助手图标和轻量分区标题统一使用 `MaterialTheme.colorScheme.primary`（靛青）。
+- 需要高信号区分（如「产品机会」标签/左强调条、创意点子研究态、待确认提示）时统一使用 `MaterialTheme.colorScheme.secondary` / `secondaryContainer`（赭石），禁止页面内自行造橙/紫/蓝硬编码色。
+- 已完成、已收录、已润色等积极状态统一使用 `MaterialTheme.colorScheme.tertiary` / `tertiaryContainer`（松石绿）。
+- 如需弱背景，优先使用 `primaryContainer` / `secondaryContainer` / `tertiaryContainer` 或 `primary.copy(alpha = 0.12f)`。
 
 ## 间距 (Spacing)
 
@@ -100,23 +98,38 @@ BorderWidth.xl   // 4.dp
 
 ## 字体 (AppTypography)
 
-Daily Satori 使用内容/UI 两类排版角色；当前两类角色都共享系统 SansSerif 字体族：
+Daily Satori 采用「衬线标题 × 无衬线正文/UI」双角色排版：
 
-- `ContentFontFamily`：系统内容字体，用于长文阅读、Markdown 正文、文章/新闻详情、AI 摘要、日记预览等内容型区域。
-- `UiFontFamily`：系统 Sans Serif/Roboto，用于导航、按钮、输入框、设置项、标签、时间、来源、状态等界面型文本。
+- `EditorialFontFamily`（`FontFamily.Serif`）：用于 `display*`、`headline*`、`titleLarge` 等页头、杂志封面、文章/新闻大标题、日记/要闻阅读题头与引用块，建立沉静的纸墨辨识度。
+- `ContentFontFamily` / `UiFontFamily`（`FontFamily.SansSerif`）：用于长文阅读正文、Markdown 正文、导航、按钮、输入框、设置项、标签、时间、来源与状态，保证手机端高密度阅读清晰度。
+- 序数（`01` / `02`）、日期时间、排名与阅读时长在视觉上保持对齐与克制；卡片/故事题头如需衬线强调，使用 `MaterialTheme.typography.titleMedium.copy(fontFamily = EditorialFontFamily)`（不硬编码字号）。
 
 常用层级：
 
 ```kotlin
-MaterialTheme.typography.headlineLarge // 26sp / 34sp, 内容页大标题
-MaterialTheme.typography.headlineSmall // 20sp / 28sp, 内容型区块标题
-MaterialTheme.typography.titleMedium   // 17sp / 24sp, UI 标题和 TopBar
-MaterialTheme.typography.titleSmall    // 15sp / 21sp, 卡片标题/设置项标题
+MaterialTheme.typography.headlineLarge // 26sp / 34sp, Editorial Serif, 一级页头与详情大标题
+MaterialTheme.typography.headlineSmall // 20sp / 28sp, Editorial Serif, 杂志总览与分区题头
+MaterialTheme.typography.titleMedium   // 17sp / 24sp, UI 标题、卡片标题（阅读题头可叠 EditorialFontFamily）
+MaterialTheme.typography.titleSmall    // 15sp / 21sp, 次级标题/标签页/设置项标题
 MaterialTheme.typography.bodyLarge     // 17sp / 30sp, 长文阅读正文
-MaterialTheme.typography.bodyMedium    // 15sp / 24sp, 普通 UI 正文
-MaterialTheme.typography.bodySmall     // 13sp / 19sp, 元信息/说明
-MaterialTheme.typography.labelMedium   // 12sp / 17sp, 标签/Badge
+MaterialTheme.typography.bodyMedium    // 15sp / 24sp, 普通正文与摘要
+MaterialTheme.typography.bodySmall     // 13sp / 19sp, 元信息/辅助说明
+MaterialTheme.typography.labelMedium   // 12sp / 17sp, 标签/操作链接/徽章
 ```
+
+## 页面容器与卡片层级规范
+
+所有页面必须二选一明确信息容器策略，禁止混搭重边框与嵌套卡片：
+
+1. **无框阅读流**（今日要闻、我的机会、文章/热榜详情、读书观点）：内容直接落在 `background` 暖宣纸画布上，用 `Spacing.m`/`Spacing.l` 留白、序数/左侧细强调条（`2.5dp`–`3dp`）和极细发丝分割线（`outline`）建立节奏。
+2. **微暖纸面卡片**（日记时间线、热榜平台榜、我的空间入口、设置分组）：容器使用 `surface`（浅 `#FFFDF9` / 深 `#1A1917`）、`RoundedCornerShape(Radius.card)` 或 `Radius.l`、无重阴影，必要时仅加极淡 `BorderWidth.xs` 轮廓线（`outline`）；卡片内次级模块（如语音条、心情胶囊）用 `surfaceContainer` 承托。
+
+## 全页面验收基线（每改一页必查）
+
+- 浅色（宣纸）与深色（墨砚）双模式均无硬编码颜色/字号，对比度清晰。
+- 顶栏遵守「最多 1 页面操作位 + 最右 AI」，底栏不遮挡末尾内容。
+- 卡片/列表项内部层级清晰：元信息安静、标题醒目、动作克制不争抢注意力。
+- 真实长标题、空状态与窄屏下无截断错位、无无意义装饰卡片堆叠。
 
 ## Composable 组件使用示例
 
@@ -153,6 +166,11 @@ FilledIconButton(
 
 ## 标题栏与页面操作层级
 
+- **一级页面紧凑上下文顶栏（方案 A，强制）**：底部 4 个一级 Tab 页面（「今日」「日记」「读书」「我的」）不再在顶部重复展示与底栏相同的静态页名，统一使用单行紧凑栏（`Height.appBarCompact`）：左侧直接承载当下有用的动态上下文，右侧守住「最多 1 个页面操作位 + 最右 AI」：
+  - **今日**：左侧为横向频道标签（`今日要闻 | 我的机会 | 热榜 | ...`），与右侧操作合并为单行，不再叠加「今日」大标题行。
+  - **日记**：左侧显示当前滚动位置对应的月份与篇数（如 `2026年11月 · 14 篇`，随列表滚动吸顶更新），列表空时回退为「日记」。
+  - **读书**：左侧显示当前阅读书名（含作者）。
+  - **我的**：左侧显示当日日期锚点或轻量状态，右侧保持「设置 + AI」。
 - 普通页右侧最多 **一个页面操作位 + 最右 AI**；无页面操作不补空位。页面用 `PageAction(label, icon, enabled, priority, onClick)` 提供有名称的行为，由共享 `PageActions` 统一显示：一项直接展示，多项进入带文字的“更多”。
 - `AppScaffold`、`MainPageHeader`、`SettingsScaffold` 只接收 `pageActions`，不接受任意图标行；`AppTopBar.actions` 仅供 `showAssistant = false` 的助手内部任务栏使用。自定义标题栏也使用 `PageActions`，并在其右侧放 `AssistantTopBarAction`。
 - 编辑页保持 **保存 + AI**，保存不得溢出。共享操作设为 `PageActionPriority.Primary`，不允许与次要操作混排，也不允许保存打开菜单。附件、标签、“收为点子”等保留在任务工具区。批量确认流程保留既有可见的底部确认栏，不机械改写任务工作流。

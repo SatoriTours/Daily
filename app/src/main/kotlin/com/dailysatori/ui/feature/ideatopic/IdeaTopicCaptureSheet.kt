@@ -66,10 +66,10 @@ fun IdeaTopicCaptureSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.s),
             ) {
-                Icon(Icons.Outlined.Lightbulb, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(IconSize.m))
+                Icon(Icons.Outlined.Lightbulb, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(IconSize.m))
                 Text(
                     text = i18n.t("idea_topic.capture_title"),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge.editorial(),
                     fontWeight = FontWeight.SemiBold,
                 )
             }

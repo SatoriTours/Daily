@@ -35,6 +35,7 @@ import com.dailysatori.R
 import com.dailysatori.ui.feature.article.articleCardSummaryMaxLines
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import java.io.File
 
 private val magazineNewsCoverSize = 88.dp
@@ -73,15 +74,15 @@ internal fun MagazineNewsCardCore(
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.l),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        shape = RoundedCornerShape(Radius.card),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
             if (title.isNotBlank()) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.editorial(),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,

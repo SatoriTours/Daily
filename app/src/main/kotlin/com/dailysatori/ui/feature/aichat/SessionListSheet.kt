@@ -107,7 +107,9 @@ fun SessionListScreen(
     deleting?.let { session ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text(stringResource(R.string.assistant_delete_session_title)) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.assistant_delete_session_title), style = MaterialTheme.typography.titleLarge.editorial()) },
             text = { Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(session.title.ifBlank { stringResource(R.string.assistant_untitled_session) }, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(R.string.assistant_delete_session_impact))
@@ -124,7 +126,7 @@ fun SessionListScreen(
 private fun SessionSearchField(value: TextFieldValue, onChange: (TextFieldValue) -> Unit) {
     val keyboard = LocalSoftwareKeyboardController.current
     Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s)
-        .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(Radius.m)),
+        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(Radius.m)),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.Search, null, Modifier.padding(start = Spacing.s + Spacing.xs, end = Spacing.s).size(IconSize.s),
             tint = MaterialTheme.colorScheme.onSurfaceVariant)

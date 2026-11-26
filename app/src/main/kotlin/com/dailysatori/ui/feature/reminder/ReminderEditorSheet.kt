@@ -57,10 +57,13 @@ internal fun ReminderEditorSheet(
     ModalBottomSheet(
         onDismissRequest = { if (!editor.saving) onDismiss() },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight().imePadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.l), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.reminder_detail_edit_kicker), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.reminder_detail_edit_kicker), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge.editorial())
                 ReminderEditorMoreActions(reminder, enabled = !editor.saving) { action ->
                     if (action == ReminderAction.DELETE) confirmDelete = true else {
                         when (action) {
@@ -112,7 +115,9 @@ internal fun ReminderEditorSheet(
     }
     pendingSource?.let { sourceId ->
         AlertDialog(onDismissRequest = { pendingSource = null },
-            title = { Text(stringResource(R.string.settings_unsaved_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.settings_unsaved_title), style = MaterialTheme.typography.titleLarge.editorial()) },
             text = { Text(stringResource(R.string.settings_unsaved_message)) },
             confirmButton = { TextButton(onClick = { pendingSource = null; onDismiss(); navigation.openHistory(sourceId) }) {
                 Text(stringResource(R.string.settings_discard_changes))
@@ -122,7 +127,9 @@ internal fun ReminderEditorSheet(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.reminder_delete_title)) },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.reminder_delete_title), style = MaterialTheme.typography.titleLarge.editorial()) },
             text = { Text(stringResource(R.string.reminder_delete_message)) },
             confirmButton = { TextButton(onClick = { confirmDelete = false; viewModel.delete(reminder.id); onDismiss() }) {
                 Text(stringResource(R.string.reminder_action_delete), color = MaterialTheme.colorScheme.error)
@@ -134,7 +141,7 @@ internal fun ReminderEditorSheet(
 
 @Composable
 private fun ReminderEditorFooter(editor: ReminderEditorState, canEdit: Boolean, onCancel: () -> Unit, onSave: () -> Unit) {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
     Row(
         Modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.m),
         horizontalArrangement = Arrangement.spacedBy(Spacing.m),

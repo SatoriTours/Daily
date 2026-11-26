@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.diary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -44,11 +45,15 @@ internal fun DiaryTagEditorDialog(
         input = ""; replacing = null; errorKey = null
     }
     Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+        Surface(
+            shape = RoundedCornerShape(Radius.xl),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        ) {
             Column(Modifier.fillMaxWidth().heightIn(max = Spacing.xxl * 12).verticalScroll(rememberScrollState())
                 .padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(i18n.t("diary_tags.edit"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(i18n.t("diary_tags.edit"), style = MaterialTheme.typography.titleMedium.editorial(), modifier = Modifier.weight(1f))
                     TextButton(onClick = { onUndo(); replacing = null; input = ""; errorKey = null }, enabled = canUndo) {
                         Text(i18n.t("diary_tags.undo_step"))
                     }
@@ -87,7 +92,7 @@ internal fun DiaryTagEditorDialog(
                         vocabulary.aliases.any { (alias, standard) -> standard == it && alias.contains(input) }) }
                         .take(30).forEach { tag -> AssistChip(onClick = { choose(tag) }, label = { Text(tag) }) }
                 }
-                HorizontalDivider()
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 if (draft.pendingTags.isNotEmpty()) {
                     Text(i18n.t("diary_tags.pending_draft"), style = MaterialTheme.typography.bodySmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {

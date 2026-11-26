@@ -467,12 +467,13 @@ private fun ArticleOriginalBottomSheet(
         isRemoteSnapshot = article.source_type == "remote_news", originalImageUrls = listOfNotNull(article.cover_image_url))
     var showTranslation by remember(article.id) { mutableStateOf(false) }
     val readableTranslation = remember(translation, article) { translation?.let { tidyArticleTranslation(it, articleMagazineTitle(article)) } }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.l)) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl)) {
+        LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.l, vertical = Spacing.s)) {
             item {
                 Text(
                     i18n.t(if (showTranslation && translation != null) "article_ai.translation_title" else "article_ai.original_title"),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.editorial(),
                 )
                 ArticleOriginalMetadata(sourceNames.joinToString(" · "), article.url,
                     articleMagazineMetaChips(article, i18n.t("article.published_on"), i18n.t("article.saved_on")))
@@ -523,7 +524,7 @@ private fun ArticleRefreshConfirmDialog(isRemote: Boolean, onConfirm: () -> Unit
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         iconContentColor = MaterialTheme.colorScheme.primary,
         titleContentColor = MaterialTheme.colorScheme.onSurface,

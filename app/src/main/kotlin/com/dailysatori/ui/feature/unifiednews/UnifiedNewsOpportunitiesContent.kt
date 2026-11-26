@@ -2,20 +2,26 @@ package com.dailysatori.ui.feature.unifiednews
 
 import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
@@ -27,6 +33,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,9 +63,12 @@ import com.dailysatori.ui.feature.myspace.OpportunityFilter
 import com.dailysatori.ui.feature.myspace.opportunityActionLabelKey
 import com.dailysatori.ui.feature.myspace.opportunityItems
 import com.dailysatori.ui.feature.myspace.recommendationError
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -117,7 +128,7 @@ internal fun UnifiedNewsOpportunitiesContent(
                 )
             }
             itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (index > 0) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 OpportunityReadingItem(
                     item = item,
                     isCaptured = topicLinks[item.id] != null,
@@ -240,17 +251,40 @@ internal fun OpportunityReadingItem(
 ) {
     val i18n: I18nService = koinInject()
     val context = LocalContext.current
-    Column(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs)) {
         Column(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
-            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
         ) {
-            Text(item.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OpportunityReadingField(stringResource(R.string.news_focus_opportunity_point), opportunityText(item))
+            if (item.category.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(Radius.xs),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        item.category,
+                        modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs + Spacing.xxs),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+            Text(
+                item.title,
+                style = MaterialTheme.typography.titleMedium.editorial(),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            OpportunityCalloutField(stringResource(R.string.news_focus_opportunity_point), opportunityText(item))
             OpportunityReadingField(stringResource(R.string.news_focus_why_watch), opportunityWhyText(item))
             OpportunityReadingField(stringResource(R.string.my_space_fact), opportunityEvidenceText(item))
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
             Text(
                 stringResource(R.string.news_focus_news_basis) + " · " + item.article.title,
                 Modifier.weight(1f).clickable {
@@ -263,6 +297,8 @@ internal fun OpportunityReadingItem(
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             if (onIgnore != null) {
                 TextButton(
@@ -277,13 +313,56 @@ internal fun OpportunityReadingItem(
                     )
                 }
             }
-            TextButton(
-                onClick = onTopicAction,
-                modifier = Modifier.heightIn(min = Height.touchTarget),
-                contentPadding = PaddingValues(horizontal = Spacing.s),
+            Box(
+                modifier = Modifier
+                    .heightIn(min = Height.touchTarget)
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onTopicAction),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(i18n.t(opportunityActionLabelKey(isCaptured)), style = MaterialTheme.typography.labelMedium)
+                Surface(
+                    shape = RoundedCornerShape(Radius.circular),
+                    color = if (isCaptured) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Text(
+                        i18n.t(opportunityActionLabelKey(isCaptured)),
+                        modifier = Modifier.padding(horizontal = Spacing.s + Spacing.xs, vertical = Spacing.xs + Spacing.xxs),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isCaptured) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun OpportunityCalloutField(label: String, text: String) {
+    if (text.isBlank()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(topEnd = Radius.s, bottomEnd = Radius.s))
+            .background(MaterialTheme.colorScheme.surface),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(BorderWidth.l + BorderWidth.xs)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.secondary),
+        )
+        Column(
+            modifier = Modifier.weight(1f).padding(horizontal = Spacing.s + Spacing.xs, vertical = Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -293,7 +372,7 @@ private fun OpportunityReadingField(label: String, text: String) {
     if (text.isBlank()) return
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

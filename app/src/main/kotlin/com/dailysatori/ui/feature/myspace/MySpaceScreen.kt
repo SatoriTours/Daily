@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.myspace
 import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -62,7 +64,9 @@ import com.dailysatori.ui.theme.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import java.util.Locale
 import kotlin.random.Random
 import org.koin.androidx.compose.koinViewModel
 
@@ -101,16 +105,23 @@ fun MySpaceScreen(
     val previews = remember(thoughtState.archive.thoughts, previewSeed) {
         myThoughtPreviews(thoughtState.archive.thoughts, Random(previewSeed))
     }
+    val locale = LocalConfiguration.current.locales[0]
+    val isScrolled by remember(listState) {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }
+    }
     com.dailysatori.ui.component.scaffold.AppScaffold(
-        title = stringResource(R.string.personal_settings_my_title), isMainPage = true, showHeaderDivider = false,
+        title = mySpaceDateTitle(today, locale),
+        titleMeta = mySpaceWeekdayMeta(today, locale),
+        isMainPage = true,
+        showHeaderDivider = isScrolled,
         pageActions = listOf(PageAction(stringResource(R.string.personal_settings_title), Icons.Outlined.Settings, onClick = onSettings)),
     ) { contentModifier ->
         LazyColumn(
             contentModifier.fillMaxSize().performanceContent(),
             state = listState,
-            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.s,
+            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs,
                 bottom = Height.navBar + Spacing.xl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s + Spacing.xs),
         ) {
             item(key = "quick-actions") {
                 MyQuickActions(profileState, onAddReminder, onChat, onFavorites, onTasks)
@@ -124,7 +135,7 @@ fun MySpaceScreen(
                     LedgerEngine().totals(ledger, range.first, range.second).firstOrNull { it.currency == "CNY" }?.expense ?: 0L
                 }
                 val pendingCount = ledger.entries.count { it.status == LedgerStatus.PENDING }
-                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.card))
                     .clickable(role = Role.Button, onClick = onLedger)) {
                     MySectionHeading(i18n.t("ledger.title"), Icons.Outlined.AccountBalanceWallet, onLedger, titleClickable = false)
                     Text(
@@ -134,7 +145,7 @@ fun MySpaceScreen(
                 }
             }
             item(key = "life-archive") {
-                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.card))
                     .clickable(role = Role.Button, onClick = onLifeArchive)) {
                     MySectionHeading(stringResource(R.string.life_archive_title), Icons.Outlined.BookmarkBorder, onLifeArchive,
                         titleClickable = false)
@@ -144,10 +155,10 @@ fun MySpaceScreen(
             }
             item(key = "idea-topics") {
                 val i18n: I18nService = koinInject()
-                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.l))
+                MySectionCard(compact = true, modifier = Modifier.clip(RoundedCornerShape(Radius.card))
                     .clickable(role = Role.Button, onClick = onIdeaTopics)) {
                     MySectionHeading(i18n.t("idea_topic.title"), Icons.Outlined.Lightbulb, onIdeaTopics,
-                        titleClickable = false)
+                        titleClickable = false, accentWarm = true)
                     Text(i18n.t("idea_topic.entry_hint"), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -160,7 +171,7 @@ fun MySpaceScreen(
                         Text(stringResource(R.string.my_space_reminder_empty), style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else upcoming.forEachIndexed { index, item ->
-                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        if (index > 0) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                         MyReminderRow(item, today, reminderSources[item.id]) { onReminder(item.id) }
                     }
                 }
@@ -175,6 +186,24 @@ fun MySpaceScreen(
     }
 }
 
+private fun mySpaceDateTitle(today: LocalDate, locale: Locale): String =
+    if (locale.language == "zh") "${today.monthNumber}月${today.dayOfMonth}日"
+    else "${today.monthNumber}/${today.dayOfMonth}"
+
+private fun mySpaceWeekdayMeta(today: LocalDate, locale: Locale): String = if (locale.language == "zh") {
+    when (today.dayOfWeek) {
+        DayOfWeek.MONDAY -> "周一"
+        DayOfWeek.TUESDAY -> "周二"
+        DayOfWeek.WEDNESDAY -> "周三"
+        DayOfWeek.THURSDAY -> "周四"
+        DayOfWeek.FRIDAY -> "周五"
+        DayOfWeek.SATURDAY -> "周六"
+        DayOfWeek.SUNDAY -> "周日"
+    }
+} else {
+    today.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MyQuickActions(
@@ -187,16 +216,23 @@ private fun MyQuickActions(
     val taskStatus = stringResource(R.string.management_task_status, state.activeTaskCount, state.failedTaskCount)
     val i18n: I18nService = koinInject()
     val attentionStatus = i18n.t("attention.task_count", state.taskAttentionCount)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val columns = if (maxWidth < Spacing.xxl * 6 || LocalDensity.current.fontScale > 1.3f) 2 else 4
-        FlowRow(maxItemsInEachRow = columns, horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-            verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            MyQuickAction(Icons.Default.Add, stringResource(R.string.my_space_add_reminder), onAddReminder, Modifier.weight(1f))
-            MyQuickAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.my_space_chat_shortcut), onChat, Modifier.weight(1f))
-            MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
-            MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
-                Modifier.weight(1f).semantics { stateDescription = "$taskStatus · $attentionStatus" },
-                badgeCount = state.taskAttentionCount, activeTaskCount = state.activeTaskCount)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = Spacing.s, vertical = Spacing.s + Spacing.xs)) {
+            val columns = if (maxWidth < Spacing.xxl * 6 || LocalDensity.current.fontScale > 1.3f) 2 else 4
+            FlowRow(maxItemsInEachRow = columns, horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                MyQuickAction(Icons.Default.Add, stringResource(R.string.my_space_add_reminder), onAddReminder, Modifier.weight(1f))
+                MyQuickAction(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.my_space_chat_shortcut), onChat, Modifier.weight(1f))
+                MyQuickAction(Icons.Outlined.BookmarkBorder, stringResource(R.string.my_space_favorites_shortcut), onFavorites, Modifier.weight(1f))
+                MyQuickAction(Icons.Outlined.TaskAlt, stringResource(R.string.personal_settings_tasks), onTasks,
+                    Modifier.weight(1f).semantics { stateDescription = "$taskStatus · $attentionStatus" },
+                    badgeCount = state.taskAttentionCount, activeTaskCount = state.activeTaskCount)
+            }
         }
     }
 }
@@ -211,18 +247,18 @@ private fun MyQuickAction(
     activeTaskCount: Long = 0,
 ) {
     val i18n: I18nService = koinInject()
-    Column(modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.xs),
+    Column(modifier.clip(RoundedCornerShape(Radius.m)).clickable(role = Role.Button, onClick = onClick).padding(vertical = Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         BadgedBox(badge = {
             if (badgeCount > 0) Badge(containerColor = MaterialTheme.colorScheme.error) { Text(badgeCount.toString()) }
         }) {
-            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Box(Modifier.size(Spacing.xxl - Spacing.xs), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.primary)
+            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.primaryContainer) {
+                Box(Modifier.size(Spacing.xxl - Spacing.s), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(IconSize.m), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
         }
-        Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
         if (activeTaskCount > 0) Text(i18n.t("attention.task_active", activeTaskCount),
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
     }
@@ -230,7 +266,12 @@ private fun MyQuickAction(
 
 @Composable
 private fun MySectionCard(compact: Boolean = false, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(
             Modifier.padding(horizontal = Spacing.m, vertical = if (compact) Spacing.s + Spacing.xs else Spacing.m),
             verticalArrangement = Arrangement.spacedBy(if (compact) Spacing.xs else Spacing.s),
@@ -240,14 +281,33 @@ private fun MySectionCard(compact: Boolean = false, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit, titleClickable: Boolean = true, pendingCount: Int = 0) {
+private fun MySectionHeading(
+    title: String,
+    icon: ImageVector,
+    onAll: () -> Unit,
+    titleClickable: Boolean = true,
+    pendingCount: Int = 0,
+    accentWarm: Boolean = false,
+) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val compactAction = maxWidth < Height.touchTarget * 6 * LocalDensity.current.fontScale
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Icon(icon, null, Modifier.size(IconSize.l), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                shape = RoundedCornerShape(Radius.s),
+                color = if (accentWarm) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                Box(Modifier.size(IconSize.xl), contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        null,
+                        Modifier.size(IconSize.s),
+                        tint = if (accentWarm) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
             Row(Modifier.weight(1f).then(if (titleClickable) Modifier.clickable(onClick = onAll) else Modifier),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium,
+                Text(title, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.titleMedium.editorial(),
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (pendingCount > 0) {
                     val description = stringResource(R.string.my_space_today_pending_count, pendingCount)
@@ -258,7 +318,8 @@ private fun MySectionHeading(title: String, icon: ImageVector, onAll: () -> Unit
             }
             if (compactAction) {
                 IconButton(onClick = onAll) {
-                    Icon(Icons.Default.ChevronRight, stringResource(R.string.my_space_view_all), Modifier.size(IconSize.s))
+                    Icon(Icons.Default.ChevronRight, stringResource(R.string.my_space_view_all), Modifier.size(IconSize.s),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 TextButton(onClick = onAll) {
@@ -277,9 +338,9 @@ private fun MyThoughtSummary(state: DiaryThoughtState, previews: List<DiaryThoug
             MyEmptyBlock(stringResource(R.string.my_space_thought_empty), stringResource(R.string.my_space_thought_empty_hint), stringResource(R.string.my_space_organize), onAll)
         } else {
             previews.forEachIndexed { index, preview ->
-                if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.s), color = MaterialTheme.colorScheme.outlineVariant)
+                if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.s), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 Text(preview.statement, Modifier.fillMaxWidth().clickable { onThought(preview) }.padding(vertical = Spacing.xs),
-                    style = MaterialTheme.typography.bodyLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    style = MaterialTheme.typography.bodyLarge.editorial(), maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             Text(stringResource(R.string.my_space_thought_meta, state.archive.diaryCount), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

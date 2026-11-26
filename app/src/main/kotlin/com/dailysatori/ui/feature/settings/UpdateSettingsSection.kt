@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -34,15 +36,27 @@ internal fun UpdateSettingsSection(state: SettingsState, viewModel: SettingsView
     SettingsSectionCard(stringResource(R.string.personal_settings_updates)) {
         Text(
             text = "当前安装：${state.installedChannel.label} · ${state.currentVersion}",
-            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s + Spacing.xs),
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        SettingsRow(Icons.Default.Settings, "更新渠道", state.updateChannel.label,
-            onClick = { if (!busy) choosing = true })
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = Spacing.m),
+            thickness = BorderWidth.xs,
+            color = MaterialTheme.colorScheme.outline,
+        )
+        SettingsRow(
+            icon = Icons.Default.Settings,
+            title = "更新渠道",
+            subtitle = "",
+            value = state.updateChannel.label,
+            onClick = { if (!busy) choosing = true },
+            showDivider = state.updateStatus != null,
+        )
         state.updateStatus?.let {
             Text(
                 text = it,
-                modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s + Spacing.xs),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -58,11 +72,18 @@ internal fun UpdateSettingsSection(state: SettingsState, viewModel: SettingsView
 private fun UpdateChannelDialog(selected: UpdateChannel, onDismiss: () -> Unit, onSelect: (UpdateChannel) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("更新渠道") },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text("更新渠道", style = MaterialTheme.typography.titleMedium.editorial()) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 UpdateChannel.entries.forEach { channel -> UpdateChannelOption(channel, selected, onSelect) }
-                Text("切换渠道后立即检查更新；较旧的安装包需等待兼容版本。", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "切换渠道后立即检查更新；较旧的安装包需等待兼容版本。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } },

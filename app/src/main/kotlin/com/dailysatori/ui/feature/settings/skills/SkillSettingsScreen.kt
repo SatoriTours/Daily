@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings.skills
 
 import com.dailysatori.ui.component.appbar.PageAction
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.dailysatori.service.skill.canDeleteSkill
 import com.dailysatori.service.skill.skillBuiltinBadge
 import com.dailysatori.service.skill.skillEnabledStatus
@@ -142,8 +144,10 @@ private fun SkillCountText(count: Int) {
 private fun SkillCard(skill: Skill_config, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         onClick = onEdit,
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m)) {
             SkillCardHeader(skill, onDelete)

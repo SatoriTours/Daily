@@ -5,6 +5,7 @@ import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -181,7 +182,7 @@ private fun DiaryThoughtChatPreference(enabled: Boolean, onChange: (Boolean) -> 
 @Composable
 private fun DiaryThoughtIntroduction(state: DiaryThoughtState) {
     Column(Modifier.padding(horizontal = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text("思想轮廓", style = MaterialTheme.typography.headlineLarge)
+        Text("思想轮廓", style = MaterialTheme.typography.headlineLarge.editorial())
         if (state.archive.generatedAt > 0) {
             val date = remember(state.archive.generatedAt) {
                 SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(Date(state.archive.generatedAt))
@@ -193,14 +194,18 @@ private fun DiaryThoughtIntroduction(state: DiaryThoughtState) {
 
 @Composable
 private fun DiaryThoughtHighlights(thoughts: List<DiaryThought>) {
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Text("先看这几条", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             thoughts.forEachIndexed { index, thought ->
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    Text("0${index + 1}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("0${index + 1}", style = MaterialTheme.typography.titleMedium.editorial(), color = MaterialTheme.colorScheme.primary)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text(thought.statement, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(thought.statement, style = MaterialTheme.typography.titleMedium.editorial(), maxLines = 3, overflow = TextOverflow.Ellipsis)
                         Text("${thought.category} · ${thought.basis}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -211,7 +216,11 @@ private fun DiaryThoughtHighlights(thoughts: List<DiaryThought>) {
 
 @Composable
 private fun DiaryThoughtStatus(state: DiaryThoughtState) {
-    Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Row(Modifier.fillMaxWidth().padding(Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
             if (state.isUpdating) {
                 CircularProgressIndicator(modifier = Modifier.size(IconSize.m), strokeWidth = BorderWidth.l)
@@ -252,9 +261,9 @@ private fun DiaryThoughtStatusText(state: DiaryThoughtState, modifier: Modifier 
 @Composable
 private fun DiaryThoughtSectionHeading(section: DiaryThoughtSection) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(section.title, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+            Text(section.title, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall.editorial())
             Text("${section.thoughts.size} 条", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -263,7 +272,11 @@ private fun DiaryThoughtSectionHeading(section: DiaryThoughtSection) {
 @Composable
 private fun DiaryThoughtEmptyState(state: DiaryThoughtState) {
     val inProgress = state.isUpdating || state.isPaused
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -315,23 +328,29 @@ private fun DiaryThoughtParagraph(thought: DiaryThought, onDiaryClick: (Long) ->
     var expanded by rememberSaveable(thought.category, thought.statement) { mutableStateOf(false) }
     val diaryCount = thought.evidence.map { it.diaryId }.distinct().size
     val highlightColor by animateColorAsState(
-        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
+        targetValue = if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         label = "thoughtHighlight",
     )
-    Column(Modifier.fillMaxWidth().background(highlightColor, RoundedCornerShape(Radius.m)).padding(Spacing.s),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(thought.statement, style = MaterialTheme.typography.bodyLarge)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(thought.basis, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "收起依据" else "$diaryCount 篇日记 · 查看依据", style = MaterialTheme.typography.labelMedium)
-                Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                    contentDescription = null, modifier = Modifier.size(IconSize.s))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = highlightColor,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(thought.statement, style = MaterialTheme.typography.bodyLarge.editorial())
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Text(thought.basis, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "收起依据" else "$diaryCount 篇日记 · 查看依据", style = MaterialTheme.typography.labelMedium)
+                    Icon(if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = null, modifier = Modifier.size(IconSize.s))
+                }
             }
-        }
-        if (expanded) {
-            thought.evidence.forEach { evidence ->
-                DiaryThoughtEvidenceLink(evidence, onDiaryClick)
+            if (expanded) {
+                thought.evidence.forEach { evidence ->
+                    DiaryThoughtEvidenceLink(evidence, onDiaryClick)
+                }
             }
         }
     }
@@ -341,8 +360,9 @@ private fun DiaryThoughtParagraph(thought: DiaryThought, onDiaryClick: (Long) ->
 private fun DiaryThoughtEvidenceLink(evidence: DiaryThoughtEvidence, onDiaryClick: (Long) -> Unit) {
     Surface(
         onClick = { onDiaryClick(evidence.diaryId) },
-        shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.background,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text("“${evidence.quote}”", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -353,7 +373,12 @@ private fun DiaryThoughtEvidenceLink(evidence: DiaryThoughtEvidence, onDiaryClic
 
 @Composable
 private fun DiaryThoughtCorrections(corrections: String, onEdit: () -> Unit) {
-    Surface(onClick = onEdit, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+    Surface(
+        onClick = onEdit,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Row(
             Modifier.fillMaxWidth().padding(Spacing.m),
             verticalAlignment = Alignment.CenterVertically,

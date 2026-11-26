@@ -2,8 +2,10 @@ package com.dailysatori.ui.feature.settings.diagnostics
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import com.dailysatori.core.storage.DiagnosticCreateDocument
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,17 +45,27 @@ fun DiagnosticRecoveryScreen(viewModel: DiagnosticRecoveryViewModel, onInstall: 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(Spacing.l),
             verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Spacer(Modifier.height(Spacing.l))
-            Text(stringResource(R.string.recovery_title), style = MaterialTheme.typography.headlineSmall)
-            Text(stringResource(if (state.needsRecovery) R.string.recovery_interrupted else R.string.recovery_description),
-                style = MaterialTheme.typography.bodyLarge)
-            Text(stringResource(R.string.recovery_privacy), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(R.string.recovery_destination), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = { viewModel.prepare(true) }, enabled = !busy,
+            Spacer(Modifier.height(Spacing.s))
+            Text(stringResource(R.string.recovery_title), style = MaterialTheme.typography.headlineSmall.editorial())
+            Surface(
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    Text(stringResource(if (state.needsRecovery) R.string.recovery_interrupted else R.string.recovery_description),
+                        style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.recovery_privacy), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.recovery_destination), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Button(onClick = { viewModel.prepare(true) }, enabled = !busy, shape = RoundedCornerShape(Radius.m),
                 modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(stringResource(R.string.recovery_export_crash)) }
-            OutlinedButton(onClick = { viewModel.prepare(false) }, enabled = !busy,
+            OutlinedButton(onClick = { viewModel.prepare(false) }, enabled = !busy, shape = RoundedCornerShape(Radius.m),
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth().height(Height.button)) { Text(stringResource(R.string.recovery_export_recent)) }
             if (state.checking || exporting) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())

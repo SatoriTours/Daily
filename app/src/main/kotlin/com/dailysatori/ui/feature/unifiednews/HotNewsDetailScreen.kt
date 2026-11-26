@@ -9,6 +9,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -131,8 +132,9 @@ internal fun HotNewsDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.m, vertical = Spacing.xs),
-                    shape = RoundedCornerShape(Radius.m),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(Radius.card),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                 ) {
                     Column(
                         modifier = Modifier.padding(Spacing.m),
@@ -181,7 +183,7 @@ internal fun HotNewsDetailScreen(
                 ) {
                     Text(
                         text = titleText,
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.headlineLarge.editorial(),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -443,14 +445,14 @@ private fun SegmentTabButton(text: String, isSelected: Boolean, onClick: () -> U
     ) {
         Surface(
             shape = RoundedCornerShape(Radius.s),
-            color = if (isSelected) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer,
+            color = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainer,
         ) {
             Text(
                 text = text,
                 modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -467,54 +469,57 @@ internal fun HotNewsDetailBottomBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background,
-        tonalElevation = BorderWidth.s,
+        tonalElevation = 0.dp,
     ) {
-        FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = Spacing.m, vertical = Spacing.s),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-            verticalArrangement = Arrangement.spacedBy(Spacing.s),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = { onOpenUrl(itemUrl) },
-                modifier = Modifier.weight(1f).widthIn(min = Height.touchTarget * 3).heightIn(min = Height.touchTarget),
-                shape = RoundedCornerShape(Radius.m),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = null,
-                    modifier = Modifier.size(IconSize.xs).padding(end = Spacing.xs),
-                )
-                Text(
-                    text = stringResource(R.string.news_hotnews_original),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
-
-            if (showDiscussion && discussionUrl != null) {
-                OutlinedButton(
-                    onClick = { onOpenUrl(discussionUrl) },
+                Button(
+                    onClick = { onOpenUrl(itemUrl) },
                     modifier = Modifier.weight(1f).widthIn(min = Height.touchTarget * 3).heightIn(min = Height.touchTarget),
                     shape = RoundedCornerShape(Radius.m),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Forum,
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                         contentDescription = null,
                         modifier = Modifier.size(IconSize.xs).padding(end = Spacing.xs),
                     )
                     Text(
-                        text = stringResource(R.string.news_hotnews_discussion),
+                        text = stringResource(R.string.news_hotnews_original),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium,
                     )
+                }
+
+                if (showDiscussion && discussionUrl != null) {
+                    OutlinedButton(
+                        onClick = { onOpenUrl(discussionUrl) },
+                        modifier = Modifier.weight(1f).widthIn(min = Height.touchTarget * 3).heightIn(min = Height.touchTarget),
+                        shape = RoundedCornerShape(Radius.m),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Forum,
+                            contentDescription = null,
+                            modifier = Modifier.size(IconSize.xs).padding(end = Spacing.xs),
+                        )
+                        Text(
+                            text = stringResource(R.string.news_hotnews_discussion),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
             }
         }

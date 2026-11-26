@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings.mcp
 
 import com.dailysatori.ui.component.appbar.PageAction
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,10 +28,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -130,7 +133,7 @@ fun McpServerScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(i18n.t("settings_design.mcp_empty"), style = MaterialTheme.typography.titleLarge)
+                Text(i18n.t("settings_design.mcp_empty"), style = MaterialTheme.typography.titleLarge.editorial())
                 Spacer(modifier = Modifier.padding(Spacing.s))
                 Text(i18n.t("settings_design.mcp_hint"), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -151,8 +154,9 @@ fun McpServerScreen(
                 items(visibleServers, key = { it.id }) { server ->
                     Card(
                         onClick = { showEdit = server.id },
-                        shape = RoundedCornerShape(Radius.l),
+                        shape = RoundedCornerShape(Radius.card),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
                         Row(
@@ -285,13 +289,18 @@ private fun McpPresetAddActions(
     onManualAdd: () -> Unit,
     onSave: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        OutlinedButton(onClick = onManualAdd, modifier = Modifier.weight(1f)) { Text("手动添加") }
-        Button(onClick = onSave, modifier = Modifier.weight(1f), enabled = canSave) {
-            Text(if (isSaving) "添加中..." else "添加选中 MCP")
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                OutlinedButton(onClick = onManualAdd, modifier = Modifier.weight(1f)) { Text("手动添加") }
+                Button(onClick = onSave, modifier = Modifier.weight(1f), enabled = canSave) {
+                    Text(if (isSaving) "添加中..." else "添加选中 MCP")
+                }
+            }
         }
     }
 }
@@ -377,8 +386,12 @@ private fun McpTemplateCard(
 ) {
     Card(
         onClick = { onCheckedChange(!checked) },
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            BorderWidth.xs,
+            if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline,
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalAlignment = Alignment.CenterVertically) {

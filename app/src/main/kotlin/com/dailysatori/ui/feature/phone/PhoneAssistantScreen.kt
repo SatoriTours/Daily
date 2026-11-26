@@ -86,7 +86,10 @@ fun PhoneHistoryScreen(onBack: () -> Unit, vm: PhoneAssistantViewModel = koinVie
             vm.addLedger(row, amount, currency, kind, merchant) { ledgerAdd = null }
         }
     }
-    clear?.let { row -> AlertDialog(onDismissRequest = { clear = null }, title = { Text(i18n.t("phone.clear_source")) },
+    clear?.let { row -> AlertDialog(onDismissRequest = { clear = null },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(i18n.t("phone.clear_source")) },
         text = { Text(i18n.t("phone.clear_notice")) },
         confirmButton = { TextButton(onClick = { vm.clearText(row); clear = null }) { Text(i18n.t("bookkeeping.confirm")) } },
         dismissButton = { TextButton(onClick = { clear = null }) { Text(i18n.t("bookkeeping.cancel")) } }) }

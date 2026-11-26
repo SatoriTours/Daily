@@ -31,10 +31,11 @@ internal fun BackupPasswordDialog(
     var password by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(Radius.l),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
         icon = { Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text(title) },
+        title = { Text(title, style = MaterialTheme.typography.titleMedium.editorial()) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 Text(description, style = MaterialTheme.typography.bodySmall)

@@ -248,9 +248,9 @@ private fun ExternalFavoriteAddServicePage(
 @Composable
 private fun ExternalFavoriteAddHelperCard(editing: Boolean = false) {
     Surface(
-        shape = RoundedCornerShape(Radius.xl),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
@@ -263,7 +263,7 @@ private fun ExternalFavoriteAddHelperCard(editing: Boolean = false) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(
                     if (editing) "更新连接凭据" else externalFavoriteAddPageHelperTitle(),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.editorial(),
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -292,9 +292,9 @@ private fun ExternalFavoriteAddNotes() {
 @Composable
 private fun ExternalFavoriteManagementSummary(state: ExternalFavoritesSettingsState) {
     Surface(
-        shape = RoundedCornerShape(Radius.xl),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
@@ -307,7 +307,7 @@ private fun ExternalFavoriteManagementSummary(state: ExternalFavoritesSettingsSt
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(
                         externalFavoriteManagementSummaryTitle(state.sources),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.editorial(),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -348,9 +348,9 @@ private fun ExternalFavoriteSummaryMetrics(metrics: List<ExternalFavoriteSummary
         metrics.forEach { metric ->
             Surface(
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(Radius.l),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                shape = RoundedCornerShape(Radius.m),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             ) {
                 Column(modifier = Modifier.padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(
@@ -417,7 +417,10 @@ private fun ExternalFavoriteSourceList(
     pendingDeleteSource?.let { pendingSource ->
         AlertDialog(
             onDismissRequest = { pendingDeleteSourceId = null },
-            title = { Text(externalFavoriteDeleteDialogTitle()) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+            title = { Text(externalFavoriteDeleteDialogTitle(), style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text(externalFavoriteDeleteDialogText()) },
             confirmButton = {
                 TextButton(
@@ -479,7 +482,10 @@ private fun ExternalFavoriteSourceCard(
     if (showProgress && syncWork != null) {
         AlertDialog(
             onDismissRequest = { showProgress = false },
-            title = { Text("同步进度") },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+            title = { Text("同步进度", style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text("${externalFavoriteSyncProgressTitle(syncWork)}\n${syncWork.resultMessage}\n${externalFavoriteSyncProgressPageText(syncWork)}\n历史补全与本次检查分别记录") },
             confirmButton = { TextButton(onClick = { showProgress = false }) { Text("关闭") } },
             dismissButton = { if (syncing) TextButton(onClick = { showProgress = false; onCancelSync() }) { Text("取消同步") } },
@@ -488,7 +494,10 @@ private fun ExternalFavoriteSourceCard(
     if (confirmRescan) {
         AlertDialog(
             onDismissRequest = { confirmRescan = false },
-            title = { Text("重新扫描收藏？") },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+            title = { Text("重新扫描收藏？", style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text("这会重置扫描进度并重新检查全部收藏，增加接口请求。已保存内容会保留，日常更新只需点击同步。") },
             confirmButton = { TextButton(onClick = { confirmRescan = false; onFullSync() }) { Text("重新扫描") } },
             dismissButton = { TextButton(onClick = { confirmRescan = false }) { Text("取消") } },
@@ -496,9 +505,10 @@ private fun ExternalFavoriteSourceCard(
     }
 
     Card(
-        shape = RoundedCornerShape(Radius.xl),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
@@ -687,9 +697,9 @@ private fun ExternalFavoriteHealthPill(health: ExternalSourceHealth, syncWork: E
 @Composable
 private fun ExternalFavoriteSyncProgressBox(work: ExternalFavoriteSyncWorkUi, historyComplete: Boolean) {
     Surface(
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -739,9 +749,9 @@ private fun ExternalFavoriteSourceDetails(item: ExternalFavoriteSourceUi, syncWo
         externalFavoriteIdleDetailLines(item)
     }
     Surface(
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             detailLines.forEach { line ->
@@ -801,9 +811,9 @@ private fun ExternalFavoriteInlineNotice(
 @Composable
 private fun ExternalFavoriteEmptyConnectionCard(message: String?, onAction: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(Radius.xl),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.l),
@@ -813,7 +823,7 @@ private fun ExternalFavoriteEmptyConnectionCard(message: String?, onAction: () -
             ExternalFavoriteIconBox {
                 Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             }
-            Text(externalFavoriteEmptyStateTitle(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(externalFavoriteEmptyStateTitle(), style = MaterialTheme.typography.titleMedium.editorial(), fontWeight = FontWeight.SemiBold)
             Text(
                 externalFavoriteEmptyStateSubtitle(message),
                 style = MaterialTheme.typography.bodySmall,
@@ -840,16 +850,16 @@ private fun ExternalFavoriteConnectionSteps() {
 @Composable
 private fun ExternalFavoriteStepList(steps: List<Pair<String, String>>) {
     Surface(
-        shape = RoundedCornerShape(Radius.xl),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             steps.forEach { (label, text) ->
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
                     Surface(
                         shape = RoundedCornerShape(Radius.s),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
                         modifier = Modifier.size(32.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -870,7 +880,11 @@ private fun ExternalFavoriteStepList(steps: List<Pair<String, String>>) {
 
 @Composable
 private fun ExternalFavoriteMessage(message: String) {
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Text(
             text = message,
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),

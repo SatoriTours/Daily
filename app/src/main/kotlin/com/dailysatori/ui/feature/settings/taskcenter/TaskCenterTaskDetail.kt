@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.settings.taskcenter
 import com.dailysatori.core.diagnostics.performanceTab
 import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.service.diagnostics.PerformanceScreen
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,8 +61,10 @@ import com.dailysatori.service.diagnostics.TaskHttpCaptureState
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.shared.db.Async_task
 import com.dailysatori.ui.component.indicator.AttentionReason
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
@@ -279,7 +282,7 @@ private fun TaskCenterDetailHeader(
         modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.xs),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, softWrap = true)
+        Text(title, style = MaterialTheme.typography.headlineSmall.editorial(), softWrap = true)
         Text(meta, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             TaskCenterStatusPill(task.status)
@@ -337,7 +340,7 @@ private fun TaskCenterDetailHeader(
 private fun TaskCenterProgressBar(fraction: Float) {
     Box(
         Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(Radius.xxs))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Box(
             Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(6.dp)
@@ -391,8 +394,9 @@ private fun TaskCenterHistoryCard(
 ) {
     val copy = taskCenterCopy()
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m).clickable(onClick = onToggle),
     ) {
         Column(
@@ -520,8 +524,9 @@ private fun TaskCenterSectionTitle(title: String, modifier: Modifier = Modifier)
 @Composable
 internal fun TaskCenterNote(text: String) {
     Surface(
-        shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
     ) {
         Text(
@@ -544,8 +549,9 @@ private fun TaskCenterFieldSection(title: String, body: String, modifier: Modifi
 @Composable
 private fun TaskCenterCodeBlock(text: String) {
     Surface(
-        shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         SelectionContainer {
@@ -612,7 +618,7 @@ internal fun TaskCenterRequestScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
                         Text(
                             taskCenterRequestTitle(detail, copy.requestFallbackTitle),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.editorial(),
                         )
                         Text(
                             "#" + task.id + " · " + listOf(detail.method, detail.endpointLabel)
@@ -629,7 +635,7 @@ internal fun TaskCenterRequestScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(Radius.s))
+                                    .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(Radius.s))
                                     .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
                             )
                             Text(
@@ -935,8 +941,9 @@ private fun TaskCenterRequestInfoCard(
     val finished = detail.respondedAtMs?.let { taskCenterTimestampText(it, strings, includeSeconds = true) }
         ?: copy.requestNotRecorded
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -1002,8 +1009,9 @@ private fun TaskCenterPairSection(title: String, rows: List<Pair<String, String>
             Text(emptyText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Surface(
-                shape = RoundedCornerShape(Radius.s),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(Radius.m),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
@@ -1079,7 +1087,10 @@ private fun TaskCenterCaptureCard(
     if (confirming) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text(stringResource(R.string.task_center_capture_confirm_title)) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = Radius.none,
+            title = { Text(stringResource(R.string.task_center_capture_confirm_title), style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text(stringResource(R.string.task_center_capture_confirm_body)) },
             confirmButton = {
                 TextButton(onClick = {
@@ -1096,8 +1107,9 @@ private fun TaskCenterCaptureCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
     ) {
         Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -1167,7 +1179,10 @@ private fun TaskCenterExportAction(task: Async_task) {
     if (confirming) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text(copy.exportConfirmTitle) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = Radius.none,
+            title = { Text(copy.exportConfirmTitle, style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text(copy.exportConfirmBody) },
             confirmButton = {
                 TextButton(onClick = {

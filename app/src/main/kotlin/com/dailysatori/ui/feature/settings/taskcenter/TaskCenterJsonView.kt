@@ -439,8 +439,9 @@ private fun TaskCenterViewerAction(label: String, onClick: () -> Unit) {
 @Composable
 private fun TaskCenterViewerNote(text: String) {
     Surface(
-        shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = androidx.compose.foundation.BorderStroke(com.dailysatori.ui.theme.BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
@@ -471,8 +472,9 @@ private fun TaskCenterCodeLines(
         }
     }
     Surface(
-        shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(com.dailysatori.ui.theme.BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = modifier.fillMaxWidth(),
     ) {
         SelectionContainer {

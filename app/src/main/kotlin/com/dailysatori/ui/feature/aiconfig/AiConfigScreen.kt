@@ -106,7 +106,7 @@ fun AiConfigScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("暂无 AI 配置", style = MaterialTheme.typography.titleLarge)
+                Text("暂无 AI 配置", style = MaterialTheme.typography.titleLarge.editorial())
                 Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     "点击右上角 + 添加模型配置",
@@ -140,21 +140,19 @@ fun AiConfigScreen(
                                 editingConfigId = config.id
                             }
                         },
-                        shape = RoundedCornerShape(Radius.l),
+                        shape = RoundedCornerShape(Radius.card),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isDefault)
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                            else
-                                MaterialTheme.colorScheme.surface,
+                            containerColor = MaterialTheme.colorScheme.surface,
                         ),
-                        border = if (isDefault) {
-                            BorderStroke(
-                                BorderWidth.s,
-                                MaterialTheme.colorScheme.primary.copy(alpha = aiConfigDefaultCardBorderAlpha),
-                            )
-                        } else {
-                            null
-                        },
+                        border = BorderStroke(
+                            if (isDefault) BorderWidth.s else BorderWidth.xs,
+                            if (isDefault) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = aiConfigDefaultCardBorderAlpha)
+                            } else {
+                                MaterialTheme.colorScheme.outline
+                            },
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
@@ -228,12 +226,12 @@ fun AiConfigScreen(
         AlertDialog(
             onDismissRequest = { deletingConfigId = null },
             shape = RoundedCornerShape(Radius.xl),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
             iconContentColor = MaterialTheme.colorScheme.primary,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = { Text("删除 AI 配置") },
+            title = { Text("删除 AI 配置", style = MaterialTheme.typography.titleMedium.editorial()) },
             text = { Text(i18n.t("ai_config.delete_confirm_with_purpose")) },
             confirmButton = {
                 TextButton(
@@ -241,7 +239,7 @@ fun AiConfigScreen(
                         viewModel.deleteConfig(targetDeleteId)
                         deletingConfigId = null
                     },
-                ) { Text("删除") }
+                ) { Text("删除", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { deletingConfigId = null }) { Text("取消") }

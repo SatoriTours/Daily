@@ -16,7 +16,9 @@ internal fun ArchiveTypeDialog(category: LifeArchiveCategory?, categories: List<
     val others = categories.filterNot { it.id == category?.id }
     var replacement by remember(category?.id) { mutableStateOf(others.firstOrNull()?.id) }
     AlertDialog(onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (category == null) R.string.life_archive_add_type else R.string.life_archive_manage_type)) },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(if (category == null) R.string.life_archive_add_type else R.string.life_archive_manage_type), style = MaterialTheme.typography.titleLarge.editorial()) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.life_archive_type_name)) }, singleLine = true)
@@ -33,7 +35,10 @@ internal fun ArchiveTypeDialog(category: LifeArchiveCategory?, categories: List<
 
 @Composable
 internal fun ArchiveLocalNotice(onDismiss: () -> Unit, onSave: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.life_archive_local_notice_title)) },
+    AlertDialog(onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.life_archive_local_notice_title), style = MaterialTheme.typography.titleLarge.editorial()) },
         text = { Text(stringResource(R.string.life_archive_local_notice_body)) },
         confirmButton = { TextButton(onClick = onSave) { Text(stringResource(R.string.life_archive_accept_save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.life_archive_cancel)) } })
@@ -41,7 +46,10 @@ internal fun ArchiveLocalNotice(onDismiss: () -> Unit, onSave: () -> Unit) {
 
 @Composable
 internal fun ArchiveDeleteDialog(onDismiss: () -> Unit, onDelete: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.life_archive_delete_title)) },
+    AlertDialog(onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.life_archive_delete_title), style = MaterialTheme.typography.titleLarge.editorial()) },
         text = { Text(stringResource(R.string.life_archive_delete_body)) },
         confirmButton = { TextButton(onClick = onDelete) { Text(stringResource(R.string.life_archive_delete_record), color = MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.life_archive_cancel)) } })

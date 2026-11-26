@@ -317,7 +317,7 @@ private fun ArticleAddDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Radius.xl),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         title = { Text("添加文章") },
         text = { ArticleAddUrlField(url, onUrlChange) },

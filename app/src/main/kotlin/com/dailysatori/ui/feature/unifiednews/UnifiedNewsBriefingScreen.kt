@@ -70,11 +70,11 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                     Text(stringResource(R.string.news_focus_news_count, summary.summary_date, sources.size),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(headlinesTitleResource(summary.summary_date)), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(headlinesTitleResource(summary.summary_date)), style = MaterialTheme.typography.headlineSmall.editorial(), fontWeight = FontWeight.Bold)
                     CitationText(content = summary.content, modifier = Modifier.fillMaxWidth()) { citation ->
                         sources.firstOrNull { it.ref_key == citation }?.let(viewModel::openCitation)
                     }
-                    Text(stringResource(R.string.news_focus_news_list), style = MaterialTheme.typography.titleLarge,
+                    Text(stringResource(R.string.news_focus_news_list), style = MaterialTheme.typography.titleLarge.editorial(),
                         fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = Spacing.s))
                 }
             }
@@ -103,11 +103,11 @@ private fun NewsBriefingStory(
     onOpportunity: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
         Row(Modifier.fillMaxWidth().clickable(onClick = onRead).padding(top = Spacing.s), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(rank.toString().padStart(2, '0'), style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(source.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(rank.toString().padStart(2, '0'), style = MaterialTheme.typography.titleMedium.editorial(),
+                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+            Text(source.title, style = MaterialTheme.typography.titleMedium.editorial(), fontWeight = FontWeight.SemiBold)
         }
         ArticleReaderBody(description.ifBlank { stringResource(R.string.news_focus_no_summary) },
             typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())

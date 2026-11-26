@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.reminder
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -34,11 +36,39 @@ fun SmsReminderSourcePanel(reminderId: String, viewModel: SmsReminderSourceViewM
     var showOriginal by remember(reminderId) { mutableStateOf(false) }
     LaunchedEffect(reminderId) { viewModel.load(reminderId) }
     val record = source?.takeIf { it.reminderId == reminderId } ?: return
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(record.source.sender + " · " + formatSmsTime(record.receivedAt), style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { showOriginal = !showOriginal }) { Text(i18n.t("sms.source")) }
-            if (showOriginal) Text(record.source.body, style = MaterialTheme.typography.bodyMedium)
+    Surface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(
+                    record.source.sender + " · " + formatSmsTime(record.receivedAt),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = { showOriginal = !showOriginal },
+                    contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Spacing.xxs),
+                ) {
+                    Text(i18n.t("sms.source"), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+            if (showOriginal) {
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                Text(
+                    record.source.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }

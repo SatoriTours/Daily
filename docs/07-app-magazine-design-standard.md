@@ -15,33 +15,35 @@ This standard is the default direction for future page design. If the product di
 - Preserve light and dark mode quality with theme colors only.
 - Avoid hard-coded colors, spacing, font sizes, and one-off visual constants.
 
-## Visual Language
+## Visual Language (素纸墨青 · Paper & Ink)
 
-Use a paper-and-ink model:
+Use a warm paper-and-ink model unified with [04-style-guide.md](./04-style-guide.md):
 
-- Page background: `MaterialTheme.colorScheme.background`.
-- Primary reading surfaces: `surface` or transparent page background.
-- Secondary raised surfaces: `surfaceContainer`.
-- Small chips and metadata: `surfaceContainerHighest`.
-- Text: `onSurface` for headlines, `onSurfaceVariant` for metadata and supporting copy.
-- Accent: `primary` only for selected controls, links, and small emphasis. Do not use large blue hero blocks by default.
+- Page background: `MaterialTheme.colorScheme.background`（浅色宣纸 `#F7F5F0` / 深色墨砚 `#111110`）.
+- Primary reading / card surfaces: `MaterialTheme.colorScheme.surface`（柔白 `#FFFDF9` / 墨玉 `#1A1917`）or transparent page background for borderless reading feeds.
+- Secondary inset surfaces (voice strips, search fields, mood chips): `MaterialTheme.colorScheme.surfaceContainer`（`#EFECE4` / `#242320`）.
+- Small high-contrast chips & handles: `MaterialTheme.colorScheme.surfaceContainerHighest`（`#E5E0D5` / `#2F2D29`）.
+- Text: `onSurface`（`#1A1917` / `#ECE9E2`）for headlines and primary copy, `onSurfaceVariant`（`#6F6A60` / `#9A958B`）for metadata and supporting copy.
+- Accent discipline:
+  - `primary`（靛青 `#255B7A` / `#68B3D8`）for selected tabs, links, editorial indices (`01`, `02`), AI assistant entry, and primary actions.
+  - `secondary` / `secondaryContainer`（赭石 `#B85D3B` / `#E59172`）for high-signal highlights such as product opportunities, opportunity callout bars, and idea/pending emphasis.
+  - `tertiary` / `tertiaryContainer`（松石绿 `#2F7A5A` / `#64C49A`）for completed, captured, or polished states.
+  - Do not use large saturated hero blocks or stock electric iOS blue.
 
 Borders should be rare:
 
-- Do not wrap daily summary content, article lists, or article body text in visible bordered panels.
-- Use a single subtle outer card only when a container needs separation from the background.
-- Prefer hairline dividers inside content when needed.
+- Do not wrap daily summary content, opportunity reading feeds, or article body text in heavy bordered panels.
+- Use a calm paper surface (`surface` with subtle `BorderWidth.xs` `outline` hairline when needed) for discrete multi-modal entries like Diary cards, Hotlist boards, and Settings groups.
+- Prefer fine hairline dividers (`outline` / `outlineVariant`) inside borderless reading feeds.
 - Avoid stacking bordered cards inside bordered cards.
 
 ## Typography
 
-- Screen title: existing app bar typography.
-- Magazine cover headline: `headlineSmall` or `titleLarge` with strong weight.
-- Article/detail title: large, high-weight title with comfortable line height.
-- Content introduction: `bodyMedium` or `bodyLarge`, medium contrast.
-- List title: `titleSmall` or `bodyMedium` with `FontWeight.SemiBold`.
-- List summary: `bodySmall` or `bodyMedium`, `onSurfaceVariant`, 2-3 lines.
-- Metadata: `labelSmall` or `bodySmall`, visually quiet.
+- Display / Screen titles & editorial headlines (`headlineLarge`, `headlineMedium`, `headlineSmall`, `titleLarge`): `EditorialFontFamily` (`FontFamily.Serif`) with strong weight and calm tracking.
+- Editorial story / diary titles: `titleMedium` paired with `EditorialFontFamily` and `FontWeight.SemiBold`.
+- Long-form reading body: `bodyLarge` (`ContentFontFamily`, SansSerif, generous line height).
+- Summaries, cards, and UI controls: `bodyMedium` / `titleSmall` (`UiFontFamily`, SansSerif).
+- Metadata, timestamps, ranks, and reading duration: `labelSmall` / `bodySmall`, visually quiet in `onSurfaceVariant`.
 
 ## News Summary Page
 

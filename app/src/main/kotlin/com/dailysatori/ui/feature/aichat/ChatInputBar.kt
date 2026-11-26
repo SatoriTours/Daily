@@ -62,8 +62,8 @@ fun ChatInputField(
     Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Box(
             Modifier.weight(1f).heightIn(min = Height.input)
-                .border(BorderWidth.s, if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow, shape)
+                .border(if (focused) BorderWidth.s else BorderWidth.xs, if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
+                .background(MaterialTheme.colorScheme.surface, shape)
                 .padding(horizontal = Spacing.s + Spacing.xs, vertical = Spacing.s),
             contentAlignment = Alignment.CenterStart,
         ) {

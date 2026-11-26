@@ -64,8 +64,11 @@ import com.dailysatori.ui.feature.book.booksAddSearchLoadingText
 import com.dailysatori.ui.feature.book.booksAddSheetTitle
 import com.dailysatori.ui.feature.book.booksContentSearchLoadingText
 import com.dailysatori.ui.feature.book.booksContentSearchSheetTitle
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
+import androidx.compose.foundation.border
 
 @Composable
 internal fun BookAddSearchSheet(
@@ -82,7 +85,7 @@ internal fun BookAddSearchSheet(
             .padding(horizontal = Spacing.m)
             .padding(bottom = Spacing.xxl),
     ) {
-        Text(booksAddSheetTitle(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(booksAddSheetTitle(), style = MaterialTheme.typography.titleLarge.editorial(), fontWeight = FontWeight.SemiBold)
         Spacer(modifier = Modifier.height(Spacing.s))
         OutlinedTextField(
             value = state.query,
@@ -172,8 +175,9 @@ private fun BookSearchResultCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = Spacing.s)
-            .clip(RoundedCornerShape(Radius.m))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(Radius.card))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(BorderWidth.xs, MaterialTheme.colorScheme.outline, RoundedCornerShape(Radius.card))
             .padding(Spacing.s),
         verticalAlignment = Alignment.Top,
     ) {
@@ -258,7 +262,7 @@ internal fun BookContentSearchSheet(
             .padding(horizontal = Spacing.m)
             .padding(bottom = Spacing.xxl),
     ) {
-        Text(booksContentSearchSheetTitle(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(booksContentSearchSheetTitle(), style = MaterialTheme.typography.titleLarge.editorial(), fontWeight = FontWeight.SemiBold)
         Spacer(modifier = Modifier.height(Spacing.s))
         OutlinedTextField(
             value = state.query,
@@ -277,8 +281,9 @@ internal fun BookContentSearchSheet(
                         .fillMaxWidth()
                         .clickable { onResultClick(result) }
                         .padding(top = Spacing.s)
-                        .clip(RoundedCornerShape(Radius.m))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clip(RoundedCornerShape(Radius.card))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(BorderWidth.xs, MaterialTheme.colorScheme.outline, RoundedCornerShape(Radius.card))
                         .padding(Spacing.s),
                 ) {
                     Text(result.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)

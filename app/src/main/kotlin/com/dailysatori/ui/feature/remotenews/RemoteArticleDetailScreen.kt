@@ -81,7 +81,10 @@ import org.koin.compose.koinInject
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import com.dailysatori.ui.theme.MarkdownStyles
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.dailysatori.ui.feature.myspace.toReadNewsArticle
 import com.dailysatori.ui.feature.myspace.MarkNewsReadButton
 
@@ -338,12 +341,17 @@ private fun RemoteArticleOriginalBottomSheet(
     val readableTranslation = remember(translation, article) {
         translation?.let { tidyArticleTranslation(it, remoteArticleDisplayTitle(article)) }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+    ) {
         LazyColumn(contentPadding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.s)) {
             item {
                 Text(
                     i18n.t(if (showTranslation && translation != null) "article_ai.translation_title" else "article_ai.original_title"),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.editorial(),
                 )
                 ArticleOriginalMetadata(source, article.url, remoteArticleMetaChips(article))
                 article.url?.takeIf { it.isNotBlank() }?.let { url ->

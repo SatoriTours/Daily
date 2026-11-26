@@ -7,6 +7,7 @@ import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -74,24 +75,36 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_recommendations_title), onBack = onBack,
         snackbarHost = { SnackbarHost(snackbar) }, pageActions = if (state.hasAnalysisContext) listOf(PageAction(stringResource(R.string.my_space_analyze), Icons.Default.Refresh, onClick = requestUpdate)) else emptyList()) { modifier ->
-        LazyColumn(modifier.fillMaxSize().performanceTab(PerformanceScreen.OPPORTUNITY_FILTER, PerformanceResult.OK, filter), contentPadding = PaddingValues(horizontal = Spacing.m, vertical = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            item {
-                Column(Modifier.padding(bottom = Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(stringResource(R.string.news_focus_continuous_detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(R.string.news_focus_ranking_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                TabRow(selectedTabIndex = visibleFilters.indexOf(filter).coerceAtLeast(0), containerColor = MaterialTheme.colorScheme.background) {
-                    visibleFilters.forEach { value ->
-                        Tab(selected = filter == value, onClick = { filter = value }, text = {
-                            Text(opportunityFilterLabel(value), style = MaterialTheme.typography.labelLarge)
-                        })
-                    }
+        Column(modifier.fillMaxSize()) {
+            TabRow(
+                selectedTabIndex = visibleFilters.indexOf(filter).coerceAtLeast(0),
+                containerColor = MaterialTheme.colorScheme.background,
+                divider = { HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline) },
+            ) {
+                visibleFilters.forEach { value ->
+                    Tab(selected = filter == value, onClick = { filter = value }, text = {
+                        Text(opportunityFilterLabel(value), style = MaterialTheme.typography.labelLarge)
+                    })
                 }
             }
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth().performanceTab(PerformanceScreen.OPPORTUNITY_FILTER, PerformanceResult.OK, filter),
+                contentPadding = PaddingValues(Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                item {
+                    Text(
+                        stringResource(R.string.news_focus_continuous_detail) + " · " + stringResource(R.string.news_focus_ranking_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = Spacing.xs),
+                    )
+                }
             if (filter == OpportunityFilter.SAVED) item {
                 Surface(
-                    shape = RoundedCornerShape(Radius.m),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RoundedCornerShape(Radius.card),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.s),
                 ) {
                     Text(
@@ -158,6 +171,7 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
                     )
                 }
             }
+            }
         }
     }
     capturingOpportunity?.let { opp ->
@@ -174,13 +188,18 @@ fun NewsOpportunityListScreen(onBack: () -> Unit, onThoughts: () -> Unit, onOpen
     }
     if (choosingContext) AlertDialog(
         onDismissRequest = { choosingContext = false },
-        title = { Text(stringResource(R.string.my_space_recommendation_context_title)) },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.my_space_recommendation_context_title), style = MaterialTheme.typography.titleLarge.editorial()) },
         text = { Text(stringResource(if (thoughts.isUpdating) R.string.my_space_waiting_for_thoughts else R.string.my_space_recommendation_context_hint)) },
         confirmButton = { TextButton(onClick = { choosingContext = false; organizeThoughts() }) { Text(stringResource(R.string.my_space_organize)) } },
         dismissButton = { TextButton(onClick = { choosingContext = false; editingFocus = true }) { Text(stringResource(R.string.my_space_focus)) } },
     )
     if (editingFocus) FocusDialog(state.focus, failed, { editingFocus = false }) { value -> viewModel.saveFocus(value) { editingFocus = false } }
-    if (confirming) AlertDialog(onDismissRequest = { confirming = false }, title = { Text(stringResource(R.string.my_space_analyze)) },
+    if (confirming) AlertDialog(onDismissRequest = { confirming = false },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.my_space_analyze), style = MaterialTheme.typography.titleLarge.editorial()) },
         text = { Text(stringResource(R.string.my_space_analysis_confirm)) },
         confirmButton = { TextButton(onClick = { confirming = false; viewModel.analyze() }) { Text(stringResource(R.string.my_space_confirm)) } },
         dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.my_space_cancel)) } })
@@ -196,7 +215,12 @@ private fun RecommendationContextCard(
     onEditFocus: () -> Unit,
     onOrganizeThoughts: () -> Unit,
 ) {
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
+    Surface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.padding(horizontal = Spacing.m, vertical = if (hasContext) Spacing.xs else Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             if (hasContext) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -205,7 +229,7 @@ private fun RecommendationContextCard(
                     TextButton(onClick = onEditFocus, enabled = !busy) { Text(stringResource(R.string.news_focus_adjust)) }
                 }
             } else {
-                Text(stringResource(R.string.my_space_recommendation_context_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.my_space_recommendation_context_title), style = MaterialTheme.typography.titleMedium.editorial())
                 Text(stringResource(R.string.my_space_recommendation_context_hint), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (thoughts.isUpdating) Text(stringResource(R.string.my_space_waiting_for_thoughts), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 thoughts.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
@@ -230,16 +254,23 @@ private fun opportunityFilterLabel(filter: OpportunityFilter) = stringResource(w
 @Composable
 private fun FocusDialog(initial: String, failed: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf(initial) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.my_space_focus)) }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(stringResource(R.string.my_space_focus_hint))
-            OutlinedTextField(text, { if (it.length <= 2_000) text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, label = { Text(stringResource(R.string.my_space_focus_placeholder)) })
-            Text(stringResource(R.string.my_space_use_thoughts), style = MaterialTheme.typography.bodySmall)
-            Text(stringResource(R.string.my_space_focus_change), style = MaterialTheme.typography.bodySmall)
-            if (failed) Text(stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
-        }
-    }, confirmButton = { TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.my_space_save_changes)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.my_space_cancel)) } })
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.my_space_focus), style = MaterialTheme.typography.titleLarge.editorial()) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                Text(stringResource(R.string.my_space_focus_hint))
+                OutlinedTextField(text, { if (it.length <= 2_000) text = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, label = { Text(stringResource(R.string.my_space_focus_placeholder)) })
+                Text(stringResource(R.string.my_space_use_thoughts), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.my_space_focus_change), style = MaterialTheme.typography.bodySmall)
+                if (failed) Text(stringResource(R.string.my_space_error), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.my_space_save_changes)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.my_space_cancel)) } },
+    )
 }
 
 @Composable
@@ -258,14 +289,19 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
     val i18n: I18nService = koinInject()
     BackHandler(onBack = onBack)
     AppScaffold(title = stringResource(R.string.my_space_useful), onBack = onBack, bottomBar = {
-        if (item != null) Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            OutlinedButton(onClick = onChat, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.my_space_discuss)) }
-            Button(onClick = { reminder = true }, modifier = Modifier.weight(1f)) { Text(stringResource(if (opportunityReminderId(id) in activeReminders || item.reminderId in activeReminders) R.string.my_space_view_reminder else R.string.my_space_convert)) }
+        if (item != null) Surface(color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.fillMaxWidth()) {
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(Spacing.m), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                    OutlinedButton(onClick = onChat, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.my_space_discuss)) }
+                    Button(onClick = { reminder = true }, modifier = Modifier.weight(1f)) { Text(stringResource(if (opportunityReminderId(id) in activeReminders || item.reminderId in activeReminders) R.string.my_space_view_reminder else R.string.my_space_convert)) }
+                }
+            }
         }
     }) { modifier ->
         if (item == null) Text(stringResource(R.string.my_space_unavailable), modifier.padding(Spacing.l))
         else LazyColumn(modifier.fillMaxSize().performanceContent(), contentPadding = PaddingValues(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
-            item { Text(item.category, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium); Text(item.title, style = MaterialTheme.typography.headlineSmall) }
+            item { Text(item.category, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelMedium); Text(item.title, style = MaterialTheme.typography.headlineSmall.editorial()) }
             item { Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 TextButton(onClick = {
                     if (topicId != null) {
@@ -316,7 +352,7 @@ fun NewsOpportunityDetailScreen(id: String, onBack: () -> Unit, onChat: () -> Un
 @Composable
 private fun OpportunityParagraph(title: String, body: String) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
         Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         Text(body, style = MaterialTheme.typography.bodyLarge)
     }

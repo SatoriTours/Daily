@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.theme.*
 
@@ -14,13 +15,32 @@ import com.dailysatori.ui.theme.*
 @Composable
 fun SettingsValueRow(label: String, value: String, onClick: () -> Unit, enabled: Boolean = true) {
     Surface(onClick = onClick, enabled = enabled, color = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.fillMaxWidth().heightIn(min = Height.listItem),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(IconSize.s),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = Height.listItem),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            Text(
+                label,
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                value,
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                null,
+                Modifier.size(IconSize.s),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

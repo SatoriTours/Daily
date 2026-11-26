@@ -101,9 +101,10 @@
 | [01-coding-standards](./docs/01-coding-standards.md) | 架构约束、代码质量规范 |
 | [02-testing](./docs/02-testing.md) | 测试指南 |
 | [03-app-features](./docs/03-app-features.md) | 功能模块说明 |
-| [04-style-guide](./docs/04-style-guide.md) | 样式系统参考 |
+| [04-style-guide](./docs/04-style-guide.md) | 素纸墨青样式系统与视觉规范（强制遵守） |
 | [05-i18n-guide](./docs/05-i18n-guide.md) | 国际化指南 |
 | [06-koin-viewmodel-guide](./docs/06-koin-viewmodel-guide.md) | Koin + ViewModel 最佳实践 |
+| [07-app-magazine-design-standard](./docs/07-app-magazine-design-standard.md) | 纸墨杂志排版与页面结构标准 |
 | [08-remote-news-api](./docs/08-remote-news-api.md) | 远程新闻接口标准 |
 
 ## 核心约束

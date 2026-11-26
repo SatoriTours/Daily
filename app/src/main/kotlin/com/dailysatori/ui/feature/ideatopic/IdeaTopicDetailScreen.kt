@@ -19,9 +19,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
@@ -175,7 +178,12 @@ fun IdeaTopicDetailScreen(
                 }
             } else {
                 // Existing materials and historical sessions remain accessible off the main discussion.
-                TabRow(selectedTabIndex = selectedTab) {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    divider = { HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline) },
+                ) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
@@ -331,97 +339,162 @@ private fun OverviewTabContent(
 ) {
     val i18n: I18nService = koinInject()
     val content = detail.topic.content
+    var showOverflow by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
-        // Status & Lifecycle Actions
-        item(key = "status-actions") {
-            Card(
+        // Content-first Editorial Brief Card
+        item(key = "content-fields") {
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(Radius.m),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             ) {
-                Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                ) {
+                    // Compact meta bar: status selector on left, quiet edit & overflow actions on right
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(i18n.t("idea_topic.status_label"), style = MaterialTheme.typography.labelLarge)
                         StatusDropdownSelector(current = detail.topic.status, onSelected = onStatusChange)
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-                    ) {
-                        OutlinedButton(
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
                             onClick = onEditContent,
-                            modifier = Modifier.weight(1f),
                             enabled = !state.busy,
+                            modifier = Modifier.size(Height.buttonSmall),
                         ) {
-                            Icon(Icons.Default.Edit, null, Modifier.size(IconSize.s))
-                            Spacer(Modifier.width(Spacing.xs))
-                            Text(i18n.t("idea_topic.action_edit"))
+                            Icon(
+                                Icons.Outlined.Edit,
+                                contentDescription = i18n.t("idea_topic.action_edit"),
+                                modifier = Modifier.size(IconSize.s),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                        Button(
-                            onClick = onAppendProgress,
-                            modifier = Modifier.weight(1f),
-                            enabled = !state.busy,
-                        ) {
-                            Icon(Icons.Default.Add, null, Modifier.size(IconSize.s))
-                            Spacer(Modifier.width(Spacing.xs))
-                            Text(i18n.t("idea_topic.append_progress"))
+                        Box {
+                            IconButton(
+                                onClick = { showOverflow = true },
+                                enabled = !state.busy,
+                                modifier = Modifier.size(Height.buttonSmall),
+                            ) {
+                                Icon(
+                                    MoreActionsIcon,
+                                    contentDescription = i18n.t("idea_topic.action_edit"),
+                                    modifier = Modifier.size(IconSize.s),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            DropdownMenu(expanded = showOverflow, onDismissRequest = { showOverflow = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(i18n.t("idea_topic.action_edit")) },
+                                    leadingIcon = { Icon(Icons.Outlined.Edit, null, Modifier.size(IconSize.s)) },
+                                    enabled = !state.busy,
+                                    onClick = { showOverflow = false; onEditContent() },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(i18n.t("idea_topic.action_merge")) },
+                                    leadingIcon = { Icon(Icons.Default.Merge, null, Modifier.size(IconSize.s)) },
+                                    enabled = state.canMergeOrDelete && state.mergeCandidates.isNotEmpty(),
+                                    onClick = { showOverflow = false; onMerge() },
+                                )
+                                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                                DropdownMenuItem(
+                                    text = { Text(i18n.t("idea_topic.action_delete"), color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Outlined.DeleteOutline,
+                                            null,
+                                            Modifier.size(IconSize.s),
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    enabled = state.canMergeOrDelete,
+                                    onClick = { showOverflow = false; onDelete() },
+                                )
+                            }
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-                    ) {
-                        if (state.busy) {
-                            Button(
-                                onClick = onCancelAi,
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                            ) {
-                                Text(i18n.t("idea_topic.action_cancel_ai"))
-                            }
-                        } else {
-                            FilledTonalButton(
-                                onClick = onPropose,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(IconSize.s))
-                                Spacer(Modifier.width(Spacing.xs))
-                                Text(i18n.t("idea_topic.action_propose"))
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = onMerge,
-                            modifier = Modifier.weight(1f),
-                            enabled = state.canMergeOrDelete && state.mergeCandidates.isNotEmpty(),
-                        ) {
-                            Icon(Icons.Default.Merge, null, Modifier.size(IconSize.s))
-                            Spacer(Modifier.width(Spacing.xs))
-                            Text(i18n.t("idea_topic.action_merge"))
+                    // Editorial Headline & Lead Prose (no mechanical form labels)
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        Text(
+                            text = content.title,
+                            style = MaterialTheme.typography.headlineSmall.editorial(),
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (content.description.isNotBlank()) {
+                            Text(
+                                text = content.description,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
 
-                    TextButton(
-                        onClick = onDelete,
-                        modifier = Modifier.align(Alignment.End),
-                        enabled = state.canMergeOrDelete,
+                    val hasStructuredInsights = content.provenanceSummary.isNotBlank() || content.conclusions.isNotBlank()
+                    if (hasStructuredInsights) {
+                        HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                            if (content.provenanceSummary.isNotBlank()) {
+                                ContentFieldRow(i18n.t("idea_topic.overview_provenance_summary"), content.provenanceSummary)
+                            }
+                            if (content.conclusions.isNotBlank()) {
+                                ContentFieldRow(i18n.t("idea_topic.overview_conclusions"), content.conclusions)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Focused two-action strip: Advance progress + AI refine
+        item(key = "status-actions") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            ) {
+                Button(
+                    onClick = onAppendProgress,
+                    modifier = Modifier.weight(1f).heightIn(min = Height.button),
+                    shape = RoundedCornerShape(Radius.m),
+                    enabled = !state.busy,
+                ) {
+                    Icon(Icons.Default.Add, null, Modifier.size(IconSize.s))
+                    Spacer(Modifier.width(Spacing.xs))
+                    Text(i18n.t("idea_topic.append_progress"))
+                }
+
+                if (state.busy) {
+                    OutlinedButton(
+                        onClick = onCancelAi,
+                        modifier = Modifier.weight(1f).heightIn(min = Height.button),
+                        shape = RoundedCornerShape(Radius.m),
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.error.copy(alpha = 0.55f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                     ) {
-                        Icon(Icons.Default.Delete, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.error)
+                        Text(i18n.t("idea_topic.action_cancel_ai"))
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onPropose,
+                        modifier = Modifier.weight(1f).heightIn(min = Height.button),
+                        shape = RoundedCornerShape(Radius.m),
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ),
+                    ) {
+                        Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(IconSize.s))
                         Spacer(Modifier.width(Spacing.xs))
-                        Text(i18n.t("idea_topic.action_delete"), color = MaterialTheme.colorScheme.error)
+                        Text(i18n.t("idea_topic.action_propose"))
                     }
                 }
             }
@@ -438,40 +511,16 @@ private fun OverviewTabContent(
                 )
             }
         }
-
-        // Official Content Fields
-        item(key = "content-fields") {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(Radius.m),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    ContentFieldRow(i18n.t("idea_topic.overview_title"), content.title)
-                    if (content.description.isNotBlank()) {
-                        ContentFieldRow(i18n.t("idea_topic.overview_description"), content.description)
-                    }
-                    if (content.provenanceSummary.isNotBlank()) {
-                        ContentFieldRow(i18n.t("idea_topic.overview_provenance_summary"), content.provenanceSummary)
-                    }
-                    if (content.conclusions.isNotBlank()) {
-                        ContentFieldRow(i18n.t("idea_topic.overview_conclusions"), content.conclusions)
-                    }
-                }
-            }
-        }
     }
 }
 
 @Composable
 private fun ContentFieldRow(label: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             text = value,
@@ -491,19 +540,27 @@ private fun StatusDropdownSelector(
 
     Box {
         Surface(
-            shape = RoundedCornerShape(Radius.s),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(Radius.circular),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             modifier = Modifier.clickable { expanded = true },
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+                modifier = Modifier.padding(start = Spacing.s + Spacing.xxs, end = Spacing.s, top = Spacing.xs, bottom = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
             ) {
                 Text(
                     text = i18n.t(ideaTopicStatusLabelKey(current)),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(IconSize.xs),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -532,8 +589,9 @@ private fun DraftPreviewCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Row(
@@ -542,22 +600,23 @@ private fun DraftPreviewCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Icon(Icons.Outlined.AutoAwesome, null, tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(IconSize.m))
+                    Icon(Icons.Outlined.AutoAwesome, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(IconSize.s))
                     Text(
                         i18n.t("idea_topic.draft_title"),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        style = MaterialTheme.typography.titleSmall.editorial(),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(Radius.s),
-                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(Radius.circular),
+                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
                 ) {
                     Text(
                         text = i18n.t("idea_topic.draft_pending"),
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+                        color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
                     )
                 }
             }
@@ -567,14 +626,14 @@ private fun DraftPreviewCard(
                     Text(
                         text = i18n.t("idea_topic.draft_changes"),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium,
                     )
                     preview.changes.forEach { change ->
                         Text(
                             text = "• ${draftFieldLabel(change.field, i18n)}: ${change.after.take(40)}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -588,10 +647,10 @@ private fun DraftPreviewCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onDiscard) {
-                    Text(i18n.t("idea_topic.draft_discard"), color = MaterialTheme.colorScheme.onTertiaryContainer)
+                    Text(i18n.t("idea_topic.draft_discard"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.width(Spacing.s))
-                Button(onClick = onEdit) {
+                Button(onClick = onEdit, shape = RoundedCornerShape(Radius.m)) {
                     Text(i18n.t("idea_topic.draft_preview"))
                 }
             }
@@ -627,7 +686,7 @@ private fun ProvenanceTabContent(
         item(key = "sources-header") {
             Text(
                 text = i18n.t("idea_topic.sources_header") + " (${detail.sources.size})",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.editorial(),
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -645,7 +704,7 @@ private fun ProvenanceTabContent(
             Spacer(Modifier.height(Spacing.s))
             Text(
                 text = i18n.t("idea_topic.events_header"),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.editorial(),
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -669,9 +728,9 @@ private fun SourceCard(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Row(
@@ -720,8 +779,9 @@ private fun SourceCard(
 private fun EventTimelineItem(presentation: IdeaEventPresentation) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             Row(
@@ -821,9 +881,9 @@ private fun SessionCard(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.card),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Row(

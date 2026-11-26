@@ -55,8 +55,10 @@ import com.dailysatori.service.asynctask.asyncTaskTypeDisplayName
 import com.dailysatori.ui.component.appbar.PageAction
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.settings.SettingsScaffold as AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -200,6 +202,8 @@ internal fun TaskCenterBulkCancelDialog(
     val confirm = state is TaskCenterBulkCancelState.Confirm
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(stringResource(R.string.task_center_bulk_cancel_title)) },
         text = { Text(message) },
         confirmButton = {
@@ -383,8 +387,8 @@ internal fun TaskCenterRowDivider() {
         Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.m)
-            .height(1.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+            .height(BorderWidth.xs)
+            .background(MaterialTheme.colorScheme.outline),
     )
 }
 
@@ -403,7 +407,7 @@ private fun TaskCenterTaskRow(task: AsyncTaskListItem, title: String, onOpen: ()
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.editorial(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -493,8 +497,8 @@ private fun TaskCenterLoadMoreRow(loadedCount: Int, requestedLimit: Int, loadMor
         loadMore()
     }
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
     ) {
         Row(
@@ -586,17 +590,17 @@ internal fun TaskCenterStatusPill(status: String) {
         style = MaterialTheme.typography.labelSmall,
         color = color,
         modifier = Modifier
-            .background(color.copy(alpha = 0.12f), RoundedCornerShape(Radius.s))
+            .background(color.copy(alpha = 0.12f), RoundedCornerShape(Radius.circular))
             .padding(horizontal = Spacing.s, vertical = Spacing.xxs),
     )
 }
 
 @Composable
 internal fun taskCenterStatusColor(status: String): androidx.compose.ui.graphics.Color = when (status) {
-    AsyncTaskStatus.succeeded.name -> MaterialTheme.colorScheme.primary
+    AsyncTaskStatus.succeeded.name -> MaterialTheme.colorScheme.tertiary
     AsyncTaskStatus.failed.name -> MaterialTheme.colorScheme.error
     AsyncTaskStatus.cancelled.name -> MaterialTheme.colorScheme.onSurfaceVariant
-    else -> MaterialTheme.colorScheme.tertiary
+    else -> MaterialTheme.colorScheme.primary
 }
 
 private fun taskCenterTypeFilterSummary(selected: Set<String>, copy: TaskCenterCopy): String =

@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -83,8 +84,12 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         Text(i18n.t("auth.section.data"), Modifier.padding(horizontal = Spacing.s),
-                            style = MaterialTheme.typography.titleMedium)
-                        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+                            style = MaterialTheme.typography.titleMedium.editorial())
+                        Surface(
+                            shape = RoundedCornerShape(Radius.card),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        ) {
                             Column {
                                 AuthorizationAction(i18n.t("auth.records"), i18n.t("auth.records_hint"),
                                     Icons.Default.History, true) { navigation.openHistory(null) }
@@ -97,8 +102,12 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
                 if (!state.canNotify || !state.exactAlarms) item {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         Text(i18n.t("phone.reminders_title"), Modifier.padding(horizontal = Spacing.s),
-                            style = MaterialTheme.typography.titleMedium)
-                        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+                            style = MaterialTheme.typography.titleMedium.editorial())
+                        Surface(
+                            shape = RoundedCornerShape(Radius.card),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        ) {
                             Column {
                                 AuthorizationAction(i18n.t("phone.reminder_notifications"),
                                     i18n.t(if (state.canNotify) "phone.permission_ready" else "phone.notify_permission"),
@@ -127,22 +136,39 @@ fun AuthorizationScreen(onBack: () -> Unit, initialSection: String? = null,
     consent?.let { channel -> PhoneConsentDialog(channel, { consent = null }) {
         vm.configure(channel, state.preferences.forChannel(channel).copy(cloud = true)); consent = null
     } }
-    if (restrictedHelp) AlertDialog(onDismissRequest = { restrictedHelp = false }, title = { Text(i18n.t("phone.restricted_help")) },
+    if (restrictedHelp) AlertDialog(
+        onDismissRequest = { restrictedHelp = false },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(i18n.t("phone.restricted_help"), style = MaterialTheme.typography.titleMedium.editorial()) },
         text = { Text(i18n.t("phone.restricted_settings_help"), Modifier.verticalScroll(rememberScrollState())) },
         confirmButton = { TextButton(onClick = { restrictedHelp = false; if (!openAppPermissionSettings(context)) settingsUnavailable = true }) { Text(i18n.t("phone.open_app_settings")) } },
-        dismissButton = { TextButton(onClick = { restrictedHelp = false }) { Text(i18n.t("bookkeeping.cancel")) } })
-    if (settingsUnavailable) AlertDialog(onDismissRequest = { settingsUnavailable = false }, title = { Text(i18n.t("phone.open_app_settings")) },
-        text = { Text(i18n.t("phone.settings_unavailable")) }, confirmButton = {
+        dismissButton = { TextButton(onClick = { restrictedHelp = false }) { Text(i18n.t("bookkeeping.cancel")) } },
+    )
+    if (settingsUnavailable) AlertDialog(
+        onDismissRequest = { settingsUnavailable = false },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = Radius.none,
+        title = { Text(i18n.t("phone.open_app_settings"), style = MaterialTheme.typography.titleMedium.editorial()) },
+        text = { Text(i18n.t("phone.settings_unavailable")) },
+        confirmButton = {
             TextButton(onClick = { settingsUnavailable = false }) { Text(i18n.t("bookkeeping.done")) }
-        })
+        },
+    )
 }
 
 @Composable
 private fun AuthorizationIntro() {
     val i18n: I18nService = koinInject()
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            Text(i18n.t("auth.intro_title"), style = MaterialTheme.typography.titleSmall)
+            Text(i18n.t("auth.intro_title"), style = MaterialTheme.typography.titleSmall.editorial())
             Text(i18n.t("auth.intro_todos"), style = MaterialTheme.typography.bodySmall)
             Text(i18n.t("auth.intro_ledger"), style = MaterialTheme.typography.bodySmall)
             Text(i18n.t("auth.intro_note"), style = MaterialTheme.typography.bodySmall,
@@ -162,10 +188,14 @@ private fun ChannelAuthorization(state: PhoneUiState, channel: PhoneChannel, opt
             horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Icon(if (channel == PhoneChannel.SMS) Icons.Default.Sms else Icons.Default.Notifications, null,
                 Modifier.size(IconSize.m), tint = MaterialTheme.colorScheme.primary)
-            Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium.editorial())
             PhoneStatusLabel(phoneChannelStatus(state, channel))
         }
-        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+        Surface(
+            shape = RoundedCornerShape(Radius.card),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        ) {
             Column {
                 AuthorizationToggle(i18n.t("auth.read", *arrayOf(name)), i18n.t("auth.read_hint"), options.enabled, state.busy) {
                     if (channel == PhoneChannel.SMS) onSmsEnable(it) else vm.configure(channel, options.copy(enabled = it))
@@ -246,5 +276,5 @@ private fun AuthorizationText(label: String, hint: String, modifier: Modifier) {
 
 @Composable
 private fun AuthorizationDivider() {
-    HorizontalDivider(Modifier.padding(horizontal = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
+    HorizontalDivider(Modifier.padding(horizontal = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
 }

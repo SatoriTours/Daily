@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.myspace
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
@@ -124,30 +126,38 @@ private fun contextPrompt(data: String) = "用户为本轮主动选择的参考�
 
 @Composable
 fun PersonalChatContextBanner(label: String, onRemove: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.xs),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        Icon(
-            Icons.Default.Description,
-            contentDescription = stringResource(R.string.my_space_context),
-            modifier = Modifier.size(IconSize.m),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = label.ifBlank { stringResource(R.string.my_space_context) },
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-        )
-        IconButton(onClick = onRemove) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.xs, top = Spacing.xs, bottom = Spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
-                Icons.Default.Close,
-                contentDescription = stringResource(R.string.my_space_remove_context),
-                modifier = Modifier.size(IconSize.m),
+                Icons.Default.Description,
+                contentDescription = stringResource(R.string.my_space_context),
+                modifier = Modifier.size(IconSize.s),
+                tint = MaterialTheme.colorScheme.primary,
             )
+            Text(
+                text = label.ifBlank { stringResource(R.string.my_space_context) },
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+            )
+            IconButton(onClick = onRemove, modifier = Modifier.size(Height.buttonSmall)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = stringResource(R.string.my_space_remove_context),
+                    modifier = Modifier.size(IconSize.xs),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

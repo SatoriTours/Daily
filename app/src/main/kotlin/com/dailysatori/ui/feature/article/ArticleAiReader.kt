@@ -3,10 +3,15 @@ package com.dailysatori.ui.feature.article
 import com.dailysatori.core.diagnostics.performanceTab
 import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.service.diagnostics.PerformanceScreen
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -122,8 +127,8 @@ internal fun ArticleReadingTitle(title: String) {
     val i18n = koinInject<I18nService>()
     Text(
         text = title.ifBlank { i18n.t("article.detail_title") },
-        modifier = Modifier.fillMaxWidth().padding(start = Spacing.l, end = Spacing.l, top = Spacing.m),
-        style = MaterialTheme.typography.headlineSmall,
+        modifier = Modifier.fillMaxWidth().padding(start = Spacing.l, end = Spacing.l, top = Spacing.m, bottom = Spacing.xs),
+        style = MaterialTheme.typography.headlineSmall.editorial(),
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
     )
@@ -154,12 +159,28 @@ internal fun ArticleReadingContent(
     }
     Column(Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
         if (distinctSummary != null) {
-            Text(i18n.t("article_ai.summary_title"), style = MaterialTheme.typography.titleMedium)
-            summaryNotes.forEach { ReadingNote(it) }
-            ArticleReaderBody(articleDetailPageContent(0, distinctSummary, null),
-                typography = MarkdownStyles.readingTypography(), padding = MarkdownStyles.summaryPadding(),
-                modifier = Modifier.performanceTab(ArticleReadMode.SUMMARY.performanceScreen(), PerformanceResult.OK))
-            HorizontalDivider(Modifier.padding(vertical = Spacing.m))
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.m),
+                shape = RoundedCornerShape(Radius.card),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            ) {
+                Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xxs)) {
+                        Box(Modifier.size(Spacing.xs + Spacing.xxs).background(MaterialTheme.colorScheme.primary, CircleShape))
+                        Text(
+                            i18n.t("article_ai.summary_title"),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    summaryNotes.forEach { ReadingNote(it) }
+                    ArticleReaderBody(articleDetailPageContent(0, distinctSummary, null),
+                        typography = MarkdownStyles.readingTypography(), padding = MarkdownStyles.summaryPadding(),
+                        modifier = Modifier.performanceTab(ArticleReadMode.SUMMARY.performanceScreen(), PerformanceResult.OK))
+                }
+            }
         }
         bodyNotes.forEach { ReadingNote(it) }
         if (body.isNotBlank()) ArticleReaderBody(body, typography = MarkdownStyles.readingTypography(),

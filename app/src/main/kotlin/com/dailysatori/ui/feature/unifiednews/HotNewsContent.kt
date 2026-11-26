@@ -4,6 +4,7 @@ import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
 import androidx.activity.compose.BackHandler
 import com.dailysatori.core.diagnostics.LocalUiVisit
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -65,8 +66,12 @@ internal fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Str
     val i18n: I18nService = koinInject()
     val matching = board.items.filter { query.isBlank() || (it.displayTitle ?: it.originalTitle).contains(query, true) || it.displaySummary.contains(query, true) }
     val feedOnly = board.platform == HotNewsPlatform.XIAOHONGSHU
-    Card(shape = RoundedCornerShape(Radius.l), modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(
+        shape = RoundedCornerShape(Radius.card),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column(Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             HotNewsBoardHeader(board)
             val error = board.error
@@ -101,11 +106,11 @@ internal fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Str
             }
             if (matching.isNotEmpty()) Column {
                 (if (expanded || query.isNotBlank()) matching else matching.take(3)).forEach { item ->
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.12f))
+                    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                     HotNewsRankRow(item, board.refreshing, item.url in favoriteUrls, onOpen)
                 }
                 if (matching.size > 3 && query.isBlank()) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.12f))
+                    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                     TextButton(onClick = onExpand, modifier = Modifier.fillMaxWidth().heightIn(min = Height.touchTarget), contentPadding = PaddingValues(vertical = Spacing.s)) {
                         Text(stringResource(when {
                             expanded -> R.string.news_hotnews_less
@@ -125,12 +130,16 @@ internal fun HotNewsBoardCard(board: HotNewsBoard, expanded: Boolean, query: Str
 private fun HotNewsRankRow(item: HotNewsItem, refreshing: Boolean, isFavorite: Boolean, onOpen: (HotNewsItem) -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { onOpen(item) }.padding(vertical = Spacing.m),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text(item.rank.toString(), Modifier.widthIn(min = IconSize.m), style = MaterialTheme.typography.labelLarge,
+        Text(
+            item.rank.toString().padStart(2, '0'),
+            Modifier.widthIn(min = IconSize.m),
+            style = MaterialTheme.typography.labelLarge.editorial(),
             color = if (item.rank <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium)
+            fontWeight = FontWeight.Bold,
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(item.displayTitle ?: item.originalTitle, style = MaterialTheme.typography.titleSmall,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (item.displayTitle == null) Text(stringResource(if (refreshing || item.articleProcessing) R.string.news_hotnews_translation_pending
                 else R.string.news_hotnews_item_translation_failed), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -12,12 +12,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.news.MagazineNewsCard
 import com.dailysatori.ui.component.news.cleanNewsIntroText
 import com.dailysatori.ui.feature.article.articleProcessingCardMessage
+import com.dailysatori.ui.theme.Height
+import com.dailysatori.ui.theme.IconSize
 
 @Composable
 fun ArticleCard(
@@ -73,7 +74,7 @@ private fun ArticleCardActions(
             Icon(
                 if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = "收藏",
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(IconSize.s),
                 tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -83,7 +84,7 @@ private fun ArticleCardActions(
             Icon(
                 Icons.Filled.Share,
                 contentDescription = "分享",
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(IconSize.s),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -92,7 +93,7 @@ private fun ArticleCardActions(
 
 @Composable
 private fun ArticleCardIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(28.dp), content = content)
+    IconButton(onClick = onClick, modifier = Modifier.size(Height.buttonSmall), content = content)
 }
 
 internal fun articleCoverSlotVisible(coverImage: String?): Boolean = true

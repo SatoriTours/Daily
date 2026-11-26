@@ -22,8 +22,10 @@ import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.ui.component.news.MagazineArticleBody
 import com.dailysatori.ui.component.news.MagazineArticleHeader
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 
 @Composable
 fun RemoteDigestDetailScreen(
@@ -41,7 +43,7 @@ fun RemoteDigestDetailScreen(
         ) {
             item { DigestBody(digest) }
             if (digest.articles.isNotEmpty()) {
-                item { HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.s)) }
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.s), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline) }
                 item { RemoteDigestReferencedArticlesHeader(digest.articles.size) }
                 items(digest.articles, key = { it.id }) { article ->
                     RemoteArticleSummaryCard(article = article, onClick = { onArticleClick(article) })
@@ -70,7 +72,7 @@ fun DigestBody(digest: RemoteDigest, modifier: Modifier = Modifier) {
 @Composable
 private fun RemoteDigestReferencedArticlesHeader(articleCount: Int) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("引用文章", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text("引用文章", style = MaterialTheme.typography.titleSmall.editorial(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.weight(1f))
         Text("$articleCount 篇", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

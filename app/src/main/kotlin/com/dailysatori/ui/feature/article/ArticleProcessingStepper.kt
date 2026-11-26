@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,8 +30,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.unit.dp
+import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.IconSize
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 
 @Composable
 internal fun ArticleProcessingStepper(
@@ -39,28 +44,35 @@ internal fun ArticleProcessingStepper(
 ) {
     val currentStep = articleProcessingStepIndex(status, progress).coerceAtLeast(0)
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+    Surface(
+        modifier = modifier.fillMaxWidth().padding(Spacing.m),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
-        Text(
-            text = "正在更新文章",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = "重新获取网页、生成摘要，并整理原文排版。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        articleProcessingStepLabels.forEachIndexed { index, label ->
-            ProcessingStepRow(
-                label = label,
-                isCompleted = index < currentStep,
-                isCurrent = index == currentStep,
-            )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.l),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(
+                    text = "正在更新文章",
+                    style = MaterialTheme.typography.titleMedium.editorial(),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "重新获取网页、生成摘要，并整理原文排版。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            articleProcessingStepLabels.forEachIndexed { index, label ->
+                ProcessingStepRow(
+                    label = label,
+                    isCompleted = index < currentStep,
+                    isCurrent = index == currentStep,
+                )
+            }
         }
     }
 }
@@ -96,18 +108,18 @@ private fun ProcessingStepRow(
                 isCompleted -> Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(IconSize.m),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 isCurrent -> CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp).scale(pulse),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(IconSize.m).scale(pulse),
+                    strokeWidth = BorderWidth.m,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 else -> Box(
                     modifier = Modifier
-                        .size(22.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                        .size(IconSize.m)
+                        .background(MaterialTheme.colorScheme.outline, CircleShape),
                 )
             }
             Spacer(modifier = Modifier.width(Spacing.m))
@@ -122,7 +134,7 @@ private fun ProcessingStepRow(
     if (isCurrent) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
+            shape = RoundedCornerShape(Radius.m),
             color = MaterialTheme.colorScheme.primaryContainer,
         ) {
             rowContent()

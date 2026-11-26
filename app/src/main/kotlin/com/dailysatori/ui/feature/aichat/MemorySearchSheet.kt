@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aichat
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,8 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dailysatori.shared.db.Memory_entry
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,13 +61,13 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
         tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.padding(horizontal = Spacing.m)) {
-            Text("记忆搜索", style = MaterialTheme.typography.titleLarge)
+            Text("记忆搜索", style = MaterialTheme.typography.titleLarge.editorial())
             Spacer(modifier = Modifier.height(Spacing.s))
 
             TextField(
@@ -131,8 +134,9 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
 @Composable
 private fun MemoryEntryCard(memory: Memory_entry) {
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(Spacing.m)) {

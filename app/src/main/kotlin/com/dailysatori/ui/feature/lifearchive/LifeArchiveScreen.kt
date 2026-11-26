@@ -5,6 +5,7 @@ import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -140,17 +141,26 @@ private fun ArchiveList(state: LifeArchiveUiState, vm: LifeArchiveViewModel, onA
 @Composable
 private fun ArchiveRecordCard(record: LifeArchiveRecord, categories: List<LifeArchiveCategory>, onClick: () -> Unit,
     onDiscard: (() -> Unit)? = null, enabled: Boolean) {
-    Card(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick), shape = RoundedCornerShape(Radius.l)) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Row(Modifier.padding(Spacing.m), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Icon(Icons.Outlined.BookmarkBorder, null, tint = MaterialTheme.colorScheme.primary)
+            Surface(shape = RoundedCornerShape(Radius.s), color = MaterialTheme.colorScheme.surfaceContainer) {
+                Box(Modifier.size(IconSize.xl), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.BookmarkBorder, null, Modifier.size(IconSize.s), tint = MaterialTheme.colorScheme.primary)
+                }
+            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(record.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(record.title, style = MaterialTheme.typography.titleMedium.editorial(), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(categories.find { it.id == record.categoryId }?.let { archiveCategoryLabel(it) }.orEmpty(), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                 Text(record.fields.take(2).joinToString(" · ") { it.value }.ifBlank { record.body }, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (onDiscard != null) IconButton(onClick = onDiscard, enabled = enabled) { Icon(Icons.Outlined.Close, stringResource(R.string.life_archive_pending_remove)) }
-            else Icon(Icons.Outlined.ChevronRight, null)
+            else Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

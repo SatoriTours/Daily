@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,8 +115,10 @@ fun DataImportScreen(
 @Composable
 private fun ImportHeaderCard() {
     Card(
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
@@ -123,7 +126,7 @@ private fun ImportHeaderCard() {
         ) {
             Text(
                 "从 Flutter 版本迁移数据",
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium.editorial(),
             )
             Text(
                 "选择从 Daily Satori Flutter 版本导出的 ZIP 文件，将数据导入到当前应用。",
@@ -137,8 +140,10 @@ private fun ImportHeaderCard() {
 @Composable
 private fun ProgressCard() {
     Card(
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier
@@ -166,8 +171,10 @@ private fun ProgressCard() {
 @Composable
 private fun ErrorCard(error: String) {
     Card(
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier
@@ -194,8 +201,10 @@ private fun ErrorCard(error: String) {
 @Composable
 private fun ResultCard(result: ImportService.ImportResult) {
     Card(
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.card),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
@@ -209,7 +218,7 @@ private fun ResultCard(result: ImportService.ImportResult) {
                     modifier = Modifier.size(24.dp),
                 )
                 Spacer(modifier = Modifier.width(Spacing.s))
-                Text("导入完成", style = MaterialTheme.typography.titleSmall)
+                Text("导入完成", style = MaterialTheme.typography.titleMedium.editorial())
             }
 
             val items = listOf(
@@ -241,7 +250,7 @@ private fun ResultCard(result: ImportService.ImportResult) {
 private fun ResultRow(label: String, count: Int) {
     Surface(
         shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Row(
             modifier = Modifier

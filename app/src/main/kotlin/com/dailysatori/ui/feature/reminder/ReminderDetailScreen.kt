@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
 import com.dailysatori.core.diagnostics.performanceContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,13 +97,18 @@ fun ReminderDetailScreen(
                         val i18n: com.dailysatori.service.i18n.I18nService = org.koin.compose.koinInject()
                         Text(i18n.t("sms.behavior"), style = MaterialTheme.typography.bodyMedium)
                     }
-                    if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item { Text("提醒过程", style = MaterialTheme.typography.titleMedium) }
+                    if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item { Text("提醒过程", style = MaterialTheme.typography.titleMedium.editorial()) }
                     if (reminder.deadlineAt == null && !reminder.id.startsWith("sms:")) item {
-                        Card(Modifier.fillMaxWidth()) {
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Radius.card),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        ) {
                             Column(Modifier.padding(horizontal = Spacing.m)) {
                                 timeline.steps.forEachIndexed { index, step ->
                                     TimelineRow(step.title, step.detail)
-                                    if (index != timeline.steps.lastIndex) HorizontalDivider()
+                                    if (index != timeline.steps.lastIndex) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                                 }
                             }
                         }
@@ -133,6 +139,8 @@ fun ReminderDetailScreen(
     if (confirmDelete && reminder != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(stringResource(R.string.reminder_delete_title)) },
             text = { Text(stringResource(R.string.reminder_delete_message)) },
             confirmButton = { TextButton(onClick = { confirmDelete = false; viewModel.delete(reminder.id); onBack() }) {
@@ -150,8 +158,9 @@ private fun ReminderDetailActions(reminder: Reminder, onAction: (ReminderAction)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         if (ReminderAction.EDIT in actions) {
             Card(
-                Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.card),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             ) {
                 val paused = ReminderAction.RESUME in actions
                 ReminderDetailActionRow(
@@ -175,8 +184,9 @@ private fun ReminderDetailActions(reminder: Reminder, onAction: (ReminderAction)
         }
         AnimatedVisibility(visible = ReminderAction.DELETE in actions && (showMore || ReminderAction.APPLY_LATEST_PROFILE !in actions)) {
             Card(
-                Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.m),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.card),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
             ) {
                 if (ReminderAction.APPLY_LATEST_PROFILE in actions) {
                     ReminderDetailActionRow(
@@ -184,7 +194,7 @@ private fun ReminderDetailActions(reminder: Reminder, onAction: (ReminderAction)
                         stringResource(R.string.reminder_detail_apply_defaults_hint),
                         onClick = { onAction(ReminderAction.APPLY_LATEST_PROFILE) },
                     )
-                    HorizontalDivider(Modifier.padding(horizontal = Spacing.m), color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(Modifier.padding(horizontal = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 }
                 if (ReminderAction.DELETE in actions) {
                     ReminderDetailActionRow(
@@ -214,7 +224,7 @@ private fun ReminderDetailActionRow(
     }
     Surface(
         onClick = onClick, enabled = enabled,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth().semantics { role = Role.Button },
     ) {
         Row(

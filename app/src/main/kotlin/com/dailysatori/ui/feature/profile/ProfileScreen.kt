@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,9 +26,14 @@ internal fun ProfileLibrarySection(
     onTasks: () -> Unit,
     onFailedTasks: () -> Unit,
 ) {
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+    ) {
         Column {
-            Text(stringResource(R.string.personal_settings_library), Modifier.padding(Spacing.m), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.personal_settings_library), Modifier.padding(Spacing.m), style = MaterialTheme.typography.titleMedium.editorial())
             SettingsRow(Icons.Outlined.BookmarkBorder, stringResource(R.string.personal_settings_favorites),
                 stringResource(R.string.management_count, state.favoriteCount), onFavorites)
             val progress = state.taskProgressLabel?.let { " · $it" }.orEmpty()

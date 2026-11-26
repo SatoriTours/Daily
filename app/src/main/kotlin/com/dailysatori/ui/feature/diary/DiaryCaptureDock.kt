@@ -43,12 +43,12 @@ internal fun DiaryCaptureDock(
     ) {
         Box(
             Modifier.width(FloatingControl.edgeReveal).height(FloatingControl.visual)
-                .clip(RoundedCornerShape(topStart = Radius.s, bottomStart = Radius.s))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                .clip(RoundedCornerShape(topStart = Radius.m, bottomStart = Radius.m))
+                .background(MaterialTheme.colorScheme.onSurface),
             contentAlignment = Alignment.Center,
         ) {
             Box(Modifier.size(FloatingControl.gripWidth, FloatingControl.gripHeight)
-                .clip(CircleShape).background(MaterialTheme.colorScheme.onSurfaceVariant))
+                .clip(CircleShape).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)))
         }
     }
 }
@@ -60,9 +60,10 @@ private fun DiaryDockButton(icon: ImageVector, label: String, accent: Boolean, o
     ), contentAlignment = Alignment.Center) {
         Surface(
             Modifier.size(FloatingControl.visual), shape = CircleShape,
-            color = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = if (accent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-            shadowElevation = Spacing.xxs,
+            color = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+            contentColor = if (accent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            border = if (accent) null else androidx.compose.foundation.BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+            shadowElevation = Spacing.xs,
         ) { Box(contentAlignment = Alignment.Center) { Icon(icon, label, Modifier.size(IconSize.m)) } }
     }
 }

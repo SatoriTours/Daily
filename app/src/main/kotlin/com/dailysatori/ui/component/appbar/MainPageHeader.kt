@@ -1,5 +1,6 @@
 package com.dailysatori.ui.component.appbar
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -19,23 +20,38 @@ import com.dailysatori.ui.theme.*
 fun MainPageHeader(
     title: String,
     modifier: Modifier = Modifier,
+    titleMeta: String? = null,
     pageActions: List<PageAction> = emptyList(),
-    titleWeight: FontWeight = FontWeight.Bold,
+    titleWeight: FontWeight = FontWeight.SemiBold,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = Height.appBarCompact),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f).semantics { heading() },
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = titleWeight,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Start,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f, fill = false).semantics { heading() },
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = titleWeight,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Start,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            titleMeta?.takeIf { it.isNotBlank() }?.let { meta ->
+                Text(
+                    text = meta,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
         PageActions(pageActions)
         AssistantTopBarAction()
     }

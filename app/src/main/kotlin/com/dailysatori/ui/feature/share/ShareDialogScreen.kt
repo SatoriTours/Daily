@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.share
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -47,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
@@ -130,23 +133,26 @@ private fun ShareDialogBottomBar(
     onSave: () -> Unit,
     i18n: I18nService,
 ) {
-    Surface(tonalElevation = 3.dp) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-        ) {
-            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f), enabled = !isSaving) {
-                Text(i18n.t("share.cancel"))
-            }
-            Button(
-                onClick = onSave,
-                modifier = Modifier.weight(2f),
-                enabled = !isBusy,
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(IconSize.m), strokeWidth = 2.dp)
-                } else {
-                    Text(i18n.t(if (isUpdate) "share.save_changes" else "share.save"))
+                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f), enabled = !isSaving) {
+                    Text(i18n.t("share.cancel"))
+                }
+                Button(
+                    onClick = onSave,
+                    modifier = Modifier.weight(2f),
+                    enabled = !isBusy,
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(IconSize.m), strokeWidth = BorderWidth.m)
+                    } else {
+                        Text(i18n.t(if (isUpdate) "share.save_changes" else "share.save"))
+                    }
                 }
             }
         }
@@ -174,8 +180,9 @@ private fun ShareUrlSection(
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(Radius.s),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(Radius.card),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         ) {
             Text(
                 text = url,

@@ -5,6 +5,7 @@ import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.ui.component.appbar.PageAction
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -104,9 +105,14 @@ fun ReminderAiBatchScreen(
                     }
                 }
                 ReminderAiBatchStatus.PARSE_FAILED -> item {
-                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l)) {
+                    Card(
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radius.card),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                    ) {
                         Column(Modifier.padding(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                            Text(stringResource(R.string.reminder_ai_batch_failed), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.reminder_ai_batch_failed), style = MaterialTheme.typography.titleMedium.editorial())
                             Text(batch.originalInput, style = MaterialTheme.typography.bodyMedium)
                             if (batch.errorSummary.isNotBlank()) Text(batch.errorSummary, color = MaterialTheme.colorScheme.error)
                             Button(onClick = { viewModel.retryBatch()?.let(onOpenSuccessor) }, modifier = Modifier.fillMaxWidth()) {
@@ -136,7 +142,9 @@ fun ReminderAiBatchScreen(
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
-            title = { Text(stringResource(R.string.reminder_batch_discard_title)) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.reminder_batch_discard_title), style = MaterialTheme.typography.titleLarge.editorial()) },
             text = { Text(stringResource(R.string.reminder_batch_review_discard_hint)) },
             confirmButton = {
                 TextButton(onClick = { confirmDiscard = false; viewModel.discardBatch() }, enabled = !state.isSaving) {

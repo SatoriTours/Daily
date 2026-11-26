@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aichat
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,9 +43,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dailysatori.R
 import com.dailysatori.service.assistant.AssistantMemoryView
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +63,7 @@ fun MemoryManagementSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
     ) {
@@ -77,7 +80,7 @@ fun MemoryManagementSheet(
             ) {
                 Text(
                     text = stringResource(R.string.assistant_memory_management),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.editorial(),
                     fontWeight = FontWeight.SemiBold,
                 )
                 IconButton(
@@ -103,8 +106,9 @@ fun MemoryManagementSheet(
 
             if (memories.isEmpty()) {
                 Surface(
-                    shape = RoundedCornerShape(Radius.m),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(Radius.card),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.l),
                 ) {
                     Box(modifier = Modifier.padding(Spacing.l), contentAlignment = Alignment.Center) {
@@ -136,7 +140,9 @@ fun MemoryManagementSheet(
     memoryToForget?.let { memory ->
         AlertDialog(
             onDismissRequest = { memoryToForget = null },
-            title = { Text(stringResource(R.string.assistant_memory_forget)) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.assistant_memory_forget), style = MaterialTheme.typography.titleLarge.editorial()) },
             text = { Text(stringResource(R.string.assistant_memory_forget_notice)) },
             confirmButton = {
                 TextButton(
@@ -160,7 +166,9 @@ fun MemoryManagementSheet(
         var correctedText by remember { mutableStateOf(memory.content) }
         AlertDialog(
             onDismissRequest = { memoryToCorrect = null },
-            title = { Text(stringResource(R.string.assistant_memory_correct_title)) },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.assistant_memory_correct_title), style = MaterialTheme.typography.titleLarge.editorial()) },
             text = {
                 OutlinedTextField(
                     value = correctedText,
@@ -215,8 +223,9 @@ private fun MemoryItemCard(
     val sourceLabel = if (memory.sourceId.isNotBlank()) "$sourceText #${memory.sourceId}" else sourceText
 
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(

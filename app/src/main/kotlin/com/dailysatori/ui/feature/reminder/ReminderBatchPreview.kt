@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.reminder
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,7 +40,7 @@ fun ReminderBatchPreview(
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.CheckCircle, null, Modifier.size(IconSize.xl), tint = MaterialTheme.colorScheme.primary)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(stringResource(R.string.reminder_batch_review_title, batch.items.size), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.reminder_batch_review_title, batch.items.size), style = MaterialTheme.typography.headlineSmall.editorial())
                 Text(stringResource(R.string.reminder_batch_review_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -65,18 +66,20 @@ private fun BatchReminderCard(
 ) {
     var editing by remember(item.id) { mutableStateOf(item.parseError != null || item.draft.validationErrors.isNotEmpty()) }
     val saved = item.saveStatus == BatchSaveStatus.SAVED
-    Card(
-        Modifier.fillMaxWidth(), shape = RoundedCornerShape(Radius.l),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    Surface(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.card),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         Column(Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             BatchReminderCardHeader(ordinal, item, onToggleItem, onRemoveItem)
             Text(item.draft.content.ifBlank { stringResource(R.string.reminder_batch_review_content_needed) }, style = MaterialTheme.typography.bodyLarge)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             BatchReminderSummaryRow(Icons.Outlined.CalendarToday, stringResource(R.string.reminder_batch_review_next), item.draft.startDate?.toString() ?: stringResource(R.string.reminder_not_selected))
             BatchReminderSummaryRow(Icons.Outlined.Schedule, stringResource(R.string.reminder_first_time), item.draft.firstReminderTime?.toString() ?: stringResource(R.string.reminder_not_selected))
             BatchReminderSummaryRow(Icons.Outlined.Repeat, stringResource(R.string.reminder_detail_rule_label), item.draft.repeatSummary())
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
             Text(stringResource(R.string.reminder_batch_review_work_quiet), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             item.parseError?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
             item.saveError?.let { Text(batchErrorText(it), color = MaterialTheme.colorScheme.error) }
@@ -140,10 +143,13 @@ private fun BatchReminderCardHeader(ordinal: Int, item: ReminderBatchUiItem, onT
             )
         }
         Text(stringResource(R.string.reminder_batch_review_item, ordinal), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-        Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Surface(
+            shape = RoundedCornerShape(Radius.circular),
+            color = if (item.saveStatus == BatchSaveStatus.FAILED) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer,
+        ) {
             Text(
-                stringResource(statusLabel(item.saveStatus)), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-                style = MaterialTheme.typography.labelMedium,
+                stringResource(statusLabel(item.saveStatus)), Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                style = MaterialTheme.typography.labelSmall,
                 color = if (item.saveStatus == BatchSaveStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

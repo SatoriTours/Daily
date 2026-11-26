@@ -19,8 +19,8 @@ internal fun RecoveryUpdateSection(
     onDownload: () -> Unit,
     onInstall: () -> Unit,
 ) {
-    HorizontalDivider()
-    Text(stringResource(R.string.recovery_update_title), style = MaterialTheme.typography.titleMedium)
+    HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+    Text(stringResource(R.string.recovery_update_title), style = MaterialTheme.typography.titleMedium.editorial())
     Text(stringResource(R.string.recovery_update_version, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodyMedium)
     val channel = stringResource(if (state.configuration.channel == UpdateChannel.COMMIT)
         R.string.recovery_update_commit else R.string.recovery_update_stable)

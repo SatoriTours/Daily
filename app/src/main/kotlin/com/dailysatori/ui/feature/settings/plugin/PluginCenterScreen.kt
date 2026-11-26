@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings.plugin
 
 import com.dailysatori.ui.component.appbar.PageAction
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -131,8 +132,10 @@ fun PluginCenterScreen(onBack: () -> Unit = {}) {
                 items(visiblePlugins, key = { it.fileName }) { plugin ->
                     val isUpdating = state.updatingPluginId == plugin.fileName
                     Card(
-                        shape = RoundedCornerShape(Radius.l),
+                        shape = RoundedCornerShape(Radius.card),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),

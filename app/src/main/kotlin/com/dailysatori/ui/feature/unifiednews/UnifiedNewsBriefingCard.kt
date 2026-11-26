@@ -23,8 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
 
 @Composable
 internal fun TodayUnifiedNewsCard(
@@ -74,7 +76,7 @@ private fun UnifiedNewsMagazineCover(
         }
         Text(
             text = briefing.title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.editorial(),
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -90,7 +92,7 @@ private fun UnifiedNewsMagazineCover(
 
 @Composable
 private fun UnifiedNewsBriefingBadge(text: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainer) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
@@ -133,7 +135,7 @@ private fun UnifiedNewsMagazineStoryRow(
     val rowModifier = if (source != null) Modifier.clickable { onCitationClick(source) } else Modifier
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        if (showDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
+        if (showDivider) HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
         Row(
             modifier = rowModifier.fillMaxWidth().padding(vertical = Spacing.m),
             horizontalArrangement = Arrangement.spacedBy(Spacing.m),
@@ -141,7 +143,7 @@ private fun UnifiedNewsMagazineStoryRow(
         ) {
             Text(
                 text = (index + 1).toString().padStart(2, '0'),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.editorial(),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -200,7 +202,7 @@ private fun UnifiedNewsBriefingSourceRow(sources: List<Unified_news_source>) {
 
 @Composable
 private fun UnifiedNewsBriefingSourceChip(label: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainer) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),

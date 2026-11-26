@@ -47,7 +47,7 @@ fun SettingsRow(
             ) {
                 FeatureIcon(
                     icon = icon,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                     iconTint = MaterialTheme.colorScheme.primary,
                     containerSize = IconSize.xl,
                     iconSize = IconSize.s,
@@ -74,7 +74,8 @@ fun SettingsRow(
             }
             if (showDivider) HorizontalDivider(
                 modifier = Modifier.padding(start = Spacing.m + IconSize.xl + Spacing.m, end = Spacing.m),
-                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = BorderWidth.xs,
+                color = MaterialTheme.colorScheme.outline,
             )
         }
     }
@@ -117,7 +118,8 @@ fun SettingsActionRow(
             }
             if (showDivider) HorizontalDivider(
                 modifier = Modifier.padding(horizontal = Spacing.m),
-                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = BorderWidth.xs,
+                color = MaterialTheme.colorScheme.outline,
             )
         }
     }
