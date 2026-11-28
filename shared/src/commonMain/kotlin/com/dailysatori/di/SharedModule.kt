@@ -22,6 +22,8 @@ import com.dailysatori.data.repository.SkillConfigDataSource
 import com.dailysatori.data.repository.SkillConfigRepository
 import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
+import com.dailysatori.service.localnews.LocalNewsBriefingReader
+import com.dailysatori.service.localnews.RepositoryLocalNewsBriefingReader
 import com.dailysatori.data.repository.WeeklySummaryRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.service.adblock.AdBlockService
@@ -140,6 +142,7 @@ val sharedModule: Module = module {
     single<SkillConfigDataSource> { get<SkillConfigRepository>() }
     single { TagRepository(get()) }
     single { UnifiedNewsSummaryRepository(get()) }
+    single<LocalNewsBriefingReader> { RepositoryLocalNewsBriefingReader(get()) }
     single { WeeklySummaryRepository(get()) }
 
     // Core services

@@ -9,6 +9,7 @@ import com.dailysatori.service.externalfavorites.sha256Hex
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -29,6 +30,11 @@ internal class AssistantAgentCheckpointStore(
     private val privacy = AssistantPrivacyRepository(driver)
     private val settings = SettingRepository(db)
     private val data = AssistantDataGateway(driver)
+    private val news = kotlinx.datetime.TimeZone.of(turn.timeZoneId).let { zone ->
+        AssistantNewsDigest(driver,
+            kotlinx.datetime.Instant.fromEpochMilliseconds(turn.receivedAtMs).toLocalDateTime(zone).date.toString(),
+            zone, data::redact)
+    }
     private val inputVersion = turns.input(turn)?.let(::sha256Hex).orEmpty()
     private val reads = linkedMapOf<String, AssistantReadStamp>()
     private var latest: AgentCheckpointData? = null
@@ -98,7 +104,9 @@ internal class AssistantAgentCheckpointStore(
         guard(validateDerived = false)
         lastPartial = text
         lastPartialAt = timeSource.markNow()
-        val previous = decode(tasks.getById(turn.taskId)?.checkpoint_json.orEmpty())
+        // A live partial only needs the persisted snapshot when nothing has been restored or saved yet;
+        // otherwise it would re-read and re-parse the whole checkpoint on every repaint.
+        val previous = if (latest == null) decode(tasks.getById(turn.taskId)?.checkpoint_json.orEmpty()) else null
         save(AssistantAgentState(inputVersion = inputVersion, privacyRevision = revision, contextHash = contextHash,
             selectedContextHash = selectedContextHash, summarySources = activeSummarySources, snapshot = latest ?: previous?.snapshot, reads = reads.values.toList(), actionsHash = actionHash(), partial = data.redact(text)), validateDerived = false)
     }
@@ -147,6 +155,7 @@ internal class AssistantAgentCheckpointStore(
                     "aggregate_data" -> data.aggregate(Json.decodeFromString<AssistantAggregate>(stamp.args))
                     "read_record" -> data.read(args["source"]!!.jsonPrimitive.content, args["id"]!!.jsonPrimitive.content,
                         args["offset"]?.jsonPrimitive?.intOrNull ?: 0)
+                    "read_news_digest" -> Json.decodeFromString<ReadNewsArgs>(stamp.args).let { news.read(it.date, it.window) }
                     "search_records" -> data.search(args["query"]!!.jsonPrimitive.content,
                         args["sources"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty(),
                         args["limit"]?.jsonPrimitive?.intOrNull ?: 20, args["offset"]?.jsonPrimitive?.longOrNull ?: 0)

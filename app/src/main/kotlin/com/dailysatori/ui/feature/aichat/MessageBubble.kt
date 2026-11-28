@@ -47,6 +47,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,12 +59,16 @@ import com.dailysatori.service.assistant.AssistantReference
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.canOpenSearchResult
 import com.dailysatori.service.mcp.searchResultTypeLabel
-import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
+import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.UiFontFamily
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.model.DefaultMarkdownTypography
+import com.mikepenz.markdown.model.MarkdownTypography
 
 fun visibleReferenceCount(totalCount: Int, expanded: Boolean): Int =
     if (expanded) totalCount else totalCount.coerceAtMost(3)
@@ -79,6 +84,8 @@ fun referenceExpansionText(totalCount: Int, expanded: Boolean): String? {
 }
 
 enum class ChatMessageTreatment { MutedUserNote, StructuredAssistantNote, ErrorNote }
+
+enum class MessageBubbleStyle { Standard, AssistantEditorial }
 
 data class StructuredAssistantContent(val title: String, val body: String)
 
@@ -119,15 +126,29 @@ fun MessageBubble(
     onArticleClick: (Long) -> Unit = {},
     onReminderClick: (String) -> Unit = {},
     onTaskCenterClick: () -> Unit = {},
+    style: MessageBubbleStyle = MessageBubbleStyle.Standard,
 ) {
     val isUser = message.role == "user"
+    val isEditorial = style == MessageBubbleStyle.AssistantEditorial
     val assistantContent = remember(message.content) { message.content.trim() }
     val treatment = chatMessageTreatment(message.role, message.isError)
     val clipboard = LocalClipboardManager.current
     var showActions by remember(message.id) { mutableStateOf(false) }
 
-    val hasAssistantBody = assistantContent.isNotBlank() || message.searchResults.isNotEmpty() || message.references.isNotEmpty() || message.actions.isNotEmpty()
-    if (!isUser && !hasAssistantBody && message.taskDisplayState == TaskDisplayState.None) return
+    val hasAssistantContentOrRefs = assistantContent.isNotBlank() || message.searchResults.isNotEmpty() || message.references.isNotEmpty()
+    val hasAssistantBody = hasAssistantContentOrRefs || message.actions.isNotEmpty()
+    val isActiveTask = message.taskDisplayState == TaskDisplayState.Waiting || message.taskDisplayState == TaskDisplayState.Processing
+    val isTerminalTask = message.taskDisplayState == TaskDisplayState.Failed ||
+        message.taskDisplayState == TaskDisplayState.Cancelled ||
+        message.taskDisplayState == TaskDisplayState.RequiresResume
+    if (!isUser && !hasAssistantBody) {
+        val suppressEmpty = if (isEditorial) {
+            isActiveTask || (!isTerminalTask && !(message.isError && message.errorMessage.isNotBlank()))
+        } else {
+            message.taskDisplayState == TaskDisplayState.None
+        }
+        if (suppressEmpty) return
+    }
 
     Column(
         modifier = Modifier
@@ -150,18 +171,24 @@ fun MessageBubble(
                             content = message.content,
                             isExcluded = message.isExcludedFromMemory,
                         )
-                        ChatMessageTreatment.StructuredAssistantNote -> StructuredAssistantMessage(
-                            content = assistantContent,
-                            isStreaming = message.isStreaming,
-                            searchResults = message.searchResults,
-                            references = message.references,
-                            onReferenceClick = onReferenceClick,
-                            onArticleClick = onArticleClick,
-                            onReminderClick = onReminderClick,
-                        )
-                        ChatMessageTreatment.ErrorNote -> ErrorAssistantMessage(
-                            content = assistantContent.ifBlank { message.errorMessage },
-                        )
+                        ChatMessageTreatment.StructuredAssistantNote -> if (!isEditorial || hasAssistantContentOrRefs) {
+                            StructuredAssistantMessage(
+                                content = assistantContent,
+                                isStreaming = message.isStreaming,
+                                searchResults = message.searchResults,
+                                references = message.references,
+                                onReferenceClick = onReferenceClick,
+                                onArticleClick = onArticleClick,
+                                onReminderClick = onReminderClick,
+                                editorial = isEditorial,
+                            )
+                        }
+                        ChatMessageTreatment.ErrorNote -> if (!isEditorial || !isTerminalTask) {
+                            val errorText = assistantContent.ifBlank { message.errorMessage }
+                            if (!isEditorial || errorText.isNotBlank()) {
+                                ErrorAssistantMessage(content = errorText)
+                            }
+                        }
                     }
 
                     if (message.actions.isNotEmpty()) {
@@ -178,7 +205,22 @@ fun MessageBubble(
                         }
                     }
 
-                    if (message.taskDisplayState != TaskDisplayState.None) {
+                    if (isEditorial) {
+                        if (isTerminalTask) {
+                            if (hasAssistantBody && treatment != ChatMessageTreatment.ErrorNote) {
+                                Spacer(modifier = Modifier.height(Spacing.s))
+                            }
+                            AssistantEditorialFeedback(
+                                taskState = message.taskDisplayState,
+                                content = assistantContent.takeIf { treatment == ChatMessageTreatment.ErrorNote }.orEmpty(),
+                                errorMessage = message.errorMessage.trim(),
+                                turnId = message.turnId,
+                                taskId = message.taskId,
+                                onRetry = onRetryTurn,
+                                onTaskCenterClick = onTaskCenterClick,
+                            )
+                        }
+                    } else if (message.taskDisplayState != TaskDisplayState.None) {
                         Spacer(modifier = Modifier.height(Spacing.xs))
                         TaskStatusCard(
                             taskState = message.taskDisplayState,
@@ -320,54 +362,219 @@ private fun StructuredAssistantMessage(
     onReferenceClick: (McpSearchResult) -> Unit,
     onArticleClick: (Long) -> Unit,
     onReminderClick: (String) -> Unit,
+    editorial: Boolean = false,
 ) {
-    Surface(
-        shape = RoundedCornerShape(
-            topStart = Radius.card,
-            topEnd = Radius.card,
-            bottomStart = Radius.xs,
-            bottomEnd = Radius.card,
-        ),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
-            verticalArrangement = Arrangement.spacedBy(Spacing.s),
-        ) {
-            if (isStreaming) {
+    val body: @Composable () -> Unit = {
+        val markdownTypography = if (editorial) assistantEditorialMarkdownTypography() else MarkdownStyles.summaryTypography()
+        val headingStyle = if (editorial) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge
+        if (isStreaming) {
+            if (content.isNotBlank()) {
                 Text(
                     text = content,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-            } else if (content.isNotBlank()) {
-                val structured = remember(content) { structuredAssistantContent(content) }
-                if (assistantShouldRenderStructuredTitle(structured)) {
-                    Text(
-                        text = structured.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Markdown(
-                        content = structured.body,
-                        typography = MarkdownStyles.summaryTypography(),
-                        padding = MarkdownStyles.summaryPadding(),
-                    )
-                } else {
-                    Markdown(
-                        content = content,
-                        typography = MarkdownStyles.summaryTypography(),
-                        padding = MarkdownStyles.summaryPadding(),
+            }
+        } else if (content.isNotBlank()) {
+            val structured = remember(content) { structuredAssistantContent(content) }
+            if (assistantShouldRenderStructuredTitle(structured)) {
+                Text(
+                    text = structured.title,
+                    style = headingStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Markdown(
+                    content = structured.body,
+                    typography = markdownTypography,
+                    padding = MarkdownStyles.summaryPadding(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Markdown(
+                    content = content,
+                    typography = markdownTypography,
+                    padding = MarkdownStyles.summaryPadding(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        if (!isStreaming && searchResults.isNotEmpty()) {
+            SearchResultsSection(searchResults, onReferenceClick)
+        }
+        if (!isStreaming && references.isNotEmpty()) {
+            AssistantReferencesSection(references, onArticleClick, onReminderClick)
+        }
+    }
+
+    if (editorial) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            body()
+        }
+    } else {
+        Surface(
+            shape = RoundedCornerShape(
+                topStart = Radius.card,
+                topEnd = Radius.card,
+                bottomStart = Radius.xs,
+                bottomEnd = Radius.card,
+            ),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            ) {
+                body()
+            }
+        }
+    }
+}
+
+@Composable
+private fun assistantEditorialMarkdownTypography(): MarkdownTypography {
+    val body = MaterialTheme.typography.bodyMedium.copy(fontFamily = UiFontFamily)
+    val h1 = MaterialTheme.typography.titleMedium.copy(fontFamily = UiFontFamily, fontWeight = FontWeight.SemiBold)
+    val h2 = MaterialTheme.typography.titleSmall.copy(fontFamily = UiFontFamily, fontWeight = FontWeight.SemiBold)
+    val h3 = MaterialTheme.typography.titleSmall.copy(fontFamily = UiFontFamily)
+    val code = MaterialTheme.typography.bodySmall.copy(fontFamily = UiFontFamily)
+    val inlineCode = MaterialTheme.typography.labelMedium.copy(fontFamily = UiFontFamily)
+    return DefaultMarkdownTypography(
+        h1 = h1,
+        h2 = h2,
+        h3 = h3,
+        h4 = h3,
+        h5 = h3,
+        h6 = MaterialTheme.typography.labelLarge.copy(fontFamily = UiFontFamily),
+        text = body,
+        code = code,
+        inlineCode = inlineCode,
+        quote = body.copy(fontStyle = FontStyle.Italic),
+        paragraph = body,
+        ordered = body,
+        bullet = body,
+        list = body,
+        link = body.copy(fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary),
+    )
+}
+
+@Composable
+private fun AssistantEditorialFeedback(
+    taskState: TaskDisplayState,
+    content: String,
+    errorMessage: String,
+    turnId: Long?,
+    taskId: Long?,
+    onRetry: (Long) -> Unit,
+    onTaskCenterClick: () -> Unit,
+) {
+    if (taskState == TaskDisplayState.Cancelled) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                modifier = Modifier.weight(1f, fill = false),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Block,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(IconSize.xs),
+                )
+                Text(
+                    text = stringResource(R.string.assistant_task_cancelled),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (taskId != null) {
+                IconButton(onClick = onTaskCenterClick, modifier = Modifier.size(Height.touchTarget)) {
+                    Icon(
+                        imageVector = Icons.Filled.Task,
+                        contentDescription = stringResource(R.string.assistant_action_task_center),
+                        modifier = Modifier.size(IconSize.xs),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            if (!isStreaming && searchResults.isNotEmpty()) {
-                SearchResultsSection(searchResults, onReferenceClick)
+        }
+        return
+    }
+
+    val isFailed = taskState == TaskDisplayState.Failed
+    val containerColor = if (isFailed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer
+    val contentColor = if (isFailed) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
+    val icon = if (isFailed) Icons.Filled.Error else Icons.Filled.Refresh
+    val iconTint = if (isFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+    val title = stringResource(if (isFailed) R.string.assistant_task_failed else R.string.assistant_task_resuming)
+    val detailLines = buildList {
+        if (content.isNotBlank() && content != title) add(content)
+        if (errorMessage.isNotBlank() && errorMessage != title && errorMessage != content) add(errorMessage)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = containerColor,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+                    modifier = Modifier.weight(1f, fill = false),
+                ) {
+                    Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(IconSize.xs))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = contentColor,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                    if (turnId != null) {
+                        OutlinedButton(
+                            onClick = { onRetry(turnId) },
+                            shape = RoundedCornerShape(Radius.circular),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.s, vertical = Spacing.xxs),
+                        ) {
+                            Text(stringResource(R.string.assistant_task_retry_btn), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    if (taskId != null) {
+                        IconButton(onClick = onTaskCenterClick, modifier = Modifier.size(Height.touchTarget)) {
+                            Icon(
+                                imageVector = Icons.Filled.Task,
+                                contentDescription = stringResource(R.string.assistant_action_task_center),
+                                modifier = Modifier.size(IconSize.xs),
+                                tint = contentColor,
+                            )
+                        }
+                    }
+                }
             }
-            if (!isStreaming && references.isNotEmpty()) {
-                AssistantReferencesSection(references, onArticleClick, onReminderClick)
+            detailLines.forEach { detail ->
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor,
+                )
             }
         }
     }
@@ -385,9 +592,10 @@ private fun AssistantReferencesSection(
         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
     ) {
         Surface(
+            onClick = { expanded = !expanded },
             shape = RoundedCornerShape(Radius.m),
             color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
@@ -412,16 +620,12 @@ private fun AssistantReferencesSection(
                 val articleId = if (ref.source == "article") ref.id.toLongOrNull() else null
                 val isReminder = ref.source == "reminder"
                 val isClickable = articleId != null || isReminder
-                val clickModifier = when {
-                    articleId != null -> Modifier.clickable { onArticleClick(articleId) }
-                    isReminder -> Modifier.clickable { onReminderClick(ref.id) }
-                    else -> Modifier
+                val onRefClick: (() -> Unit)? = when {
+                    articleId != null -> ({ onArticleClick(articleId) })
+                    isReminder -> ({ onReminderClick(ref.id) })
+                    else -> null
                 }
-                Surface(
-                    shape = RoundedCornerShape(Radius.s),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth().then(clickModifier),
-                ) {
+                val itemRow: @Composable () -> Unit = {
                     Row(
                         modifier = Modifier.padding(Spacing.s),
                         verticalAlignment = Alignment.CenterVertically,
@@ -456,6 +660,22 @@ private fun AssistantReferencesSection(
                         }
                     }
                 }
+                if (onRefClick != null) {
+                    Surface(
+                        onClick = onRefClick,
+                        shape = RoundedCornerShape(Radius.s),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                        content = itemRow,
+                    )
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(Radius.s),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                        content = itemRow,
+                    )
+                }
             }
         }
     }
@@ -475,9 +695,10 @@ private fun SearchResultsSection(
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         Surface(
+            onClick = { sectionExpanded = !sectionExpanded },
             shape = RoundedCornerShape(Radius.m),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.fillMaxWidth().clickable { sectionExpanded = !sectionExpanded },
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),

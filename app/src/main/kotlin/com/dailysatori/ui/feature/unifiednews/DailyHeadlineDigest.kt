@@ -85,8 +85,17 @@ private fun summarySections(content: String): List<SummarySection> {
 private fun SummarySection.asMarkdown(): String =
     if (heading.isBlank()) lines.joinToString("\n").trim() else "## $heading\n" + lines.joinToString("\n").trim()
 
-private fun isOverviewHeading(heading: String): Boolean =
-    heading.contains("今日要闻") || heading.contains("每日封面")
+internal data class HeadlineOverviewLayout(
+    val lead: String?,
+    val paragraphs: List<String>,
+)
+
+private fun isOverviewHeading(heading: String): Boolean {
+    val normalized = normalizeOverviewHeadingKey(heading)
+    return normalized in HeadlineOverviewHeadingKeys ||
+        heading.contains("今日要闻") ||
+        heading.contains("每日封面")
+}
 
 private fun isPointsHeading(heading: String): Boolean = heading.contains("今日要点")
 
@@ -109,20 +118,83 @@ private fun headlinePoint(requireList: Boolean, raw: String): HeadlinePoint? {
     return text.takeIf { it.isNotBlank() }?.let { HeadlinePoint(it, citations) }
 }
 
-/** Keeps up to two generated overview paragraphs; never synthesises copy in the UI. */
+/** Keeps generated overview paragraphs (including legacy list-style overviews); never synthesises copy. */
 internal fun dailyHeadlineOverview(content: String): List<String> {
     val lines = content.lines()
-    val headingIndex = lines.indexOfFirst { DailyOverviewHeadingRegex.matches(it) }
-    val region = if (headingIndex >= 0) {
-        lines.drop(headingIndex + 1).takeWhile { !it.trimStart().startsWith("#") }
-    } else {
-        lines.takeWhile { !it.trimStart().startsWith("#") }
+    val headingIndex = lines.indexOfFirst { line ->
+        SummaryHeadingRegex.matchEntire(line)?.groupValues?.get(1)?.let(::isExplicitOverviewHeading) == true
     }
+    if (headingIndex >= 0) {
+        val region = lines.drop(headingIndex + 1).takeWhile { !it.trimStart().startsWith("#") }
+        return extractExplicitOverviewBlocks(region)
+    }
+    val region = lines
+        .dropWhile { it.isBlank() || isWrapperOverviewTitleLine(it) }
+        .takeWhile { !it.trimStart().startsWith("#") }
+    val paragraphs = collectProseOverviewParagraphs(region)
+    return paragraphs.takeIf { it.isNotEmpty() } ?: listOfNotNull(
+        unifiedNewsBriefingContent(content).lead,
+    )
+}
+
+private val HeadlineOverviewHeadingKeys = setOf("今日要闻", "每日封面", "综述", "今日总览")
+private val OverviewMarkdownLinkRegex = Regex("""\[([^\]]+)]\([^)]+\)""")
+private val OverviewItalicAsteriskRegex = Regex("""\*([^*\n]+)\*""")
+private val OverviewItalicUnderscoreRegex = Regex("""(?<![\p{L}\p{N}])_([^_\n]+)_(?![\p{L}\p{N}])""")
+private val OverviewAbbreviations = setOf(
+    "e.g", "i.e", "vs", "dr", "mr", "mrs", "ms", "jr", "sr", "inc", "ltd", "no", "fig", "st", "prof", "etc", "u.s", "u.k",
+)
+
+private const val MaxLeadSentenceCodePoints = 90
+private const val MinBalancedOverviewSplitCodePoints = 75
+private const val MaxTwoParagraphOverviewCodePoints = 260
+private const val MinOverviewChunkCodePoints = 25
+private const val TargetLongOverviewParagraphCodePoints = 140
+private const val MinLongOverviewFlushCodePoints = 60
+private const val MinTrailingOverviewChunkCodePoints = 40
+
+private fun normalizeOverviewHeadingKey(heading: String): String =
+    stripLeadingHeadingDecorators(heading).trimEnd(':', '：', ' ')
+
+private fun isExplicitOverviewHeading(heading: String): Boolean =
+    normalizeOverviewHeadingKey(heading) in HeadlineOverviewHeadingKeys
+
+private fun isWrapperOverviewTitleLine(line: String): Boolean {
+    val match = SummaryHeadingRegex.matchEntire(line) ?: return false
+    return normalizeOverviewHeadingKey(match.groupValues[1]).startsWith("今日统一新闻总结")
+}
+
+private fun extractExplicitOverviewBlocks(region: List<String>): List<String> {
+    val blocks = mutableListOf<String>()
+    val currentProse = mutableListOf<String>()
+    fun flushProse() {
+        if (currentProse.isEmpty()) return
+        val text = joinWrappedOverviewLines(currentProse).withoutBriefingMarkdownForOverview()
+        if (text.isNotBlank()) blocks += text
+        currentProse.clear()
+    }
+    region.forEach { raw ->
+        val line = raw.trim()
+        when {
+            line.isEmpty() -> flushProse()
+            PointListPrefixRegex.containsMatchIn(line) -> {
+                flushProse()
+                val itemText = line.replace(PointListPrefixRegex, "").withoutBriefingMarkdownForOverview()
+                if (itemText.isNotBlank()) blocks += itemText
+            }
+            else -> currentProse += line.removePrefix(">").trim()
+        }
+    }
+    flushProse()
+    return blocks
+}
+
+private fun collectProseOverviewParagraphs(region: List<String>): List<String> {
     val paragraphs = mutableListOf<String>()
     val current = mutableListOf<String>()
     fun flush() {
         if (current.isEmpty()) return
-        val text = current.joinToString("").withoutBriefingMarkdownForOverview()
+        val text = joinWrappedOverviewLines(current).withoutBriefingMarkdownForOverview()
         if (text.isNotBlank()) paragraphs += text
         current.clear()
     }
@@ -131,20 +203,197 @@ internal fun dailyHeadlineOverview(content: String): List<String> {
         when {
             line.isEmpty() -> flush()
             PointListPrefixRegex.containsMatchIn(line) -> flush()
-            else -> current += line
+            else -> current += line.removePrefix(">").trim()
         }
     }
     flush()
-    return (paragraphs.takeIf { it.isNotEmpty() } ?: listOfNotNull(
-        unifiedNewsBriefingContent(content).lead,
-    )).take(2)
+    return paragraphs
 }
 
-private val DailyOverviewHeadingRegex = Regex("""^\s*#{1,6}\s*(?:🗞️\s*)?(?:今日要闻|每日封面)\s*$""")
+private fun joinWrappedOverviewLines(lines: List<String>): String = buildString {
+    lines.forEach { line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return@forEach
+        if (isNotEmpty() && needsSpaceBetweenLines(last(), trimmed.first())) append(' ')
+        append(trimmed)
+    }
+}
 
-private fun String.withoutBriefingMarkdownForOverview(): String = visibleUnifiedNewsTextWithoutCitation(this)
-    .replace(Regex("""\*(.*?)\*"""), "$1")
-    .replace(Regex("""_(.*?)_"""), "$1")
+private fun needsSpaceBetweenLines(previous: Char, next: Char): Boolean =
+    previous.code < 128 && next.code < 128 &&
+        (previous.isLetterOrDigit() || previous in ",.;:!?)") &&
+        (next.isLetterOrDigit() || next == '(')
+
+private fun String.withoutBriefingMarkdownForOverview(): String = replace(OverviewMarkdownLinkRegex, "$1")
+    .let(::visibleUnifiedNewsTextWithoutCitation)
+    .replace(OverviewItalicAsteriskRegex, "$1")
+    .replace(OverviewItalicUnderscoreRegex, "$1")
+    .trim()
+
+/** Structures overview text into a subtle lead sentence plus natural paragraphs without fabricating or clipping copy. */
+internal fun headlineOverviewLayout(overview: List<String>): HeadlineOverviewLayout? {
+    val blocks = overview.map { it.trim() }.filter { it.isNotEmpty() }
+    if (blocks.isEmpty()) return null
+    val firstBlock = blocks.first()
+    val extraBlocks = blocks.drop(1)
+    val firstRanges = naturalSentenceRanges(firstBlock)
+    val firstSentence = firstBlock.sliceRange(firstRanges.first())
+    val leadFits = firstSentence.codePointCount(0, firstSentence.length) <= MaxLeadSentenceCodePoints
+    if (extraBlocks.isEmpty()) {
+        if (firstRanges.size == 1) {
+            return if (leadFits) HeadlineOverviewLayout(lead = firstSentence, paragraphs = emptyList())
+            else HeadlineOverviewLayout(lead = null, paragraphs = listOf(firstBlock))
+        }
+        return if (leadFits) {
+            HeadlineOverviewLayout(
+                lead = firstSentence,
+                paragraphs = groupSentenceRangesIntoParagraphs(firstBlock, firstRanges.drop(1)),
+            )
+        } else {
+            HeadlineOverviewLayout(
+                lead = null,
+                paragraphs = groupSentenceRangesIntoParagraphs(firstBlock, firstRanges),
+            )
+        }
+    }
+    if (!leadFits) {
+        return HeadlineOverviewLayout(lead = null, paragraphs = blocks.flatMap(::splitOversizedOverviewBlock))
+    }
+    val remaining = buildList {
+        if (firstRanges.size > 1) {
+            val tail = firstBlock.sliceRange(firstRanges[1].first..firstRanges.last().last)
+            if (tail.isNotEmpty()) addAll(splitOversizedOverviewBlock(tail))
+        }
+        extraBlocks.forEach { addAll(splitOversizedOverviewBlock(it)) }
+    }
+    return HeadlineOverviewLayout(lead = firstSentence, paragraphs = remaining)
+}
+
+private fun splitOversizedOverviewBlock(block: String): List<String> {
+    if (block.codePointCount(0, block.length) <= MaxTwoParagraphOverviewCodePoints) return listOf(block)
+    val ranges = naturalSentenceRanges(block)
+    return if (ranges.size >= 2) groupSentenceRangesIntoParagraphs(block, ranges) else listOf(block)
+}
+
+private fun groupSentenceRangesIntoParagraphs(source: String, ranges: List<IntRange>): List<String> {
+    if (ranges.isEmpty()) return emptyList()
+    if (ranges.size == 1) return listOf(source.sliceRange(ranges.first()))
+    val full = source.sliceRange(ranges.first().first..ranges.last().last)
+    val totalCp = full.codePointCount(0, full.length)
+    if (totalCp < MinBalancedOverviewSplitCodePoints) return listOf(full)
+    if (totalCp <= MaxTwoParagraphOverviewCodePoints) {
+        return splitIntoTwoBalancedParagraphs(source, ranges) ?: listOf(full)
+    }
+    return groupLongOverviewSentences(source, ranges)
+}
+
+private fun splitIntoTwoBalancedParagraphs(source: String, ranges: List<IntRange>): List<String>? {
+    var bestSplit = -1
+    var bestDiff = Int.MAX_VALUE
+    for (split in 1 until ranges.size) {
+        val left = source.sliceRange(ranges.first().first..ranges[split - 1].last)
+        val right = source.sliceRange(ranges[split].first..ranges.last().last)
+        val leftCp = left.codePointCount(0, left.length)
+        val rightCp = right.codePointCount(0, right.length)
+        if (leftCp < MinOverviewChunkCodePoints || rightCp < MinOverviewChunkCodePoints) continue
+        val diff = kotlin.math.abs(leftCp - rightCp)
+        if (diff < bestDiff) {
+            bestDiff = diff
+            bestSplit = split
+        }
+    }
+    if (bestSplit < 0) return null
+    return listOf(
+        source.sliceRange(ranges.first().first..ranges[bestSplit - 1].last),
+        source.sliceRange(ranges[bestSplit].first..ranges.last().last),
+    )
+}
+
+private fun groupLongOverviewSentences(source: String, ranges: List<IntRange>): List<String> {
+    val chunks = mutableListOf<Pair<Int, Int>>()
+    var chunkStart = ranges.first().first
+    var chunkEnd = ranges.first().last
+    for (index in 1 until ranges.size) {
+        val nextRange = ranges[index]
+        val currentText = source.sliceRange(chunkStart..chunkEnd)
+        val currentCp = currentText.codePointCount(0, currentText.length)
+        val candidateText = source.sliceRange(chunkStart..nextRange.last)
+        val candidateCp = candidateText.codePointCount(0, candidateText.length)
+        if (currentCp >= MinLongOverviewFlushCodePoints && candidateCp > TargetLongOverviewParagraphCodePoints) {
+            chunks += chunkStart to chunkEnd
+            chunkStart = nextRange.first
+            chunkEnd = nextRange.last
+        } else {
+            chunkEnd = nextRange.last
+        }
+    }
+    chunks += chunkStart to chunkEnd
+    if (chunks.size >= 2) {
+        val last = chunks.last()
+        val lastText = source.sliceRange(last.first..last.second)
+        if (lastText.codePointCount(0, lastText.length) < MinTrailingOverviewChunkCodePoints) {
+            val prev = chunks[chunks.lastIndex - 1]
+            chunks[chunks.lastIndex - 1] = prev.first to last.second
+            chunks.removeAt(chunks.lastIndex)
+        }
+    }
+    return chunks.map { (start, end) -> source.sliceRange(start..end) }
+}
+
+private fun naturalSentenceRanges(text: String): List<IntRange> {
+    val ranges = mutableListOf<IntRange>()
+    var start = 0
+    while (start < text.length && text[start].isWhitespace()) start++
+    var index = start
+    while (index < text.length) {
+        val ch = text[index]
+        val isBoundary = ch in "。！？" || (ch in ".!?" && isAsciiSentenceBoundary(text, index))
+        if (!isBoundary) {
+            index++
+            continue
+        }
+        var end = index
+        while (end + 1 < text.length && text[end + 1] in "。！？!?") end++
+        while (end + 1 < text.length && text[end + 1] in "”’」』）】》\"')]") end++
+        if (start <= end) ranges += start..end
+        index = end + 1
+        while (index < text.length && text[index].isWhitespace()) index++
+        start = index
+    }
+    if (start < text.length) {
+        var end = text.lastIndex
+        while (end >= start && text[end].isWhitespace()) end--
+        if (start <= end) ranges += start..end
+    }
+    return ranges.ifEmpty { listOf(0..text.lastIndex) }
+}
+
+private fun isAsciiSentenceBoundary(text: String, index: Int): Boolean {
+    val ch = text[index]
+    val next = text.getOrNull(index + 1)
+    if (ch == '.') {
+        if (text.getOrNull(index - 1) == '.' || next == '.') return false
+        val prev = text.getOrNull(index - 1)
+        if (prev != null && prev.isDigit() && next != null && next.isDigit()) return false
+        if (next != null && (next.isLetterOrDigit() || next == '/' || next == '_')) return false
+        if (isAbbreviationPeriod(text, index)) return false
+    }
+    var after = index + 1
+    while (after < text.length && text[after] in "”’」』）】》\"')]") after++
+    val follower = text.getOrNull(after) ?: return true
+    return follower.isWhitespace() || follower.code >= 128
+}
+
+private fun isAbbreviationPeriod(text: String, dotIndex: Int): Boolean {
+    var start = dotIndex - 1
+    while (start >= 0 && (text[start].isLetter() || text[start] == '.')) start--
+    val token = text.substring(start + 1, dotIndex)
+    if (token.isEmpty()) return false
+    if (token.length == 1 && token[0].isUpperCase()) return true
+    return token.lowercase() in OverviewAbbreviations
+}
+
+private fun String.sliceRange(range: IntRange): String = substring(range.first, range.last + 1).trim()
 
 internal fun dailyHeadlineStories(
     summary: Unified_news_summary,

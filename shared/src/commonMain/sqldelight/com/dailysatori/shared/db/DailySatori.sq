@@ -2855,11 +2855,22 @@ WHERE status = 'success'
 ORDER BY window_end_ms DESC
 LIMIT 1;
 
+-- Newest briefings whose body is really readable: space, tab, CR and LF only are not content.
+selectReadableUnifiedNewsSummaries:
+SELECT * FROM unified_news_summary
+WHERE status = 'success'
+  AND trim(content, char(32) || char(9) || char(10) || char(13)) <> ''
+ORDER BY summary_date DESC, window_end_ms DESC
+LIMIT ?;
+
 selectUnifiedNewsSummaryByWindow:
 SELECT * FROM unified_news_summary WHERE summary_date = ? AND window_key = ?;
 
 selectUnifiedNewsSummaryByDate:
 SELECT * FROM unified_news_summary WHERE summary_date = ? AND window_key = 'daily';
+
+selectUnifiedNewsSummariesByDate:
+SELECT * FROM unified_news_summary WHERE summary_date = ? ORDER BY window_end_ms DESC;
 
 selectUnifiedNewsSources:
 SELECT * FROM unified_news_source WHERE summary_id = ? ORDER BY id ASC;

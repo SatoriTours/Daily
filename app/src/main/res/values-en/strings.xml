@@ -89,6 +89,18 @@
     <string name="assistant_action_task_center">Task Center</string>
     <string name="assistant_action_status_planned">Planned</string>
     <string name="assistant_action_status_submitted">Submitted</string>
+    <string name="assistant_local_news_badge">On device · not sent to cloud</string>
+    <string name="assistant_local_news_loading">Reading the on-device briefing…</string>
+    <string name="assistant_local_news_read_failed">Could not read the on-device briefing. Please try again later.</string>
+    <string name="assistant_local_news_not_prepared">No briefing has been generated for today yet.</string>
+    <string name="assistant_local_news_not_prepared_latest">No briefing has been generated for today yet. The latest one is %1$s.</string>
+    <string name="assistant_local_news_generating">Today\'s briefing is being generated.</string>
+    <string name="assistant_local_news_failed">Today\'s briefing failed to generate.</string>
+    <string name="assistant_local_news_empty">Today\'s briefing has no content.</string>
+    <string name="assistant_local_news_latest_missing">No briefing is available yet.</string>
+    <string name="assistant_local_news_earlier">earlier briefing</string>
+    <string name="assistant_local_news_sources">Sources</string>
+    <string name="assistant_local_news_footnote">Read on this device. It is not written to the conversation and is not sent with your next question.</string>
     <string name="assistant_action_status_succeeded">Succeeded</string>
     <string name="assistant_action_status_needs_input">Needs input</string>
     <string name="assistant_action_status_cancelled">Cancelled</string>
@@ -492,6 +504,8 @@
     <string name="assistant_open">Open AI assistant</string>
     <string name="assistant_close">Close assistant</string>
     <string name="assistant_more">More assistant actions</string>
+    <string name="assistant_session_history">Chat history</string>
+    <string name="assistant_status_processing">Processing…</string>
     <string name="assistant_attach_page">Reference current page</string>
     <string name="assistant_memory">Memory</string>
     <string name="assistant_tasks">Background tasks</string>

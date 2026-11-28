@@ -21,11 +21,23 @@ class UnifiedNewsSummaryRepository(private val db: DailySatoriDatabase) {
     fun getLatestSuccessful(): Unified_news_summary? =
         q.selectLatestSuccessfulUnifiedNewsSummary().executeAsOneOrNull()
 
+    /**
+     * Newest generated briefings that actually carry text, newest first. The SQL side already ignores
+     * space/tab/CR/LF-only bodies so a "success" row without content cannot hide an older readable one;
+     * the caller still guards each row with a blank check for exotic whitespace.
+     */
+    fun getReadableSummaries(limit: Long = 8): List<Unified_news_summary> =
+        q.selectReadableUnifiedNewsSummaries(limit).executeAsList()
+
     fun getByWindow(summaryDate: String, windowKey: String): Unified_news_summary? =
         q.selectUnifiedNewsSummaryByWindow(summaryDate, windowKey).executeAsOneOrNull()
 
     fun getByDate(summaryDate: String): Unified_news_summary? =
         q.selectUnifiedNewsSummaryByDate(summaryDate).executeAsOneOrNull()
+
+    /** Every window of one day, newest first; the daily row alone would hide a fresher briefing. */
+    fun getByDateAllWindows(summaryDate: String): List<Unified_news_summary> =
+        q.selectUnifiedNewsSummariesByDate(summaryDate).executeAsList()
 
     fun getByDateFlow(summaryDate: String): Flow<Unified_news_summary?> =
         q.selectUnifiedNewsSummaryByDate(summaryDate).asFlow().mapToOneOrNull(Dispatchers.IO)

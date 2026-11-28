@@ -111,6 +111,18 @@
     <string name="assistant_action_task_center">任务中心</string>
     <string name="assistant_action_status_planned">计划中</string>
     <string name="assistant_action_status_submitted">已提交</string>
+    <string name="assistant_local_news_badge">本机阅读 · 未发送云端</string>
+    <string name="assistant_local_news_loading">正在读取本机简报…</string>
+    <string name="assistant_local_news_read_failed">无法读取本机简报，请稍后重试。</string>
+    <string name="assistant_local_news_not_prepared">今天还没有生成简报。</string>
+    <string name="assistant_local_news_not_prepared_latest">今天还没有生成简报。最近一次在 %1$s。</string>
+    <string name="assistant_local_news_generating">今天的简报正在生成中。</string>
+    <string name="assistant_local_news_failed">今天的简报生成失败。</string>
+    <string name="assistant_local_news_empty">今天的简报没有内容。</string>
+    <string name="assistant_local_news_latest_missing">还没有可读的简报。</string>
+    <string name="assistant_local_news_earlier">较早简报</string>
+    <string name="assistant_local_news_sources">来源</string>
+    <string name="assistant_local_news_footnote">本机阅读，不写入对话记录，也不会随下一次提问发送。</string>
     <string name="assistant_action_status_succeeded">已完成</string>
     <string name="assistant_action_status_needs_input">需补充信息</string>
     <string name="assistant_action_status_cancelled">已取消</string>
@@ -514,6 +526,8 @@
     <string name="assistant_open">打开 AI 助手</string>
     <string name="assistant_close">关闭助手</string>
     <string name="assistant_more">助手更多操作</string>
+    <string name="assistant_session_history">对话记录</string>
+    <string name="assistant_status_processing">正在处理…</string>
     <string name="assistant_attach_page">引用当前页</string>
     <string name="assistant_memory">记忆管理</string>
     <string name="assistant_tasks">后台任务</string>

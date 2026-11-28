@@ -9,6 +9,7 @@
     <string name="news_focus_opportunities_tab">我的机会</string>
     <string name="news_focus_overview">今日总览</string>
     <string name="news_focus_view_source">查看来源</string>
+    <string name="news_focus_choose_source">选择来源</string>
     <string name="news_cover_image">新闻封面</string>
     <string name="news_focus_opportunity_point">机会点是什么</string>
     <string name="news_focus_why_watch">为什么值得关注</string>
@@ -26,6 +27,9 @@
     <string name="news_focus_view_opportunity">查看详情</string>
     <string name="news_focus_headlines">今日要闻</string>
     <string name="news_focus_past_headlines">当日要闻</string>
+    <string name="news_focus_briefing_date_title">%1$s要闻</string>
+    <string name="news_focus_overview_label">综述</string>
+    <string name="news_focus_source_count">%1$d 条来源</string>
     <string name="news_focus_read_more">查看详细新闻 →</string>
     <string name="news_focus_more">查看更多</string>
     <string name="news_focus_continuous">持续更新 · 点子推进</string>

@@ -12,6 +12,10 @@ import com.dailysatori.service.assistant.AssistantMemoryView
 import com.dailysatori.service.assistant.AssistantMessage
 import com.dailysatori.service.assistant.AssistantReference
 import com.dailysatori.service.assistant.AssistantSessionSummary
+import com.dailysatori.service.localnews.LocalNewsBriefing
+import com.dailysatori.service.localnews.LocalNewsBriefingReader
+import com.dailysatori.service.localnews.LocalNewsIntent
+import com.dailysatori.service.localnews.localNewsIntentOf
 import kotlinx.coroutines.CancellationException
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.reminder.ReminderDraft
@@ -51,6 +55,17 @@ data class ChatMessageUi(
 
 data class AssistantDraft(val value: TextFieldValue = TextFieldValue(), val revision: Long = 0)
 
+/**
+ * A local news question and its answer. It exists only while the process does: it is never written to the
+ * conversation, messages, memories or the backfill, so reopening the app cannot show it again.
+ * [briefing] stays null when the local read itself failed.
+ */
+data class LocalNewsTurn(
+    val question: String,
+    val isLoading: Boolean,
+    val briefing: LocalNewsBriefing? = null,
+)
+
 private fun restoredAssistantDrafts(saved: List<String>?): Map<String, AssistantDraft> = saved.orEmpty().chunked(4)
     .filter { it.size == 4 }.associate { (id, text, start, end) ->
         id to AssistantDraft(TextFieldValue(text, TextRange(
@@ -74,6 +89,7 @@ data class AiChatState(
     val isLoadingOlderMessages: Boolean = false,
     val isLoadingMessages: Boolean = true,
     val showSessions: Boolean = false,
+    val localNews: Map<String, LocalNewsTurn> = emptyMap(),
 ) {
     val draft: TextFieldValue get() = drafts[sessionId]?.value ?: TextFieldValue()
     val canEditDraft: Boolean get() = sessionId.isNotBlank()
@@ -228,6 +244,9 @@ fun generateChatMessageId(now: Long): String {
 class AiChatViewModel(
     private val conversation: AssistantConversation,
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    private val localNews: LocalNewsBriefingReader = LocalNewsBriefingReader { _, _, _ ->
+        error("local news reader is not configured")
+    },
 ) : ViewModel() {
     private val _state = MutableStateFlow(AiChatState(
         sessionId = savedStateHandle["assistant.ui.session"] ?: "",
@@ -237,6 +256,8 @@ class AiChatViewModel(
 
     private var messagesJob: Job? = null
     private val draftClientUuids = mutableMapOf<Pair<String, String>, String>()
+    private var localNewsRequestSeq = 0L
+    private val localNewsRequests = mutableMapOf<String, Long>()
 
     init {
         state.map { it.sessionId to it.drafts }.distinctUntilChanged().onEach { (session, drafts) ->
@@ -258,6 +279,7 @@ class AiChatViewModel(
             val sessions = summaries.map { it.id }
             val removed = _state.value.availableSessions.toSet() - sessions.toSet()
             draftClientUuids.keys.removeAll { it.first in removed }
+            localNewsRequests.keys.removeAll { it in removed }
             var activeSessionChanged = false
             _state.update { current ->
                 val isCurrentlyKnown = current.sessionId in current.availableSessions
@@ -278,6 +300,7 @@ class AiChatViewModel(
                     drafts = current.drafts - removed,
                     showSessions = if (isDeletedFromPersisted) false else current.showSessions,
                     messages = if (activeSessionChanged) emptyList() else current.messages,
+                    localNews = current.localNews - removed,
                     isProcessing = if (activeSessionChanged) false else current.isProcessing,
                     isLoadingMessages = activeSessionChanged || current.isLoadingMessages,
                     currentStep = if (activeSessionChanged) "" else current.currentStep,
@@ -391,10 +414,17 @@ class AiChatViewModel(
     ) {
         if (content.isBlank()) return
         val session = _state.value.sessionId.ifBlank { startNewSession() }
+        val localIntent = localNewsIntentOf(content)
+        if (localIntent != null) {
+            answerNewsLocally(session, content, localIntent)
+            return
+        }
         val uuid = clientMessageId ?: prepareInput(content)
         val acceptedDraft = _state.value.drafts[session]?.takeIf { it.value.text == content }
         viewModelScope.launch {
             try {
+                // The local round belongs to the exchange that produced it; a new question replaces it.
+                _state.update { it.copy(localNews = it.localNews - session) }
                 conversation.sendWithContext(
                     sessionId = session,
                     clientMessageId = uuid,
@@ -403,18 +433,62 @@ class AiChatViewModel(
                     includeThoughts = includeThoughts,
                 )
                 draftClientUuids.remove(session to content)
-                if (acceptedDraft != null) _state.update { current ->
-                    val latest = current.drafts[session]
-                    if (latest?.revision == acceptedDraft.revision && latest.value.text == content) {
-                        current.copy(drafts = current.drafts - session)
-                    } else current
-                }
+                clearAcceptedDraft(session, content, acceptedDraft)
                 onSuccess?.invoke()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
                 _uiErrors.value = UiError("发送失败：${e.message ?: "未知错误"}")
             }
+        }
+    }
+
+    /**
+     * Reads the briefing the app already generated and shows it in place. No conversation, task, memory or
+     * model request is created, so a missing or failed local read costs no cloud consent and no AI call.
+     */
+    private fun answerNewsLocally(session: String, content: String, intent: LocalNewsIntent) {
+        val acceptedDraft = _state.value.drafts[session]?.takeIf { it.value.text == content }
+        clearAcceptedDraft(session, content, acceptedDraft)
+        // "Today" must come from the moment the question was asked, not from when the coroutine starts.
+        val receivedAtMs = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        val timeZoneId = kotlinx.datetime.TimeZone.currentSystemDefault().id
+        val request = ++localNewsRequestSeq
+        localNewsRequests[session] = request
+        _state.update { current ->
+            current.copy(localNews = current.localNews + (session to LocalNewsTurn(content, isLoading = true)))
+        }
+        viewModelScope.launch {
+            val briefing = try {
+                localNews.read(intent = intent, receivedAtMs = receivedAtMs, timeZoneId = timeZoneId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            _state.update { current ->
+                // One request identity per session: a slower earlier question (even with identical text)
+                // can never fill in or clear the newer pending answer.
+                if (localNewsRequests[session] != request) return@update current
+                when {
+                    // Leaving the session drops its transient round instead of showing it later.
+                    current.sessionId != session -> current.copy(localNews = current.localNews - session)
+                    current.localNews[session] == null -> current
+                    else -> current.copy(
+                        localNews = current.localNews + (session to LocalNewsTurn(content, isLoading = false, briefing = briefing)),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun clearAcceptedDraft(session: String, content: String, accepted: AssistantDraft?) {
+        if (accepted == null) return
+        _state.update { current ->
+            val latest = current.drafts[session]
+            if (latest?.revision == accepted.revision && latest.value.text == content) {
+                current.copy(drafts = current.drafts - session)
+            } else current
         }
     }
 
@@ -455,10 +529,12 @@ class AiChatViewModel(
                     isProcessing = if (wasCurrent) false else current.isProcessing,
                     isLoadingMessages = wasCurrent || current.isLoadingMessages,
                     drafts = current.drafts - sessionId,
+                    localNews = current.localNews - sessionId,
                     availableSessions = current.availableSessions.filterNot { it == sessionId },
                     sessionSummaries = current.sessionSummaries.filterNot { it.id == sessionId },
                 ) }
                 draftClientUuids.keys.removeAll { it.first == sessionId }
+                localNewsRequests.remove(sessionId)
                 if (wasCurrent) observeMessagesForSession(next)
             } catch (cancelled: CancellationException) {
                 throw cancelled

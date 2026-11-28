@@ -3,12 +3,6 @@ package com.dailysatori.ui.feature.aichat
 import com.dailysatori.core.diagnostics.performanceTab
 import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.service.diagnostics.PerformanceScreen
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +24,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
 import com.dailysatori.ui.theme.MoreActionsIcon
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,8 +55,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.McpSearchResult
@@ -73,6 +64,7 @@ import com.dailysatori.ui.feature.reminder.ReminderDraftCard
 import com.dailysatori.ui.feature.reminder.ReminderDraftUiState
 import com.dailysatori.ui.feature.reminder.ReminderViewModel
 import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.dailysatori.ui.theme.editorial
@@ -115,11 +107,21 @@ fun AiChatScreen(
 
     val loadOlderMessages = viewModel::loadOlderMessages
     val displayMessages = remember(state.messages) { aiChatDisplayMessages(state.messages) }
+    val visibleMessages = remember(displayMessages) { aiChatVisibleMessages(displayMessages) }
     val showThinking = aiChatShowsThinkingBubble(
         isProcessing = state.isProcessing,
-        hasStreamingAssistant = displayMessages.any { it.isStreaming },
+        hasStreamingAssistant = displayMessages.any { it.isStreaming && it.content.isNotBlank() },
     )
-    val showStoppedStatus = !state.isProcessing && state.currentStep == aiChatStoppedStatusText()
+    val showStoppedStatus = aiChatShowsStoppedStatus(
+        isProcessing = state.isProcessing,
+        currentStep = state.currentStep,
+        messages = displayMessages,
+    )
+    val activeStatusMessage = displayMessages.lastOrNull {
+        it.taskDisplayState == TaskDisplayState.Waiting || it.taskDisplayState == TaskDisplayState.Processing
+    }
+    val localNewsTurn = state.localNews[state.sessionId]
+    val localNewsRows = if (localNewsTurn != null) 1 else 0
     var hasCompletedInitialScroll by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiError) {
@@ -129,14 +131,14 @@ fun AiChatScreen(
         }
     }
 
-    LaunchedEffect(listState, state.canLoadOlderMessages, state.isLoadingOlderMessages, state.messages.size, displayMessages.firstOrNull()?.id) {
+    LaunchedEffect(listState, state.canLoadOlderMessages, state.isLoadingOlderMessages, state.messages.size, visibleMessages.firstOrNull()?.id) {
         snapshotFlow {
             val visibleItems = listState.layoutInfo.visibleItemsInfo
             val firstVisibleItem = visibleItems.minByOrNull { it.index }
             aiChatShouldLoadOlder(
                 firstVisibleItemIndex = firstVisibleItem?.index ?: 0,
                 firstVisibleItemKey = firstVisibleItem?.key,
-                oldestMessageId = displayMessages.firstOrNull()?.id,
+                oldestMessageId = visibleMessages.firstOrNull()?.id ?: displayMessages.firstOrNull()?.id,
                 totalItemsCount = listState.layoutInfo.totalItemsCount,
                 isScrollInProgress = listState.isScrollInProgress,
                 canLoadOlder = state.canLoadOlderMessages,
@@ -148,10 +150,12 @@ fun AiChatScreen(
         }
     }
 
-    LaunchedEffect(displayMessages.size) {
-        if (!aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll, displayMessages.size)) return@LaunchedEffect
+    LaunchedEffect(visibleMessages.size, localNewsRows) {
+        if (!aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll, visibleMessages.size + localNewsRows)) {
+            return@LaunchedEffect
+        }
         val targetIndex = aiChatBottomScrollTargetIndex(
-            messageCount = displayMessages.size,
+            messageCount = visibleMessages.size + localNewsRows,
             showThinking = showThinking,
             showStoppedStatus = showStoppedStatus,
         )
@@ -164,9 +168,9 @@ fun AiChatScreen(
         hasCompletedInitialScroll = true
     }
 
-    LaunchedEffect(displayMessages.size, displayMessages.lastOrNull()?.content, state.isProcessing) {
+    LaunchedEffect(visibleMessages.size, displayMessages.lastOrNull()?.content, state.isProcessing, showThinking, showStoppedStatus, localNewsTurn) {
         val targetIndex = aiChatBottomScrollTargetIndex(
-            messageCount = displayMessages.size,
+            messageCount = visibleMessages.size + localNewsRows,
             showThinking = showThinking,
             showStoppedStatus = showStoppedStatus,
         )
@@ -261,14 +265,21 @@ fun AiChatScreen(
                     backIcon = Icons.Default.Close,
                     backContentDescription = stringResource(R.string.assistant_close),
                     actions = {
-                        IconButton(onClick = { keyboard?.hide(); focus.clearFocus(); viewModel.setSessionsVisible(true) }) {
-                            Icon(Icons.Filled.ChatBubbleOutline, contentDescription = stringResource(R.string.assistant_sessions))
-                        }
                         Box {
                             IconButton(onClick = { showMore = true }) {
                                 Icon(MoreActionsIcon, stringResource(R.string.assistant_more))
                             }
-                            DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
+                            DropdownMenu(
+                                expanded = showMore,
+                                onDismissRequest = { showMore = false },
+                                shape = RoundedCornerShape(Radius.card),
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.assistant_session_history)) },
+                                    onClick = { showMore = false; keyboard?.hide(); focus.clearFocus(); viewModel.setSessionsVisible(true) },
+                                )
+                                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                                 DropdownMenuItem(text = { Text(stringResource(R.string.assistant_attach_page)) },
                                     enabled = canAttachCurrentPage,
                                     onClick = { showMore = false; onAttachCurrentPage() })
@@ -282,6 +293,7 @@ fun AiChatScreen(
                         }
                     },
                 )
+                HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
                 if (contextLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 contextError?.let { Text(stringResource(it), Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
@@ -294,9 +306,9 @@ fun AiChatScreen(
             }
         },
     ) { padding ->
-        if (state.isLoadingMessages && state.messages.isEmpty()) {
+        if (state.isLoadingMessages && state.messages.isEmpty() && localNewsTurn == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        } else if (state.messages.isEmpty()) {
+        } else if (state.messages.isEmpty() && localNewsTurn == null) {
             AiChatWelcomeBrief(modifier = Modifier.fillMaxSize().padding(padding))
         } else {
             LazyColumn(
@@ -306,7 +318,7 @@ fun AiChatScreen(
                 contentPadding = PaddingValues(top = Spacing.m, bottom = 0.dp),
             ) {
                 items(
-                    items = displayMessages,
+                    items = visibleMessages,
                     key = { it.id },
                     contentType = { aiChatMessageContentType(it) },
                 ) { message ->
@@ -322,6 +334,7 @@ fun AiChatScreen(
                             onArticleClick = onArticleClick,
                             onReminderClick = onReminderClick,
                             onTaskCenterClick = onTaskCenterClick,
+                            style = MessageBubbleStyle.AssistantEditorial,
                         )
                         message.reminderDrafts.forEach { draft ->
                             LaunchedEffect(draft.id) { reminderViewModel.registerDraft(draft) }
@@ -337,15 +350,19 @@ fun AiChatScreen(
                 }
                 if (showThinking) {
                     item(key = "thinking", contentType = "status") {
-                        ThinkingIndicator(displayMessages.lastOrNull {
-                            it.taskDisplayState == TaskDisplayState.Waiting || it.taskDisplayState == TaskDisplayState.Processing
-                        }?.requestStage.orEmpty())
+                        ThinkingIndicator(
+                            requestStage = activeStatusMessage?.requestStage.orEmpty(),
+                            taskState = activeStatusMessage?.taskDisplayState,
+                        )
                     }
                 }
                 if (showStoppedStatus) {
                     item(key = "stopped", contentType = "status") {
-                        AssistantStatusCard(text = state.currentStep)
+                        AssistantStatusLine(text = state.currentStep)
                     }
+                }
+                if (localNewsTurn != null) {
+                    item(key = "local_news", contentType = "local_news") { LocalNewsTurnCard(localNewsTurn) }
                 }
             }
         }
@@ -459,6 +476,36 @@ fun aiChatShowsThinkingBubble(isProcessing: Boolean, hasStreamingAssistant: Bool
 
 fun aiChatDisplayMessages(messages: List<ChatMessageUi>): List<ChatMessageUi> = messages
 
+fun aiChatVisibleMessages(messages: List<ChatMessageUi>): List<ChatMessageUi> = messages.filter { message ->
+    if (message.role == "user") return@filter true
+    val hasContentOrExtras = message.content.isNotBlank() ||
+        message.searchResults.isNotEmpty() ||
+        message.references.isNotEmpty() ||
+        message.actions.isNotEmpty() ||
+        message.reminderDrafts.isNotEmpty()
+    val hasTerminalStatus = message.taskDisplayState == TaskDisplayState.Failed ||
+        message.taskDisplayState == TaskDisplayState.Cancelled ||
+        message.taskDisplayState == TaskDisplayState.RequiresResume
+    val hasInlineError = message.isError && message.errorMessage.isNotBlank()
+    hasContentOrExtras || hasTerminalStatus || hasInlineError
+}
+
+fun aiChatShowsStoppedStatus(
+    isProcessing: Boolean,
+    currentStep: String,
+    messages: List<ChatMessageUi>,
+): Boolean = !isProcessing &&
+    currentStep == aiChatStoppedStatusText() &&
+    messages.lastOrNull()?.taskDisplayState != TaskDisplayState.Cancelled
+
+internal fun assistantActiveStatusResource(
+    requestStage: String,
+    taskState: TaskDisplayState?,
+): Int = assistantRequestStageResource(requestStage) ?: when (taskState) {
+    TaskDisplayState.Waiting -> R.string.assistant_task_waiting
+    else -> R.string.assistant_status_processing
+}
+
 fun aiChatMessageContentType(message: ChatMessageUi): String = if (message.role == "user") "user" else "assistant"
 
 fun aiChatBottomScrollTargetIndex(
@@ -506,67 +553,31 @@ fun aiChatShouldLoadOlder(
     firstVisibleItemIndex <= 1 && firstVisibleItemKey == oldestMessageId
 
 @Composable
-private fun ThinkingIndicator(requestStage: String) {
-    val transition = rememberInfiniteTransition(label = "ai-thinking")
-    val iconScale by transition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(animation = tween(860), repeatMode = RepeatMode.Reverse),
-        label = "ai-thinking-scale",
-    )
-    val iconAlpha by transition.animateFloat(
-        initialValue = 0.62f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(860), repeatMode = RepeatMode.Reverse),
-        label = "ai-thinking-alpha",
-    )
+private fun ThinkingIndicator(requestStage: String, taskState: TaskDisplayState?) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start,
+        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = RoundedCornerShape(Radius.circular),
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.36f),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp).scale(iconScale).alpha(iconAlpha),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = stringResource(assistantRequestStageResource(requestStage) ?: R.string.assistant_request_thinking),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
+        CircularProgressIndicator(
+            modifier = Modifier.size(IconSize.xs),
+            strokeWidth = BorderWidth.m,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = stringResource(assistantActiveStatusResource(requestStage, taskState)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 @Composable
-private fun AssistantStatusCard(text: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(Radius.card),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
-            modifier = Modifier.fillMaxWidth(0.8f),
-        ) {
-            Text(
-                text = text,
-                modifier = Modifier.padding(Spacing.m),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+private fun AssistantStatusLine(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

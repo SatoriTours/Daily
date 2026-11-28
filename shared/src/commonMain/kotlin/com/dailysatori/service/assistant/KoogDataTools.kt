@@ -13,9 +13,16 @@ import kotlinx.serialization.json.*
 
 internal fun koogDataTools(
     data: AssistantDataGateway,
+    news: AssistantNewsDigest? = null,
     onResult: (String, String, String) -> Unit = { _, _, _ -> },
     onRead: (String, String) -> Unit = { _, _ -> },
 ): ToolRegistry = ToolRegistry {
+    if (news != null) tool(readTool(ReadNewsArgs.serializer(), ToolDescriptor(
+        "read_news_digest",
+        "读取本机已生成的新闻简报；回答今天或最近有什么新闻时先用它一次，不联网、不遍历文章库。date 省略即今天，也可 latest 或 YYYY-MM-DD。引用时使用返回的 summary_date 与 window；state 不是 ready 时按实际状态说明。",
+        optionalParameters = listOf(parameter("date"), parameter("window"))), onResult) { args ->
+        news.read(args.date, args.window)
+    })
     tool(readTool(Unit.serializer(), ToolDescriptor("list_data_sources", "列出可读取的数据来源及安全字段"), onResult) { _: Unit ->
         data.catalog()
     })
@@ -98,3 +105,6 @@ private data class SearchArgs(
 
 @Serializable
 private data class ReadArgs(val source: String, val id: String, val offset: Int = 0)
+
+@Serializable
+internal data class ReadNewsArgs(val date: String = "", val window: String = "")

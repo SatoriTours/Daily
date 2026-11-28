@@ -299,7 +299,14 @@ class TaskHttpSseCapture(
     private var written = 0
     private var exhausted = false
 
+    /**
+     * Without an armed session there is no handle for this call, so no event can ever be written:
+     * stop buffering and re-sanitizing every SSE event on the receive path.
+     */
+    internal val active: Boolean = taskId != null && handle != null
+
     fun accept(line: String) {
+        if (!active) return
         if (line.isBlank()) {
             flushEvent()
             return
@@ -313,6 +320,7 @@ class TaskHttpSseCapture(
     }
 
     fun finish() {
+        if (!active) return
         if (pending.isNotBlank() && !exhausted) write(TaskHttpDirection.SSE_EVENT, "", TASK_HTTP_INCOMPLETE)
         pending.clear()
     }

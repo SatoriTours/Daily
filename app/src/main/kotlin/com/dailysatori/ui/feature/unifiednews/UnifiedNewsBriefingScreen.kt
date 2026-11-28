@@ -1,35 +1,62 @@
 package com.dailysatori.ui.feature.unifiednews
 
-import com.dailysatori.core.diagnostics.performanceContent
-import com.dailysatori.service.diagnostics.PerformanceResult
-import com.dailysatori.ui.component.appbar.PageAction
-
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.core.os.ConfigurationCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.R
+import com.dailysatori.core.diagnostics.performanceContent
+import com.dailysatori.service.diagnostics.PerformanceResult
 import com.dailysatori.service.opportunity.NewsOpportunity
 import com.dailysatori.service.opportunity.newsArticleKey
 import com.dailysatori.shared.db.Unified_news_source
+import com.dailysatori.ui.component.appbar.PageAction
 import com.dailysatori.ui.component.card.articleDisplayDomain
-import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.news.ArticleReaderBody
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.myspace.MySpaceViewModel
-import com.dailysatori.ui.theme.*
+import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.MarkdownStyles
+import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.theme.editorial
+import java.util.Locale
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (Long) -> Unit, onOpportunity: (String) -> Unit) {
     val viewModel: UnifiedNewsViewModel = koinViewModel()
@@ -44,51 +71,159 @@ fun UnifiedNewsBriefingScreen(summaryId: Long, onBack: () -> Unit, onArticle: (L
         viewModel.closeSourceDetail()
     }
     if (UnifiedNewsDetailRoute(state, viewModel)) return
+
     val summary = state.summaries.firstOrNull { it.id == selectedId }
     val sources = state.sourcesBySummaryId[selectedId].orEmpty()
+    val availableRefKeys = remember(sources) { sources.map { it.ref_key }.toSet() }
+    val document = remember(summary?.content) { parseBriefingDocument(summary?.content.orEmpty()) }
     LaunchedEffect(sources) { viewModel.prepareBriefingArticles(sources) }
     val listState = rememberLazyListState()
     LaunchedEffect(selectedId) { listState.scrollToItem(0) }
-    AppScaffold(title = stringResource(headlinesTitleResource(summary?.summary_date.orEmpty())), onBack = onBack, pageActions = listOf(PageAction(stringResource(R.string.news_focus_history), Icons.Outlined.CalendarMonth,
-        menuContent = { dismiss ->
-            state.summaries.filter { it.content.isNotBlank() }.forEach { entry ->
-                DropdownMenuItem(text = { Text(entry.summary_date) }, onClick = { selectedId = entry.id; dismiss() })
-            }
-        },
-    ) {})) { modifier ->
-        LazyColumn(state = listState, modifier = modifier.fillMaxSize().performanceContent(when {
-            summary != null -> PerformanceResult.OK
-            state.initialSummariesLoaded -> PerformanceResult.EMPTY
-            else -> null
-        }), contentPadding = PaddingValues(Spacing.l),
-            verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            if (summary == null) item {
-                if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                else Text(stringResource(R.string.news_focus_empty), style = MaterialTheme.typography.bodyLarge)
-            }
-            if (summary != null) item {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    Text(stringResource(R.string.news_focus_news_count, summary.summary_date, sources.size),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(headlinesTitleResource(summary.summary_date)), style = MaterialTheme.typography.headlineSmall.editorial(), fontWeight = FontWeight.Bold)
-                    CitationText(content = summary.content, modifier = Modifier.fillMaxWidth()) { citation ->
-                        sources.firstOrNull { it.ref_key == citation }?.let(viewModel::openCitation)
+
+    val locale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0] ?: Locale.getDefault()
+    val topBarTitle = resolveBriefingTitle(
+        summaryDate = summary?.summary_date,
+        todayTitle = stringResource(R.string.news_focus_headlines),
+        pastTitle = stringResource(R.string.news_focus_past_headlines),
+        dateTitleTemplate = stringResource(R.string.news_focus_briefing_date_title),
+        locale = locale,
+    )
+    val onCitationClick: (String) -> Unit = { citation ->
+        sources.firstOrNull { it.ref_key == citation }?.let(viewModel::openCitation)
+    }
+
+    AppScaffold(
+        title = topBarTitle,
+        onBack = onBack,
+        pageActions = listOf(
+            PageAction(
+                stringResource(R.string.news_focus_history),
+                Icons.Outlined.CalendarMonth,
+                menuContent = { dismiss ->
+                    state.summaries.filter { it.content.isNotBlank() }.forEach { entry ->
+                        DropdownMenuItem(text = { Text(entry.summary_date) }, onClick = { selectedId = entry.id; dismiss() })
                     }
-                    Text(stringResource(R.string.news_focus_news_list), style = MaterialTheme.typography.titleLarge.editorial(),
-                        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = Spacing.s))
+                },
+            ) {},
+        ),
+    ) { modifier ->
+        LazyColumn(
+            state = listState,
+            modifier = modifier.fillMaxSize().performanceContent(
+                when {
+                    summary != null -> PerformanceResult.OK
+                    state.initialSummariesLoaded -> PerformanceResult.EMPTY
+                    else -> null
+                },
+            ),
+            contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.s, bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            if (summary == null) {
+                item(key = "briefing-empty-or-loading") {
+                    if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    else Text(
+                        stringResource(R.string.news_focus_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                when (document) {
+                    BriefingDocument.Empty -> if (sources.isEmpty()) {
+                        item(key = "briefing-blank") {
+                            Text(
+                                stringResource(R.string.news_focus_empty),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    is BriefingDocument.Fallback -> item(key = "briefing-fallback") {
+                        BriefingMarkdown(
+                            content = stripLeadingWrapperTitle(document.rawMarkdown),
+                            availableRefKeys = availableRefKeys,
+                            onCitationClick = onCitationClick,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    is BriefingDocument.Structured -> {
+                        if (document.keyPoints.isNotEmpty()) {
+                            item(key = "briefing-key-points") {
+                                val hasFollowingContent = document.sections.isNotEmpty() || sources.isNotEmpty()
+                                Column(Modifier.fillMaxWidth()) {
+                                    document.keyPoints.forEachIndexed { index, point ->
+                                        BriefingKeyPointRow(
+                                            index = index,
+                                            point = point,
+                                            availableRefKeys = availableRefKeys,
+                                            showBottomDivider = index < document.keyPoints.lastIndex || hasFollowingContent,
+                                            onCitationClick = onCitationClick,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        itemsIndexed(document.sections, key = { index, _ -> "briefing-section-$index" }) { index, section ->
+                            BriefingSectionBlock(
+                                section = section,
+                                availableRefKeys = availableRefKeys,
+                                showTopDivider = index > 0,
+                                onCitationClick = onCitationClick,
+                            )
+                        }
+                    }
                 }
             }
-            itemsIndexed(sources, key = { _, source -> source.id }) { index, source ->
-                val related = relatedNewsOpportunities(source, opportunityState.items)
-                NewsBriefingStory(source, index + 1, briefingSourceName(source, state), related,
-                    description = unifiedNewsArticlePreview(source, summary?.content.orEmpty(), emptyList(),
-                        state.articleIdsByNewsSource[source.id]?.let { state.articleSummariesById[it] }),
-                    onRead = { viewModel.openCitation(source) }, onOpportunity = onOpportunity)
-            }
-            if (summary != null && sources.isEmpty()) item {
-                ArticleReaderBody(summary.content, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
+
+            if (summary != null && sources.isNotEmpty()) {
+                item(key = "briefing-sources-header") {
+                    BriefingSourceListHeader(sourceCount = sources.size)
+                }
+                itemsIndexed(sources, key = { _, source -> source.id }) { index, source ->
+                    val related = relatedNewsOpportunities(source, opportunityState.items)
+                    NewsBriefingStory(
+                        source = source,
+                        rank = index + 1,
+                        sourceName = briefingSourceName(source, state),
+                        related = related,
+                        description = unifiedNewsArticlePreview(
+                            source,
+                            summary.content,
+                            emptyList(),
+                            state.articleIdsByNewsSource[source.id]?.let { state.articleSummariesById[it] },
+                        ),
+                        onRead = { viewModel.openCitation(source) },
+                        onOpportunity = onOpportunity,
+                    )
+                }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BriefingSourceListHeader(sourceCount: Int) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = Spacing.m),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        Text(
+            text = stringResource(R.string.news_focus_news_list),
+            style = MaterialTheme.typography.titleMedium.editorial(),
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = stringResource(R.string.news_focus_source_count, sourceCount),
+            modifier = Modifier.padding(top = Spacing.xxs),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -104,17 +239,35 @@ private fun NewsBriefingStory(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         HorizontalDivider(thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
-        Row(Modifier.fillMaxWidth().clickable(onClick = onRead).padding(top = Spacing.s), horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Text(rank.toString().padStart(2, '0'), style = MaterialTheme.typography.titleMedium.editorial(),
-                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onRead)
+                .padding(top = Spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            Text(
+                rank.toString().padStart(2, '0'),
+                style = MaterialTheme.typography.titleMedium.editorial(),
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
             Text(source.title, style = MaterialTheme.typography.titleMedium.editorial(), fontWeight = FontWeight.SemiBold)
         }
-        ArticleReaderBody(description.ifBlank { stringResource(R.string.news_focus_no_summary) },
-            typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
-        Text(stringResource(R.string.news_focus_source, sourceName), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ArticleReaderBody(
+            description.ifBlank { stringResource(R.string.news_focus_no_summary) },
+            typography = MarkdownStyles.cardTypography(),
+            padding = MarkdownStyles.cardPadding(),
+        )
+        Text(
+            stringResource(R.string.news_focus_source, sourceName),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = onRead, contentPadding = PaddingValues(vertical = Spacing.xs)) { Text(stringResource(R.string.news_focus_read_article)) }
+            TextButton(onClick = onRead, contentPadding = PaddingValues(vertical = Spacing.xs)) {
+                Text(stringResource(R.string.news_focus_read_article))
+            }
             if (related.isNotEmpty()) RelatedOpportunityLink(related, onOpportunity)
         }
     }
@@ -124,10 +277,16 @@ private fun NewsBriefingStory(
 private fun RelatedOpportunityLink(items: List<NewsOpportunity>, onOpen: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { if (items.size == 1) onOpen(items.single().id) else expanded = true },
-            contentPadding = PaddingValues(vertical = Spacing.xs)) { Text(stringResource(R.string.news_focus_related, items.size)) }
+        TextButton(
+            onClick = { if (items.size == 1) onOpen(items.single().id) else expanded = true },
+            contentPadding = PaddingValues(vertical = Spacing.xs),
+        ) {
+            Text(stringResource(R.string.news_focus_related, items.size))
+        }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item -> DropdownMenuItem(text = { Text(item.title) }, onClick = { expanded = false; onOpen(item.id) }) }
+            items.forEach { item ->
+                DropdownMenuItem(text = { Text(item.title) }, onClick = { expanded = false; onOpen(item.id) })
+            }
         }
     }
 }

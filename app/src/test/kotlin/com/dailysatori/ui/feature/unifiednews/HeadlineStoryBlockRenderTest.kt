@@ -1,73 +1,92 @@
 package com.dailysatori.ui.feature.unifiednews
 
 import android.app.Application
-import android.os.Looper
-import android.view.View
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import com.dailysatori.ui.theme.DailySatoriTheme
 import com.dailysatori.ui.theme.Spacing
-import org.junit.After
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [28], application = Application::class, qualifiers = "zh-rCN")
+@Config(sdk = [28], application = Application::class, qualifiers = "zh-rCN-w360dp-h800dp-xhdpi")
 class HeadlineStoryBlockRenderTest {
-    private val controllers = mutableListOf<org.robolectric.android.controller.ActivityController<ComponentActivity>>()
+    @get:Rule
+    val compose = createComposeRule()
 
-    @After fun close() {
-        controllers.forEach { it.pause().stop().destroy() }
+    @Test
+    fun singleSourceStoryTapsWholeRowWithoutStandaloneSourceFooter() {
+        val source = source(11, "H1", "VoiceStudio")
+        val story = DailyHeadlineStory(
+            title = "单来源事件",
+            description = "第一段完整正文。",
+            source = source,
+            paragraphs = listOf("第一段完整正文。", "第二段补充细节，不应被行数或字数静默截断。"),
+            sources = listOf(source),
+            citations = listOf("H1"),
+        )
+        var clicked: Unified_news_source? = null
+        setThemedContent { HeadlineStoryBlock(story, onSourceClick = { clicked = it }, index = 1) }
+
+        compose.onNodeWithText("单来源事件").assertExists()
+        compose.onNodeWithText("第一段完整正文。").assertExists()
+        compose.onNodeWithText("第二段补充细节", substring = true).assertExists()
+        compose.onNodeWithText("example.com", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("查看来源", substring = true).assertDoesNotExist()
+
+        val rowNode = compose.onNodeWithText("第二段补充细节", substring = true)
+        assertEquals("查看来源", rowNode.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick)?.label)
+        rowNode.performClick()
+        assertEquals(source, clicked)
     }
 
     @Test
-    fun fullParagraphsAndAllSourceLinksRenderWithoutClamping() {
-        val source = source(11, "H1", "VoiceStudio")
+    fun multiSourceStoryOpensSourceMenuAndRoutesEachChoice() {
+        val first = source(11, "H1", "VoiceStudio")
         val second = source(12, "R1", "内核项目")
         val story = DailyHeadlineStory(
             title = "多来源事件",
             description = "第一段完整正文。",
-            source = source,
-            paragraphs = listOf("第一段完整正文。", "第二段补充细节，不应被行数或字数静默截断。"),
-            sources = listOf(source, second),
+            source = first,
+            paragraphs = listOf("第一段完整正文。"),
+            sources = listOf(first, second),
             citations = listOf("H1", "R1"),
         )
-        val nodes = render(story)
+        val clicked = mutableListOf<Unified_news_source>()
+        setThemedContent { HeadlineStoryBlock(story, onSourceClick = { clicked += it }, index = 1) }
 
-        assertTrue(nodes.any { it.text() == "多来源事件" })
-        assertTrue(nodes.any { it.text() == "第一段完整正文。" })
-        assertTrue(nodes.any { it.text().contains("第二段补充细节") })
-        assertTrue(nodes.any { it.text().contains("example.com") })
-        assertTrue(nodes.any { it.text().contains("查看来源") })
+        val storyNode = compose.onNodeWithText("多来源事件")
+        assertEquals("选择来源", storyNode.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick)?.label)
+        storyNode.performClick()
+        compose.onNodeWithText("内核项目").performClick()
+
+        storyNode.performClick()
+        compose.onNodeWithText("VoiceStudio").performClick()
+
+        assertEquals(listOf(second, first), clicked)
     }
 
     @Test
-    fun unmatchedCitationIsExplicitAndShowsNoSourceLink() {
+    fun sourcelessStoryHasNoFakeClickOrSourceFooter() {
         val story = DailyHeadlineStory(
             title = "未知引用事件",
             description = "正文仍可读。",
@@ -75,45 +94,110 @@ class HeadlineStoryBlockRenderTest {
             paragraphs = listOf("正文仍可读。"),
             unmatchedCitations = listOf("R9"),
         )
-        val nodes = render(story)
+        setThemedContent { HeadlineStoryBlock(story, onSourceClick = {}, index = 1) }
 
-        assertTrue(nodes.any { it.text().contains("未匹配引用 R9") })
-        assertTrue(nodes.none { it.text().contains("查看来源") })
+        compose.onNodeWithText("未知引用事件").assertExists().assertHasNoClickAction()
+        compose.onNodeWithText("正文仍可读。").assertExists().assertHasNoClickAction()
+        compose.onNodeWithText("查看来源", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("未匹配引用", substring = true).assertDoesNotExist()
     }
 
     @Test
-    fun longCachedOverviewIsEllipsizedWithFullBriefingActionBeforeStories() {
-        val overview = "多个项目今天发布新版本，主要变化涉及部署方式和团队协作。".repeat(20)
+    fun overviewBlockIsDirectlyClickableWithoutCardActionOrTruncation() {
+        val lead = "开源与代理工具成为今日热点主线。"
+        val body = "第一组项目开放了表格和文档编辑核心，协议层兼容常见推送方式。".repeat(4)
+        val overview = lead + body
+        var openCount = 0
+        setThemedContent {
+            val entry = Unified_news_summary(
+                7, "2026-10-17", "daily", 0L, 1L, "标题", overview,
+                "success", null, null, 1L, 1L, 1L,
+            )
+            val story = DailyHeadlineStory("第一篇新闻", null, null, paragraphs = listOf("新闻正文不改变。"))
+            HeadlineDigestBody(
+                entry, DailyHeadlineDigest(listOf(overview), listOf(story)),
+                query = "", onBriefing = { openCount++ }, onSourceClick = {}, onCitationClick = {},
+            )
+        }
+
+        compose.onNodeWithText(lead, substring = true).assertExists()
+        compose.onNodeWithText("…", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("今日总览").assertDoesNotExist()
+        compose.onNodeWithText("阅读完整简报").assertDoesNotExist()
+        compose.onNodeWithText("更新于", substring = true).assertDoesNotExist()
+
+        val overviewNode = compose.onNodeWithText(lead, substring = true)
+        assertEquals("阅读完整简报", overviewNode.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick)?.label)
+        val storyBounds = compose.onNodeWithText("第一篇新闻").fetchSemanticsNode().boundsInRoot
+        assertTrue(overviewNode.fetchSemanticsNode().boundsInRoot.bottom <= storyBounds.top)
+
+        overviewNode.performClick()
+        assertEquals(1, openCount)
+    }
+
+    @Test
+    fun queryModeFallsBackToBorderlessClickableDateHeader() {
         var opened = false
-        val nodes = renderDigest(overview, width = 320) { opened = true }
-        val preview = nodes.single { it.text().startsWith("多个项目今天") }.text()
-        assertTrue(preview.endsWith("…"))
-        assertEquals(151, preview.length)
-        assertTrue(overview.startsWith(preview.removeSuffix("…")))
-        val actionText = nodes.single { it.text() == "阅读完整简报" }
-        val storyTitle = nodes.single { it.text() == "第一篇新闻" }
-        assertTrue(actionText.boundsInRoot.bottom < storyTitle.boundsInRoot.top,
-            "Full briefing action ${actionText.boundsInRoot} should precede story ${storyTitle.boundsInRoot}")
-        actionText.parent!!.config[SemanticsActions.OnClick].action!!.invoke()
+        setThemedContent {
+            val entry = Unified_news_summary(
+                7, "2026-10-17", "daily", 0L, 1L, "标题", "## 今日要点\n- 第一篇新闻：正文。[R1]",
+                "success", null, null, 1L, 1L, 1L,
+            )
+            val story = DailyHeadlineStory("第一篇新闻", null, null, paragraphs = listOf("正文。"))
+            HeadlineDigestBody(
+                entry, DailyHeadlineDigest(emptyList(), listOf(story)),
+                query = "新闻", onBriefing = { opened = true }, onSourceClick = {}, onCitationClick = {},
+            )
+        }
+
+        val fallback = compose.onNodeWithText("2026-10-17")
+        compose.onNodeWithText("阅读完整简报").assertDoesNotExist()
+        assertEquals("阅读完整简报", fallback.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick)?.label)
+        fallback.performClick()
         assertTrue(opened)
     }
 
     @Test
-    fun shortOverviewIsUnclippedWithSpaceBeforeTheFirstStory() {
-        val overview = "多项服务发布面向普通用户的更新。"
-        val nodes = renderDigest(overview)
-        val lead = nodes.single { it.text() == overview }
-        val storyTitle = nodes.single { it.text() == "第一篇新闻" }
-        assertTrue(storyTitle.boundsInRoot.top - lead.boundsInRoot.bottom > Spacing.m.value)
-        assertTrue(nodes.single { it.text() == "阅读完整简报" }.boundsInRoot.top > storyTitle.boundsInRoot.bottom)
+    fun emptyOverviewWithoutQueryFallsBackToBorderlessClickableDateHeader() {
+        var opened = false
+        setThemedContent {
+            val entry = Unified_news_summary(
+                7, "2026-10-17", "daily", 0L, 1L, "标题", "## 今日要点\n- 第一篇新闻：正文。[R1]",
+                "success", null, null, 1L, 1L, 1L,
+            )
+            val story = DailyHeadlineStory("第一篇新闻", null, null, paragraphs = listOf("正文。"))
+            HeadlineDigestBody(
+                entry, DailyHeadlineDigest(emptyList(), listOf(story)),
+                query = "", onBriefing = { opened = true }, onSourceClick = {}, onCitationClick = {},
+            )
+        }
+
+        val fallback = compose.onNodeWithText("2026-10-17")
+        fallback.performClick()
+        assertTrue(opened)
     }
 
-    private fun renderDigest(overview: String, width: Int = 400, onBriefing: () -> Unit = {}) = render(width) {
-        val entry = Unified_news_summary(7, "2026-10-17", "daily", 0L, 1L, "标题", overview,
-            "success", null, null, 1L, 1L, 1L)
-        val story = DailyHeadlineStory("第一篇新闻", null, null, paragraphs = listOf("新闻正文不改变。"))
-        HeadlineDigestBody(entry, DailyHeadlineDigest(listOf(overview), listOf(story)),
-            query = "", onBriefing = onBriefing, onSourceClick = {}, onCitationClick = {})
+    @Test
+    fun remainingSectionKeepsInlineCitationClickInteraction() {
+        var clickedCitation: String? = null
+        setThemedContent {
+            val entry = Unified_news_summary(
+                7, "2026-10-17", "daily", 0L, 1L, "标题", "## 今日要闻\n主线一句话。\n\n## 重要变化\n- 端侧趋势 [R1]",
+                "success", null, null, 1L, 1L, 1L,
+            )
+            val digest = DailyHeadlineDigest(
+                overview = listOf("主线一句话。"),
+                stories = listOf(DailyHeadlineStory("第一篇新闻", null, null, paragraphs = listOf("新闻正文。"))),
+                remaining = "## 重要变化\n- 端侧趋势 [R1]",
+            )
+            HeadlineDigestBody(
+                entry, digest, query = "",
+                onBriefing = {}, onSourceClick = {}, onCitationClick = { clickedCitation = it },
+            )
+        }
+
+        compose.onNodeWithText("端侧趋势", substring = true).performClick()
+        assertEquals("R1", clickedCitation)
     }
 
     private fun source(id: Long, ref: String, title: String) = Unified_news_source(
@@ -121,35 +205,15 @@ class HeadlineStoryBlockRenderTest {
         "https://example.com/$ref", title, "来源摘要", null,
     )
 
-    private fun render(story: DailyHeadlineStory) = render { HeadlineStoryBlock(story, onSourceClick = {}) }
-
-    private fun render(width: Int = 400, content: @Composable () -> Unit): List<SemanticsNode> {
-        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup().visible()
-        controllers += controller
-        val view = ComposeView(controller.get())
-        view.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
-                DailySatoriTheme {
-                    Surface {
-                        Column(Modifier.fillMaxWidth().padding(Spacing.m)) {
-                            content()
-                        }
+    private fun setThemedContent(content: @Composable () -> Unit) {
+        compose.setContent {
+            DailySatoriTheme {
+                Surface {
+                    Column(Modifier.fillMaxWidth().padding(Spacing.m)) {
+                        content()
                     }
                 }
             }
         }
-        controller.get().setContentView(view)
-        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
-        view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(3000, View.MeasureSpec.AT_MOST))
-        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
-        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
-        val root = view.getChildAt(0) as ViewRootForTest
-        root.measureAndLayoutForTest()
-        fun collect(node: SemanticsNode): List<SemanticsNode> = listOf(node) + node.children.flatMap(::collect)
-        return collect(root.semanticsOwner.unmergedRootSemanticsNode)
     }
-
-    private fun SemanticsNode.text() =
-        config.getOrNull(SemanticsProperties.Text)?.joinToString("") { it.text }.orEmpty()
 }

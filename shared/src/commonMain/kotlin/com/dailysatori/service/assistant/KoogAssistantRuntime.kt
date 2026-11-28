@@ -8,6 +8,7 @@ import app.cash.sqldelight.db.SqlDriver
 import com.dailysatori.data.repository.*
 import com.dailysatori.service.ai.*
 import com.dailysatori.service.assistant.data.AssistantDataGateway
+import com.dailysatori.service.assistant.data.AssistantNewsDigest
 import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.CancellationException
@@ -45,7 +46,9 @@ class KoogAssistantRuntime(
         val zone = TimeZone.of(turn.timeZoneId)
         val received = Instant.fromEpochMilliseconds(turn.receivedAtMs).toLocalDateTime(zone)
         var checkpoints: AssistantAgentCheckpointStore? = null
-        val tools = koogDataTools(data, onResult = { name, args, result -> checkpoints?.recordRead(name, args, result) }) { source, id ->
+        // "Today" is pinned to the received instant and zone, so recovery re-reads the same briefing.
+        val news = AssistantNewsDigest(driver, received.date.toString(), zone, data::redact)
+        val tools = koogDataTools(data, news, onResult = { name, args, result -> checkpoints?.recordRead(name, args, result) }) { source, id ->
             store.transaction {
                 if (turns.canExecute(requireNotNull(turns.get(turn.id)), owner)) store.exec(
                     "INSERT OR IGNORE INTO assistant_reference(turn_id,source_type,source_id,title) VALUES(?,?,?,?)",
@@ -127,6 +130,7 @@ class KoogAssistantRuntime(
             submit_actions 的计划只允许一次，后台重试复用已有动作；处理中、已保存待调度、原文保存、AI整理完成必须区分。
             不声称 Android 被停止、离线或权限关闭时仍会准时执行；失败或部分成功要逐项说明，不能掩盖。
             记忆必须有用户原话与来源。区分事实、偏好、目标、进行中项目、候选推断和临时笔记；用户纠正/遗忘优先。
+            问今天/最近的重点新闻时先用 read_news_digest 查一次本机简报，不要遍历文章或配置；返回 ready 才引用，并按 summary_date/window 说明是哪一档；state=restricted 表示简报存在但来源没有云端发送授权：不得编造、推测或改写这些新闻内容，不得说今天没有新闻，只说明可在 App 今日要闻查看；no_summary_for_date、generating、failed、empty 各自如实转述，不得用历史简报冒充今天，也不要求用户先开 MCP 或联网。
             需要完整长输入时循环 read_record 分段读取；不要把开头截断当全文理解。关键词检索不是向量语义检索。
             工具和回答不得包含认证配置、数据库结构、任意SQL、Token或安全档案。引用/详情只可使用真实返回的对象ID。
         """.trimIndent()

@@ -2,9 +2,8 @@ package com.dailysatori.ui.feature.unifiednews
 
 import com.dailysatori.core.diagnostics.performanceContent
 import com.dailysatori.service.diagnostics.PerformanceResult
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,11 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -28,8 +26,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,15 +36,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.R
-import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import com.dailysatori.ui.theme.*
 
-private const val HeadlineOverviewPreviewLength = 150
+private const val StorySummaryInkAlpha = 0.82f
+private const val StoryChevronAlpha = 0.82f
 
 @Composable
 internal fun UnifiedNewsHeadlinesContent(
@@ -73,8 +73,8 @@ internal fun UnifiedNewsHeadlinesContent(
             state.initialSummariesLoaded -> PerformanceResult.EMPTY
             else -> null
         }),
-        contentPadding = PaddingValues(start = Spacing.l, end = Spacing.l, top = Spacing.l, bottom = Height.navBar + Spacing.xxl),
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Height.navBar + Spacing.xxl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
         items(headlineSummaries, key = { "headlines-" + it.id }) { entry ->
             val sources = state.sourcesBySummaryId[entry.id].orEmpty()
@@ -92,7 +92,10 @@ internal fun UnifiedNewsHeadlinesContent(
             )
         }
         if (headlineSummaries.isEmpty()) item(key = "headlines-empty") {
-            Column(Modifier.padding(vertical = Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Column(
+                Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            ) {
                 Text(stringResource(R.string.news_focus_empty), style = MaterialTheme.typography.titleLarge)
                 Text(
                     stringResource(R.string.news_focus_empty_hint),
@@ -113,107 +116,160 @@ internal fun HeadlineDigestBody(
     onSourceClick: (Unified_news_source) -> Unit,
     onCitationClick: (String) -> Unit,
 ) {
-    val overview = remember(digest.overview) { digest.overview.joinToString(" ") }
-    val previewEnd = remember(overview) {
-        overview.offsetByCodePoints(0, minOf(overview.codePointCount(0, overview.length), HeadlineOverviewPreviewLength))
-    }
-    val overviewClipped = previewEnd < overview.length
+    val overviewLayout = remember(digest.overview) { headlineOverviewLayout(digest.overview) }
     val hasRemaining = query.isBlank() && digest.remaining.isNotBlank()
+    val hasContentBelowTop = digest.stories.isNotEmpty() || hasRemaining
+    val showFallbackHeader = overviewLayout == null && entry.content.isNotBlank()
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-        if (overview.isEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { HeadlineDigestHeader(entry) }
-        if (overview.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xxs)) {
-                        Box(Modifier.size(Spacing.xs + Spacing.xxs).background(MaterialTheme.colorScheme.primary, CircleShape))
-                        Text(
-                            stringResource(R.string.news_focus_overview),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    HeadlineDigestHeader(entry)
-                }
-                Text(
-                    if (overviewClipped) overview.substring(0, previewEnd).trimEnd() + "…" else overview,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+    Column(Modifier.fillMaxWidth()) {
+        if (overviewLayout != null) {
+            HeadlineOverviewBlock(layout = overviewLayout, onBriefing = onBriefing)
+            if (hasContentBelowTop) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = Spacing.xs),
+                    thickness = BorderWidth.xs,
+                    color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                if (overviewClipped) HeadlineBriefingAction(onBriefing)
             }
-            if (digest.stories.isNotEmpty() || hasRemaining) {
-                HorizontalDivider(Modifier.padding(top = Spacing.xs), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+        } else if (showFallbackHeader) {
+            HeadlineBriefingFallbackHeader(dateLabel = entry.summary_date, onBriefing = onBriefing)
+            if (hasContentBelowTop) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = Spacing.xs),
+                    thickness = BorderWidth.xs,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
             }
         }
         if (digest.stories.isNotEmpty()) {
             Column(Modifier.fillMaxWidth()) {
                 digest.stories.forEachIndexed { index, story ->
-                    if (index > 0) HorizontalDivider(Modifier.padding(vertical = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
-                    HeadlineStoryBlock(story, onSourceClick, index = index + 1)
+                    if (index > 0) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = Spacing.xs + Spacing.l + Spacing.s, end = Spacing.xs),
+                            thickness = BorderWidth.xs,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                    HeadlineStoryBlock(story = story, onSourceClick = onSourceClick, index = index + 1)
                 }
             }
         }
         if (hasRemaining) {
             if (digest.stories.isNotEmpty()) {
-                HorizontalDivider(Modifier.padding(vertical = Spacing.m), thickness = BorderWidth.xs, color = MaterialTheme.colorScheme.outline)
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = Spacing.xs),
+                    thickness = BorderWidth.xs,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
             }
             CitationText(
                 content = digest.remaining,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.xs, vertical = Spacing.m),
                 onCitationClick = onCitationClick,
             )
         }
-        if (!overviewClipped) HeadlineBriefingAction(onBriefing)
     }
 }
 
 @Composable
-private fun HeadlineBriefingAction(onBriefing: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
+private fun HeadlineOverviewBlock(
+    layout: HeadlineOverviewLayout,
+    onBriefing: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val firstParagraphAsTop = layout.lead == null && layout.paragraphs.isNotEmpty()
+    val bodyParagraphs = if (firstParagraphAsTop) layout.paragraphs.drop(1) else layout.paragraphs
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.inset))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(color = MaterialTheme.colorScheme.primary),
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.news_focus_read_briefing),
+                onClick = onBriefing,
+            )
+            .padding(horizontal = Spacing.xs, vertical = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = Height.touchTarget)
-                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onBriefing)
-                .padding(horizontal = Spacing.m, vertical = Spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xxs),
+            verticalAlignment = Alignment.Top,
         ) {
-            Text(
-                stringResource(R.string.news_focus_read_briefing),
-                Modifier.weight(1f),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            if (layout.lead != null) {
+                Text(
+                    text = layout.lead,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            } else if (firstParagraphAsTop) {
+                Text(
+                    text = layout.paragraphs.first(),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
             Icon(
-                Icons.Default.ChevronRight,
+                imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                modifier = Modifier.size(IconSize.s),
+                modifier = Modifier.padding(top = Spacing.xs).size(IconSize.xs),
                 tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        bodyParagraphs.forEach { paragraph ->
+            Text(
+                text = paragraph,
+                modifier = Modifier.fillMaxWidth().padding(end = Spacing.xs + Spacing.xxs),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
 }
 
 @Composable
-private fun HeadlineDigestHeader(entry: Unified_news_summary) {
-    Text(
-        stringResource(
-            R.string.news_focus_updated,
-            entry.summary_date,
-            TimeUtils.formatDateTime(entry.updated_at).substringAfter(' '),
-        ),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+private fun HeadlineBriefingFallbackHeader(
+    dateLabel: String,
+    onBriefing: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = Height.touchTarget)
+            .clip(RoundedCornerShape(Radius.inset))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(color = MaterialTheme.colorScheme.primary),
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.news_focus_read_briefing),
+                onClick = onBriefing,
+            )
+            .padding(horizontal = Spacing.xs, vertical = Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        Text(
+            text = dateLabel,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            modifier = Modifier.size(IconSize.xs),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    }
 }
 
 @Composable
@@ -222,90 +278,100 @@ internal fun HeadlineStoryBlock(
     onSourceClick: (Unified_news_source) -> Unit,
     index: Int? = null,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+    val hasSources = story.sources.isNotEmpty()
+    val hasMultipleSources = story.sources.size > 1
+    var sourceMenuExpanded by remember(story.sources) { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val clickLabel = if (hasMultipleSources) {
+        stringResource(R.string.news_focus_choose_source)
+    } else {
+        stringResource(R.string.news_focus_view_source)
+    }
+
+    val rowModifier = Modifier
+        .fillMaxWidth()
+        .let { base ->
+            if (!hasSources) base
+            else base
+                .clip(RoundedCornerShape(Radius.inset))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple(color = MaterialTheme.colorScheme.primary),
+                    role = Role.Button,
+                    onClickLabel = clickLabel,
+                    onClick = {
+                        if (hasMultipleSources) sourceMenuExpanded = true
+                        else onSourceClick(story.sources.single())
+                    },
+                )
+        }
+        .padding(horizontal = Spacing.xs, vertical = Spacing.s + Spacing.xs)
+
+    Box(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = rowModifier,
             horizontalArrangement = Arrangement.spacedBy(Spacing.s),
             verticalAlignment = Alignment.Top,
         ) {
             if (index != null) {
                 Text(
-                    index.toString().padStart(2, '0'),
-                    modifier = Modifier.widthIn(min = IconSize.m).padding(top = Spacing.xxs),
-                    style = MaterialTheme.typography.labelLarge.editorial(),
-                    fontWeight = FontWeight.Bold,
+                    text = index.toString().padStart(2, '0'),
+                    modifier = Modifier.width(Spacing.l).padding(top = Spacing.xs),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Text(
-                story.title,
+            Column(
                 modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium.editorial(),
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        story.paragraphs.forEach { paragraph ->
-            Text(
-                paragraph,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        val sourceMeta = headlineStorySourceMeta(story)
-        if (sourceMeta.isNotBlank() || story.sources.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xxs),
             ) {
-                Text(
-                    sourceMeta,
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                HeadlineSourceAction(story.sources, onSourceClick)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs + Spacing.xxs),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Text(
+                        text = story.title,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium.editorial(),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (hasSources) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier.padding(top = Spacing.xs).size(IconSize.xs),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = StoryChevronAlpha),
+                        )
+                    }
+                }
+                story.paragraphs.forEach { paragraph ->
+                    Text(
+                        text = paragraph,
+                        modifier = Modifier.fillMaxWidth().padding(end = Spacing.xs + Spacing.xxs),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = StorySummaryInkAlpha),
+                    )
+                }
+            }
+        }
+        if (hasMultipleSources) {
+            DropdownMenu(
+                expanded = sourceMenuExpanded,
+                onDismissRequest = { sourceMenuExpanded = false },
+            ) {
+                story.sources.forEach { source ->
+                    DropdownMenuItem(
+                        text = { Text(source.title.ifBlank { headlineSourceMeta(source).ifBlank { source.ref_key } }) },
+                        onClick = {
+                            sourceMenuExpanded = false
+                            onSourceClick(source)
+                        },
+                    )
+                }
             }
         }
     }
-}
-
-@Composable
-private fun HeadlineSourceAction(
-    sources: List<Unified_news_source>,
-    onSourceClick: (Unified_news_source) -> Unit,
-) {
-    if (sources.isEmpty()) return
-    if (sources.size == 1) {
-        SourceLink(stringResource(R.string.news_focus_view_source)) { onSourceClick(sources.single()) }
-        return
-    }
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        SourceLink(stringResource(R.string.news_focus_view_source) + " (" + sources.size + ")") { expanded = true }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            sources.forEach { source ->
-                DropdownMenuItem(
-                    text = { Text(source.title) },
-                    onClick = {
-                        expanded = false
-                        onSourceClick(source)
-                    },
-                )
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun SourceLink(label: String, onClick: () -> Unit) {
-    Text(
-        label,
-        Modifier.clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
-            .padding(vertical = Spacing.xs),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-    )
 }

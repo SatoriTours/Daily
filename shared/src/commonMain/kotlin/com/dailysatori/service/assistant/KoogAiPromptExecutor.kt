@@ -15,6 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.serialization.json.*
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Koog owns the agent loop; Daily retains configured providers, transport and request diagnostics. */
 class KoogAiPromptExecutor(
@@ -23,6 +24,7 @@ class KoogAiPromptExecutor(
     private val sanitize: (String) -> String = { it },
     private val onPartial: (suspend (String) -> Unit)? = null,
     private val streamFilter: (() -> AssistantStreamRedactor)? = null,
+    private val timeSource: kotlin.time.TimeSource = kotlin.time.TimeSource.Monotonic,
 ) : PromptExecutor() {
     override fun close() = Unit // AiService and its transport are owned by the application.
 
@@ -64,6 +66,12 @@ class KoogAiPromptExecutor(
         val filter = streamFilter?.invoke()
         val collected = StringBuilder()
         var published = ""
+        // Sanitizing the whole prefix on every chunk makes receive time quadratic in the output size, so
+        // later repaints are merged by length or by a short interval. While nothing is publishable yet the
+        // hold-back window is what gates the first words, so those attempts stay per-chunk and the first
+        // safe text is shown as soon as it exists instead of after a further full step.
+        var lastAttemptLength = -1
+        var lastAttemptAt = timeSource.markNow()
         publish("")
         val response = service.chatCompletionStreaming(
             messages = transportMessages(prompt.messages),
@@ -75,10 +83,19 @@ class KoogAiPromptExecutor(
                 require(collected.length + chunk.length <= 200_000)
                 collected.append(chunk)
                 // Callers without a credential snapshot retain the safe, buffered legacy behavior.
-                filter?.prefix(collected.toString())?.let { prefix ->
-                    if (prefix.length > published.length) {
-                        require(prefix.startsWith(published)) { "Unsafe streaming prefix changed" }
-                        publish(prefix); published = prefix
+                if (filter != null) {
+                    val waitingForFirstText = published.isEmpty() && collected.length <= FIRST_TEXT_WINDOW
+                    val due = lastAttemptLength < 0 || waitingForFirstText ||
+                        collected.length - lastAttemptLength >= PUBLISH_STEP ||
+                        lastAttemptAt.elapsedNow() >= PAINT_INTERVAL
+                    if (due) {
+                        lastAttemptLength = collected.length
+                        lastAttemptAt = timeSource.markNow()
+                        val prefix = filter.prefix(collected.toString())
+                        if (prefix.length > published.length) {
+                            require(prefix.startsWith(published)) { "Unsafe streaming prefix changed" }
+                            publish(prefix); published = prefix
+                        }
                     }
                 }
             },
@@ -106,6 +123,15 @@ class KoogAiPromptExecutor(
 
     override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
         throw UnsupportedOperationException("助手传输不提供内容审核接口")
+
+    private companion object {
+        /** About one short sentence of output; merges later repaints without changing what was received. */
+        const val PUBLISH_STEP = 64
+        /** Slow or sparse streams still repaint within this interval instead of waiting for more text. */
+        val PAINT_INTERVAL = 100.milliseconds
+        /** The hold-back window is short; beyond it the first-text rule would only repeat work. */
+        const val FIRST_TEXT_WINDOW = 2048
+    }
 
     private suspend fun <T> sanitizedFailure(block: suspend () -> T): T = try {
         block()

@@ -374,15 +374,97 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun thinkingIndicatorUsesUnifiedBlueAiIconChip() {
+    fun thinkingIndicatorUsesBorderlessSingleLineWithRealStage() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
 
-        assertTrue(source.contains("Icons.Filled.AutoAwesome"))
+        assertFalse(source.contains("Icons.Filled.AutoAwesome"))
+        assertTrue(source.contains("CircularProgressIndicator("))
         assertTrue(source.contains("MaterialTheme.colorScheme.primary"))
         assertTrue(source.contains("val showThinking = aiChatShowsThinkingBubble("))
-        assertTrue(source.contains("assistantRequestStageResource(requestStage) ?: R.string.assistant_request_thinking"))
+        assertTrue(source.contains("assistantActiveStatusResource("))
+        assertFalse(source.contains("正在读取今日要闻"))
         assertFalse(source.contains("text = \"AI 正在思考\""))
         assertFalse(source.contains("text = \"思考中...\""))
+    }
+
+    @Test
+    fun topBarMovesSessionHistoryIntoOverflowMenuFirstItem() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+        val topBar = source.substringAfter("topBar = {").substringBefore(") { padding ->")
+
+        assertFalse(topBar.contains("ChatBubbleOutline"))
+        assertTrue(topBar.contains("Icons.Default.Close"))
+        assertTrue(topBar.contains("MoreActionsIcon"))
+        val historyIndex = topBar.indexOf("R.string.assistant_session_history")
+        val attachIndex = topBar.indexOf("R.string.assistant_attach_page")
+        assertTrue(historyIndex in 0 until attachIndex)
+        assertTrue(topBar.contains("keyboard?.hide(); focus.clearFocus(); viewModel.setSessionsVisible(true)"))
+        assertTrue(topBar.contains("R.string.assistant_memory"))
+        assertTrue(topBar.contains("R.string.assistant_tasks"))
+        assertTrue(topBar.contains("R.string.assistant_cloud_consent"))
+    }
+
+    @Test
+    fun activeStatusResourceUsesRealStageWithoutInventingNewsCopy() {
+        assertEquals(com.dailysatori.R.string.assistant_request_queued, assistantActiveStatusResource("queued", TaskDisplayState.Waiting))
+        assertEquals(com.dailysatori.R.string.assistant_request_waiting, assistantActiveStatusResource("requesting", TaskDisplayState.Processing))
+        assertEquals(com.dailysatori.R.string.assistant_request_receiving, assistantActiveStatusResource("receiving", TaskDisplayState.Processing))
+        assertEquals(com.dailysatori.R.string.assistant_request_processing, assistantActiveStatusResource("received", TaskDisplayState.Processing))
+        assertEquals(com.dailysatori.R.string.assistant_request_retrying, assistantActiveStatusResource("retrying", TaskDisplayState.Waiting))
+        assertEquals(com.dailysatori.R.string.assistant_task_waiting, assistantActiveStatusResource("", TaskDisplayState.Waiting))
+        assertEquals(com.dailysatori.R.string.assistant_status_processing, assistantActiveStatusResource("", TaskDisplayState.Processing))
+        assertEquals(com.dailysatori.R.string.assistant_status_processing, assistantActiveStatusResource("", null))
+    }
+
+    @Test
+    fun visibleMessagesFilterBlankActivePlaceholdersAndKeepRealContentOrTerminalStatus() {
+        val user = ChatMessageUi("u1", "user", "问题", 1L)
+        val blankWaiting = ChatMessageUi("a1", "assistant", "", 2L, taskDisplayState = TaskDisplayState.Waiting)
+        val blankProcessing = ChatMessageUi("a2", "assistant", "  ", 3L, taskDisplayState = TaskDisplayState.Processing)
+        val blankStreaming = ChatMessageUi("a3", "assistant", "", 4L, isStreaming = true)
+        val nonBlankStreaming = ChatMessageUi("a4", "assistant", "第一句", 5L, isStreaming = true)
+        val failedEmpty = ChatMessageUi("a5", "assistant", "", 6L, isError = true, taskDisplayState = TaskDisplayState.Failed, errorMessage = "超时")
+        val cancelledEmpty = ChatMessageUi("a6", "assistant", "", 7L, taskDisplayState = TaskDisplayState.Cancelled)
+        val resumeEmpty = ChatMessageUi("a7", "assistant", "", 8L, taskDisplayState = TaskDisplayState.RequiresResume)
+
+        val visible = aiChatVisibleMessages(
+            listOf(user, blankWaiting, blankProcessing, blankStreaming, nonBlankStreaming, failedEmpty, cancelledEmpty, resumeEmpty),
+        )
+        assertEquals(listOf("u1", "a4", "a5", "a6", "a7"), visible.map { it.id })
+    }
+
+    @Test
+    fun stoppedStatusDoesNotDuplicateCancelledMessage() {
+        val user = ChatMessageUi("u1", "user", "问题", 1L)
+        val cancelled = ChatMessageUi("a1", "assistant", "", 2L, taskDisplayState = TaskDisplayState.Cancelled)
+
+        assertTrue(aiChatShowsStoppedStatus(isProcessing = false, currentStep = aiChatStoppedStatusText(), messages = listOf(user)))
+        assertFalse(aiChatShowsStoppedStatus(isProcessing = false, currentStep = aiChatStoppedStatusText(), messages = listOf(user, cancelled)))
+        assertFalse(aiChatShowsStoppedStatus(isProcessing = true, currentStep = aiChatStoppedStatusText(), messages = listOf(user)))
+    }
+
+    @Test
+    fun assistantPaperInputActionVisualStateDistinguishesStopEnabledAndMuted() {
+        assertEquals(
+            ChatInputActionVisualState.Stop,
+            chatInputActionVisualState(isProcessing = true, canEdit = true, canSend = true, text = ""),
+        )
+        assertEquals(
+            ChatInputActionVisualState.SendEnabled,
+            chatInputActionVisualState(isProcessing = false, canEdit = true, canSend = true, text = "你好"),
+        )
+        assertEquals(
+            ChatInputActionVisualState.SendMuted,
+            chatInputActionVisualState(isProcessing = false, canEdit = true, canSend = true, text = "   "),
+        )
+        assertEquals(
+            ChatInputActionVisualState.SendMuted,
+            chatInputActionVisualState(isProcessing = false, canEdit = false, canSend = true, text = "你好"),
+        )
+        assertEquals(
+            ChatInputActionVisualState.SendMuted,
+            chatInputActionVisualState(isProcessing = false, canEdit = true, canSend = false, text = "你好"),
+        )
     }
 
     @Test

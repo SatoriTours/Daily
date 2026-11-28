@@ -202,6 +202,7 @@ val viewModelModule: Module = module {
         AiChatViewModel(
             conversation = get<com.dailysatori.service.assistant.AssistantConversation>(),
             savedStateHandle = get(),
+            localNews = get<com.dailysatori.service.localnews.LocalNewsBriefingReader>(),
         )
     }
     viewModel {
